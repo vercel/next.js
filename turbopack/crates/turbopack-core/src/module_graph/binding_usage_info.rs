@@ -122,6 +122,7 @@ impl BindingUsageInfo {
     ///
     /// A reference is in this set when the importing module asked for it
     /// ([`BindingUsage::deferrable`][crate::resolve::BindingUsage::deferrable]) and
+    /// - code is generated for it: it is used, in a module that stays in the graph,
     /// - it imports a named export (not the namespace object),
     /// - it resolves to one module (the generated code has a single binding for it),
     /// - the target is side effect free in the sense of `compute_side_effect_free_module_info`,
@@ -495,6 +496,7 @@ pub async fn compute_binding_usage_info(
         }
 
         let unused_references = ResolvedVc::cell(unused_references);
+        let used_exports = ResolvedVc::cell(used_exports);
         let export_circuit_breakers = ResolvedVc::cell(export_circuit_breakers);
         // Deferring needs the unused evaluation references to be gone: an import's evaluation
         // reference to a module without side effects is what would evaluate it eagerly.
@@ -502,6 +504,7 @@ pub async fn compute_binding_usage_info(
             compute_deferred_references(
                 graph_operation,
                 unused_references,
+                used_exports,
                 // The cycle condition reads this set as "every module in an import cycle". It
                 // relies on all of them being in it, not only the ones that break a cycle.
                 export_circuit_breakers,
@@ -512,7 +515,7 @@ pub async fn compute_binding_usage_info(
             unused_references,
             unused_references_edges: ResolvedVc::cell(unused_references_edges),
             deferred_imports,
-            used_exports: ResolvedVc::cell(used_exports),
+            used_exports,
             export_circuit_breakers,
             partial_namespace_modules: ResolvedVc::cell(partial_namespace_modules),
         }
@@ -527,27 +530,36 @@ pub async fn compute_binding_usage_info(
 async fn compute_deferred_references(
     graph: OperationVc<ModuleGraph>,
     unused_references: ResolvedVc<UnusedReferences>,
+    used_exports: ResolvedVc<UsedExportsMap>,
     modules_in_cycles: ResolvedVc<ExportCircuitBreakers>,
 ) -> Result<Vc<DeferredImports>> {
     let graph = graph.connect();
     let graph_ref = graph.await?;
     let unused_references = unused_references.await?;
+    let used_exports = used_exports.await?;
     let modules_in_cycles = modules_in_cycles.await?;
-    let is_used = |ref_data: &RefData, target: &ResolvedVc<Box<dyn Module>>| {
+    // Whether code is generated for the reference. `unused_references` only knows the references
+    // of the modules that stay in the graph, which are the ones with usage info: the references
+    // of a module that is itself only reached by unused references were never looked at.
+    type ModuleVc = ResolvedVc<Box<dyn Module>>;
+    let is_used = |parent: &ModuleVc, ref_data: &RefData, target: &ModuleVc| {
         ref_data.chunking_type.is_parallel()
+            && used_exports.contains_key(parent)
             && !unused_references
                 .get(&ref_data.reference)
                 .is_some_and(|targets| targets.contains(target))
     };
 
-    // The pairs of modules with a reference that asks to be deferred. Only these are looked at
-    // below: most references of a graph are not deferrable.
-    type Pair = (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>);
+    // The pairs of modules with a used reference that asks to be deferred. Only these are looked
+    // at below: most references of a graph are not deferrable. A pair without one defers nothing,
+    // whatever else imports its target.
+    type Pair = (ModuleVc, ModuleVc);
     type References = SmallVec<[ResolvedVc<Box<dyn ModuleReference>>; 2]>;
     let mut pairs: FxHashMap<Pair, Option<References>> = FxHashMap::default();
     graph_ref.traverse_edges_unordered(|parent, target| {
         if let Some((parent, ref_data)) = parent
             && ref_data.binding_usage.deferrable
+            && is_used(&parent, ref_data, &target)
             && !modules_in_cycles.contains(&parent)
             && !modules_in_cycles.contains(&target)
         {
@@ -572,7 +584,7 @@ async fn compute_deferred_references(
         let Some((parent, ref_data)) = parent else {
             return Ok(());
         };
-        if !is_used(ref_data, &target) {
+        if !is_used(&parent, ref_data, &target) {
             return Ok(());
         }
         if ref_data.binding_usage.deferrable {

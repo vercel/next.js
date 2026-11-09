@@ -111,6 +111,17 @@ describe.each([
       }
     })
 
+    it('evaluates the modules of a page that no import defers inside the request that first renders it', async () => {
+      // The page reads a declared module at its top level, and the only other import of that
+      // module is in an export that nothing uses. A page is loaded when a request first renders
+      // it, so the three modules see the route of that request, with and without the option.
+      expect(await html('/request-stores')).toEqual([
+        '/request-stores',
+        '/request-stores',
+        '/request-stores',
+      ])
+    })
+
     it('prerenders a page that uses a declared module which fetches when it is evaluated', async () => {
       const response = await next.fetch('/fetch-at-evaluation')
       expect(response.headers.get('x-nextjs-cache')).toBe('HIT')
