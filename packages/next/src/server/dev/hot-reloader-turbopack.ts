@@ -1268,6 +1268,11 @@ export async function createHotReloaderTurbopack(
         logErrors: true,
 
         dev: {
+          moduleFederationTypes: {
+            projectDir: projectPath,
+            distDir,
+            federation: nextConfig.experimental.turbopackModuleFederation,
+          },
           assetMapper,
           changeSubscriptions,
           clients: [
