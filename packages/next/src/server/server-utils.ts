@@ -64,9 +64,22 @@ function filterInternalQuery(
 const PLAIN_PATH = /^\/(?:[A-Za-z0-9\-._~][A-Za-z0-9\-._~/]*)?$/
 const DOT_SEGMENT = /\/\.{1,2}(?:\/|$)/
 
+/**
+ * What `parseReqUrl` returned for a URL, as far as `normalizeCdnUrl` reads it.
+ * The caller has to take it from the parse result before anything changes
+ * that result, and must not change `query` afterwards.
+ */
+export type ParsedReqUrl = {
+  url: string
+  pathname: string | null
+  hash: string | null
+  query: ParsedUrlQuery
+}
+
 export function normalizeCdnUrl(
   req: BaseNextRequest | IncomingMessage,
-  paramKeys: string[]
+  paramKeys: string[],
+  parsedReqUrl?: ParsedReqUrl
 ) {
   // Without a query there are no params to strip, and for a plain path the
   // normalization below ends with the URL it started with.
@@ -77,16 +90,33 @@ export function normalizeCdnUrl(
 
   // make sure to normalize req.url from CDNs to strip dynamic and rewrite
   // params from the query which are added during routing
-  const _parsedUrl = parseReqUrl(req.url!)
+  let query: ParsedUrlQuery
+  let pathname: string | null
+  let hash: string | null
+  if (parsedReqUrl !== undefined && parsedReqUrl.url === url) {
+    // The caller parsed this very URL already. Parsing a string again gives
+    // the same pathname, hash and query, so take them from that result. The
+    // query is copied because keys are deleted from it below.
+    query = { ...parsedReqUrl.query }
+    pathname = parsedReqUrl.pathname
+    hash = parsedReqUrl.hash
+  } else {
+    const _parsedUrl = parseReqUrl(req.url!)
 
-  // we can't normalize if we can't parse
-  if (!_parsedUrl) {
-    return req.url
+    // we can't normalize if we can't parse
+    if (!_parsedUrl) {
+      return req.url
+    }
+    query = _parsedUrl.query
+    pathname = _parsedUrl.pathname
+    hash = _parsedUrl.hash
   }
-  delete (_parsedUrl as any).search
-  filterInternalQuery(_parsedUrl.query, paramKeys)
+  filterInternalQuery(query, paramKeys)
 
-  req.url = formatUrl(_parsedUrl)
+  // Of what `parseReqUrl` returns, `formatUrl` reads the pathname, the query
+  // and the hash: the URL is relative, so the other parts are empty, and the
+  // search is left out so that it is built from the filtered query.
+  req.url = formatUrl({ pathname, query, hash })
 }
 
 export function interpolateDynamicPath(
@@ -496,8 +526,9 @@ export function getServerUtils({
 
     normalizeCdnUrl: (
       req: BaseNextRequest | IncomingMessage,
-      paramKeys: string[]
-    ) => normalizeCdnUrl(req, paramKeys),
+      paramKeys: string[],
+      parsedReqUrl?: ParsedReqUrl
+    ) => normalizeCdnUrl(req, paramKeys, parsedReqUrl),
 
     interpolateDynamicPath: (
       pathname: string,
