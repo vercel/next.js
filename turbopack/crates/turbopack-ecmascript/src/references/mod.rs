@@ -2179,7 +2179,7 @@ where
                             && !tracing_only
                             && request.await?.request().is_some()
                         {
-                            argument_effects[0] = BumpVec::new().into_boxed_slice();
+                            take(&mut argument_effects[0]);
                         }
                         let error_mode = if in_try {
                             ResolveErrorMode::Warn
