@@ -476,9 +476,25 @@ mod tests {
         entries: Vec<usize>,
         /// The entries of every chunk group.
         chunk_groups: Vec<Vec<usize>>,
+        /// Calls that no reference shows, as (caller, holder, target): the holder registers a
+        /// function with its `Later` reference to the target, and the caller calls it while it
+        /// is being evaluated, if the holder was evaluated before.
+        calls: Vec<(usize, usize, usize)>,
     }
 
     type Group = (Vec<usize>, Vec<usize>);
+
+    /// The lists whose groups get one way in.
+    #[derive(Clone, Copy, PartialEq)]
+    enum Rule {
+        /// As in `compute_merged_modules`.
+        Checked,
+        /// Every list with the bit of a root on a cycle. That is more than is needed, and it
+        /// holds whatever a call loads.
+        EveryCycle,
+        /// `Checked` without its condition on the roots that a `require()` loads.
+        IgnoreRequires,
+    }
 
     impl Graph {
         fn new(entries: &[usize], references: &[&[(usize, Reference)]]) -> Self {
@@ -487,6 +503,7 @@ mod tests {
                 not_mergeable: FxHashSet::default(),
                 entries: entries.to_vec(),
                 chunk_groups: vec![entries.to_vec()],
+                calls: vec![],
             }
         }
 
@@ -692,10 +709,9 @@ mod tests {
         }
 
         /// The roots, as indices into `roots`, that are part of an import cycle: first those whose
-        /// cycle has a reference that does not inherit, then the others. A root of the first kind
-        /// can be loaded while a module that it imports is being evaluated. In a cycle of
-        /// references that inherit, a root is only loaded like that by an import, which is a step
-        /// of the trace of another root.
+        /// cycle holds a module that is not mergeable, then the others. A root of the first kind
+        /// is loaded by an import that starts a trace of its own while a module of the cycle is
+        /// being evaluated.
         fn roots_on_cycles(
             &self,
             roots: &[usize],
@@ -707,12 +723,7 @@ mod tests {
                 if cycle.len() == 1 {
                     continue;
                 }
-                let inherits = cycle.iter().all(|&from| {
-                    self.references[from].iter().all(|&(to, reference)| {
-                        to == from || !cycle.contains(&to) || self.inherits(from, to, reference)
-                    })
-                });
-                if inherits {
+                if cycle.iter().all(|m| !self.not_mergeable.contains(m)) {
                     on_import_cycles.push(bit);
                 } else {
                     reentrant.push(bit);
@@ -721,12 +732,41 @@ mod tests {
             (reentrant, on_import_cycles)
         }
 
+        /// The roots, as indices into `roots`, that a `require()` loads: its target, and what
+        /// the target evaluates. A `require()` in a function runs whenever the function is
+        /// called.
+        fn required_roots(
+            &self,
+            roots: &[usize],
+            reachable_from: &[FxHashSet<usize>],
+        ) -> Vec<usize> {
+            let targets = self
+                .reachable()
+                .into_iter()
+                .flat_map(|from| &self.references[from])
+                .filter(|&&(_, reference)| reference != Import)
+                .map(|&(to, _)| to)
+                .collect::<FxHashSet<_>>();
+            (0..roots.len())
+                .filter(|&bit| {
+                    targets.iter().any(|&target| {
+                        target == roots[bit] || reachable_from[target].contains(&roots[bit])
+                    })
+                })
+                .collect()
+        }
+
         /// The groups that are merged: the modules and the entry points of each.
         fn groups(&self, lists: &[Vec<usize>]) -> Vec<Group> {
+            self.groups_by(lists, Rule::Checked)
+        }
+
+        fn groups_by(&self, lists: &[Vec<usize>], rule: Rule) -> Vec<Group> {
             let roots = self.roots();
             let bitmaps = self.bitmaps(&roots);
             let reachable_from = self.reachable_from();
             let (reentrant, on_import_cycles) = self.roots_on_cycles(&roots, &reachable_from);
+            let required = self.required_roots(&roots, &reachable_from);
             let mut order = EvaluationOrder::new(lists.iter().map(|l| l.iter().copied()));
             // Every second trace goes to a clone, as when the traces are recorded in parallel.
             let mut other = order.clone();
@@ -740,13 +780,17 @@ mod tests {
             let mut groups = vec![];
             for (list_idx, list) in lists.iter().enumerate() {
                 // A list with the bit of a root on a cycle of imports is only checked like the
-                // lists of a reentrant root if it holds a module that is part of a cycle.
+                // lists of a reentrant root if a `require()` loads one of its roots, or if it
+                // holds a module that is part of a cycle.
                 let bitmap = &bitmaps[list[0]];
-                let has_one_way_in = bitmap.iter().any(|bit| reentrant.contains(bit))
-                    || (bitmap.iter().any(|bit| on_import_cycles.contains(bit))
-                        && list
-                            .iter()
-                            .any(|&m| Self::cycle_of(&reachable_from, m).len() > 1));
+                let has = |roots: &[usize]| bitmap.iter().any(|bit| roots.contains(bit));
+                let has_one_way_in = has(&reentrant)
+                    || (has(&on_import_cycles)
+                        && (rule == Rule::EveryCycle
+                            || (rule == Rule::Checked && has(&required))
+                            || list
+                                .iter()
+                                .any(|&m| Self::cycle_of(&reachable_from, m).len() > 1)));
                 let referrers = has_one_way_in.then(|| {
                     let mut referrers = vec![Referrers::default(); list.len()];
                     for from in self.reachable() {
@@ -805,6 +849,11 @@ mod tests {
                         }
                     }
                     self.order.push(module);
+                    for &(caller, holder, target) in &graph.calls {
+                        if caller == module && self.order.contains(&holder) {
+                            self.load(target);
+                        }
+                    }
                     for &(to, reference) in &graph.references[module] {
                         if reference == RequireLast {
                             self.load(to);
@@ -1107,6 +1156,61 @@ mod tests {
         assert_eq!(graph.merged(), vec![]);
         let unchecked = [(vec![1, 0], vec![0])];
         graph.assert_same_order(&unchecked);
+    }
+
+    #[test]
+    fn a_require_that_a_call_runs_keeps_one_way_in() {
+        // 0 imports 1, 2 and 3, and 1 imports 0 again. 6 imports 2 and 3. 4 registers a function
+        // with a `require()`, 5 imports 4, and 2 calls the function while it is evaluated: no
+        // reference leads from 2 to 4. 0, 5 and 6 are entries.
+        let graph = |required: usize, references_of_7: &[(usize, Reference)]| {
+            let mut graph = Graph::new(
+                &[5, 6, 0],
+                &[
+                    &[(1, Import), (2, Import), (3, Import)],
+                    &[(0, Import)],
+                    &[],
+                    &[],
+                    &[(required, Later)],
+                    &[(4, Import)],
+                    &[(2, Import), (3, Import)],
+                    references_of_7,
+                ],
+            )
+            .with_a_chunk_group_per_entry();
+            graph.calls.push((2, 4, required));
+            graph
+        };
+        // The function requires 0, or 7 which imports 0, or 7 which imports 2 and 3. Each time
+        // it loads a root of 2 and 3 while 2 is being evaluated. A factory for 2 and 3 has not
+        // started 3 at that point, so the import of 3 runs the factory a second time.
+        for (graph, merged, unmerged) in [
+            (
+                graph(0, &[]),
+                vec![4, 5, 2, 1, 2, 3, 0, 3, 6],
+                vec![4, 5, 2, 1, 3, 0, 6],
+            ),
+            (
+                graph(7, &[(0, Import)]),
+                vec![4, 5, 2, 1, 2, 3, 0, 7, 3, 6],
+                vec![4, 5, 2, 1, 3, 0, 7, 6],
+            ),
+            (
+                graph(7, &[(2, Import), (3, Import)]),
+                vec![4, 5, 2, 2, 3, 7, 3, 6],
+                vec![4, 5, 2, 3, 7, 6],
+            ),
+        ] {
+            let candidates = graph.candidates(&graph.bitmaps(&graph.roots()));
+            assert!(candidates.contains(&vec![2, 3]));
+            let groups = graph.groups(&candidates);
+            assert!(groups.iter().all(|(modules, _)| !modules.contains(&2)));
+            assert_eq!(graph.evaluate(&groups, &[5, 6]), unmerged);
+            assert_eq!(graph.evaluate(&[], &[5, 6]), unmerged);
+            let unchecked = graph.groups_by(&candidates, Rule::IgnoreRequires);
+            assert!(unchecked.contains(&(vec![2, 3], vec![2, 3])));
+            assert_eq!(graph.evaluate(&unchecked, &[5, 6]), merged);
+        }
     }
 
     #[test]
@@ -1509,6 +1613,85 @@ mod tests {
         // The check is neither vacuous nor does it give up merging. The seeds are fixed, so a
         // change of these numbers is a change of the groups.
         assert_eq!(unchecked_differs, 393);
-        assert_eq!(merged_modules, [33335, 16706]);
+        assert_eq!(merged_modules, [33306, 16697]);
+    }
+
+    /// Adds to a graph what the rule for a `require()` is about: an entry on a cycle of imports
+    /// that imports two modules which another entry imports too, and a module that registers a
+    /// function with a `require()` which another module calls while it is evaluated.
+    fn add_call(graph: &mut Graph, random: &mut Random) {
+        let len = graph.references.len();
+        let entry = random.next(len);
+        let [cycle, first, second, other] = [len, len + 1, len + 2, len + 3];
+        graph.references[entry].extend([(cycle, Import), (first, Import), (second, Import)]);
+        graph.references.extend([
+            vec![(entry, Import)],
+            vec![],
+            vec![],
+            vec![(first, Import), (second, Import)],
+        ]);
+        for entry in [entry, other] {
+            if !graph.entries.contains(&entry) {
+                graph.entries.push(entry);
+                graph.chunk_groups.push(vec![entry]);
+            }
+        }
+        let len = graph.references.len();
+        let (holder, target) = (random.next(len), random.next(len));
+        let caller = [first, random.next(len)][random.next(2)];
+        if holder != target {
+            graph.references[holder].push((target, Later));
+            graph.calls.push((caller, holder, target));
+        }
+    }
+
+    #[test]
+    fn calls_that_no_reference_shows_evaluate_as_with_one_way_in_for_every_cycle() {
+        let mut keeps_more = 0;
+        let mut ignored_requires_differ = 0;
+        for seed in 1..=20000 {
+            let mut random = Random::new(seed);
+            let mut graph = generate_graph(&mut random);
+            add_call(&mut graph, &mut random);
+            let roots = graph.roots();
+            let candidates = graph.candidates(&graph.bitmaps(&roots));
+
+            let mut loads = roots.iter().map(|&root| vec![root]).collect::<Vec<_>>();
+            loads.push(roots.clone());
+            loads.push(roots.iter().rev().copied().collect());
+            let evaluate = |groups: &[Group]| {
+                loads
+                    .iter()
+                    .map(|loads| graph.evaluate(groups, loads))
+                    .collect::<Vec<_>>()
+            };
+
+            // One way in for every list with the bit of a root on a cycle is the rule that no
+            // call can break. The rule that is checked keeps more groups, and they have to
+            // evaluate in the same way.
+            let every_cycle = graph.groups_by(&candidates, Rule::EveryCycle);
+            let groups = graph.groups(&candidates);
+            assert_eq!(
+                evaluate(&groups),
+                evaluate(&every_cycle),
+                "seed {seed}, lists {candidates:?}, groups {groups:?}, references {:?}, not \
+                 mergeable {:?}, chunk groups {:?}, calls {:?}",
+                graph.references,
+                graph.not_mergeable,
+                graph.chunk_groups,
+                graph.calls
+            );
+            if groups != every_cycle {
+                keeps_more += 1;
+            }
+            let ignored_requires = graph.groups_by(&candidates, Rule::IgnoreRequires);
+            if evaluate(&ignored_requires) != evaluate(&every_cycle) {
+                ignored_requires_differ += 1;
+            }
+        }
+        // The rule keeps groups that one way in for every cycle cuts, and the calls break such
+        // groups where the rule does not look at what a `require()` loads.
+        assert_eq!(keeps_more, 6804);
+        assert_eq!(ignored_requires_differ, 428);
     }
 }
