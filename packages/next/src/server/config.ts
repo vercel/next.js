@@ -685,7 +685,7 @@ function assignDefaultsAndValidate(
 
   if (result.output === 'export' && cacheComponents) {
     throw new Error(
-      "`cacheComponents` is not currently supported with `output: 'export'`. Remove `output: 'export'`, or disable `cacheComponents` and `partialPrefetching` to generate a static export.\nRead more: https://nextjs.org/docs/app/guides/static-exports#unsupported-features"
+      "`cacheComponents` is not yet supported with `output: 'export'`. Remove `output: 'export'`, or disable `cacheComponents` and `partialPrefetching` to generate a static export.\nRead more: https://nextjs.org/docs/app/guides/static-exports#unsupported-features"
     )
   }
 

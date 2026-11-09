@@ -37,7 +37,7 @@ describe('cache-components-output-export-config', () => {
 
       expect(exitCode).toBe(1)
       expect(cliOutput).toContain(
-        "`cacheComponents` is not currently supported with `output: 'export'`."
+        "`cacheComponents` is not yet supported with `output: 'export'`."
       )
       expect(cliOutput).toContain(
         "Remove `output: 'export'`, or disable `cacheComponents` and `partialPrefetching` to generate a static export."

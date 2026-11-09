@@ -625,7 +625,7 @@ describe('parameter matching static export validation', () => {
 
   it('rejects static export before validating parameter matching', () => {
     expect(next.cliOutput).toContain(
-      "`cacheComponents` is not currently supported with `output: 'export'`."
+      "`cacheComponents` is not yet supported with `output: 'export'`."
     )
   })
 })
