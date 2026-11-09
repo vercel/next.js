@@ -62,10 +62,11 @@
 //!
 //! Debt is only valid if the matching addition is eventually generated and processed. Producers
 //! must push edge additions into a queue that their operation executes to completion. This is a
-//! requirement on the producers, separate from the GC and snapshot rules above, and it only covers
-//! normal completion: a panic or cancellation that drops a queue is outside this model. If an
-//! addition is lost, the debt stays and a later, logically unrelated addition of the same task pair
-//! silently pays it instead of creating the edge. That can leave a missing edge and skew
+//! requirement on the producers, separate from the GC and snapshot rules above. Production drains
+//! are synchronous (no async cancellation point) and abort on panic rather than returning a partial
+//! graph to a per-task panic catcher. This does not protect jobs abandoned before a drain starts.
+//! If an addition is lost, the debt stays and a later, logically unrelated addition of the same
+//! task pair silently pays it instead of creating the edge. That can leave a missing edge and skew
 //! propagation. Unlike the previous retry loop, which panicked when the addition never arrived,
 //! nothing reports this unless the `verify_aggregation_graph` feature is enabled; its stop-time
 //! check reports residual debt on restored resident tasks.
@@ -1261,26 +1262,28 @@ impl AggregationUpdateQueue {
         &mut self,
         ctx: &mut ExecuteContext<'_>,
     ) -> Vec<(TaskId, TaskId)> {
-        // `process` runs `jobs` and `aggregation_number_updates` before every other queue, so
-        // nothing below them has run yet when both are empty.
-        while !(self.jobs.is_empty() && self.aggregation_number_updates.is_empty()) {
-            self.process(ctx);
-        }
-        assert!(
-            self.find_and_schedule.is_empty() && self.scheduled_tasks.is_empty(),
-            "GC deletion must not schedule task executions, but {} find_and_schedule and {} \
-             scheduled_tasks jobs are pending",
-            self.find_and_schedule.len(),
-            self.scheduled_tasks.len(),
-        );
-        assert!(
-            self.optimize_queue.is_empty(),
-            "a queue built with `new_without_optimizations` must never hold optimize jobs"
-        );
-        take(&mut self.balance_queue)
-            .into_iter()
-            .map(|job| (job.upper_id, job.task_id))
-            .collect()
+        abort_on_aggregation_panic(|| {
+            // `process` runs `jobs` and `aggregation_number_updates` before every other queue, so
+            // nothing below them has run yet when both are empty.
+            while !(self.jobs.is_empty() && self.aggregation_number_updates.is_empty()) {
+                self.process(ctx);
+            }
+            assert!(
+                self.find_and_schedule.is_empty() && self.scheduled_tasks.is_empty(),
+                "GC deletion must not schedule task executions, but {} find_and_schedule and {} \
+                 scheduled_tasks jobs are pending",
+                self.find_and_schedule.len(),
+                self.scheduled_tasks.len(),
+            );
+            assert!(
+                self.optimize_queue.is_empty(),
+                "a queue built with `new_without_optimizations` must never hold optimize jobs"
+            );
+            take(&mut self.balance_queue)
+                .into_iter()
+                .map(|job| (job.upper_id, job.task_id))
+                .collect()
+        })
     }
 
     /// Queues balance jobs for `edges`, skipping any whose endpoints have since been collected:
@@ -3383,15 +3386,31 @@ impl AggregationUpdateQueue {
         &mut self,
         ctx: &mut ExecuteContext<'_>,
     ) -> AggregationUpdateQueueStats {
-        while !self.process(ctx) {}
+        self.execute(ctx);
         take(&mut self.stats)
     }
 }
 
 impl AggregationUpdateQueue {
     pub fn execute(&mut self, ctx: &mut ExecuteContext<'_>) {
-        while !self.process(ctx) {}
+        abort_on_aggregation_panic(|| while !self.process(ctx) {});
     }
+}
+
+/// A drain can mutate the graph before panicking. Never let a per-task panic catcher resume
+/// execution with that partial graph or abandon its remaining jobs. This synchronous boundary
+/// has no async cancellation point; GC explicitly returns its deferred balance work instead.
+fn abort_on_aggregation_panic<R>(f: impl FnOnce() -> R) -> R {
+    struct AbortOnDrop;
+    impl Drop for AbortOnDrop {
+        fn drop(&mut self) {
+            std::process::abort();
+        }
+    }
+    let guard = AbortOnDrop;
+    let result = f();
+    std::mem::forget(guard);
+    result
 }
 
 #[cfg(not(target_family = "wasm"))]
@@ -4406,6 +4425,108 @@ mod follower_debt_tests {
         }
         assert_eq!(aggregated(&tt, 1), 0);
         assert_no_edges(&tt, &[1, 2]);
+    }
+
+    // These tests spawn the native test executable, which miri and wasm cannot do.
+    #[cfg(all(not(miri), not(target_family = "wasm"), any(unix, windows)))]
+    #[tokio::test(flavor = "multi_thread")]
+    async fn drain_panic_is_fatal() {
+        use std::{
+            panic::{AssertUnwindSafe, catch_unwind},
+            process::Command,
+        };
+
+        const CHILD: &str = "TURBO_TASKS_TEST_AGGREGATION_DRAIN";
+        const PANIC: &str = "injected aggregation drain panic after debt write";
+        const CONTAINED: i32 = 86;
+        if let Ok(mode) = std::env::var(CHILD) {
+            if mode == "abort" {
+                std::process::abort();
+            }
+            let (entry, panic) = mode.split_once('/').unwrap();
+            let panic = panic == "panic";
+            let tt = setup(&[(1, UPPER), (2, INNER), (3, INNER)]);
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut queue = AggregationUpdateQueue::new_without_optimizations();
+            queue.extend([add(1, 2), add(1, 3)]);
+            queue.before_inner_write = Some(Box::new(move |ctx| {
+                // A second queue writes debt while this drain is in flight. Keeping the removal
+                // separate also exercises the GC drain on layers that defer removal jobs.
+                let mut removal = AggregationUpdateQueue::new_without_optimizations();
+                removal.push(remove(1, 3));
+                removal.execute(ctx);
+                assert_eq!(
+                    ctx.task(id(1), TaskDataCategory::Meta)
+                        .get_followers(&id(3)),
+                    Some(&-1)
+                );
+                if panic {
+                    panic!("{PANIC}");
+                }
+            }));
+            let result = catch_unwind(AssertUnwindSafe(|| match entry {
+                "execute" => queue.execute(&mut ctx),
+                "gc" => assert!(queue.execute_until_rebalance(&mut ctx).is_empty()),
+                #[cfg(feature = "trace_aggregation_update_stats")]
+                "stats" => {
+                    queue.execute_with_stats(&mut ctx);
+                }
+                _ => panic!("unknown drain entry {entry}"),
+            }));
+            if result.is_err() {
+                std::process::exit(CONTAINED);
+            }
+            assert!(queue.before_inner_write.is_none());
+            assert!(queue.is_empty());
+            drop(ctx);
+            assert!(followers(&tt, 1).is_empty());
+            assert_eq!(uppers(&tt, 2), vec![(id(1), 1)]);
+            assert!(uppers(&tt, 3).is_empty());
+            assert_eq!(aggregated(&tt, 1), 1);
+            tt.backend().verify_aggregation_edges();
+            tt.stop_and_wait().await;
+            return;
+        }
+
+        let spawn = |mode: &str| {
+            Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "backend::operation::aggregation_update::follower_debt_tests::drain_panic_is_fatal",
+                    "--nocapture",
+                ])
+                .env(CHILD, mode)
+                .output()
+                .unwrap()
+        };
+        #[cfg(windows)]
+        let abort_status = spawn("abort").status;
+        for entry in [
+            "execute",
+            "gc",
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            "stats",
+        ] {
+            let control = spawn(&format!("{entry}/control"));
+            assert!(control.status.success(), "{entry}: {control:?}");
+            let failed = spawn(&format!("{entry}/panic"));
+            assert!(
+                String::from_utf8_lossy(&failed.stderr).contains(PANIC),
+                "{entry}: failed before reaching injection: {failed:?}"
+            );
+            assert_ne!(failed.status.code(), Some(CONTAINED), "{entry}: {failed:?}");
+            #[cfg(unix)]
+            {
+                use std::os::unix::process::ExitStatusExt;
+                assert_eq!(failed.status.signal(), Some(6), "{entry}: {failed:?}");
+            }
+            // Compare with this runtime's process::abort status, not just any nonzero exit.
+            #[cfg(windows)]
+            {
+                assert!(!abort_status.success());
+                assert_eq!(failed.status, abort_status, "{entry}: {failed:?}");
+            }
+        }
     }
 
     #[derive(Clone, Copy)]
