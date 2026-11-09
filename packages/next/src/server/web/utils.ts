@@ -17,6 +17,21 @@ export function fromNodeOutgoingHttpHeaders(
   nodeHeaders: OutgoingHttpHeaders
 ): Headers {
   const headers = new Headers()
+  appendNodeOutgoingHttpHeaders(headers, nodeHeaders)
+  return headers
+}
+
+/**
+ * Appends the headers of a Node.js headers object to a Headers object, the way
+ * `fromNodeOutgoingHttpHeaders` fills a new one.
+ *
+ * @param headers the headers object to append to
+ * @param nodeHeaders the headers object to convert
+ */
+export function appendNodeOutgoingHttpHeaders(
+  headers: Headers,
+  nodeHeaders: OutgoingHttpHeaders
+): void {
   // The same names in the same order as `Object.entries`, without an entry
   // array per header and without an array around a single value.
   const keys = Object.keys(nodeHeaders)
@@ -36,7 +51,6 @@ export function fromNodeOutgoingHttpHeaders(
       headers.append(key, typeof value === 'number' ? value.toString() : value)
     }
   }
-  return headers
 }
 
 /*

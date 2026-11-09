@@ -5,7 +5,11 @@ import type { Writable } from 'node:stream'
 
 import { getRequestMeta } from '../../../request-meta'
 import { fromNodeOutgoingHttpHeaders } from '../../utils'
-import { NextRequest } from '../request'
+import {
+  NextRequest,
+  NODE_REQUEST_HEADERS,
+  type NodeRequestInit,
+} from '../request'
 import { isNodeNextRequest, isWebNextRequest } from '../../../base-http/helpers'
 
 export const ResponseAbortedName = 'ResponseAborted'
@@ -104,9 +108,12 @@ export class NextRequestAdapter {
       }
     }
 
-    return new NextRequest(url, {
+    const init: NodeRequestInit = {
       method: request.method,
-      headers: fromNodeOutgoingHttpHeaders(request.headers),
+      // The headers are appended to the header list of the request while it
+      // is constructed, instead of being converted to a `Headers` object that
+      // the request then copies.
+      [NODE_REQUEST_HEADERS]: request.headers,
       duplex: 'half',
       signal,
       // geo
@@ -120,7 +127,17 @@ export class NextRequestAdapter {
         : {
             body,
           }),
-    })
+    }
+
+    try {
+      return new NextRequest(url, init)
+    } catch (err) {
+      // When the headers were converted before the request was constructed,
+      // a header that cannot be converted was the first thing to throw. Keep
+      // that order: if they cannot be converted, this throws that error.
+      fromNodeOutgoingHttpHeaders(request.headers)
+      throw err
+    }
   }
 
   public static fromWebNextRequest(request: WebNextRequest): NextRequest {
