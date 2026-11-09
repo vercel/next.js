@@ -1,5 +1,5 @@
 diff --git a/index.js b/index.js
-index 1d089427c74214325e8ec6625a09539906bb118d..318433ad778756165c1fa63d93f0096f29967ee3 100644
+index 1d089427c74214325e8ec6625a09539906bb118d..9f8a7c5fa3ad169e6b59ee2ad6b103de71ecdb0c 100644
 --- a/index.js
 +++ b/index.js
 @@ -67,7 +67,7 @@ function compression (options) {
@@ -56,3 +56,33 @@ index 1d089427c74214325e8ec6625a09539906bb118d..318433ad778756165c1fa63d93f0096f
      onHeaders(res, function onResponseHeaders () {
        // determine if request is filtered
        if (!filter(req, res)) {
+@@ -210,6 +221,16 @@ function compression (options) {
+ 
+       stream.on('end', function onStreamEnd () {
+         _end.call(res)
++
++        // The stream has ended, so none of these events is emitted again.
++        // Remove their listeners: they close over the request and the
++        // response, and the ended stream outlives the response. Left in
++        // place they make every request survive minor GCs, and V8 then moves
++        // the allocation of per-request objects to the old generation for
++        // the whole process, for responses that are not compressed too.
++        stream.removeAllListeners('data')
++        stream.removeAllListeners('end')
++        stream.removeAllListeners('drain')
+       })
+ 
+       _on.call(res, 'drain', function onResponseDrain () {
+@@ -230,6 +251,12 @@ function addListeners (stream, on, listeners) {
+   for (var i = 0; i < listeners.length; i++) {
+     on.apply(stream, listeners[i])
+   }
++
++  // The listeners are on their target now and the buffer is not read again.
++  // Empty it: V8 can come to allocate this array and its entries in the old
++  // generation, and an entry that is left there keeps its listener, and what
++  // that closes over, alive until the next major GC.
++  listeners.length = 0
+ }
+ 
+ /**
