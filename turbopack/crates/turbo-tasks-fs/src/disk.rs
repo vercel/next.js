@@ -17,7 +17,7 @@ use async_trait::async_trait;
 use bincode::{Decode, Encode};
 #[cfg(windows)]
 use omnipath::WinPathExt;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use tokio::{
     runtime::Handle,
     sync::{RwLock, RwLockReadGuard},
@@ -26,8 +26,8 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyError, ApplyStep, Completion, Effect, EffectExt, EffectStateStorage, InvalidationReason,
-    Invalidator, LastApplied, NonLocalValue, OperationVc, ResolvedVc, TurboTasksApi, ValueToString,
-    Vc, debug::ValueDebugFormat, turbo_tasks_weak, turbobail,
+    Invalidator, NonLocalValue, OperationVc, ResolvedVc, TurboTasksApi, ValueToString, Vc,
+    debug::ValueDebugFormat, turbo_tasks_weak, turbobail,
 };
 use turbo_tasks_hash::{
     DeterministicHasher, Xxh3Hash128Hasher, hash_xxh3_hash64, hash_xxh3_hash128,
@@ -157,126 +157,120 @@ pub fn canonicalize_to_rcstr(path: &Path) -> io::Result<RcStr> {
         })
 }
 
-/// The [`Effect::content_hash`] of a write effect that deletes a file.
+/// The content hash of a deleted (or missing) file, used to compare writers of the same path.
 const DELETED_FILE_CONTENT_HASH: u128 = u128::MAX;
 
-/// Atomically writes `file` to `scratch_path` (inside `scratch_dir`) by writing a temporary file
-/// and renaming it into place, so a reader never observes a partially written scratch file.
-async fn write_scratch_file(
-    scratch_dir: &Path,
-    scratch_path: &Path,
-    file: &File,
-) -> io::Result<()> {
-    let mut missing_scratch_dir = false;
-    let do_write = || {
-        if missing_scratch_dir {
-            std::fs::create_dir_all(scratch_dir)?;
-            missing_scratch_dir = false;
-        }
-        let mut temporary = tempfile::NamedTempFile::new_in(scratch_dir).inspect_err(|err| {
-            if err.kind() == ErrorKind::NotFound {
-                // create the scratch dir in the next attempt
-                missing_scratch_dir = true;
-            }
-        })?;
-        let output = temporary.as_file_mut();
-        std::io::copy(&mut file.read(), output)?;
+/// Identifies the task that wrote a file. See [`DiskFileSystem::write`].
+type WriterId = u32;
+
+fn writer_id(writer: &Invalidator) -> WriterId {
+    writer.task_id().to_primitive()
+}
+
+/// Identifies one specific file written to disk (or its absence), so that a write effect can
+/// cheaply verify that the file on disk is still the one its write task wrote.
+///
+/// Every write replaces the file atomically (see [`write_file_atomically`]), so a new write gets a
+/// new file identity even if the content and length are unchanged.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
+enum Fingerprint {
+    Absent,
+    File {
+        /// Whether the entry is a regular file, a symlink, or something else.
+        kind: u8,
+        /// The permission bits on unix, the readonly flag elsewhere.
+        mode: u32,
+        len: u64,
+        modified_ns: i128,
+        /// The device and inode on unix, the volume serial number and file index on Windows,
+        /// `None` where no file identity is available.
+        id: Option<u128>,
+    },
+}
+
+impl Fingerprint {
+    fn of(path: &Path) -> io::Result<Self> {
+        let metadata = match std::fs::symlink_metadata(path) {
+            Ok(metadata) => metadata,
+            Err(err) if err.kind() == ErrorKind::NotFound => return Ok(Fingerprint::Absent),
+            Err(err) => return Err(err),
+        };
+        let file_type = metadata.file_type();
+        let kind = if file_type.is_file() {
+            0
+        } else if file_type.is_symlink() {
+            1
+        } else {
+            2
+        };
+        let modified_ns = match metadata.modified()?.duration_since(std::time::UNIX_EPOCH) {
+            Ok(duration) => duration.as_nanos() as i128,
+            Err(err) => -(err.duration().as_nanos() as i128),
+        };
         #[cfg(unix)]
-        output.set_permissions(file.meta.permissions.into())?;
-        output.flush()?;
-        temporary
-            .into_temp_path()
-            .persist(scratch_path)
-            .map_err(|err| err.error)
-    };
-    retry_blocking_custom(do_write, |err| {
-        err.kind() == ErrorKind::NotFound || can_retry(err)
-    })
-    .await
-}
-
-/// Moves the scratch file to `full_path`, replacing any existing file atomically. Creates missing
-/// parent directories. Returns `false` if the scratch file doesn't exist.
-async fn place_scratch_file(scratch_path: &Path, full_path: &Path) -> io::Result<bool> {
-    let mut missing_parent_dir = false;
-    let do_place = || {
-        if missing_parent_dir && let Some(parent) = full_path.parent() {
-            std::fs::create_dir_all(parent)?;
-            missing_parent_dir = false;
-        }
-        match std::fs::rename(scratch_path, full_path) {
-            Ok(()) => Ok(true),
-            Err(err) if err.kind() == ErrorKind::NotFound => {
-                if !scratch_path.try_exists()? {
-                    return Ok(false);
-                }
-                // create the parent dirs in the next attempt
-                missing_parent_dir = true;
-                Err(err)
-            }
-            Err(err) if err.kind() == ErrorKind::CrossesDevices => {
-                // The scratch dir should be on the same filesystem as the outputs, but fall back
-                // to copying if it isn't. Copy next to the destination first, so the destination
-                // is still replaced atomically.
-                copy_atomically(scratch_path, full_path)?;
-                std::fs::remove_file(scratch_path)?;
-                Ok(true)
-            }
-            Err(err) => Err(err),
-        }
-    };
-    retry_blocking_custom(do_place, |err| {
-        err.kind() == ErrorKind::NotFound || can_retry(err)
-    })
-    .await
-}
-
-/// Copies `source` to a temporary file next to `destination` and atomically renames it into place,
-/// so a running executable at `destination` can keep using the previous file.
-fn copy_atomically(source: &Path, destination: &Path) -> io::Result<()> {
-    let parent = destination.parent().ok_or(ErrorKind::InvalidInput)?;
-    let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
-    std::io::copy(&mut std::fs::File::open(source)?, temporary.as_file_mut())?;
-    temporary
-        .as_file()
-        .set_permissions(std::fs::metadata(source)?.permissions())?;
-    temporary.as_file_mut().flush()?;
-    temporary
-        .into_temp_path()
-        .persist(destination)
-        .map_err(|err| err.error)
-}
-
-/// Returns whether `path` exists as something other than a directory. Errors other than
-/// [`ErrorKind::NotFound`] are returned.
-fn output_exists(path: &Path) -> io::Result<bool> {
-    match std::fs::symlink_metadata(path) {
-        Ok(metadata) => Ok(!metadata.is_dir()),
-        Err(err) if err.kind() == ErrorKind::NotFound => Ok(false),
-        Err(err) => Err(err),
+        let (mode, id) = {
+            use std::os::unix::fs::MetadataExt;
+            (
+                metadata.mode(),
+                Some(((metadata.dev() as u128) << 64) | metadata.ino() as u128),
+            )
+        };
+        #[cfg(windows)]
+        let (mode, id) = (
+            metadata.permissions().readonly() as u32,
+            crate::windows::file_id(path)?,
+        );
+        #[cfg(not(any(unix, windows)))]
+        let (mode, id) = (metadata.permissions().readonly() as u32, None);
+        Ok(Fingerprint::File {
+            kind,
+            mode,
+            len: metadata.len(),
+            modified_ns,
+            id,
+        })
     }
 }
 
-/// The path of the additional copy written for `TURBO_ENGINE_WRITE_VERSION`: the hash of the
-/// [`File`] (content and metadata) inserted before the extension.
-fn versioned_path_for(full_path: &Path, file: &File) -> PathBuf {
-    let hash = hash_xxh3_hash64(file);
-    let mut versioned_path = full_path.to_path_buf();
-    let mut ext = OsString::from(format!("{hash:016x}"));
-    if let Some(orig_ext) = full_path.extension() {
-        ext.push(".");
-        ext.push(orig_ext);
-    }
-    versioned_path.set_extension(ext);
-    versioned_path
+/// Whether the content hash includes the executable bit. Permissions are only handled on unix.
+fn is_executable(file: &File) -> bool {
+    cfg!(unix) && file.meta.permissions == crate::Permissions::Executable
 }
 
-/// Hashes the content (and executable bit) of a file on disk. Used to resolve multiple writers of
-/// the same output path.
-fn hash_file_content(path: &Path) -> io::Result<u128> {
+/// Hashes the content (and executable bit) of a [`FileContent`]. Must produce the same hash as
+/// [`hash_disk_content`] for the written file.
+fn content_hash_of(content: &FileContent) -> u128 {
+    use std::io::BufRead;
+
+    let FileContent::Content(file) = content else {
+        return DELETED_FILE_CONTENT_HASH;
+    };
+    let mut hasher = Xxh3Hash128Hasher::new();
+    let mut reader = file.read();
+    loop {
+        let Ok(chunk) = reader.fill_buf() else {
+            unreachable!("reading a rope can't fail")
+        };
+        if chunk.is_empty() {
+            break;
+        }
+        let len = chunk.len();
+        hasher.write_bytes(chunk);
+        reader.consume(len);
+    }
+    hasher.write_value(is_executable(file));
+    hasher.finish()
+}
+
+/// Hashes the content (and executable bit) of a file on disk. See [`content_hash_of`].
+fn hash_disk_content(path: &Path) -> io::Result<u128> {
     use std::io::Read;
 
-    let mut file = std::fs::File::open(path)?;
+    let mut file = match std::fs::File::open(path) {
+        Ok(file) => file,
+        Err(err) if err.kind() == ErrorKind::NotFound => return Ok(DELETED_FILE_CONTENT_HASH),
+        Err(err) => return Err(err),
+    };
     #[cfg(unix)]
     let executable = {
         use std::os::unix::fs::PermissionsExt;
@@ -295,6 +289,238 @@ fn hash_file_content(path: &Path) -> io::Result<u128> {
     }
     hasher.write_value(executable);
     Ok(hasher.finish())
+}
+
+/// Writes `file` to `path` by writing a temporary file next to it and atomically renaming it into
+/// place. A reader never observes a partially written file, and a running executable at `path` can
+/// keep using the previous file. Creates missing parent directories.
+fn write_file_atomically(path: &Path, file: &File) -> io::Result<()> {
+    let write = |output: &mut std::fs::File| {
+        std::io::copy(&mut file.read(), output)?;
+        #[cfg(unix)]
+        output.set_permissions(file.meta.permissions.into())?;
+        output.flush()
+    };
+
+    let parent = path.parent().ok_or(ErrorKind::InvalidInput)?;
+
+    #[cfg(any(unix, windows))]
+    {
+        let mut temporary = match tempfile::NamedTempFile::new_in(parent) {
+            Err(err) if err.kind() == ErrorKind::NotFound => {
+                std::fs::create_dir_all(parent)?;
+                tempfile::NamedTempFile::new_in(parent)?
+            }
+            result => result?,
+        };
+        write(temporary.as_file_mut())?;
+        temporary
+            .into_temp_path()
+            .persist(path)
+            .map_err(|err| err.error)
+    }
+
+    // `tempfile` isn't available on other targets (e.g. wasi): create a uniquely named temporary
+    // file next to the destination ourselves.
+    #[cfg(not(any(unix, windows)))]
+    {
+        use std::sync::atomic::{AtomicU64, Ordering};
+
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        let file_name = path.file_name().ok_or(ErrorKind::InvalidInput)?;
+        let (temporary_path, mut output) = loop {
+            let mut temporary_name = OsString::from(".");
+            temporary_name.push(file_name);
+            temporary_name.push(format!(
+                ".{}.{}.tmp",
+                std::process::id(),
+                COUNTER.fetch_add(1, Ordering::Relaxed)
+            ));
+            let temporary_path = parent.join(temporary_name);
+            let options = || {
+                let mut options = std::fs::OpenOptions::new();
+                options.write(true).create_new(true);
+                options
+            };
+            match options().open(&temporary_path) {
+                Ok(output) => break (temporary_path, output),
+                Err(err) if err.kind() == ErrorKind::AlreadyExists => continue,
+                Err(err) if err.kind() == ErrorKind::NotFound => {
+                    std::fs::create_dir_all(parent)?;
+                    match options().open(&temporary_path) {
+                        Ok(output) => break (temporary_path, output),
+                        Err(err) if err.kind() == ErrorKind::AlreadyExists => continue,
+                        Err(err) => return Err(err),
+                    }
+                }
+                Err(err) => return Err(err),
+            }
+        };
+        let result = write(&mut output).and_then(|()| {
+            drop(output);
+            std::fs::rename(&temporary_path, path)
+        });
+        if result.is_err() {
+            let _ = std::fs::remove_file(&temporary_path);
+        }
+        result
+    }
+}
+
+/// The path of the additional copy written for `TURBO_ENGINE_WRITE_VERSION`: the hash of the
+/// [`File`] (content and metadata) inserted before the extension.
+fn versioned_path_for(full_path: &Path, file: &File) -> PathBuf {
+    let hash = hash_xxh3_hash64(file);
+    let mut versioned_path = full_path.to_path_buf();
+    let mut ext = OsString::from(format!("{hash:016x}"));
+    if let Some(orig_ext) = full_path.extension() {
+        ext.push(".");
+        ext.push(orig_ext);
+    }
+    versioned_path.set_extension(ext);
+    versioned_path
+}
+
+/// What [`DiskFileSystem::write`] knows about a writer of a path.
+#[derive(Clone, Copy)]
+struct WriterRecord {
+    /// The file the writer's latest write produced.
+    fingerprint: Fingerprint,
+    /// The content hash of the writer's latest write. Only computed when multiple writers write
+    /// the same path.
+    hash: Option<u128>,
+}
+
+/// The writer that owns a path before it's overwritten by a different writer.
+#[derive(Clone, Copy)]
+struct PreviousOwner {
+    writer: WriterId,
+    fingerprint: Fingerprint,
+    hash: Option<u128>,
+}
+
+#[derive(Default)]
+struct PathOwnership {
+    /// The writer that wrote the path last, and the file it wrote.
+    current: Option<(WriterId, Fingerprint)>,
+    /// The latest write of every writer of this path in this session.
+    writers: FxHashMap<WriterId, WriterRecord>,
+}
+
+/// The result of [`WriteOwnership::verify`].
+enum Verification {
+    /// The writer's latest write is on disk.
+    OwnWrite,
+    /// A different writer wrote the same content.
+    EqualContent,
+    /// A different writer wrote the path, and it's not known to have the same content.
+    DifferentWriter(WriterId),
+    /// The file on disk was not written by any writer known in this session.
+    Unknown,
+}
+
+/// The in-session record of which write task wrote each output path, used to verify write effects
+/// when the file on disk isn't the one the effect's write task wrote. Accessed under the path lock.
+#[derive(Default)]
+struct WriteOwnership {
+    paths: std::sync::Mutex<FxHashMap<PathBuf, PathOwnership>>,
+}
+
+impl WriteOwnership {
+    /// Returns whether a different writer has written `path` in this session, and the current
+    /// owner if it's a different writer.
+    fn contention(&self, path: &Path, writer: WriterId) -> (bool, Option<PreviousOwner>) {
+        let paths = self.paths.lock().unwrap();
+        let Some(ownership) = paths.get(path) else {
+            return (false, None);
+        };
+        let other_writers = ownership.writers.keys().any(|other| *other != writer);
+        let previous_owner =
+            ownership
+                .current
+                .filter(|(owner, _)| *owner != writer)
+                .map(|(owner, fingerprint)| PreviousOwner {
+                    writer: owner,
+                    fingerprint,
+                    hash: ownership.writers.get(&owner).and_then(|record| record.hash),
+                });
+        (other_writers, previous_owner)
+    }
+
+    /// Records a completed write. `previous_owner_hash` is the content hash of the previous
+    /// owner's file, if it was computed before overwriting it.
+    fn record_write(
+        &self,
+        path: &Path,
+        writer: WriterId,
+        fingerprint: Fingerprint,
+        hash: Option<u128>,
+        previous_owner_hash: Option<(WriterId, u128)>,
+    ) {
+        let mut paths = self.paths.lock().unwrap();
+        let ownership = paths.entry(path.to_path_buf()).or_default();
+        if let Some((owner, owner_hash)) = previous_owner_hash
+            && let Some(record) = ownership.writers.get_mut(&owner)
+        {
+            record.hash = Some(owner_hash);
+        }
+        // This replaces any hash of the writer's previous write, which may have had different
+        // content.
+        ownership
+            .writers
+            .insert(writer, WriterRecord { fingerprint, hash });
+        ownership.current = Some((writer, fingerprint));
+    }
+
+    /// Checks whether the latest content of `writer` is on disk, given the `observed` file.
+    fn verify(&self, path: &Path, writer: WriterId, observed: Fingerprint) -> Verification {
+        let paths = self.paths.lock().unwrap();
+        let Some(ownership) = paths.get(path) else {
+            return Verification::Unknown;
+        };
+        let Some((owner, fingerprint)) = ownership.current else {
+            return Verification::Unknown;
+        };
+        if fingerprint != observed {
+            // Modified or deleted by something else.
+            return Verification::Unknown;
+        }
+        if owner == writer {
+            return Verification::OwnWrite;
+        }
+        let hash = |writer| {
+            ownership
+                .writers
+                .get(&writer)
+                .and_then(|record: &WriterRecord| record.hash)
+        };
+        match (hash(writer), hash(owner)) {
+            (Some(hash), Some(owner_hash)) if hash == owner_hash => Verification::EqualContent,
+            _ => Verification::DifferentWriter(owner),
+        }
+    }
+
+    /// The content hash of the write of `writer` that produced `fingerprint`, if known.
+    fn known_hash(&self, path: &Path, writer: WriterId, fingerprint: Fingerprint) -> Option<u128> {
+        let paths = self.paths.lock().unwrap();
+        let record = paths.get(path)?.writers.get(&writer)?;
+        (record.fingerprint == fingerprint)
+            .then_some(record.hash)
+            .flatten()
+    }
+
+    /// Stores the content hash of the write of `writer` that produced `fingerprint`.
+    fn store_hash(&self, path: &Path, writer: WriterId, fingerprint: Fingerprint, hash: u128) {
+        let mut paths = self.paths.lock().unwrap();
+        let ownership = paths.entry(path.to_path_buf()).or_default();
+        let record = ownership.writers.entry(writer).or_insert(WriterRecord {
+            fingerprint,
+            hash: None,
+        });
+        if record.fingerprint == fingerprint {
+            record.hash = Some(hash);
+        }
+    }
 }
 
 trait ConcurrencyLimitedExt {
@@ -391,10 +617,6 @@ pub(crate) struct DiskFileSystemInner {
     /// Root paths that we do not allow access to from this filesystem.
     /// Useful for things like output directories to prevent accidental ouroboros situations.
     denied_paths: Vec<RcStr>,
-    /// Absolute system path of a directory where [`FileSystem::write`] eagerly writes file
-    /// contents before they are moved to their final location when the write effects are
-    /// applied. Writing files requires a scratch directory.
-    scratch_dir: Option<RcStr>,
     /// Used by invalidators when called from a non-turbo-tasks thread, specifically in the fs
     /// watcher.
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
@@ -404,20 +626,20 @@ pub(crate) struct DiskFileSystemInner {
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip, default = "Handle::current")]
     pub(crate) tokio_handle: Handle,
+    /// Used by [`FileSystem::write_link`] effects.
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     effect_state_storage: EffectStateStorage,
+    /// Which write task wrote each output path, used by [`FileSystem::write`] effects.
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
+    #[bincode(skip)]
+    write_ownership: WriteOwnership,
     map: OperationVc<DiskFileSystemMap>,
 }
 
 impl DiskFileSystemInner {
     pub(crate) fn root_path(&self) -> &Path {
         Path::new(&*self.root)
-    }
-
-    /// The system path of the scratch directory, if one is configured.
-    fn scratch_dir_path(&self) -> Option<PathBuf> {
-        self.scratch_dir.as_deref().map(PathBuf::from)
     }
 
     /// Checks if a path is within the denied path
@@ -975,28 +1197,11 @@ impl DiskFileSystem {
     ///
     /// This API does not canonicalize itself, as that requires IO operations (e.g. symlink
     /// resolution) which should (ideally) not be cached.
-    ///
-    /// The returned filesystem has no scratch directory, so it can't be written to. Use
-    /// [`DiskFileSystem::new_with_scratch_dir`] or [`DiskFileSystem::new_with_options`] for that.
     pub fn new(name: RcStr, root: Vc<RcStr>) -> Vc<Self> {
         Self::new_internal(
             name,
             root,
             Vec::new(),
-            None,
-            DiskWatcherConfig::default(),
-            DiskFileSystemMap::empty(),
-        )
-    }
-
-    /// Like [`DiskFileSystem::new`], but with a scratch directory, which is required to write
-    /// files. See [`DiskFileSystem::new_with_options`].
-    pub fn new_with_scratch_dir(name: RcStr, root: Vc<RcStr>, scratch_dir: RcStr) -> Vc<Self> {
-        Self::new_with_options(
-            name,
-            root,
-            Vec::new(),
-            Some(scratch_dir),
             DiskWatcherConfig::default(),
             DiskFileSystemMap::empty(),
         )
@@ -1008,13 +1213,6 @@ impl DiskFileSystem {
     /// [`DiskFileSystem`] will treat as nonexistent, disallowing reads of files in those
     /// directories.
     ///
-    /// `scratch_dir` is the absolute system path of a directory dedicated to this filesystem.
-    /// Writes eagerly store file contents there (named after the writing task id) and applying
-    /// the write effects moves them to their final location, so it should be on the same device
-    /// as the written files. It should be stable across sessions (so scratch files survive a
-    /// restart with a persistent cache) and must not be shared with other turbo-tasks instances
-    /// (task ids would collide). Writing files fails without a scratch directory.
-    ///
     /// `watcher_config` controls how filesystem changes are detected and reported. See
     /// [`DiskWatcherConfig`].
     ///
@@ -1024,7 +1222,6 @@ impl DiskFileSystem {
         name: RcStr,
         root: Vc<RcStr>,
         denied_paths: Vec<RcStr>,
-        scratch_dir: Option<RcStr>,
         watcher_config: DiskWatcherConfig,
         map: OperationVc<DiskFileSystemMap>,
     ) -> Vc<Self> {
@@ -1035,13 +1232,7 @@ impl DiskFileSystem {
                 "denied_path must be normalized: {denied_path:?}"
             );
         }
-        if let Some(scratch_dir) = &scratch_dir {
-            debug_assert!(
-                Path::new(&**scratch_dir).is_absolute(),
-                "scratch_dir must be an absolute path: {scratch_dir:?}"
-            );
-        }
-        Self::new_internal(name, root, denied_paths, scratch_dir, watcher_config, map)
+        Self::new_internal(name, root, denied_paths, watcher_config, map)
     }
 }
 
@@ -1052,7 +1243,6 @@ impl DiskFileSystem {
         name: RcStr,
         root: Vc<RcStr>,
         denied_paths: Vec<RcStr>,
-        scratch_dir: Option<RcStr>,
         watcher_config: DiskWatcherConfig,
         map: OperationVc<DiskFileSystemMap>,
     ) -> Result<Vc<Self>> {
@@ -1071,10 +1261,10 @@ impl DiskFileSystem {
                 write_semaphore: create_write_semaphore(),
                 watcher: DiskWatcher::new(watcher_config),
                 denied_paths,
-                scratch_dir,
                 turbo_tasks: turbo_tasks_weak(),
                 tokio_handle: Handle::current(),
                 effect_state_storage: EffectStateStorage::default(),
+                write_ownership: WriteOwnership::default(),
                 map,
             }),
         };
@@ -1438,82 +1628,126 @@ impl FileSystem for DiskFileSystem {
         if this.inner.is_path_denied(&fs_path) {
             turbobail!("Cannot write to denied path: {fs_path}");
         }
-        let full_path = this.to_sys_path_raw(&fs_path);
-
-        // Validate the path length here, when the write is requested, so that any error is
-        // attributed to the caller rather than surfacing later when the effect is applied.
+        let full_path = Arc::new(this.to_sys_path_raw(&fs_path));
         validate_path_length(&full_path)?;
-
-        let Some(scratch_dir) = this.inner.scratch_dir_path() else {
-            turbobail!(
-                "Cannot write to {fs_path}: the filesystem {} has no scratch directory configured",
-                this.inner.name
-            );
-        };
-
-        // The scratch file is named after this task. A task never executes concurrently with
-        // itself, so the scratch file always holds the content of the latest execution. The
-        // invalidator is used by the effect to re-execute this task if the scratch file was
-        // consumed but is needed again (see `WriteEffect::apply`).
-        let writer = turbo_tasks::get_invalidator()
-            .context("DiskFileSystem::write must be called from within a turbo-tasks task")?;
-        let scratch_path = scratch_dir.join(writer.task_id().to_primitive().to_string());
 
         static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
             std::env::var_os("TURBO_ENGINE_WRITE_VERSION").is_some_and(|v| v == "1" || v == "true")
         });
 
-        // Eagerly write the content to the scratch file. Applying the effect later only needs to
-        // move the scratch file into place.
+        // The write task's invalidator lets the effect re-execute this task if its write is no
+        // longer on disk when the effects are applied (see `WriteEffect::apply`).
+        let writer = turbo_tasks::get_invalidator()
+            .context("DiskFileSystem::write must be called from within a turbo-tasks task")?;
+        let this_writer = writer_id(&writer);
+
+        // The content is written to its final location right away, so it doesn't need to be held
+        // in memory until the effects are applied. The effect only verifies that this write is
+        // still what's on disk.
         let content = content.await?;
-        let mut versioned_path = None;
-        let scratch_path = match &*content {
-            FileContent::Content(file) => {
-                validate_path_length(&scratch_path)?;
-                if *WRITE_VERSION {
-                    let path = versioned_path_for(&full_path, file);
-                    validate_path_length(&path)?;
-                    versioned_path = Some(Arc::new(path));
-                }
-                write_scratch_file(&scratch_dir, &scratch_path, file)
-                    .instrument(tracing::info_span!("write file", name = ?full_path))
-                    .concurrency_limited(&this.inner.write_semaphore)
-                    .await
-                    .with_context(|| {
-                        format!("failed to write {full_path:?} (scratch file {scratch_path:?})")
-                    })?;
-                Some(Arc::new(scratch_path))
-            }
-            FileContent::NotFound => {
-                // A previous execution of this task may have left a scratch file behind that was
-                // never placed. Remove it so a stale effect can't place it.
-                retry_blocking(|| std::fs::remove_file(&scratch_path))
-                    .concurrency_limited(&this.inner.write_semaphore)
-                    .await
-                    .or_else(|err| {
-                        if err.kind() == ErrorKind::NotFound {
-                            Ok(())
-                        } else {
-                            Err(err)
+        let inner = &*this.inner;
+        let fingerprint = {
+            let _lock = inner.lock_path(full_path.clone()).await;
+
+            // Content is only hashed when another task writes the same path, to detect whether
+            // the writers agree (see `WriteEffect::apply`).
+            let (other_writers, previous_owner) =
+                inner.write_ownership.contention(&full_path, this_writer);
+            let new_hash = other_writers.then(|| content_hash_of(&content));
+            let previous_owner_hash = match previous_owner {
+                Some(PreviousOwner {
+                    writer: owner,
+                    fingerprint: owner_fingerprint,
+                    hash: None,
+                }) => {
+                    let path = full_path.clone();
+                    let hash = retry_blocking(move || {
+                        if Fingerprint::of(&path)? != owner_fingerprint {
+                            // Modified since the owner wrote it, so it's not the owner's content.
+                            return Ok(None);
                         }
+                        hash_disk_content(&path).map(Some)
                     })
-                    .with_context(|| format!("removing scratch file {scratch_path:?} failed"))?;
-                None
+                    .instrument(tracing::info_span!("hash previous output", name = ?*full_path))
+                    .concurrency_limited(&inner.read_semaphore)
+                    .await
+                    .with_context(|| format!("failed to hash {full_path:?}"))?;
+                    hash.map(|hash| (owner, hash))
+                }
+                _ => None,
+            };
+
+            let fingerprint = match &*content {
+                FileContent::Content(file) => {
+                    let versioned_path = if *WRITE_VERSION {
+                        let path = versioned_path_for(&full_path, file);
+                        validate_path_length(&path)?;
+                        Some(path)
+                    } else {
+                        None
+                    };
+                    retry_blocking_custom(
+                        || {
+                            write_file_atomically(&full_path, file)?;
+                            if let Some(versioned_path) = &versioned_path {
+                                write_file_atomically(versioned_path, file)?;
+                            }
+                            Fingerprint::of(&full_path)
+                        },
+                        |err| err.kind() == ErrorKind::NotFound || can_retry(err),
+                    )
+                    .instrument(tracing::info_span!("write file", name = ?*full_path))
+                    .concurrency_limited(&inner.write_semaphore)
+                    .await
+                    .with_context(|| format!("failed to write to {full_path:?}"))?
+                }
+                FileContent::NotFound => {
+                    retry_blocking(|| match std::fs::remove_file(&**full_path) {
+                        Err(err) if err.kind() != ErrorKind::NotFound => Err(err),
+                        _ => Ok(()),
+                    })
+                    .instrument(tracing::info_span!("remove file", name = ?*full_path))
+                    .concurrency_limited(&inner.write_semaphore)
+                    .await
+                    .with_context(|| format!("removing {full_path:?} failed"))?;
+                    Fingerprint::Absent
+                }
+            };
+
+            if let Some(owner) = previous_owner {
+                let owner_hash = owner
+                    .hash
+                    .or(previous_owner_hash.map(|(_, owner_hash)| owner_hash));
+                tracing::info!(
+                    path = ?*full_path,
+                    previous_writer = owner.writer,
+                    writer = this_writer,
+                    equal = ?owner_hash.zip(new_hash).map(|(owner_hash, hash)| owner_hash == hash),
+                    "output overwritten by a different writer task",
+                );
             }
+            inner.write_ownership.record_write(
+                &full_path,
+                this_writer,
+                fingerprint,
+                new_hash,
+                previous_owner_hash,
+            );
+            fingerprint
         };
         drop(content);
+
+        // Invalidate any read tasks tracking this path so they re-read the new content
+        inner.invalidate_from_write(&full_path);
 
         #[turbo_tasks::value(eq = "manual", cell = "new")]
         #[derive(Clone)]
         struct WriteEffect {
             fs: ResolvedVc<DiskFileSystem>,
             full_path: Arc<PathBuf>,
-            /// The scratch file holding the content to move to `full_path`. `None` if the file
-            /// should be deleted.
-            scratch_path: Option<Arc<PathBuf>>,
-            /// An additional copy to write after placing the file (`TURBO_ENGINE_WRITE_VERSION`).
-            versioned_path: Option<Arc<PathBuf>>,
-            /// Invalidates the write task that produced the scratch file.
+            /// The file the write task wrote to `full_path`.
+            fingerprint: Fingerprint,
+            /// Invalidates the write task, so that it writes the file again.
             #[turbo_tasks(debug_ignore, unsafe_ignore)]
             writer: Invalidator,
         }
@@ -1529,121 +1763,100 @@ impl FileSystem for DiskFileSystem {
                     .clone())
             }
 
-            /// Re-execute the write task, so that it re-creates the scratch file.
+            /// Re-execute the write task, so that it writes the file again.
             fn invalidate_writer(&self, inner: &DiskFileSystemInner) {
                 if let Some(turbo_tasks) = inner.turbo_tasks.upgrade() {
                     self.writer.invalidate(&*turbo_tasks);
                 }
             }
 
-            /// Hashes the content this effect would place. Holds the path lock, so an apply for
-            /// the same path can't replace the destination between the last-writer check and
-            /// hashing it.
+            fn failed(err: anyhow::Error) -> ApplyError {
+                ApplyError::Failed(Arc::new(AnyhowWrapper::from(err)))
+            }
+
+            async fn observed_fingerprint(
+                &self,
+                inner: &DiskFileSystemInner,
+            ) -> Result<Fingerprint, ApplyError> {
+                let full_path = self.full_path.clone();
+                retry_blocking(move || Fingerprint::of(&full_path))
+                    .concurrency_limited(&inner.read_semaphore)
+                    .await
+                    .with_context(|| format!("failed to read metadata of {:?}", self.full_path))
+                    .map_err(Self::failed)
+            }
+
+            async fn apply_inner(&self, inner: &DiskFileSystemInner) -> Result<(), ApplyError> {
+                let _lock = inner.lock_path(self.full_path.clone()).await;
+                let observed = self.observed_fingerprint(inner).await?;
+                if observed == self.fingerprint {
+                    return Ok(());
+                }
+                let writer = writer_id(&self.writer);
+                match inner
+                    .write_ownership
+                    .verify(&self.full_path, writer, observed)
+                {
+                    Verification::OwnWrite | Verification::EqualContent => Ok(()),
+                    verification => {
+                        if let Verification::DifferentWriter(owner) = verification {
+                            tracing::info!(
+                                path = ?*self.full_path,
+                                owner,
+                                writer,
+                                "output was overwritten by a different writer task, rewriting",
+                            );
+                        }
+                        // This write isn't on disk anymore. Re-execute the write task, so that it
+                        // writes the file again.
+                        self.invalidate_writer(inner);
+                        Err(ApplyError::Retry)
+                    }
+                }
+            }
+
             async fn content_hash_inner(
                 &self,
                 inner: &DiskFileSystemInner,
             ) -> Result<u128, ApplyError> {
-                let Some(scratch_path) = &self.scratch_path else {
-                    return Ok(DELETED_FILE_CONTENT_HASH);
-                };
-                let failed = |err: io::Error, path: &Path| {
-                    ApplyError::Failed(Arc::new(AnyhowWrapper::from(
-                        anyhow::Error::new(err).context(format!("failed to hash {path:?}")),
-                    )))
-                };
+                let writer = writer_id(&self.writer);
                 let _lock = inner.lock_path(self.full_path.clone()).await;
-                let _permit = inner.read_semaphore.acquire().await;
-                match hash_file_content(scratch_path) {
-                    Ok(hash) => return Ok(hash),
-                    Err(err) if err.kind() == ErrorKind::NotFound => {}
-                    Err(err) => return Err(failed(err, scratch_path)),
-                }
-                // The scratch file was already moved into place. If we were the last writer, the
-                // destination holds our content.
-                if inner
-                    .effect_state_storage
-                    .last_applied_identity(&self.key())
-                    == Some(self.identity())
+                if let Some(hash) =
+                    inner
+                        .write_ownership
+                        .known_hash(&self.full_path, writer, self.fingerprint)
                 {
-                    match hash_file_content(&self.full_path) {
-                        Ok(hash) => return Ok(hash),
-                        Err(err) if err.kind() == ErrorKind::NotFound => {}
-                        Err(err) => return Err(failed(err, &self.full_path)),
+                    return Ok(hash);
+                }
+                let full_path = self.full_path.clone();
+                let fingerprint = self.fingerprint;
+                let hash = retry_blocking(move || {
+                    if Fingerprint::of(&full_path)? != fingerprint {
+                        return Ok(None);
+                    }
+                    hash_disk_content(&full_path).map(Some)
+                })
+                .concurrency_limited(&inner.read_semaphore)
+                .await
+                .with_context(|| format!("failed to hash {:?}", self.full_path))
+                .map_err(Self::failed)?;
+                match hash {
+                    Some(hash) => {
+                        inner.write_ownership.store_hash(
+                            &self.full_path,
+                            writer,
+                            self.fingerprint,
+                            hash,
+                        );
+                        Ok(hash)
+                    }
+                    None => {
+                        // The content of this write isn't on disk anymore. Re-execute the write
+                        // task, so that it writes (and hashes) the file again.
+                        self.invalidate_writer(inner);
+                        Err(ApplyError::Retry)
                     }
                 }
-                self.invalidate_writer(inner);
-                Err(ApplyError::Retry)
-            }
-
-            async fn apply_inner(
-                &self,
-                inner: &DiskFileSystemInner,
-                previous: Option<LastApplied>,
-            ) -> anyhow::Result<ApplyStep<AnyhowWrapper>> {
-                let full_path = &self.full_path;
-                let identity = self.identity();
-                let _lock = inner.lock_path(full_path.clone()).await;
-
-                let Some(scratch_path) = &self.scratch_path else {
-                    // Always delete: the same write task may previously have placed content at
-                    // this path, so the writer identity alone can't tell whether the deletion
-                    // already happened.
-                    retry_blocking(|| std::fs::remove_file(&**full_path))
-                        .instrument(tracing::info_span!("remove file", name = ?full_path))
-                        .concurrency_limited(&inner.write_semaphore)
-                        .await
-                        .or_else(|err| {
-                            if err.kind() == ErrorKind::NotFound {
-                                Ok(())
-                            } else {
-                                Err(err)
-                            }
-                        })
-                        .with_context(|| format!("removing {full_path:?} failed"))?;
-                    inner.invalidate_from_write(full_path);
-                    return Ok(ApplyStep::Applied(Ok(())));
-                };
-
-                let placed = place_scratch_file(scratch_path, full_path)
-                    .instrument(tracing::info_span!("move file into place", name = ?full_path))
-                    .concurrency_limited(&inner.write_semaphore)
-                    .await
-                    .with_context(|| {
-                        format!("failed to move scratch file {scratch_path:?} to {full_path:?}")
-                    })?;
-
-                if !placed {
-                    // The scratch file is missing: it was already moved into place by an earlier
-                    // apply of this write task's latest execution.
-                    let dest_exists = output_exists(full_path)
-                        .with_context(|| format!("failed to check {full_path:?}"))?;
-                    let last_writer_is_us = previous
-                        .as_ref()
-                        .is_none_or(|previous| previous.identity == identity);
-                    if dest_exists && last_writer_is_us {
-                        // With no in-session state (e.g. a new session restored from the
-                        // persistent cache) we assume the destination is up to date.
-                        return Ok(ApplyStep::UpToDate);
-                    }
-                    // A different writer replaced our output (or it was removed). Re-execute the
-                    // write task to re-create the scratch file and retry.
-                    self.invalidate_writer(inner);
-                    return Ok(ApplyStep::Retry);
-                }
-
-                if let Some(versioned_path) = &self.versioned_path {
-                    retry_blocking(|| copy_atomically(full_path, versioned_path))
-                        .concurrency_limited(&inner.write_semaphore)
-                        .await
-                        .with_context(|| {
-                            format!("failed to write versioned copy {versioned_path:?}")
-                        })?;
-                }
-
-                // Invalidate any read tasks tracking this path so they re-read the new content
-                inner.invalidate_from_write(full_path);
-
-                Ok(ApplyStep::Applied(Ok(())))
             }
         }
 
@@ -1655,13 +1868,10 @@ impl FileSystem for DiskFileSystem {
             }
 
             fn identity(&self) -> u128 {
-                self.writer.task_id().to_primitive() as u128
+                writer_id(&self.writer) as u128
             }
 
             async fn content_hash(&self) -> Result<u128, ApplyError> {
-                if self.scratch_path.is_none() {
-                    return Ok(DELETED_FILE_CONTENT_HASH);
-                }
                 let inner = self.inner().await?;
                 let this = self.clone();
                 // Run the IO on its own task, like `apply`.
@@ -1672,29 +1882,14 @@ impl FileSystem for DiskFileSystem {
                 let inner = self.inner().await?;
                 let this = self.clone();
                 // Run the IO on its own task so that pending effects execute in parallel.
-                turbo_tasks::spawn(async move {
-                    inner
-                        .effect_state_storage
-                        .run_apply::<AnyhowWrapper, _, _>(
-                            this.key(),
-                            this.identity(),
-                            async |previous| {
-                                this.apply_inner(&inner, previous)
-                                    .await
-                                    .unwrap_or_else(|err| ApplyStep::Applied(Err(err.into())))
-                            },
-                        )
-                        .await
-                })
-                .await
+                turbo_tasks::spawn(async move { this.apply_inner(&inner).await }).await
             }
         }
 
         WriteEffect {
             fs: self,
-            full_path: Arc::new(full_path),
-            scratch_path,
-            versioned_path,
+            full_path,
+            fingerprint,
             writer,
         }
         .resolved_cell()
@@ -1791,14 +1986,10 @@ impl FileSystem for DiskFileSystem {
                         .run_apply::<AnyhowWrapper, _, _>(
                             this.key(),
                             this.content_hash,
-                            async |previous| {
-                                // Skip the write entirely if the per-key effect state already
-                                // records this link as applied.
-                                if previous
-                                    .is_some_and(|previous| previous.identity == this.content_hash)
-                                {
-                                    return ApplyStep::UpToDate;
-                                }
+                            async |_previous| {
+                                // Always compare with the link on disk: file writes don't record
+                                // their state here, so a file may have replaced this link since
+                                // it was last applied. `apply_inner` skips equal links.
                                 ApplyStep::Applied(
                                     this.apply_inner(&inner).await.map_err(AnyhowWrapper::from),
                                 )
@@ -1951,7 +2142,6 @@ impl FileSystem for DiskFileSystem {
         .emit();
         Ok(())
     }
-
     #[turbo_tasks::function(fs, session_dependent)]
     async fn metadata(&self, fs_path: FileSystemPath) -> Result<Vc<FileMeta>> {
         let full_path = Arc::new(self.to_sys_path_raw(&fs_path));
@@ -2026,7 +2216,6 @@ mod tests {
             rcstr!("external-tracking"),
             Vc::cell(root),
             Vec::new(),
-            None,
             DiskWatcherConfig {
                 // Registration must walk back to the canonical root on Windows too.
                 recursive_mode: Some(crate::DiskWatcherRecursiveMode::NonRecursive),
@@ -3046,7 +3235,6 @@ mod tests {
                     rcstr!("test"),
                     Vc::cell(root),
                     vec![denied_path],
-                    None,
                     DiskWatcherConfig::default(),
                     DiskFileSystemMap::empty(),
                 );
@@ -3112,7 +3300,6 @@ mod tests {
                     rcstr!("test"),
                     Vc::cell(root),
                     vec![denied_path],
-                    None,
                     DiskWatcherConfig::default(),
                     DiskFileSystemMap::empty(),
                 );
@@ -3177,7 +3364,6 @@ mod tests {
                     rcstr!("test"),
                     Vc::cell(root),
                     vec![denied_path],
-                    None,
                     DiskWatcherConfig::default(),
                     DiskFileSystemMap::empty(),
                 );
@@ -3262,13 +3448,10 @@ mod tests {
                 file_path: RcStr,
                 contents: RcStr,
             ) -> anyhow::Result<Vc<Effects>> {
-                let scratch_dir =
-                    RcStr::from(Path::new(root.as_str()).join(".scratch").to_str().unwrap());
                 let fs = DiskFileSystem::new_with_options(
                     rcstr!("test"),
                     Vc::cell(root),
                     vec![denied_path],
-                    Some(scratch_dir),
                     DiskWatcherConfig::default(),
                     DiskFileSystemMap::empty(),
                 );
@@ -3290,7 +3473,6 @@ mod tests {
                     rcstr!("test"),
                     Vc::cell(root),
                     vec![denied_path],
-                    None,
                     DiskWatcherConfig::default(),
                     DiskFileSystemMap::empty(),
                 );
@@ -3356,36 +3538,29 @@ mod tests {
         }
     }
 
-    #[cfg(not(miri))] // Uses the real filesystem.
-    mod scratch_write_tests {
+    mod direct_write_tests {
         use std::{
-            fs::{read_dir, read_to_string},
+            fs::read_to_string,
             path::{Path, PathBuf},
         };
 
         use anyhow::Result;
         use turbo_rcstr::{RcStr, rcstr};
         use turbo_tasks::{
-            EffectsError, ResolvedVc, State, Vc, read_strongly_consistent_and_apply_effects,
+            Effects, EffectsError, OperationVc, ResolvedVc, State, Vc,
+            read_strongly_consistent_and_apply_effects,
         };
         use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
         use super::extract_effects_operation;
         use crate::{
-            DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, File, FileContent, FileSystem,
-            Permissions,
+            DiskFileSystem, File, FileContent, FileSystem, Permissions, WriteLinkContent,
+            WriteLinkTargetType,
         };
 
         #[turbo_tasks::function(operation, root)]
-        fn fs_operation(root: RcStr, scratch_dir: Option<RcStr>) -> Vc<DiskFileSystem> {
-            DiskFileSystem::new_with_options(
-                rcstr!("test"),
-                Vc::cell(root),
-                Vec::new(),
-                scratch_dir,
-                DiskWatcherConfig::default(),
-                DiskFileSystemMap::empty(),
-            )
+        fn fs_operation(root: RcStr) -> Vc<DiskFileSystem> {
+            DiskFileSystem::new(rcstr!("test"), Vc::cell(root))
         }
 
         /// Creates a new content cell. `salt` lets tests create distinct cells (and therefore
@@ -3424,12 +3599,6 @@ mod tests {
             Ok(())
         }
 
-        struct Setup {
-            _tempdir: tempfile::TempDir,
-            root: PathBuf,
-            scratch: PathBuf,
-        }
-
         /// Content driven by a `State`, so a single content cell (and therefore a single write
         /// task) changes over time.
         #[turbo_tasks::value(eq = "manual", serialization = "skip")]
@@ -3466,26 +3635,50 @@ mod tests {
             Ok(())
         }
 
+        #[turbo_tasks::function(operation, root)]
+        async fn write_link_operation(
+            fs: ResolvedVc<DiskFileSystem>,
+            path: RcStr,
+            target: RcStr,
+        ) -> Result<()> {
+            let root = fs.root().await?;
+            fs.write_link(
+                root.join(&path)?,
+                WriteLinkContent {
+                    target: root.join(&target)?,
+                    target_type: WriteLinkTargetType::FileNonPortable,
+                }
+                .cell(),
+            )
+            .await?;
+            Ok(())
+        }
+
+        fn state_input(
+            initial: &str,
+        ) -> (
+            std::sync::Arc<State<Option<RcStr>>>,
+            ResolvedVc<StateContent>,
+        ) {
+            let state = std::sync::Arc::new(State::new(Some(RcStr::from(initial))));
+            let input = StateContent {
+                state: state.clone(),
+            }
+            .resolved_cell();
+            (state, input)
+        }
+
+        struct Setup {
+            _tempdir: tempfile::TempDir,
+            root: PathBuf,
+        }
+
         fn setup() -> Setup {
             let tempdir = tempfile::tempdir().unwrap();
-            let base = std::fs::canonicalize(tempdir.path()).unwrap();
-            let root = base.join("root");
-            std::fs::create_dir(&root).unwrap();
+            let root = std::fs::canonicalize(tempdir.path()).unwrap();
             Setup {
                 _tempdir: tempdir,
                 root,
-                scratch: base.join("scratch"),
-            }
-        }
-
-        fn rcstr_path(path: &Path) -> RcStr {
-            RcStr::from(path.to_str().unwrap())
-        }
-
-        fn scratch_files(scratch: &Path) -> Vec<PathBuf> {
-            match read_dir(scratch) {
-                Ok(entries) => entries.map(|entry| entry.unwrap().path()).collect(),
-                Err(_) => Vec::new(),
             }
         }
 
@@ -3501,10 +3694,162 @@ mod tests {
         }
 
         async fn test_fs(setup: &Setup) -> Result<ResolvedVc<DiskFileSystem>> {
-            fs_operation(rcstr_path(&setup.root), Some(rcstr_path(&setup.scratch)))
+            fs_operation(RcStr::from(setup.root.to_str().unwrap()))
                 .resolve()
                 .strongly_consistent()
                 .await
+        }
+
+        /// Reads the effects and applies them once, without retrying, so tests can assert that no
+        /// retry was necessary.
+        async fn apply_once(effects_op: OperationVc<Effects>) -> Result<(), EffectsError> {
+            effects_op
+                .read_strongly_consistent()
+                .await
+                .unwrap()
+                .apply_for_testing()
+                .await
+        }
+
+        async fn apply(effects_op: OperationVc<Effects>) -> Result<()> {
+            read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
+            Ok(())
+        }
+
+        fn fingerprint(path: &Path) -> super::super::Fingerprint {
+            super::super::Fingerprint::of(path).unwrap()
+        }
+
+        /// The content hashes recorded for the writers of `path`.
+        async fn recorded_hashes(
+            fs: ResolvedVc<DiskFileSystem>,
+            path: &Path,
+        ) -> Result<Vec<Option<u128>>> {
+            let fs = fs.await?;
+            let paths = fs.inner.write_ownership.paths.lock().unwrap();
+            Ok(paths
+                .get(path)
+                .map(|ownership| {
+                    ownership
+                        .writers
+                        .values()
+                        .map(|record| record.hash)
+                        .collect()
+                })
+                .unwrap_or_default())
+        }
+
+        async fn clear_ownership(fs: ResolvedVc<DiskFileSystem>) -> Result<()> {
+            fs.await?
+                .inner
+                .write_ownership
+                .paths
+                .lock()
+                .unwrap()
+                .clear();
+            Ok(())
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn write_happens_before_apply() {
+            let setup = setup();
+            create_tt()
+                .run_once(async move {
+                    let fs = test_fs(&setup).await?;
+                    let effects_op = extract_effects_operation(write_operation(
+                        fs,
+                        rcstr!("out/a.txt"),
+                        write("hello"),
+                        false,
+                    ));
+                    effects_op.read_strongly_consistent().await?;
+                    // The write task wrote the file, before any effect is applied.
+                    assert_eq!(read_to_string(setup.root.join("out/a.txt"))?, "hello");
+                    apply_once(effects_op).await?;
+                    assert_eq!(read_to_string(setup.root.join("out/a.txt"))?, "hello");
+                    // A single writer never hashes content.
+                    let hashes = recorded_hashes(fs, &setup.root.join("out/a.txt")).await?;
+                    assert_eq!(hashes, vec![None]);
+                    anyhow::Ok(())
+                })
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn reapply_is_noop() {
+            let setup = setup();
+            create_tt()
+                .run_once(async move {
+                    let fs = test_fs(&setup).await?;
+                    let effects_op = extract_effects_operation(write_operation(
+                        fs,
+                        rcstr!("a.txt"),
+                        write("hello"),
+                        false,
+                    ));
+                    apply_once(effects_op).await?;
+                    let before = fingerprint(&setup.root.join("a.txt"));
+                    apply_once(effects_op).await?;
+                    apply_once(effects_op).await?;
+                    assert_eq!(fingerprint(&setup.root.join("a.txt")), before);
+                    anyhow::Ok(())
+                })
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn unchanged_file_without_in_session_state_is_up_to_date() {
+            let setup = setup();
+            create_tt()
+                .run_once(async move {
+                    let fs = test_fs(&setup).await?;
+                    let effects_op = extract_effects_operation(write_operation(
+                        fs,
+                        rcstr!("a.txt"),
+                        write("hello"),
+                        false,
+                    ));
+                    effects_op.read_strongly_consistent().await?;
+                    // Like a new session restored from the persistent cache.
+                    clear_ownership(fs).await?;
+                    apply_once(effects_op).await?;
+                    assert_eq!(read_to_string(setup.root.join("a.txt"))?, "hello");
+                    anyhow::Ok(())
+                })
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn externally_modified_output_is_rewritten() {
+            let setup = setup();
+            create_tt()
+                .run_once(async move {
+                    let fs = test_fs(&setup).await?;
+                    let effects_op = extract_effects_operation(write_operation(
+                        fs,
+                        rcstr!("a.txt"),
+                        write("hello"),
+                        false,
+                    ));
+                    apply(effects_op).await?;
+                    std::fs::write(setup.root.join("a.txt"), "external")?;
+                    assert!(matches!(
+                        apply_once(effects_op).await,
+                        Err(EffectsError::Retry { .. })
+                    ));
+                    apply(effects_op).await?;
+                    assert_eq!(read_to_string(setup.root.join("a.txt"))?, "hello");
+
+                    std::fs::remove_file(setup.root.join("a.txt"))?;
+                    apply(effects_op).await?;
+                    assert_eq!(read_to_string(setup.root.join("a.txt"))?, "hello");
+                    anyhow::Ok(())
+                })
+                .await
+                .unwrap();
         }
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -3513,11 +3858,7 @@ mod tests {
             create_tt()
                 .run_once(async move {
                     let fs = test_fs(&setup).await?;
-                    let state = std::sync::Arc::new(State::new(Some(rcstr!("one"))));
-                    let input = StateContent {
-                        state: state.clone(),
-                    }
-                    .resolved_cell();
+                    let (state, input) = state_input("one");
                     let effects_op = extract_effects_operation(write_state_operation(
                         fs,
                         rcstr!("a.txt"),
@@ -3525,22 +3866,394 @@ mod tests {
                     ));
                     let output = setup.root.join("a.txt");
 
-                    read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
+                    apply_once(effects_op).await?;
                     assert_eq!(read_to_string(&output)?, "one");
 
                     state.set(Some(rcstr!("two")));
-                    read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
+                    apply_once(effects_op).await?;
                     assert_eq!(read_to_string(&output)?, "two");
 
-                    // The same write task now deletes the file it placed before.
+                    // The same write task now deletes the file it wrote before.
                     state.set(None);
-                    read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
+                    apply_once(effects_op).await?;
                     assert!(!output.exists());
 
                     state.set(Some(rcstr!("three")));
-                    read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
+                    apply_once(effects_op).await?;
                     assert_eq!(read_to_string(&output)?, "three");
-                    assert!(scratch_files(&setup.scratch).is_empty());
+                    anyhow::Ok(())
+                })
+                .await
+                .unwrap();
+        }
+
+        /// A writer that re-executes after the effects were read: the newer write is on disk.
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn writer_reexecuting_before_apply_is_accepted() {
+            let setup = setup();
+            create_tt()
+                .run_once(async move {
+                    let fs = test_fs(&setup).await?;
+                    let (state, input) = state_input("one");
+                    let effects_op = extract_effects_operation(write_state_operation(
+                        fs,
+                        rcstr!("a.txt"),
+                        input,
+                    ));
+                    let stale_effects = effects_op.read_strongly_consistent().await?;
+                    state.set(Some(rcstr!("two")));
+                    effects_op.read_strongly_consistent().await?;
+                    stale_effects.apply_for_testing().await?;
+                    assert_eq!(read_to_string(setup.root.join("a.txt"))?, "two");
+                    anyhow::Ok(())
+                })
+                .await
+                .unwrap();
+        }
+
+        /// Two different write tasks with identical content for one path, applied from separate
+        /// `Effects` batches (like shared chunks emitted by different routes), must never fight.
+        #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+        async fn separate_batches_with_equal_content_do_not_fight() {
+            let setup = setup();
+            create_tt()
+                .run_once(async move {
+                    let fs = test_fs(&setup).await?;
+                    let op = |salt| {
+                        extract_effects_operation(write_operation(
+                            fs,
+                            rcstr!("shared.js"),
+                            vec![(Some(rcstr!("same")), salt)],
+                            false,
+                        ))
+                    };
+                    let (op_a, op_b) = (op(1), op(2));
+                    for _ in 0..10 {
+                        apply_once(op_a).await?;
+                        apply_once(op_b).await?;
+                    }
+                    for _ in 0..10 {
+                        let (a, b) = futures::join!(apply_once(op_a), apply_once(op_b));
+                        a?;
+                        b?;
+                    }
+                    assert_eq!(read_to_string(setup.root.join("shared.js"))?, "same");
+                    anyhow::Ok(())
+                })
+                .await
+                .unwrap();
+        }
+
+        /// Batches that contain several writers with identical content for one path (and batches
+        /// that contain only some of them), applied repeatedly, must never fight.
+        #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+        async fn overlapping_batches_with_equal_content_do_not_fight() {
+            let setup = setup();
+            create_tt()
+                .run_once(async move {
+                    let fs = test_fs(&setup).await?;
+                    let op = |salts: &[u32]| {
+                        extract_effects_operation(write_operation(
+                            fs,
+                            rcstr!("shared.js"),
+                            salts
+                                .iter()
+                                .map(|salt| (Some(rcstr!("same")), *salt))
+                                .collect(),
+                            false,
+                        ))
+                    };
+                    let ops = [op(&[1, 2]), op(&[1]), op(&[2]), op(&[2, 3]), op(&[3, 1])];
+                    for round in 0..10 {
+                        for op in ops {
+                            apply_once(op).await?;
+                        }
+                        let results = futures::future::join_all(ops.map(apply_once)).await;
+                        for result in results {
+                            result.map_err(|err| anyhow::anyhow!("round {round}: {err:#}"))?;
+                        }
+                    }
+                    assert_eq!(read_to_string(setup.root.join("shared.js"))?, "same");
+                    anyhow::Ok(())
+                })
+                .await
+                .unwrap();
+        }
+
+        /// When a writer changes its content, its old hash must not be used to consider it equal
+        /// to another writer.
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn changed_content_discards_equality_evidence() {
+            let setup = setup();
+            create_tt()
+                .run_once(async move {
+                    let fs = test_fs(&setup).await?;
+                    let (state, input) = state_input("same");
+                    let op_a = extract_effects_operation(write_state_operation(
+                        fs,
+                        rcstr!("shared.js"),
+                        input,
+                    ));
+                    let op_b = extract_effects_operation(write_operation(
+                        fs,
+                        rcstr!("shared.js"),
+                        write("same"),
+                        false,
+                    ));
+                    apply_once(op_a).await?;
+                    apply_once(op_b).await?;
+                    apply_once(op_a).await?;
+
+                    // A now writes different content (and wins).
+                    state.set(Some(rcstr!("changed")));
+                    apply_once(op_a).await?;
+                    assert_eq!(read_to_string(setup.root.join("shared.js"))?, "changed");
+                    // B's content isn't on disk anymore: B must be rewritten.
+                    assert!(matches!(
+                        apply_once(op_b).await,
+                        Err(EffectsError::Retry { .. })
+                    ));
+                    apply(op_b).await?;
+                    assert_eq!(read_to_string(setup.root.join("shared.js"))?, "same");
+                    anyhow::Ok(())
+                })
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn a_b_a_with_cached_writer_rewrites() {
+            let setup = setup();
+            create_tt()
+                .run_once(async move {
+                    let fs = test_fs(&setup).await?;
+                    let op_a = extract_effects_operation(write_operation(
+                        fs,
+                        rcstr!("a.txt"),
+                        write("a"),
+                        false,
+                    ));
+                    let op_b = extract_effects_operation(write_operation(
+                        fs,
+                        rcstr!("a.txt"),
+                        write("b"),
+                        false,
+                    ));
+                    apply(op_a).await?;
+                    assert_eq!(read_to_string(setup.root.join("a.txt"))?, "a");
+                    apply(op_b).await?;
+                    assert_eq!(read_to_string(setup.root.join("a.txt"))?, "b");
+                    // A's write task is cached, its write isn't on disk anymore.
+                    apply(op_a).await?;
+                    assert_eq!(read_to_string(setup.root.join("a.txt"))?, "a");
+                    anyhow::Ok(())
+                })
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn duplicate_writers_with_equal_content() {
+            let setup = setup();
+            create_tt()
+                .run_once(async move {
+                    let fs = test_fs(&setup).await?;
+                    let effects_op = extract_effects_operation(write_operation(
+                        fs,
+                        rcstr!("a.txt"),
+                        vec![(Some(rcstr!("same")), 1), (Some(rcstr!("same")), 2)],
+                        false,
+                    ));
+                    apply_once(effects_op).await?;
+                    apply_once(effects_op).await?;
+                    assert_eq!(read_to_string(setup.root.join("a.txt"))?, "same");
+                    anyhow::Ok(())
+                })
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn duplicate_writers_without_in_session_state() {
+            let setup = setup();
+            create_tt()
+                .run_once(async move {
+                    let fs = test_fs(&setup).await?;
+                    let effects_op = extract_effects_operation(write_operation(
+                        fs,
+                        rcstr!("a.txt"),
+                        vec![(Some(rcstr!("same")), 1), (Some(rcstr!("same")), 2)],
+                        false,
+                    ));
+                    effects_op.read_strongly_consistent().await?;
+                    clear_ownership(fs).await?;
+                    apply(effects_op).await?;
+                    apply_once(effects_op).await?;
+                    assert_eq!(read_to_string(setup.root.join("a.txt"))?, "same");
+                    anyhow::Ok(())
+                })
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn duplicate_writers_with_different_content_conflict() {
+            let setup = setup();
+            create_tt()
+                .run_once(async move {
+                    let fs = test_fs(&setup).await?;
+                    let effects_op = extract_effects_operation(write_operation(
+                        fs,
+                        rcstr!("a.txt"),
+                        vec![(Some(rcstr!("one")), 1), (Some(rcstr!("two")), 2)],
+                        false,
+                    ));
+                    let Err(err) = apply(effects_op).await else {
+                        panic!("different content for the same path must conflict");
+                    };
+                    assert!(
+                        matches!(
+                            err.downcast_ref::<EffectsError>(),
+                            Some(EffectsError::Conflict(_))
+                        ),
+                        "unexpected error: {err:#}"
+                    );
+                    anyhow::Ok(())
+                })
+                .await
+                .unwrap();
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn delete_removes_output() {
+            let setup = setup();
+            std::fs::write(setup.root.join("a.txt"), "existing").unwrap();
+            create_tt()
+                .run_once(async move {
+                    let fs = test_fs(&setup).await?;
+                    let effects_op = extract_effects_operation(write_operation(
+                        fs,
+                        rcstr!("a.txt"),
+                        vec![(None, 0)],
+                        false,
+                    ));
+                    apply_once(effects_op).await?;
+                    assert!(!setup.root.join("a.txt").exists());
+                    apply_once(effects_op).await?;
+                    anyhow::Ok(())
+                })
+                .await
+                .unwrap();
+        }
+
+        #[cfg(unix)]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn executable_permissions_are_preserved() {
+            use std::os::unix::fs::PermissionsExt;
+
+            let setup = setup();
+            create_tt()
+                .run_once(async move {
+                    let fs = test_fs(&setup).await?;
+                    apply_once(extract_effects_operation(write_operation(
+                        fs,
+                        rcstr!("bin/run"),
+                        write("#!/bin/sh"),
+                        true,
+                    )))
+                    .await?;
+                    let mode = std::fs::metadata(setup.root.join("bin/run"))?
+                        .permissions()
+                        .mode();
+                    assert_eq!(mode & 0o777, 0o755);
+                    anyhow::Ok(())
+                })
+                .await
+                .unwrap();
+        }
+
+        /// A permission-only change doesn't change the content or modification time, but the
+        /// file is no longer the one that was written.
+        #[cfg(unix)]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn permission_change_is_detected() {
+            use std::os::unix::fs::PermissionsExt;
+
+            let setup = setup();
+            create_tt()
+                .run_once(async move {
+                    let fs = test_fs(&setup).await?;
+                    let effects_op = extract_effects_operation(write_operation(
+                        fs,
+                        rcstr!("bin/run"),
+                        write("#!/bin/sh"),
+                        true,
+                    ));
+                    let output = setup.root.join("bin/run");
+                    apply_once(effects_op).await?;
+                    std::fs::set_permissions(&output, std::fs::Permissions::from_mode(0o644))?;
+                    assert!(matches!(
+                        apply_once(effects_op).await,
+                        Err(EffectsError::Retry { .. })
+                    ));
+                    apply(effects_op).await?;
+                    assert_eq!(
+                        std::fs::metadata(&output)?.permissions().mode() & 0o777,
+                        0o755
+                    );
+                    anyhow::Ok(())
+                })
+                .await
+                .unwrap();
+        }
+
+        /// File writes and link writes for the same path, where the effects of cached write tasks
+        /// are applied again after the other kind replaced their output.
+        #[cfg(unix)]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn file_and_link_transitions() {
+            let setup = setup();
+            std::fs::write(setup.root.join("target.txt"), "target").unwrap();
+            create_tt()
+                .run_once(async move {
+                    let fs = test_fs(&setup).await?;
+                    let output = setup.root.join("out");
+                    let (state, input) = state_input("file");
+                    let file_op =
+                        extract_effects_operation(write_state_operation(fs, rcstr!("out"), input));
+                    let link_op = extract_effects_operation(write_link_operation(
+                        fs,
+                        rcstr!("out"),
+                        rcstr!("target.txt"),
+                    ));
+                    let is_link = |path: &Path| {
+                        std::fs::symlink_metadata(path)
+                            .map(|metadata| metadata.file_type().is_symlink())
+                            .unwrap_or(false)
+                    };
+
+                    apply(file_op).await?;
+                    assert!(!is_link(&output));
+                    assert_eq!(read_to_string(&output)?, "file");
+
+                    apply(link_op).await?;
+                    assert!(is_link(&output));
+                    assert_eq!(read_to_string(&output)?, "target");
+
+                    // The file write task re-executes and replaces the link.
+                    state.set(Some(rcstr!("file 2")));
+                    apply(file_op).await?;
+                    assert!(!is_link(&output));
+                    assert_eq!(read_to_string(&output)?, "file 2");
+
+                    // The cached link effect must notice the link is gone.
+                    apply(link_op).await?;
+                    assert!(is_link(&output));
+
+                    // The cached file effect must notice the file is gone.
+                    apply(file_op).await?;
+                    assert!(!is_link(&output));
+                    assert_eq!(read_to_string(&output)?, "file 2");
                     anyhow::Ok(())
                 })
                 .await
@@ -3561,268 +4274,26 @@ mod tests {
             );
         }
 
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        async fn eager_write_before_apply() {
+        #[test]
+        fn in_memory_and_disk_hashes_match() {
             let setup = setup();
-            create_tt()
-                .run_once(async move {
-                    let fs = test_fs(&setup).await?;
-                    let effects_op = extract_effects_operation(write_operation(
-                        fs,
-                        rcstr!("out/a.txt"),
-                        write("hello"),
-                        false,
-                    ));
-                    effects_op.read_strongly_consistent().await?;
-
-                    // The content is on disk in the scratch dir before any effect is applied.
-                    let files = scratch_files(&setup.scratch);
-                    assert_eq!(files.len(), 1, "{files:?}");
-                    assert_eq!(read_to_string(&files[0])?, "hello");
-                    assert!(!setup.root.join("out/a.txt").exists());
-
-                    read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
-                    assert_eq!(read_to_string(setup.root.join("out/a.txt"))?, "hello");
-                    assert!(scratch_files(&setup.scratch).is_empty());
-                    anyhow::Ok(())
-                })
-                .await
-                .unwrap();
-        }
-
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        async fn write_without_scratch_dir_errors() {
-            let setup = setup();
-            create_tt()
-                .run_once(async move {
-                    let fs = fs_operation(rcstr_path(&setup.root), None)
-                        .resolve()
-                        .strongly_consistent()
-                        .await?;
-                    let result = write_operation(fs, rcstr!("a.txt"), write("hello"), false)
-                        .read_strongly_consistent()
-                        .await;
-                    let err = result.expect_err("writing without a scratch dir must fail");
-                    assert!(
-                        format!("{err:#}").contains("no scratch directory"),
-                        "unexpected error: {err:#}"
-                    );
-                    anyhow::Ok(())
-                })
-                .await
-                .unwrap();
-        }
-
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        async fn reapply_is_noop() {
-            let setup = setup();
-            create_tt()
-                .run_once(async move {
-                    let fs = test_fs(&setup).await?;
-                    let effects_op = extract_effects_operation(write_operation(
-                        fs,
-                        rcstr!("a.txt"),
-                        write("hello"),
-                        false,
-                    ));
-                    read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
-                    std::fs::write(setup.root.join("a.txt"), "external")?;
-                    read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
-                    assert_eq!(read_to_string(setup.root.join("a.txt"))?, "external");
-                    anyhow::Ok(())
-                })
-                .await
-                .unwrap();
-        }
-
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        async fn a_b_a_with_cached_writer_retries() {
-            let setup = setup();
-            create_tt()
-                .run_once(async move {
-                    let fs = test_fs(&setup).await?;
-                    let op_a = extract_effects_operation(write_operation(
-                        fs,
-                        rcstr!("a.txt"),
-                        write("a"),
-                        false,
-                    ));
-                    let op_b = extract_effects_operation(write_operation(
-                        fs,
-                        rcstr!("a.txt"),
-                        write("b"),
-                        false,
-                    ));
-                    read_strongly_consistent_and_apply_effects(op_a, |e| e).await?;
-                    assert_eq!(read_to_string(setup.root.join("a.txt"))?, "a");
-                    read_strongly_consistent_and_apply_effects(op_b, |e| e).await?;
-                    assert_eq!(read_to_string(setup.root.join("a.txt"))?, "b");
-                    // A's write task is cached and its scratch file was consumed.
-                    read_strongly_consistent_and_apply_effects(op_a, |e| e).await?;
-                    assert_eq!(read_to_string(setup.root.join("a.txt"))?, "a");
-                    anyhow::Ok(())
-                })
-                .await
-                .unwrap();
-        }
-
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        async fn missing_scratch_with_existing_destination_is_up_to_date() {
-            let setup = setup();
-            create_tt()
-                .run_once(async move {
-                    let fs = test_fs(&setup).await?;
-                    let effects_op = extract_effects_operation(write_operation(
-                        fs,
-                        rcstr!("a.txt"),
-                        write("hello"),
-                        false,
-                    ));
-                    effects_op.read_strongly_consistent().await?;
-                    // Simulate a previous session that already moved the scratch file into place.
-                    for file in scratch_files(&setup.scratch) {
-                        std::fs::remove_file(file)?;
-                    }
-                    std::fs::write(setup.root.join("a.txt"), "previous session")?;
-                    read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
-                    assert_eq!(
-                        read_to_string(setup.root.join("a.txt"))?,
-                        "previous session"
-                    );
-                    anyhow::Ok(())
-                })
-                .await
-                .unwrap();
-        }
-
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        async fn missing_scratch_and_destination_retries() {
-            let setup = setup();
-            create_tt()
-                .run_once(async move {
-                    let fs = test_fs(&setup).await?;
-                    let effects_op = extract_effects_operation(write_operation(
-                        fs,
-                        rcstr!("a.txt"),
-                        write("hello"),
-                        false,
-                    ));
-                    effects_op.read_strongly_consistent().await?;
-                    for file in scratch_files(&setup.scratch) {
-                        std::fs::remove_file(file)?;
-                    }
-                    read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
-                    assert_eq!(read_to_string(setup.root.join("a.txt"))?, "hello");
-                    anyhow::Ok(())
-                })
-                .await
-                .unwrap();
-        }
-
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        async fn duplicate_writers_with_equal_content() {
-            let setup = setup();
-            create_tt()
-                .run_once(async move {
-                    let fs = test_fs(&setup).await?;
-                    let effects_op = extract_effects_operation(write_operation(
-                        fs,
-                        rcstr!("a.txt"),
-                        vec![(Some(rcstr!("same")), 1), (Some(rcstr!("same")), 2)],
-                        false,
-                    ));
-                    effects_op.read_strongly_consistent().await?;
-                    assert_eq!(scratch_files(&setup.scratch).len(), 2);
-                    read_strongly_consistent_and_apply_effects(effects_op, |e| e).await?;
-                    assert_eq!(read_to_string(setup.root.join("a.txt"))?, "same");
-                    anyhow::Ok(())
-                })
-                .await
-                .unwrap();
-        }
-
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        async fn duplicate_writers_with_different_content_conflict() {
-            let setup = setup();
-            create_tt()
-                .run_once(async move {
-                    let fs = test_fs(&setup).await?;
-                    let effects_op = extract_effects_operation(write_operation(
-                        fs,
-                        rcstr!("a.txt"),
-                        vec![(Some(rcstr!("one")), 1), (Some(rcstr!("two")), 2)],
-                        false,
-                    ));
-                    let Err(err) =
-                        read_strongly_consistent_and_apply_effects(effects_op, |e| e).await
-                    else {
-                        panic!("different content for the same path must conflict");
-                    };
-                    assert!(
-                        matches!(
-                            err.downcast_ref::<EffectsError>(),
-                            Some(EffectsError::Conflict(_))
-                        ),
-                        "unexpected error: {err:#}"
-                    );
-                    assert!(!setup.root.join("a.txt").exists());
-                    anyhow::Ok(())
-                })
-                .await
-                .unwrap();
-        }
-
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        async fn delete_removes_output() {
-            let setup = setup();
-            std::fs::write(setup.root.join("a.txt"), "existing").unwrap();
-            create_tt()
-                .run_once(async move {
-                    let fs = test_fs(&setup).await?;
-                    read_strongly_consistent_and_apply_effects(
-                        extract_effects_operation(write_operation(
-                            fs,
-                            rcstr!("a.txt"),
-                            vec![(None, 0)],
-                            false,
-                        )),
-                        |e| e,
-                    )
-                    .await?;
-                    assert!(!setup.root.join("a.txt").exists());
-                    anyhow::Ok(())
-                })
-                .await
-                .unwrap();
-        }
-
-        #[cfg(unix)]
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        async fn executable_permissions_are_preserved() {
-            use std::os::unix::fs::PermissionsExt;
-
-            let setup = setup();
-            create_tt()
-                .run_once(async move {
-                    let fs = test_fs(&setup).await?;
-                    read_strongly_consistent_and_apply_effects(
-                        extract_effects_operation(write_operation(
-                            fs,
-                            rcstr!("bin/run"),
-                            write("#!/bin/sh"),
-                            true,
-                        )),
-                        |e| e,
-                    )
-                    .await?;
-                    let mode = std::fs::metadata(setup.root.join("bin/run"))?
-                        .permissions()
-                        .mode();
-                    assert_eq!(mode & 0o777, 0o755);
-                    anyhow::Ok(())
-                })
-                .await
-                .unwrap();
+            for executable in [false, true] {
+                let file = File::from_bytes(b"content".to_vec()).with_permissions(if executable {
+                    Permissions::Executable
+                } else {
+                    Permissions::Writable
+                });
+                let path = setup.root.join(format!("file-{executable}"));
+                super::super::write_file_atomically(&path, &file).unwrap();
+                assert_eq!(
+                    super::super::content_hash_of(&FileContent::Content(file)),
+                    super::super::hash_disk_content(&path).unwrap()
+                );
+            }
+            assert_eq!(
+                super::super::content_hash_of(&FileContent::NotFound),
+                super::super::hash_disk_content(&setup.root.join("missing")).unwrap()
+            );
         }
     }
 }

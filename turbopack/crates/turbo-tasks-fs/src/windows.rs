@@ -10,9 +10,10 @@ use omnipath::WinPathExt;
 use windows_sys::Win32::{
     Foundation::{CloseHandle, INVALID_HANDLE_VALUE},
     Storage::FileSystem::{
-        CreateFileW, FILE_ATTRIBUTE_TAG_INFO, FILE_FLAG_BACKUP_SEMANTICS,
-        FILE_FLAG_OPEN_REPARSE_POINT, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE,
-        FileAttributeTagInfo, GetFileInformationByHandleEx, OPEN_EXISTING,
+        BY_HANDLE_FILE_INFORMATION, CreateFileW, FILE_ATTRIBUTE_TAG_INFO,
+        FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_SHARE_DELETE,
+        FILE_SHARE_READ, FILE_SHARE_WRITE, FileAttributeTagInfo, GetFileInformationByHandle,
+        GetFileInformationByHandleEx, OPEN_EXISTING,
     },
     System::SystemServices::IO_REPARSE_TAG_MOUNT_POINT,
 };
@@ -55,6 +56,47 @@ pub(crate) fn is_link_junction_point(path: &Path) -> io::Result<bool> {
         CloseHandle(handle);
     }
     error.map_or(Ok(tag_info.ReparseTag == IO_REPARSE_TAG_MOUNT_POINT), Err)
+}
+
+/// Returns the volume serial number and file index of the file (or link) at `path`, which together
+/// identify the file on its volume. Returns `None` if the file system doesn't report a file index.
+pub(crate) fn file_id(path: &Path) -> io::Result<Option<u128>> {
+    let path: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+    let handle = unsafe {
+        CreateFileW(
+            path.as_ptr(),
+            0,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            null(),
+            OPEN_EXISTING,
+            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
+            null_mut(),
+        )
+    };
+    if handle == INVALID_HANDLE_VALUE {
+        return Err(io::Error::last_os_error());
+    }
+
+    let mut info: BY_HANDLE_FILE_INFORMATION = unsafe { mem::zeroed() };
+    let result = unsafe { GetFileInformationByHandle(handle, &mut info) };
+    let error = if result == 0 {
+        Some(io::Error::last_os_error())
+    } else {
+        None
+    };
+    unsafe {
+        CloseHandle(handle);
+    }
+    if let Some(error) = error {
+        return Err(error);
+    }
+    let index = ((info.nFileIndexHigh as u64) << 32) | info.nFileIndexLow as u64;
+    if index == 0 {
+        return Ok(None);
+    }
+    Ok(Some(
+        ((info.dwVolumeSerialNumber as u128) << 64) | index as u128,
+    ))
 }
 
 /// Converts `path` into the verbatim, drive-letter-case-folded representation used internally by

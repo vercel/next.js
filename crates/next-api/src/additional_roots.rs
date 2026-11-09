@@ -349,7 +349,6 @@ pub(crate) async fn create_additional_root_file_systems(
             name.clone(),
             canonical_root,
             Vec::new(),
-            None,
             watcher_config,
             map,
         );

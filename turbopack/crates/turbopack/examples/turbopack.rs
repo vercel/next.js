@@ -36,17 +36,7 @@ async fn main() -> Result<()> {
     let task = tt.spawn_root_task(|| {
         Box::pin(async {
             let root: RcStr = current_dir().unwrap().to_str().unwrap().into();
-            let scratch_dir: RcStr = current_dir()
-                .unwrap()
-                .join(".turbopack/scratch")
-                .to_str()
-                .unwrap()
-                .into();
-            let disk_fs = DiskFileSystem::new_with_scratch_dir(
-                PROJECT_FILESYSTEM_NAME,
-                Vc::cell(root),
-                scratch_dir,
-            );
+            let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME, Vc::cell(root));
             disk_fs.await?.start_watching().await?;
 
             // Smart Pointer cast

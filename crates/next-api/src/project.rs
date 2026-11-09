@@ -53,7 +53,7 @@ use turbo_tasks_fs::{
     DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, File, FileContent, FileSystem,
     FileSystemPath, VirtualFileSystem, invalidation,
 };
-use turbo_unix_path::{join_path, unix_to_sys};
+use turbo_unix_path::join_path;
 use turbopack::{
     ModuleAssetContext, evaluate_context::node_build_environment, externals_tracing_module_context,
     global_module_ids::get_global_module_id_strategy, transition::TransitionOptions,
@@ -501,25 +501,6 @@ async fn prepare_project_container_state(
         .and_then(|value| value.as_str())
         .unwrap_or(".next");
 
-    // Writes to the output filesystem are eagerly flushed to a scratch directory and moved into
-    // place when the write effects are applied. It lives inside the dist dir (which `next dev` and
-    // `next build` lock), so it's on the same device as the outputs and owned by a single process.
-    let dist_dir = config_json
-        .get("distDir")
-        .and_then(|value| value.as_str())
-        .unwrap_or(dist_dir_root);
-    let output_scratch_dir = RcStr::from(
-        Path::new(&*options.root_path)
-            .join(&*unix_to_sys(
-                &join_path(&options.project_path, dist_dir)
-                    .context("distDir must stay inside the project root")?,
-            ))
-            .join("cache")
-            .join("turbopack-scratch")
-            .to_str()
-            .context("the output scratch directory must be valid unicode")?,
-    );
-
     let builtin_roots = BuiltinRootsConfig {
         detect_global_virtual_store: config_json
             .pointer("/experimental/turbopackDetectGlobalVirtualStore")
@@ -562,7 +543,6 @@ async fn prepare_project_container_state(
         PROJECT_FILESYSTEM_NAME,
         root_path_op,
         denied_paths,
-        None,
         watcher_config,
         map,
     );
@@ -571,7 +551,6 @@ async fn prepare_project_container_state(
         rcstr!("output"),
         root_path_op,
         Vec::new(),
-        Some(output_scratch_dir),
         DiskWatcherConfig::default(),
         DiskFileSystemMap::empty(),
     );
@@ -668,7 +647,6 @@ pub(crate) fn disk_file_system_operation(
     name: RcStr,
     canonical_root: OperationVc<RcStr>,
     denied_paths: Vec<RcStr>,
-    scratch_dir: Option<RcStr>,
     mut watcher_config: DiskWatcherConfig,
     map: OperationVc<DiskFileSystemMap>,
 ) -> Vc<DiskFileSystem> {
@@ -678,7 +656,6 @@ pub(crate) fn disk_file_system_operation(
         name,
         canonical_root.connect(),
         denied_paths,
-        scratch_dir,
         watcher_config,
         map,
     )

@@ -367,6 +367,10 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
         resource_path.to_str().unwrap()
     );
 
+    let root_fs = DiskFileSystem::new(rcstr!("workspace"), Vc::cell(REPO_ROOT.clone()));
+    let project_fs = DiskFileSystem::new(rcstr!("project"), Vc::cell(REPO_ROOT.clone()));
+    let project_root = project_fs.root().owned().await?;
+
     let relative_path = resource_path.strip_prefix(&*REPO_ROOT).with_context(|| {
         format!(
             "stripping repo root {:?} from resource path {:?}",
@@ -374,29 +378,6 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
             resource_path.display()
         )
     })?;
-    // Every test has its own turbo-tasks instance, so each filesystem needs its own scratch
-    // directory (task ids are used as scratch file names).
-    let scratch_dir = |fs_name: &str| {
-        RcStr::from(
-            std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
-                .join("execution-scratch")
-                .join(relative_path)
-                .join(fs_name)
-                .to_str()
-                .unwrap(),
-        )
-    };
-    let root_fs = DiskFileSystem::new_with_scratch_dir(
-        rcstr!("workspace"),
-        Vc::cell(REPO_ROOT.clone()),
-        scratch_dir("workspace"),
-    );
-    let project_fs = DiskFileSystem::new_with_scratch_dir(
-        rcstr!("project"),
-        Vc::cell(REPO_ROOT.clone()),
-        scratch_dir("project"),
-    );
-    let project_root = project_fs.root().owned().await?;
     let relative_path = RcStr::from(sys_to_unix(relative_path.to_str().unwrap()));
     let path = root_fs.root().await?.join(&relative_path)?;
     let project_path = project_root.join(&relative_path)?;

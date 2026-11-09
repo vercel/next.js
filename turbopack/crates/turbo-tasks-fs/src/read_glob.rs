@@ -304,7 +304,6 @@ pub mod tests {
         collections::HashMap,
         fs::{File, create_dir},
         io::prelude::*,
-        path::Path,
     };
 
     use turbo_rcstr::{RcStr, rcstr};
@@ -595,12 +594,8 @@ pub mod tests {
 
     #[turbo_tasks::function(operation, root)]
     fn disk_file_system_root_operation(path: RcStr) -> Vc<FileSystemPath> {
-        let scratch_dir = RcStr::from(Path::new(&*path).join(".scratch").to_str().unwrap());
-        let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new_with_scratch_dir(
-            rcstr!("temp"),
-            Vc::cell(path),
-            scratch_dir,
-        ));
+        let fs =
+            Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), Vc::cell(path)));
         fs.root()
     }
 

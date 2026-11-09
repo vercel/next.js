@@ -31,8 +31,8 @@ const APPLY_EFFECTS_CONCURRENCY_LIMIT: usize = 1024;
 /// [`take_effects`] and applied at the top level with
 /// [`read_strongly_consistent_and_apply_effects`]. The effect value itself is all the data needed
 /// to apply it, so it should be small: expensive work (e.g. writing file content) should happen
-/// eagerly in the task that emits the effect, leaving only a cheap operation (e.g. a rename) for
-/// `apply()`.
+/// eagerly in the task that emits the effect, leaving only a cheap operation (e.g. verifying that
+/// the written file is still on disk) for `apply()`.
 #[async_trait]
 #[turbo_tasks::value_trait]
 pub trait Effect {
@@ -57,10 +57,10 @@ pub trait Effect {
     /// Perform the side effect.
     ///
     /// This is called in the top-level task context, so it may read `Vc`s (untracked). Effects
-    /// should run blocking IO via [`spawn`][crate::spawn] so that pending effects execute in
+    /// should run blocking IO via [`spawn`][crate::spawn()] so that pending effects execute in
     /// parallel.
     ///
-    /// Implementations typically dispatch into [`EffectStateStorage::run_apply`], which handles
+    /// Implementations may dispatch into [`EffectStateStorage::run_apply`], which handles
     /// the per-key state machine, in-progress coordination, and panic recovery.
     async fn apply(&self) -> Result<(), ApplyError>;
 }
@@ -393,12 +393,10 @@ type KeyGroups = Arc<[Box<[usize]>]>;
 ///
 /// `Effects` uses `cell = "new"`: every producer re-execution allocates a fresh cell value and
 /// the prior cell is dropped. Cell-level dedup of `Effects` is given up; per-key dedup at apply
-/// time is provided by [`EffectStateStorage`]'s state machine (see
-/// [`EffectStateStorage::run_apply`]).
+/// time is up to the effects (e.g. via [`EffectStateStorage::run_apply`]).
 ///
 /// `Effects::apply` is idempotent and safe to call multiple times on the same value — the
-/// effects consult the per-key state in `run_apply` to avoid re-running side effects that are
-/// already up to date.
+/// effects check whether they are already up to date to avoid re-running side effects.
 #[turbo_tasks::value(shared, eq = "manual", serialization = "skip", cell = "new")]
 pub struct Effects {
     /// Effects awaiting application. These are small values holding only what's needed to apply
@@ -454,9 +452,9 @@ impl Effects {
     /// tracing span). Equal content is deduplicated; different content fails with
     /// [`EffectsError::Conflict`] before any effect is applied.
     ///
-    /// Dispatch goes through each effect's [`Effect::apply`] (typically via
-    /// [`EffectStateStorage::run_apply`]) which handles the per-key state machine, dedup hits,
-    /// in-progress coordination, and panic recovery.
+    /// Dispatch goes through each effect's [`Effect::apply`] (e.g. via
+    /// [`EffectStateStorage::run_apply`], which handles the per-key state machine, dedup hits,
+    /// in-progress coordination, and panic recovery).
     ///
     /// If any effect signals [`ApplyError::Retry`], the producing task is invalidated and
     /// [`EffectsError::Retry`] is returned after the remaining keys finish. Side-effect failures
