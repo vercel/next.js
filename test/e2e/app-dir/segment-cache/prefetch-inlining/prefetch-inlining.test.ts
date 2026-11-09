@@ -20,6 +20,18 @@ type FlightRouterStateLike = [
   prefetchHints?: number,
 ]
 
+type PrefetchHintsLike = {
+  hints: number
+  slots: Record<string, PrefetchHintsLike> | null
+}
+
+// The subset of a prerendered page's `.meta` file that the assertions below
+// read.
+type PageMeta = {
+  segmentPaths: string[]
+  prefetchHints: PrefetchHintsLike
+}
+
 function getSegmentName(node: FlightRouterStateLike): string {
   const segment = node[0]
   // Dynamic segments are param tuples; use the param name, which is what
@@ -586,6 +598,57 @@ describe('prefetch inlining', () => {
   // is covered by the build output (the route tree correctly includes
   // InliningHintsStale for build-time static pages), but the client-side
   // recovery path needs a more robust test harness.
+
+  if (isNextStart) {
+    it('dynamic route: every page is built with the inlining decisions of the route', async () => {
+      // The [slug] layout is above the 2KB threshold for `large` and far
+      // below it for `small`. The inlining decisions are made once per route,
+      // by its first page in route order (`large`), and that's what
+      // prefetch-hints.json records. `small` must be built with the same
+      // decisions, not with the ones its own sizes would lead to: the client
+      // applies the route tree it learned from one page of a route to the
+      // route's other pages, and a revalidation of `small` uses the
+      // manifest.
+      const inliningHints =
+        PrefetchHint.ParentInlinedIntoSelf |
+        PrefetchHint.InlinedIntoChild |
+        PrefetchHint.HeadInlinedIntoSelf |
+        PrefetchHint.HeadOutlined
+      const getInliningDecisions = (tree: PrefetchHintsLike): unknown => ({
+        hints: tree.hints & inliningHints,
+        slots:
+          tree.slots === null
+            ? null
+            : Object.fromEntries(
+                Object.entries(tree.slots).map(([key, child]) => [
+                  key,
+                  getInliningDecisions(child),
+                ])
+              ),
+      })
+
+      const hintsManifest: HintsManifest = await next.readJSON(
+        '.next/server/prefetch-hints.json'
+      )
+      const large: PageMeta = await next.readJSON(
+        '.next/server/app/test-route-decisions/large.meta'
+      )
+      const small: PageMeta = await next.readJSON(
+        '.next/server/app/test-route-decisions/small.meta'
+      )
+
+      const routeDecisions = getInliningDecisions(
+        hintsManifest['/test-route-decisions/[slug]']
+      )
+      expect(getInliningDecisions(large.prefetchHints)).toEqual(routeDecisions)
+      expect(getInliningDecisions(small.prefetchHints)).toEqual(routeDecisions)
+
+      // The layout is outlined, so both pages have a prefetch response for
+      // it, and the same set of responses overall.
+      expect(large.segmentPaths).toContain('/test-route-decisions/$d$slug')
+      expect(small.segmentPaths).toEqual(large.segmentPaths)
+    })
+  }
 
   it('instant false at root: does not prefetch segment data', async () => {
     // TODO: This test exists as a temporary mitigation for a bug where
