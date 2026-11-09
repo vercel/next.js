@@ -11,7 +11,10 @@ import { PassThrough, Readable } from 'node:stream'
 import { promisify } from 'node:util'
 import setupCompression from 'next/dist/compiled/compression'
 
-import { pipeNodeReadableToNodeResponse } from './pipe-readable'
+import {
+  pipeNodeReadableToNodeResponse,
+  pipeToNodeResponse,
+} from './pipe-readable'
 import { ClientComponentLoadTracker } from './client-component-renderer-logger'
 
 const gunzip = promisify(zlib.gunzip)
@@ -172,6 +175,63 @@ describe('pipeNodeReadableToNodeResponse', () => {
     const decompressed = await gunzip(body)
     expect(decompressed).toHaveLength(CHUNK_SIZE * CHUNK_COUNT)
     expect(decompressed.every((byte) => byte === FILL)).toBe(true)
+  })
+})
+
+describe('pipeToNodeResponse', () => {
+  let server: http.Server | undefined
+
+  afterEach(async () => {
+    if (server) {
+      server.closeAllConnections()
+      await new Promise<void>((resolve) => server!.close(() => resolve()))
+      server = undefined
+    }
+  })
+
+  // The `compression` middleware copies a chunk that is not a `Buffer`. One
+  // copy of the body per response is enough to make V8 run major GCs instead
+  // of scavenges while compressed responses are sent.
+  it('writes the chunks of a web stream as Buffers over the same memory', async () => {
+    const memory = new Uint8Array(64).fill(0x61)
+    const chunk = memory.subarray(8, 40)
+    const written: Uint8Array[] = []
+
+    server = http.createServer((_req, res) => {
+      const write = res.write
+      res.write = function (
+        this: http.ServerResponse,
+        data: Uint8Array,
+        ...rest: any[]
+      ) {
+        written.push(data)
+        return write.call(this, data, ...rest)
+      } as typeof res.write
+
+      const readable = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(chunk)
+          controller.enqueue(new Uint8Array(0))
+          controller.close()
+        },
+      })
+      void pipeToNodeResponse(readable, res).catch((error) =>
+        res.destroy(error)
+      )
+    })
+
+    const url = await listen(server)
+    expect(await (await fetch(url)).text()).toBe('a'.repeat(32))
+
+    expect(written).toHaveLength(2)
+    const [first, empty] = written
+    expect(Buffer.isBuffer(first)).toBe(true)
+    expect(first.buffer).toBe(memory.buffer)
+    expect(first.byteOffset).toBe(8)
+    expect(first.byteLength).toBe(32)
+    // An empty chunk is passed on as it is.
+    expect(Buffer.isBuffer(empty)).toBe(false)
+    expect(empty.byteLength).toBe(0)
   })
 })
 
