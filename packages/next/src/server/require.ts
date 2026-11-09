@@ -16,6 +16,16 @@ import { promises } from 'fs'
 const isDev = process.env.NODE_ENV === 'development'
 const pagePathCache = !isDev ? new LRUCache<string | null>(1000) : null
 
+/**
+ * The modules of the pages that were loaded, by their path. `require()`
+ * returns the same module for a path until its entry in `require.cache` is
+ * deleted, which only development does (to pick up a rebuilt page). Outside
+ * of development this map answers without going through the module loader,
+ * which resolves the request, looks up its own cache and reports the load on
+ * every call. It holds what `require.cache` holds anyway.
+ */
+const pageModuleCache = !isDev ? new Map<string, unknown>() : null
+
 export function getMaybePagePath(
   page: string,
   distDir: string,
@@ -126,9 +136,15 @@ export async function requirePage(
       })
   }
 
+  const loaded = pageModuleCache?.get(pagePath)
+  if (loaded !== undefined) {
+    return loaded
+  }
+
   const mod = process.env.NEXT_MINIMAL
     ? // @ts-ignore
       __non_webpack_require__(pagePath)
     : require(/* turbopackIgnore: true */ pagePath)
+  pageModuleCache?.set(pagePath, mod)
   return mod
 }
