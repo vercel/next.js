@@ -35,6 +35,17 @@ disabled. The test infrastructure runs both variants. In the enabled variant,
   See [the gate reference](lib/gate/README.md) and `$gate-tests` for directive
   selection, build-skipping limitations, and verification guidance.
 
+## Client router tests
+
+Tests of client navigations, prefetching, and router caches must trigger
+requests through the client router. Use `createRouterAct` and `LinkAccordion`
+to control and assert on those requests. Do not synthesize prefetch requests
+with `next.fetch()` and internal RSC or router headers, or call `fetch()` in
+the browser as a substitute. Let the router produce the request headers,
+router state, and prefetch stage. Ordinary HTTP requests are appropriate for
+fixture setup, such as revalidation. See the
+[router-act skill](../.agents/skills/router-act/SKILL.md) for the patterns.
+
 ## Code review
 
 - During code review, flag any change that newly disables, skips, or omits deploy-mode tests or assertions, including `skipDeployment: true` and `isNextDeploy` conditionals. Only allow this when the assertion is inherently specific to self-hosted behavior; even then, prefer an explicit deploy-mode assertion that documents the different deployed semantics.
