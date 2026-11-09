@@ -46,6 +46,7 @@ import { type Span, trace } from '../../trace'
 import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-slash'
 import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-pathname-info'
 import { getHostname } from '../../shared/lib/get-hostname'
+import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { MockedResponse } from './mock-request'
 import {
@@ -569,38 +570,51 @@ export async function initialize(opts: {
         nextConfig: config,
       })
 
-      const domainLocale = detectDomainLocale(
-        config.i18n.domains,
-        getHostname({ hostname: urlNoQuery }, req.headers)
-      )
+      const redirectPathname = pathnameInfo.locale
+        ? `/${pathnameInfo.locale}${urlNoQuery}`
+        : urlNoQuery
 
-      const defaultLocale =
-        domainLocale?.defaultLocale || config.i18n.defaultLocale
+      // `getLocaleRedirect` only redirects the root path: its first test is
+      // the one made here, and for any other path it returns undefined. The
+      // domain, the hostname and the parsed URL are only needed for that
+      // call, so they are not computed for other paths. A request target that
+      // does not start with a slash still goes through `parseUrl`, which
+      // throws for some of them.
+      if (
+        denormalizePagePath(redirectPathname) === '/' ||
+        !req.url?.startsWith('/')
+      ) {
+        const domainLocale = detectDomainLocale(
+          config.i18n.domains,
+          getHostname({ hostname: urlNoQuery }, req.headers)
+        )
 
-      const { getLocaleRedirect } =
-        require('../../shared/lib/i18n/get-locale-redirect') as typeof import('../../shared/lib/i18n/get-locale-redirect')
+        const defaultLocale =
+          domainLocale?.defaultLocale || config.i18n.defaultLocale
 
-      const parsedUrl = parseUrlUtil((req.url || '')?.replace(/^\/+/, '/'))
+        const { getLocaleRedirect } =
+          require('../../shared/lib/i18n/get-locale-redirect') as typeof import('../../shared/lib/i18n/get-locale-redirect')
 
-      const redirect = getLocaleRedirect({
-        defaultLocale,
-        domainLocale,
-        headers: req.headers,
-        nextConfig: config,
-        pathLocale: pathnameInfo.locale,
-        urlParsed: {
-          ...parsedUrl,
-          pathname: pathnameInfo.locale
-            ? `/${pathnameInfo.locale}${urlNoQuery}`
-            : urlNoQuery,
-        },
-      })
+        const parsedUrl = parseUrlUtil((req.url || '')?.replace(/^\/+/, '/'))
 
-      if (redirect) {
-        res.setHeader('Location', redirect)
-        res.statusCode = RedirectStatusCode.TemporaryRedirect
-        res.end(redirect)
-        return
+        const redirect = getLocaleRedirect({
+          defaultLocale,
+          domainLocale,
+          headers: req.headers,
+          nextConfig: config,
+          pathLocale: pathnameInfo.locale,
+          urlParsed: {
+            ...parsedUrl,
+            pathname: redirectPathname,
+          },
+        })
+
+        if (redirect) {
+          res.setHeader('Location', redirect)
+          res.statusCode = RedirectStatusCode.TemporaryRedirect
+          res.end(redirect)
+          return
+        }
       }
     }
 
