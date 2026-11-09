@@ -107,6 +107,24 @@ export function getMaybePagePath(
   return pagePath
 }
 
+/**
+ * Whether `getMaybePagePath` has stored that a page is in no manifest and
+ * answers `null` for it without looking again. Never the case in a dev
+ * server, where a page that was missing can exist a moment later.
+ */
+export function isPagePathStoredMiss(
+  page: string,
+  distDir: string,
+  locales: readonly string[] | undefined,
+  isAppPath: boolean
+): boolean {
+  if (!pagePathCache || process.env.__NEXT_DEV_SERVER) return false
+
+  return (
+    pagePathCache.get(`${page}:${distDir}:${locales}:${isAppPath}`) === null
+  )
+}
+
 export function getPagePath(
   page: string,
   distDir: string,
