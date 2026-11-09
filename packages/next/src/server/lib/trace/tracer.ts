@@ -120,6 +120,11 @@ interface NextTracer {
   getContext(): ContextAPI
 
   /**
+   * Whether `trace()` may start a span right now.
+   */
+  isTracing(): boolean
+
+  /**
    * Instruments a function by automatically creating a span activated on its
    * scope.
    *
@@ -381,6 +386,18 @@ class NextTracerImpl implements NextTracer {
 
     const remoteContext = propagation.extract(activeContext, carrier, getter)
     return context.with(remoteContext, fn)
+  }
+
+  /**
+   * Whether `trace()` may start a span right now. When it returns `false`,
+   * `trace()` only calls the function it is given.
+   */
+  public isTracing(): boolean {
+    return (
+      Boolean(NEXT_OTEL_PERFORMANCE_PREFIX) ||
+      this.isOpenTelemetryEnabled() ||
+      (getLocalSpanRecorder()?.isLocalSpanRecordingEnabled() ?? false)
+    )
   }
 
   // Trace, wrap implementation is inspired by datadog trace implementation
