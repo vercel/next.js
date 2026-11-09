@@ -36,7 +36,7 @@ import {
 } from '../../shared/lib/i18n/normalize-locale-path'
 import { isDynamicRoute } from '../../shared/lib/router/utils'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
-import { getServerUtils } from '../server-utils'
+import { getServerUtils, type ParsedReqUrl } from '../server-utils'
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { getHostname } from '../../shared/lib/get-hostname'
 import { checkIsOnDemandRevalidate, type __ApiPreviewProps } from '../api-utils'
@@ -902,11 +902,30 @@ export abstract class RouteModule<
       req.url = removePathPrefix(req.url || '/', basePath)
     }
 
-    const parsedUrl = parseReqUrl(req.url || '/')
+    const reqUrl = req.url || '/'
+    const parsedUrl = parseReqUrl(reqUrl)
     addRequestMeta(req, 'initQuery', { ...parsedUrl?.query })
     // if we couldn't parse the URL we can't continue
     if (!parsedUrl) {
       return
+    }
+    // `normalizeCdnUrl` below parses `req.url` to strip params from its
+    // query. Unless the URL changes until then, that is the parse above, so
+    // keep what it reads, before the result is modified. A URL without a
+    // query is not parsed there.
+    let parsedReqUrl: ParsedReqUrl | undefined
+    if (parsedUrl.search) {
+      const query: ParsedUrlQuery = {}
+      for (const key of Object.keys(parsedUrl.query)) {
+        const value = parsedUrl.query[key]
+        query[key] = Array.isArray(value) ? value.slice() : value
+      }
+      parsedReqUrl = {
+        url: reqUrl,
+        pathname: parsedUrl.pathname,
+        hash: parsedUrl.hash,
+        query,
+      }
     }
     let isNextDataRequest = false
 
@@ -1069,7 +1088,7 @@ export abstract class RouteModule<
       }
     }
 
-    serverUtils.normalizeCdnUrl(req, combinedParamKeys)
+    serverUtils.normalizeCdnUrl(req, combinedParamKeys, parsedReqUrl)
     // When Next is not hosted in a single process, upstream proxies will add query values for route params that were used to match the route.
     // Outside of that environment, there is no reason to do any normalization to honor those query values.
     if (!routerServerContext?.isWrappedByNextServer) {
