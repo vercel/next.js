@@ -21,7 +21,9 @@ use crate::{
 
 #[turbo_tasks::value(shared)]
 pub struct EndpointHashes {
+    #[bincode(fixint)]
     pub sources_hash: u64,
+    #[bincode(fixint)]
     pub outputs_hash: u64,
 }
 

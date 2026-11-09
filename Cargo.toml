@@ -379,7 +379,9 @@ vergen-gitcl = { version = "1.0.8", features = ["cargo"] }
 webbrowser = "1.0.6"
 
 [patch.crates-io]
-bincode = { git = "https://github.com/vercel-labs/bincode-fork.git", branch = "main" }
+# TODO: switch back to vercel-labs/bincode-fork `branch = "main"` once
+# https://github.com/vercel-labs/bincode-fork/pull/21 (`#[bincode(fixint)]`) merges
+bincode = { git = "https://github.com/lukesandberg/bincode.git", rev = "aa3320cb51ba5d09ded1e70876063c918450d325" }
 virtue = { git = "https://github.com/vercel-labs/virtue-fork.git", branch = "trunk" }
 # We have to very frequently bump the swc major version of mdxjs-rs
 mdxjs = { git = "https://github.com/vercel-labs/mdxjs-rs-turbopack.git", branch = "turbopack" }

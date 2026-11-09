@@ -360,7 +360,7 @@ pub enum ReadConsistency {
 pub enum CellKey {
     /// The read only depends on the sub-value identified by this key hash (see
     /// [`KeyedEq`]). The dependency is only invalidated when the value of this key changes.
-    Hash(u64),
+    Hash(#[bincode(fixint)] u64),
     /// A provisional dependency of a [`Vc::keyed_reader`](crate::Vc::keyed_reader) or
     /// [`Vc::lazy_reader`](crate::Vc::lazy_reader) read: a temporary hold on the whole cell that
     /// is refined later. For invalidation it behaves like a dependency on the whole cell
