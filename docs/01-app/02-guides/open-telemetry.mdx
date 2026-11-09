@@ -297,6 +297,18 @@ Attributes:
 - `next.span_type`
 - `next.route`
 
+### `validate route (app) [next.route]`
+
+- `next.span_type`: `AppRender.devValidation`
+
+This span represents the validation `next dev` runs in the background after rendering a route with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents). It runs after the response has finished, so it is the root of a trace of its own, with a link to the `render route (app) [next.route]` span of the render it validates. The spans of the validation render are its children.
+
+Attributes:
+
+- `next.span_name`
+- `next.span_type`
+- `next.route`
+
 ### `fetch [http.method] [http.url]`
 
 - `next.span_type`: `AppRender.fetch`
