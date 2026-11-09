@@ -56,9 +56,9 @@ export default nextConfig
 Merge the option into an existing `experimental` object instead of replacing
 the project's other experimental options.
 
-Follow the [option reference](https://nextjs.org/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild)
-for build and server setup. Use the project's existing environment naming when
-it already distinguishes test, staging, preview, and production builds.
+Use the [option reference](https://nextjs.org/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild)
+to configure the test build and server. Keep the project's existing environment
+names for testing, staging, preview, and production.
 
 ### Test command and base URL
 
@@ -71,21 +71,21 @@ line as the project's `next`, alongside `@playwright/test`.
 Prefer an existing Playwright `webServer` configuration to own the local
 server lifecycle. Ensure its command serves the production build with
 `next start`. With `webServer` managing startup and cleanup, run the build and
-test commands without starting another server manually:
+test commands without starting another server manually.
 
 ```bash filename="Terminal"
 EXPOSE_TESTING_API=1 pnpm build
 EXPOSE_TESTING_API=1 BASE_URL=http://localhost:3000 pnpm playwright test tests/static-shell.spec.ts
 ```
 
-If the rig does not use `webServer`, start
-`EXPOSE_TESTING_API=1 pnpm start --port 3000` in a separate terminal after the
-build, keep it running during the test command,
-and stop it afterward. Use only one server lifecycle for the measured app.
+To manage the server manually, run `EXPOSE_TESTING_API=1 pnpm start --port 3000`
+in a separate terminal after the build. Keep the server running during the test,
+then stop it afterward. Use one server lifecycle for the measured app.
 
 Adapt the script names and port to the project. Follow the public
-[`instant()` testing pattern](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests): use `page.goto()` for an initial-load
-contract and click the real `<Link>` for a client-navigation contract.
+[`instant()` testing pattern](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests).
+Use `page.goto()` to test an initial page load and click the real `<Link>` to test
+a client navigation.
 
 ### Test context
 
