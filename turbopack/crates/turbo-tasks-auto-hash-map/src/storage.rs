@@ -956,6 +956,24 @@ pub struct IndexMapOccupiedEntry<'a, K, V, H> {
     index: usize,
 }
 
+/// Used by `occupied_replace_entry_with` for [`IndexMap`]: when dropped, moves the entry at
+/// `index` to the end of the map, shifting the following entries back by one.
+struct IndexMapMoveToEndOnDrop<'a, K, V, H> {
+    /// `None` when the move isn't needed anymore.
+    map: Option<&'a mut IndexMap<K, V, H>>,
+    index: usize,
+}
+
+impl<K, V, H> Drop for IndexMapMoveToEndOnDrop<'_, K, V, H> {
+    fn drop(&mut self) {
+        if let Some(map) = self.map.take()
+            && self.index < map.len()
+        {
+            map.move_index(self.index, map.len() - 1);
+        }
+    }
+}
+
 /// [`BackingMapStorage::Vacant`] for [`IndexMap`].
 pub struct IndexMapVacantEntry<'a, K, V, H> {
     map: &'a mut IndexMap<K, V, H>,
@@ -1193,11 +1211,23 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
         H: BuildHasher,
     {
         let IndexMapOccupiedEntry { map, index } = entry;
+        // Take the entry out with `swap_remove_index`, which moves the last entry into `index`.
+        // Until the entry is put back, the guard would move that entry back to the end (one shift
+        // of the following entries), which restores the order of the other entries also when
+        // `func` panics.
         let (key, value) = map
-            .shift_remove_index(index)
+            .swap_remove_index(index)
             .expect("index of an occupied entry is valid");
+        let mut guard = IndexMapMoveToEndOnDrop {
+            map: Some(&mut *map),
+            index,
+        };
         if let Some(value) = func(&key, value) {
-            map.shift_insert(index, key, value);
+            // Put the entry back at the end and swap it with the moved entry, which returns both
+            // to their original positions without shifting.
+            let map = guard.map.take().unwrap();
+            let (last, _) = map.insert_full(key, value);
+            map.swap_indices(index, last);
         }
     }
     #[inline]

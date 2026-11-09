@@ -207,12 +207,7 @@ where
         iter: impl Iterator<Item = (K, V)>,
         additional_reserve: usize,
     ) {
-        let map = self.convert_to_map(additional_reserve);
-        map.extend(iter);
-        // The hint is not enforced
-        if map.len() < MIN_HASH_SIZE {
-            self.convert_to_exact_list();
-        }
+        self.convert_to_map(additional_reserve).extend(iter);
     }
 
     /// see [HashMap::remove](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.remove)
@@ -374,7 +369,7 @@ where
         match self {
             RawAutoMap::List(list, _) => list.shrink_amortized(),
             RawAutoMap::Map(map) => {
-                if map.len() <= MIN_HASH_SIZE {
+                if map.len() < MIN_HASH_SIZE {
                     *self = Self::map_to_exact_list(map);
                 } else if map.capacity() > map.len() * 3 {
                     // HashMaps will always have a capacity that is a power of two
@@ -1150,6 +1145,9 @@ where
     }
 }
 
+// `PartialEq` tracks the matched entries of a list in the bits of a `u32`.
+const _: () = assert!(MAX_USEFUL_LINEAR_SCAN <= u32::BITS as usize);
+
 impl<K: Eq + Hash, V: Eq, M, L> PartialEq for RawAutoMap<K, V, M, L>
 where
     M: BackingMapStorage<K, V>,
@@ -1163,13 +1161,23 @@ where
             (RawAutoMap::Map(a), RawAutoMap::Map(b)) => M::eq(a, b),
             (RawAutoMap::List(a, _), RawAutoMap::List(b, _)) => {
                 if M::UNORDERED {
-                    // Keys are unique, so it's enough to find every entry of `a` in `b`.
-                    a.len() == b.len()
-                        && a.iter().all(|(key, value)| {
-                            b.iter()
-                                .find(|(k, _)| k == key)
-                                .is_some_and(|(_, v)| v == value)
-                        })
+                    if a.len() != b.len() {
+                        return false;
+                    }
+                    // Keys are unique, so it's enough to find every entry of `a` in `b`. Each
+                    // entry of `b` matches at most one entry of `a`, so the bits of `matched`
+                    // skip the already matched entries of `b`.
+                    debug_assert!(b.len() <= MAX_USEFUL_LINEAR_SCAN);
+                    let mut matched = 0u32;
+                    a.iter().all(|(key, value)| {
+                        b.iter()
+                            .enumerate()
+                            .find(|(i, (k, _))| matched & (1 << i) == 0 && k == key)
+                            .is_some_and(|(i, (_, v))| {
+                                matched |= 1 << i;
+                                v == value
+                            })
+                    })
                 } else {
                     a[..] == b[..]
                 }
@@ -1252,10 +1260,6 @@ where
         if lower > MAX_USEFUL_LINEAR_SCAN {
             let mut map = M::with_capacity_and_hasher(lower, M::Hasher::default());
             map.extend(iter);
-            // The hint is not enforced
-            if map.len() < MIN_HASH_SIZE {
-                return Self::map_to_exact_list(&mut map);
-            }
             return RawAutoMap::Map(Box::new(map));
         }
         let mut map = RawAutoMap::with_capacity_and_hasher(lower, Default::default());
@@ -1334,7 +1338,7 @@ where
 {
     fn shrink_to_fit(&mut self) {
         if let RawAutoMap::Map(map) = self
-            && map.len() < MAX_USEFUL_LINEAR_SCAN
+            && map.len() <= MAX_USEFUL_LINEAR_SCAN
         {
             // The list is allocated with the exact size, no need to shrink it.
             self.convert_to_exact_list();
@@ -1940,17 +1944,6 @@ mod tests {
 
     #[test]
     fn test_extend_converts_to_map() {
-        // An iterator whose size hint claims more items than it yields.
-        struct LyingHint(std::ops::Range<usize>);
-        impl Iterator for LyingHint {
-            type Item = (usize, usize);
-            fn next(&mut self) -> Option<Self::Item> {
-                self.0.next().map(|i| (i, i))
-            }
-            fn size_hint(&self) -> (usize, Option<usize>) {
-                (MAX_USEFUL_LINEAR_SCAN * 2, None)
-            }
-        }
         fn check<M: BackingMapStorage<usize, usize>, L: BackingListStorage<(usize, usize)>>(
             mut map: RawAutoMap<usize, usize, M, L>,
         ) where
@@ -1979,16 +1972,16 @@ mod tests {
         expected.extend((10..50).rev());
         assert_eq!(keys(&map), expected);
 
-        // A size hint that isn't kept converts back to a list when the result is small.
+        // A size hint that isn't kept still leaves a map (see `test_overstated_hint_keeps_map`).
         let mut map = AutoIndexMap::<usize, usize>::new();
         map.extend([(9, 9)]);
-        map.extend(LyingHint(0..3));
-        assert!(matches!(map, RawAutoMap::List(..)));
+        map.extend(Overstated {
+            next: 0,
+            len: 3,
+            lower: MAX_USEFUL_LINEAR_SCAN * 2,
+        });
+        assert!(matches!(map, RawAutoMap::Map(..)));
         assert_eq!(keys(&map), vec![9, 0, 1, 2]);
-        let mut map = AutoMap::<usize, usize>::new();
-        map.extend(LyingHint(0..3));
-        assert!(matches!(map, RawAutoMap::List(..)));
-        assert_eq!(map.len(), 3);
     }
 
     #[test]
@@ -2210,24 +2203,29 @@ mod tests {
             }
         }
         let drops = Rc::new(RefCell::new(Vec::new()));
-        let mut map: AutoIndexMap<u32, Tracked> =
-            (0..5).map(|i| (i, Tracked(i, drops.clone()))).collect();
-        let result =
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match map.entry(1) {
-                Entry::Occupied(e) => e.replace_entry_with(|_, _| panic!("func panic")),
-                Entry::Vacant(_) => unreachable!(),
-            }));
-        assert!(result.is_err());
-        // The value was moved into `func` and dropped while unwinding.
-        assert_eq!(*RefCell::borrow(&drops), vec![1]);
-        assert_eq!(
-            map.iter().map(|(k, _)| *k).collect::<Vec<_>>(),
-            vec![0, 2, 3, 4]
-        );
-        drop(map);
-        let mut all = RefCell::borrow(&drops).clone();
-        all.sort();
-        assert_eq!(all, vec![0, 1, 2, 3, 4]);
+        // 5 entries stay a list; 50 entries are a map.
+        for (n, index) in [(5u32, 1u32), (50, 20)] {
+            RefCell::borrow_mut(&drops).clear();
+            let mut map: AutoIndexMap<u32, Tracked> =
+                (0..n).map(|i| (i, Tracked(i, drops.clone()))).collect();
+            assert_eq!(matches!(map, RawAutoMap::Map(..)), n == 50);
+            let result =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match map.entry(index) {
+                    Entry::Occupied(e) => e.replace_entry_with(|_, _| panic!("func panic")),
+                    Entry::Vacant(_) => unreachable!(),
+                }));
+            assert!(result.is_err());
+            // The value was moved into `func` and dropped while unwinding.
+            assert_eq!(*RefCell::borrow(&drops), vec![index]);
+            assert_eq!(
+                map.iter().map(|(k, _)| *k).collect::<Vec<_>>(),
+                (0..n).filter(|i| *i != index).collect::<Vec<_>>()
+            );
+            drop(map);
+            let mut all = RefCell::borrow(&drops).clone();
+            all.sort();
+            assert_eq!(all, (0..n).collect::<Vec<_>>());
+        }
     }
 
     #[test]
@@ -2355,8 +2353,8 @@ mod tests {
     #[test]
     fn test_shrink_to_fit_trait_threshold() {
         for (len, converts) in [
-            (MAX_USEFUL_LINEAR_SCAN - 1, true),
-            (MAX_USEFUL_LINEAR_SCAN, false),
+            (MAX_USEFUL_LINEAR_SCAN, true),
+            (MAX_USEFUL_LINEAR_SCAN + 1, false),
         ] {
             let mut map: AutoIndexMap<usize, usize> =
                 (0..MAX_USEFUL_LINEAR_SCAN * 2).map(|i| (i, i)).collect();
@@ -2429,36 +2427,153 @@ mod tests {
         }
     }
 
-    fn check_extend_overstated<M>()
+    fn check_overstated_hint_keeps_map<M>()
     where
         M: BackingMapStorage<usize, usize>,
         M::Hasher: BuildHasher + Default,
     {
-        let mut map: RawAutoMap<
-            usize,
-            usize,
-            M,
-            TinyVec<(usize, usize), 0, MAX_USEFUL_LINEAR_SCAN>,
-        > = RawAutoMap::with_hasher();
-        map.extend(Overstated {
+        type L = TinyVec<(usize, usize), 0, MAX_USEFUL_LINEAR_SCAN>;
+        let overstated = || Overstated {
             next: 0,
             len: 5,
             lower: 100,
-        });
-        // The map is converted back into a list holding exactly the entries.
-        assert_eq!(list_capacity(&map), Some(5));
-        let mut keys: Vec<_> = map.iter().map(|(k, _)| *k).collect();
-        if M::UNORDERED {
-            keys.sort();
-        }
-        assert_eq!(keys, (0..5).collect::<Vec<_>>());
+        };
+        let check = |map: &RawAutoMap<usize, usize, M, L>| {
+            // No automatic conversion back into a list.
+            assert!(matches!(map, RawAutoMap::Map(..)));
+            let mut keys: Vec<_> = map.iter().map(|(k, _)| *k).collect();
+            if M::UNORDERED {
+                keys.sort();
+            }
+            assert_eq!(keys, (0..5).collect::<Vec<_>>());
+        };
+
+        let mut map: RawAutoMap<usize, usize, M, L> = RawAutoMap::with_hasher();
+        map.extend(overstated());
+        check(&map);
+
+        let map: RawAutoMap<usize, usize, M, L> = overstated().collect();
+        check(&map);
     }
 
     #[test]
-    fn test_extend_overstated_hint_exact_list() {
+    fn test_overstated_hint_keeps_map() {
         type F = BuildHasherDefault<FxHasher>;
-        check_extend_overstated::<HashMap<usize, usize, F>>();
-        check_extend_overstated::<IndexMap<usize, usize, F>>();
+        check_overstated_hint_keeps_map::<HashMap<usize, usize, F>>();
+        check_overstated_hint_keeps_map::<IndexMap<usize, usize, F>>();
+    }
+
+    fn check_shrink_amortized_map_threshold<M>()
+    where
+        M: BackingMapStorage<usize, usize>,
+        M::Hasher: BuildHasher + Default,
+    {
+        type L = TinyVec<(usize, usize), 0, MAX_USEFUL_LINEAR_SCAN>;
+        for (len, converts) in [(MIN_HASH_SIZE - 1, true), (MIN_HASH_SIZE, false)] {
+            let mut map: RawAutoMap<usize, usize, M, L> =
+                (0..MAX_USEFUL_LINEAR_SCAN * 2).map(|i| (i, i)).collect();
+            for i in len..MAX_USEFUL_LINEAR_SCAN * 2 {
+                map.remove(&i);
+            }
+            assert!(matches!(map, RawAutoMap::Map(..)));
+            map.shrink_amortized();
+            assert_eq!(
+                matches!(map, RawAutoMap::List(..)),
+                converts,
+                "{len} entries"
+            );
+            if converts {
+                assert_eq!(list_capacity(&map), Some(len));
+            }
+            let mut keys: Vec<_> = map.iter().map(|(k, _)| *k).collect();
+            if M::UNORDERED {
+                keys.sort();
+            }
+            assert_eq!(keys, (0..len).collect::<Vec<_>>());
+        }
+    }
+
+    #[test]
+    fn test_shrink_amortized_map_threshold() {
+        type F = BuildHasherDefault<FxHasher>;
+        check_shrink_amortized_map_threshold::<HashMap<usize, usize, F>>();
+        check_shrink_amortized_map_threshold::<IndexMap<usize, usize, F>>();
+    }
+
+    #[test]
+    fn test_replace_entry_with_index_map() {
+        const N: u32 = 100;
+        let make = || -> AutoIndexMap<u32, u32> {
+            let map: AutoIndexMap<u32, u32> = (0..N).map(|i| (i, i)).collect();
+            assert!(matches!(map, RawAutoMap::Map(..)));
+            map
+        };
+        for index in [0, N / 2, N - 1] {
+            // `Some` keeps the entry at its position.
+            let mut map = make();
+            match map.entry(index) {
+                Entry::Occupied(e) => e.replace_entry_with(|_, v| Some(v + 1000)),
+                Entry::Vacant(_) => unreachable!(),
+            }
+            let expected: Vec<_> = (0..N)
+                .map(|i| (i, if i == index { i + 1000 } else { i }))
+                .collect();
+            assert_eq!(entries(&map), expected);
+            assert_eq!(map.get(&index), Some(&(index + 1000)));
+
+            // `None` removes the entry and keeps the order of the others.
+            let mut map = make();
+            match map.entry(index) {
+                Entry::Occupied(e) => e.replace_entry_with(|_, _| None),
+                Entry::Vacant(_) => unreachable!(),
+            }
+            let expected: Vec<_> = (0..N).filter(|i| *i != index).map(|i| (i, i)).collect();
+            assert_eq!(entries(&map), expected);
+            assert_eq!(map.get(&index), None);
+
+            // A panic removes the entry and keeps the order of the others.
+            let mut map = make();
+            let result =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match map.entry(index) {
+                    Entry::Occupied(e) => e.replace_entry_with(|_, _| panic!("func panic")),
+                    Entry::Vacant(_) => unreachable!(),
+                }));
+            assert!(result.is_err());
+            assert_eq!(entries(&map), expected);
+            // Lookups still work after the reordering.
+            for (k, v) in &expected {
+                assert_eq!(map.get(k), Some(v));
+            }
+        }
+    }
+
+    #[test]
+    fn test_eq_unordered_full_lists() {
+        let n = MAX_USEFUL_LINEAR_SCAN as u32;
+        let make = |keys: &mut dyn Iterator<Item = u32>| -> AutoMap<u32, u32> {
+            let mut map = AutoMap::new();
+            for k in keys {
+                map.insert(k, k * 10);
+            }
+            assert!(matches!(map, RawAutoMap::List(..)));
+            map
+        };
+        let a = make(&mut (0..n));
+        // A permutation interleaving both ends.
+        let b = make(&mut (0..n / 2).flat_map(|i| [n - 1 - i, i]));
+        assert!(a == b);
+        assert!(b == a);
+
+        // One different value after many matches.
+        let mut c = make(&mut (0..n).rev());
+        *c.get_mut(&3).unwrap() = 7;
+        assert!(a != c);
+        assert!(c != a);
+
+        // Same length, one different key.
+        let d = make(&mut (1..=n));
+        assert!(a != d);
+        assert!(d != a);
     }
 
     fn check_extract_if_fold<M>(n: usize)
