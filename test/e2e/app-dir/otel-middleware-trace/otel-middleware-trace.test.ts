@@ -146,8 +146,11 @@ interface TracedResponse {
 // middleware span, the render's request span and (deployed, for middleware
 // without an incoming `traceparent`) the inserted `Next.request` root have
 // ended. Pass the incoming trace context and the one the middleware sets as
-// `known`, and `incoming` when the request has a `traceparent`. One-time spans
-// (see `isOneTimeSpan`) are omitted unless `includeOneTimeSpans` is set.
+// `known`, and `incoming` when the request has a `traceparent`. Pass
+// `uninvokedRender` when the request continues to a page served without a
+// function invocation when deployed (e.g. a static page): nothing emits the
+// deferred `Next.request` then. One-time spans (see `isOneTimeSpan`) are
+// omitted unless `includeOneTimeSpans` is set.
 async function traceRequest(
   res: Response,
   body: Body,
@@ -155,10 +158,12 @@ async function traceRequest(
     includeOneTimeSpans = false,
     known = [],
     incoming = false,
+    uninvokedRender = false,
   }: {
     includeOneTimeSpans?: boolean
     known?: KnownTraceContext[]
     incoming?: boolean
+    uninvokedRender?: boolean
   } = {}
 ): Promise<TracedRequest> {
   const text = await res.text()
@@ -173,7 +178,7 @@ async function traceRequest(
   if (middlewareTraceId) {
     traceIds.push(middlewareTraceId)
     expected.push('Middleware.execute')
-    if (isNextDeploy && !incoming) {
+    if (isNextDeploy && !incoming && !uninvokedRender) {
       expected.push('Next.request')
     }
   }
@@ -1032,10 +1037,14 @@ describe.each(VARIANTS)(
     )
 
     // The rewritten page is prerendered, so it is served from the cache
-    // (deployed, without invoking a function).
+    // (deployed, without invoking a function, so nothing emits the deferred
+    // `Next.request`: the middleware span's parent is never exported).
     traceTest(
       'traces a middleware rewrite to a static page',
-      async () => traceRequest(await next.fetch('/rewrite-static'), 'none'),
+      async () =>
+        traceRequest(await next.fetch('/rewrite-static'), 'none', {
+          uninvokedRender: true,
+        }),
       async ({ res, text, tree: getTree }) => {
         expect(res.status).toBe(200)
         expect(cheerio.load(text)('#marker').text()).toBe('static page')
@@ -1109,10 +1118,14 @@ describe.each(VARIANTS)(
     )
 
     // The rewritten page is prerendered with time-based revalidation, so it
-    // is served from the ISR cache (it never becomes stale during the test).
+    // is served from the ISR cache (it never becomes stale during the test;
+    // deployed, like the static page, without invoking a function).
     traceTest(
       'traces a middleware rewrite to an ISR page',
-      async () => traceRequest(await next.fetch('/rewrite-isr'), 'none'),
+      async () =>
+        traceRequest(await next.fetch('/rewrite-isr'), 'none', {
+          uninvokedRender: true,
+        }),
       async ({ res, text, tree: getTree }) => {
         expect(res.status).toBe(200)
         expect(cheerio.load(text)('#marker').text()).toBe('ISR page')
