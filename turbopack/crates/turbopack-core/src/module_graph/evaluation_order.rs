@@ -128,7 +128,8 @@ struct ModuleOrder {
 
 #[derive(Clone)]
 struct ListOrder {
-    /// Whether a trace evaluates the modules of the list.
+    /// Whether a trace evaluates the modules of the list. A list that no trace evaluates is not
+    /// merged: nothing is known about its order, and it would have no entry point.
     traced: bool,
     modules: Vec<ModuleOrder>,
 }
@@ -137,8 +138,9 @@ struct ListOrder {
 /// being evaluated.
 #[derive(Clone)]
 pub(crate) struct Referrers {
-    /// Whether the module is referenced by a module that is not in the list, or can be loaded
-    /// without a reference from the list.
+    /// Whether the module is referenced by a module that is not in the list. The roots of the
+    /// traces need no mark: a root completes last in its own trace, so it is never kept with its
+    /// successor in the list.
     pub(crate) outside: bool,
     /// The lowest and the highest position of a module of the list that references the module.
     pub(crate) first: u32,
@@ -165,8 +167,8 @@ impl Default for Referrers {
 /// - each entry point starts right after the module before it in the list is complete, so that
 ///   everything the trace evaluates between the first and the last module of the group is evaluated
 ///   by the group itself,
-/// - no module that is evaluated at that point imports itself again through a module of the group
-///   that is not part of it (an import cycle through the group),
+/// - every module that is entered at that point and imported again before it is complete (by any
+///   module: it is part of an import cycle) is a module of the group,
 /// - the entry points are the same modules as in every other trace.
 ///
 /// The module documentation has an example.
@@ -232,6 +234,10 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
                     .unwrap_or((NONE, NONE))
             })
             .collect::<Vec<_>>();
+        debug_assert!(
+            self.has_whole_lists(&positions),
+            "a trace has to evaluate all modules of a list or none of them"
+        );
         let completed = &trace.completed;
         let trace = PositionedTrace {
             modules: &trace.modules,
@@ -267,6 +273,20 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
                 _ => {}
             }
         }
+    }
+
+    /// Whether a trace, given as the list and the position of each of its modules, evaluates all
+    /// modules of every list that it evaluates a module of.
+    fn has_whole_lists(&self, positions: &[(u32, u32)]) -> bool {
+        let mut evaluated: FxHashMap<u32, usize> = FxHashMap::default();
+        for &(list, _) in positions {
+            if list != NONE {
+                *evaluated.entry(list).or_default() += 1;
+            }
+        }
+        evaluated
+            .into_iter()
+            .all(|(list, evaluated)| evaluated == self.lists[list as usize].modules.len())
     }
 
     /// Restricts the groups to what the traces of `other`, a clone of this value, allow too.
@@ -617,8 +637,8 @@ mod tests {
             lists
         }
 
-        /// The roots, as indices into `roots`, that are ES modules and part of an import cycle:
-        /// such a root can be loaded while a module that it imports is being evaluated.
+        /// The roots, as indices into `roots`, that are part of an import cycle: such a root can be
+        /// loaded while a module that it imports is being evaluated.
         fn reentrant_roots(&self, roots: &[usize]) -> Vec<usize> {
             (0..roots.len())
                 .filter(|&bit| {
@@ -628,7 +648,7 @@ mod tests {
                     while let Some(m) = stack.pop() {
                         for &(to, _) in &self.references[m] {
                             if to == root && m != root {
-                                return !self.not_mergeable.contains(&root);
+                                return true;
                             }
                             if seen.insert(to) {
                                 stack.push(to);
@@ -659,13 +679,7 @@ mod tests {
             for (list_idx, list) in lists.iter().enumerate() {
                 let is_reentrant = bitmaps[list[0]].iter().any(|bit| reentrant.contains(bit));
                 let referrers = is_reentrant.then(|| {
-                    let mut referrers = list
-                        .iter()
-                        .map(|m| Referrers {
-                            outside: roots.contains(m),
-                            ..Default::default()
-                        })
-                        .collect::<Vec<_>>();
+                    let mut referrers = vec![Referrers::default(); list.len()];
                     for from in self.reachable() {
                         for &(to, _) in &self.references[from] {
                             let Some(to) = list.iter().position(|&m| m == to) else {
@@ -1146,6 +1160,17 @@ mod tests {
         assert_eq!(order.entry_points(0, 0..2).collect::<Vec<_>>(), [1]);
     }
 
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "all modules of a list or none")]
+    fn a_trace_that_evaluates_a_part_of_a_list_is_rejected() {
+        let mut order = EvaluationOrder::new([[1, 2]]);
+        let mut trace = EvaluationTrace::new();
+        trace.enter(None, 2);
+        trace.leave(2);
+        order.add_trace(&trace);
+    }
+
     /// Deterministic pseudo-random numbers (xorshift64).
     struct Random(u64);
 
@@ -1316,9 +1341,9 @@ mod tests {
                 unchecked_differs += 1;
             }
         }
-        // The check is neither vacuous nor does it give up merging.
-        eprintln!("STATS unchecked_differs={unchecked_differs} merged_modules={merged_modules:?}");
-        assert!(unchecked_differs > 200, "{unchecked_differs}");
-        assert!(merged_modules[0] > 30000, "{merged_modules:?}");
+        // The check is neither vacuous nor does it give up merging. The seeds are fixed, so a
+        // change of these numbers is a change of the groups.
+        assert_eq!(unchecked_differs, 393);
+        assert_eq!(merged_modules, [33298, 16695]);
     }
 }
