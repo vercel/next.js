@@ -1,2 +1,3 @@
 import big from '../big'
-console.log('y', big)
+
+export const x = big
