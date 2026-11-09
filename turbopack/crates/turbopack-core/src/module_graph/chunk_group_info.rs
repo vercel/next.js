@@ -27,7 +27,7 @@ pub struct ModuleToChunkGroups(FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset>);
 
 /// See [`ChunkGroupInfo::chunk_group_ident_hashes`].
 #[turbo_tasks::value(transparent)]
-pub struct ChunkGroupIdentHashes(Vec<u64>);
+pub struct ChunkGroupIdentHashes(#[bincode(fixint)] Vec<u64>);
 
 /// The hash of a [`ChunkGroupKey::ident_str`], i.e. of the identity of one chunk group.
 pub fn chunk_group_ident_hash(ident: &str) -> u64 {

@@ -1274,6 +1274,7 @@ impl FileSystem for DiskFileSystem {
             full_path: Arc<PathBuf>,
             fs: ResolvedVc<DiskFileSystem>,
             content: ResolvedVc<PersistedFileContent>,
+            #[bincode(fixint)]
             content_hash: u128,
         }
 
@@ -1528,6 +1529,7 @@ impl FileSystem for DiskFileSystem {
             full_path: Arc<PathBuf>,
             target_sys_path: Arc<PathBuf>,
             target_type: WriteLinkTargetType,
+            #[bincode(fixint)]
             content_hash: u128,
         }
 

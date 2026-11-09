@@ -12,11 +12,10 @@ use bincode::{
     Decode, Encode,
     de::Decoder,
     enc::Encoder,
-    error::{DecodeError, EncodeError, IntegerType},
+    error::{DecodeError, EncodeError},
     impl_borrow_decode,
 };
 use serde::{Deserialize, Serialize};
-use turbo_bincode::fixed_width;
 
 use crate::{
     ReadCellOptions, ReadConsistency, ReadOutputOptions, TaskId, TaskPersistence, TraitTypeId,
@@ -50,20 +49,19 @@ pub struct CellId(NonZeroU32);
 // would always take 5 bytes.
 impl Encode for CellId {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-        fixed_width::encode_u32(encoder, self.raw())
+        self.0.encode(&mut encoder.with_fixint())
     }
 }
 
 impl<Context> Decode<Context> for CellId {
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        let raw = fixed_width::decode_u32(decoder)?;
-        if raw >> CELL_INDEX_BITS == 0 {
-            return Err(DecodeError::NonZeroTypeIsZero {
-                non_zero_type: IntegerType::U32,
-            });
+        let raw = NonZeroU32::decode(&mut decoder.with_fixint())?;
+        // A non-zero word can still have zero `ValueTypeId` bits, which `type_id` relies on never
+        // happening.
+        if raw.get() >> CELL_INDEX_BITS == 0 {
+            return Err(DecodeError::Other("CellId has a zero ValueTypeId"));
         }
-        // SAFETY: the type id bits are non-zero, which is all `from_raw` requires.
-        Ok(unsafe { Self::from_raw(raw) })
+        Ok(CellId(raw))
     }
 }
 
@@ -193,17 +191,13 @@ impl Serialize for RawVc {
 impl Encode for RawVc {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
         debug_assert!(!self.is_transient(), "transient RawVc must not be encoded");
-        fixed_width::encode_u64(encoder, self.bits())
+        self.bits().encode(&mut encoder.with_fixint())
     }
 }
 
 impl<Context> Decode<Context> for RawVc {
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        NonZeroU64::new(fixed_width::decode_u64(decoder)?)
-            .map(RawVc)
-            .ok_or(DecodeError::NonZeroTypeIsZero {
-                non_zero_type: IntegerType::U64,
-            })
+        NonZeroU64::decode(&mut decoder.with_fixint()).map(RawVc)
     }
 }
 
