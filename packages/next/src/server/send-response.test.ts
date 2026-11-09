@@ -1,46 +1,66 @@
 import { sendResponse } from './send-response'
 import { NodeNextResponse } from './base-http/node'
-import { IncomingMessage, ServerResponse } from 'http'
-import { Socket } from 'net'
+import http from 'http'
+import type { AddressInfo } from 'net'
 
-function createMocks() {
-  const req = new IncomingMessage(new Socket())
-  const res = new ServerResponse(req)
-  const nodeRes = new NodeNextResponse(res)
-  return { req, res, nodeRes }
+// sendResponse pipes the body through pipeToNodeResponse, which waits for the
+// underlying ServerResponse to emit `finish`. That only happens on a real
+// server-managed response, so each test serves the response over loopback
+// http. The header is asserted on the server side: undici fetch
+// transparently decompresses and drops `content-encoding` on the client.
+async function captureResponseHeader(
+  buildResponse: () => Response
+): Promise<string | undefined> {
+  let contentEncoding: string | number | undefined
+
+  const server = http.createServer(async (req, res) => {
+    const nodeRes = new NodeNextResponse(res)
+    await sendResponse(req as never, nodeRes, buildResponse(), undefined)
+    contentEncoding = res.getHeader('content-encoding')
+  })
+
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const { port } = server.address() as AddressInfo
+  try {
+    // raw client: no transparent decompression, the response is drained only
+    const raw = await new Promise<http.IncomingMessage>((resolve, reject) => {
+      const req = http.get({ port, host: '127.0.0.1', path: '/' }, resolve)
+      req.on('error', reject)
+    })
+    raw.resume()
+    await new Promise<void>((resolve) => raw.once('end', resolve))
+    return contentEncoding
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()))
+  }
 }
 
 describe('sendResponse', () => {
   it('preserves Content-Encoding from a manually built Response', async () => {
-    const { res, nodeRes } = createMocks()
     const zlib = require('node:zlib')
     const body = zlib.gzipSync(Buffer.from('hello compression'))
-    const response = new Response(new Uint8Array(body), {
-      headers: {
-        'content-type': 'text/plain',
-        'content-encoding': 'gzip',
-      },
-    })
 
-    await sendResponse(
-      {} as never,
-      nodeRes,
-      response,
-      undefined
+    const contentEncoding = await captureResponseHeader(() =>
+      new Response(new Uint8Array(body), {
+        headers: {
+          'content-type': 'text/plain',
+          'content-encoding': 'gzip',
+        },
+      })
     )
 
-    expect(res.getHeader('content-encoding')).toBe('gzip')
+    expect(contentEncoding).toBe('gzip')
   })
 
-  it('still strips Content-Encoding from a decoded fetch response', async () => {
-    const { res, nodeRes } = createMocks()
-    const response = new Response('decoded body')
-    // a decoded fetch response carries the origin url and its pre-decode headers
-    // a stream body behaves like a decoded fetch response (strip applies)
-    response.headers.set('content-encoding', 'gzip')
+  it('preserves Content-Encoding on a stream body too', async () => {
+    // content-encoding is never touched: it describes whatever bytes the
+    // handler chose to send, stream or buffer alike
+    const contentEncoding = await captureResponseHeader(() => {
+      const response = new Response('stream body')
+      response.headers.set('content-encoding', 'gzip')
+      return response
+    })
 
-    await sendResponse({} as never, nodeRes, response, undefined)
-
-    expect(res.getHeader('content-encoding')).toBeUndefined()
+    expect(contentEncoding).toBe('gzip')
   })
 })
