@@ -54,11 +54,17 @@ const INTERNAL_HEADERS = [
   'next-resume',
 ]
 
+const propertyIsEnumerable = Object.prototype.propertyIsEnumerable
+
 export const filterInternalHeaders = (
   headers: Record<string, undefined | string | string[]>
 ) => {
-  for (const header in headers) {
-    if (INTERNAL_HEADERS.includes(header)) {
+  // Asks for each internal header instead of comparing every request header
+  // against the list. The test is the one a `for...in` over the headers
+  // makes: only an own, enumerable property is removed.
+  for (let i = 0; i < INTERNAL_HEADERS.length; i++) {
+    const header = INTERNAL_HEADERS[i]
+    if (propertyIsEnumerable.call(headers, header)) {
       delete headers[header]
     }
   }
