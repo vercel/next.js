@@ -32,7 +32,10 @@ use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TryFlatJoinIterExt,
     TryJoinIterExt, ValueToStringRef, Vc, turbofmt,
 };
-use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
+use turbo_tasks_fs::{
+    self, File, FileContent, FileSystemPath,
+    rope::{RopeBuilder, write_exact},
+};
 use turbo_tasks_hash::{HashAlgorithm, deterministic_hash};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -404,7 +407,10 @@ impl Asset for ServerActionManifestAsset {
         }
 
         Ok(AssetContent::file(
-            FileContent::Content(File::from(serde_json::to_string_pretty(&manifest)?)).cell(),
+            FileContent::Content(File::from(write_exact(|buf| {
+                serde_json::to_writer_pretty(buf, &manifest)
+            })?))
+            .cell(),
         ))
     }
 }

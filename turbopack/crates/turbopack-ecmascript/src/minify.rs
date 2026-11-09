@@ -30,7 +30,7 @@ use swc_core::{
     },
 };
 use tracing::instrument;
-use turbo_tasks_fs::rope::Rope;
+use turbo_tasks_fs::rope::{Rope, write_exact};
 use turbopack_core::{
     chunk::MangleType,
     code_builder::{Code, CodeBuilder},
@@ -478,30 +478,28 @@ fn print(
 ) -> Result<(String, Vec<(BytePos, LineCol)>)> {
     let mut src_map_buf = vec![];
 
-    let src = {
-        let mut buf = vec![];
-        {
-            let wr = Box::new(text_writer::omit_trailing_semi(Box::new(JsWriter::new(
-                cm.clone(),
-                "\n",
-                &mut buf,
-                source_maps.then_some(&mut src_map_buf),
-            )))) as Box<dyn WriteJs>;
+    let src = write_exact(|buf| -> Result<()> {
+        let wr = Box::new(text_writer::omit_trailing_semi(Box::new(JsWriter::new(
+            cm.clone(),
+            "\n",
+            buf,
+            source_maps.then_some(&mut src_map_buf),
+        )))) as Box<dyn WriteJs>;
 
-            let mut emitter = Emitter {
-                cfg: swc_core::ecma::codegen::Config::default().with_minify(true),
-                comments: None,
-                cm: cm.clone(),
-                wr,
-            };
+        let mut emitter = Emitter {
+            cfg: swc_core::ecma::codegen::Config::default().with_minify(true),
+            comments: None,
+            cm: cm.clone(),
+            wr,
+        };
 
-            node.emit_with(&mut emitter)
-                .context("failed to emit module")?;
-        }
-        // Invalid utf8 is valid in javascript world.
-        // SAFETY: SWC generates valid utf8.
-        unsafe { String::from_utf8_unchecked(buf) }
-    };
+        node.emit_with(&mut emitter)
+            .context("failed to emit module")?;
+        Ok(())
+    })?;
+    // Invalid utf8 is valid in javascript world.
+    // SAFETY: SWC generates valid utf8.
+    let src = unsafe { String::from_utf8_unchecked(src) };
 
     Ok((src, src_map_buf))
 }

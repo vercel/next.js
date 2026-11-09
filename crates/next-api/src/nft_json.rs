@@ -5,7 +5,9 @@ use turbo_tasks::{
     ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     graph::{AdjacencyMap, GraphTraversal, Visit},
 };
-use turbo_tasks_fs::{File, FileContent, FileSystem, FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    File, FileContent, FileSystem, FileSystemPath, glob::Glob, rope::write_exact,
+};
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -201,7 +203,8 @@ impl Asset for NftJsonAsset {
                 .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
                 .owned()
                 .await?;
-            let json = serde_json::to_string(&nft_json.into_json(Some(entry_hash)))?;
+            let json = nft_json.into_json(Some(entry_hash));
+            let json = write_exact(|buf| serde_json::to_writer(buf, &json))?;
 
             Ok(AssetContent::file(
                 FileContent::Content(File::from(json)).cell(),
