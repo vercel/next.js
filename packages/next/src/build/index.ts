@@ -211,6 +211,7 @@ import {
 } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
 import { getBuildDistDir, hasCustomExportOutput } from '../export/utils'
+import type { ExportPagesInput } from '../export/types'
 import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils-server'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
@@ -1042,6 +1043,13 @@ export function createStaticWorker(
     isolatedMemory: true,
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
+    // An export deals its batches out to as many lanes as it uses workers.
+    // Keep a lane on one worker, so that which worker renders which page
+    // doesn't depend on which worker happens to be idle.
+    computeWorkerKey: (method: string, ...args: unknown[]) =>
+      method === 'exportPages'
+        ? `lane-${(args[0] as ExportPagesInput).lane}`
+        : null,
     forkOptions: {
       env: {
         ...(process.env.NEXT_CPU_PROF

@@ -33,6 +33,11 @@ export interface ExportPagesInput {
    * several batches of one export, and sets itself up once for all of them.
    */
   exportId: number
+  /**
+   * Which of the export's workers these paths are for. The batches with the
+   * same number all go to the same worker (see `createStaticWorker`).
+   */
+  lane: number
   parentSpanId: number
   dir: string
   distDir: string
