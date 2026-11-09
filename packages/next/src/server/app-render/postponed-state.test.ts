@@ -423,4 +423,83 @@ describe('parsePostponedState', () => {
     })
     expect(parsed).not.toHaveProperty('stagedFallbackParams')
   })
+
+  it('gives every parse of the same state a resume data cache of its own', async () => {
+    const prerenderResumeDataCache = createPrerenderResumeDataCache()
+
+    prerenderResumeDataCache.cache.set(
+      'cache-key',
+      Promise.resolve({
+        entry: {
+          value: streamFromString('cached value'),
+          tags: ['tag'],
+          stale: 300,
+          timestamp: 0,
+          expire: 3600,
+          revalidate: 900,
+        },
+        hasExplicitRevalidate: true,
+        hasExplicitExpire: true,
+        readRootParamNames: new Set(['lang']),
+        dynamicNestedCacheError: undefined,
+      })
+    )
+    prerenderResumeDataCache.fetch.set('fetch-key', {
+      kind: CachedRouteKind.FETCH,
+      data: { headers: {}, body: 'body', url: 'https://example.com/' },
+      revalidate: 900,
+    })
+    prerenderResumeDataCache.encryptedBoundArgs.set('args-key', 'encrypted')
+
+    const state = await getDynamicDataPostponedState(
+      prerenderResumeDataCache,
+      isCacheComponentsEnabled
+    )
+
+    const first = parsePostponedState(state, undefined)
+    const second = parsePostponedState(state, undefined)
+
+    expect(second).toEqual(first)
+    expect(second.renderResumeDataCache).not.toBe(first.renderResumeDataCache)
+
+    const firstResult = await first.renderResumeDataCache.cache.get('cache-key')
+    const secondResult =
+      await second.renderResumeDataCache.cache.get('cache-key')
+    assert(firstResult !== undefined && typeof firstResult !== 'symbol')
+    assert(secondResult !== undefined && typeof secondResult !== 'symbol')
+
+    // A render changes what it reads from its resume data cache: it replaces
+    // the value of an entry, and it may write to the bytes of a value, the
+    // tags and the fetch entries. None of that may reach another render.
+    const { value: bytes } = await firstResult.entry.value.getReader().read()
+    assert(bytes !== undefined)
+    bytes.fill(0)
+    firstResult.entry.tags.push('other')
+    ;(firstResult.readRootParamNames as Set<string>).add('other')
+    const firstFetch = first.renderResumeDataCache.fetch.get('fetch-key')
+    assert(firstFetch?.kind === CachedRouteKind.FETCH)
+    firstFetch.data.body = 'changed'
+
+    const third = parsePostponedState(state, undefined)
+    const thirdResult = await third.renderResumeDataCache.cache.get('cache-key')
+    assert(thirdResult !== undefined && typeof thirdResult !== 'symbol')
+
+    for (const result of [secondResult, thirdResult]) {
+      expect(result.entry.tags).toEqual(['tag'])
+      expect(result.readRootParamNames).toEqual(new Set(['lang']))
+      await expect(streamToString(result.entry.value)).resolves.toBe(
+        'cached value'
+      )
+    }
+    for (const parsed of [second, third]) {
+      expect(parsed.renderResumeDataCache.fetch.get('fetch-key')).toEqual({
+        kind: CachedRouteKind.FETCH,
+        data: { headers: {}, body: 'body', url: 'https://example.com/' },
+        revalidate: 900,
+      })
+      expect(
+        parsed.renderResumeDataCache.encryptedBoundArgs.get('args-key')
+      ).toBe('encrypted')
+    }
+  })
 })

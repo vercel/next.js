@@ -5,6 +5,9 @@ import {
   type EncryptedBoundArgsCacheStore,
   serializeUseCacheCacheStore,
   parseUseCacheCacheStore,
+  decodeUseCacheCacheStore,
+  createUseCacheCacheStore,
+  type DecodedUseCacheEntry,
   type DecryptedBoundArgsCacheStore,
   type ImageResponseCacheStore,
   type UseCacheCacheStoreSerialized,
@@ -277,7 +280,36 @@ export function createRenderResumeDataCache(
       }
     }
 
-    let serializedResumeDataCache = resumeDataCacheOrPersistedCache
+    const json = parsePersistedResumeDataCache(
+      resumeDataCacheOrPersistedCache,
+      maxPostponedStateSizeBytes,
+      disableResumeDataCacheCompression
+    )
+
+    return {
+      mutable: false,
+      cache: parseUseCacheCacheStore(Object.entries(json.store.cache)),
+      fetch: new Map(Object.entries(json.store.fetch)),
+      encryptedBoundArgs: new Map(
+        Object.entries(json.store.encryptedBoundArgs)
+      ),
+      decryptedBoundArgs: new Map(),
+      imageResponses: new Map(),
+    }
+  }
+}
+
+function parsePersistedResumeDataCache(
+  persistedCache: string,
+  maxPostponedStateSizeBytes: number | undefined,
+  disableResumeDataCacheCompression: boolean
+): ResumeStoreSerialized {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new InvariantError(
+      '`parsePersistedResumeDataCache` should not be called in edge runtime.'
+    )
+  } else {
+    let serializedResumeDataCache = persistedCache
     if (!disableResumeDataCacheCompression) {
       // This should be a compressed string. Let's decompress it using zlib.
       // As the data we already want to decompress is in memory, we use the
@@ -312,17 +344,104 @@ export function createRenderResumeDataCache(
       }
     }
 
-    const json = JSON.parse(serializedResumeDataCache) as ResumeStoreSerialized
+    return JSON.parse(serializedResumeDataCache) as ResumeStoreSerialized
+  }
+}
+
+/**
+ * The contents of a persisted resume data cache: inflated, parsed and with the
+ * values of its `use cache` entries decoded. It only holds what no render
+ * changes, so it can be kept and turned into a `RenderResumeDataCache` for
+ * every render that resumes from the same persisted cache.
+ */
+export interface DecodedResumeDataCache {
+  readonly cache: readonly DecodedUseCacheEntry[]
+  /**
+   * The fetch store as JSON, or `null` when it is empty. Its values are plain
+   * objects, so every resume data cache parses its own.
+   */
+  readonly fetch: string | null
+  readonly encryptedBoundArgs: ReadonlyArray<readonly [string, string]>
+  /**
+   * An estimate of the memory this holds, in bytes.
+   */
+  readonly size: number
+}
+
+const EMPTY_DECODED_RESUME_DATA_CACHE: DecodedResumeDataCache = {
+  cache: [],
+  fetch: null,
+  encryptedBoundArgs: [],
+  size: 0,
+}
+
+/**
+ * Inflates, parses and decodes a persisted resume data cache, for
+ * `createRenderResumeDataCacheFromDecoded`.
+ *
+ * @param persistedCache - A serialized cache string to parse
+ * @param maxPostponedStateSizeBytes - The max compressed size limit in bytes (used to calculate 5x decompression limit)
+ * @param disableResumeDataCacheCompression - Whether the persisted cache is raw JSON instead of compressed
+ */
+export function decodePersistedResumeDataCache(
+  persistedCache: string,
+  maxPostponedStateSizeBytes: number | undefined,
+  disableResumeDataCacheCompression = false
+): DecodedResumeDataCache {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new InvariantError(
+      '`decodePersistedResumeDataCache` should not be called in edge runtime.'
+    )
+  } else {
+    if (persistedCache === 'null') {
+      return EMPTY_DECODED_RESUME_DATA_CACHE
+    }
+
+    const json = parsePersistedResumeDataCache(
+      persistedCache,
+      maxPostponedStateSizeBytes,
+      disableResumeDataCacheCompression
+    )
+
+    const cache = decodeUseCacheCacheStore(Object.entries(json.store.cache))
+    const fetch = JSON.stringify(json.store.fetch)
+    const encryptedBoundArgs = Object.entries(json.store.encryptedBoundArgs)
+
+    let size = fetch.length
+    for (let i = 0; i < cache.length; i++) {
+      size += cache[i].key.length + cache[i].value.byteLength
+    }
+    for (let i = 0; i < encryptedBoundArgs.length; i++) {
+      size += encryptedBoundArgs[i][0].length + encryptedBoundArgs[i][1].length
+    }
 
     return {
-      mutable: false,
-      cache: parseUseCacheCacheStore(Object.entries(json.store.cache)),
-      fetch: new Map(Object.entries(json.store.fetch)),
-      encryptedBoundArgs: new Map(
-        Object.entries(json.store.encryptedBoundArgs)
-      ),
-      decryptedBoundArgs: new Map(),
-      imageResponses: new Map(),
+      cache,
+      fetch: fetch === '{}' ? null : fetch,
+      encryptedBoundArgs,
+      size,
     }
+  }
+}
+
+/**
+ * Creates the immutable render resume data cache that
+ * `createRenderResumeDataCache` creates from a persisted cache string, from
+ * the decoded form of that string. Nothing a render could change is shared
+ * between the caches created from one decoded form.
+ */
+export function createRenderResumeDataCacheFromDecoded(
+  decoded: DecodedResumeDataCache
+): RenderResumeDataCache {
+  return {
+    mutable: false,
+    cache: createUseCacheCacheStore(decoded.cache),
+    fetch:
+      decoded.fetch === null
+        ? new Map()
+        : new Map(Object.entries(JSON.parse(decoded.fetch))),
+    encryptedBoundArgs: new Map(decoded.encryptedBoundArgs),
+    decryptedBoundArgs: new Map(),
+    imageResponses: new Map(),
   }
 }
