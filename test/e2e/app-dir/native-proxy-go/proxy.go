@@ -10,6 +10,7 @@ import (
 
 func Proxy(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-go-proxy", "yes")
+	w.Header().Set("x-go-url", r.URL.RequestURI())
 	w.Header().Set("x-private-token", strconv.FormatBool(r.Header.Get("x-next-internal-go-token") != ""))
 	switch r.URL.Path {
 	case "/native-proxy/blocked":

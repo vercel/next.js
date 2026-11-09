@@ -1807,6 +1807,9 @@ export default class NextNodeServer extends BaseServer<
         // `handleRequest` span, so the middleware span (and the trace context
         // it forwards to the render) stays in the request's trace.
         result = await adapterFn({
+          skipProxyUrlNormalize: middlewareModule.nativeEntry
+            ? (this.nextConfig.skipProxyUrlNormalize ?? false)
+            : undefined,
           handler:
             (middlewareModule.nativeEntry
               ? (request: Request) =>

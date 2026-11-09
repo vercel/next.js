@@ -6,6 +6,8 @@ import { tmpdir } from 'os'
 import { spawn } from 'child_process'
 import { once } from 'events'
 
+// Hosted tests require the Go proxy adapter and builder releases (see README.md).
+// @force-gate turbopack && !deploy
 describe('native-proxy-go', () => {
   const { next, isNextStart } = nextTestSetup({ files: __dirname })
 
@@ -78,8 +80,17 @@ describe('native-proxy-go', () => {
     expect(response.headers.get('x-private-token')).toBe('false')
   })
 
+  // @force-gate start
+  it('normalizes data-request URLs by default', async () => {
+    const response = await next.fetch(
+      `/_next/data/${next.buildId}/native-proxy/inspect.json?from=data`
+    )
+    expect(response.headers.get('x-go-url')).toBe(
+      '/native-proxy/inspect?from=data'
+    )
+  })
+
   // Artifact inspection and executing a build-host binary are self-hosted checks.
-  // The public HTTP assertions above also run in deploy mode.
   if (isNextStart) {
     it('emits a Go middleware output whose PORT server runs without Next.js', async () => {
       await next.stop()
@@ -144,6 +155,31 @@ describe('native-proxy-go', () => {
   }
 })
 
+// Inspecting the build ID and patching config before startup require a local build.
+// @force-gate turbopack && start
+describe('native-proxy-go with skipProxyUrlNormalize', () => {
+  const { next } = nextTestSetup({ files: __dirname, skipStart: true })
+
+  beforeAll(async () => {
+    const config = await next.readFile('next.config.ts')
+    await next.patchFile(
+      'next.config.ts',
+      config.replace(
+        'experimental: {',
+        'skipProxyUrlNormalize: true, experimental: {'
+      )
+    )
+    await next.start()
+  })
+
+  it('preserves the original data-request URL', async () => {
+    const path = `/_next/data/${next.buildId}/native-proxy/inspect.json?from=data`
+    const response = await next.fetch(path)
+    expect(response.headers.get('x-go-url')).toBe(path)
+  })
+})
+
+// @force-gate turbopack && !deploy
 describe('native-proxy-go in src with Go route handlers', () => {
   const { next } = nextTestSetup({ files: join(__dirname, 'src-fixture') })
 

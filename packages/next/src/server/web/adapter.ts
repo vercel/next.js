@@ -102,6 +102,8 @@ export type AdapterOptions = {
   IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
   incrementalCacheHandler?: typeof import('../lib/incremental-cache').CacheHandler
   bypassNextUrl?: boolean
+  /** Runtime override for native proxies, whose adapter is not user-bundled. */
+  skipProxyUrlNormalize?: boolean
   /**
    * When the Node.js middleware entrypoint registered `instrumentation.ts` for
    * this request: emits its lifecycle spans, inside the middleware span.
@@ -161,6 +163,10 @@ export async function adapter(
   ensureTestApisIntercepted()
   await ensureInstrumentationRegistered()
 
+  const skipProxyUrlNormalize =
+    params.skipProxyUrlNormalize ??
+    process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+
   // TODO-APP: use explicit marker for this
   const isEdgeRendering =
     typeof (globalThis as any).__BUILD_MANIFEST !== 'undefined'
@@ -209,7 +215,7 @@ export async function adapter(
   const flightHeaders = new Map()
 
   // Headers should only be stripped for middleware
-  if (!isEdgeRendering && !process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
+  if (!isEdgeRendering && !skipProxyUrlNormalize) {
     for (const header of FLIGHT_HEADERS) {
       const value = requestHeaders.get(header)
       if (value !== null) {
@@ -219,7 +225,7 @@ export async function adapter(
     }
   }
 
-  const normalizeURL = process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+  const normalizeURL = skipProxyUrlNormalize
     ? new URL(params.request.url)
     : requestURL
 
@@ -228,7 +234,7 @@ export async function adapter(
   const request = new NextRequestHint({
     page: params.page,
     // Strip internal query parameters off the request.
-    input: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+    input: skipProxyUrlNormalize
       ? normalizeURL.toString()
       : stripInternalSearchParams(normalizeURL).toString(),
     init: {
@@ -491,7 +497,7 @@ export async function adapter(
       nextConfig: params.request.nextConfig,
     })
 
-    if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE && !isEdgeRendering) {
+    if (!skipProxyUrlNormalize && !isEdgeRendering) {
       if (destination.host === request.nextUrl.host) {
         destination.buildId = buildId || destination.buildId
         // App routes must distinguish an adapter-added locale from an
@@ -595,7 +601,7 @@ export async function adapter(
      */
     response = new Response(response.body, response)
 
-    if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
+    if (!skipProxyUrlNormalize) {
       if (redirectURL.host === requestURL.host) {
         redirectURL.buildId = buildId || redirectURL.buildId
         response.headers.set(

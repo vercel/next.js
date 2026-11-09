@@ -515,7 +515,7 @@ export interface ExperimentalConfig {
   goRoutes?: boolean
   /** Native Go proxy. Requires Turbopack and a Proxy(w, r) handler in proxy.go. */
   goProxy?: {
-    matcher?: import('../build/segment-config/middleware/middleware-config').MiddlewareConfigMatcherInput
+    matcher?: import('../build/segment-config/middleware/middleware-config').MiddlewareConfigInput['matcher']
     maxDuration?: number
     preferredRegion?: string | string[]
   }

@@ -30,3 +30,11 @@ Background work after the HTTP response is not an invocation-lifetime API.
 
 The root fixture is a proxy-only application. `src-fixture` also has a Go route
 handler to exercise continuation, rewrite and header override interoperability.
+
+The suite currently runs in Turbopack dev and start modes. Hosted CI still uses
+the released adapter and builder, which do not provision Go for proxy-only apps
+or package Go middleware. Enable deploy mode after the companion
+[adapter change](https://github.com/nextjs/adapter-vercel/pull/156) and builder
+change are released and selected by the deployment harness. Start mode already
+verifies the emitted middleware executable's PORT-based HTTP contract in an
+isolated directory without Next.js.
