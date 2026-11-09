@@ -1105,9 +1105,10 @@ describe.each(VARIANTS)(
             'deploy (no adapter), cache components, proxy',
           ].includes(env)
         ) {
-          // Served from the cache without invoking a function: no render spans.
+          // Served from the cache without invoking a function: no render
+          // spans, and nothing emits the deferred `Next.request`.
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/rewrite-static}
+            "[trace A] [remote]
             └─ middleware GET (Middleware.execute) {http.target=/rewrite-static}"
           `)
         } else {
@@ -1206,9 +1207,9 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           // Served from the ISR cache without invoking a function: no render
-          // spans.
+          // spans, and nothing emits the deferred `Next.request`.
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/rewrite-isr}
+            "[trace A] [remote]
             └─ middleware GET (Middleware.execute) {http.target=/rewrite-isr}"
           `)
         } else {
