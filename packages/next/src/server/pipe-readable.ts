@@ -42,9 +42,17 @@ const SMALL_BODY_BYTES = 1024
  *
  * An empty chunk is passed on as it is: there is nothing to copy, and a view
  * cannot be created on a detached buffer, which has no bytes.
+ *
+ * So is a chunk that is not a `Uint8Array` of this realm. A stream can enqueue
+ * any value, and the response decides what it accepts: a string is written,
+ * anything else is reported as an invalid chunk.
  */
 function toBufferView(chunk: Uint8Array): Uint8Array {
-  if (chunk.byteLength === 0 || Buffer.isBuffer(chunk)) {
+  if (
+    !(chunk instanceof Uint8Array) ||
+    chunk.byteLength === 0 ||
+    Buffer.isBuffer(chunk)
+  ) {
     return chunk
   }
 
