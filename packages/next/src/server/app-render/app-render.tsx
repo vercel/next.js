@@ -1361,7 +1361,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     const prefetchMode = await getPrefetchingModeForPage(renderOpts, loaderTree)
     const ensureStaticLevel = await resolveEnsureStaticLevel(
       loaderTree,
-      /* partialPrefetching */ prefetchMode === PrefetchingMode.Partial
+      /* partialPrefetching */ prefetchMode === PrefetchingMode.Partial,
+      workStore.isStaticExport
     )
 
     // We try to match the client router's prefetching behavior in dev
@@ -3772,7 +3773,8 @@ async function renderToStream(
         // we want to validate that it's correct.
         await resolveEnsureStaticLevel(
           tree,
-          /* partialPrefetching */ prefetchMode === PrefetchingMode.Partial
+          /* partialPrefetching */ prefetchMode === PrefetchingMode.Partial,
+          workStore.isStaticExport
         )
 
         let debugChannelClientStream: ReplayableNodeStream | undefined
@@ -5206,7 +5208,8 @@ async function prepareValidationInputsInPartialPrefetching(
     await anySegmentNeedsInstantValidationInDev(loaderTree)
   const ensureStaticLevel = await resolveEnsureStaticLevel(
     loaderTree,
-    /* partialPrefetching */ true
+    /* partialPrefetching */ true,
+    ctx.workStore.isStaticExport
   )
 
   // PPF uses runtime shells by default, but this can be overridden with `ensureStatic`.
@@ -6821,6 +6824,7 @@ function buildDevValidationWorkStore(
     page: message.page,
     route: message.route,
     forceStatic: message.forceStatic,
+    isStaticExport: message.isStaticExport,
     isDraftMode: message.request.isDraftMode,
     useCacheTimeout: message.nextConfigSerializable.useCacheTimeout,
     durableUseCacheEntries:
@@ -7177,7 +7181,8 @@ async function validateStaticShell(
   const prefetchMode = await getPrefetchingModeForPage(renderOpts, loaderTree)
   const ensureStaticLevel = await resolveEnsureStaticLevel(
     loaderTree,
-    prefetchMode === PrefetchingMode.Partial
+    prefetchMode === PrefetchingMode.Partial,
+    ctx.workStore.isStaticExport
   )
 
   const runtimeResult = await validateStaticShellAtStage(
@@ -7673,7 +7678,8 @@ async function validateInstantConfigs(
     case PrefetchingMode.Partial: {
       const ensureStaticLevel = await resolveEnsureStaticLevel(
         ctx.componentMod.routeModule.userland.loaderTree,
-        /* partialPrefetching */ true
+        /* partialPrefetching */ true,
+        ctx.workStore.isStaticExport
       )
       prefetchKind =
         ensureStaticLevel >= EnsureStaticLevel.Shell
@@ -8592,7 +8598,8 @@ async function validateInstantConfigInBuildWithSample(
   )
   const ensureStaticLevel = await resolveEnsureStaticLevel(
     loaderTree,
-    prefetchMode === PrefetchingMode.Partial
+    prefetchMode === PrefetchingMode.Partial,
+    outerWorkStore.isStaticExport
   )
 
   const route = outerWorkStore.route
@@ -8652,6 +8659,7 @@ async function validateInstantConfigInBuildWithSample(
     durableUseCacheEntries: outerWorkStore.durableUseCacheEntries,
     staticPageGenerationTimeout: outerWorkStore.staticPageGenerationTimeout,
     isBuildTimePrerendering: false,
+    isStaticExport: outerWorkStore.isStaticExport,
     fetchCache: outerWorkStore.fetchCache,
     isOnDemandRevalidate: false,
     requestId: outerWorkStore.requestId,
@@ -9263,7 +9271,8 @@ async function prerenderToStream(
 
       let ensureStaticLevel = await resolveEnsureStaticLevel(
         tree,
-        partialPrefetching
+        partialPrefetching,
+        workStore.isStaticExport
       )
       if (process.env.NEXT_PRIVATE_DEBUG_RUNTIME_DATA) {
         console.log(
