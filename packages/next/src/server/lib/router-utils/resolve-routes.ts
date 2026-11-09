@@ -135,6 +135,13 @@ export function getResolveRoutes(
     resHeaders: Record<string, string | string[]> | null
     parsedUrl: NextUrlWithParsedQuery
     matchedOutput?: FsOutput | null
+    /**
+     * A next.config.js redirect matched a Pages `_next/data` request whose
+     * path Proxy matches. The response must carry the destination in
+     * `x-nextjs-redirect` instead of `Location`, so that the client router
+     * applies the redirect instead of `fetch` following it.
+     */
+    isNextDataRedirect?: boolean
   }> {
     const assetPrefix = getAssetPrefix()
     let finished = false
@@ -207,6 +214,28 @@ export function getResolveRoutes(
     const setIsNextDataRequest = () => {
       addRequestMeta(req, 'isNextDataReq', true)
       req.headers['x-nextjs-data'] = '1'
+    }
+
+    const matchesMiddlewarePath = (url: NextUrlWithParsedQuery): boolean => {
+      const match = fsChecker.getMiddlewareMatchers()
+      let maybeDecodedPathname = url.pathname || '/'
+
+      try {
+        maybeDecodedPathname = decodeURIComponent(maybeDecodedPathname)
+      } catch {
+        /* non-fatal we can't decode so can't match it */
+      }
+
+      return Boolean(
+        // @ts-expect-error BaseNextRequest stuff
+        match?.(url.pathname, req, url.query) ||
+          match?.(
+            maybeDecodedPathname,
+            // @ts-expect-error BaseNextRequest stuff
+            req,
+            url.query
+          )
+      )
     }
 
     let domainLocale: ReturnType<typeof detectDomainLocale> | undefined
@@ -582,23 +611,7 @@ export function getResolveRoutes(
 
         if (!opts.minimalMode && route.name === 'middleware') {
           const match = fsChecker.getMiddlewareMatchers()
-          let maybeDecodedPathname = parsedUrl.pathname || '/'
-
-          try {
-            maybeDecodedPathname = decodeURIComponent(maybeDecodedPathname)
-          } catch {
-            /* non-fatal we can't decode so can't match it */
-          }
-
-          const matchesMiddleware =
-            // @ts-expect-error BaseNextRequest stuff
-            match?.(parsedUrl.pathname, req, parsedUrl.query) ||
-            match?.(
-              maybeDecodedPathname,
-              // @ts-expect-error BaseNextRequest stuff
-              req,
-              parsedUrl.query
-            )
+          const matchesMiddleware = matchesMiddlewarePath(parsedUrl)
           const requestInsightsIdentity = getRequestMeta(
             req,
             'requestInsightsIdentity'
@@ -880,6 +893,11 @@ export function getResolveRoutes(
             parsedUrl: parsedDestination,
             resHeaders: null,
             statusCode: getRedirectStatus(route),
+            // The docs say config redirects apply to Pages client-side
+            // routing when Proxy is present and matches the path.
+            isNextDataRedirect:
+              getRequestMeta(req, 'isNextDataReq') === true &&
+              matchesMiddlewarePath(parsedUrl),
           }
         }
 

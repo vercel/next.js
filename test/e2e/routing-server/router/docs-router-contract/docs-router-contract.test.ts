@@ -190,13 +190,9 @@ describe('documented routing phases', () => {
     })
   })
 
-  // TODO: with a matching Proxy, the server answers the Pages data request with
-  // a plain 307 to the destination, and client navigation keeps the source URL
-  // in the address bar (Turbopack dev also renders the source page). The docs
-  // say config redirects apply to Pages client-side routing when Proxy is
-  // present and matches the path. That sentence has no section anchor:
+  // The docs say config redirects apply to Pages client-side routing only when
+  // Proxy is present and matches the path. That sentence has no section anchor:
   // docs/01-app/03-api-reference/05-config/01-next-config-js/redirects.mdx
-  // @gate FIXME
   it('applies Pages config redirects on client navigation only with a matching Proxy', async () => {
     // Both sources redirect for a document request, proving the rules exist.
     for (const path of ['/without-proxy', '/with-proxy']) {
