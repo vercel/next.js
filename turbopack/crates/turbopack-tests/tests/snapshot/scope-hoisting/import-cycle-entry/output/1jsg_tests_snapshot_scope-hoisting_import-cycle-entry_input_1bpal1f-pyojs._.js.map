@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/import-cycle-entry/input/left.js"],"sourcesContent":["import { right } from './right.js'\n\nconsole.log('left')\n\nexport const name = 'left'\n\nexport const left = () => `left ${right()}`\n"],"names":["console","log","name","left"],"mappings":";;;;;;AAAA;;AAEAA,QAAQC,GAAG,CAAC;AAEL,MAAMC,OAAO;AAEb,MAAMC,OAAO,IAAM,CAAC,KAAK,EAAE,IAAA,oOAAK,KAAI"}},
+    {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/import-cycle-entry/input/right.js"],"sourcesContent":["import * as left from './left.js'\n\nconsole.log('right')\n\nexport const right = () => `right ${left.name}`\n"],"names":["console","log","right"],"mappings":";;;;AAAA;;AAEAA,QAAQC,GAAG,CAAC;AAEL,MAAMC,QAAQ,IAAM,CAAC,MAAM,EAAE,kOAAS,EAAE"}}]
+}

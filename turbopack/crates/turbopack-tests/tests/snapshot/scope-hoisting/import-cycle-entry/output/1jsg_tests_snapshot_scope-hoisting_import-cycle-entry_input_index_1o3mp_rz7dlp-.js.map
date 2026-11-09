@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 2, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/import-cycle-entry/input/index.js"],"sourcesContent":["// `page.js` and `left.js` are targets of an `import()`, and each is part of a cycle of imports.\n// `shared1.js` and `shared2.js` are merged: no cycle holds them. `left.js` and `right.js` are\n// not: `other.js` imports both.\nimport('./other.js').then(({ other }) => console.log(other.v()))\nimport('./page.js').then(({ page }) => console.log(page.v()))\nimport('./left.js').then(({ left }) => console.log(left()))\n"],"names":["then","other","console","log","v","page","left"],"mappings":"AAAA,gGAAgG;AAChG,8FAA8F;AAC9F,gCAAgC;AAChC,wKAAqBA,IAAI,CAAC,CAAC,EAAEC,KAAK,EAAE,GAAKC,QAAQC,GAAG,CAACF,MAAMG,CAAC;AAC5D,uKAAoBJ,IAAI,CAAC,CAAC,EAAEK,IAAI,EAAE,GAAKH,QAAQC,GAAG,CAACE,KAAKD,CAAC;AACzD,uKAAoBJ,IAAI,CAAC,CAAC,EAAEM,IAAI,EAAE,GAAKJ,QAAQC,GAAG,CAACG"}}]
+}
