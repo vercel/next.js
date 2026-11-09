@@ -40,8 +40,8 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 console.log(eager);
 function run() {
     return [
-        (0, (__TURBOPACK__deferred__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$defer$2d$module$2d$evaluation$2f$basic$2f$input$2f$library$2f$deferred$2e$js__$5b$test$5d$__$28$ecmascript$29$__ || (__TURBOPACK__deferred__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$defer$2d$module$2d$evaluation$2f$basic$2f$input$2f$library$2f$deferred$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.d("[project]/turbopack/crates/turbopack-tests/tests/snapshot/defer-module-evaluation/basic/input/library/deferred.js [test] (ecmascript)")))["deferred"])(),
-        (__TURBOPACK__deferred__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$defer$2d$module$2d$evaluation$2f$basic$2f$input$2f$library$2f$deferred$2e$js__$5b$test$5d$__$28$ecmascript$29$__ || (__TURBOPACK__deferred__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$defer$2d$module$2d$evaluation$2f$basic$2f$input$2f$library$2f$deferred$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.d("[project]/turbopack/crates/turbopack-tests/tests/snapshot/defer-module-evaluation/basic/input/library/deferred.js [test] (ecmascript)")))["value"],
+        (0, (__TURBOPACK__deferred__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$defer$2d$module$2d$evaluation$2f$basic$2f$input$2f$library$2f$deferred$2e$js__$5b$test$5d$__$28$ecmascript$29$__ || (__TURBOPACK__deferred__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$defer$2d$module$2d$evaluation$2f$basic$2f$input$2f$library$2f$deferred$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/defer-module-evaluation/basic/input/library/deferred.js [test] (ecmascript)")))["deferred"])(),
+        (__TURBOPACK__deferred__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$defer$2d$module$2d$evaluation$2f$basic$2f$input$2f$library$2f$deferred$2e$js__$5b$test$5d$__$28$ecmascript$29$__ || (__TURBOPACK__deferred__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$defer$2d$module$2d$evaluation$2f$basic$2f$input$2f$library$2f$deferred$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/defer-module-evaluation/basic/input/library/deferred.js [test] (ecmascript)")))["value"],
         effect()
     ];
 }
@@ -72,6 +72,7 @@ __turbopack_context__.s([
 }),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/defer-module-evaluation/basic/input/library/deferred.js [test] (ecmascript)",((__turbopack_context__) => {
 
 
+__turbopack_context__.d(() => {
 function deferred() {
     return 'deferred';
 }
@@ -84,6 +85,7 @@ __turbopack_context__.s([
     0,
     value
 ]);
+});
 })];})()
 
 //# sourceMappingURL=1jsg_tests_snapshot_defer-module-evaluation_basic_input_0ggy8d6am9k8j._.js.map

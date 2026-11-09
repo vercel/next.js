@@ -102,6 +102,15 @@ describe.each([
       }
     })
 
+    it('evaluates a declared module outside the async context of the request that first imports it with import()', async () => {
+      for (const id of ['1', '2']) {
+        expect(await json(`/api/async-context-import?id=${id}`)).toEqual({
+          imported: null,
+          read: null,
+        })
+      }
+    })
+
     it('prerenders a page that uses a declared module which fetches when it is evaluated', async () => {
       const response = await next.fetch('/fetch-at-evaluation')
       expect(response.headers.get('x-nextjs-cache')).toBe('HIT')

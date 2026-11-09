@@ -9,7 +9,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{OperationVc, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
-    chunk::chunking_context::{DeferredReferences, UnusedReferences},
+    chunk::chunking_context::{DeferredModules, DeferredReferences, UnusedReferences},
     module::Module,
     module_graph::{
         GraphEdgeIndex, GraphTraversalAction, ModuleGraph, RefData,
@@ -49,7 +49,7 @@ pub struct BindingUsageInfo {
     unused_references_edges: ResolvedVc<UnusedReferenceEdges>,
     /// Computed on the first read: only the graph that code is generated from needs it. `None`
     /// when no reference of the graph is deferrable.
-    deferred_references: Option<OperationVc<DeferredReferences>>,
+    deferred_imports: Option<OperationVc<DeferredImports>>,
 
     used_exports: ResolvedVc<UsedExportsMap>,
     export_circuit_breakers: ResolvedVc<ExportCircuitBreakers>,
@@ -136,12 +136,29 @@ impl BindingUsageInfo {
     /// context returns it from
     /// [`ChunkingContext::deferred_references`][crate::chunk::ChunkingContext::deferred_references].
     #[turbo_tasks::function]
-    pub fn deferred_references(&self) -> Vc<DeferredReferences> {
-        match self.deferred_references {
-            Some(deferred_references) => deferred_references.connect(),
-            None => Vc::cell(Default::default()),
-        }
+    pub async fn deferred_references(&self) -> Result<Vc<DeferredReferences>> {
+        Ok(Vc::cell(match self.deferred_imports {
+            Some(deferred_imports) => deferred_imports.connect().await?.references.clone(),
+            None => Default::default(),
+        }))
     }
+
+    /// The modules that the references of [`BindingUsageInfo::deferred_references`] import.
+    #[turbo_tasks::function]
+    pub async fn deferred_modules(&self) -> Result<Vc<DeferredModules>> {
+        Ok(Vc::cell(match self.deferred_imports {
+            Some(deferred_imports) => deferred_imports.connect().await?.modules.clone(),
+            None => Default::default(),
+        }))
+    }
+}
+
+/// The result of [`compute_deferred_references`]: the references, and the modules they import.
+#[turbo_tasks::value]
+#[derive(Default)]
+struct DeferredImports {
+    references: FxHashSet<ResolvedVc<Box<dyn ModuleReference>>>,
+    modules: FxHashSet<ResolvedVc<Box<dyn Module>>>,
 }
 
 /// Computes which exports and references of the modules in `graph` are used.
@@ -478,7 +495,7 @@ pub async fn compute_binding_usage_info(
         let export_circuit_breakers = ResolvedVc::cell(export_circuit_breakers);
         // Deferring needs the unused evaluation references to be gone: an import's evaluation
         // reference to a module without side effects is what would evaluate it eagerly.
-        let deferred_references = (remove_unused_imports && has_deferrable_references).then(|| {
+        let deferred_imports = (remove_unused_imports && has_deferrable_references).then(|| {
             compute_deferred_references(
                 graph_operation,
                 unused_references,
@@ -491,7 +508,7 @@ pub async fn compute_binding_usage_info(
         Ok(BindingUsageInfo {
             unused_references,
             unused_references_edges: ResolvedVc::cell(unused_references_edges),
-            deferred_references,
+            deferred_imports,
             used_exports: ResolvedVc::cell(used_exports),
             export_circuit_breakers,
             partial_namespace_modules: ResolvedVc::cell(partial_namespace_modules),
@@ -508,7 +525,7 @@ async fn compute_deferred_references(
     graph: OperationVc<ModuleGraph>,
     unused_references: ResolvedVc<UnusedReferences>,
     modules_in_cycles: ResolvedVc<ExportCircuitBreakers>,
-) -> Result<Vc<DeferredReferences>> {
+) -> Result<Vc<DeferredImports>> {
     let graph = graph.connect();
     let graph_ref = graph.await?;
     let unused_references = unused_references.await?;
@@ -538,7 +555,7 @@ async fn compute_deferred_references(
         Ok(())
     })?;
     if pairs.is_empty() {
-        return Ok(Vc::cell(Default::default()));
+        return Ok(DeferredImports::default().cell());
     }
 
     // The used references between each of these pairs, or `None` when one of them needs the
@@ -576,7 +593,7 @@ async fn compute_deferred_references(
             .is_some_and(|references| references.iter().all(|r| reference_targets[r] == 1))
     });
     if pairs.is_empty() {
-        return Ok(Vc::cell(Default::default()));
+        return Ok(DeferredImports::default().cell());
     }
 
     // This graph still has the unused references, so it has at least the async modules of the
@@ -588,15 +605,14 @@ async fn compute_deferred_references(
     // it imports now happens at the first read, or never, instead of before the importing
     // module. An unused import of the declared module already drops that side effect.
     let side_effect_free_modules = compute_side_effect_free_module_info(graph).await?;
-    Ok(Vc::cell(
-        pairs
-            .into_iter()
-            .filter(|((_, target), _)| {
-                side_effect_free_modules.contains(target) && !async_modules.contains(target)
-            })
-            .flat_map(|(_, references)| references.into_iter().flatten())
-            .collect(),
-    ))
+    let mut deferred = DeferredImports::default();
+    for ((_, target), references) in pairs {
+        if side_effect_free_modules.contains(&target) && !async_modules.contains(&target) {
+            deferred.references.extend(references.into_iter().flatten());
+            deferred.modules.insert(target);
+        }
+    }
+    Ok(deferred.cell())
 }
 
 #[turbo_tasks::value]

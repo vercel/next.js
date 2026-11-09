@@ -11,9 +11,9 @@ use turbopack_core::{
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkItemOrBatchWithAsyncModuleInfo,
         ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingConfig, ChunkingConfigs,
-        ChunkingContext, ContentHashing, DeferredReferences, EntryChunkGroupResult,
-        EvaluatableAsset, MinifyType, SourceMapSourceType, UnusedReferences, UrlBehavior,
-        WorkerConfigurationOptions,
+        ChunkingContext, ContentHashing, DeferredModules, DeferredReferences,
+        EntryChunkGroupResult, EvaluatableAsset, MinifyType, SourceMapSourceType, UnusedReferences,
+        UrlBehavior, WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -849,6 +849,15 @@ impl ChunkingContext for NodeJsChunkingContext {
     fn deferred_references(&self) -> Vc<DeferredReferences> {
         if let Some(export_usage) = self.export_usage {
             export_usage.deferred_references()
+        } else {
+            Vc::cell(Default::default())
+        }
+    }
+
+    #[turbo_tasks::function]
+    fn deferred_modules(&self) -> Vc<DeferredModules> {
+        if let Some(export_usage) = self.export_usage {
+            export_usage.deferred_modules()
         } else {
             Vc::cell(Default::default())
         }

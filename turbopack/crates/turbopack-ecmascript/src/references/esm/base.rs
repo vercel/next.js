@@ -55,10 +55,7 @@ use crate::{
         },
         util::{SpecifiedChunkingType, throw_module_not_found_expr},
     },
-    runtime_functions::{
-        TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT,
-        TURBOPACK_IMPORT_DEFERRED,
-    },
+    runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
     utils::module_id_to_lit,
 };
 
@@ -250,13 +247,14 @@ impl ReferencedAssetIdent {
     }
 }
 
-/// `(namespace || (namespace = __turbopack_context__.d(id)))`: the namespace of a module whose
-/// evaluation is deferred. The module is evaluated by the first read that gets here. The runtime
-/// function evaluates it outside the async context of that read.
+/// `(namespace || (namespace = __turbopack_context__.i(id)))`: the namespace of a module whose
+/// evaluation is deferred. The module is evaluated by the first read that gets here, unless
+/// another import evaluated it before. Its factory evaluates it outside the async context of
+/// whichever comes first (`TURBOPACK_DEFERRED_MODULE`).
 fn import_on_first_read(namespace: Ident, id: &ModuleId) -> Expr {
     let import = quote!(
-        "$turbopack_import_deferred($id)" as Expr,
-        turbopack_import_deferred: Expr = TURBOPACK_IMPORT_DEFERRED.into(),
+        "$turbopack_import($id)" as Expr,
+        turbopack_import: Expr = TURBOPACK_IMPORT.into(),
         id: Expr = module_id_to_lit(id),
     );
     Expr::Paren(ParenExpr {

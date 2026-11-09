@@ -21,7 +21,7 @@ use crate::{
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct MergedEcmascriptModule {
-    modules: Vec<(
+    pub(crate) modules: Vec<(
         ResolvedVc<Box<dyn EcmascriptAnalyzable>>,
         MergeableModuleExposure,
     )>,
