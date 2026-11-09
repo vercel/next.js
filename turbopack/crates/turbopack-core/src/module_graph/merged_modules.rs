@@ -288,10 +288,11 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             .into_iter()
             .collect();
 
-        // The modules that are evaluated right before the module that imports them first. A
-        // hoisted import between two of them inherits the bitmap, and the evaluation traces
-        // further below follow the same imports, so both have to use this one predicate.
-        let is_evaluated_in_place = |module: &ResolvedVc<Box<dyn Module>>| {
+        // The modules that can be merged with the module that imports them: mergeable and
+        // synchronous. A hoisted import between two of them inherits the bitmap, and the
+        // evaluation traces further below follow the same imports, so both have to use this one
+        // predicate.
+        let is_mergeable_and_sync = |module: &ResolvedVc<Box<dyn Module>>| {
             mergeable.contains(module) && !async_modules.contains(module)
         };
 
@@ -325,8 +326,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     GraphTraversalAction::Skip
                 } else if hoisted
                     && let Some(parent_module) = parent_module
-                    && is_evaluated_in_place(&parent_module)
-                    && is_evaluated_in_place(&module)
+                    && is_mergeable_and_sync(&parent_module)
+                    && is_mergeable_and_sync(&module)
                 {
                     // ^ TODO technically we could merge a sync child into an async parent
 
@@ -820,18 +821,20 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 .map(|&m| ResolvedVc::upcast::<Box<dyn Module>>(m))
         }));
         if !lists.is_empty() {
+            // The roots are traced in parallel, in chunks whose number depends on the number of
+            // CPUs. The groups don't: every root has a trace of its own, and what the traces
+            // restrict adds up in any order (see `EvaluationOrder::add_trace`).
             let traced = turbo_tasks::parallel::map_collect_chunked_owned::<_, _, Result<Vec<_>>>(
                 entry_modules
                     .keys()
                     .copied()
                     // Nothing inherits the bitmap of the other entries.
-                    .filter(is_evaluated_in_place)
+                    .filter(is_mergeable_and_sync)
                     .collect(),
                 |roots| {
                     let mut order = order.clone();
-                    let mut trace = EvaluationTrace::new();
                     for root in roots {
-                        trace.clear();
+                        let mut trace = EvaluationTrace::new();
                         module_graph.traverse_edges_dfs(
                             [root],
                             &mut trace,
@@ -847,12 +850,13 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                                 };
                                 Ok(if !trace.enter(importer, module) {
                                     GraphTraversalAction::Exclude
-                                } else if is_evaluated_in_place(&module) {
+                                } else if is_mergeable_and_sync(&module) {
                                     GraphTraversalAction::Continue
                                 } else {
-                                    // The module is evaluated here, between the modules around
-                                    // it. What it evaluates itself is part of the traces of other
-                                    // merge group entries.
+                                    // A module that is not mergeable and synchronous is still
+                                    // evaluated here, between the modules around it. What it
+                                    // evaluates itself is part of the traces of other merge group
+                                    // entries.
                                     GraphTraversalAction::Skip
                                 })
                             },
@@ -863,7 +867,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                             false,
                             false,
                         )?;
-                        order.add_trace(&trace);
+                        order.add_trace(trace);
                     }
                     Ok(order)
                 },
@@ -878,8 +882,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         // module, or by an import of a module that is not merged and requires it). It then skips
         // that module, and imports the rest in another order than in its trace above.
         // `import()` is not part of this: it never evaluates a module synchronously.
-        // An entry that is not evaluated in place needs no exception: nothing inherits its bit, so
-        // no list has it.
+        // An entry that is not mergeable and synchronous needs no exception: nothing inherits its
+        // bit, so no list has it.
         let mut reentrant_entries = Bitset::new();
         if !lists.is_empty() {
             module_graph.traverse_cycles(
