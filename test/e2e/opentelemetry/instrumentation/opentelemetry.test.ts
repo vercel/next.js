@@ -2629,6 +2629,56 @@ describe.each(
                     spans: siblings,
                   },
                 ])
+
+                // The inserted root span covers the middleware and the render
+                // (the render emits it), and no span carries its
+                // `next-deferred` tracestate entry.
+                await retry(async () => {
+                  const spans = getCollector().getAllSpans()
+                  const roots = spans.filter(
+                    (span) =>
+                      span.attributes?.['next.span_type'] === 'Next.request'
+                  )
+                  expect(roots).toHaveLength(1)
+                  const [root] = roots
+                  const descendants: SavedSpan[] = []
+                  const parents = new Set([root.id])
+                  for (let added = true; added; ) {
+                    added = false
+                    for (const span of spans) {
+                      if (
+                        parents.has(span.parentId!) &&
+                        !parents.has(span.id!)
+                      ) {
+                        parents.add(span.id!)
+                        descendants.push(span)
+                        added = true
+                      }
+                    }
+                  }
+                  expect(descendants.map((span) => span.name)).toEqual(
+                    expect.arrayContaining([
+                      'GET /behind-middleware',
+                      'middleware GET',
+                    ])
+                  )
+                  // Times in microseconds. The SDK records them with
+                  // millisecond precision, so the same millisecond counts as
+                  // covered.
+                  for (const span of descendants) {
+                    expect(span.timestamp!).toBeGreaterThan(
+                      root.timestamp! - 1000
+                    )
+                    expect(span.timestamp! + span.duration!).toBeLessThan(
+                      root.timestamp! + root.duration! + 1000
+                    )
+                  }
+                  for (const span of spans) {
+                    expect(JSON.stringify(span.traceState ?? '')).not.toContain(
+                      'next-deferred'
+                    )
+                  }
+                })
               }
             })
           }

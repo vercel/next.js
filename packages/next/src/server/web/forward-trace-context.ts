@@ -70,14 +70,16 @@ export function getSharedParentTraceContext(
  *   the user set (if any). Otherwise (`traceparent` copied unchanged from the
  *   request, e.g. via `new Headers(request.headers)`, or omitted) both are set
  *   to the trace context, dropping a user `tracestate` when it has none.
+ *
+ * Returns whether the downstream request carries `traceContext`.
  */
 export function forwardTraceContextToRequest(
   responseHeaders: Headers,
   requestHeaders: Headers,
   traceContext: TraceContextHeaders | undefined
-): void {
+): boolean {
   if (!traceContext) {
-    return
+    return false
   }
 
   // Redirects and direct responses have no downstream request.
@@ -85,7 +87,7 @@ export function forwardTraceContextToRequest(
     !responseHeaders.has('x-middleware-next') &&
     !responseHeaders.has('x-middleware-rewrite')
   ) {
-    return
+    return false
   }
 
   const userOverrides = responseHeaders.get(OVERRIDE_HEADERS)
@@ -98,7 +100,7 @@ export function forwardTraceContextToRequest(
       requestHeaders.get('tracestate') === (traceContext.tracestate ?? null)
     ) {
       // The downstream request already carries the trace context.
-      return
+      return true
     }
 
     const keys: string[] = []
@@ -109,7 +111,7 @@ export function forwardTraceContextToRequest(
       }
     }
     setTraceContextOverrides(responseHeaders, keys, traceContext)
-    return
+    return true
   }
 
   const keys = userOverrides
@@ -123,13 +125,34 @@ export function forwardTraceContextToRequest(
   ) {
     // The user explicitly set the `traceparent`: keep both trace headers as
     // the user set them.
-    return
+    return false
   }
   setTraceContextOverrides(
     responseHeaders,
     keys.filter((key) => !isTraceHeader(key)),
     traceContext
   )
+  return true
+}
+
+/**
+ * Whether the middleware's response continues to the app (as opposed to a
+ * redirect, a direct response, or a rewrite to another origin):
+ * `NextResponse.next()`, or a rewrite to the origin of `requestURL`.
+ */
+export function continuesToSameOrigin(
+  responseHeaders: Headers,
+  requestURL: URL
+): boolean {
+  const rewrite = responseHeaders.get('x-middleware-rewrite')
+  if (rewrite === null) {
+    return responseHeaders.has('x-middleware-next')
+  }
+  try {
+    return new URL(rewrite, requestURL).origin === requestURL.origin
+  } catch {
+    return false
+  }
 }
 
 function isTraceHeader(key: string) {

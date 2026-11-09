@@ -131,6 +131,25 @@ export const spanRecorder: SpanProcessor = {
   shutdown: () => Promise.resolve(),
 }
 
+/**
+ * The traces of the root spans the `@vercel/otel` span processor of this
+ * process keeps as open (it keeps every root span until it ends), or
+ * `undefined` if the processor isn't found. Relies on internals of
+ * `@vercel/otel` and the OpenTelemetry SDK, for the test to check that the
+ * middleware doesn't leave root spans open.
+ */
+export function getOpenRootSpanTraceIds(): string[] | undefined {
+  const tracer = trace.getTracer('otel-test-root-state') as any
+  const sdkTracer =
+    typeof tracer._getTracer === 'function' ? tracer._getTracer() : tracer
+  for (const processor of sdkTracer?._spanProcessor?._spanProcessors ?? []) {
+    if (processor?.rootSpanIds instanceof Map) {
+      return [...processor.rootSpanIds.keys()]
+    }
+  }
+  return undefined
+}
+
 /** The trace of the active span, for the test to collect its spans. */
 export function getActiveTraceId() {
   return trace.getActiveSpan()?.spanContext().traceId
