@@ -19,11 +19,9 @@ async function findServerFilesWithLock(distDir: string): Promise<string[]> {
   return matches
 }
 
-// This test accesses the filesystem, which is not available in deploy mode
-// @force-gate !deploy
 describe('navigation-testing-lock-server-output', () => {
   describe('without the testing API', () => {
-    const { next, isTurbopack } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
     })
 
@@ -33,17 +31,9 @@ describe('navigation-testing-lock-server-output', () => {
     })
 
     it('should not include the navigation testing lock in the server output', async () => {
-      const filesWithLock = await findServerFilesWithLock(
-        path.join(next.testDir, next.distDir)
-      )
-      if (isTurbopack) {
-        expect(filesWithLock).toEqual([])
-      } else {
-        // webpack and Rspack keep the lock in the server output:
-        // `segment-cache/fetch` imports it statically, and only the browser
-        // build has an alias that replaces it.
-        expect(filesWithLock).not.toEqual([])
-      }
+      expect(
+        await findServerFilesWithLock(path.join(next.testDir, next.distDir))
+      ).toEqual([])
     })
   })
 

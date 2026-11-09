@@ -1003,8 +1003,8 @@ async function ensurePrefetchThenNavigate(
   // cares about has settled — so the navigation below reads present data
   // rather than a still-in-flight entry.
   //
-  // The testing API check lets the bundler drop the `require` from every
-  // build that does not expose the testing API. Such a build never calls
+  // The testing API check lets the bundler drop the `require` where the
+  // flag is false at build time. Without the testing API, nothing calls
   // this function.
   let navigationLockPrefetch: NavigationLockPrefetch | null = null
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
