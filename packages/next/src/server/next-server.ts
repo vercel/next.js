@@ -72,7 +72,7 @@ import type {
   BaseRequestHandler,
 } from './base-server'
 import BaseServer from './base-server'
-import { getMaybePagePath, getPagePath } from './require'
+import { getMaybePagePath, getPagePath, isPagePathStoredMiss } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { selectAppPageEntry } from '../shared/lib/router/utils/app-paths'
@@ -825,6 +825,21 @@ export default class NextNodeServer extends BaseServer<
     }
 
     for (const pagePath of pagePaths) {
+      // A page that is in no manifest fails to load with a
+      // `PageNotFoundError`, which is caught below to go on to the next
+      // candidate. With i18n the first candidate is the page under the
+      // request's locale, which is in no manifest for most pages, so that
+      // error was created, with its stack, for every request. Once the miss
+      // is stored the attempt can only fail the same way, and it is skipped
+      // unless a span would record it: `loadComponents` and its `load route
+      // module` step are traced, and their spans end with this error.
+      if (
+        isPagePathStoredMiss(pagePath, this.distDir, undefined, isAppPath) &&
+        !getTracer().isTracing()
+      ) {
+        continue
+      }
+
       try {
         const components = await loadComponents({
           distDir: this.distDir,
