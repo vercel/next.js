@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/import-cycle-entry/input/second.js"],"sourcesContent":["import { plain1 } from './plain1.js'\nimport { plain2 } from './plain2.js'\n\nconsole.log('second', plain1, plain2)\n"],"names":["console","log"],"mappings":";AAAA;AACA;;;AAEAA,QAAQC,GAAG,CAAC,UAAU,sOAAM,EAAE,sOAAM"}}]
+}

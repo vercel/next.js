@@ -7,3 +7,7 @@ import('./other.js').then(({ other }) => console.log(other.v()))
 import('./page.js').then(({ page }) => console.log(page.v()))
 import('./left.js').then(({ left }) => console.log(left()))
 globalThis.lazy = () => require('./lazy.js')
+// `plain1.js` and `plain2.js` are merged with two ways in. `required.js` is required and imports
+// both, like `second.js`, but no entry that imports them is part of a cycle.
+import('./second.js')
+globalThis.required = () => require('./required.js')
