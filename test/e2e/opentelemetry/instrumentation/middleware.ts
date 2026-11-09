@@ -9,5 +9,8 @@ export async function middleware(
   request: NextRequest,
   event?: NextFetchEvent
 ): Promise<Response> {
+  if (request.nextUrl.searchParams.has('direct')) {
+    return new NextResponse('direct response from middleware')
+  }
   return NextResponse.next()
 }

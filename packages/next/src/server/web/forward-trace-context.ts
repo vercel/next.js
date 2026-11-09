@@ -70,16 +70,14 @@ export function getSharedParentTraceContext(
  *   the user set (if any). Otherwise (`traceparent` copied unchanged from the
  *   request, e.g. via `new Headers(request.headers)`, or omitted) both are set
  *   to the trace context, dropping a user `tracestate` when it has none.
- *
- * Returns whether the downstream request carries `traceContext`.
  */
 export function forwardTraceContextToRequest(
   responseHeaders: Headers,
   requestHeaders: Headers,
   traceContext: TraceContextHeaders | undefined
-): boolean {
+): void {
   if (!traceContext) {
-    return false
+    return
   }
 
   // Redirects and direct responses have no downstream request.
@@ -87,7 +85,7 @@ export function forwardTraceContextToRequest(
     !responseHeaders.has('x-middleware-next') &&
     !responseHeaders.has('x-middleware-rewrite')
   ) {
-    return false
+    return
   }
 
   const userOverrides = responseHeaders.get(OVERRIDE_HEADERS)
@@ -100,7 +98,7 @@ export function forwardTraceContextToRequest(
       requestHeaders.get('tracestate') === (traceContext.tracestate ?? null)
     ) {
       // The downstream request already carries the trace context.
-      return true
+      return
     }
 
     const keys: string[] = []
@@ -111,7 +109,7 @@ export function forwardTraceContextToRequest(
       }
     }
     setTraceContextOverrides(responseHeaders, keys, traceContext)
-    return true
+    return
   }
 
   const keys = userOverrides
@@ -125,14 +123,13 @@ export function forwardTraceContextToRequest(
   ) {
     // The user explicitly set the `traceparent`: keep both trace headers as
     // the user set them.
-    return false
+    return
   }
   setTraceContextOverrides(
     responseHeaders,
     keys.filter((key) => !isTraceHeader(key)),
     traceContext
   )
-  return true
 }
 
 /**
