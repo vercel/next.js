@@ -1227,32 +1227,33 @@
       target.push(stringToChunk(escapeTextForBrowser(text)));
       return !0;
     }
-    function pushViewTransitionAttributes(target, formatContext) {
+    function viewTransitionAttributesToString(formatContext) {
       formatContext = formatContext.viewTransition;
-      null !== formatContext &&
-        ("auto" !== formatContext.name &&
-          (pushStringAttribute(
-            target,
-            "vt-name",
-            0 === formatContext.nameIdx
-              ? formatContext.name
-              : formatContext.name + "_" + formatContext.nameIdx
-          ),
-          formatContext.nameIdx++),
-        pushStringAttribute(target, "vt-update", formatContext.update),
-        "none" !== formatContext.enter &&
-          pushStringAttribute(target, "vt-enter", formatContext.enter),
-        "none" !== formatContext.exit &&
-          pushStringAttribute(target, "vt-exit", formatContext.exit),
-        "none" !== formatContext.share &&
-          pushStringAttribute(target, "vt-share", formatContext.share));
+      if (null === formatContext) return "";
+      var attrs = "";
+      "auto" !== formatContext.name &&
+        ((attrs += stringAttributeToString(
+          "vt-name",
+          0 === formatContext.nameIdx
+            ? formatContext.name
+            : formatContext.name + "_" + formatContext.nameIdx
+        )),
+        formatContext.nameIdx++);
+      attrs += stringAttributeToString("vt-update", formatContext.update);
+      "none" !== formatContext.enter &&
+        (attrs += stringAttributeToString("vt-enter", formatContext.enter));
+      "none" !== formatContext.exit &&
+        (attrs += stringAttributeToString("vt-exit", formatContext.exit));
+      "none" !== formatContext.share &&
+        (attrs += stringAttributeToString("vt-share", formatContext.share));
+      return attrs;
     }
-    function pushStyleAttribute(target, style) {
+    function styleAttributeToString(style) {
       if ("object" !== typeof style)
         throw Error(
           "The `style` prop expects a mapping from style properties to values, not a string. For example, style={{marginRight: spacing + 'em'}} when using JSX."
         );
-      var isFirst = !0,
+      var styleString = "",
         styleName;
       for (styleName in style)
         if (hasOwnProperty.call(style, styleName)) {
@@ -1263,16 +1264,14 @@
             "" !== styleValue
           ) {
             if (0 === styleName.indexOf("--")) {
-              var nameChunk = stringToChunk(escapeTextForBrowser(styleName));
+              var nameStr = escapeTextForBrowser(styleName);
               checkCSSPropertyStringCoercion(styleValue, styleName);
-              styleValue = stringToChunk(
-                escapeTextForBrowser(("" + styleValue).trim())
-              );
+              styleValue = escapeTextForBrowser(("" + styleValue).trim());
             } else {
-              nameChunk = styleName;
+              nameStr = styleName;
               var value = styleValue;
-              if (-1 < nameChunk.indexOf("-")) {
-                var name = nameChunk;
+              if (-1 < nameStr.indexOf("-")) {
+                var name = nameStr;
                 (warnedStyleNames.hasOwnProperty(name) &&
                   warnedStyleNames[name]) ||
                   ((warnedStyleNames[name] = !0),
@@ -1281,8 +1280,8 @@
                     name,
                     camelize(name.replace(msPattern$1, "ms-"))
                   ));
-              } else if (badVendoredStyleNamePattern.test(nameChunk))
-                (name = nameChunk),
+              } else if (badVendoredStyleNamePattern.test(nameStr))
+                (name = nameStr),
                   (warnedStyleNames.hasOwnProperty(name) &&
                     warnedStyleNames[name]) ||
                     ((warnedStyleNames[name] = !0),
@@ -1292,7 +1291,7 @@
                       name.charAt(0).toUpperCase() + name.slice(1)
                     ));
               else if (badStyleValueWithSemicolonPattern.test(value)) {
-                name = nameChunk;
+                name = nameStr;
                 var value$jscomp$0 = value;
                 (warnedStyleValues.hasOwnProperty(value$jscomp$0) &&
                   warnedStyleValues[value$jscomp$0]) ||
@@ -1312,80 +1311,67 @@
                     ((warnedForNaNValue = !0),
                     console.error(
                       "`NaN` is an invalid value for the `%s` css style property.",
-                      nameChunk
+                      nameStr
                     ))
                   : isFinite(value) ||
                     warnedForInfinityValue ||
                     ((warnedForInfinityValue = !0),
                     console.error(
                       "`Infinity` is an invalid value for the `%s` css style property.",
-                      nameChunk
+                      nameStr
                     )));
-              nameChunk = styleName;
-              value = styleNameCache.get(nameChunk);
+              nameStr = styleName;
+              value = styleNameCache.get(nameStr);
               void 0 !== value
-                ? (nameChunk = value)
-                : ((value = stringToPrecomputedChunk(
-                    escapeTextForBrowser(
-                      nameChunk
-                        .replace(uppercasePattern, "-$1")
-                        .toLowerCase()
-                        .replace(msPattern, "-ms-")
-                    )
+                ? (nameStr = value)
+                : ((value = escapeTextForBrowser(
+                    nameStr
+                      .replace(uppercasePattern, "-$1")
+                      .toLowerCase()
+                      .replace(msPattern, "-ms-")
                   )),
-                  styleNameCache.set(nameChunk, value),
-                  (nameChunk = value));
+                  styleNameCache.set(nameStr, value),
+                  (nameStr = value));
               "number" === typeof styleValue
                 ? (styleValue =
                     0 === styleValue || unitlessNumbers.has(styleName)
-                      ? stringToChunk("" + styleValue)
-                      : stringToChunk(styleValue + "px"))
+                      ? "" + styleValue
+                      : styleValue + "px")
                 : (checkCSSPropertyStringCoercion(styleValue, styleName),
-                  (styleValue = stringToChunk(
-                    escapeTextForBrowser(("" + styleValue).trim())
+                  (styleValue = escapeTextForBrowser(
+                    ("" + styleValue).trim()
                   )));
             }
-            isFirst
-              ? ((isFirst = !1),
-                target.push(
-                  styleAttributeStart,
-                  nameChunk,
-                  styleAssign,
-                  styleValue
-                ))
-              : target.push(styleSeparator, nameChunk, styleAssign, styleValue);
+            styleString =
+              "" === styleString
+                ? nameStr + ":" + styleValue
+                : styleString + (";" + nameStr + ":" + styleValue);
           }
         }
-      isFirst || target.push(attributeEnd);
+      return "" !== styleString ? ' style="' + styleString + '"' : "";
     }
-    function pushBooleanAttribute(target, name, value) {
-      value &&
-        "function" !== typeof value &&
-        "symbol" !== typeof value &&
-        target.push(
-          attributeSeparator,
-          stringToChunk(name),
-          attributeEmptyString
-        );
+    function booleanAttributeToString(name, value) {
+      return value && "function" !== typeof value && "symbol" !== typeof value
+        ? " " + name + '=""'
+        : "";
     }
-    function pushStringAttribute(target, name, value) {
-      "function" !== typeof value &&
+    function stringAttributeToString(name, value) {
+      return "function" !== typeof value &&
         "symbol" !== typeof value &&
-        "boolean" !== typeof value &&
-        target.push(
-          attributeSeparator,
-          stringToChunk(name),
-          attributeAssign,
-          stringToChunk(escapeTextForBrowser(value)),
-          attributeEnd
-        );
+        "boolean" !== typeof value
+        ? " " + name + '="' + escapeTextForBrowser(value) + '"'
+        : "";
     }
     function pushAdditionalFormField(value, key) {
-      this.push(startHiddenInputChunk);
       validateAdditionalFormField(value);
-      pushStringAttribute(this, "name", key);
-      pushStringAttribute(this, "value", value);
-      this.push(endOfStartTagSelfClosing);
+      this.push(
+        stringToChunk(
+          '<input type="hidden"' +
+            stringAttributeToString("name", key) +
+            stringAttributeToString("value", value) +
+            "/>"
+        )
+      );
     }
     function validateAdditionalFormField(value) {
       if ("string" !== typeof value)
@@ -1419,95 +1405,87 @@
       }
       return null;
     }
-    function pushFormActionAttribute(
-      target,
+    function formActionAttributesToString(
       resumableState,
       renderState,
+      customFields,
       formAction,
       formEncType,
       formMethod,
       formTarget,
       name
     ) {
-      var formData = null;
-      if ("function" === typeof formAction) {
-        null === name ||
+      var attributes = "";
+      "function" === typeof formAction &&
+        (null === name ||
           didWarnFormActionName ||
           ((didWarnFormActionName = !0),
           console.error(
             'Cannot specify a "name" prop for a button that specifies a function as a formAction. React needs it to encode which action should be invoked. It will get overridden.'
-          ));
+          )),
         (null === formEncType && null === formMethod) ||
           didWarnFormActionMethod ||
           ((didWarnFormActionMethod = !0),
           console.error(
             "Cannot specify a formEncType or formMethod for a button that specifies a function as a formAction. React provides those automatically. They will get overridden."
-          ));
+          )),
         null === formTarget ||
           didWarnFormActionTarget ||
           ((didWarnFormActionTarget = !0),
           console.error(
             "Cannot specify a formTarget for a button that specifies a function as a formAction. The function will always be executed in the same window."
-          ));
-        var customFields = getCustomFormFields(resumableState, formAction);
+          )),
         null !== customFields
           ? ((name = customFields.name),
             (formAction = customFields.action || ""),
             (formEncType = customFields.encType),
             (formMethod = customFields.method),
-            (formTarget = customFields.target),
-            (formData = customFields.data))
-          : (target.push(
-              attributeSeparator,
-              stringToChunk("formAction"),
-              attributeAssign,
-              actionJavaScriptURL,
-              attributeEnd
-            ),
+            (formTarget = customFields.target))
+          : ((attributes += ' formAction="' + actionJavaScriptURL + '"'),
             (formTarget = formMethod = formEncType = formAction = name = null),
-            injectFormReplayingRuntime(resumableState, renderState));
-      }
-      null != name && pushAttribute(target, "name", name);
-      null != formAction && pushAttribute(target, "formAction", formAction);
-      null != formEncType && pushAttribute(target, "formEncType", formEncType);
-      null != formMethod && pushAttribute(target, "formMethod", formMethod);
-      null != formTarget && pushAttribute(target, "formTarget", formTarget);
-      return formData;
+            injectFormReplayingRuntime(resumableState, renderState)));
+      null != name && (attributes += attributeToString("name", name));
+      null != formAction &&
+        (attributes += attributeToString("formAction", formAction));
+      null != formEncType &&
+        (attributes += attributeToString("formEncType", formEncType));
+      null != formMethod &&
+        (attributes += attributeToString("formMethod", formMethod));
+      null != formTarget &&
+        (attributes += attributeToString("formTarget", formTarget));
+      return attributes;
     }
-    function pushAttribute(target, name, value) {
+    function attributeToString(name, value) {
       switch (name) {
         case "className":
-          pushStringAttribute(target, "class", value);
-          break;
+          return stringAttributeToString("class", value);
         case "tabIndex":
-          pushStringAttribute(target, "tabindex", value);
-          break;
+          return stringAttributeToString("tabindex", value);
         case "dir":
         case "role":
         case "viewBox":
         case "width":
         case "height":
-          pushStringAttribute(target, name, value);
-          break;
+          return stringAttributeToString(name, value);
         case "style":
-          pushStyleAttribute(target, value);
-          break;
+          return styleAttributeToString(value);
         case "src":
         case "href":
-          if ("" === value) {
-            "src" === name
-              ? console.error(
-                  'An empty string ("") was passed to the %s attribute. This may cause the browser to download the whole page again over the network. To fix this, either do not render the element at all or pass null to %s instead of an empty string.',
-                  name,
-                  name
-                )
-              : console.error(
-                  'An empty string ("") was passed to the %s attribute. To fix this, either do not render the element at all or pass null to %s instead of an empty string.',
-                  name,
-                  name
-                );
-            break;
-          }
+          if ("" === value)
+            return (
+              "src" === name
+                ? console.error(
+                    'An empty string ("") was passed to the %s attribute. This may cause the browser to download the whole page again over the network. To fix this, either do not render the element at all or pass null to %s instead of an empty string.',
+                    name,
+                    name
+                  )
+                : console.error(
+                    'An empty string ("") was passed to the %s attribute. To fix this, either do not render the element at all or pass null to %s instead of an empty string.',
+                    name,
+                    name
+                  ),
+              ""
+            );
         case "action":
         case "formAction":
           if (
@@ -1516,46 +1494,31 @@
             "symbol" === typeof value ||
             "boolean" === typeof value
           )
-            break;
+            return "";
           checkAttributeStringCoercion(value, name);
           value = sanitizeURL("" + value);
-          target.push(
-            attributeSeparator,
-            stringToChunk(name),
-            attributeAssign,
-            stringToChunk(escapeTextForBrowser(value)),
-            attributeEnd
-          );
-          break;
+          return " " + name + '="' + escapeTextForBrowser(value) + '"';
         case "defaultValue":
         case "defaultChecked":
         case "innerHTML":
         case "suppressContentEditableWarning":
         case "suppressHydrationWarning":
         case "ref":
-          break;
+          return "";
         case "autoFocus":
         case "multiple":
         case "muted":
-          pushBooleanAttribute(target, name.toLowerCase(), value);
-          break;
+          return booleanAttributeToString(name.toLowerCase(), value);
         case "xlinkHref":
           if (
             "function" === typeof value ||
             "symbol" === typeof value ||
             "boolean" === typeof value
           )
-            break;
+            return "";
           checkAttributeStringCoercion(value, name);
           value = sanitizeURL("" + value);
-          target.push(
-            attributeSeparator,
-            stringToChunk("xlink:href"),
-            attributeAssign,
-            stringToChunk(escapeTextForBrowser(value)),
-            attributeEnd
-          );
-          break;
+          return ' xlink:href="' + escapeTextForBrowser(value) + '"';
         case "contentEditable":
         case "spellCheck":
         case "draggable":
@@ -1564,16 +1527,9 @@
         case "externalResourcesRequired":
         case "focusable":
         case "preserveAlpha":
-          "function" !== typeof value &&
-            "symbol" !== typeof value &&
-            target.push(
-              attributeSeparator,
-              stringToChunk(name),
-              attributeAssign,
-              stringToChunk(escapeTextForBrowser(value)),
-              attributeEnd
-            );
-          break;
+          return "function" !== typeof value && "symbol" !== typeof value
+            ? " " + name + '="' + escapeTextForBrowser(value) + '"'
+            : "";
         case "inert":
           "" !== value ||
             didWarnForNewBooleanPropsWithEmptyValue[name] ||
@@ -1605,116 +1561,76 @@
         case "scoped":
         case "seamless":
         case "itemScope":
-          value &&
-            "function" !== typeof value &&
-            "symbol" !== typeof value &&
-            target.push(
-              attributeSeparator,
-              stringToChunk(name),
-              attributeEmptyString
-            );
-          break;
+          return booleanAttributeToString(name, value);
         case "capture":
         case "download":
-          !0 === value
-            ? target.push(
-                attributeSeparator,
-                stringToChunk(name),
-                attributeEmptyString
-              )
+          return !0 === value
+            ? " " + name + '=""'
             : !1 !== value &&
-              "function" !== typeof value &&
-              "symbol" !== typeof value &&
-              target.push(
-                attributeSeparator,
-                stringToChunk(name),
-                attributeAssign,
-                stringToChunk(escapeTextForBrowser(value)),
-                attributeEnd
-              );
-          break;
+                "function" !== typeof value &&
+                "symbol" !== typeof value
+              ? " " + name + '="' + escapeTextForBrowser(value) + '"'
+              : "";
         case "cols":
         case "rows":
         case "size":
         case "span":
-          "function" !== typeof value &&
+          return "function" !== typeof value &&
             "symbol" !== typeof value &&
             !isNaN(value) &&
-            1 <= value &&
-            target.push(
-              attributeSeparator,
-              stringToChunk(name),
-              attributeAssign,
-              stringToChunk(escapeTextForBrowser(value)),
-              attributeEnd
-            );
-          break;
+            1 <= value
+            ? " " + name + '="' + escapeTextForBrowser(value) + '"'
+            : "";
         case "rowSpan":
         case "start":
-          "function" === typeof value ||
+          return "function" === typeof value ||
             "symbol" === typeof value ||
-            isNaN(value) ||
-            target.push(
-              attributeSeparator,
-              stringToChunk(name),
-              attributeAssign,
-              stringToChunk(escapeTextForBrowser(value)),
-              attributeEnd
-            );
-          break;
+            isNaN(value)
+            ? ""
+            : " " + name + '="' + escapeTextForBrowser(value) + '"';
         case "xlinkActuate":
-          pushStringAttribute(target, "xlink:actuate", value);
-          break;
+          return stringAttributeToString("xlink:actuate", value);
         case "xlinkArcrole":
-          pushStringAttribute(target, "xlink:arcrole", value);
-          break;
+          return stringAttributeToString("xlink:arcrole", value);
         case "xlinkRole":
-          pushStringAttribute(target, "xlink:role", value);
-          break;
+          return stringAttributeToString("xlink:role", value);
         case "xlinkShow":
-          pushStringAttribute(target, "xlink:show", value);
-          break;
+          return stringAttributeToString("xlink:show", value);
         case "xlinkTitle":
-          pushStringAttribute(target, "xlink:title", value);
-          break;
+          return stringAttributeToString("xlink:title", value);
         case "xlinkType":
-          pushStringAttribute(target, "xlink:type", value);
-          break;
+          return stringAttributeToString("xlink:type", value);
         case "xmlBase":
-          pushStringAttribute(target, "xml:base", value);
-          break;
+          return stringAttributeToString("xml:base", value);
         case "xmlLang":
-          pushStringAttribute(target, "xml:lang", value);
-          break;
+          return stringAttributeToString("xml:lang", value);
         case "xmlSpace":
-          pushStringAttribute(target, "xml:space", value);
-          break;
+          return stringAttributeToString("xml:space", value);
         default:
           if (
-            !(2 < name.length) ||
-            ("o" !== name[0] && "O" !== name[0]) ||
-            ("n" !== name[1] && "N" !== name[1])
+            2 < name.length &&
+            ("o" === name[0] || "O" === name[0]) &&
+            ("n" === name[1] || "N" === name[1])
           )
-            if (
-              ((name = aliases.get(name) || name), isAttributeNameSafe(name))
-            ) {
-              switch (typeof value) {
-                case "function":
-                case "symbol":
-                  return;
-                case "boolean":
-                  var prefix = name.toLowerCase().slice(0, 5);
-                  if ("data-" !== prefix && "aria-" !== prefix) return;
-              }
-              target.push(
-                attributeSeparator,
-                stringToChunk(name),
-                attributeAssign,
-                stringToChunk(escapeTextForBrowser(value)),
-                attributeEnd
-              );
+            return "";
+          name = aliases.get(name) || name;
+          if (isAttributeNameSafe(name)) {
+            switch (typeof value) {
+              case "function":
+              case "symbol":
+                return "";
+              case "boolean":
+                var prefix = name.toLowerCase().slice(0, 5);
+                if ("data-" !== prefix && "aria-" !== prefix) return "";
             }
+            return " " + name + '="' + escapeTextForBrowser(value) + '"';
+          }
+          return "";
       }
+    }
+    function pushAttribute(target, name, value) {
+      name = attributeToString(name, value);
+      "" !== name && target.push(stringToChunk(name));
     }
     function pushInnerHTML(target, innerHTML, children) {
       if (null != innerHTML) {
@@ -1811,8 +1727,9 @@
       return ("" + styleText).replace(styleRegex, styleReplacer);
     }
     function pushSelfClosing(target, props, tag, formatContext) {
-      target.push(startChunkForTag(tag));
-      for (var propKey in props)
+      var open = startStringForTag(tag),
+        propKey;
+      for (propKey in props)
         if (hasOwnProperty.call(props, propKey)) {
           var propValue = props[propKey];
           if (null != propValue)
@@ -1824,11 +1741,11 @@
                     " is a self-closing tag and must neither have `children` nor use `dangerouslySetInnerHTML`."
                 );
               default:
-                pushAttribute(target, propKey, propValue);
+                open += attributeToString(propKey, propValue);
             }
         }
-      pushViewTransitionAttributes(target, formatContext);
-      target.push(endOfStartTagSelfClosing);
+      open += viewTransitionAttributesToString(formatContext);
+      target.push(stringToChunk(open + "/>"));
       return null;
     }
     function pushTitleImpl(target, props) {
@@ -1924,14 +1841,16 @@
                 pushAttribute(target, propKey, propValue);
             }
         }
-      pushViewTransitionAttributes(target, formatContext);
+      props = viewTransitionAttributesToString(formatContext);
+      "" !== props && target.push(stringToChunk(props));
       target.push(endOfStartTag);
       pushInnerHTML(target, innerHTML, tag);
       return tag;
     }
     function pushStartGenericElement(target, props, tag, formatContext) {
-      target.push(startChunkForTag(tag));
-      var innerHTML = (tag = null),
+      tag = startStringForTag(tag);
+      var children = null,
+        innerHTML = null,
         propKey;
       for (propKey in props)
         if (hasOwnProperty.call(props, propKey)) {
@@ -1939,21 +1858,21 @@
           if (null != propValue)
             switch (propKey) {
               case "children":
-                tag = propValue;
+                children = propValue;
                 break;
               case "dangerouslySetInnerHTML":
                 innerHTML = propValue;
                 break;
               default:
-                pushAttribute(target, propKey, propValue);
+                tag += attributeToString(propKey, propValue);
             }
         }
-      pushViewTransitionAttributes(target, formatContext);
-      target.push(endOfStartTag);
-      pushInnerHTML(target, innerHTML, tag);
-      return "string" === typeof tag
-        ? (target.push(stringToChunk(escapeTextForBrowser(tag))), null)
-        : tag;
+      tag += viewTransitionAttributesToString(formatContext);
+      target.push(stringToChunk(tag + ">"));
+      pushInnerHTML(target, innerHTML, children);
+      return "string" === typeof children
+        ? (target.push(stringToChunk(escapeTextForBrowser(children))), null)
+        : children;
     }
     function startChunkForTag(tag) {
       var tagStartChunk = validatedTagCache.get(tag);
@@ -1963,6 +1882,15 @@
         validatedTagCache.set(tag, tagStartChunk);
       }
       return tagStartChunk;
+    }
+    function startStringForTag(tag) {
+      var tagStartString = validatedTagStringCache.get(tag);
+      if (void 0 === tagStartString) {
+        if (!VALID_TAG_REGEX.test(tag)) throw Error("Invalid tag: " + tag);
+        tagStartString = "<" + tag;
+        validatedTagStringCache.set(tag, tagStartString);
+      }
+      return tagStartString;
     }
     function pushStartInstance(
       target$jscomp$0,
@@ -2030,8 +1958,8 @@
         case "path":
           break;
         case "a":
-          target$jscomp$0.push(startChunkForTag("a"));
-          var children = null,
+          var open = startStringForTag("a"),
+            children = null,
             innerHTML = null,
             propKey;
           for (propKey in props)
@@ -2046,16 +1974,17 @@
                     innerHTML = propValue;
                     break;
                   case "href":
-                    "" === propValue
-                      ? pushStringAttribute(target$jscomp$0, "href", "")
-                      : pushAttribute(target$jscomp$0, propKey, propValue);
+                    open =
+                      "" === propValue
+                        ? open + stringAttributeToString("href", "")
+                        : open + attributeToString(propKey, propValue);
                     break;
                   default:
-                    pushAttribute(target$jscomp$0, propKey, propValue);
+                    open += attributeToString(propKey, propValue);
                 }
             }
-          pushViewTransitionAttributes(target$jscomp$0, formatContext);
-          target$jscomp$0.push(endOfStartTag);
+          open += viewTransitionAttributesToString(formatContext);
+          target$jscomp$0.push(stringToChunk(open + ">"));
           pushInnerHTML(target$jscomp$0, innerHTML, children);
           if ("string" === typeof children) {
             target$jscomp$0.push(stringToChunk(escapeTextForBrowser(children)));
@@ -2077,8 +2006,8 @@
               "Select elements must be either controlled or uncontrolled (specify either the value prop, or the defaultValue prop, but not both). Decide between using a controlled or uncontrolled select element and remove one of these props. More info: https://react.dev/link/controlled-components"
             ),
             (didWarnDefaultSelectValue = !0));
-          target$jscomp$0.push(startChunkForTag("select"));
-          var children$jscomp$0 = null,
+          var open$jscomp$0 = startStringForTag("select"),
+            children$jscomp$0 = null,
             innerHTML$jscomp$0 = null,
             propKey$jscomp$0;
           for (propKey$jscomp$0 in props)
@@ -2096,21 +2025,20 @@
                   case "value":
                     break;
                   default:
-                    pushAttribute(
-                      target$jscomp$0,
+                    open$jscomp$0 += attributeToString(
                       propKey$jscomp$0,
                       propValue$jscomp$0
                     );
                 }
             }
-          pushViewTransitionAttributes(target$jscomp$0, formatContext);
-          target$jscomp$0.push(endOfStartTag);
+          open$jscomp$0 += viewTransitionAttributesToString(formatContext);
+          target$jscomp$0.push(stringToChunk(open$jscomp$0 + ">"));
           pushInnerHTML(target$jscomp$0, innerHTML$jscomp$0, children$jscomp$0);
           return children$jscomp$0;
         case "option":
-          var selectedValue = formatContext.selectedValue;
-          target$jscomp$0.push(startChunkForTag("option"));
-          var children$jscomp$1 = null,
+          var selectedValue = formatContext.selectedValue,
+            open$jscomp$1 = startStringForTag("option"),
+            children$jscomp$1 = null,
             value = null,
             selected = null,
             innerHTML$jscomp$1 = null,
@@ -2137,8 +2065,7 @@
                   case "value":
                     value = propValue$jscomp$1;
                   default:
-                    pushAttribute(
-                      target$jscomp$0,
+                    open$jscomp$1 += attributeToString(
                       propKey$jscomp$1,
                       propValue$jscomp$1
                     );
@@ -2162,16 +2089,16 @@
                   (checkAttributeStringCoercion(selectedValue[i], "value"),
                   "" + selectedValue[i] === stringValue)
                 ) {
-                  target$jscomp$0.push(selectedMarkerAttribute);
+                  open$jscomp$1 += ' selected=""';
                   break;
                 }
               }
             else
               checkAttributeStringCoercion(selectedValue, "select.value"),
                 "" + selectedValue === stringValue &&
-                  target$jscomp$0.push(selectedMarkerAttribute);
-          } else selected && target$jscomp$0.push(selectedMarkerAttribute);
-          target$jscomp$0.push(endOfStartTag);
+                  (open$jscomp$1 += ' selected=""');
+          } else selected && (open$jscomp$1 += ' selected=""');
+          target$jscomp$0.push(stringToChunk(open$jscomp$1 + ">"));
           pushInnerHTML(target$jscomp$0, innerHTML$jscomp$1, children$jscomp$1);
           return children$jscomp$1;
         case "textarea":
@@ -2183,8 +2110,8 @@
               "Textarea elements must be either controlled or uncontrolled (specify either the value prop, or the defaultValue prop, but not both). Decide between using a controlled or uncontrolled textarea and remove one of these props. More info: https://react.dev/link/controlled-components"
             ),
             (didWarnDefaultTextareaValue = !0));
-          target$jscomp$0.push(startChunkForTag("textarea"));
-          var value$jscomp$0 = null,
+          var open$jscomp$2 = startStringForTag("textarea"),
+            value$jscomp$0 = null,
             defaultValue = null,
             children$jscomp$2 = null,
             propKey$jscomp$2;
@@ -2207,8 +2134,7 @@
                       "`dangerouslySetInnerHTML` does not make sense on <textarea>."
                     );
                   default:
-                    pushAttribute(
-                      target$jscomp$0,
+                    open$jscomp$2 += attributeToString(
                       propKey$jscomp$2,
                       propValue$jscomp$2
                     );
@@ -2217,8 +2143,8 @@
           null === value$jscomp$0 &&
             null !== defaultValue &&
             (value$jscomp$0 = defaultValue);
-          pushViewTransitionAttributes(target$jscomp$0, formatContext);
-          target$jscomp$0.push(endOfStartTag);
+          open$jscomp$2 += viewTransitionAttributesToString(formatContext);
+          target$jscomp$0.push(stringToChunk(open$jscomp$2 + ">"));
           if (null != children$jscomp$2) {
             console.error(
               "Use the `defaultValue` or `value` props instead of setting children on <textarea>."
@@ -2247,8 +2173,8 @@
           return null;
         case "input":
           checkControlledValueProps("input", props);
-          target$jscomp$0.push(startChunkForTag("input"));
-          var name = null,
+          var open$jscomp$3 = startStringForTag("input"),
+            name = null,
             formAction = null,
             formEncType = null,
             formMethod = null,
@@ -2296,8 +2222,7 @@
                     value$jscomp$1 = propValue$jscomp$3;
                     break;
                   default:
-                    pushAttribute(
-                      target$jscomp$0,
+                    open$jscomp$3 += attributeToString(
                       propKey$jscomp$3,
                       propValue$jscomp$3
                     );
@@ -2311,10 +2236,15 @@
             console.error(
               'An input can only specify a formAction along with type="submit" or type="image".'
             ));
-          var formData = pushFormActionAttribute(
-            target$jscomp$0,
+          var customFields =
+              "function" === typeof formAction
+                ? getCustomFormFields(resumableState, formAction)
+                : null,
+            formData = null !== customFields ? customFields.data : null;
+          open$jscomp$3 += formActionAttributesToString(
             resumableState,
             renderState,
+            customFields,
             formAction,
             formEncType,
             formMethod,
@@ -2340,21 +2270,27 @@
             ),
             (didWarnDefaultInputValue = !0));
           null !== checked
-            ? pushBooleanAttribute(target$jscomp$0, "checked", checked)
+            ? (open$jscomp$3 += booleanAttributeToString("checked", checked))
             : null !== defaultChecked &&
-              pushBooleanAttribute(target$jscomp$0, "checked", defaultChecked);
+              (open$jscomp$3 += booleanAttributeToString(
+                "checked",
+                defaultChecked
+              ));
           null !== value$jscomp$1
-            ? pushAttribute(target$jscomp$0, "value", value$jscomp$1)
+            ? (open$jscomp$3 += attributeToString("value", value$jscomp$1))
             : null !== defaultValue$jscomp$0 &&
-              pushAttribute(target$jscomp$0, "value", defaultValue$jscomp$0);
-          pushViewTransitionAttributes(target$jscomp$0, formatContext);
-          target$jscomp$0.push(endOfStartTagSelfClosing);
+              (open$jscomp$3 += attributeToString(
+                "value",
+                defaultValue$jscomp$0
+              ));
+          open$jscomp$3 += viewTransitionAttributesToString(formatContext);
+          target$jscomp$0.push(stringToChunk(open$jscomp$3 + "/>"));
           null != formData &&
             formData.forEach(pushAdditionalFormField, target$jscomp$0);
           return null;
         case "button":
-          target$jscomp$0.push(startChunkForTag("button"));
-          var children$jscomp$3 = null,
+          var open$jscomp$4 = startStringForTag("button"),
+            children$jscomp$3 = null,
             innerHTML$jscomp$2 = null,
             name$jscomp$0 = null,
             formAction$jscomp$0 = null,
@@ -2389,8 +2325,7 @@
                     formTarget$jscomp$0 = propValue$jscomp$4;
                     break;
                   default:
-                    pushAttribute(
-                      target$jscomp$0,
+                    open$jscomp$4 += attributeToString(
                       propKey$jscomp$4,
                       propValue$jscomp$4
                     );
@@ -2404,18 +2339,26 @@
             console.error(
               'A button can only specify a formAction along with type="submit" or no type.'
             ));
-          var formData$jscomp$0 = pushFormActionAttribute(
-            target$jscomp$0,
+          var customFields$jscomp$0 =
+              "function" === typeof formAction$jscomp$0
+                ? getCustomFormFields(resumableState, formAction$jscomp$0)
+                : null,
+            formData$jscomp$0 =
+              null !== customFields$jscomp$0
+                ? customFields$jscomp$0.data
+                : null;
+          open$jscomp$4 += formActionAttributesToString(
             resumableState,
             renderState,
+            customFields$jscomp$0,
             formAction$jscomp$0,
             formEncType$jscomp$0,
             formMethod$jscomp$0,
             formTarget$jscomp$0,
             name$jscomp$0
           );
-          pushViewTransitionAttributes(target$jscomp$0, formatContext);
-          target$jscomp$0.push(endOfStartTag);
+          open$jscomp$4 += viewTransitionAttributesToString(formatContext);
+          target$jscomp$0.push(stringToChunk(open$jscomp$4 + ">"));
           null != formData$jscomp$0 &&
             formData$jscomp$0.forEach(pushAdditionalFormField, target$jscomp$0);
           pushInnerHTML(target$jscomp$0, innerHTML$jscomp$2, children$jscomp$3);
@@ -2427,8 +2370,8 @@
           } else JSCompiler_inline_result$jscomp$1 = children$jscomp$3;
           return JSCompiler_inline_result$jscomp$1;
         case "form":
-          target$jscomp$0.push(startChunkForTag("form"));
-          var children$jscomp$4 = null,
+          var open$jscomp$5 = startStringForTag("form"),
+            children$jscomp$4 = null,
             innerHTML$jscomp$3 = null,
             formAction$jscomp$1 = null,
             formEncType$jscomp$1 = null,
@@ -2459,8 +2402,7 @@
                     formTarget$jscomp$1 = propValue$jscomp$5;
                     break;
                   default:
-                    pushAttribute(
-                      target$jscomp$0,
+                    open$jscomp$5 += attributeToString(
                       propKey$jscomp$5,
                       propValue$jscomp$5
                     );
@@ -2481,24 +2423,18 @@
               console.error(
                 "Cannot specify a target for a form that specifies a function as the action. The function will always be executed in the same window."
               ));
-            var customFields = getCustomFormFields(
+            var customFields$jscomp$1 = getCustomFormFields(
               resumableState,
               formAction$jscomp$1
             );
-            null !== customFields
-              ? ((formAction$jscomp$1 = customFields.action || ""),
-                (formEncType$jscomp$1 = customFields.encType),
-                (formMethod$jscomp$1 = customFields.method),
-                (formTarget$jscomp$1 = customFields.target),
-                (formData$jscomp$1 = customFields.data),
-                (formActionName = customFields.name))
-              : (target$jscomp$0.push(
-                  attributeSeparator,
-                  stringToChunk("action"),
-                  attributeAssign,
-                  actionJavaScriptURL,
-                  attributeEnd
-                ),
+            null !== customFields$jscomp$1
+              ? ((formAction$jscomp$1 = customFields$jscomp$1.action || ""),
+                (formEncType$jscomp$1 = customFields$jscomp$1.encType),
+                (formMethod$jscomp$1 = customFields$jscomp$1.method),
+                (formTarget$jscomp$1 = customFields$jscomp$1.target),
+                (formData$jscomp$1 = customFields$jscomp$1.data),
+                (formActionName = customFields$jscomp$1.name))
+              : ((open$jscomp$5 += ' action="' + actionJavaScriptURL + '"'),
                 (formTarget$jscomp$1 =
                   formMethod$jscomp$1 =
                   formEncType$jscomp$1 =
@@ -2507,19 +2443,26 @@
                 injectFormReplayingRuntime(resumableState, renderState));
           }
           null != formAction$jscomp$1 &&
-            pushAttribute(target$jscomp$0, "action", formAction$jscomp$1);
+            (open$jscomp$5 += attributeToString("action", formAction$jscomp$1));
           null != formEncType$jscomp$1 &&
-            pushAttribute(target$jscomp$0, "encType", formEncType$jscomp$1);
+            (open$jscomp$5 += attributeToString(
+              "encType",
+              formEncType$jscomp$1
+            ));
           null != formMethod$jscomp$1 &&
-            pushAttribute(target$jscomp$0, "method", formMethod$jscomp$1);
+            (open$jscomp$5 += attributeToString("method", formMethod$jscomp$1));
           null != formTarget$jscomp$1 &&
-            pushAttribute(target$jscomp$0, "target", formTarget$jscomp$1);
-          pushViewTransitionAttributes(target$jscomp$0, formatContext);
-          target$jscomp$0.push(endOfStartTag);
+            (open$jscomp$5 += attributeToString("target", formTarget$jscomp$1));
+          open$jscomp$5 += viewTransitionAttributesToString(formatContext);
+          target$jscomp$0.push(stringToChunk(open$jscomp$5 + ">"));
           null !== formActionName &&
-            (target$jscomp$0.push(startHiddenInputChunk),
-            pushStringAttribute(target$jscomp$0, "name", formActionName),
-            target$jscomp$0.push(endOfStartTagSelfClosing),
+            (target$jscomp$0.push(
+              stringToChunk(
+                '<input type="hidden"' +
+                  stringAttributeToString("name", formActionName) +
+                  "/>"
+              )
+            ),
             null != formData$jscomp$1 &&
               formData$jscomp$1.forEach(
                 pushAdditionalFormField,
@@ -2534,8 +2477,9 @@
           } else JSCompiler_inline_result$jscomp$2 = children$jscomp$4;
           return JSCompiler_inline_result$jscomp$2;
         case "menuitem":
-          target$jscomp$0.push(startChunkForTag("menuitem"));
-          for (var propKey$jscomp$6 in props)
+          var open$jscomp$6 = startStringForTag("menuitem"),
+            propKey$jscomp$6;
+          for (propKey$jscomp$6 in props)
             if (hasOwnProperty.call(props, propKey$jscomp$6)) {
               var propValue$jscomp$6 = props[propKey$jscomp$6];
               if (null != propValue$jscomp$6)
@@ -2546,19 +2490,18 @@
                       "menuitems cannot have `children` nor `dangerouslySetInnerHTML`."
                     );
                   default:
-                    pushAttribute(
-                      target$jscomp$0,
+                    open$jscomp$6 += attributeToString(
                       propKey$jscomp$6,
                       propValue$jscomp$6
                     );
                 }
             }
-          pushViewTransitionAttributes(target$jscomp$0, formatContext);
-          target$jscomp$0.push(endOfStartTag);
+          open$jscomp$6 += viewTransitionAttributesToString(formatContext);
+          target$jscomp$0.push(stringToChunk(open$jscomp$6 + ">"));
           return null;
         case "object":
-          target$jscomp$0.push(startChunkForTag("object"));
-          var children$jscomp$5 = null,
+          var open$jscomp$7 = startStringForTag("object"),
+            children$jscomp$5 = null,
             innerHTML$jscomp$4 = null,
             propKey$jscomp$7;
           for (propKey$jscomp$7 in props)
@@ -2583,24 +2526,18 @@
                       );
                       break;
                     }
-                    target$jscomp$0.push(
-                      attributeSeparator,
-                      stringToChunk("data"),
-                      attributeAssign,
-                      stringToChunk(escapeTextForBrowser(sanitizedValue)),
-                      attributeEnd
-                    );
+                    open$jscomp$7 +=
+                      ' data="' + escapeTextForBrowser(sanitizedValue) + '"';
                     break;
                   default:
-                    pushAttribute(
-                      target$jscomp$0,
+                    open$jscomp$7 += attributeToString(
                       propKey$jscomp$7,
                       propValue$jscomp$7
                     );
                 }
             }
-          pushViewTransitionAttributes(target$jscomp$0, formatContext);
-          target$jscomp$0.push(endOfStartTag);
+          open$jscomp$7 += viewTransitionAttributesToString(formatContext);
+          target$jscomp$0.push(stringToChunk(open$jscomp$7 + ">"));
           pushInnerHTML(target$jscomp$0, innerHTML$jscomp$4, children$jscomp$5);
           if ("string" === typeof children$jscomp$5) {
             target$jscomp$0.push(
@@ -3021,8 +2958,8 @@
           return JSCompiler_inline_result$jscomp$8;
         case "listing":
         case "pre":
-          target$jscomp$0.push(startChunkForTag(type));
-          var children$jscomp$10 = null,
+          var open$jscomp$8 = startStringForTag(type),
+            children$jscomp$10 = null,
             innerHTML$jscomp$7 = null,
             propKey$jscomp$10;
           for (propKey$jscomp$10 in props)
@@ -3037,15 +2974,14 @@
                     innerHTML$jscomp$7 = propValue$jscomp$10;
                     break;
                   default:
-                    pushAttribute(
-                      target$jscomp$0,
+                    open$jscomp$8 += attributeToString(
                       propKey$jscomp$10,
                       propValue$jscomp$10
                     );
                 }
             }
-          pushViewTransitionAttributes(target$jscomp$0, formatContext);
-          target$jscomp$0.push(endOfStartTag);
+          open$jscomp$8 += viewTransitionAttributesToString(formatContext);
+          target$jscomp$0.push(stringToChunk(open$jscomp$8 + ">"));
           if (null != innerHTML$jscomp$7) {
             if (null != children$jscomp$10)
               throw Error(
@@ -3253,8 +3189,8 @@
           return JSCompiler_inline_result$jscomp$11;
         default:
           if (-1 !== type.indexOf("-")) {
-            target$jscomp$0.push(startChunkForTag(type));
-            var children$jscomp$11 = null,
+            var open$jscomp$9 = startStringForTag(type),
+              children$jscomp$11 = null,
               innerHTML$jscomp$8 = null,
               propKey$jscomp$11;
             for (propKey$jscomp$11 in props)
@@ -3270,7 +3206,8 @@
                       innerHTML$jscomp$8 = propValue$jscomp$11;
                       break;
                     case "style":
-                      pushStyleAttribute(target$jscomp$0, propValue$jscomp$11);
+                      open$jscomp$9 +=
+                        styleAttributeToString(propValue$jscomp$11);
                       break;
                     case "suppressContentEditableWarning":
                     case "suppressHydrationWarning":
@@ -3289,21 +3226,18 @@
                           propValue$jscomp$11 = "";
                         else if ("object" === typeof propValue$jscomp$11)
                           continue;
-                        target$jscomp$0.push(
-                          attributeSeparator,
-                          stringToChunk(attributeName),
-                          attributeAssign,
-                          stringToChunk(
-                            escapeTextForBrowser(propValue$jscomp$11)
-                          ),
-                          attributeEnd
-                        );
+                        open$jscomp$9 +=
+                          " " +
+                          attributeName +
+                          '="' +
+                          escapeTextForBrowser(propValue$jscomp$11) +
+                          '"';
                       }
                   }
                 }
               }
-            pushViewTransitionAttributes(target$jscomp$0, formatContext);
-            target$jscomp$0.push(endOfStartTag);
+            open$jscomp$9 += viewTransitionAttributesToString(formatContext);
+            target$jscomp$0.push(stringToChunk(open$jscomp$9 + ">"));
             pushInnerHTML(
               target$jscomp$0,
               innerHTML$jscomp$8,
@@ -9513,11 +9447,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-e84e1492-20261031" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-925ee4a8-20261109" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-e84e1492-20261031\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-925ee4a8-20261109\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react"),
@@ -10650,19 +10584,10 @@
       HTML_COLGROUP_MODE = 9,
       textSeparator = stringToPrecomputedChunk("\x3c!-- --\x3e"),
       styleNameCache = new Map(),
-      styleAttributeStart = stringToPrecomputedChunk(' style="'),
-      styleAssign = stringToPrecomputedChunk(":"),
-      styleSeparator = stringToPrecomputedChunk(";"),
-      attributeSeparator = stringToPrecomputedChunk(" "),
-      attributeAssign = stringToPrecomputedChunk('="'),
       attributeEnd = stringToPrecomputedChunk('"'),
-      attributeEmptyString = stringToPrecomputedChunk('=""'),
-      actionJavaScriptURL = stringToPrecomputedChunk(
-        escapeTextForBrowser(
-          "javascript:throw new Error('React form unexpectedly submitted.')"
-        )
+      actionJavaScriptURL = escapeTextForBrowser(
+        "javascript:throw new Error('React form unexpectedly submitted.')"
       ),
-      startHiddenInputChunk = stringToPrecomputedChunk('<input type="hidden"'),
       endOfStartTag = stringToPrecomputedChunk(">"),
       endOfStartTagSelfClosing = stringToPrecomputedChunk("/>"),
       didWarnDefaultInputValue = !1,
@@ -10676,7 +10601,6 @@
       didWarnFormActionName = !1,
       didWarnFormActionTarget = !1,
       didWarnFormActionMethod = !1,
-      selectedMarkerAttribute = stringToPrecomputedChunk(' selected=""'),
       formReplayingRuntimeScript = stringToPrecomputedChunk(
         'addEventListener("submit",function(a){if(!a.defaultPrevented){var b=a.target,d=a.submitter,c=b.action,e=d;if(d){var f=d.getAttribute("formAction");null!=f&&(c=f,e=null)}"javascript:throw new Error(\'React form unexpectedly submitted.\')"===c&&(a.preventDefault(),a=new FormData(b,e),c=b.ownerDocument||b,(c.$$reactFormReplay=c.$$reactFormReplay||[]).push(b,d,a))}});'
       ),
@@ -10692,6 +10616,7 @@
       leadingNewline = stringToPrecomputedChunk("\n"),
       VALID_TAG_REGEX = /^[a-zA-Z][a-zA-Z:_\.\-\d]*$/,
       validatedTagCache = new Map(),
+      validatedTagStringCache = new Map(),
       doctypeChunk = stringToPrecomputedChunk("<!DOCTYPE html>"),
       endTagCache = new Map(),
       shellTimeRuntimeScript = stringToPrecomputedChunk(
@@ -11287,5 +11212,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.3.0-canary-e84e1492-20261031";
+    exports.version = "19.3.0-canary-925ee4a8-20261109";
   })();

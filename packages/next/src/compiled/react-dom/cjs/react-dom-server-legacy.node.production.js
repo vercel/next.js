@@ -430,33 +430,34 @@ function makeId(resumableState, treeId, localId) {
   0 < localId && (resumableState += "H" + localId.toString(32));
   return resumableState + "_";
 }
-function pushViewTransitionAttributes(target, formatContext) {
+function viewTransitionAttributesToString(formatContext) {
   formatContext = formatContext.viewTransition;
-  null !== formatContext &&
-    ("auto" !== formatContext.name &&
-      (pushStringAttribute(
-        target,
-        "vt-name",
-        0 === formatContext.nameIdx
-          ? formatContext.name
-          : formatContext.name + "_" + formatContext.nameIdx
-      ),
-      formatContext.nameIdx++),
-    pushStringAttribute(target, "vt-update", formatContext.update),
-    "none" !== formatContext.enter &&
-      pushStringAttribute(target, "vt-enter", formatContext.enter),
-    "none" !== formatContext.exit &&
-      pushStringAttribute(target, "vt-exit", formatContext.exit),
-    "none" !== formatContext.share &&
-      pushStringAttribute(target, "vt-share", formatContext.share));
+  if (null === formatContext) return "";
+  var attrs = "";
+  "auto" !== formatContext.name &&
+    ((attrs += stringAttributeToString(
+      "vt-name",
+      0 === formatContext.nameIdx
+        ? formatContext.name
+        : formatContext.name + "_" + formatContext.nameIdx
+    )),
+    formatContext.nameIdx++);
+  attrs += stringAttributeToString("vt-update", formatContext.update);
+  "none" !== formatContext.enter &&
+    (attrs += stringAttributeToString("vt-enter", formatContext.enter));
+  "none" !== formatContext.exit &&
+    (attrs += stringAttributeToString("vt-exit", formatContext.exit));
+  "none" !== formatContext.share &&
+    (attrs += stringAttributeToString("vt-share", formatContext.share));
+  return attrs;
 }
 var styleNameCache = new Map();
-function pushStyleAttribute(target, style) {
+function styleAttributeToString(style) {
   if ("object" !== typeof style)
     throw Error(
       "The `style` prop expects a mapping from style properties to values, not a string. For example, style={{marginRight: spacing + 'em'}} when using JSX."
     );
-  var isFirst = !0,
+  var styleString = "",
     styleName;
   for (styleName in style)
     if (hasOwnProperty.call(style, styleName)) {
@@ -467,53 +468,55 @@ function pushStyleAttribute(target, style) {
         "" !== styleValue
       ) {
         if (0 === styleName.indexOf("--")) {
-          var nameChunk = escapeTextForBrowser(styleName);
+          var nameStr = escapeTextForBrowser(styleName);
           styleValue = escapeTextForBrowser(("" + styleValue).trim());
         } else
-          (nameChunk = styleNameCache.get(styleName)),
-            void 0 === nameChunk &&
-              ((nameChunk = escapeTextForBrowser(
+          (nameStr = styleNameCache.get(styleName)),
+            void 0 === nameStr &&
+              ((nameStr = escapeTextForBrowser(
                 styleName
                   .replace(uppercasePattern, "-$1")
                   .toLowerCase()
                   .replace(msPattern, "-ms-")
               )),
-              styleNameCache.set(styleName, nameChunk)),
+              styleNameCache.set(styleName, nameStr)),
             (styleValue =
               "number" === typeof styleValue
                 ? 0 === styleValue || unitlessNumbers.has(styleName)
                   ? "" + styleValue
                   : styleValue + "px"
                 : escapeTextForBrowser(("" + styleValue).trim()));
-        isFirst
-          ? ((isFirst = !1),
-            target.push(' style="', nameChunk, ":", styleValue))
-          : target.push(";", nameChunk, ":", styleValue);
+        styleString =
+          "" === styleString
+            ? nameStr + ":" + styleValue
+            : styleString + (";" + nameStr + ":" + styleValue);
       }
     }
-  isFirst || target.push('"');
+  return "" !== styleString ? ' style="' + styleString + '"' : "";
 }
-function pushBooleanAttribute(target, name, value) {
-  value &&
-    "function" !== typeof value &&
-    "symbol" !== typeof value &&
-    target.push(" ", name, '=""');
+function booleanAttributeToString(name, value) {
+  return value && "function" !== typeof value && "symbol" !== typeof value
+    ? " " + name + '=""'
+    : "";
 }
-function pushStringAttribute(target, name, value) {
-  "function" !== typeof value &&
+function stringAttributeToString(name, value) {
+  return "function" !== typeof value &&
     "symbol" !== typeof value &&
-    "boolean" !== typeof value &&
-    target.push(" ", name, '="', escapeTextForBrowser(value), '"');
+    "boolean" !== typeof value
+    ? " " + name + '="' + escapeTextForBrowser(value) + '"'
+    : "";
 }
 var actionJavaScriptURL = escapeTextForBrowser(
   "javascript:throw new Error('React form unexpectedly submitted.')"
 );
 function pushAdditionalFormField(value, key) {
-  this.push('<input type="hidden"');
   validateAdditionalFormField(value);
-  pushStringAttribute(this, "name", key);
-  pushStringAttribute(this, "value", value);
-  this.push("/>");
+  this.push(
+    '<input type="hidden"' +
+      stringAttributeToString("name", key) +
+      stringAttributeToString("value", value) +
+      "/>"
+  );
 }
 function validateAdditionalFormField(value) {
   if ("string" !== typeof value)
@@ -539,58 +542,55 @@ function getCustomFormFields(resumableState, formAction) {
   }
   return null;
 }
-function pushFormActionAttribute(
-  target,
+function formActionAttributesToString(
   resumableState,
   renderState,
+  customFields,
   formAction,
   formEncType,
   formMethod,
   formTarget,
   name
 ) {
-  var formData = null;
-  if ("function" === typeof formAction) {
-    var customFields = getCustomFormFields(resumableState, formAction);
-    null !== customFields
+  var attributes = "";
+  "function" === typeof formAction &&
+    (null !== customFields
       ? ((name = customFields.name),
         (formAction = customFields.action || ""),
         (formEncType = customFields.encType),
         (formMethod = customFields.method),
-        (formTarget = customFields.target),
-        (formData = customFields.data))
-      : (target.push(" ", "formAction", '="', actionJavaScriptURL, '"'),
+        (formTarget = customFields.target))
+      : ((attributes += ' formAction="' + actionJavaScriptURL + '"'),
         (formTarget = formMethod = formEncType = formAction = name = null),
-        injectFormReplayingRuntime(resumableState, renderState));
-  }
-  null != name && pushAttribute(target, "name", name);
-  null != formAction && pushAttribute(target, "formAction", formAction);
-  null != formEncType && pushAttribute(target, "formEncType", formEncType);
-  null != formMethod && pushAttribute(target, "formMethod", formMethod);
-  null != formTarget && pushAttribute(target, "formTarget", formTarget);
-  return formData;
+        injectFormReplayingRuntime(resumableState, renderState)));
+  null != name && (attributes += attributeToString("name", name));
+  null != formAction &&
+    (attributes += attributeToString("formAction", formAction));
+  null != formEncType &&
+    (attributes += attributeToString("formEncType", formEncType));
+  null != formMethod &&
+    (attributes += attributeToString("formMethod", formMethod));
+  null != formTarget &&
+    (attributes += attributeToString("formTarget", formTarget));
+  return attributes;
 }
-function pushAttribute(target, name, value) {
+function attributeToString(name, value) {
   switch (name) {
     case "className":
-      pushStringAttribute(target, "class", value);
-      break;
+      return stringAttributeToString("class", value);
     case "tabIndex":
-      pushStringAttribute(target, "tabindex", value);
-      break;
+      return stringAttributeToString("tabindex", value);
     case "dir":
     case "role":
     case "viewBox":
     case "width":
     case "height":
-      pushStringAttribute(target, name, value);
-      break;
+      return stringAttributeToString(name, value);
     case "style":
-      pushStyleAttribute(target, value);
-      break;
+      return styleAttributeToString(value);
     case "src":
     case "href":
-      if ("" === value) break;
+      if ("" === value) return "";
     case "action":
     case "formAction":
       if (
@@ -599,32 +599,29 @@ function pushAttribute(target, name, value) {
         "symbol" === typeof value ||
         "boolean" === typeof value
       )
-        break;
+        return "";
       value = sanitizeURL("" + value);
-      target.push(" ", name, '="', escapeTextForBrowser(value), '"');
-      break;
+      return " " + name + '="' + escapeTextForBrowser(value) + '"';
     case "defaultValue":
     case "defaultChecked":
     case "innerHTML":
     case "suppressContentEditableWarning":
     case "suppressHydrationWarning":
     case "ref":
-      break;
+      return "";
     case "autoFocus":
     case "multiple":
     case "muted":
-      pushBooleanAttribute(target, name.toLowerCase(), value);
-      break;
+      return booleanAttributeToString(name.toLowerCase(), value);
     case "xlinkHref":
       if (
         "function" === typeof value ||
         "symbol" === typeof value ||
         "boolean" === typeof value
       )
-        break;
+        return "";
       value = sanitizeURL("" + value);
-      target.push(" ", "xlink:href", '="', escapeTextForBrowser(value), '"');
-      break;
+      return ' xlink:href="' + escapeTextForBrowser(value) + '"';
     case "contentEditable":
     case "spellCheck":
     case "draggable":
@@ -633,10 +630,9 @@ function pushAttribute(target, name, value) {
     case "externalResourcesRequired":
     case "focusable":
     case "preserveAlpha":
-      "function" !== typeof value &&
-        "symbol" !== typeof value &&
-        target.push(" ", name, '="', escapeTextForBrowser(value), '"');
-      break;
+      return "function" !== typeof value && "symbol" !== typeof value
+        ? " " + name + '="' + escapeTextForBrowser(value) + '"'
+        : "";
     case "inert":
     case "allowFullScreen":
     case "async":
@@ -661,82 +657,76 @@ function pushAttribute(target, name, value) {
     case "scoped":
     case "seamless":
     case "itemScope":
-      value &&
-        "function" !== typeof value &&
-        "symbol" !== typeof value &&
-        target.push(" ", name, '=""');
-      break;
+      return booleanAttributeToString(name, value);
     case "capture":
     case "download":
-      !0 === value
-        ? target.push(" ", name, '=""')
+      return !0 === value
+        ? " " + name + '=""'
         : !1 !== value &&
-          "function" !== typeof value &&
-          "symbol" !== typeof value &&
-          target.push(" ", name, '="', escapeTextForBrowser(value), '"');
-      break;
+            "function" !== typeof value &&
+            "symbol" !== typeof value
+          ? " " + name + '="' + escapeTextForBrowser(value) + '"'
+          : "";
     case "cols":
     case "rows":
     case "size":
     case "span":
-      "function" !== typeof value &&
+      return "function" !== typeof value &&
         "symbol" !== typeof value &&
         !isNaN(value) &&
-        1 <= value &&
-        target.push(" ", name, '="', escapeTextForBrowser(value), '"');
-      break;
+        1 <= value
+        ? " " + name + '="' + escapeTextForBrowser(value) + '"'
+        : "";
     case "rowSpan":
     case "start":
-      "function" === typeof value ||
+      return "function" === typeof value ||
         "symbol" === typeof value ||
-        isNaN(value) ||
-        target.push(" ", name, '="', escapeTextForBrowser(value), '"');
-      break;
+        isNaN(value)
+        ? ""
+        : " " + name + '="' + escapeTextForBrowser(value) + '"';
     case "xlinkActuate":
-      pushStringAttribute(target, "xlink:actuate", value);
-      break;
+      return stringAttributeToString("xlink:actuate", value);
     case "xlinkArcrole":
-      pushStringAttribute(target, "xlink:arcrole", value);
-      break;
+      return stringAttributeToString("xlink:arcrole", value);
     case "xlinkRole":
-      pushStringAttribute(target, "xlink:role", value);
-      break;
+      return stringAttributeToString("xlink:role", value);
     case "xlinkShow":
-      pushStringAttribute(target, "xlink:show", value);
-      break;
+      return stringAttributeToString("xlink:show", value);
     case "xlinkTitle":
-      pushStringAttribute(target, "xlink:title", value);
-      break;
+      return stringAttributeToString("xlink:title", value);
     case "xlinkType":
-      pushStringAttribute(target, "xlink:type", value);
-      break;
+      return stringAttributeToString("xlink:type", value);
     case "xmlBase":
-      pushStringAttribute(target, "xml:base", value);
-      break;
+      return stringAttributeToString("xml:base", value);
     case "xmlLang":
-      pushStringAttribute(target, "xml:lang", value);
-      break;
+      return stringAttributeToString("xml:lang", value);
     case "xmlSpace":
-      pushStringAttribute(target, "xml:space", value);
-      break;
+      return stringAttributeToString("xml:space", value);
     default:
       if (
-        !(2 < name.length) ||
-        ("o" !== name[0] && "O" !== name[0]) ||
-        ("n" !== name[1] && "N" !== name[1])
+        2 < name.length &&
+        ("o" === name[0] || "O" === name[0]) &&
+        ("n" === name[1] || "N" === name[1])
       )
-        if (((name = aliases.get(name) || name), isAttributeNameSafe(name))) {
-          switch (typeof value) {
-            case "function":
-            case "symbol":
-              return;
-            case "boolean":
-              var prefix$8 = name.toLowerCase().slice(0, 5);
-              if ("data-" !== prefix$8 && "aria-" !== prefix$8) return;
-          }
-          target.push(" ", name, '="', escapeTextForBrowser(value), '"');
+        return "";
+      name = aliases.get(name) || name;
+      if (isAttributeNameSafe(name)) {
+        switch (typeof value) {
+          case "function":
+          case "symbol":
+            return "";
+          case "boolean":
+            var prefix$8 = name.toLowerCase().slice(0, 5);
+            if ("data-" !== prefix$8 && "aria-" !== prefix$8) return "";
         }
+        return " " + name + '="' + escapeTextForBrowser(value) + '"';
+      }
+      return "";
   }
+}
+function pushAttribute(target, name, value) {
+  name = attributeToString(name, value);
+  "" !== name && target.push(name);
 }
 function pushInnerHTML(target, innerHTML, children) {
   if (null != innerHTML) {
@@ -804,8 +794,9 @@ function styleReplacer(match, prefix, s, suffix) {
   return "" + prefix + ("s" === s ? "\\73 " : "\\53 ") + suffix;
 }
 function pushSelfClosing(target, props, tag, formatContext) {
-  target.push(startChunkForTag(tag));
-  for (var propKey in props)
+  var open = startStringForTag(tag),
+    propKey;
+  for (propKey in props)
     if (hasOwnProperty.call(props, propKey)) {
       var propValue = props[propKey];
       if (null != propValue)
@@ -817,11 +808,11 @@ function pushSelfClosing(target, props, tag, formatContext) {
                 " is a self-closing tag and must neither have `children` nor use `dangerouslySetInnerHTML`."
             );
           default:
-            pushAttribute(target, propKey, propValue);
+            open += attributeToString(propKey, propValue);
         }
     }
-  pushViewTransitionAttributes(target, formatContext);
-  target.push("/>");
+  open += viewTransitionAttributesToString(formatContext);
+  target.push(open + "/>");
   return null;
 }
 function pushTitleImpl(target, props) {
@@ -905,14 +896,16 @@ function pushStartSingletonElement(target, props, tag, formatContext) {
             pushAttribute(target, propKey, propValue);
         }
     }
-  pushViewTransitionAttributes(target, formatContext);
+  props = viewTransitionAttributesToString(formatContext);
+  "" !== props && target.push(props);
   target.push(">");
   pushInnerHTML(target, innerHTML, tag);
   return tag;
 }
 function pushStartGenericElement(target, props, tag, formatContext) {
-  target.push(startChunkForTag(tag));
-  var innerHTML = (tag = null),
+  tag = startStringForTag(tag);
+  var children = null,
+    innerHTML = null,
     propKey;
   for (propKey in props)
     if (hasOwnProperty.call(props, propKey)) {
@@ -920,21 +913,21 @@ function pushStartGenericElement(target, props, tag, formatContext) {
       if (null != propValue)
         switch (propKey) {
           case "children":
-            tag = propValue;
+            children = propValue;
             break;
           case "dangerouslySetInnerHTML":
             innerHTML = propValue;
             break;
           default:
-            pushAttribute(target, propKey, propValue);
+            tag += attributeToString(propKey, propValue);
         }
     }
-  pushViewTransitionAttributes(target, formatContext);
-  target.push(">");
-  pushInnerHTML(target, innerHTML, tag);
-  return "string" === typeof tag
-    ? (target.push(escapeTextForBrowser(tag)), null)
-    : tag;
+  tag += viewTransitionAttributesToString(formatContext);
+  target.push(tag + ">");
+  pushInnerHTML(target, innerHTML, children);
+  return "string" === typeof children
+    ? (target.push(escapeTextForBrowser(children)), null)
+    : children;
 }
 var VALID_TAG_REGEX = /^[a-zA-Z][a-zA-Z:_\.\-\d]*$/,
   validatedTagCache = new Map();
@@ -946,6 +939,16 @@ function startChunkForTag(tag) {
     validatedTagCache.set(tag, tagStartChunk);
   }
   return tagStartChunk;
+}
+var validatedTagStringCache = new Map();
+function startStringForTag(tag) {
+  var tagStartString = validatedTagStringCache.get(tag);
+  if (void 0 === tagStartString) {
+    if (!VALID_TAG_REGEX.test(tag)) throw Error("Invalid tag: " + tag);
+    tagStartString = "<" + tag;
+    validatedTagStringCache.set(tag, tagStartString);
+  }
+  return tagStartString;
 }
 function pushStartInstance(
   target$jscomp$0,
@@ -965,8 +968,8 @@ function pushStartInstance(
     case "path":
       break;
     case "a":
-      target$jscomp$0.push(startChunkForTag("a"));
-      var children = null,
+      var open = startStringForTag("a"),
+        children = null,
         innerHTML = null,
         propKey;
       for (propKey in props)
@@ -981,16 +984,17 @@ function pushStartInstance(
                 innerHTML = propValue;
                 break;
               case "href":
-                "" === propValue
-                  ? pushStringAttribute(target$jscomp$0, "href", "")
-                  : pushAttribute(target$jscomp$0, propKey, propValue);
+                open =
+                  "" === propValue
+                    ? open + stringAttributeToString("href", "")
+                    : open + attributeToString(propKey, propValue);
                 break;
               default:
-                pushAttribute(target$jscomp$0, propKey, propValue);
+                open += attributeToString(propKey, propValue);
             }
         }
-      pushViewTransitionAttributes(target$jscomp$0, formatContext);
-      target$jscomp$0.push(">");
+      open += viewTransitionAttributesToString(formatContext);
+      target$jscomp$0.push(open + ">");
       pushInnerHTML(target$jscomp$0, innerHTML, children);
       if ("string" === typeof children) {
         target$jscomp$0.push(escapeTextForBrowser(children));
@@ -1002,8 +1006,8 @@ function pushStartInstance(
     case "li":
       break;
     case "select":
-      target$jscomp$0.push(startChunkForTag("select"));
-      var children$jscomp$0 = null,
+      var open$jscomp$0 = startStringForTag("select"),
+        children$jscomp$0 = null,
         innerHTML$jscomp$0 = null,
         propKey$jscomp$0;
       for (propKey$jscomp$0 in props)
@@ -1021,21 +1025,20 @@ function pushStartInstance(
               case "value":
                 break;
               default:
-                pushAttribute(
-                  target$jscomp$0,
+                open$jscomp$0 += attributeToString(
                   propKey$jscomp$0,
                   propValue$jscomp$0
                 );
             }
         }
-      pushViewTransitionAttributes(target$jscomp$0, formatContext);
-      target$jscomp$0.push(">");
+      open$jscomp$0 += viewTransitionAttributesToString(formatContext);
+      target$jscomp$0.push(open$jscomp$0 + ">");
       pushInnerHTML(target$jscomp$0, innerHTML$jscomp$0, children$jscomp$0);
       return children$jscomp$0;
     case "option":
-      var selectedValue = formatContext.selectedValue;
-      target$jscomp$0.push(startChunkForTag("option"));
-      var children$jscomp$1 = null,
+      var selectedValue = formatContext.selectedValue,
+        open$jscomp$1 = startStringForTag("option"),
+        children$jscomp$1 = null,
         value = null,
         selected = null,
         innerHTML$jscomp$1 = null,
@@ -1057,8 +1060,7 @@ function pushStartInstance(
               case "value":
                 value = propValue$jscomp$1;
               default:
-                pushAttribute(
-                  target$jscomp$0,
+                open$jscomp$1 += attributeToString(
                   propKey$jscomp$1,
                   propValue$jscomp$1
                 );
@@ -1072,20 +1074,20 @@ function pushStartInstance(
         if (isArrayImpl(selectedValue))
           for (var i = 0; i < selectedValue.length; i++) {
             if ("" + selectedValue[i] === stringValue) {
-              target$jscomp$0.push(' selected=""');
+              open$jscomp$1 += ' selected=""';
               break;
             }
           }
         else
           "" + selectedValue === stringValue &&
-            target$jscomp$0.push(' selected=""');
-      } else selected && target$jscomp$0.push(' selected=""');
-      target$jscomp$0.push(">");
+            (open$jscomp$1 += ' selected=""');
+      } else selected && (open$jscomp$1 += ' selected=""');
+      target$jscomp$0.push(open$jscomp$1 + ">");
       pushInnerHTML(target$jscomp$0, innerHTML$jscomp$1, children$jscomp$1);
       return children$jscomp$1;
     case "textarea":
-      target$jscomp$0.push(startChunkForTag("textarea"));
-      var value$jscomp$0 = null,
+      var open$jscomp$2 = startStringForTag("textarea"),
+        value$jscomp$0 = null,
         defaultValue = null,
         children$jscomp$2 = null,
         propKey$jscomp$2;
@@ -1108,8 +1110,7 @@ function pushStartInstance(
                   "`dangerouslySetInnerHTML` does not make sense on <textarea>."
                 );
               default:
-                pushAttribute(
-                  target$jscomp$0,
+                open$jscomp$2 += attributeToString(
                   propKey$jscomp$2,
                   propValue$jscomp$2
                 );
@@ -1118,8 +1119,8 @@ function pushStartInstance(
       null === value$jscomp$0 &&
         null !== defaultValue &&
         (value$jscomp$0 = defaultValue);
-      pushViewTransitionAttributes(target$jscomp$0, formatContext);
-      target$jscomp$0.push(">");
+      open$jscomp$2 += viewTransitionAttributesToString(formatContext);
+      target$jscomp$0.push(open$jscomp$2 + ">");
       if (null != children$jscomp$2) {
         if (null != value$jscomp$0)
           throw Error(
@@ -1139,8 +1140,8 @@ function pushStartInstance(
         target$jscomp$0.push(escapeTextForBrowser("" + value$jscomp$0));
       return null;
     case "input":
-      target$jscomp$0.push(startChunkForTag("input"));
-      var name = null,
+      var open$jscomp$3 = startStringForTag("input"),
+        name = null,
         formAction = null,
         formEncType = null,
         formMethod = null,
@@ -1188,17 +1189,21 @@ function pushStartInstance(
                 value$jscomp$1 = propValue$jscomp$3;
                 break;
               default:
-                pushAttribute(
-                  target$jscomp$0,
+                open$jscomp$3 += attributeToString(
                   propKey$jscomp$3,
                   propValue$jscomp$3
                 );
             }
         }
-      var formData = pushFormActionAttribute(
-        target$jscomp$0,
+      var customFields =
+          "function" === typeof formAction
+            ? getCustomFormFields(resumableState, formAction)
+            : null,
+        formData = null !== customFields ? customFields.data : null;
+      open$jscomp$3 += formActionAttributesToString(
         resumableState,
         renderState,
+        customFields,
         formAction,
         formEncType,
         formMethod,
@@ -1206,21 +1211,24 @@ function pushStartInstance(
         name
       );
       null !== checked
-        ? pushBooleanAttribute(target$jscomp$0, "checked", checked)
+        ? (open$jscomp$3 += booleanAttributeToString("checked", checked))
         : null !== defaultChecked &&
-          pushBooleanAttribute(target$jscomp$0, "checked", defaultChecked);
+          (open$jscomp$3 += booleanAttributeToString(
+            "checked",
+            defaultChecked
+          ));
       null !== value$jscomp$1
-        ? pushAttribute(target$jscomp$0, "value", value$jscomp$1)
+        ? (open$jscomp$3 += attributeToString("value", value$jscomp$1))
         : null !== defaultValue$jscomp$0 &&
-          pushAttribute(target$jscomp$0, "value", defaultValue$jscomp$0);
-      pushViewTransitionAttributes(target$jscomp$0, formatContext);
-      target$jscomp$0.push("/>");
+          (open$jscomp$3 += attributeToString("value", defaultValue$jscomp$0));
+      open$jscomp$3 += viewTransitionAttributesToString(formatContext);
+      target$jscomp$0.push(open$jscomp$3 + "/>");
       null != formData &&
         formData.forEach(pushAdditionalFormField, target$jscomp$0);
       return null;
     case "button":
-      target$jscomp$0.push(startChunkForTag("button"));
-      var children$jscomp$3 = null,
+      var open$jscomp$4 = startStringForTag("button"),
+        children$jscomp$3 = null,
         innerHTML$jscomp$2 = null,
         name$jscomp$0 = null,
         formAction$jscomp$0 = null,
@@ -1255,25 +1263,30 @@ function pushStartInstance(
                 formTarget$jscomp$0 = propValue$jscomp$4;
                 break;
               default:
-                pushAttribute(
-                  target$jscomp$0,
+                open$jscomp$4 += attributeToString(
                   propKey$jscomp$4,
                   propValue$jscomp$4
                 );
             }
         }
-      var formData$jscomp$0 = pushFormActionAttribute(
-        target$jscomp$0,
+      var customFields$jscomp$0 =
+          "function" === typeof formAction$jscomp$0
+            ? getCustomFormFields(resumableState, formAction$jscomp$0)
+            : null,
+        formData$jscomp$0 =
+          null !== customFields$jscomp$0 ? customFields$jscomp$0.data : null;
+      open$jscomp$4 += formActionAttributesToString(
         resumableState,
         renderState,
+        customFields$jscomp$0,
         formAction$jscomp$0,
         formEncType$jscomp$0,
         formMethod$jscomp$0,
         formTarget$jscomp$0,
         name$jscomp$0
       );
-      pushViewTransitionAttributes(target$jscomp$0, formatContext);
-      target$jscomp$0.push(">");
+      open$jscomp$4 += viewTransitionAttributesToString(formatContext);
+      target$jscomp$0.push(open$jscomp$4 + ">");
       null != formData$jscomp$0 &&
         formData$jscomp$0.forEach(pushAdditionalFormField, target$jscomp$0);
       pushInnerHTML(target$jscomp$0, innerHTML$jscomp$2, children$jscomp$3);
@@ -1283,8 +1296,8 @@ function pushStartInstance(
       } else JSCompiler_inline_result$jscomp$0 = children$jscomp$3;
       return JSCompiler_inline_result$jscomp$0;
     case "form":
-      target$jscomp$0.push(startChunkForTag("form"));
-      var children$jscomp$4 = null,
+      var open$jscomp$5 = startStringForTag("form"),
+        children$jscomp$4 = null,
         innerHTML$jscomp$3 = null,
         formAction$jscomp$1 = null,
         formEncType$jscomp$1 = null,
@@ -1315,8 +1328,7 @@ function pushStartInstance(
                 formTarget$jscomp$1 = propValue$jscomp$5;
                 break;
               default:
-                pushAttribute(
-                  target$jscomp$0,
+                open$jscomp$5 += attributeToString(
                   propKey$jscomp$5,
                   propValue$jscomp$5
                 );
@@ -1325,24 +1337,18 @@ function pushStartInstance(
       var formData$jscomp$1 = null,
         formActionName = null;
       if ("function" === typeof formAction$jscomp$1) {
-        var customFields = getCustomFormFields(
+        var customFields$jscomp$1 = getCustomFormFields(
           resumableState,
           formAction$jscomp$1
         );
-        null !== customFields
-          ? ((formAction$jscomp$1 = customFields.action || ""),
-            (formEncType$jscomp$1 = customFields.encType),
-            (formMethod$jscomp$1 = customFields.method),
-            (formTarget$jscomp$1 = customFields.target),
-            (formData$jscomp$1 = customFields.data),
-            (formActionName = customFields.name))
-          : (target$jscomp$0.push(
-              " ",
-              "action",
-              '="',
-              actionJavaScriptURL,
-              '"'
-            ),
+        null !== customFields$jscomp$1
+          ? ((formAction$jscomp$1 = customFields$jscomp$1.action || ""),
+            (formEncType$jscomp$1 = customFields$jscomp$1.encType),
+            (formMethod$jscomp$1 = customFields$jscomp$1.method),
+            (formTarget$jscomp$1 = customFields$jscomp$1.target),
+            (formData$jscomp$1 = customFields$jscomp$1.data),
+            (formActionName = customFields$jscomp$1.name))
+          : ((open$jscomp$5 += ' action="' + actionJavaScriptURL + '"'),
             (formTarget$jscomp$1 =
               formMethod$jscomp$1 =
               formEncType$jscomp$1 =
@@ -1351,19 +1357,21 @@ function pushStartInstance(
             injectFormReplayingRuntime(resumableState, renderState));
       }
       null != formAction$jscomp$1 &&
-        pushAttribute(target$jscomp$0, "action", formAction$jscomp$1);
+        (open$jscomp$5 += attributeToString("action", formAction$jscomp$1));
       null != formEncType$jscomp$1 &&
-        pushAttribute(target$jscomp$0, "encType", formEncType$jscomp$1);
+        (open$jscomp$5 += attributeToString("encType", formEncType$jscomp$1));
       null != formMethod$jscomp$1 &&
-        pushAttribute(target$jscomp$0, "method", formMethod$jscomp$1);
+        (open$jscomp$5 += attributeToString("method", formMethod$jscomp$1));
       null != formTarget$jscomp$1 &&
-        pushAttribute(target$jscomp$0, "target", formTarget$jscomp$1);
-      pushViewTransitionAttributes(target$jscomp$0, formatContext);
-      target$jscomp$0.push(">");
+        (open$jscomp$5 += attributeToString("target", formTarget$jscomp$1));
+      open$jscomp$5 += viewTransitionAttributesToString(formatContext);
+      target$jscomp$0.push(open$jscomp$5 + ">");
       null !== formActionName &&
-        (target$jscomp$0.push('<input type="hidden"'),
-        pushStringAttribute(target$jscomp$0, "name", formActionName),
-        target$jscomp$0.push("/>"),
+        (target$jscomp$0.push(
+          '<input type="hidden"' +
+            stringAttributeToString("name", formActionName) +
+            "/>"
+        ),
         null != formData$jscomp$1 &&
           formData$jscomp$1.forEach(pushAdditionalFormField, target$jscomp$0));
       pushInnerHTML(target$jscomp$0, innerHTML$jscomp$3, children$jscomp$4);
@@ -1373,8 +1381,9 @@ function pushStartInstance(
       } else JSCompiler_inline_result$jscomp$1 = children$jscomp$4;
       return JSCompiler_inline_result$jscomp$1;
     case "menuitem":
-      target$jscomp$0.push(startChunkForTag("menuitem"));
-      for (var propKey$jscomp$6 in props)
+      var open$jscomp$6 = startStringForTag("menuitem"),
+        propKey$jscomp$6;
+      for (propKey$jscomp$6 in props)
         if (hasOwnProperty.call(props, propKey$jscomp$6)) {
           var propValue$jscomp$6 = props[propKey$jscomp$6];
           if (null != propValue$jscomp$6)
@@ -1385,19 +1394,18 @@ function pushStartInstance(
                   "menuitems cannot have `children` nor `dangerouslySetInnerHTML`."
                 );
               default:
-                pushAttribute(
-                  target$jscomp$0,
+                open$jscomp$6 += attributeToString(
                   propKey$jscomp$6,
                   propValue$jscomp$6
                 );
             }
         }
-      pushViewTransitionAttributes(target$jscomp$0, formatContext);
-      target$jscomp$0.push(">");
+      open$jscomp$6 += viewTransitionAttributesToString(formatContext);
+      target$jscomp$0.push(open$jscomp$6 + ">");
       return null;
     case "object":
-      target$jscomp$0.push(startChunkForTag("object"));
-      var children$jscomp$5 = null,
+      var open$jscomp$7 = startStringForTag("object"),
+        children$jscomp$5 = null,
         innerHTML$jscomp$4 = null,
         propKey$jscomp$7;
       for (propKey$jscomp$7 in props)
@@ -1414,24 +1422,18 @@ function pushStartInstance(
               case "data":
                 var sanitizedValue = sanitizeURL("" + propValue$jscomp$7);
                 if ("" === sanitizedValue) break;
-                target$jscomp$0.push(
-                  " ",
-                  "data",
-                  '="',
-                  escapeTextForBrowser(sanitizedValue),
-                  '"'
-                );
+                open$jscomp$7 +=
+                  ' data="' + escapeTextForBrowser(sanitizedValue) + '"';
                 break;
               default:
-                pushAttribute(
-                  target$jscomp$0,
+                open$jscomp$7 += attributeToString(
                   propKey$jscomp$7,
                   propValue$jscomp$7
                 );
             }
         }
-      pushViewTransitionAttributes(target$jscomp$0, formatContext);
-      target$jscomp$0.push(">");
+      open$jscomp$7 += viewTransitionAttributesToString(formatContext);
+      target$jscomp$0.push(open$jscomp$7 + ">");
       pushInnerHTML(target$jscomp$0, innerHTML$jscomp$4, children$jscomp$5);
       if ("string" === typeof children$jscomp$5) {
         target$jscomp$0.push(escapeTextForBrowser(children$jscomp$5));
@@ -1732,8 +1734,8 @@ function pushStartInstance(
       return JSCompiler_inline_result$jscomp$7;
     case "listing":
     case "pre":
-      target$jscomp$0.push(startChunkForTag(type));
-      var children$jscomp$8 = null,
+      var open$jscomp$8 = startStringForTag(type),
+        children$jscomp$8 = null,
         innerHTML$jscomp$7 = null,
         propKey$jscomp$10;
       for (propKey$jscomp$10 in props)
@@ -1748,15 +1750,14 @@ function pushStartInstance(
                 innerHTML$jscomp$7 = propValue$jscomp$10;
                 break;
               default:
-                pushAttribute(
-                  target$jscomp$0,
+                open$jscomp$8 += attributeToString(
                   propKey$jscomp$10,
                   propValue$jscomp$10
                 );
             }
         }
-      pushViewTransitionAttributes(target$jscomp$0, formatContext);
-      target$jscomp$0.push(">");
+      open$jscomp$8 += viewTransitionAttributesToString(formatContext);
+      target$jscomp$0.push(open$jscomp$8 + ">");
       if (null != innerHTML$jscomp$7) {
         if (null != children$jscomp$8)
           throw Error(
@@ -1959,8 +1960,8 @@ function pushStartInstance(
       return JSCompiler_inline_result$jscomp$11;
     default:
       if (-1 !== type.indexOf("-")) {
-        target$jscomp$0.push(startChunkForTag(type));
-        var children$jscomp$9 = null,
+        var open$jscomp$9 = startStringForTag(type),
+          children$jscomp$9 = null,
           innerHTML$jscomp$8 = null,
           propKey$jscomp$11;
         for (propKey$jscomp$11 in props)
@@ -1976,7 +1977,7 @@ function pushStartInstance(
                   innerHTML$jscomp$8 = propValue$jscomp$11;
                   break;
                 case "style":
-                  pushStyleAttribute(target$jscomp$0, propValue$jscomp$11);
+                  open$jscomp$9 += styleAttributeToString(propValue$jscomp$11);
                   break;
                 case "suppressContentEditableWarning":
                 case "suppressHydrationWarning":
@@ -1993,19 +1994,18 @@ function pushStartInstance(
                   ) {
                     if (!0 === propValue$jscomp$11) propValue$jscomp$11 = "";
                     else if ("object" === typeof propValue$jscomp$11) continue;
-                    target$jscomp$0.push(
-                      " ",
-                      attributeName,
-                      '="',
-                      escapeTextForBrowser(propValue$jscomp$11),
-                      '"'
-                    );
+                    open$jscomp$9 +=
+                      " " +
+                      attributeName +
+                      '="' +
+                      escapeTextForBrowser(propValue$jscomp$11) +
+                      '"';
                   }
               }
             }
           }
-        pushViewTransitionAttributes(target$jscomp$0, formatContext);
-        target$jscomp$0.push(">");
+        open$jscomp$9 += viewTransitionAttributesToString(formatContext);
+        target$jscomp$0.push(open$jscomp$9 + ">");
         pushInnerHTML(target$jscomp$0, innerHTML$jscomp$8, children$jscomp$9);
         return children$jscomp$9;
       }
@@ -2820,16 +2820,16 @@ function createRenderState(resumableState, generateStaticMarkup) {
       "\x3c/script>"
     ));
   bootstrapScriptContent = idPrefix + "P:";
-  var JSCompiler_object_inline_segmentPrefix_1734 = idPrefix + "S:";
+  var JSCompiler_object_inline_segmentPrefix_1751 = idPrefix + "S:";
   idPrefix += "B:";
-  var JSCompiler_object_inline_preconnects_1748 = new Set(),
-    JSCompiler_object_inline_fontPreloads_1749 = new Set(),
-    JSCompiler_object_inline_highImagePreloads_1750 = new Set(),
-    JSCompiler_object_inline_styles_1751 = new Map(),
-    JSCompiler_object_inline_bootstrapScripts_1752 = new Set(),
-    JSCompiler_object_inline_scripts_1753 = new Set(),
-    JSCompiler_object_inline_bulkPreloads_1754 = new Set(),
-    JSCompiler_object_inline_preloads_1755 = {
+  var JSCompiler_object_inline_preconnects_1765 = new Set(),
+    JSCompiler_object_inline_fontPreloads_1766 = new Set(),
+    JSCompiler_object_inline_highImagePreloads_1767 = new Set(),
+    JSCompiler_object_inline_styles_1768 = new Map(),
+    JSCompiler_object_inline_bootstrapScripts_1769 = new Set(),
+    JSCompiler_object_inline_scripts_1770 = new Set(),
+    JSCompiler_object_inline_bulkPreloads_1771 = new Set(),
+    JSCompiler_object_inline_preloads_1772 = {
       images: new Map(),
       stylesheets: new Map(),
       scripts: new Map(),
@@ -2866,7 +2866,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
       scriptConfig.moduleScriptResources[href] = null;
       scriptConfig = [];
       pushLinkImpl(scriptConfig, props);
-      JSCompiler_object_inline_bootstrapScripts_1752.add(scriptConfig);
+      JSCompiler_object_inline_bootstrapScripts_1769.add(scriptConfig);
       bootstrapChunks.push('<script src="', escapeTextForBrowser(src), '"');
       "string" === typeof integrity &&
         bootstrapChunks.push(
@@ -2913,7 +2913,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         (props.moduleScriptResources[scriptConfig] = null),
         (props = []),
         pushLinkImpl(props, integrity),
-        JSCompiler_object_inline_bootstrapScripts_1752.add(props),
+        JSCompiler_object_inline_bootstrapScripts_1769.add(props),
         bootstrapChunks.push(
           '<script type="module" src="',
           escapeTextForBrowser(i),
@@ -2935,7 +2935,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         bootstrapChunks.push(' async="">\x3c/script>');
   return {
     placeholderPrefix: bootstrapScriptContent,
-    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1734,
+    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1751,
     boundaryPrefix: idPrefix,
     startInlineScript: "<script",
     startInlineStyle: "<style",
@@ -2955,14 +2955,14 @@ function createRenderState(resumableState, generateStaticMarkup) {
     charsetChunks: [],
     viewportChunks: [],
     hoistableChunks: [],
-    preconnects: JSCompiler_object_inline_preconnects_1748,
-    fontPreloads: JSCompiler_object_inline_fontPreloads_1749,
-    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1750,
-    styles: JSCompiler_object_inline_styles_1751,
-    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1752,
-    scripts: JSCompiler_object_inline_scripts_1753,
-    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1754,
-    preloads: JSCompiler_object_inline_preloads_1755,
+    preconnects: JSCompiler_object_inline_preconnects_1765,
+    fontPreloads: JSCompiler_object_inline_fontPreloads_1766,
+    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1767,
+    styles: JSCompiler_object_inline_styles_1768,
+    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1769,
+    scripts: JSCompiler_object_inline_scripts_1770,
+    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1771,
+    preloads: JSCompiler_object_inline_preloads_1772,
     nonce: { script: void 0, style: void 0 },
     stylesToHoist: !1,
     generateStaticMarkup: generateStaticMarkup
@@ -7124,4 +7124,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.3.0-canary-e84e1492-20261031";
+exports.version = "19.3.0-canary-925ee4a8-20261109";
