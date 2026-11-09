@@ -149,8 +149,9 @@ interface TracedResponse {
 // `known`, and `incoming` when the request has a `traceparent`. Pass
 // `noRenderInTrace` when, deployed, no render continues the middleware's
 // trace: a redirect, a direct response, an external rewrite, a trace context
-// the user set for the render, or a page served without a function invocation
-// (e.g. a static page). Nothing emits `Next.request` then. One-time spans (see
+// the user set for the render (the middleware span is the root then), or a
+// page served without a function invocation (e.g. a static page). Nothing
+// emits `Next.request` then. One-time spans (see
 // `isOneTimeSpan`) are omitted unless `includeOneTimeSpans` is set.
 async function traceRequest(
   res: Response,
@@ -925,8 +926,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] [remote]
-            └─ middleware GET (Middleware.execute) {http.target=/redirect}"
+            "[trace A] middleware GET (Middleware.execute) {http.target=/redirect}"
           `)
         } else {
           // Not observed yet (filled from CI).
@@ -979,8 +979,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] [remote]
-            └─ middleware GET (Middleware.execute) {http.target=/direct}"
+            "[trace A] middleware GET (Middleware.execute) {http.target=/direct}"
           `)
         } else {
           // Not observed yet (filled from CI).
@@ -1034,8 +1033,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] [remote]
-            └─ middleware GET (Middleware.execute) {http.target=/rewrite-external}"
+            "[trace A] middleware GET (Middleware.execute) {http.target=/rewrite-external}"
           `)
         } else {
           // Not observed yet (filled from CI).
@@ -2092,8 +2090,7 @@ describe.each(VARIANTS)(
           `)
         } else if (['deploy, middleware', 'deploy, proxy'].includes(env)) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] [remote]
-            └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
+            "[trace A] middleware GET (Middleware.execute) {http.target=/user-traceparent}
             [trace set by middleware] [set by middleware traceparent]
             └─ GET /headers-echo (BaseServer.handleRequest) {http.target=/user-traceparent, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
                ├─ NextNodeServer.clientComponentLoading
@@ -2113,8 +2110,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] [remote]
-            └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
+            "[trace A] middleware GET (Middleware.execute) {http.target=/user-traceparent}
             [trace set by middleware] [set by middleware traceparent]
             └─ GET /headers-echo (BaseServer.handleRequest) {http.target=/user-traceparent, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
                ├─ NextNodeServer.clientComponentLoading
@@ -2136,8 +2132,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] [remote]
-            └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
+            "[trace A] middleware GET (Middleware.execute) {http.target=/user-traceparent}
             [trace set by middleware] [set by middleware traceparent]
             └─ POST /headers-echo (BaseServer.handleRequest) {http.target=/user-traceparent, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
                ├─ NextNodeServer.clientComponentLoading
@@ -2157,8 +2152,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] [remote]
-            └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
+            "[trace A] middleware GET (Middleware.execute) {http.target=/user-traceparent}
             [trace set by middleware] [set by middleware traceparent]
             └─ POST /headers-echo (BaseServer.handleRequest) {http.target=/user-traceparent, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
                ├─ NextNodeServer.clientComponentLoading

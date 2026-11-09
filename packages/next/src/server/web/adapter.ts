@@ -46,6 +46,7 @@ import {
 } from '../lib/trace/deferred-request-span'
 import { CloseController } from './web-on-close'
 import {
+  continuesInSameTrace,
   continuesToSameOrigin,
   forwardTraceContextToRequest,
   getSharedParentTraceContext,
@@ -328,6 +329,9 @@ export async function adapter(
   let requestSpan:
     | { reserved: ReservedRequestSpan; startTime: number; target: string }
     | undefined
+  // Whether the request doesn't continue to a render in the reserved span's
+  // trace, so the reserved span is never emitted (see below).
+  let requestSpanDropped = false
 
   response = await propagator(request, () => {
     // we only care to make async storage available for middleware
@@ -371,6 +375,15 @@ export async function adapter(
             },
           },
           async () => {
+            // When a request span is reserved, the middleware span is its child
+            // until the outcome is known: when the request doesn't continue to
+            // a render in this trace, the middleware span becomes the root.
+            const makeMiddlewareSpanRoot =
+              requestSpan?.reserved.captureActiveChild()
+            const dropRequestSpan = () => {
+              requestSpanDropped = true
+              makeMiddlewareSpanRoot?.()
+            }
             params.emitInstrumentationSpans?.()
             try {
               const onUpdateCookies = (cookies: Array<string>) => {
@@ -433,7 +446,7 @@ export async function adapter(
                 previouslyRevalidatedTags: [],
               })
 
-              return await workAsyncStorage.run(workStore, () =>
+              const result = await workAsyncStorage.run(workStore, () =>
                 workUnitAsyncStorage.run(
                   requestStore,
                   params.handler,
@@ -441,6 +454,29 @@ export async function adapter(
                   event
                 )
               )
+              // Decided before the middleware span ends. No response
+              // continues like `NextResponse.next()`.
+              if (
+                requestSpan &&
+                result !== undefined &&
+                result !== null &&
+                !(
+                  result instanceof Response &&
+                  continuesInSameTrace(
+                    result.headers,
+                    requestURL,
+                    receivedHeaders.get('traceparent')
+                  )
+                )
+              ) {
+                dropRequestSpan()
+              }
+              return result
+            } catch (error) {
+              if (requestSpan) {
+                dropRequestSpan()
+              }
+              throw error
             } finally {
               // middleware cannot stream, so we can consider the response closed
               // as soon as the handler returns.
@@ -467,9 +503,9 @@ export async function adapter(
         // covers the render too (see `deferred-request-span.ts`): its IDs are
         // reserved, without starting it here. Otherwise (a direct response, a
         // redirect, an external rewrite, a trace context the user set for the
-        // render, or a failure), it isn't emitted at all: only requests that
-        // continue to a render get a `Next.request` span, and the middleware's
-        // spans keep the reserved span as their parent.
+        // render, or a failure), it isn't emitted at all, and the middleware
+        // span becomes the root: only requests that continue to a render get
+        // a `Next.request` span.
         const startTime = params.requestStartTime ?? Date.now()
         const attributes = {
           'http.target': request.nextUrl.pathname,
@@ -666,13 +702,15 @@ export async function adapter(
 
   const finalResponse = response ? response : NextResponse.next()
 
-  if (forwardedRequestHeaders) {
+  if (forwardedRequestHeaders && !requestSpanDropped) {
     // Make the downstream request (render) a sibling of the middleware span
     // in the same trace. Every host applies these request-header overrides to
     // the render, including next-server's router server, so this works
     // whether or not the host invokes the middleware separately from the
     // render. When the request continues to the app, the reserved root span
     // is deferred to the render with a `next-deferred` `tracestate` entry.
+    // When the reserved span is dropped (the request doesn't continue to a
+    // render in its trace), its context isn't forwarded at all.
     const deferredValue =
       requestSpan?.reserved.sampled &&
       forwardedTraceContext?.traceparent.includes(
