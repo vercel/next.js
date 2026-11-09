@@ -3480,6 +3480,14 @@ export async function cache(
                 cacheSignal.endRead()
               }
 
+              // Carry the omission reason into the final prerender, like the
+              // invocations that join this one do. Without it the final
+              // prerender finds nothing for this key and reports an
+              // unexpected cache miss.
+              if (resumeDataCache?.mutable) {
+                resumeDataCache.cache.set(serializedCacheKey, SESSION_DATA)
+              }
+
               // The entry is only excluded from *static* prerenders. A runtime
               // shell or prefetch would include this content.
               // TODO(app-shells): Does this handle the MIN_SHELL_STALE case below correctly?
