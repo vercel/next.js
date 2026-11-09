@@ -127,6 +127,14 @@ export interface RouteModuleHandleContext {
   params: Record<string, string | string[] | undefined> | undefined
 }
 
+/**
+ * Set once `ensureInstrumentation` has seen the registration of
+ * `instrumentation.ts` complete. Registration is a single promise per process
+ * that is never replaced, so awaiting it again after it fulfilled does nothing.
+ * It stays unset when registration fails, so that every request rethrows.
+ */
+let isInstrumentationRegistered = false
+
 const dynamicImportEsmDefault = (id: string) =>
   import(/* webpackIgnore: true */ /* turbopackIgnore: true */ id).then(
     (mod) => mod.default || mod
@@ -835,25 +843,37 @@ export abstract class RouteModule<
           distDir,
         }
       }
-      const {
-        ensureInstrumentationRegistered,
-        ensureInstrumentationRegisteredWithDeferredSpans,
-      } = await import(
-        '../lib/router-utils/instrumentation-globals.external.js'
-      )
-      // ensure instrumentation is registered and pass
-      // onRequestError below. Awaited so any caller of `RouteModule.prepare`
-      // that bypasses `BaseServer.handleRequest` (where this is also awaited
-      // via `prepareImpl`) still observes the instrumentation hook completing
-      // before the userland route handler runs.
-      if (instrumentation) {
-        instrumentation.emitSpans =
-          await ensureInstrumentationRegisteredWithDeferredSpans(
+      if (isInstrumentationRegistered) {
+        // Registration completed in an earlier call. Awaiting it again would
+        // do nothing, and there are no lifecycle spans left to emit.
+        if (instrumentation) {
+          instrumentation.emitSpans = undefined
+        }
+      } else {
+        const {
+          ensureInstrumentationRegistered,
+          ensureInstrumentationRegisteredWithDeferredSpans,
+        } = await import(
+          '../lib/router-utils/instrumentation-globals.external.js'
+        )
+        // ensure instrumentation is registered and pass
+        // onRequestError below. Awaited so any caller of `RouteModule.prepare`
+        // that bypasses `BaseServer.handleRequest` (where this is also awaited
+        // via `prepareImpl`) still observes the instrumentation hook completing
+        // before the userland route handler runs.
+        if (instrumentation) {
+          instrumentation.emitSpans =
+            await ensureInstrumentationRegisteredWithDeferredSpans(
+              absoluteProjectDir,
+              this.distDir
+            )
+        } else {
+          await ensureInstrumentationRegistered(
             absoluteProjectDir,
             this.distDir
           )
-      } else {
-        await ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
+        }
+        isInstrumentationRegistered = true
       }
     }
 
