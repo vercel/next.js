@@ -1,0 +1,366 @@
+diff --git a/index.js b/index.js
+index 1d089427c74214325e8ec6625a09539906bb118d..d351e9b0e9c9623faa623de6fdcb176bcf198e92 100644
+--- a/index.js
++++ b/index.js
+@@ -57,168 +57,221 @@ function compression (options) {
+   }
+ 
+   return function compression (req, res, next) {
+-    var ended = false
+-    var length
+-    var listeners = []
+-    var stream
+-
+-    var _end = res.end
+-    var _on = res.on
+-    var _write = res.write
++    // The functions that replace methods of the response are bound to this
++    // state object instead of being closures created here. V8 allocates a
++    // function literal that is assigned to a property in the old generation,
++    // on the assumption that it is a long-lived method. For functions created
++    // for every request that is costly: they are only reclaimed by a major GC,
++    // and until then they keep what they close over (the request, the
++    // response and everything those reference) alive through every scavenge.
++    var state = {
++      ended: false,
++      length: undefined,
++      listeners: [],
++      stream: undefined,
++      end: res.end,
++      on: res.on,
++      write: res.write,
++      req: req,
++      res: res,
++      filter: filter,
++      threshold: threshold,
++      opts: opts
++    }
+ 
+     // flush
+-    res.flush = function flush () {
+-      if (stream) {
+-        stream.flush()
+-      }
+-    }
++    res.flush = flush.bind(res, state)
+ 
+     // proxy
++    res.write = write.bind(res, state)
++    res.end = end.bind(res, state)
++    res.on = on.bind(res, state)
+ 
+-    res.write = function write (chunk, encoding) {
+-      if (ended) {
+-        return false
+-      }
++    onHeaders(res, onResponseHeaders.bind(res, state))
+ 
+-      if (!this._header) {
+-        this._implicitHeader()
+-      }
++    next()
++  }
++}
+ 
+-      return stream
+-        ? stream.write(toBuffer(chunk, encoding))
+-        : _write.call(this, chunk, encoding)
+-    }
++/**
++ * Flush the compression stream, if there is one.
++ * @private
++ */
+ 
+-    res.end = function end (chunk, encoding) {
+-      if (ended) {
+-        return false
+-      }
++function flush (state) {
++  if (state.stream) {
++    state.stream.flush()
++  }
++}
+ 
+-      if (!this._header) {
+-        // estimate the length
+-        if (!this.getHeader('Content-Length')) {
+-          length = chunkLength(chunk, encoding)
+-        }
++/**
++ * Replacement for `res.write`.
++ * @private
++ */
+ 
+-        this._implicitHeader()
+-      }
++function write (state, chunk, encoding) {
++  if (state.ended) {
++    return false
++  }
+ 
+-      if (!stream) {
+-        return _end.call(this, chunk, encoding)
+-      }
++  if (!this._header) {
++    this._implicitHeader()
++  }
+ 
+-      // mark ended
+-      ended = true
++  return state.stream
++    ? state.stream.write(toBuffer(chunk, encoding))
++    : state.write.call(this, chunk, encoding)
++}
+ 
+-      // write Buffer for Node.js 0.8
+-      return chunk
+-        ? stream.end(toBuffer(chunk, encoding))
+-        : stream.end()
++/**
++ * Replacement for `res.end`.
++ * @private
++ */
++
++function end (state, chunk, encoding) {
++  if (state.ended) {
++    return false
++  }
++
++  if (!this._header) {
++    // estimate the length
++    if (!this.getHeader('Content-Length')) {
++      state.length = chunkLength(chunk, encoding)
+     }
+ 
+-    res.on = function on (type, listener) {
+-      if (!listeners || type !== 'drain') {
+-        return _on.call(this, type, listener)
+-      }
++    this._implicitHeader()
++  }
+ 
+-      if (stream) {
+-        return stream.on(type, listener)
+-      }
++  if (!state.stream) {
++    return state.end.call(this, chunk, encoding)
++  }
+ 
+-      // buffer listeners for future stream
+-      listeners.push([type, listener])
++  // mark ended
++  state.ended = true
+ 
+-      return this
+-    }
++  // write Buffer for Node.js 0.8
++  return chunk
++    ? state.stream.end(toBuffer(chunk, encoding))
++    : state.stream.end()
++}
+ 
+-    function nocompress (msg) {
+-      debug('no compression: %s', msg)
+-      addListeners(res, _on, listeners)
+-      listeners = null
+-    }
++/**
++ * Replacement for `res.on`.
++ * @private
++ */
+ 
+-    onHeaders(res, function onResponseHeaders () {
+-      // determine if request is filtered
+-      if (!filter(req, res)) {
+-        nocompress('filtered')
+-        return
+-      }
+-
+-      // determine if the entity should be transformed
+-      if (!shouldTransform(req, res)) {
+-        nocompress('no transform')
+-        return
+-      }
+-
+-      // vary
+-      vary(res, 'Accept-Encoding')
+-
+-      // content-length below threshold
+-      if (Number(res.getHeader('Content-Length')) < threshold || length < threshold) {
+-        nocompress('size below threshold')
+-        return
+-      }
+-
+-      var encoding = res.getHeader('Content-Encoding') || 'identity'
+-
+-      // already encoded
+-      if (encoding !== 'identity') {
+-        nocompress('already encoded')
+-        return
+-      }
+-
+-      // head
+-      if (req.method === 'HEAD') {
+-        nocompress('HEAD request')
+-        return
+-      }
+-
+-      // compression method
+-      var accept = accepts(req)
+-      var method = accept.encoding(['gzip', 'deflate', 'identity'])
+-
+-      // we really don't prefer deflate
+-      if (method === 'deflate' && accept.encoding(['gzip'])) {
+-        method = accept.encoding(['gzip', 'identity'])
+-      }
+-
+-      // negotiation failed
+-      if (!method || method === 'identity') {
+-        nocompress('not acceptable')
+-        return
+-      }
+-
+-      // compression stream
+-      debug('%s compression', method)
+-      stream = method === 'gzip'
+-        ? zlib.createGzip(opts)
+-        : zlib.createDeflate(opts)
+-
+-      // add buffered listeners to stream
+-      addListeners(stream, stream.on, listeners)
+-
+-      // header fields
+-      res.setHeader('Content-Encoding', method)
+-      res.removeHeader('Content-Length')
+-
+-      // compression
+-      stream.on('data', function onStreamData (chunk) {
+-        if (_write.call(res, chunk) === false) {
+-          stream.pause()
+-        }
+-      })
+-
+-      stream.on('end', function onStreamEnd () {
+-        _end.call(res)
+-      })
+-
+-      _on.call(res, 'drain', function onResponseDrain () {
+-        stream.resume()
+-      })
+-    })
++function on (state, type, listener) {
++  if (!state.listeners || type !== 'drain') {
++    return state.on.call(this, type, listener)
++  }
+ 
+-    next()
++  if (state.stream) {
++    return state.stream.on(type, listener)
++  }
++
++  // buffer listeners for future stream
++  state.listeners.push([type, listener])
++
++  return this
++}
++
++/**
++ * Give up on compressing the response.
++ * @private
++ */
++
++function nocompress (state, msg) {
++  debug('no compression: %s', msg)
++  addListeners(state.res, state.on, state.listeners)
++  state.listeners = null
++}
++
++/**
++ * Decide whether to compress when the headers are about to be written.
++ * @private
++ */
++
++function onResponseHeaders (state) {
++  var req = state.req
++  var res = state.res
++
++  // determine if request is filtered
++  if (!state.filter(req, res)) {
++    nocompress(state, 'filtered')
++    return
+   }
++
++  // determine if the entity should be transformed
++  if (!shouldTransform(req, res)) {
++    nocompress(state, 'no transform')
++    return
++  }
++
++  // vary
++  vary(res, 'Accept-Encoding')
++
++  // content-length below threshold
++  if (Number(res.getHeader('Content-Length')) < state.threshold || state.length < state.threshold) {
++    nocompress(state, 'size below threshold')
++    return
++  }
++
++  var encoding = res.getHeader('Content-Encoding') || 'identity'
++
++  // already encoded
++  if (encoding !== 'identity') {
++    nocompress(state, 'already encoded')
++    return
++  }
++
++  // head
++  if (req.method === 'HEAD') {
++    nocompress(state, 'HEAD request')
++    return
++  }
++
++  // compression method
++  var accept = accepts(req)
++  var method = accept.encoding(['gzip', 'deflate', 'identity'])
++
++  // we really don't prefer deflate
++  if (method === 'deflate' && accept.encoding(['gzip'])) {
++    method = accept.encoding(['gzip', 'identity'])
++  }
++
++  // negotiation failed
++  if (!method || method === 'identity') {
++    nocompress(state, 'not acceptable')
++    return
++  }
++
++  // compression stream
++  debug('%s compression', method)
++  var stream = state.stream = method === 'gzip'
++    ? zlib.createGzip(state.opts)
++    : zlib.createDeflate(state.opts)
++
++  // add buffered listeners to stream
++  addListeners(stream, stream.on, state.listeners)
++
++  // header fields
++  res.setHeader('Content-Encoding', method)
++  res.removeHeader('Content-Length')
++
++  // compression
++  stream.on('data', function onStreamData (chunk) {
++    if (state.write.call(res, chunk) === false) {
++      stream.pause()
++    }
++  })
++
++  stream.on('end', function onStreamEnd () {
++    state.end.call(res)
++  })
++
++  state.on.call(res, 'drain', function onResponseDrain () {
++    stream.resume()
++  })
+ }
+ 
+ /**
