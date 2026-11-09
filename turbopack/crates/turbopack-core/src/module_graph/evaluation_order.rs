@@ -124,10 +124,21 @@ struct ModuleOrder {
 
 #[derive(Clone)]
 struct ListOrder {
-    /// Whether a trace evaluates the modules of the list. A list that no trace evaluates is not
-    /// merged: nothing is known about its order, and it would have no entry point.
-    traced: bool,
+    /// The number of traces that evaluate a module of the list.
+    traces: u32,
+    /// The number of modules of the list that these traces evaluate, summed over the traces.
+    evaluated: u64,
     modules: Vec<ModuleOrder>,
+}
+
+impl ListOrder {
+    /// Whether a trace evaluates the list, and every trace that evaluates one of its modules
+    /// evaluates all of them. Any other list is not merged. Nothing is known about the order of a
+    /// list that no trace evaluates, and it would have no entry point. A trace that evaluates a
+    /// part of a list says nothing about the modules that it skips.
+    fn is_traced(&self) -> bool {
+        self.traces > 0 && self.evaluated == u64::from(self.traces) * self.modules.len() as u64
+    }
 }
 
 /// The references to a module of a list, for the lists that can be evaluated again while they are
@@ -189,7 +200,8 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
                     len += 1;
                 }
                 ListOrder {
-                    traced: false,
+                    traces: 0,
+                    evaluated: 0,
                     modules: vec![
                         ModuleOrder {
                             split: false,
@@ -218,11 +230,13 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
     /// Restricts the groups to what one more trace allows.
     ///
     /// The trace has to evaluate all modules of a list or none of them, as the trace of a merge
-    /// group entry does for modules that the same merge group entries import.
+    /// group entry does for modules that the same merge group entries import. A list that a trace
+    /// evaluates in part is not merged.
     ///
-    /// What a trace restricts depends on that trace only, and restrictions add up (`|=`, `min` and
-    /// `max` per module, here and in [`Self::merge`]). So the result is the same in whatever order
-    /// the traces are added, and however they are spread over clones that are merged afterwards.
+    /// What a trace restricts depends on that trace only, and restrictions add up (sums per list,
+    /// `|=`, `min` and `max` per module, here and in [`Self::merge`]). So the result is the same in
+    /// whatever order the traces are added, and however they are spread over clones that are
+    /// merged afterwards.
     pub(crate) fn add_trace(&mut self, trace: EvaluationTrace<M>) {
         // The list and the position of every module of the trace.
         let positions = trace
@@ -254,13 +268,17 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
                 continue;
             }
             let order = &mut self.lists[list as usize];
-            order.traced = true;
+            order.evaluated += 1;
             let module = &mut order.modules[position as usize];
             let importer = trace.importer_position(index);
             module.importer_min = module.importer_min.min(importer);
             module.importer_max = module.importer_max.max(importer);
 
-            match last.insert(list, (position, index)) {
+            let previous = last.insert(list, (position, index));
+            if previous.is_none() {
+                order.traces += 1;
+            }
+            match previous {
                 Some((previous, previous_index)) if previous + 1 == position => {
                     let adjacent_from = trace.adjacent_from(previous_index, index);
                     let module = &mut order.modules[previous as usize];
@@ -297,7 +315,8 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
             "only a clone of this value can be merged into it"
         );
         for (order, other) in self.lists.iter_mut().zip(&other.lists) {
-            order.traced |= other.traced;
+            order.traces += other.traces;
+            order.evaluated += other.evaluated;
             for (module, other) in order.modules.iter_mut().zip(&other.modules) {
                 module.split |= other.split;
                 module.adjacent_from = module.adjacent_from.max(other.adjacent_from);
@@ -319,11 +338,12 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
         let Some(mut end) = order.modules.len().checked_sub(1) else {
             return Vec::new();
         };
+        let traced = order.is_traced();
         let mut groups = Vec::new();
         for position in (0..end).rev() {
             let module = &order.modules[position];
             let last = end as u32;
-            let keep = order.traced
+            let keep = traced
                 && !module.split
                 // A module that a module of the group imports first in every trace is evaluated
                 // there, as without merging. A module that none of them imports first in any
@@ -1166,14 +1186,19 @@ mod tests {
     }
 
     #[test]
-    #[cfg(debug_assertions)]
-    #[should_panic(expected = "all modules of a list or none")]
-    fn a_trace_that_evaluates_a_part_of_a_list_is_rejected() {
+    #[cfg_attr(
+        debug_assertions,
+        should_panic(expected = "all modules of a list or none")
+    )]
+    fn a_list_that_a_trace_evaluates_in_part_is_not_merged() {
         let mut order = EvaluationOrder::new([[1, 2]]);
         let mut trace = EvaluationTrace::new();
-        trace.enter(None, 2);
-        trace.leave(2);
+        trace.enter(None, 1);
+        trace.leave(1);
+        // A debug assertion rejects this trace. Without debug assertions the list is not merged:
+        // the trace says nothing about 2, which would be in the group without an importer.
         order.add_trace(trace);
+        assert_eq!(order.groups(0, None), [0..1, 1..2]);
     }
 
     #[test]
