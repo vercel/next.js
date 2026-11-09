@@ -22,12 +22,9 @@
 //! followers (e.g. [`get_followers`]) ignore debt, and side effects (aggregated data, follower
 //! propagation, active counts) only happen when a count crosses between `<= 0` and `> 0` (see
 //! [`crate::backend::operation::aggregation_edge`]). Outgoing follower bookkeeping is not a GC
-//! reference: debt does not pin its owning upper. When persistence is enabled, normal queues run
-//! under an operation guard; snapshot/GC exclusion waits for these operations to settle. Within GC,
-//! parallel deletion finishes before its deferred rebalancing runs (see [`crate::backend::gc`]).
-//! These phase rules, not debt itself, keep GC from observing an in-flight normal update. If the
-//! assumption below holds, no debt is left once all updates are processed. Removing the last raw
-//! debt entry still reports possible collectibility, separately from semantic edge effects.
+//! reference: negative followers do not pin their owning upper. If the assumption below holds, no
+//! debt is left once all updates are processed. Removing the last raw debt entry still reports
+//! possible collectibility, separately from semantic edge effects.
 //!
 //! A removal (`inner_of_upper(s)_lost_follower(s)`):
 //! 1. Locks `F`. If `F.upper[U] > 0`, it decrements that inner edge.
@@ -62,7 +59,7 @@
 //!
 //! Debt is only valid if the matching addition is eventually generated and processed. Producers
 //! must push edge additions into a queue that their operation executes to completion. This is a
-//! requirement on the producers, separate from the GC and snapshot rules above. Production drains
+//! requirement on the producers, separate from GC and snapshot exclusion. Production drains
 //! are synchronous (no async cancellation point) and abort on panic rather than returning a partial
 //! graph to a per-task panic catcher. This does not protect jobs abandoned before a drain starts.
 //! If an addition is lost, the debt stays and a later, logically unrelated addition of the same
@@ -171,8 +168,7 @@ fn get_followers(task: &TaskGuard<'_>) -> TaskIdVec {
 /// Iterates the real follower edges of a task, skipping debt (counts `<= 0`).
 fn iter_positive_followers<'a>(task: &'a TaskGuard<'_>) -> impl Iterator<Item = TaskId> + 'a {
     task.iter_followers()
-        .filter(|&(_, &count)| count > 0)
-        .map(|(&id, _)| id)
+        .filter_map(|(&id, &count)| (count > 0).then_some(id))
 }
 
 /// Returns the follower count of `U.followers[F]`, `0` when there is no entry.
@@ -1214,6 +1210,28 @@ impl AggregationUpdateQueue {
         }
     }
 
+    /// May optimize after a single edge change at a power-of-two raw entry count. Debt entries
+    /// count too: this is an approximate optimization heuristic, not a count of semantic edges.
+    fn maybe_optimize_task(&mut self, count: usize, task: &mut TaskGuard<'_>) {
+        if count.is_power_of_two() {
+            self.push_optimize_task(task);
+        }
+    }
+
+    /// Batched changes compare ceiling powers instead. This intentionally differs from the single
+    /// change heuristic: e.g. 3 -> 4 triggers that heuristic, but not this one. Callers retain
+    /// their existing before/after count estimates, including raw debt entries.
+    fn maybe_optimize_task_after_batch(
+        &mut self,
+        before: usize,
+        after: usize,
+        task: &mut TaskGuard<'_>,
+    ) {
+        if before.next_power_of_two() != after.next_power_of_two() {
+            self.push_optimize_task(task);
+        }
+    }
+
     /// Like [`Self::push_optimize_task`], but takes a task id instead of a guard.
     ///
     /// Only called from `optimize_task`'s self re-enqueue, which has just cleared the flag at
@@ -1806,9 +1824,7 @@ impl AggregationUpdateQueue {
                 let _span = trace_span!("make inner").entered();
 
                 let count = u32::try_from(count).expect("follower count is positive here");
-                if upper.followers_len().is_power_of_two() {
-                    self.push_optimize_task(&mut upper);
-                }
+                self.maybe_optimize_task(upper.followers_len(), &mut upper);
                 if upper.is_followers_empty() {
                     ctx.note_maybe_collectible(&upper);
                 }
@@ -1821,9 +1837,7 @@ impl AggregationUpdateQueue {
                 upper.assert_not_deleted("balance_edge add upper (upper endpoint)");
                 task.assert_not_deleted("balance_edge add upper (inner endpoint)");
                 if task.update_upper_count(upper_id, count) {
-                    if task.upper_len().is_power_of_two() {
-                        self.push_optimize_task(&mut task);
-                    }
+                    self.maybe_optimize_task(task.upper_len(), &mut task);
                     // When this is a new inner node, update aggregated data and
                     // followers
                     let data = AggregatedDataUpdate::from_task(&mut task);
@@ -1853,12 +1867,12 @@ impl AggregationUpdateQueue {
                         self.push_find_and_schedule_dirty(task_id);
                     }
                 }
-                let effects = FollowerEdgeEffects::capture(ctx, &upper);
+                let propagation = FollowerEdgePropagation::capture(ctx, &upper);
                 drop(upper);
                 drop(task);
 
                 // The follower edge was removed: notify uppers and update the active count
-                effects.push_lost_followers(self, smallvec![task_id]);
+                propagation.push_lost_followers(self, smallvec![task_id]);
             }
             Some(EdgeSide::Follower) => {
                 // Remove the upper edge
@@ -1872,7 +1886,7 @@ impl AggregationUpdateQueue {
                 if task.is_upper_empty() {
                     ctx.note_maybe_collectible(&task);
                 }
-                let effects = FollowerEdgeEffects::capture(ctx, &upper);
+                let propagation = FollowerEdgePropagation::capture(ctx, &upper);
 
                 // Add the same amount of follower edges
                 upper.assert_not_deleted("balance_edge add follower (upper endpoint)");
@@ -1884,8 +1898,8 @@ impl AggregationUpdateQueue {
                 );
                 let new_follower = change.transition() == EdgeTransition::Appeared;
                 // May optimize the task
-                if new_follower && upper.followers_len().is_power_of_two() {
-                    self.push_optimize_task(&mut upper);
+                if new_follower {
+                    self.maybe_optimize_task(upper.followers_len(), &mut upper);
                 }
 
                 // Since this is no longer an inner node, update the aggregated data and
@@ -1895,10 +1909,10 @@ impl AggregationUpdateQueue {
                 let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                 drop(upper);
                 drop(task);
-                if !effects.upper_ids.is_empty() && !diff.is_empty() {
+                if !propagation.upper_ids.is_empty() && !diff.is_empty() {
                     self.push(
                         AggregatedDataUpdateJob {
-                            upper_ids: effects.upper_ids.clone(),
+                            upper_ids: propagation.upper_ids.clone(),
                             update: diff,
                         }
                         .into(),
@@ -1915,7 +1929,7 @@ impl AggregationUpdateQueue {
                 }
                 if new_follower {
                     // notify uppers about new follower and update the active count
-                    effects.push_new_followers(self, smallvec![task_id]);
+                    propagation.push_new_followers(self, smallvec![task_id]);
                 }
             }
             None => {
@@ -2259,25 +2273,25 @@ impl AggregationUpdateQueue {
             false
         });
 
-        let effects = if !removed_followers.is_empty() {
+        let propagation = if !removed_followers.is_empty() {
             // May optimize the task
             let followers_len = upper.followers_len();
-            if (followers_len + removed_followers.len()).next_power_of_two()
-                != followers_len.next_power_of_two()
-            {
-                self.push_optimize_task(&mut upper);
-            }
+            self.maybe_optimize_task_after_batch(
+                followers_len + removed_followers.len(),
+                followers_len,
+                &mut upper,
+            );
             if upper.is_followers_empty() {
                 ctx.note_maybe_collectible(&upper);
             }
-            Some(FollowerEdgeEffects::capture(ctx, &upper))
+            Some(FollowerEdgePropagation::capture(ctx, &upper))
         } else {
             None
         };
         drop(upper);
 
-        if let Some(effects) = effects {
-            effects.push_lost_followers(self, removed_followers.into_vec());
+        if let Some(propagation) = propagation {
+            propagation.push_lost_followers(self, removed_followers.into_vec());
         }
 
         // STEP 3
@@ -2321,9 +2335,7 @@ impl AggregationUpdateQueue {
             EdgeTransition::Appeared => {
                 // STEP 3b
                 // May optimize the task
-                if upper.followers_len().is_power_of_two() {
-                    self.push_optimize_task(upper);
-                }
+                self.maybe_optimize_task(upper.followers_len(), upper);
             }
             EdgeTransition::Unchanged | EdgeTransition::Disappeared => {
                 debug_assert_ne!(change.transition(), EdgeTransition::Disappeared);
@@ -2344,8 +2356,9 @@ impl AggregationUpdateQueue {
     /// there is no data to add: that lock is the read of the follower side after writing the inner
     /// edge (see module docs).
     ///
-    /// `is_active` is whether an upper was seen active before. Returns it updated by checking the
-    /// uppers again; the caller schedules the follower when it is `true` (step 6g).
+    /// `is_any_upper_active` is whether an upper was seen active before. Returns it updated by
+    /// checking the uppers again; the caller schedules the follower when it is `true` (step
+    /// 6g).
     ///
     /// A single-edge list (`Option<TaskId>`) takes the code paths and jobs for one upper, a
     /// `TaskIdVec` those for several uppers (see [`TaskIdList::single_edge`]).
@@ -2354,7 +2367,7 @@ impl AggregationUpdateQueue {
         ctx: &mut ExecuteContext<'_>,
         mut follower: TaskGuard<'_>,
         added_upper_ids: L,
-        mut is_active: bool,
+        mut is_any_upper_active: bool,
     ) -> bool {
         let follower_id = follower.id();
         // STEP 6c
@@ -2368,7 +2381,7 @@ impl AggregationUpdateQueue {
         let add_to_upper = |queue: &mut Self,
                             mut upper: TaskGuard<'_>,
                             ctx: &ExecuteContext<'_>,
-                            is_active: &mut bool| {
+                            is_any_upper_active: &mut bool| {
             queue.check_optimization_pending(&upper);
             queue.balance_if_follower_debt(&upper, follower_id);
             // STEP 6d
@@ -2388,20 +2401,20 @@ impl AggregationUpdateQueue {
             // STEP 6f
             // We need to check this again, since this might have changed in the meantime due to
             // race conditions
-            if ctx.should_track_activeness() && !*is_active && upper.has_activeness() {
-                *is_active = true;
+            if ctx.should_track_activeness() && !*is_any_upper_active && upper.has_activeness() {
+                *is_any_upper_active = true;
             }
         };
         if let Some(upper_id) = added_upper_ids.single_edge() {
             // For performance reasons this should stay `Meta` and not `All`
             let upper = ctx.task(upper_id, AGGREGATION_UPDATE_CATEGORY);
-            add_to_upper(self, upper, ctx, &mut is_active);
+            add_to_upper(self, upper, ctx, &mut is_any_upper_active);
         } else {
             // For performance reasons this should stay `Meta` and not `All`
             ctx.for_each_task_meta(
                 added_upper_ids.iter_ids(),
                 "add data to uppers",
-                |upper, ctx| add_to_upper(self, upper, ctx, &mut is_active),
+                |upper, ctx| add_to_upper(self, upper, ctx, &mut is_any_upper_active),
             );
         }
 
@@ -2422,7 +2435,7 @@ impl AggregationUpdateQueue {
                 );
             }
         }
-        is_active
+        is_any_upper_active
     }
 
     /// Addition steps 6d and 6f of the handler for several followers: locks the upper once for all
@@ -2430,15 +2443,15 @@ impl AggregationUpdateQueue {
     /// and checks for debt of each of them. Like [`Self::on_inner_edges_appeared`], this lock is
     /// also the read of the follower side after writing the inner edges (see module docs).
     ///
-    /// `is_active` is whether the upper was seen active before. Returns it updated; the caller
-    /// schedules the inner tasks when it is `true` (step 6g).
+    /// `is_upper_active` is whether the upper was seen active before. Returns it updated; the
+    /// caller schedules the inner tasks when it is `true` (step 6g).
     fn on_inner_edges_appeared_on_upper(
         &mut self,
         ctx: &mut ExecuteContext<'_>,
         upper_id: TaskId,
         inner_task_ids: &[TaskId],
         data_updates: Vec<AggregatedDataUpdate>,
-        mut is_active: bool,
+        mut is_upper_active: bool,
     ) -> bool {
         let mut upper = ctx.task(
             upper_id,
@@ -2456,10 +2469,10 @@ impl AggregationUpdateQueue {
                 (!diff.is_empty()).then_some(diff)
             })
             .collect::<Vec<_>>();
-        if ctx.should_track_activeness() && !is_active {
+        if ctx.should_track_activeness() && !is_upper_active {
             // We need to check this again, since this might have changed in the meantime due to
             // race conditions
-            is_active = upper.has_activeness();
+            is_upper_active = upper.has_activeness();
         }
         let upper_ids = if diffs.is_empty() {
             TaskIdVec::new()
@@ -2468,7 +2481,9 @@ impl AggregationUpdateQueue {
         };
         drop(upper);
         if !upper_ids.is_empty() {
-            // TODO merge AggregatedDataUpdate
+            // TODO: Merge the nonempty outgoing AggregatedDataUpdate diffs for this common
+            // ancestor list, instead of cloning the list and queuing a separate job per diff.
+            // Each input must still be applied to the upper above, including intermediate effects.
             for diff in diffs {
                 self.push(
                     AggregatedDataUpdateJob {
@@ -2479,7 +2494,7 @@ impl AggregationUpdateQueue {
                 );
             }
         }
-        is_active
+        is_upper_active
     }
 
     /// Pushes a `BalanceEdge` when there is an inner edge `F.upper[U]`. Called after creating debt
@@ -2662,11 +2677,11 @@ impl AggregationUpdateQueue {
             if !added_upper_ids.is_empty() {
                 // STEP 6b
                 let new_count = new_follower.upper_len();
-                if (new_count - added_upper_ids.len()).next_power_of_two()
-                    != new_count.next_power_of_two()
-                {
-                    self.push_optimize_task(&mut new_follower);
-                }
+                self.maybe_optimize_task_after_batch(
+                    new_count - added_upper_ids.len(),
+                    new_count,
+                    &mut new_follower,
+                );
 
                 // STEP 6c to 6f
                 is_active =
@@ -2744,7 +2759,7 @@ impl AggregationUpdateQueue {
         let mut inner_tasks = Vec::new();
         loop {
             let mut new_followers_of_upper_uppers = TaskIdVec::new();
-            let mut follower_edge_effects = None;
+            let mut follower_edge_propagation = None;
             let upper_aggregation_number;
             {
                 // STEP 2
@@ -2801,7 +2816,7 @@ impl AggregationUpdateQueue {
 
                 if !new_followers_of_upper_uppers.is_empty() {
                     // STEP 3c
-                    follower_edge_effects = Some(FollowerEdgeEffects::capture(ctx, &upper));
+                    follower_edge_propagation = Some(FollowerEdgePropagation::capture(ctx, &upper));
                 }
 
                 // STEP 4
@@ -2811,13 +2826,13 @@ impl AggregationUpdateQueue {
             }
             let min_upper_aggregation_number = upper_aggregation_number;
 
-            if let Some(effects) = follower_edge_effects {
+            if let Some(propagation) = follower_edge_propagation {
                 #[cfg(feature = "trace_aggregation_update")]
                 let _span = trace_span!("new follower").entered();
 
                 // STEP 3d and 3e
                 // update active count and notify uppers about new followers
-                effects.push_new_followers_batched(self, new_followers_of_upper_uppers);
+                propagation.push_new_followers_batched(self, new_followers_of_upper_uppers);
             }
 
             if followers_with_min_aggregation_number.is_empty() {
@@ -2856,9 +2871,7 @@ impl AggregationUpdateQueue {
                         "inner_of_upper_has_new_followers add upper",
                     ) {
                         // STEP 6b
-                        if new_follower.upper_len().is_power_of_two() {
-                            self.push_optimize_task(&mut new_follower);
-                        }
+                        self.maybe_optimize_task(new_follower.upper_len(), &mut new_follower);
 
                         // STEP 6c
                         // It's a new upper
@@ -2970,12 +2983,12 @@ impl AggregationUpdateQueue {
                 );
                 if change.transition() == EdgeTransition::Appeared {
                     // STEP 3c
-                    let effects = FollowerEdgeEffects::capture(ctx, &upper);
+                    let propagation = FollowerEdgePropagation::capture(ctx, &upper);
                     drop(upper);
 
                     // STEP 3d and 3e
                     // update active count and notify uppers about new follower
-                    effects.push_new_followers(self, smallvec![new_follower_id]);
+                    propagation.push_new_followers(self, smallvec![new_follower_id]);
 
                     // STEP 3f
                     // Balancing is only needed when they are equal or when the edge was only
@@ -3025,9 +3038,7 @@ impl AggregationUpdateQueue {
                     "inner_of_upper_has_new_follower add upper",
                 ) {
                     // STEP 6b
-                    if new_follower.upper_len().is_power_of_two() {
-                        self.push_optimize_task(&mut new_follower);
-                    }
+                    self.maybe_optimize_task(new_follower.upper_len(), &mut new_follower);
 
                     // STEP 6c to 6f
                     let is_active =
@@ -3539,14 +3550,14 @@ impl TaskIdList for Option<TaskId> {
 
 /// The state of an upper task that is needed to propagate a change of its follower edges.
 /// Captured under the lock of the upper task and pushed as jobs after the lock was released.
-struct FollowerEdgeEffects {
+struct FollowerEdgePropagation {
     /// The upper task is active, so its followers have an increased active count.
     has_active_count: bool,
-    /// The (positive) uppers of the upper task, which also follow the followers of the upper task.
+    /// The uppers of the upper task, which also follow the followers of the upper task.
     upper_ids: TaskIdVec,
 }
 
-impl FollowerEdgeEffects {
+impl FollowerEdgePropagation {
     fn capture(ctx: &ExecuteContext<'_>, upper: &TaskGuard<'_>) -> Self {
         Self {
             has_active_count: ctx.should_track_activeness()
@@ -4661,6 +4672,89 @@ mod follower_debt_tests {
         assert_eq!(uppers(&tt, 3), vec![]);
         run(&tt, [add(1, 2), add(1, 3)]);
         assert_no_edges(&tt, &[1, 2, 3]);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn optimization_thresholds_keep_single_and_batch_distinct() {
+        let tt = setup(&[(1, UPPER)]);
+        {
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut task = ctx.task(id(1), TaskDataCategory::Meta);
+            for (before, after, single, batch) in [
+                (0, 0, false, false),
+                (0, 1, true, false),
+                (1, 2, true, true),
+                (2, 3, false, true),
+                (3, 4, true, false),
+                (4, 3, false, false),
+                (5, 4, true, true),
+                (8, 7, false, false),
+                (9, 8, true, true),
+                (31, 32, true, false),
+                (32, 33, false, true),
+                (33, 32, true, true),
+            ] {
+                let mut queue = AggregationUpdateQueue::new();
+                queue.maybe_optimize_task(after, &mut task);
+                assert_eq!(queue.optimize_queue.len(), usize::from(single), "{after}");
+                assert!(!task.optimization_pending());
+                let mut queue = AggregationUpdateQueue::new();
+                queue.maybe_optimize_task_after_batch(before, after, &mut task);
+                assert_eq!(
+                    queue.optimize_queue.len(),
+                    usize::from(batch),
+                    "{before}->{after}"
+                );
+                assert!(!task.optimization_pending());
+
+                // Preserve the existing fallback when the optimization budget is disabled.
+                let mut queue = AggregationUpdateQueue::new_without_optimizations();
+                queue.maybe_optimize_task(after, &mut task);
+                assert!(queue.optimize_queue.is_empty());
+                assert_eq!(task.optimization_pending(), single);
+                task.set_optimization_pending(false);
+                queue.maybe_optimize_task_after_batch(before, after, &mut task);
+                assert!(queue.optimize_queue.is_empty());
+                assert_eq!(task.optimization_pending(), batch);
+                task.set_optimization_pending(false);
+            }
+        }
+        tt.stop_and_wait().await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn optimization_counts_raw_debt_entries_not_semantic_followers() {
+        let tt = setup(&[
+            (1, UPPER),
+            (2, FOLLOWER),
+            (3, FOLLOWER),
+            (4, FOLLOWER),
+            (5, FOLLOWER),
+        ]);
+        {
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            {
+                let mut upper = ctx.task(id(1), TaskDataCategory::Meta);
+                for follower in 2..5 {
+                    upper.update_followers(id(follower), |_| Some(-1));
+                }
+                assert_eq!(upper.followers_len(), 3);
+                assert_eq!(super::iter_positive_followers(&upper).count(), 0);
+            }
+            let mut queue = AggregationUpdateQueue::new();
+            queue.inner_of_upper_has_new_follower(&mut ctx, id(5), id(1), 1);
+            let mut upper = ctx.task(id(1), TaskDataCategory::Meta);
+            assert_eq!(upper.followers_len(), 4);
+            assert_eq!(super::get_followers(&upper).as_slice(), &[id(5)]);
+            assert_eq!(queue.optimize_queue.len(), 1);
+            assert!(!upper.optimization_pending());
+            // This isolated heuristic test does not drain its optimization job. Restore the
+            // synthetic entries, rather than leaving unmatched debt for stop-time verification.
+            for follower in 2..=5 {
+                upper.remove_followers(&id(follower));
+            }
+        }
+        tt.stop_and_wait().await;
     }
 
     #[tokio::test(flavor = "multi_thread")]
