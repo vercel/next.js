@@ -4742,7 +4742,7 @@ export default async function build(
         )
       }
 
-      if (config.output === 'export') {
+      if (config.output === 'export' && !isCompileMode) {
         // TODO: When writeFullyStaticExport doesn't fail when staticWorker is passed moved this after writeFullyStaticExport.
         // End the worker here when it's output: export.
         staticWorker.end()
