@@ -34,7 +34,9 @@ function hasNoPreviewCookies(
   const nodeHeaders = headers as IncomingMessage['headers']
   let cookie: unknown
   for (const key of Object.keys(nodeHeaders)) {
-    if (key.toLowerCase() === 'cookie') {
+    // Only a key of six characters can be `cookie` in some casing; the others
+    // are not lowercased to find that out.
+    if (key.length === 6 && key.toLowerCase() === 'cookie') {
       cookie = nodeHeaders[key]
       break
     }
