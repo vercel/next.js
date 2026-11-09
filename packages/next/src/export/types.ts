@@ -17,6 +17,7 @@ import type { RouteMetadata } from './routes/types'
 import type { RenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
 import type { StaticWorker } from '../build'
 import type { Bundler } from '../lib/bundler'
+import type { PrefetchHints } from '../shared/lib/app-router-types'
 
 export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
   path: string
@@ -45,6 +46,12 @@ export interface ExportPagesInput {
   fetchCacheKeyPrefix: string | undefined
   options: ExportAppOptions
   renderResumeDataCachesByPage: Record<string, string> | undefined
+  /**
+   * The prefetch hints that a page of a route was already prerendered with,
+   * by `page`, for the routes of these paths that have them. The paths of
+   * such a route are built with the same inlining decisions.
+   */
+  routePrefetchHintsByPage: Record<string, PrefetchHints> | undefined
 }
 
 export interface ExportPageInput {
@@ -70,6 +77,7 @@ export interface ExportPageInput {
   enableExperimentalReact?: boolean
   sriEnabled: boolean
   renderResumeDataCache: RenderResumeDataCache | undefined
+  routePrefetchHints: PrefetchHints | undefined
 }
 
 export type ExportRouteResult =
