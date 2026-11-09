@@ -138,7 +138,9 @@ Two defenses; use both:
 
 1. **Confirm the API is exposed on the target.** Wire the flag to the platform's preview/staging
    condition or an explicit environment variable; the rig file records the project's spelling
-   (SKILL.md phases 0 and A). Do not trust a pass from a build where it is not set.
+   (SKILL.md phases 0 and A). Keep the condition true for both `next build` and
+   `next start`; otherwise initial page loads can ignore the lock even when
+   client navigations still pause. Do not trust a pass where it is not set.
 2. **Make the test self-validating**: for any route with deferred content, also assert that the
    deferred content is gated under the lock, not only that the shell is present
    (`../test-template.md`, self-validating variant). If the lock did not engage, the content is

@@ -56,8 +56,11 @@ export default nextConfig
 Merge the option into an existing `experimental` object instead of replacing
 the project's other experimental options.
 
-Set the condition while running `next build`. Setting it only for `next start`
-is too late because the testing API is compiled into the production artifact.
+Set the condition while running both `next build` and `next start`. The server
+loads `next.config` again at startup. If the condition is false at startup,
+`instant()` does not hold back request-time content on initial page loads, even
+though client navigations still pause. Setting it only for `next start` is too
+late because the testing API is compiled into the production artifact.
 When the artifact was built without it, Next.js does not activate the
 navigation lock, so the test cannot distinguish prefetched UI from streamed
 dynamic content. Rebuild with the condition enabled before interpreting the
@@ -79,12 +82,13 @@ test commands without starting another server manually:
 
 ```bash filename="Terminal"
 EXPOSE_TESTING_API=1 pnpm build
-BASE_URL=http://localhost:3000 pnpm playwright test tests/prefetch-optimization.spec.ts
+EXPOSE_TESTING_API=1 BASE_URL=http://localhost:3000 pnpm playwright test tests/prefetch-optimization.spec.ts
 ```
 
-If the rig does not use `webServer`, start `pnpm start --port 3000` in a
-separate terminal after the build, keep it running during the test command,
-and stop it afterward. Use only one server lifecycle for the measured app.
+The Playwright process passes `EXPOSE_TESTING_API=1` to its `webServer` process.
+If the rig does not use `webServer`, start
+`EXPOSE_TESTING_API=1 pnpm start --port 3000` in a separate terminal after the
+build, keep it running during the test command, and stop it afterward. Use only one server lifecycle for the measured app.
 
 Adapt the script names and port to the project. Follow the public
 [client-navigation test](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests): load the source route, confirm the real
@@ -149,7 +153,7 @@ Place this file at the repository root or next to the end-to-end configuration:
 # instant-nav rig: <project>
 
 - BUILD: <commands or platform that builds and serves the measured production artifact>
-- EXPOSE: <condition that enables exposeTestingApiInProductionBuild during build>
+- EXPOSE: <condition that enables exposeTestingApiInProductionBuild during build and server startup>
 - RUN: <focused Playwright command and how it receives BASE_URL>
 - TEST USER: <public/no auth, or account and login>; state: <flags, role, data, locale>
 - DRIFT: <differences that could change the asserted UI>
@@ -169,7 +173,8 @@ reason, such as `TEST USER: public; no authentication` or
 Before recording the prefetch contract:
 
 1. Build with the testing API condition enabled.
-2. Start or locate that exact artifact and confirm the base URL responds.
+2. Start or locate that exact artifact with the testing API condition enabled
+   and confirm the base URL responds.
 3. Run one focused `instant()` smoke test through a real `<Link>` navigation.
 4. Confirm the test can reach its source Link and eventual destination UI in
    the recorded test context.

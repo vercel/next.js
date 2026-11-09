@@ -43,12 +43,14 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-Set the condition when running `next build`, then serve that build with `next start`:
+Set the condition when running both `next build` and `next start`:
 
 ```bash filename="Terminal"
 EXPOSE_TESTING_API=1 pnpm build
-pnpm start
+EXPOSE_TESTING_API=1 pnpm start
 ```
+
+`next start` loads `next.config` again, so the option must also be enabled when starting the server. If it is disabled at start, `instant()` does not hold back request-time content on initial page loads, even though client navigations still pause.
 
 Setting the condition only for `next start` does not add the testing API to an existing build.
 

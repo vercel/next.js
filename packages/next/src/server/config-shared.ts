@@ -638,6 +638,9 @@ export interface ExperimentalConfig {
    * Exposes the Instant Navigation Testing API in production builds. This
    * API is always available in development mode.
    *
+   * Enable this option for both `next build` and `next start`. If it depends
+   * on an environment variable, set that variable for both commands.
+   *
    * The testing API allows e2e tests to control navigation timing, enabling
    * deterministic assertions on prefetched/cached UI before dynamic data
    * streams in.

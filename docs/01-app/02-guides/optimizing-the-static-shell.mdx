@@ -700,7 +700,7 @@ test('shows settings UI before request-time work completes', async ({
 
 Inside the callback, the heading and cached plan options stay visible. Hydration has already rendered the tabs from the browser URL, while `instant()` keeps the request-time form behind `SettingsFormSkeleton`. The final assertions confirm that the completed form replaces its loading state after the pause is released.
 
-The testing API is available automatically in `next dev`. When running the test against a production build with `next start`, enable [`experimental.exposeTestingApiInProductionBuild`](/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild) for the test build.
+The testing API is available automatically in `next dev`. When running the test against a production build, enable [`experimental.exposeTestingApiInProductionBuild`](/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild) for both `next build` and `next start`. If you gate the option on an environment variable, set it for both commands.
 
 The completed route should have the same settings data, redirects, error states, and interactions as the original route.
 

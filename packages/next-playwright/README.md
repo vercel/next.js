@@ -75,6 +75,10 @@ module.exports = {
 }
 ```
 
+Keep the option enabled for both `next build` and `next start`. If you gate it on
+an environment variable, set that variable for both commands so `instant()` can
+hold back request-time content on initial page loads as well as client navigations.
+
 This is not meant to be deployed to live production sites. Only enable it in
 controlled testing environments like preview deployments or CI.
 

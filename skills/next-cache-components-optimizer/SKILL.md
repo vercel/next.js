@@ -199,7 +199,8 @@ every platform:
    RED under the lock shows the lock engages on this build (C-gate); the
    self-validating variant in `test-template.md` is the in-band guarantee. Wire
    `experimental.exposeTestingApiInProductionBuild` to a condition that is true
-   for every build you measure and never true in production:
+   for every build you measure and when starting its server, and never true in
+   production:
 
    ```ts
    experimental: {
