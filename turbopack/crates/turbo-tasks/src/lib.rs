@@ -86,8 +86,8 @@ pub use crate::{
         DynTaskInputs, DynTaskInputsStorage, HeapDynTaskInputsStorage, StackDynTaskInputsStorage,
     },
     effect::{
-        ApplyError, CapturedEffect, Effect, EffectError, EffectExt, EffectStateStorage, Effects,
-        EffectsError, read_strongly_consistent_and_apply_effects,
+        ApplyError, ApplyStep, Effect, EffectError, EffectExt, EffectStateStorage, Effects,
+        EffectsError, LastApplied, read_strongly_consistent_and_apply_effects,
         resolve_strongly_consistent_and_take_and_apply_effects, take_effects,
     },
     error::PrettyPrintError,

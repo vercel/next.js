@@ -48,15 +48,10 @@ use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, turbobail, turbofmt};
 
-pub(crate) use crate::{
-    content::FileComparison,
-    disk::{DiskFileSystemInner, format_absolute_fs_path},
-    error::AnyhowWrapper,
-};
 pub use crate::{
     content::{
         File, FileContent, FileJsonContent, FileLine, FileLinesContent, FileMeta, LinkContent,
-        LinkTarget, Permissions, PersistedFileContent, WriteLinkContent, WriteLinkTargetType,
+        LinkTarget, Permissions, WriteLinkContent, WriteLinkTargetType,
     },
     disk::{DiskFileSystem, canonicalize_to_rcstr, validate_path_length},
     fs_map::DiskFileSystemMap,
@@ -68,6 +63,10 @@ pub use crate::{
     read_glob::ReadGlobResult,
     virtual_fs::VirtualFileSystem,
     watcher::{DiskWatcherConfig, DiskWatcherPathMatcher, DiskWatcherRecursiveMode},
+};
+pub(crate) use crate::{
+    disk::{DiskFileSystemInner, format_absolute_fs_path},
+    error::AnyhowWrapper,
 };
 
 #[turbo_tasks::value_trait]
