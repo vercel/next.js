@@ -82,26 +82,30 @@ export function getResolveRoutes(
   } & Partial<Header> &
     Partial<Redirect>
 
+  // The matcher of the internal steps below. They always apply; what they do
+  // depends on their name.
+  const matchInternalStep: PatchMatcher = () => ({})
+
   let routes: Route[] | null = null
   const calculateRoutes = () => {
     return [
       // _next/data with middleware handling
-      { match: () => ({}), name: 'middleware_next_data' },
+      { match: matchInternalStep, name: 'middleware_next_data' },
 
       ...(opts.minimalMode ? [] : fsChecker.headers),
       ...(opts.minimalMode ? [] : fsChecker.redirects),
 
       // check middleware (using matchers)
-      { match: () => ({}), name: 'middleware' },
+      { match: matchInternalStep, name: 'middleware' },
 
       ...(opts.minimalMode ? [] : fsChecker.rewrites.beforeFiles),
 
       // check middleware (using matchers)
-      { match: () => ({}), name: 'before_files_end' },
+      { match: matchInternalStep, name: 'before_files_end' },
 
       // we check exact matches on fs before continuing to
       // after files rewrites
-      { match: () => ({}), name: 'check_fs' },
+      { match: matchInternalStep, name: 'check_fs' },
 
       ...(opts.minimalMode ? [] : fsChecker.rewrites.afterFiles),
 
@@ -109,7 +113,7 @@ export function getResolveRoutes(
       // fallback rewrites
       {
         check: true,
-        match: () => ({}),
+        match: matchInternalStep,
         name: 'after files check: true',
       },
 
@@ -373,9 +377,12 @@ export function getResolveRoutes(
       data: new NextDataPathnameNormalizer(fsChecker.buildId),
     }
 
-    async function handleRoute(
-      route: Route
-    ): Promise<UnwrapPromise<ReturnType<typeof resolveRoutes>> | void> {
+    /**
+     * Matches a route against the current pathname and its `has` and
+     * `missing` conditions. Returns the params it applies with, or `false`
+     * when it does not apply.
+     */
+    function matchRoute(route: Route): ReturnType<PatchMatcher> {
       let curPathname = parsedUrl.pathname || '/'
 
       if (config.i18n && route.internal) {
@@ -427,6 +434,37 @@ export function getResolveRoutes(
         }
       }
 
+      return params
+    }
+
+    /**
+     * Whether `handleRoute` does nothing for an internal step, although the
+     * step always matches. These are the conditions `handleRoute` checks for
+     * the step before it does anything.
+     */
+    function isNoopInternalStep(route: Route): boolean {
+      if (route.match !== matchInternalStep) {
+        return false
+      }
+
+      switch (route.name) {
+        case 'middleware_next_data':
+          return !(
+            parsedUrl.pathname && fsChecker.getMiddlewareMatchers()?.length
+          )
+        case 'middleware':
+          return Boolean(opts.minimalMode) || !fsChecker.getMiddlewareMatchers()
+        case 'before_files_end':
+          return !fsChecker.exportPathMapRoutes
+        default:
+          return false
+      }
+    }
+
+    async function handleRoute(
+      route: Route,
+      params: ReturnType<PatchMatcher> = matchRoute(route)
+    ): Promise<UnwrapPromise<ReturnType<typeof resolveRoutes>> | void> {
       if (params) {
         if (
           fsChecker.exportPathMapRoutes &&
@@ -1004,13 +1042,25 @@ export function getResolveRoutes(
       }
     }
 
+    // `handleRoute` is a large async function, and most routes do not apply to
+    // a request. Match each route first, synchronously, and only call
+    // `handleRoute` when it has something to do: everything it does is behind
+    // the route matching.
     for (const route of routes) {
-      const result = await handleRoute(route)
+      const params = matchRoute(route)
+      if (!params || isNoopInternalStep(route)) {
+        continue
+      }
+
+      const result = await handleRoute(route, params)
       if (result) {
         if (result.matchedOutput) {
           // handle onMatchHeaders
           for (const onMatchHeaders of fsChecker.onMatchHeaders) {
-            await handleRoute(onMatchHeaders)
+            const onMatchParams = matchRoute(onMatchHeaders)
+            if (onMatchParams) {
+              await handleRoute(onMatchHeaders, onMatchParams)
+            }
           }
         }
         return result
