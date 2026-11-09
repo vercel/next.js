@@ -10,7 +10,8 @@ use turbopack_core::{
     context::AssetContext,
     module::Module,
     module_graph::{
-        GraphEntries,
+        GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph,
+        binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::OutputAssets,
@@ -81,21 +82,70 @@ impl ModuleFederationEndpoint {
             .clone()
             .unwrap_or_else(|| format!("{name}.js").into());
         let module = self.entry_module().to_resolved().await?;
-        let module_graph = this.project.module_graph(*module);
+        let is_production = this.project.next_mode().await?.is_production();
+        let graphs = vec![SingleModuleGraph::new_with_entry(
+            ChunkGroupEntry::Entry {
+                modules: vec![module],
+                heuristics: EntryHeuristics::high_priority(),
+            },
+            ModuleGraphOptions {
+                include_binding_usage: is_production,
+                include_side_effects: is_production,
+                include_mergeable: *this
+                    .project
+                    .next_config()
+                    .turbo_scope_hoisting(this.project.next_mode())
+                    .await?,
+                ..Default::default()
+            },
+        )];
+        let (module_graph, binding_usage_info) = if is_production {
+            let graph_without_usage = ModuleGraph::from_graphs(graphs.clone(), None);
+            // Modules can also be generated through the app graph, so retain their codegen data.
+            let binding_usage_info = compute_binding_usage_info(
+                graph_without_usage,
+                /* remove_unused_imports */ true,
+                /* drop_unused_module_data */ false,
+            );
+            let resolved_binding_usage_info = binding_usage_info.resolve().await?;
+            (
+                ModuleGraph::from_graphs(graphs, Some(binding_usage_info)).connect(),
+                Some(resolved_binding_usage_info),
+            )
+        } else {
+            (ModuleGraph::from_graphs(graphs, None).connect(), None)
+        };
         let client_chunking_context = this.project.client_chunking_context().to_resolved().await?;
         let client_chunking_context =
             ResolvedVc::try_downcast_type::<BrowserChunkingContext>(client_chunking_context)
                 .context("expected a browser chunking context")?;
-        let federation_chunking_context = client_chunking_context
+        let federation_chunk_root = this
+            .project
+            .node_root()
+            .owned()
+            .await?
+            .join("static/chunks/mf")?;
+        let output_root_to_root_path = format!(
+            "../../../{}",
+            client_chunking_context.output_root_to_root_path().await?
+        )
+        .into();
+        let mut federation_chunking_context = client_chunking_context
             .await?
             .clone_builder()
             .asset_suffix(AssetSuffix::None.resolved_cell())
+            .output_root(federation_chunk_root.clone(), output_root_to_root_path)
+            .chunk_root_path(federation_chunk_root.clone())
+            .asset_root_path(federation_chunk_root.join("media")?)
             .shared_runtime(false)
             .shared_runtime_chunk(false)
-            .chunk_loading_global(format!("TURBOPACK_{name}").into())
-            .single_chunk()
-            .await?
-            .build();
+            .chunk_loading_global(format!("TURBOPACK_{name}").into());
+        if let Some(binding_usage_info) = binding_usage_info {
+            federation_chunking_context = federation_chunking_context
+                .export_usage(Some(binding_usage_info))
+                .unused_references(binding_usage_info.unused_references().to_resolved().await?);
+        }
+        let federation_chunking_context = federation_chunking_context.build();
         let EntryChunkGroupResult { asset, .. } = *federation_chunking_context
             .entry_chunk_group(
                 this.project
