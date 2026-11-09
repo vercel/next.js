@@ -32,7 +32,8 @@ console.log('service worker entry');
 Promise.resolve().then(()=>__turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/single-chunk-entry/input/dep1.js [test] (ecmascript)")).then(({ dep1 })=>{
     dep1();
 });
-})]);(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
+})]);;
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_basic_single-chunk-entry_input_1gjyv-zw3163t._.js",
     {"otherChunks":[],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/single-chunk-entry/input/index.js [test] (ecmascript)"]}
 ]);
