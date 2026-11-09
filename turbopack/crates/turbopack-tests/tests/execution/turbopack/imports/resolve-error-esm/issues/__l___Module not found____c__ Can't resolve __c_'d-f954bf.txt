@@ -1,0 +1,20 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/imports/resolve-error-esm/input/unresolvable.js:1:1  Module not found: Can't resolve 'does-not-exist/path'
+  
+         + v-----------------------------------v
+       1 + import dne from 'does-not-exist/path'
+         + ^-----------------------------------^
+       2 | 
+       3 | export default dne
+       4 | 
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module 'does-not-exist' with subpath '/path'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/imports/resolve-error-esm/input/unresolvable.js
+  | Type of request: EcmaScript Modules (part) request
+  | 
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/imports/resolve-error-esm/input/unresolvable.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/imports/resolve-error-esm/input/index.js
