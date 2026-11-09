@@ -139,22 +139,15 @@ where
         }
     }
 
-    fn convert_to_list(&mut self) -> &mut L {
+    /// Converts the map variant into a list allocated for exactly its entries (no-op for the list
+    /// variant). The map must hold at most `MAX_USEFUL_LINEAR_SCAN` entries.
+    fn convert_to_exact_list(&mut self) {
         if let RawAutoMap::Map(map) = self {
-            let mut list = L::with_capacity(MAX_USEFUL_LINEAR_SCAN);
-            for entry in map.drain() {
-                list.push(entry);
-            }
-            *self = RawAutoMap::List(list, PhantomData);
-        }
-        if let RawAutoMap::List(list, _) = self {
-            list
-        } else {
-            unreachable!()
+            *self = Self::map_to_exact_list(map);
         }
     }
 
-    /// Replaces the map variant with a list holding exactly its entries.
+    /// Drains `map` into a list variant allocated for exactly its entries.
     fn map_to_exact_list(map: &mut M) -> Self {
         let mut list = L::with_capacity(map.len());
         for entry in map.drain() {
@@ -218,7 +211,7 @@ where
         map.extend(iter);
         // The hint is not enforced
         if map.len() < MIN_HASH_SIZE {
-            self.convert_to_list();
+            self.convert_to_exact_list();
         }
     }
 
@@ -1306,6 +1299,16 @@ where
             ExtractIfIter::Map(extract_if) => extract_if.size_hint(),
         }
     }
+
+    fn fold<B, G>(self, init: B, f: G) -> B
+    where
+        G: FnMut(B, Self::Item) -> B,
+    {
+        match self {
+            ExtractIfIter::List(extract_if) => extract_if.fold(init, f),
+            ExtractIfIter::Map(extract_if) => extract_if.fold(init, f),
+        }
+    }
 }
 
 /// Adapts an entry predicate `FnMut(&K, &mut V) -> bool` of [`RawAutoMap::extract_if`] to the
@@ -1330,8 +1333,12 @@ where
     L: BackingListStorage<(K, V)>,
 {
     fn shrink_to_fit(&mut self) {
-        if self.len() < MAX_USEFUL_LINEAR_SCAN {
-            self.convert_to_list();
+        if let RawAutoMap::Map(map) = self
+            && map.len() < MAX_USEFUL_LINEAR_SCAN
+        {
+            // The list is allocated with the exact size, no need to shrink it.
+            self.convert_to_exact_list();
+            return;
         }
 
         match self {
@@ -2367,6 +2374,148 @@ mod tests {
                 map.iter().map(|(k, _)| *k).collect::<Vec<_>>(),
                 (0..len).collect::<Vec<_>>()
             );
+            if converts {
+                assert_eq!(list_capacity(&map), Some(len));
+            }
+        }
+    }
+
+    fn list_capacity<M, L>(map: &RawAutoMap<usize, usize, M, L>) -> Option<usize>
+    where
+        L: BackingListStorage<(usize, usize)>,
+    {
+        match map {
+            RawAutoMap::List(list, _) => Some(list.capacity()),
+            RawAutoMap::Map(_) => None,
+        }
+    }
+
+    #[test]
+    fn test_shrink_to_fit_trait_list() {
+        // A list with spare capacity is still shrunk.
+        let mut map: AutoIndexMap<usize, usize> = AutoIndexMap::new();
+        for i in 0..20 {
+            map.insert(i, i);
+        }
+        for i in 5..20 {
+            map.remove(&i);
+        }
+        assert!(list_capacity(&map).unwrap() > 5);
+        ShrinkToFit::shrink_to_fit(&mut map);
+        assert_eq!(list_capacity(&map), Some(5));
+        assert_eq!(
+            map.iter().map(|(k, _)| *k).collect::<Vec<_>>(),
+            (0..5).collect::<Vec<_>>()
+        );
+    }
+
+    /// Yields `0..len` but claims at least `lower` items.
+    struct Overstated {
+        next: usize,
+        len: usize,
+        lower: usize,
+    }
+
+    impl Iterator for Overstated {
+        type Item = (usize, usize);
+        fn next(&mut self) -> Option<Self::Item> {
+            (self.next < self.len).then(|| {
+                self.next += 1;
+                (self.next - 1, self.next - 1)
+            })
+        }
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            (self.lower, None)
+        }
+    }
+
+    fn check_extend_overstated<M>()
+    where
+        M: BackingMapStorage<usize, usize>,
+        M::Hasher: BuildHasher + Default,
+    {
+        let mut map: RawAutoMap<
+            usize,
+            usize,
+            M,
+            TinyVec<(usize, usize), 0, MAX_USEFUL_LINEAR_SCAN>,
+        > = RawAutoMap::with_hasher();
+        map.extend(Overstated {
+            next: 0,
+            len: 5,
+            lower: 100,
+        });
+        // The map is converted back into a list holding exactly the entries.
+        assert_eq!(list_capacity(&map), Some(5));
+        let mut keys: Vec<_> = map.iter().map(|(k, _)| *k).collect();
+        if M::UNORDERED {
+            keys.sort();
+        }
+        assert_eq!(keys, (0..5).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn test_extend_overstated_hint_exact_list() {
+        type F = BuildHasherDefault<FxHasher>;
+        check_extend_overstated::<HashMap<usize, usize, F>>();
+        check_extend_overstated::<IndexMap<usize, usize, F>>();
+    }
+
+    fn check_extract_if_fold<M>(n: usize)
+    where
+        M: BackingMapStorage<usize, usize>,
+        M::Hasher: BuildHasher + Default,
+    {
+        type L = TinyVec<(usize, usize), 0, MAX_USEFUL_LINEAR_SCAN>;
+        let make = || {
+            let mut map: RawAutoMap<usize, usize, M, L> = RawAutoMap::with_hasher();
+            for i in 0..n {
+                map.insert(i, i);
+            }
+            assert_eq!(
+                matches!(map, RawAutoMap::Map(..)),
+                n > MAX_USEFUL_LINEAR_SCAN
+            );
+            map
+        };
+        let entries = |map: &RawAutoMap<usize, usize, M, L>| -> Vec<(usize, usize)> {
+            map.iter().map(|(k, v)| (*k, *v)).collect()
+        };
+        let pred = |k: &usize, v: &mut usize| {
+            *v += 1;
+            k % 3 == 0
+        };
+
+        let mut a = make();
+        let mut b = make();
+        let collected: Vec<_> = a.extract_if(pred).collect();
+        let folded = b.extract_if(pred).fold(Vec::new(), |mut acc, item| {
+            acc.push(item);
+            acc
+        });
+        assert_eq!(folded, collected);
+        assert_eq!(entries(&b), entries(&a));
+
+        // Partially consumed with `next()` first.
+        let mut a = make();
+        let mut b = make();
+        let collected: Vec<_> = a.extract_if(pred).collect();
+        let mut iter = b.extract_if(pred);
+        let first = iter.next();
+        let folded = iter.fold(first.into_iter().collect::<Vec<_>>(), |mut acc, item| {
+            acc.push(item);
+            acc
+        });
+        assert_eq!(folded, collected);
+        assert_eq!(entries(&b), entries(&a));
+    }
+
+    #[test]
+    fn test_extract_if_fold() {
+        type F = BuildHasherDefault<FxHasher>;
+        for n in [10, MAX_USEFUL_LINEAR_SCAN * 3] {
+            check_extract_if_fold::<HashMap<usize, usize, F>>(n);
+            check_extract_if_fold::<IndexMap<usize, usize, F>>(n);
         }
     }
 }
