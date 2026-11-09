@@ -12,6 +12,7 @@ pub(super) struct NextFontRequest {
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(super) struct NextFontRequestArguments {
     pub weight: Option<OneOrManyStrings>,
     pub subsets: Option<Vec<RcStr>>,

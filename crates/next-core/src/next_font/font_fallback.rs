@@ -49,7 +49,8 @@ pub(crate) enum FontFallback {
     /// font css cannot fail, proper Errors cannot be returned. Emit an issue,
     /// return this and omit fallback information instead.
     Error,
-    /// A list of manually provided font names to use a fallback, as-is.
+    /// A list of manually provided font names to use a fallback, as-is. Empty
+    /// when no fallback should be used at all.
     Manual(Vec<RcStr>),
 }
 

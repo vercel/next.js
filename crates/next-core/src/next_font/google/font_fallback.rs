@@ -65,13 +65,12 @@ pub(super) async fn get_font_fallback(
     let options = options_vc.await?;
     Ok(match &options.fallback {
         Some(fallback) => FontFallback::Manual(fallback.clone()).cell(),
+        // `adjustFontFallback: false` opts out of the automatic fallback font entirely, like the
+        // webpack loader.
+        None if !options.adjust_font_fallback => FontFallback::Manual(vec![]).cell(),
         None => {
             let metrics_json = load_font_metrics(project_root.clone()).await?;
-            let fallback = lookup_fallback(
-                &options.font_family,
-                &metrics_json,
-                options.adjust_font_fallback,
-            );
+            let fallback = lookup_fallback(&options.font_family, &metrics_json, true);
 
             match fallback {
                 Ok(fallback) => FontFallback::Automatic(AutomaticFontFallback {
