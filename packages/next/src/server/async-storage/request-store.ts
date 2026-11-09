@@ -19,6 +19,7 @@ import {
   RequestCookiesAdapter,
   responseCookiesToRequestCookies,
   createCookiesWithMutableAccessCheck,
+  getModifiedCookieValues,
   type ReadonlyRequestCookies,
 } from '../web/spec-extension/adapters/request-cookies'
 import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
@@ -359,6 +360,21 @@ class RequestStoreImpl implements RequestStore {
       this._mutableCookies = mutableCookies
     }
     return this._mutableCookies
+  }
+
+  hasNoModifiedCookies(): boolean {
+    if (this._mutableCookies) {
+      return getModifiedCookieValues(this._mutableCookies).length === 0
+    }
+
+    // Nothing has read `mutableCookies` yet, so nothing was set through it.
+    // Creating it now would only add the cookies of a middleware, under the
+    // condition `mergeMiddlewareCookies` checks.
+    const headers = this._requestHeaders
+    return !(
+      'x-middleware-set-cookie' in headers &&
+      typeof headers['x-middleware-set-cookie'] === 'string'
+    )
   }
 
   get userspaceMutableCookies(): ResponseCookies {

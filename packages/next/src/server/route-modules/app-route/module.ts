@@ -30,6 +30,7 @@ import * as Log from '../../../build/output/log'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
 import {
   appendMutableCookies,
+  getModifiedCookieValues,
   type ReadonlyRequestCookies,
 } from '../../web/spec-extension/adapters/request-cookies'
 import { HeadersAdapter } from '../../web/spec-extension/adapters/headers'
@@ -521,14 +522,22 @@ export class AppRouteRouteModule extends RouteModule<
     }
 
     // It's possible cookies were set in the handler, so we need to merge the
-    // modified cookies and the returned response here.
-    const headers = new Headers(res.headers)
-    if (appendMutableCookies(headers, requestStore.mutableCookies)) {
-      return new Response(res.body, {
-        status: res.status,
-        statusText: res.statusText,
-        headers,
-      })
+    // modified cookies and the returned response here. A handler that did not
+    // touch cookies has not created the mutable cookies, and they are not
+    // created here just to find them unmodified. The headers are only copied
+    // when there are modified cookies.
+    if (requestStore.hasNoModifiedCookies?.() !== true) {
+      const mutableCookies = requestStore.mutableCookies
+      if (getModifiedCookieValues(mutableCookies).length > 0) {
+        const headers = new Headers(res.headers)
+        if (appendMutableCookies(headers, mutableCookies)) {
+          return new Response(res.body, {
+            status: res.status,
+            statusText: res.statusText,
+            headers,
+          })
+        }
+      }
     }
 
     return res
