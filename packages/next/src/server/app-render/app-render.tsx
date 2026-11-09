@@ -1088,6 +1088,10 @@ async function generateStagedDynamicFlightRenderResultNode(
       const replayable = new ReplayableNodeStream(sourceStream)
       const dynamicStream = replayable.createReplayStream()
       const shellStream = replayable.createReplayStream()
+      // Both readers exist before the source emits anything, so there is
+      // nothing to replay for a later one. Without this the buffer would
+      // collect every chunk of the response.
+      replayable.dispose()
 
       void countShellBytes(shellStream, stageController).then(
         (shellByteLength) => stageByteLengthsDeferred.resolve([shellByteLength])
@@ -4009,6 +4013,10 @@ async function renderToStream(
             const replayable = new ReplayableNodeStream(stream)
             const dynamicStream = replayable.createReplayStream()
             const shellStream = replayable.createReplayStream()
+            // Both readers exist before the source emits anything, so there
+            // is nothing to replay for a later one. Without this the buffer
+            // would collect every chunk of the payload.
+            replayable.dispose()
 
             void countShellBytes(shellStream, stageController).then(
               (shellByteLength) =>
