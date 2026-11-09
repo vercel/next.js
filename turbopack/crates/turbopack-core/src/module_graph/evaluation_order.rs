@@ -184,7 +184,8 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
             .map(|(list, modules)| {
                 let mut len = 0;
                 for module in modules {
-                    positions.insert(module, (list as u32, len));
+                    let previous = positions.insert(module, (list as u32, len));
+                    debug_assert!(previous.is_none(), "a module has to be in one list only");
                     len += 1;
                 }
                 ListOrder {
@@ -291,6 +292,10 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
 
     /// Restricts the groups to what the traces of `other`, a clone of this value, allow too.
     pub(crate) fn merge(&mut self, other: &Self) {
+        debug_assert!(
+            Arc::ptr_eq(&self.positions, &other.positions),
+            "only a clone of this value can be merged into it"
+        );
         for (order, other) in self.lists.iter_mut().zip(&other.lists) {
             order.traced |= other.traced;
             for (module, other) in order.modules.iter_mut().zip(&other.modules) {
@@ -1169,6 +1174,21 @@ mod tests {
         trace.enter(None, 2);
         trace.leave(2);
         order.add_trace(trace);
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "in one list only")]
+    fn a_module_in_two_lists_is_rejected() {
+        let _ = EvaluationOrder::new([[1, 2], [2, 3]]);
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "only a clone of this value")]
+    fn an_order_of_other_lists_is_not_merged() {
+        let mut order = EvaluationOrder::new([[1, 2]]);
+        order.merge(&EvaluationOrder::new([[1, 2, 3]]));
     }
 
     /// Deterministic pseudo-random numbers (xorshift64).
