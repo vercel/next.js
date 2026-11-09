@@ -56,13 +56,9 @@ export default nextConfig
 Merge the option into an existing `experimental` object instead of replacing
 the project's other experimental options.
 
-Set the condition while running `next build` and `next start`. Setting it only for `next start`
-is too late because the testing API is compiled into the production artifact.
-When the artifact was built without it, Next.js does not activate the
-navigation lock, so the test cannot distinguish shell content from streamed
-dynamic content. Rebuild with the condition enabled before interpreting the
-results. Use the project's existing environment naming when it already
-distinguishes test, staging, preview, and production builds.
+Follow the [option reference](https://nextjs.org/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild)
+for build and server setup. Use the project's existing environment naming when
+it already distinguishes test, staging, preview, and production builds.
 
 ### Test command and base URL
 
