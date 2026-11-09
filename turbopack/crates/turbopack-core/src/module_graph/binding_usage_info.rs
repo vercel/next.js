@@ -128,7 +128,8 @@ impl BindingUsageInfo {
     /// - the target is side effect free in the sense of `compute_side_effect_free_module_info`,
     ///   i.e. an import of it that is not used is removed,
     /// - the target is not an async module (the read is synchronous),
-    /// - neither module is part of an import cycle,
+    /// - neither module is part of an import cycle, and the target does not import one, directly or
+    ///   through other modules,
     /// - the code generated for the reference can defer the target
     ///   ([`ModuleReference::can_defer_evaluation`]), and
     /// - every other used reference between the two modules is in this set too (an eager one
@@ -620,14 +621,49 @@ async fn compute_deferred_references(
     // it imports now happens at the first read, or never, instead of before the importing
     // module. An unused import of the declared module already drops that side effect.
     let side_effect_free_modules = compute_side_effect_free_module_info(graph).await?;
+    pairs.retain(|(_, target), _| {
+        side_effect_free_modules.contains(target) && !async_modules.contains(target)
+    });
+
+    // The modules of an import cycle are evaluated in an order that depends on which of them is
+    // imported first, and each one only sees the exports of those evaluated before it. A module
+    // that imports a cycle can be the one that imports it first, and deferring it lets another
+    // import enter the cycle at another module. So a module stays eager when a cycle is reachable
+    // from it over references that code is generated for, whatever else imports that cycle: the
+    // answer then depends on no entry and on no other deferred import. Every module that is
+    // evaluated later, or never, is then outside of all cycles and still runs after its imports.
+    let mut reaches_cycle = FxHashSet::default();
+    graph_ref.traverse_edges_dfs(
+        pairs.keys().map(|(_, target)| *target),
+        &mut reaches_cycle,
+        |parent, target, _| {
+            Ok(match parent {
+                Some((parent, ref_data)) if !is_used(&parent, ref_data, &target) => {
+                    GraphTraversalAction::Exclude
+                }
+                _ => GraphTraversalAction::Continue,
+            })
+        },
+        // Called for a reference after the references of its target, unless it closes a cycle:
+        // then the target is in `modules_in_cycles`.
+        |parent, target, reaches_cycle| {
+            if let Some((parent, _)) = parent
+                && (modules_in_cycles.contains(&target) || reaches_cycle.contains(&target))
+            {
+                reaches_cycle.insert(parent);
+            }
+            Ok(())
+        },
+        false,
+        false,
+    )?;
+    pairs.retain(|(_, target), _| !reaches_cycle.contains(target));
+
     // Asked last, and only for the pairs that are left: the set holds exactly the references for
     // which code generation defers the module. An import that it evaluates before the importing
     // module has to stay hoisted for the merged modules.
     let deferred_pairs = pairs
         .into_iter()
-        .filter(|((_, target), _)| {
-            side_effect_free_modules.contains(target) && !async_modules.contains(target)
-        })
         .map(async |((_, target), references)| {
             let references = references.unwrap_or_default();
             for reference in &references {

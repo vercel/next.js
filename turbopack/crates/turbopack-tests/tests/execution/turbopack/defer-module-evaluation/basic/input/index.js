@@ -11,6 +11,8 @@ import commonJsDefault from './library/commonjs-default.js'
 import { a } from './library/cycle-a.js'
 import { readFromCycle } from './importer-in-cycle-a.js'
 import { belowCycle } from './library/imports-cycle.js'
+import { aboveCycle } from './library/above-imports-cycle.js'
+import { loadCycle } from './library/loads-cycle.js'
 
 const events = globalThis.deferEvents
 const readAtTopLevel = topLevelValue
@@ -44,6 +46,10 @@ function readNamespace() {
 
 function readBelowCycle() {
   return belowCycle
+}
+
+function readAboveCycle() {
+  return aboveCycle()
 }
 
 it('evaluates a module without side effects on the first read of an export', () => {
@@ -131,12 +137,27 @@ it('evaluates the imports of a module of an import cycle before that module', ()
   expect(readFromCycle()).toBe('imported-from-cycle')
 })
 
-it('defers a module that imports an import cycle', () => {
-  expect(evaluatedBefore).not.toContain('imports-cycle')
-  expect(evaluatedBefore).not.toContain('below-cycle-a')
-  expect(evaluatedBefore).not.toContain('below-cycle-b')
+it('evaluates a module that imports an import cycle before its importer', () => {
+  // Deferring it could let another import enter the cycle at another module (`import-cycle`).
+  expect(evaluatedBefore).toContain('imports-cycle')
+  expect(evaluatedBefore).toContain('below-cycle-a')
+  expect(evaluatedBefore).toContain('below-cycle-b')
   expect(readBelowCycle()).toBe('ab')
   expect(evaluations('imports-cycle')).toBe(1)
   expect(evaluations('below-cycle-a')).toBe(1)
   expect(evaluations('below-cycle-b')).toBe(1)
+})
+
+it('evaluates a module that imports an import cycle through another module before its importer', () => {
+  expect(evaluatedBefore).toContain('above-imports-cycle')
+  expect(readAboveCycle()).toBe('ab')
+  expect(evaluations('above-imports-cycle')).toBe(1)
+})
+
+it('defers a module that reaches an import cycle only through an unused import and an import()', async () => {
+  // Neither evaluates the cycle with the module.
+  expect(evaluatedBefore).not.toContain('loads-cycle')
+  expect(evaluations('loads-cycle')).toBe(0)
+  expect((await loadCycle()).a()).toBe('ab')
+  expect(evaluations('loads-cycle')).toBe(1)
 })

@@ -1,0 +1,5 @@
+{
+  "deferModuleEvaluation": true,
+  "crossModuleConstants": false,
+  "scopeHoisting": false
+}

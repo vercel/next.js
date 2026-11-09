@@ -122,6 +122,19 @@ describe.each([
       ])
     })
 
+    it('serves a route whose first import of an import cycle is only read in its handler', async () => {
+      // `format` has no side effect and the route reads it in its handler. It is the first
+      // module that imports the cycle of `constants` and `config`, where `constants` reads
+      // `config` while it is evaluated. The route also imports `config`, so the cycle only
+      // works when `format` is evaluated before the route, with and without the option.
+      const response = await next.fetch('/api/import-cycle')
+      expect(response.status).toBe(200)
+      expect(await response.json()).toEqual({
+        formatted: 'x:de,en',
+        supported: true,
+      })
+    })
+
     it('prerenders a page that uses a declared module which fetches when it is evaluated', async () => {
       const response = await next.fetch('/fetch-at-evaluation')
       expect(response.headers.get('x-nextjs-cache')).toBe('HIT')
