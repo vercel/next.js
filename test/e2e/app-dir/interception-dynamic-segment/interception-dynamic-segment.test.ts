@@ -183,6 +183,31 @@ describe('interception-dynamic-segment', () => {
         'Retained count: 1'
       )
     })
+
+    it('should still intercept after the dev server rescans routes', async () => {
+      // Adding a route makes the dev server rescan the app directory and
+      // regenerate the interception rewrites. They must replace the previous
+      // ones rather than being appended, otherwise the rewrites are applied
+      // twice (`/simple-page` -> `/(.)simple-page` -> `/(.)(.)simple-page`).
+      await next.patchFile(
+        'app/rescan-trigger/page.tsx',
+        'export default function Page() { return <p>rescan</p> }',
+        async () => {
+          await retry(async () => {
+            expect((await next.fetch('/rescan-trigger')).status).toBe(200)
+          })
+
+          const browser = await next.browser('/')
+          await navigate(browser, '/simple-page')
+
+          await retry(async () => {
+            expect(await browser.elementByCss('#modal h3').text()).toContain(
+              'Simple interception page'
+            )
+          })
+        }
+      )
+    })
   }
 
   if (!isNextDev) {

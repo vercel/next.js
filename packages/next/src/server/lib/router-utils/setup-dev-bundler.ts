@@ -482,6 +482,7 @@ async function startWatcher(
     let previousRouteMatchingErrors: string | null = null
     let hadInitialScan = false
     let previousDuplicatePagePaths: Set<string> = new Set()
+    let previousInterceptionRoutes: ReturnType<typeof buildCustomRoute>[] = []
 
     const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
@@ -1293,7 +1294,21 @@ async function startWatcher(
         )
       )
 
-      opts.fsChecker.rewrites.beforeFiles.push(...interceptionRoutes)
+      // This runs on every rescan, so replace the interception rewrites added
+      // by the previous scan instead of appending them again. Duplicated rules
+      // would be applied in sequence (e.g. `/a/b` -> `/a/(.)b` -> `/a/(.)(.)b`),
+      // producing a path that matches no route.
+      const previousInterceptionRoutesSet = new Set(previousInterceptionRoutes)
+      const beforeFiles = opts.fsChecker.rewrites.beforeFiles
+      beforeFiles.splice(
+        0,
+        beforeFiles.length,
+        ...beforeFiles.filter(
+          (route) => !previousInterceptionRoutesSet.has(route)
+        ),
+        ...interceptionRoutes
+      )
+      previousInterceptionRoutes = interceptionRoutes
 
       const exportPathMap =
         (typeof nextConfig.exportPathMap === 'function' &&
