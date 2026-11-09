@@ -795,24 +795,37 @@ async function exportAppImpl(
     )
   }
 
+  // Batch filtered pages into smaller batches, and call the export worker on
+  // each batch. We've set a default minimum of 25 pages per batch to ensure
+  // that even setups with only a few static pages can leverage a shared
+  // incremental cache, however this value can be configured.
+  const minPageCountPerBatch =
+    nextConfig.experimental.staticGenerationMinPagesPerWorker ?? 25
+
+  // The number of workers needed to ensure each batch of a round of pages has
+  // at least minPageCountPerBatch pages.
+  const getWorkerCountForPages = (pageCount: number): number =>
+    Math.min(options.numWorkers, Math.ceil(pageCount / minPageCountPerBatch))
+
   const exportPagesInBatches = async (
     worker: StaticWorker,
+    // The export these pages are a part of. Rounds with the same number share
+    // one incremental cache per worker.
+    exportId: number,
+    // How many workers the export uses for its other rounds of pages.
+    workerCountInUse: number,
     exportPaths: ExportPathEntry[],
     renderResumeDataCachesByPage?: Record<string, string>,
     routePrefetchHintsByPage?: Record<string, PrefetchHints>
   ): Promise<ExportPagesResult> => {
-    // Batch filtered pages into smaller batches, and call the export worker on
-    // each batch. We've set a default minimum of 25 pages per batch to ensure
-    // that even setups with only a few static pages can leverage a shared
-    // incremental cache, however this value can be configured.
-    const minPageCountPerBatch =
-      nextConfig.experimental.staticGenerationMinPagesPerWorker ?? 25
-
-    // Calculate the number of workers needed to ensure each batch has at least
-    // minPageCountPerBatch pages.
-    const numWorkers = Math.min(
-      options.numWorkers,
-      Math.ceil(exportPaths.length / minPageCountPerBatch)
+    // A round with few pages (the pages that decide the prefetch hints of
+    // their route, the fallback shells) would run in a single worker for the
+    // minimum batch size. If the export has its other pages in several
+    // workers, they'd all wait for that one, so such a round is spread over
+    // the workers that are in use anyway, down to one page each.
+    const numWorkers = Math.max(
+      getWorkerCountForPages(exportPaths.length),
+      Math.min(workerCountInUse, exportPaths.length)
     )
 
     // The page count per worker if every worker got one equal share.
@@ -839,7 +852,6 @@ async function exportAppImpl(
       pageCountPerBatch = pageCountPerWorker
     }
 
-    const exportId = ++exportCount
     const batches: ExportPathEntry[][] = []
     for (let i = 0; i < exportPaths.length; i += pageCountPerBatch) {
       batches.push(exportPaths.slice(i, i + pageCountPerBatch))
@@ -1004,6 +1016,11 @@ async function exportAppImpl(
       })
     }
 
+    // The pages of the initial phase are one export, whether they are
+    // exported in one round or in two.
+    const initialExportId = ++exportCount
+    let initialWorkerCount: number
+
     // With prefetch inlining, the inlining decisions of a route are made by
     // one of its pages (see getPrefetchHintDecidingPaths). Export those pages
     // first, then every other page with the decisions of its route, so that
@@ -1027,8 +1044,12 @@ async function exportAppImpl(
         }
       }
 
+      // The deciding pages are few, and every other page waits for them.
+      initialWorkerCount = getWorkerCountForPages(otherExportPaths.length)
       const decidingResults = await exportPagesInBatches(
         worker,
+        initialExportId,
+        initialWorkerCount,
         decidingExportPaths
       )
       collectRoutePrefetchHints(
@@ -1038,6 +1059,8 @@ async function exportAppImpl(
       )
       const otherResults = await exportPagesInBatches(
         worker,
+        initialExportId,
+        0,
         otherExportPaths,
         undefined,
         routePrefetchHintsByPage
@@ -1052,7 +1075,15 @@ async function exportAppImpl(
           : otherResults[otherIndex++]
       )
     } else {
-      results = await exportPagesInBatches(worker, initialPhaseExportPaths)
+      initialWorkerCount = getWorkerCountForPages(
+        initialPhaseExportPaths.length
+      )
+      results = await exportPagesInBatches(
+        worker,
+        initialExportId,
+        0,
+        initialPhaseExportPaths
+      )
     }
 
     if (finalPhaseExportPaths.length > 0) {
@@ -1072,8 +1103,12 @@ async function exportAppImpl(
         )
       }
 
+      // The fallback shells are few as well, and the workers of the initial
+      // phase have nothing else left to do.
       const finalPhaseResults = await exportPagesInBatches(
         worker,
+        ++exportCount,
+        initialWorkerCount,
         finalPhaseExportPaths,
         renderResumeDataCachesByPage,
         routePrefetchHintsByPage
