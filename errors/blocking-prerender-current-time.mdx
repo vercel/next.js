@@ -26,6 +26,8 @@ During [prerendering](/docs/app/glossary#prerendering), a Server Component calle
 
 Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: see [`Math.random()`](/docs/messages/blocking-prerender-random) and [crypto APIs](/docs/messages/blocking-prerender-crypto). The Client Component case is handled at [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client).
 
+For an app using [`output: 'export'`](/docs/app/guides/static-exports), the value must be prerendered or generated in the browser. [Generate on every request](#generate-on-every-request) requires a Next.js server and is not available in a static export.
+
 ## Ways to fix this
 
 <FixCardGrid>

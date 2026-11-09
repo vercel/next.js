@@ -20,7 +20,7 @@ kind: error
   instant navigations](/docs/app/guides/instant-navigation) guide.
 </div>
 
-A page or layout on this route exports [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) with the `'navigation'` value, requiring all server-rendered work for the route to complete during prerendering.
+All server-rendered work on this route must complete during prerendering. The route has [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation), or the app uses [`output: 'export'`](/docs/app/guides/static-exports#configuration).
 
 During [prerendering](/docs/app/glossary#prerendering), [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) performed an uncached [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch) request, database call, or [`connection()`](/docs/app/api-reference/functions/connection). The operation requires rendering at request time, which conflicts with the route's static requirement.
 
@@ -79,7 +79,7 @@ Learn more: [Caching with `use cache`](/docs/app/api-reference/directives/use-ca
 
 ### Trade-off
 
-Visitors share the cached viewport data until it is revalidated.
+Visitors share the cached viewport data until it is revalidated. With a [static export](/docs/app/guides/static-exports#unsupported-features), the exported value changes only when you rebuild and redeploy the app.
 
 ### Gotchas
 
@@ -121,7 +121,9 @@ In `next dev`, the error overlay points at the failing function with file paths 
 
 The `'navigation'` value is usually set deliberately to guarantee static output for the entire server-rendered route. Removing it relaxes that requirement for every segment, not only viewport settings.
 
-If request-time rendering is intentional for this route, remove `ensureStatic = 'navigation'` from every page or layout that sets it. The route then follows the ordinary [Cache Components](/docs/app/getting-started/caching) rendering rules.
+If request-time rendering is intentional for this route and the app has a Next.js server, remove `ensureStatic = 'navigation'` from every page or layout that sets it. The route then follows the ordinary [Cache Components](/docs/app/getting-started/caching) rendering rules.
+
+For a [static export](/docs/app/guides/static-exports), request-time rendering requires removing `output: 'export'` and deploying with a Next.js server. Removing `ensureStatic = 'navigation'` alone does not relax the export requirement.
 
 Learn more: [Combining `ensureStatic` levels across layouts and pages](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#combining-levels-across-layouts-and-pages).
 
