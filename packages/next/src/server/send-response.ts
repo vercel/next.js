@@ -57,7 +57,9 @@ export async function sendResponse(
         return
       }
 
-      if (FORBIDDEN_HEADERS.includes(name)) {
+      const preserveContentEncoding =
+        name.toLowerCase() === 'content-encoding' && response.url === ''
+      if (FORBIDDEN_HEADERS.includes(name) && !preserveContentEncoding) {
         return
       }
 
