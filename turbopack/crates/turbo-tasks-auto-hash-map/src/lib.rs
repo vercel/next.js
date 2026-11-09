@@ -1,9 +1,11 @@
 pub mod map;
 pub mod set;
+pub mod storage;
 pub mod tiny_vec;
 
-pub use map::AutoMap;
-pub use set::AutoSet;
+pub use map::{AutoIndexMap, AutoMap, RawAutoMap};
+pub use set::{AutoIndexSet, AutoSet, RawAutoSet};
+pub use storage::{BackingListStorage, BackingMapStorage};
 pub use tiny_vec::TinyVec;
 
 // Values based on data from https://github.com/yegor256/micromap#benchmark
