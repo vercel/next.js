@@ -11291,6 +11291,9 @@ async function collectSegmentData(
       // manifest. When prefetch inlining is disabled there are no sizes to
       // measure, but the static-prefetch hint still rides the manifest —
       // collectPrefetchHints then only builds the tree shape carrying it.
+      // When the build passes the hints of the route's deciding page
+      // (routePrefetchHints), the inlining decisions are taken from there
+      // and nothing is measured either.
       hints = await ComponentMod.collectPrefetchHints(
         renderOpts.cacheComponents,
         fullPageDataBuffer,
@@ -11300,7 +11303,8 @@ async function collectSegmentData(
         prefetchInlining,
         shouldAttemptStaticShell,
         shouldAttemptStaticPrefetch,
-        shouldAttemptStaticNavigation
+        shouldAttemptStaticNavigation,
+        renderOpts.routePrefetchHints ?? null
       )
       metadata.prefetchHints = hints
     } else {

@@ -383,6 +383,11 @@ export async function collectSegmentData(
  * for the deployment. They differ only in what they're derived from: the
  * inlining bits from the size of each segment's encoded response, the
  * static-prefetch bit from what the decoded body turned out to access.
+ *
+ * The inlining bits are measured on one page per route. The build prerenders
+ * that page first and passes its hints as `routeHints` to the route's other
+ * pages, which then take the inlining bits from there and skip the sizing
+ * pass (see the export's getPrefetchHintDecidingPaths).
  */
 export async function collectPrefetchHints(
   isCacheComponentsEnabled: boolean,
@@ -393,8 +398,39 @@ export async function collectPrefetchHints(
   inlining: { maxSize: number; maxBundleSize: number } | false,
   shouldAttemptStaticShell: boolean,
   shouldAttemptStaticPrefetch: boolean,
-  shouldAttemptStaticNavigation: boolean
+  shouldAttemptStaticNavigation: boolean,
+  // The hints another page of this route was already built with, if any. The
+  // inlining decisions are made once per route: see the early return below.
+  routeHints: PrefetchHints | null
 ): Promise<PrefetchHints> {
+  // The hints every node starts from. The static-prefetch-attempt hints are
+  // page-global (the tracking that creates them is), so they go on every node,
+  // non-propagating — the client reads it per segment, and the runtime
+  // hint merging walks the manifest tree node-by-node.
+  // (NOTE: if the prefetch is static, then the shell must be as well)
+  let baseHints = 0
+  if (shouldAttemptStaticShell) {
+    baseHints |= PrefetchHint.ShouldAttemptStaticShell
+  }
+  if (shouldAttemptStaticPrefetch) {
+    baseHints |= PrefetchHint.ShouldAttemptStaticPrefetch
+  }
+  if (shouldAttemptStaticNavigation) {
+    baseHints |= PrefetchHint.ShouldAttemptStaticNavigation
+  }
+
+  if (inlining !== false && routeHints !== null) {
+    // The inlining decisions of this route were already made, by the page
+    // whose hints prefetch-hints.json records. Build this page with the same
+    // ones instead of measuring its own segments. That's what everything
+    // else already does: every response rendered at runtime (revalidations
+    // of this page included) takes the route's decisions from that manifest,
+    // and the client applies the route tree it learned from one page of a
+    // route to the route's other pages. The static-prefetch-attempt hints
+    // are still this page's own.
+    return createHintTreeFromRouteHints(routeHints, baseHints)
+  }
+
   // Warm up the module cache, same as collectSegmentData.
   try {
     await createFromReadableStream(streamFromBuffer(fullPageDataBuffer), {
@@ -417,22 +453,6 @@ export async function collectPrefetchHints(
   const rootNode = transportData.t
   const buildId = initialRSCPayload.b
   const head = transportData.h.r
-
-  // The hints every node starts from. The static-prefetch-attempt hints are
-  // page-global (the tracking that creates them is), so they go on every node,
-  // non-propagating — the client reads it per segment, and the runtime
-  // hint merging walks the manifest tree node-by-node.
-  // (NOTE: if the prefetch is static, then the shell must be as well)
-  let baseHints = 0
-  if (shouldAttemptStaticShell) {
-    baseHints |= PrefetchHint.ShouldAttemptStaticShell
-  }
-  if (shouldAttemptStaticPrefetch) {
-    baseHints |= PrefetchHint.ShouldAttemptStaticPrefetch
-  }
-  if (shouldAttemptStaticNavigation) {
-    baseHints |= PrefetchHint.ShouldAttemptStaticNavigation
-  }
 
   if (inlining === false) {
     // Prefetch inlining is disabled: nothing to measure, and no inlining
@@ -846,6 +866,35 @@ function createUniformHintTree(
     }
   }
   return { hints, slots }
+}
+
+// The bits that collectPrefetchHintsImpl decides from segment sizes.
+const InliningHints =
+  PrefetchHint.ParentInlinedIntoSelf |
+  PrefetchHint.InlinedIntoChild |
+  PrefetchHint.HeadInlinedIntoSelf |
+  PrefetchHint.HeadOutlined
+
+// Builds a page's hints from the inlining decisions already made for its
+// route (by another page of the route, which has the same route tree) and
+// the page's own base hints. The result is what collectPrefetchHintsImpl
+// returns for a page whose sizes lead to the same decisions.
+function createHintTreeFromRouteHints(
+  routeHints: PrefetchHints,
+  baseHints: number
+): PrefetchHints {
+  let slots: Record<string, PrefetchHints> | null = null
+  const routeSlots = routeHints.slots
+  if (routeSlots !== null) {
+    slots = {}
+    for (const parallelRouteKey in routeSlots) {
+      slots[parallelRouteKey] = createHintTreeFromRouteHints(
+        routeSlots[parallelRouteKey],
+        baseHints
+      )
+    }
+  }
+  return { hints: (routeHints.hints & InliningHints) | baseHints, slots }
 }
 
 // We use gzip size rather than raw size because it better reflects the actual
