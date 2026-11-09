@@ -1619,7 +1619,10 @@ mod tests {
 
     /// Adds to a graph what the rule for a `require()` is about: an entry on a cycle of imports
     /// that imports two modules which another entry imports too, and a module that registers a
-    /// function with a `require()` which another module calls while it is evaluated.
+    /// function with a `require()` which another module calls while it is evaluated. In half of
+    /// the graphs the required module is not merged: the call then loads the roots that this
+    /// module imports, and no `require()` has them as its target (seed 366 is the first such
+    /// graph that breaks if only the targets count).
     fn add_call(graph: &mut Graph, random: &mut Random) {
         let len = graph.references.len();
         let entry = random.next(len);
@@ -1640,6 +1643,9 @@ mod tests {
         let len = graph.references.len();
         let (holder, target) = (random.next(len), random.next(len));
         let caller = [first, random.next(len)][random.next(2)];
+        if random.next(2) == 0 {
+            graph.not_mergeable.insert(target);
+        }
         if holder != target {
             graph.references[holder].push((target, Later));
             graph.calls.push((caller, holder, target));
@@ -1692,7 +1698,7 @@ mod tests {
         }
         // The rule keeps groups that one way in for every cycle cuts, and the calls break such
         // groups where the rule does not look at what a `require()` loads.
-        assert_eq!(keeps_more, 6804);
-        assert_eq!(ignored_requires_differ, 428);
+        assert_eq!(keeps_more, 6073);
+        assert_eq!(ignored_requires_differ, 242);
     }
 }
