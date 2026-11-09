@@ -583,7 +583,7 @@ export async function spawnNextUpgrade(
       const reportCommand = `${getNpxCommand(baseDir)} next@${process.env.__NEXT_VERSION} internal report-agent-upgrade ${runId}`
       const prompt = (
         useWorktree: boolean | null
-      ) => `Read and follow ${JSON.stringify(sharedGuidePath)} first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in ${JSON.stringify(guidePath)}.
+      ) => `Read and follow ${JSON.stringify(sharedGuidePath)} first. Before changing files, check for an equivalent open pull request as it describes. Stop only if you find one; stale branches, commits, and closed pull requests do not count. If the check is unavailable, report it and continue. Then read and follow every applicable instruction in ${JSON.stringify(guidePath)}.
 
 ${taskSummary}
 
