@@ -565,6 +565,8 @@ export function handle(path) {
         return sectionSlugs(b, Number(c), d, n, Number(query.get('l')) || 1)
       break
     }
+    default:
+      break
   }
   throw new Error(`content: no such path ${path}`)
 }
