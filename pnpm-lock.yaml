@@ -544,8 +544,8 @@ importers:
         specifier: 1.2.1
         version: 1.2.1
       is-animated:
-        specifier: 2.0.2
-        version: 2.0.2
+        specifier: 3.0.19
+        version: 3.0.19
       isomorphic-unfetch:
         specifier: 3.0.0
         version: 3.0.0(encoding@0.1.13)
@@ -11983,8 +11983,9 @@ packages:
   is-alphanumerical@2.0.1:
     resolution: {integrity: sha512-hmbYhX/9MUMF5uh7tOXyK/n0ZvWpad5caBA17GsC6vyuCqaWliRG5K1qS9inmUhEMaOBIW7/whAnSwveW/LtZw==}
 
-  is-animated@2.0.2:
-    resolution: {integrity: sha512-+Hi3UdXHV/3ZgxdO9Ik45ciNhDlYrDOIdGz7Cj7ybddWnYBi4kwBuGMn79Xa2Js4VldgX5e3943Djsr/KYSPbA==}
+  is-animated@3.0.19:
+    resolution: {integrity: sha512-W+zvP0MI+w30uWXXSSkv0IBTkqVtmi3zvZtK49agbuUUsVBYZH0yR9cCsy4amZ2sR4WM58koMstOvWFbXeA0gA==}
+    engines: {node: '>=20.0.0'}
 
   is-arguments@1.0.4:
     resolution: {integrity: sha512-xPh0Rmt8NE65sNzvyUmWgI1tz3mKq74lGA0mL8LYZcoIzKOzDh6HmrYm3d18k60nHerC8A9Km8kYu87zfSFnLA==}
@@ -30303,7 +30304,7 @@ snapshots:
       is-alphabetical: 2.0.1
       is-decimal: 2.0.1
 
-  is-animated@2.0.2: {}
+  is-animated@3.0.19: {}
 
   is-arguments@1.0.4: {}
 

@@ -8,7 +8,7 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Vc};
+use turbo_tasks::{Completion, ResolvedVc, Vc};
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
 use turbo_tasks_fetch::{FetchClientConfig, HttpResponseBody};
 use turbo_tasks_fs::{
@@ -80,7 +80,7 @@ pub const GOOGLE_FONTS_INTERNAL_PREFIX: RcStr =
 
 #[turbo_tasks::value(transparent)]
 #[derive(Deserialize)]
-struct FontData(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, FontDataEntry>);
+struct FontData(FxHashMap<RcStr, FontDataEntry>);
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct NextFontGoogleReplacer {

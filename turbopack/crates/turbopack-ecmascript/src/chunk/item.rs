@@ -317,7 +317,7 @@ async fn module_factory_with_code_generation_issue(
         Ok(factory) => factory,
         Err(error) => {
             let id = chunk_item.asset_ident().to_string().await;
-            let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
+            let id = id.as_ref().map_or("unknown", |id| &**id);
 
             // ast-grep-ignore: no-context-format
             let error = error.context(format!(
