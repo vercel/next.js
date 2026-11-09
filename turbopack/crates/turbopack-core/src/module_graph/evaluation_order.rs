@@ -1202,6 +1202,24 @@ mod tests {
     }
 
     #[test]
+    fn a_list_with_the_counters_of_a_partial_trace_is_not_merged() {
+        // The counters of traces whose root imports 1 and 2, or 1 only, set by hand: `add_trace`
+        // rejects the second kind when debug assertions are on.
+        let groups = |traces: u32, evaluated: u64| {
+            let mut order = EvaluationOrder::new([[1, 2]]);
+            let list = &mut order.lists[0];
+            list.traces = traces;
+            list.evaluated = evaluated;
+            list.modules[0].importer_max = NONE;
+            order.groups(0, None)
+        };
+        // One trace of each kind, then both.
+        assert_eq!(groups(1, 2), [Range { start: 0, end: 2 }]);
+        assert_eq!(groups(1, 1), [0..1, 1..2]);
+        assert_eq!(groups(2, 3), [0..1, 1..2]);
+    }
+
+    #[test]
     #[cfg(debug_assertions)]
     #[should_panic(expected = "in one list only")]
     fn a_module_in_two_lists_is_rejected() {
