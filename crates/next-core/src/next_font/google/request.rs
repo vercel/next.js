@@ -12,6 +12,7 @@ pub(super) struct NextFontRequest {
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(super) struct NextFontRequestArguments {
     pub weight: Option<OneOrManyStrings>,
     pub subsets: Option<Vec<RcStr>>,
@@ -29,4 +30,18 @@ pub(super) struct NextFontRequestArguments {
 pub(super) enum OneOrManyStrings {
     One(RcStr),
     Many(Vec<RcStr>),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::NextFontRequest;
+
+    #[test]
+    fn deserializes_camel_case_adjust_font_fallback() {
+        let request: NextFontRequest = serde_json::from_str(
+            r#"{"import": "Inter", "arguments": [{"adjustFontFallback": false}]}"#,
+        )
+        .unwrap();
+        assert_eq!(request.arguments[0].adjust_font_fallback, Some(false));
+    }
 }

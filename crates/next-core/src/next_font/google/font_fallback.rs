@@ -66,9 +66,9 @@ pub(super) async fn get_font_fallback(
     let mut font_fallbacks = vec![];
 
     // Like the webpack loader, the metric-adjusted fallback face is generated whenever
-    // `adjustFontFallback` is enabled, independent of whether a manual `fallback` list was
-    // provided. The manual list is appended after it.
-    if options.fallback.is_none() || options.adjust_font_fallback {
+    // `adjustFontFallback` is enabled (and only then), independent of whether a manual `fallback`
+    // list was provided. The manual list is appended after it.
+    if options.adjust_font_fallback {
         let metrics_json = load_font_metrics(project_root.clone()).await?;
         let fallback = lookup_fallback(
             &options.font_family,
