@@ -426,42 +426,55 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
     where
         Self: 'a;
 
+    #[inline]
     fn with_capacity_and_hasher(capacity: usize, hasher: H) -> Self {
         HashMap::with_capacity_and_hasher(capacity, hasher)
     }
+    #[inline]
     fn len(&self) -> usize {
         HashMap::len(self)
     }
+    #[inline]
     fn capacity(&self) -> usize {
         HashMap::capacity(self)
     }
+    #[inline]
     fn clear(&mut self) {
         HashMap::clear(self)
     }
+    #[inline]
     fn iter<'a>(&'a self) -> Self::Iter<'a> {
         HashMap::iter(self)
     }
+    #[inline]
     fn iter_mut<'a>(&'a mut self) -> Self::IterMut<'a> {
         HashMap::iter_mut(self)
     }
+    #[inline]
     fn values<'a>(&'a self) -> Self::Values<'a> {
         HashMap::values(self)
     }
+    #[inline]
     fn values_mut<'a>(&'a mut self) -> Self::ValuesMut<'a> {
         HashMap::values_mut(self)
     }
+    #[inline]
     fn into_entries(self) -> Self::IntoIter {
         IntoIterator::into_iter(self)
     }
+    #[inline]
     fn into_values(self) -> Self::IntoValues {
         HashMap::into_values(self)
     }
+    #[inline]
     fn drain(&mut self) -> Self::Drain<'_> {
         HashMap::drain(self)
     }
+    #[inline]
     fn retain<F: FnMut(&K, &mut V) -> bool>(&mut self, f: F) {
         HashMap::retain(self, f)
     }
+    #[inline]
     fn extract_if<'a, L, F: FnMut(&K, &mut V) -> bool>(
         &'a mut self,
         f: F,
@@ -473,6 +486,7 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
         ExtractIfIter::HashMap(HashMap::extract_if(self, f))
     }
 
+    #[inline]
     fn insert(&mut self, key: K, value: V) -> Option<V>
     where
         K: Eq + Hash,
@@ -480,6 +494,7 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
     {
         HashMap::insert(self, key, value)
     }
+    #[inline]
     fn remove(&mut self, key: &K) -> Option<V>
     where
         K: Eq + Hash,
@@ -487,6 +502,7 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
     {
         HashMap::remove(self, key)
     }
+    #[inline]
     fn swap_remove(&mut self, key: &K) -> Option<V>
     where
         K: Eq + Hash,
@@ -494,6 +510,7 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
     {
         HashMap::remove(self, key)
     }
+    #[inline]
     fn extend(&mut self, iter: impl Iterator<Item = (K, V)>)
     where
         K: Eq + Hash,
@@ -501,6 +518,7 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
     {
         Extend::extend(self, iter)
     }
+    #[inline]
     fn get<Q>(&self, key: &Q) -> Option<&V>
     where
         K: Eq + Hash + Borrow<Q>,
@@ -509,6 +527,7 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
     {
         HashMap::get(self, key)
     }
+    #[inline]
     fn get_mut(&mut self, key: &K) -> Option<&mut V>
     where
         K: Eq + Hash,
@@ -516,6 +535,7 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
     {
         HashMap::get_mut(self, key)
     }
+    #[inline]
     fn contains_key(&self, key: &K) -> bool
     where
         K: Eq + Hash,
@@ -523,6 +543,7 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
     {
         HashMap::contains_key(self, key)
     }
+    #[inline]
     fn shrink_to_fit(&mut self)
     where
         K: Eq + Hash,
@@ -531,6 +552,7 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
         HashMap::shrink_to_fit(self)
     }
 
+    #[inline]
     fn entry(&mut self, key: K) -> MapEntry<Self::Occupied<'_>, Self::Vacant<'_>>
     where
         K: Eq + Hash,
@@ -541,12 +563,15 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
             hashbrown::hash_map::Entry::Vacant(entry) => MapEntry::Vacant(entry),
         }
     }
+    #[inline]
     fn occupied_get_mut<'e>(entry: &'e mut Self::Occupied<'_>) -> &'e mut V {
         entry.get_mut()
     }
+    #[inline]
     fn occupied_into_mut<'a>(entry: Self::Occupied<'a>) -> &'a mut V {
         entry.into_mut()
     }
+    #[inline]
     fn occupied_remove(entry: Self::Occupied<'_>) -> V
     where
         K: Eq + Hash,
@@ -554,6 +579,7 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
     {
         entry.remove()
     }
+    #[inline]
     fn occupied_replace_entry_with(entry: Self::Occupied<'_>, func: impl FnOnce(&K, V) -> Option<V>)
     where
         K: Eq + Hash,
@@ -561,6 +587,7 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
     {
         entry.replace_entry_with(func);
     }
+    #[inline]
     fn vacant_insert<'a>(entry: Self::Vacant<'a>, value: V) -> &'a mut V
     where
         K: Eq + Hash,
@@ -569,6 +596,7 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
         entry.insert(value)
     }
 
+    #[inline]
     fn raw_entry_mut<Q>(&mut self, key: &Q) -> MapEntry<Self::RawOccupied<'_>, Self::RawVacant<'_>>
     where
         K: Eq + Hash + Borrow<Q>,
@@ -580,15 +608,19 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
             hashbrown::hash_map::RawEntryMut::Vacant(entry) => MapEntry::Vacant(entry),
         }
     }
+    #[inline]
     fn raw_occupied_get_mut<'e>(entry: &'e mut Self::RawOccupied<'_>) -> &'e mut V {
         entry.get_mut()
     }
+    #[inline]
     fn raw_occupied_into_mut<'a>(entry: Self::RawOccupied<'a>) -> &'a mut V {
         entry.into_mut()
     }
+    #[inline]
     fn raw_occupied_remove(entry: Self::RawOccupied<'_>) -> V {
         entry.remove()
     }
+    #[inline]
     fn raw_vacant_insert<'a>(entry: Self::RawVacant<'a>, key: K, value: V) -> &'a mut V
     where
         K: Eq + Hash,
@@ -687,42 +719,55 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
     where
         Self: 'a;
 
+    #[inline]
     fn with_capacity_and_hasher(capacity: usize, hasher: H) -> Self {
         IndexMap::with_capacity_and_hasher(capacity, hasher)
     }
+    #[inline]
     fn len(&self) -> usize {
         IndexMap::len(self)
     }
+    #[inline]
     fn capacity(&self) -> usize {
         IndexMap::capacity(self)
     }
+    #[inline]
     fn clear(&mut self) {
         IndexMap::clear(self)
     }
+    #[inline]
     fn iter<'a>(&'a self) -> Self::Iter<'a> {
         IndexMap::iter(self)
     }
+    #[inline]
     fn iter_mut<'a>(&'a mut self) -> Self::IterMut<'a> {
         IndexMap::iter_mut(self)
     }
+    #[inline]
     fn values<'a>(&'a self) -> Self::Values<'a> {
         IndexMap::values(self)
     }
+    #[inline]
     fn values_mut<'a>(&'a mut self) -> Self::ValuesMut<'a> {
         IndexMap::values_mut(self)
     }
+    #[inline]
     fn into_entries(self) -> Self::IntoIter {
         IntoIterator::into_iter(self)
     }
+    #[inline]
     fn into_values(self) -> Self::IntoValues {
         IndexMap::into_values(self)
     }
+    #[inline]
     fn drain(&mut self) -> Self::Drain<'_> {
         IndexMap::drain(self, ..)
     }
+    #[inline]
     fn retain<F: FnMut(&K, &mut V) -> bool>(&mut self, mut f: F) {
         IndexMap::retain(self, |k, v| f(k, v))
     }
+    #[inline]
     fn extract_if<'a, L, F: FnMut(&K, &mut V) -> bool>(
         &'a mut self,
         f: F,
@@ -734,6 +779,7 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
         ExtractIfIter::IndexMap(IndexMap::extract_if(self, .., f))
     }
 
+    #[inline]
     fn insert(&mut self, key: K, value: V) -> Option<V>
     where
         K: Eq + Hash,
@@ -741,6 +787,7 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
     {
         IndexMap::insert(self, key, value)
     }
+    #[inline]
     fn remove(&mut self, key: &K) -> Option<V>
     where
         K: Eq + Hash,
@@ -748,6 +795,7 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
     {
         IndexMap::shift_remove(self, key)
     }
+    #[inline]
     fn swap_remove(&mut self, key: &K) -> Option<V>
     where
         K: Eq + Hash,
@@ -755,6 +803,7 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
     {
         IndexMap::swap_remove(self, key)
     }
+    #[inline]
     fn extend(&mut self, iter: impl Iterator<Item = (K, V)>)
     where
         K: Eq + Hash,
@@ -762,6 +811,7 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
     {
         Extend::extend(self, iter)
     }
+    #[inline]
     fn get<Q>(&self, key: &Q) -> Option<&V>
     where
         K: Eq + Hash + Borrow<Q>,
@@ -770,6 +820,7 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
     {
         IndexMap::get(self, key)
     }
+    #[inline]
     fn get_mut(&mut self, key: &K) -> Option<&mut V>
     where
         K: Eq + Hash,
@@ -777,6 +828,7 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
     {
         IndexMap::get_mut(self, key)
     }
+    #[inline]
     fn contains_key(&self, key: &K) -> bool
     where
         K: Eq + Hash,
@@ -784,6 +836,7 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
     {
         IndexMap::contains_key(self, key)
     }
+    #[inline]
     fn shrink_to_fit(&mut self)
     where
         K: Eq + Hash,
@@ -792,6 +845,7 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
         IndexMap::shrink_to_fit(self)
     }
 
+    #[inline]
     fn entry(&mut self, key: K) -> MapEntry<Self::Occupied<'_>, Self::Vacant<'_>>
     where
         K: Eq + Hash,
@@ -802,12 +856,15 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
             None => MapEntry::Vacant(IndexMapVacantEntry { map: self, key }),
         }
     }
+    #[inline]
     fn occupied_get_mut<'e>(entry: &'e mut Self::Occupied<'_>) -> &'e mut V {
         &mut entry.map[entry.index]
     }
+    #[inline]
     fn occupied_into_mut<'a>(entry: Self::Occupied<'a>) -> &'a mut V {
         &mut entry.map[entry.index]
     }
+    #[inline]
     fn occupied_remove(entry: Self::Occupied<'_>) -> V
     where
         K: Eq + Hash,
@@ -819,6 +876,7 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
             .expect("index of an occupied entry is valid")
             .1
     }
+    #[inline]
     fn occupied_replace_entry_with(entry: Self::Occupied<'_>, func: impl FnOnce(&K, V) -> Option<V>)
     where
         K: Eq + Hash,
@@ -832,6 +890,7 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
             map.shift_insert(index, key, value);
         }
     }
+    #[inline]
     fn vacant_insert<'a>(entry: Self::Vacant<'a>, value: V) -> &'a mut V
     where
         K: Eq + Hash,
@@ -842,6 +901,7 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
         &mut map[index]
     }
 
+    #[inline]
     fn raw_entry_mut<Q>(&mut self, key: &Q) -> MapEntry<Self::RawOccupied<'_>, Self::RawVacant<'_>>
     where
         K: Eq + Hash + Borrow<Q>,
@@ -853,15 +913,19 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
             indexmap::map::raw_entry_v1::RawEntryMut::Vacant(entry) => MapEntry::Vacant(entry),
         }
     }
+    #[inline]
     fn raw_occupied_get_mut<'e>(entry: &'e mut Self::RawOccupied<'_>) -> &'e mut V {
         entry.get_mut()
     }
+    #[inline]
     fn raw_occupied_into_mut<'a>(entry: Self::RawOccupied<'a>) -> &'a mut V {
         entry.into_mut()
     }
+    #[inline]
     fn raw_occupied_remove(entry: Self::RawOccupied<'_>) -> V {
         entry.shift_remove()
     }
+    #[inline]
     fn raw_vacant_insert<'a>(entry: Self::RawVacant<'a>, key: K, value: V) -> &'a mut V
     where
         K: Eq + Hash,

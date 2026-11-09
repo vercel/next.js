@@ -167,6 +167,7 @@ where
     }
 
     /// see [HashMap::insert](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.insert)
+    #[inline]
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         match self {
             RawAutoMap::List(list, _) => {
@@ -176,8 +177,7 @@ where
                     }
                 }
                 if list.len() >= MAX_USEFUL_LINEAR_SCAN {
-                    let map = self.convert_to_map();
-                    map.insert(key, value);
+                    self.convert_to_map_and_insert(key, value);
                 } else {
                     list.push((key, value));
                 }
@@ -187,9 +187,43 @@ where
         }
     }
 
+    /// The rare list -> map conversion of [`Self::insert`], kept out of line so that `insert`
+    /// stays small enough to be inlined into its callers.
+    #[cold]
+    #[inline(never)]
+    fn convert_to_map_and_insert(&mut self, key: K, value: V) {
+        self.convert_to_map().insert(key, value);
+    }
+
+    /// The rare list -> map conversion of the vacant entries' `insert`, kept out of line like
+    /// [`Self::convert_to_map_and_insert`]. A vacant raw entry can be inserted with a different
+    /// key than it was looked up with, so the key may already be in the map.
+    #[cold]
+    #[inline(never)]
+    fn convert_to_map_and_insert_entry(&mut self, key: K, value: V) -> &mut V {
+        match self.convert_to_map().entry(key) {
+            MapEntry::Occupied(entry) => M::occupied_into_mut(entry),
+            MapEntry::Vacant(entry) => M::vacant_insert(entry, value),
+        }
+    }
+
+    /// The list -> map conversion of [`Self::extend`] for inputs that (by their size hint) don't
+    /// fit into the list, kept out of line like [`Self::convert_to_map_and_insert`].
+    #[cold]
+    #[inline(never)]
+    fn convert_to_map_and_extend(&mut self, iter: impl Iterator<Item = (K, V)>) {
+        let map = self.convert_to_map();
+        map.extend(iter);
+        // The hint is not enforced
+        if map.len() < MIN_HASH_SIZE {
+            self.convert_to_list();
+        }
+    }
+
     /// see [HashMap::remove](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.remove)
     ///
     /// Ordered storages preserve the order of the remaining entries.
+    #[inline]
     pub fn remove(&mut self, key: &K) -> Option<V> {
         match self {
             RawAutoMap::List(list, _) => {
@@ -209,6 +243,7 @@ where
     ///
     /// This always swaps, also for ordered storages, so it's O(1) there but changes the order of
     /// the remaining entries. For unordered storages it's the same as [`Self::remove`].
+    #[inline]
     pub fn swap_remove(&mut self, key: &K) -> Option<V> {
         match self {
             RawAutoMap::List(list, _) => {
@@ -230,12 +265,7 @@ where
             RawAutoMap::List(list, _) => {
                 let (lower, _) = iter.size_hint();
                 if list.len() + lower > MAX_USEFUL_LINEAR_SCAN {
-                    let map = self.convert_to_map();
-                    map.extend(iter);
-                    // The hint is not enforced
-                    if map.len() < MIN_HASH_SIZE {
-                        self.convert_to_list();
-                    }
+                    self.convert_to_map_and_extend(iter);
                     return;
                 }
                 for (k, v) in iter {
@@ -522,6 +552,19 @@ impl<MI: BackingMapIter> Iterator for Iter<MI> {
             Iter::Map(iter) => iter.size_hint(),
         }
     }
+
+    // Forward to the inner iterator's `fold`, so the variant is matched once and the map's
+    // specialized `fold` (e.g. hashbrown's group-wise traversal) is used.
+    #[inline]
+    fn fold<B, F>(self, init: B, f: F) -> B
+    where
+        F: FnMut(B, Self::Item) -> B,
+    {
+        match self {
+            Iter::List(iter) => iter.fold(init, f),
+            Iter::Map(iter) => iter.fold(init, f),
+        }
+    }
 }
 
 impl<MI: BackingMapIter<List: Clone> + Clone> Clone for Iter<MI> {
@@ -555,6 +598,14 @@ impl<'a, K, V> Iterator for ListIter<'a, K, V> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.0.size_hint()
     }
+
+    #[inline]
+    fn fold<B, F>(self, init: B, mut f: F) -> B
+    where
+        F: FnMut(B, Self::Item) -> B,
+    {
+        self.0.fold(init, move |acc, (k, v)| f(acc, (k, v)))
+    }
 }
 
 /// [`BackingMapIter::List`] of [`BackingMapStorage::IterMut`].
@@ -569,6 +620,14 @@ impl<'a, K, V> Iterator for ListIterMut<'a, K, V> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.0.size_hint()
+    }
+
+    #[inline]
+    fn fold<B, F>(self, init: B, mut f: F) -> B
+    where
+        F: FnMut(B, Self::Item) -> B,
+    {
+        self.0.fold(init, move |acc, (k, v)| f(acc, (&*k, v)))
     }
 }
 
@@ -592,6 +651,14 @@ impl<'a, K, V> Iterator for ListValues<'a, K, V> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.0.size_hint()
     }
+
+    #[inline]
+    fn fold<B, F>(self, init: B, mut f: F) -> B
+    where
+        F: FnMut(B, Self::Item) -> B,
+    {
+        self.0.fold(init, move |acc, (_, v)| f(acc, v))
+    }
 }
 
 /// [`BackingMapIter::List`] of [`BackingMapStorage::ValuesMut`].
@@ -606,6 +673,14 @@ impl<'a, K, V> Iterator for ListValuesMut<'a, K, V> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.0.size_hint()
+    }
+
+    #[inline]
+    fn fold<B, F>(self, init: B, mut f: F) -> B
+    where
+        F: FnMut(B, Self::Item) -> B,
+    {
+        self.0.fold(init, move |acc, (_, v)| f(acc, v))
     }
 }
 
@@ -634,6 +709,18 @@ impl<LI: Iterator, MI: Iterator<Item = LI::Item>> Iterator for IntoIter<LI, MI> 
             IntoIter::Map(iter) => iter.size_hint(),
         }
     }
+
+    // See `Iter::fold`.
+    #[inline]
+    fn fold<B, F>(self, init: B, f: F) -> B
+    where
+        F: FnMut(B, Self::Item) -> B,
+    {
+        match self {
+            IntoIter::List(iter) => iter.fold(init, f),
+            IntoIter::Map(iter) => iter.fold(init, f),
+        }
+    }
 }
 
 pub enum IntoValues<LI, MI> {
@@ -655,6 +742,19 @@ impl<K, V, LI: Iterator<Item = (K, V)>, MI: Iterator<Item = V>> Iterator for Int
         match self {
             IntoValues::List(iter) => iter.size_hint(),
             IntoValues::Map(iter) => iter.size_hint(),
+        }
+    }
+
+    // See `Iter::fold`.
+    #[inline]
+    fn fold<B, F>(self, init: B, f: F) -> B
+    where
+        F: FnMut(B, Self::Item) -> B,
+    {
+        match self {
+            // `map` first, so that the key is dropped before `f` runs, like in `next`.
+            IntoValues::List(iter) => iter.map(|(_, v)| v).fold(init, f),
+            IntoValues::Map(iter) => iter.fold(init, f),
         }
     }
 }
@@ -793,10 +893,7 @@ where
         match self {
             VacantEntry::List { this, key } => {
                 if this.len() >= MAX_USEFUL_LINEAR_SCAN {
-                    match this.convert_to_map().entry(key) {
-                        MapEntry::Occupied(entry) => M::occupied_into_mut(entry),
-                        MapEntry::Vacant(entry) => M::vacant_insert(entry, value),
-                    }
+                    this.convert_to_map_and_insert_entry(key, value)
                 } else {
                     let RawAutoMap::List(list, _) = this else {
                         unreachable!()
@@ -881,10 +978,7 @@ where
         match self {
             VacantRawEntry::List { this } => {
                 if this.len() >= MAX_USEFUL_LINEAR_SCAN {
-                    match this.convert_to_map().entry(key) {
-                        MapEntry::Occupied(entry) => M::occupied_into_mut(entry),
-                        MapEntry::Vacant(entry) => M::vacant_insert(entry, value),
-                    }
+                    this.convert_to_map_and_insert_entry(key, value)
                 } else {
                     let RawAutoMap::List(list, _) = this else {
                         unreachable!()
@@ -1681,6 +1775,229 @@ mod tests {
             assert_eq!(set.iter().clone().count(), set.len());
             assert_eq!(hash_set.iter().clone().count(), hash_set.len());
         }
+    }
+
+    /// Collects an iterator through `next()` only.
+    fn by_next<I: Iterator>(mut iter: I) -> Vec<I::Item> {
+        std::iter::from_fn(move || iter.next()).collect()
+    }
+
+    /// Collects an iterator through `fold` only.
+    fn by_fold<I: Iterator>(iter: I) -> Vec<I::Item> {
+        iter.fold(Vec::new(), |mut items, item| {
+            items.push(item);
+            items
+        })
+    }
+
+    /// Collects the rest of an iterator after one `next()`, through `fold`.
+    fn rest_by_fold<I: Iterator>(mut iter: I) -> Vec<I::Item> {
+        iter.next();
+        by_fold(iter)
+    }
+
+    /// Collects the rest of an iterator after one `next()`, through `next()`.
+    fn rest_by_next<I: Iterator>(mut iter: I) -> Vec<I::Item> {
+        iter.next();
+        by_next(iter)
+    }
+
+    #[test]
+    fn test_extend_converts_to_map() {
+        // An iterator whose size hint claims more items than it yields.
+        struct LyingHint(std::ops::Range<usize>);
+        impl Iterator for LyingHint {
+            type Item = (usize, usize);
+            fn next(&mut self) -> Option<Self::Item> {
+                self.0.next().map(|i| (i, i))
+            }
+            fn size_hint(&self) -> (usize, Option<usize>) {
+                (MAX_USEFUL_LINEAR_SCAN * 2, None)
+            }
+        }
+        fn check<M: BackingMapStorage<usize, usize>, L: BackingListStorage<(usize, usize)>>(
+            mut map: RawAutoMap<usize, usize, M, L>,
+        ) where
+            M::Hasher: BuildHasher + Default,
+        {
+            // Small extension: stays a list.
+            map.extend((0..3).map(|i| (i, i)));
+            assert!(matches!(map, RawAutoMap::List(..)));
+            // The size hint exceeds the list: converts to a map.
+            map.extend((3..MAX_USEFUL_LINEAR_SCAN + 10).map(|i| (i, i)));
+            assert!(matches!(map, RawAutoMap::Map(..)));
+            assert_eq!(map.len(), MAX_USEFUL_LINEAR_SCAN + 10);
+            for i in 0..MAX_USEFUL_LINEAR_SCAN + 10 {
+                assert_eq!(map.get(&i), Some(&i));
+            }
+        }
+        check(AutoMap::<usize, usize>::new());
+        check(AutoIndexMap::<usize, usize>::new());
+
+        // The ordered map keeps the order across the conversion.
+        let mut map = AutoIndexMap::<usize, usize>::new();
+        map.extend([(5, 5), (1, 1)]);
+        map.extend((10..50).rev().map(|i| (i, i)));
+        assert!(matches!(map, RawAutoMap::Map(..)));
+        let mut expected = vec![5, 1];
+        expected.extend((10..50).rev());
+        assert_eq!(keys(&map), expected);
+
+        // A size hint that isn't kept converts back to a list when the result is small.
+        let mut map = AutoIndexMap::<usize, usize>::new();
+        map.extend([(9, 9)]);
+        map.extend(LyingHint(0..3));
+        assert!(matches!(map, RawAutoMap::List(..)));
+        assert_eq!(keys(&map), vec![9, 0, 1, 2]);
+        let mut map = AutoMap::<usize, usize>::new();
+        map.extend(LyingHint(0..3));
+        assert!(matches!(map, RawAutoMap::List(..)));
+        assert_eq!(map.len(), 3);
+    }
+
+    #[test]
+    fn test_fold_matches_next() {
+        // The iterators forward `fold` to the inner iterator; it must visit the same entries in
+        // the same order as `next()`.
+        fn check<M: BackingMapStorage<usize, usize>, L: BackingListStorage<(usize, usize)>>(
+            make: impl Fn(usize) -> RawAutoMap<usize, usize, M, L>,
+        ) where
+            M::Hasher: BuildHasher + Default,
+        {
+            // Empty, list variant, then map variant.
+            for n in [0, 5, MAX_USEFUL_LINEAR_SCAN * 2] {
+                let map = make(n);
+                assert_eq!(
+                    matches!(map, RawAutoMap::List(..)),
+                    n <= MAX_USEFUL_LINEAR_SCAN
+                );
+                assert_eq!(by_fold(map.iter()), by_next(map.iter()));
+                assert_eq!(by_fold(map.iter()).len(), n);
+                assert_eq!(by_fold(map.values()), by_next(map.values()));
+                assert_eq!(by_fold(make(n).into_iter()), by_next(make(n).into_iter()));
+                assert_eq!(
+                    by_fold(make(n).into_values()),
+                    by_next(make(n).into_values())
+                );
+
+                // Partially consumed iterators fold the rest.
+                assert_eq!(rest_by_fold(map.iter()), rest_by_next(map.iter()));
+                assert_eq!(rest_by_fold(map.iter()).len(), n.saturating_sub(1));
+                assert_eq!(rest_by_fold(map.values()), rest_by_next(map.values()));
+                assert_eq!(
+                    rest_by_fold(make(n).into_iter()),
+                    rest_by_next(make(n).into_iter())
+                );
+                assert_eq!(
+                    rest_by_fold(make(n).into_values()),
+                    rest_by_next(make(n).into_values())
+                );
+                let mut a = make(n);
+                let mut b = make(n);
+                assert_eq!(rest_by_fold(a.iter_mut()), rest_by_next(b.iter_mut()));
+                assert_eq!(rest_by_fold(a.values_mut()), rest_by_next(b.values_mut()));
+
+                // Mutable iterators: mutate through `fold` and through `next()`, both must see
+                // the same entries in the same order and leave the same map.
+                let mut a = make(n);
+                let seen_a = a.iter_mut().fold(Vec::new(), |mut seen, (k, v)| {
+                    *v += 1000;
+                    seen.push(*k);
+                    seen
+                });
+                let mut b = make(n);
+                let seen_b: Vec<usize> = by_next(b.iter_mut())
+                    .into_iter()
+                    .map(|(k, v)| {
+                        *v += 1000;
+                        *k
+                    })
+                    .collect();
+                assert_eq!(seen_a, seen_b);
+                assert_eq!(by_next(a.iter()), by_next(b.iter()));
+                assert!(a.values().all(|v| *v >= 1000));
+
+                let mut a = make(n);
+                let seen_a = a.values_mut().fold(Vec::new(), |mut seen, v| {
+                    seen.push(*v);
+                    *v += 1000;
+                    seen
+                });
+                let mut b = make(n);
+                let seen_b: Vec<usize> = by_next(b.values_mut())
+                    .into_iter()
+                    .map(|v| {
+                        let old = *v;
+                        *v += 1000;
+                        old
+                    })
+                    .collect();
+                assert_eq!(seen_a, seen_b);
+                assert_eq!(by_next(a.iter()), by_next(b.iter()));
+                assert!(a.values().all(|v| *v >= 1000));
+            }
+        }
+        // Reverse insertion order, so that the order differs from the key order.
+        check(|n| (0..n).rev().map(|i| (i, i * 10)).collect::<AutoMap<_, _>>());
+        check(|n| {
+            (0..n)
+                .rev()
+                .map(|i| (i, i * 10))
+                .collect::<AutoIndexMap<_, _>>()
+        });
+        // The ordered map's `fold` keeps the insertion order.
+        let map: AutoIndexMap<usize, usize> = (0..40).rev().map(|i| (i, i)).collect();
+        assert_eq!(
+            map.iter().fold(Vec::new(), |mut keys, (k, _)| {
+                keys.push(*k);
+                keys
+            }),
+            (0..40).rev().collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_into_values_fold_drops_keys_like_next() {
+        // `into_values` drops each key before the value is handed to the consumer, as with
+        // `next()`, also when folding.
+        use std::{cell::RefCell, rc::Rc};
+        struct Key(u32, Rc<RefCell<Vec<String>>>);
+        impl PartialEq for Key {
+            fn eq(&self, other: &Self) -> bool {
+                self.0 == other.0
+            }
+        }
+        impl Eq for Key {}
+        impl Hash for Key {
+            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                self.0.hash(state)
+            }
+        }
+        impl Drop for Key {
+            fn drop(&mut self) {
+                self.1.borrow_mut().push(format!("drop key {}", self.0));
+            }
+        }
+        fn make(log: &Rc<RefCell<Vec<String>>>) -> AutoIndexMap<Key, u32> {
+            (0..3).map(|i| (Key(i, log.clone()), i)).collect()
+        }
+        let log = Rc::new(RefCell::new(Vec::new()));
+        let map = make(&log);
+        assert!(matches!(map, RawAutoMap::List(..)));
+        map.into_values().fold((), |(), v| {
+            log.borrow_mut().push(format!("visit value {v}"));
+        });
+        assert_eq!(
+            *RefCell::borrow(&log),
+            [
+                "drop key 0",
+                "visit value 0",
+                "drop key 1",
+                "visit value 1",
+                "drop key 2",
+                "visit value 2"
+            ]
+        );
     }
 
     #[test]

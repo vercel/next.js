@@ -109,6 +109,7 @@ where
     L: BackingListStorage<(K, ())>,
 {
     /// see [HashSet::insert](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.insert)
+    #[inline]
     pub fn insert(&mut self, key: K) -> bool {
         self.map.insert(key, ()).is_none()
     }
@@ -116,6 +117,7 @@ where
     /// see [HashSet::remove](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.remove)
     ///
     /// Ordered storages preserve the order of the remaining items.
+    #[inline]
     pub fn remove(&mut self, key: &K) -> bool {
         self.map.remove(key).is_some()
     }
@@ -125,6 +127,7 @@ where
     ///
     /// This always swaps, also for ordered storages, so it's O(1) there but changes the order of
     /// the remaining items. For unordered storages it's the same as [`Self::remove`].
+    #[inline]
     pub fn swap_remove(&mut self, key: &K) -> bool {
         self.map.swap_remove(key).is_some()
     }
@@ -222,6 +225,15 @@ impl<MI: BackingMapIter<Item: SetEntry>> Iterator for Iter<MI> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.0.size_hint()
     }
+
+    #[inline]
+    fn fold<B, F>(self, init: B, mut f: F) -> B
+    where
+        F: FnMut(B, Self::Item) -> B,
+    {
+        self.0
+            .fold(init, move |acc, entry| f(acc, SetEntry::key(entry)))
+    }
 }
 
 impl<MI: BackingMapIter<List: Clone> + Clone> Clone for Iter<MI> {
@@ -242,6 +254,14 @@ impl<K, LI: Iterator<Item = (K, ())>, MI: Iterator<Item = (K, ())>> Iterator for
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.0.size_hint()
+    }
+
+    #[inline]
+    fn fold<B, F>(self, init: B, mut f: F) -> B
+    where
+        F: FnMut(B, Self::Item) -> B,
+    {
+        self.0.fold(init, move |acc, (k, _)| f(acc, k))
     }
 }
 
@@ -501,6 +521,65 @@ mod tests {
                 assert_eq!(swapped.swap_remove(&key), removed.remove(&key));
             }
             assert!(swapped.iter().eq(removed.iter()));
+        }
+    }
+
+    #[test]
+    fn test_fold_matches_next() {
+        // The iterators forward `fold` to the inner iterator; it must visit the same items in the
+        // same order as `next()`.
+        fn by_next<I: Iterator>(mut iter: I) -> Vec<I::Item> {
+            std::iter::from_fn(move || iter.next()).collect()
+        }
+        fn by_fold<I: Iterator>(iter: I) -> Vec<I::Item> {
+            iter.fold(Vec::new(), |mut items, item| {
+                items.push(item);
+                items
+            })
+        }
+        // Collects the rest after one `next()`, through `fold` and through `next()`.
+        fn rest_by_fold<I: Iterator>(mut iter: I) -> Vec<I::Item> {
+            iter.next();
+            by_fold(iter)
+        }
+        fn rest_by_next<I: Iterator>(mut iter: I) -> Vec<I::Item> {
+            iter.next();
+            by_next(iter)
+        }
+        // Empty, list variant, then map variant. Reverse insertion order, so that the order
+        // differs from the key order.
+        for n in [0, 5, MAX_USEFUL_LINEAR_SCAN * 2] {
+            let make = || (0..n).rev().collect::<AutoSet<usize>>();
+            assert_eq!(by_fold(make().iter()), by_next(make().iter()));
+            assert_eq!(by_fold(make().iter()).len(), n);
+            assert_eq!(by_fold(make().into_iter()), by_next(make().into_iter()));
+            assert_eq!(rest_by_fold(make().iter()), rest_by_next(make().iter()));
+            assert_eq!(
+                rest_by_fold(make().into_iter()),
+                rest_by_next(make().into_iter())
+            );
+            assert_eq!(rest_by_fold(make().iter()).len(), n.saturating_sub(1));
+
+            let make = || (0..n).rev().collect::<AutoIndexSet<usize>>();
+            let expected: Vec<usize> = (0..n).rev().collect();
+            assert_eq!(by_fold(make().iter()), by_next(make().iter()));
+            assert_eq!(
+                by_fold(make().iter())
+                    .into_iter()
+                    .copied()
+                    .collect::<Vec<_>>(),
+                expected
+            );
+            assert_eq!(by_fold(make().into_iter()), expected);
+            assert_eq!(by_next(make().into_iter()), expected);
+            assert_eq!(rest_by_fold(make().into_iter()), expected[n.min(1)..]);
+            assert_eq!(
+                rest_by_fold(make().iter())
+                    .into_iter()
+                    .copied()
+                    .collect::<Vec<_>>(),
+                expected[n.min(1)..]
+            );
         }
     }
 
