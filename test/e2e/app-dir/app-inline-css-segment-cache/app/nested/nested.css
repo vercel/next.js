@@ -1,0 +1,8 @@
+.nested {
+  font-size: 100px;
+}
+
+/* A selector no minifier rewrites, to count copies of this stylesheet in output. */
+.nested-css-marker {
+  display: block;
+}
