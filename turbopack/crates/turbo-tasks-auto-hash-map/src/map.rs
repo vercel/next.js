@@ -365,6 +365,11 @@ where
         }
     }
 
+    /// Cheaper alternative to [`Self::shrink_to_fit`], suitable to call after every removal: it
+    /// only reallocates once the collection is much smaller than its allocation. A list shrinks
+    /// once less than a third of its capacity is used, a map with fewer than 16 entries converts
+    /// back into an exactly sized list, and a larger map shrinks once less than a third of its
+    /// capacity is used.
     pub fn shrink_amortized(&mut self) {
         match self {
             RawAutoMap::List(list, _) => list.shrink_amortized(),

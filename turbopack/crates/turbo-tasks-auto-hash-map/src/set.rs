@@ -130,6 +130,12 @@ where
         self.map.shrink_to_fit();
     }
 
+    /// Cheaper alternative to [`Self::shrink_to_fit`], suitable to call after every removal: see
+    /// [`RawAutoMap::shrink_amortized`].
+    pub fn shrink_amortized(&mut self) {
+        self.map.shrink_amortized();
+    }
+
     /// see [HashSet::contains](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.contains)
     pub fn contains(&self, key: &K) -> bool {
         self.map.contains_key(key)
@@ -419,6 +425,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::MIN_HASH_SIZE;
 
     #[test]
     fn test_auto_set() {
@@ -488,6 +495,48 @@ mod tests {
         assert_eq!(set.iter().copied().collect::<Vec<_>>(), expected);
         set.remove(&expected[0]);
         assert_eq!(set.into_iter().collect::<Vec<_>>(), expected[1..]);
+    }
+
+    #[test]
+    fn test_shrink_amortized() {
+        fn check<M, L>(make: impl Fn(usize) -> RawAutoSet<usize, M, L>)
+        where
+            M: BackingMapStorage<usize, ()>,
+            M::Hasher: BuildHasher + Default,
+            L: BackingListStorage<(usize, ())>,
+        {
+            let list_capacity = |set: &RawAutoSet<usize, M, L>| match &set.map {
+                RawAutoMap::List(list, _) => Some(list.capacity()),
+                RawAutoMap::Map(_) => None,
+            };
+            // A map converts back to an exactly sized list below `MIN_HASH_SIZE` entries,
+            // keeping the order of ordered sets.
+            for (len, converts) in [(MIN_HASH_SIZE - 1, true), (MIN_HASH_SIZE, false)] {
+                let mut set = make(MAX_USEFUL_LINEAR_SCAN * 2);
+                set.retain(|k| *k < len);
+                assert!(list_capacity(&set).is_none());
+                set.shrink_amortized();
+                let expected_capacity = if converts { Some(len) } else { None };
+                assert_eq!(list_capacity(&set), expected_capacity, "{len} entries");
+                let mut keys: Vec<_> = set.iter().copied().collect();
+                // The sets are built in reverse order.
+                let mut expected: Vec<_> = (0..len).rev().collect();
+                if M::UNORDERED {
+                    keys.sort();
+                    expected.sort();
+                }
+                assert_eq!(keys, expected);
+            }
+            // A list shrinks once less than a third of its capacity is used.
+            let mut set = make(MAX_USEFUL_LINEAR_SCAN);
+            set.retain(|k| *k < 3);
+            assert_eq!(list_capacity(&set), Some(MAX_USEFUL_LINEAR_SCAN));
+            set.shrink_amortized();
+            assert!(list_capacity(&set).is_some_and(|c| c < MAX_USEFUL_LINEAR_SCAN));
+            assert_eq!(set.len(), 3);
+        }
+        check(|n| (0..n).rev().collect::<AutoSet<usize>>());
+        check(|n| (0..n).rev().collect::<AutoIndexSet<usize>>());
     }
 
     #[test]
