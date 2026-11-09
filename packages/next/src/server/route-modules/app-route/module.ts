@@ -227,6 +227,7 @@ export interface AppRouteRouteModuleOptions
     | Promise<AppRouteUserlandModule>
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
+  readonly cacheComponents: boolean
   /**
    * Optional synchronous getter that returns the live userland module. When
    * provided (Turbopack dev mode), it is called on every request so that
@@ -270,6 +271,7 @@ export class AppRouteRouteModule extends RouteModule<
 
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
+  private readonly cacheComponents: boolean
 
   // Loaded lazily since the route file may be an async module (top-level
   // await).
@@ -304,6 +306,7 @@ export class AppRouteRouteModule extends RouteModule<
     relativeProjectDir,
     resolvedPagePath,
     nextConfigOutput,
+    cacheComponents,
   }: AppRouteRouteModuleOptions) {
     super({
       userland: undefined! as AppRouteUserlandModule,
@@ -314,6 +317,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
+    this.cacheComponents = cacheComponents
     this._getUserland = getUserland
     this._lazyUserland = new LazyModule(
       () =>
@@ -352,6 +356,10 @@ export class AppRouteRouteModule extends RouteModule<
         throw new Error(
           `export const dynamic = "force-dynamic" on page "${this.definition.pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
         )
+      } else if (this.cacheComponents) {
+        this.validateStaticExportMethods(userland)
+        // Cache Components attempts static generation without legacy opt-in
+        // config or dynamic = "error" coercion. The prerender must complete.
       } else if (!isStaticGenEnabled(userland) && userland['GET']) {
         throw new Error(
           `export const dynamic = "force-static"/export const revalidate not configured on route "${this.definition.pathname}" with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
@@ -392,6 +400,19 @@ export class AppRouteRouteModule extends RouteModule<
           `No HTTP methods exported in '${this.resolvedPagePath}'. Export a named export for each HTTP method.`
         )
       }
+    }
+  }
+
+  private validateStaticExportMethods(userland: AppRouteUserlandModule): void {
+    // Only GET can be represented by an exported file. Inspect the authored
+    // exports so automatically implemented HEAD and OPTIONS remain valid.
+    const unsupportedMethods = HTTP_METHODS.filter(
+      (method) => method !== 'GET' && method in userland
+    )
+    if (unsupportedMethods.length > 0) {
+      throw new Error(
+        `Route "${this.definition.pathname}" exports HTTP methods that cannot be used with "output: export": ${unsupportedMethods.join(', ')}. Only GET is supported.`
+      )
     }
   }
 
@@ -912,6 +933,14 @@ export class AppRouteRouteModule extends RouteModule<
       rawLiveUserland instanceof Promise
         ? undefined
         : (rawLiveUserland as AppRouteUserlandModule | undefined)
+
+    if (
+      liveUserland &&
+      this.cacheComponents &&
+      this.nextConfigOutput === 'export'
+    ) {
+      this.validateStaticExportMethods(liveUserland)
+    }
 
     const handler = liveUserland
       ? this.resolveHandlerFromUserland(req.method, liveUserland)
