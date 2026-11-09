@@ -6,7 +6,10 @@ import type { NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
 
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { getPathMatch } from '../shared/lib/router/utils/path-match'
+import {
+  getPathMatch,
+  type PatchMatcher,
+} from '../shared/lib/router/utils/path-match'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import {
@@ -53,6 +56,40 @@ function filterInternalQuery(
       delete query[key]
     }
   }
+}
+
+/**
+ * The path matchers of rewrites, per rewrite object. Building one parses the
+ * rewrite's source and creates a regex, and `handleRewrites` walks every
+ * rewrite on every request. A matcher only depends on the source and on the
+ * two options below, and holds no state between calls, so it is built once
+ * per rewrite and option pair. The rewrites come from the routes manifest,
+ * which is the same object for every request outside of development; in
+ * development a reloaded manifest has new rewrite objects.
+ */
+const rewriteMatchers = new WeakMap<object, Array<PatchMatcher | undefined>>()
+
+function getRewriteMatcher(
+  rewrite: DeepReadonly<Rewrite>,
+  trailingSlash: boolean,
+  caseSensitive: boolean
+): PatchMatcher {
+  let matchers = rewriteMatchers.get(rewrite)
+  if (matchers === undefined) {
+    matchers = [undefined, undefined, undefined, undefined]
+    rewriteMatchers.set(rewrite, matchers)
+  }
+  const index = (trailingSlash ? 1 : 0) | (caseSensitive ? 2 : 0)
+  let matcher = matchers[index]
+  if (matcher === undefined) {
+    matcher = getPathMatch(rewrite.source + (trailingSlash ? '(/)?' : ''), {
+      removeUnnamedParams: true,
+      strict: true,
+      sensitive: caseSensitive,
+    })
+    matchers[index] = matcher
+  }
+  return matcher
 }
 
 export function normalizeCdnUrl(
@@ -268,13 +305,10 @@ export function getServerUtils({
     }
 
     const checkRewrite = (rewrite: DeepReadonly<Rewrite>): boolean => {
-      const matcher = getPathMatch(
-        rewrite.source + (trailingSlash ? '(/)?' : ''),
-        {
-          removeUnnamedParams: true,
-          strict: true,
-          sensitive: !!caseSensitive,
-        }
+      const matcher = getRewriteMatcher(
+        rewrite,
+        !!trailingSlash,
+        !!caseSensitive
       )
 
       if (!rewrittenParsedUrl.pathname) return false
