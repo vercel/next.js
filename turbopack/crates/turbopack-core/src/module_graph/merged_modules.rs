@@ -202,8 +202,12 @@ where
 ///   evaluated, as for every other chunk group entry.
 /// - `Traced`: no. The target is not part of a chunk, and nothing evaluates it.
 ///
-/// A reference without a chunking type is no edge of the module graph. Its code only finds a module
-/// that another reference placed in a chunk.
+/// Two internal annotations are relied on not to be used in these ways:
+/// - `turbopackChunkingType: none` on a `require()` inside a function. A reference without a
+///   chunking type is no edge of the module graph and is not counted, but that `require()`
+///   evaluates its target.
+/// - `turbopack-chunking-type: shared` on a static import. That is hoisted code which no evaluation
+///   trace records, with or without an entry on a cycle.
 fn is_loaded_by_a_call(chunking_type: &ChunkingType) -> bool {
     match chunking_type {
         ChunkingType::Parallel { hoisted: false, .. }
@@ -933,6 +937,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         //   which changes the error that a read of a binding of the other one gives before it is
         //   initialized. The other modules are completely evaluated before another module reads
         //   them.
+        // - No load failed before. After a failed load, a later load that enters a merged group at
+        //   another module runs the factory of the group again. Nothing here prevents that, as for
+        //   a list below a cycle that holds no entry.
         let mut reentrant_entries = Bitset::new();
         let mut import_cycle_entries = Bitset::new();
         let mut cycle_modules: FxHashSet<ResolvedVc<Box<dyn Module>>> = FxHashSet::default();
