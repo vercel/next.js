@@ -70,6 +70,10 @@ pub const TURBOPACK_REQUIRE: &TurbopackRuntimeFunctionShortcut = make_shortcut!(
 pub const TURBOPACK_ASYNC_LOADER: &TurbopackRuntimeFunctionShortcut = make_shortcut!("A");
 pub const TURBOPACK_MODULE_CONTEXT: &TurbopackRuntimeFunctionShortcut = make_shortcut!("f");
 pub const TURBOPACK_IMPORT: &TurbopackRuntimeFunctionShortcut = make_shortcut!("i");
+/// Runs the body of the factory of a module whose evaluation is deferred to the first read of one
+/// of its exports. Only the Node.js runtime has it, and only when a chunking context returns
+/// deferred references.
+pub const TURBOPACK_DEFERRED_MODULE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("d");
 pub const TURBOPACK_ESM: &TurbopackRuntimeFunctionShortcut = make_shortcut!("s");
 pub const TURBOPACK_ESM_REEXPORT: &TurbopackRuntimeFunctionShortcut = make_shortcut!("S");
 pub const TURBOPACK_EXPORT_VALUE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("v");

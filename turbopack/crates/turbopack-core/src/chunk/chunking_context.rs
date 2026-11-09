@@ -303,6 +303,18 @@ pub struct UnusedReferences(
     FxHashMap<ResolvedVc<Box<dyn ModuleReference>>, FxHashSet<ResolvedVc<Box<dyn Module>>>>,
 );
 
+/// The import references whose target is not evaluated before the importing module, but when the
+/// importing module first reads one of the imported bindings. See
+/// [`BindingUsageInfo::deferred_references`][deferred].
+///
+/// [deferred]: crate::module_graph::binding_usage_info::BindingUsageInfo::deferred_references
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct DeferredReferences(FxHashSet<ResolvedVc<Box<dyn ModuleReference>>>);
+
+/// The modules that a reference of [`DeferredReferences`] imports.
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct DeferredModules(FxHashSet<ResolvedVc<Box<dyn Module>>>);
+
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Default)]
 pub struct WorkerConfigurationOptions {
@@ -551,6 +563,22 @@ pub trait ChunkingContext {
 
     #[turbo_tasks::function]
     async fn unused_references(self: Vc<Self>) -> Result<Vc<UnusedReferences>>;
+
+    /// The references for which the generated code evaluates the referenced module on the first
+    /// read of an imported binding. Empty unless the chunking context opts in. One that does needs
+    /// a runtime with the function for the modules they import (`TURBOPACK_DEFERRED_MODULE`).
+    #[turbo_tasks::function]
+    fn deferred_references(self: Vc<Self>) -> Vc<DeferredReferences> {
+        Vc::cell(Default::default())
+    }
+
+    /// The modules that the references of [`ChunkingContext::deferred_references`] import. Which
+    /// import evaluates such a module first, and where, is not known at build time, so its
+    /// factory evaluates it through the runtime (`TURBOPACK_DEFERRED_MODULE`).
+    #[turbo_tasks::function]
+    fn deferred_modules(self: Vc<Self>) -> Vc<DeferredModules> {
+        Vc::cell(Default::default())
+    }
 
     /// Returns whether debug IDs are enabled for this chunking context.
     #[turbo_tasks::function]

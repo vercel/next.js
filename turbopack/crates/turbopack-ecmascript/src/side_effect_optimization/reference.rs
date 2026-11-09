@@ -149,6 +149,7 @@ impl ModuleReference for EcmascriptModulePartReference {
                 _ => ImportUsage::TopLevel,
             },
             export: self.export_usage.clone(),
+            deferrable: false,
         }
     }
 }

@@ -1,0 +1,9 @@
+{
+  "minifyType": "NoMinify",
+  "runtime": "NodeJs",
+  "environment": "NodeJs",
+  "removeUnusedImports": true,
+  "removeUnusedExports": true,
+  "scopeHoisting": true,
+  "deferModuleEvaluation": true
+}

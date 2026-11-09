@@ -295,6 +295,8 @@ struct TestOptions {
     #[serde(default)]
     cjs_scope_hoisting: bool,
     #[serde(default)]
+    defer_module_evaluation: bool,
+    #[serde(default)]
     minify: bool,
     /// Minify each module factory on its own instead of the assembled chunk. Only has an effect
     /// together with `minify`.
@@ -335,6 +337,7 @@ impl Default for TestOptions {
             mangle_export_names: default_true(),
             mangle_via_materialized_namespace_object: default_true(),
             cjs_scope_hoisting: false,
+            defer_module_evaluation: false,
             cross_module_constants: true,
             infer_module_side_effects: default_true(),
             minify: false,
@@ -518,6 +521,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 mangle_via_materialized_namespace_object: options
                     .mangle_via_materialized_namespace_object,
                 cjs_scope_hoisting: options.cjs_scope_hoisting,
+                defer_module_evaluation: options.defer_module_evaluation,
                 cross_module_constants: options.cross_module_constants,
                 infer_module_side_effects: options.infer_module_side_effects,
                 ..Default::default()

@@ -115,6 +115,8 @@ type CompressedModuleFactories = Array<
 type RelativeURL = (inputUrl: string) => void
 type ResolvePathFromModule = (moduleId: string) => string
 
+type DeferredModule = (body: () => void) => void
+
 type AsyncModule = (
   body: (
     handleAsyncDependencies: (
@@ -159,6 +161,7 @@ interface TurbopackBaseContext<M> {
   t: RuntimeRequire
   f: ModuleContextFactory
   i: EsmImport
+  d: DeferredModule
   A: InvokeAsyncLoader
   s: EsmExport
   S: EsmReexport

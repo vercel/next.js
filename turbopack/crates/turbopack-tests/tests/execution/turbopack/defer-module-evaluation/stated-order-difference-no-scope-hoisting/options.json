@@ -1,0 +1,4 @@
+{
+  "deferModuleEvaluation": true,
+  "scopeHoisting": false
+}

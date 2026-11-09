@@ -16,6 +16,7 @@ pub async fn get_nodejs_runtime_code(
     source_map_generation_options: SourceMapGenerationOptions,
     runtime_type: RuntimeType,
     include_async_module_runtime: bool,
+    include_deferred_evaluation_runtime: bool,
 ) -> Result<Vc<Code>> {
     let asset_context = *asset_context;
 
@@ -71,6 +72,16 @@ pub async fn get_nodejs_runtime_code(
         RuntimeType::Dummy => {
             panic!("Dummy runtime is not supported in Node.js runtime")
         }
+    }
+
+    if include_deferred_evaluation_runtime {
+        code.push_code(
+            &*embed_static_code(
+                asset_context,
+                rcstr!("nodejs/runtime/deferred-evaluation.ts"),
+            )
+            .await?,
+        )?;
     }
 
     Ok(Code::cell(code.build()))

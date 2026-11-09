@@ -163,6 +163,7 @@ impl ModuleReference for LazyCompilationReference {
         BindingUsage {
             import: ImportUsage::TopLevel,
             export: ExportUsage::All,
+            deferrable: false,
         }
     }
 }

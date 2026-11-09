@@ -468,6 +468,7 @@ export const experimentalSchema = {
   turbopackMangleExportNames: z.boolean().optional(),
   turbopackMangleViaMaterializedNamespaceObject: z.boolean().optional(),
   turbopackCjsScopeHoisting: z.boolean().optional(),
+  turbopackDeferModuleEvaluation: z.boolean().optional(),
   turbopackCrossModuleConstants: z.boolean().optional(),
   turbopackServerFastRefresh: z.boolean().optional(),
   optimizePackageImports: z.array(z.string()).optional(),

@@ -107,6 +107,14 @@ impl EcmascriptBuildNodeRuntimeChunk {
             source_map_generation_options,
         );
 
+        // The chunks of this chunking context call the runtime function for a deferred import
+        // only when it returns deferred references.
+        let include_deferred_evaluation_runtime =
+            !Vc::upcast::<Box<dyn ChunkingContext>>(*this.chunking_context)
+                .deferred_references()
+                .await?
+                .is_empty();
+
         match *this.chunking_context.runtime_type().await? {
             RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
@@ -114,6 +122,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
                     source_map_generation_options,
                     RuntimeType::Development,
                     this.include_async_module_runtime,
+                    include_deferred_evaluation_runtime,
                 );
                 code.push_code(&*runtime_code.await?)?;
             }
@@ -123,6 +132,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
                     source_map_generation_options,
                     RuntimeType::Production,
                     this.include_async_module_runtime,
+                    include_deferred_evaluation_runtime,
                 );
                 code.push_code(&*runtime_code.await?)?;
             }

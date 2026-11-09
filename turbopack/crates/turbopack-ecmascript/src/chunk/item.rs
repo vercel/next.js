@@ -30,8 +30,9 @@ use turbopack_core::{
 use crate::{
     EcmascriptModuleContent,
     chunk::{chunk_type::EcmascriptChunkType, placeable::EcmascriptChunkPlaceable},
+    merged_module::MergedEcmascriptModule,
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
-    runtime_functions::TURBOPACK_ASYNC_MODULE,
+    runtime_functions::{TURBOPACK_ASYNC_MODULE, TURBOPACK_DEFERRED_MODULE},
     utils::StringifyJs,
 };
 
@@ -125,7 +126,9 @@ impl EcmascriptChunkItemContent {
 }
 
 impl EcmascriptChunkItemContent {
-    async fn module_factory(&self) -> Result<ResolvedVc<PersistedCode>> {
+    /// `deferred`: whether the factory evaluates a module of
+    /// [`ChunkingContext::deferred_modules`].
+    async fn module_factory(&self, deferred: bool) -> Result<ResolvedVc<PersistedCode>> {
         let mut code = CodeBuilder::new(false, self.source_maps.generation_options());
         for additional_id in self.additional_ids.iter() {
             writeln!(code, "{}, ", StringifyJs(&additional_id))?;
@@ -154,6 +157,14 @@ impl EcmascriptChunkItemContent {
             code += "\n\n";
         } else {
             code += "\n";
+        }
+
+        if deferred {
+            // Which import evaluates the module first is not known here: a read of an export, an
+            // `import()`, or an import in a module that is itself loaded later, for example while
+            // a request is handled. The runtime runs the body in the async context that it was
+            // loaded in, whichever it is. Only the Node.js runtime has the function.
+            writeln!(code, "{TURBOPACK_DEFERRED_MODULE}(() => {{")?;
         }
 
         if self.options.async_module.is_some() {
@@ -196,6 +207,10 @@ impl EcmascriptChunkItemContent {
                  }}, {});",
                 opts.has_top_level_await
             )?;
+        }
+
+        if deferred {
+            code += "});\n";
         }
 
         code += "})";
@@ -292,6 +307,33 @@ where
     }
 }
 
+/// Whether the factory of `chunk_item` evaluates a module whose evaluation is deferred
+/// ([`ChunkingContext::deferred_modules`]): its own module, or a module that was merged into it.
+async fn evaluates_deferred_module(chunk_item: Vc<Box<dyn EcmascriptChunkItem>>) -> Result<bool> {
+    let deferred_modules = chunk_item
+        .into_trait_ref()
+        .await?
+        .chunking_context()
+        .deferred_modules();
+    let module = chunk_item.module().to_resolved().await?;
+    let modules: Vec<ResolvedVc<Box<dyn Module>>> =
+        match ResolvedVc::try_downcast_type::<MergedEcmascriptModule>(module) {
+            Some(merged) => merged
+                .await?
+                .modules
+                .iter()
+                .map(|(module, _)| ResolvedVc::upcast(*module))
+                .collect(),
+            None => vec![module],
+        };
+    for module in modules {
+        if deferred_modules.contains_key(&module).await? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 #[turbo_tasks::function]
 async fn module_factory_with_code_generation_issue(
     chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
@@ -310,7 +352,13 @@ async fn module_factory_with_code_generation_issue(
     }
 
     let (code, strict) = match get_content(chunk_item, async_module_info).await {
-        Ok(content) => (content.module_factory().await, content.options.strict),
+        Ok(content) => (
+            match evaluates_deferred_module(chunk_item).await {
+                Ok(deferred) => content.module_factory(deferred).await,
+                Err(error) => Err(error),
+            },
+            content.options.strict,
+        ),
         Err(error) => (Err(error), false),
     };
     let code = match code {

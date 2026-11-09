@@ -83,6 +83,12 @@ pub async fn compute_ecmascript_module_exports(
     let mut esm_evaluation_reference_idxs: Vec<usize> = vec![];
     let namespace_reexports: FxHashSet<usize> =
         eval_context.imports.reexport_namespaces().collect();
+    // The module's own namespace needs a re-exported binding while the module is evaluated.
+    let reexports: FxHashSet<usize> = if options.defer_module_evaluation {
+        eval_context.imports.reexports_reference_idxs().collect()
+    } else {
+        FxHashSet::default()
+    };
 
     let span = tracing::trace_span!("esm import references");
     let import_references = async {
@@ -142,6 +148,9 @@ pub async fn compute_ecmascript_module_exports(
                         .unwrap_or_default(),
                     import_externals,
                     module_fragments_enabled: options.module_fragments_enabled,
+                    deferrable: options.defer_module_evaluation
+                        && !reexports.contains(&i)
+                        && eval_context.imports.is_only_read_in_functions(i),
                     export_usage_passthrough: namespace_reexports.contains(&i).then_some(false),
                     resolve_override,
                 },

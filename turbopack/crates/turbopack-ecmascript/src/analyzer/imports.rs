@@ -461,6 +461,10 @@ pub(crate) struct ImportMap {
 
     pub(crate) import_usage: FxHashMap<usize, ImportUsage>,
 
+    /// Indices of the references whose binding is read outside of a function body, i.e. possibly
+    /// while the module itself is evaluated.
+    evaluation_time_reads: FxHashSet<usize>,
+
     /// Map from exported name to local binding id (includes the syntax context).
     pub(crate) exports_ids: FxHashMap<RcStr, (Id, Span)>,
 
@@ -974,6 +978,17 @@ impl ImportMap {
         data.import_usage = analyzer.program_decl_usage.compute_import_usage();
 
         data
+    }
+
+    /// Whether this reference imports a binding that the module only reads inside function
+    /// bodies, i.e. not before the module itself was evaluated. A binding that is re-exported
+    /// (see [`Self::reexports_reference_idxs`]) has no read here but is needed for the module's
+    /// namespace.
+    pub(crate) fn is_only_read_in_functions(&self, esm_reference_index: usize) -> bool {
+        matches!(
+            self.references[esm_reference_index].imported_symbol,
+            ImportedSymbol::Symbol(_) | ImportedSymbol::Exports
+        ) && !self.evaluation_time_reads.contains(&esm_reference_index)
     }
 
     pub(crate) fn should_import_all(&self, esm_reference_index: usize) -> bool {
@@ -1574,6 +1589,9 @@ impl Visit for Analyzer<'_> {
         let id = node.to_id();
         if let Some((esm_reference_index, _)) = self.data.get_binding(&id) {
             // An import binding
+            if !self.state.is_in_fn() {
+                self.data.evaluation_time_reads.insert(esm_reference_index);
+            }
             let usage = self
                 .program_decl_usage
                 .import_usages
@@ -1970,6 +1988,48 @@ mod tests {
         assert_eq!(first, duplicate);
         assert_eq!(map.references.len(), 1);
         assert_eq!(map.reference_declaration_orders, vec![2]);
+    }
+
+    #[test]
+    fn only_a_binding_reference_is_read_in_functions() {
+        // `import { a } from './m'` and `import * as ns from './m'` each declare an evaluation
+        // reference next to the one for the binding, and a module fragment imports its parts.
+        // Only the binding references can be deferred to a read.
+        let mut map = ImportMap::default();
+        let symbols = [
+            ImportedSymbol::ModuleEvaluation,
+            ImportedSymbol::Symbol("a".into()),
+            ImportedSymbol::Exports,
+            ImportedSymbol::Part(0),
+            ImportedSymbol::PartEvaluation(0),
+        ];
+        for (i, imported_symbol) in symbols.into_iter().enumerate() {
+            map.ensure_reference(
+                ImportMapReference {
+                    module_path: "./m".into(),
+                    imported_symbol,
+                    annotations: None,
+                    span: DUMMY_SP,
+                },
+                i,
+            );
+        }
+        let only_read_in_functions = |map: &ImportMap| {
+            (0..5)
+                .map(|i| map.is_only_read_in_functions(i))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            only_read_in_functions(&map),
+            vec![false, true, true, false, false]
+        );
+
+        // `a` is read while the module is evaluated.
+        map.evaluation_time_reads.insert(1);
+        assert_eq!(
+            only_read_in_functions(&map),
+            vec![false, false, true, false, false]
+        );
     }
 
     #[test]

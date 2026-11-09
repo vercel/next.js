@@ -1252,6 +1252,9 @@ pub struct ExperimentalConfig {
     turbopack_mangle_via_materialized_namespace_object: Option<bool>,
     /// Enable scope hoisting of static CommonJS modules. Defaults to false.
     turbopack_cjs_scope_hoisting: Option<bool>,
+    /// Evaluate a server module that is side effect free for tree shaking when one of its exports
+    /// is first used. Defaults to false.
+    turbopack_defer_module_evaluation: Option<bool>,
     /// Enable cross-module constant inlining. Defaults to false.
     turbopack_cross_module_constants: Option<bool>,
     /// Devtool option for the segment explorer.
@@ -2425,6 +2428,15 @@ impl NextConfig {
         Vc::cell(
             self.experimental
                 .turbopack_cjs_scope_hoisting
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_defer_module_evaluation(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_defer_module_evaluation
                 .unwrap_or(false),
         )
     }

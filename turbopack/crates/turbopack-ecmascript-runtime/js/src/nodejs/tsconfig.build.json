@@ -8,6 +8,7 @@
   "include": [
     "runtime/nodejs-globals.d.ts",
     "runtime/runtime-base.ts",
-    "runtime/build-base.ts"
+    "runtime/build-base.ts",
+    "runtime/deferred-evaluation.ts"
   ]
 }

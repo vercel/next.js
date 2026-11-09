@@ -42,6 +42,17 @@ pub trait ModuleReference: ValueToString {
         BindingUsage::default()
     }
 
+    /// Whether the code that is generated for this reference can evaluate the referenced module
+    /// on the first read of the imported binding. Asked for a reference with
+    /// [`BindingUsage::deferrable`]: only one that returns true is deferred, see
+    /// [`BindingUsageInfo::deferred_references`][deferred].
+    ///
+    /// [deferred]: crate::module_graph::binding_usage_info::BindingUsageInfo::deferred_references
+    #[turbo_tasks::function]
+    fn can_defer_evaluation(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
     fn source(&self) -> Option<IssueSource> {
         None
     }
@@ -114,6 +125,7 @@ impl ModuleReference for SingleChunkableModuleReference {
         BindingUsage {
             import: ImportUsage::TopLevel,
             export: self.export.clone(),
+            deferrable: false,
         }
     }
 }
