@@ -610,11 +610,7 @@ In a route with dynamic param segments, [`generateStaticParams`](/docs/app/api-r
 
 See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for the full walkthrough.
 
-## Static exports
-
-Cache Components also supports [`output: 'export'`](/docs/app/guides/static-exports#cache-components). In this mode, all server content must be prerendered during the build, including content inside `<Suspense>`. Client Components can still defer browser-only work or fetch from an available API.
-
-Only paths returned by `generateStaticParams` are exported. Unlisted paths return 404, and cached server output does not revalidate after deployment. Rebuild and redeploy to update it. See [Static Exports](/docs/app/guides/static-exports#cache-components) for the complete requirements.
+To deploy Cache Components without a Next.js server, follow the [static-export requirements](/docs/app/guides/static-exports#cache-components).
 
 ## Bots and crawlers
 

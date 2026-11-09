@@ -123,7 +123,7 @@ The `'navigation'` value is usually set deliberately to guarantee static output 
 
 If request-time rendering is intentional for this route and the app has a Next.js server, remove `ensureStatic = 'navigation'` from every page or layout that sets it. The route then follows the ordinary [Cache Components](/docs/app/getting-started/caching) rendering rules.
 
-For a [static export](/docs/app/guides/static-exports), request-time rendering requires removing `output: 'export'` and deploying with a Next.js server. Removing `ensureStatic = 'navigation'` alone does not relax the export requirement.
+With `output: 'export'`, [switch to a server deployment](/docs/app/guides/static-exports#unsupported-features) before using request-time rendering.
 
 Learn more: [Combining `ensureStatic` levels across layouts and pages](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#combining-levels-across-layouts-and-pages).
 

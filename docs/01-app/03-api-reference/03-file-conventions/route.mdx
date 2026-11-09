@@ -61,34 +61,20 @@ export async function OPTIONS(request) {}
 
 With [`output: 'export'`](/docs/app/guides/static-exports), a `GET` Route Handler can produce a static file during `next build`. The deployed file is served without executing the handler again.
 
-With [Cache Components](/docs/app/getting-started/caching), Next.js attempts to prerender `GET` handlers automatically. A handler that returns a complete static response needs no `dynamic` export:
-
-```ts filename="app/data.json/route.ts" switcher
-export async function GET() {
-  return Response.json({ name: 'Lee' })
-}
-```
-
-```js filename="app/data.json/route.js" switcher
-export async function GET() {
-  return Response.json({ name: 'Lee' })
-}
-```
-
-This generates a `data.json` file. To include asynchronous data, move the data access into a helper marked with [`use cache`](/docs/app/api-reference/directives/use-cache). The directive cannot be applied directly to the `GET` export. See [Route Handler caching with Cache Components](/docs/app/getting-started/route-handlers#with-cache-components).
+With [Cache Components](/docs/app/getting-started/caching), Next.js attempts to prerender `GET` handlers automatically. A complete static response needs no `dynamic` export. For asynchronous data, use a cached helper as shown in the [Cache Components examples](/docs/app/getting-started/route-handlers#with-cache-components).
 
 Static export with Cache Components enforces the following requirements:
 
 - Export only `GET`. Explicit `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, or `OPTIONS` exports cause an error. The static host determines how HTTP methods are handled after deployment.
-- Generate the entire response during the build, including the complete body of a streamed response. A body that remains pending cannot be exported.
+- Generate the entire response during the build, including the complete body of a streamed response.
 - Resolve server data during prerendering. Request-dependent values such as `cookies()`, `headers()`, request properties, or `connection()` cannot supply the exported response.
 - Return a response status below `400`, or `404`. Other error statuses cause the export to fail.
 
-Unsupported method exports report an error in development and during the build. The build also checks that each response can finish prerendering. An incomplete response fails the build instead of silently omitting the exported file. Cache build-time data where appropriate, remove request-time dependencies, or use a [deployment with a Next.js server](/docs/app/getting-started/deploying#nodejs-server) when the handler must run for each request.
+Unsupported method exports report an error in development and during the build. Response completeness is checked during `next build`. Cache build-time data where appropriate, remove request-time dependencies, or use a [deployment with a Next.js server](/docs/app/getting-started/deploying#nodejs-server) when the handler must run for each request.
 
-For a dynamic Route Handler, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params#with-route-handlers) lists the concrete paths to export. Paths not generated at build time are not available on the static host.
+For dynamic Route Handler paths, use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params#with-route-handlers).
 
-Exported responses do not support server revalidation. Rebuild and redeploy to change their contents. Without Cache Components, use the [`dynamic = 'force-static'` pattern](/docs/app/guides/static-exports#route-handlers) to opt a `GET` handler into static export.
+Without Cache Components, use the [`dynamic = 'force-static'` pattern](/docs/app/guides/static-exports#route-handlers) to opt a `GET` handler into static export.
 
 ### Parameters
 

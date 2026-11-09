@@ -884,9 +884,7 @@ async function getProducts() {
 
 ## Static exports
 
-You can keep [`output: 'export'`](/docs/app/guides/static-exports#cache-components) when enabling Cache Components. All server-rendered pages and complete `GET` Route Handler responses must be generated during the build. Remove legacy `dynamic = 'force-static'` exports and cache asynchronous data with `use cache` where appropriate.
-
-Return every exported path from `generateStaticParams`. The exported app cannot generate another path or revalidate server content after deployment. See [Static Exports](/docs/app/guides/static-exports#cache-components) and [Route Handler static exports](/docs/app/api-reference/file-conventions/route#static-exports) for the requirements.
+You can keep [`output: 'export'`](/docs/app/guides/static-exports#cache-components) when enabling Cache Components. Follow the static-export requirements for pages, Route Handlers, and generated paths.
 
 ## `generateMetadata` and `generateViewport`
 

@@ -26,7 +26,7 @@ During [prerendering](/docs/app/glossary#prerendering), a Server Component calle
 
 Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now)) have parallel error pages: see [`Math.random()`](/docs/messages/blocking-prerender-random) and [`Date.now()`](/docs/messages/blocking-prerender-current-time). The Client Component case is handled at [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client).
 
-For an app using [`output: 'export'`](/docs/app/guides/static-exports), the value must be prerendered or generated in the browser. [Generate on every request](#generate-on-every-request) requires a Next.js server and is not available in a static export.
+[Generate on every request](#generate-on-every-request) is unavailable with [`output: 'export'`](/docs/app/guides/static-exports#cache-components).
 
 ## Ways to fix this
 

@@ -72,7 +72,7 @@ const nextConfig = {
 export default nextConfig
 ```
 
-Exported pages use the same static requirement as [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation). All server-rendered content, including metadata and viewport data, must be generated during the build. A `<Suspense>` fallback cannot defer server work until a request. Setting `instant = false` or a weaker `ensureStatic` value does not relax the export requirement.
+Exported pages use the same static requirement as [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation). All server-rendered content, including metadata and viewport data, must be generated during the build. A `<Suspense>` fallback cannot defer server work until a request.
 
 Use [`use cache`](/docs/app/api-reference/directives/use-cache) to include asynchronous data in the prerendered output. Both `use cache` and [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) can contribute build-time data. Exported files do not revalidate on the server. Rebuild and redeploy to update their contents.
 
@@ -298,9 +298,7 @@ export async function GET() {
 
 The above file `app/data.json/route.ts` will render to a static file during `next build`, producing `data.json` containing `{ name: 'Lee' }`.
 
-With Cache Components, request-dependent data or an unfinished response body causes the export build to fail. Explicit method exports other than `GET` also fail validation. See the [Route Handler static-export requirements](/docs/app/api-reference/file-conventions/route#static-exports) for the supported methods, response statuses, and fixes.
-
-Exported responses are files. They cannot run server code or revalidate when the browser requests them. Rebuild and redeploy to update them.
+See the [Route Handler static-export requirements](/docs/app/api-reference/file-conventions/route#static-exports) for supported methods, response validation, and fixes.
 
 ### Browser APIs
 
@@ -343,9 +341,11 @@ Features that require a Node.js server, or dynamic logic that cannot be computed
 - [Server Actions](/docs/app/getting-started/mutating-data)
 - [Intercepting Routes](/docs/app/api-reference/file-conventions/intercepting-routes)
 
+To use these request-time server features, remove `output: 'export'` and choose a [deployment with a Next.js server](/docs/app/getting-started/deploying#nodejs-server).
+
 With Cache Components, pages that require server work after the build report a [fully static route error](/docs/messages/static-route-dynamic). The same requirement applies to [metadata](/docs/messages/static-metadata-dynamic) and [viewport data](/docs/messages/static-viewport-dynamic), even inside `<Suspense>`.
 
-Route Handler response completeness is checked during `next build`. Unsupported HTTP method exports also report an error in development. See [Route Handler static exports](/docs/app/api-reference/file-conventions/route#static-exports).
+For Route Handler export errors, see the [static-export requirements](/docs/app/api-reference/file-conventions/route#static-exports).
 
 Without Cache Components, unsupported dynamic server features report an error similar to setting [`dynamic = 'error'`](/docs/app/guides/caching-without-cache-components#dynamic) in the root layout.
 
