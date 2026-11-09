@@ -130,7 +130,6 @@ export function getResolveRoutes(
     req: IncomingMessage
     res: ServerResponse
     isUpgradeReq: boolean
-    signal: AbortSignal
     invokedOutputs?: Set<string>
   }): Promise<{
     finished: boolean
