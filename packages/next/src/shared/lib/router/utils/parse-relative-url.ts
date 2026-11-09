@@ -17,6 +17,14 @@ export interface ParsedRelativeUrl {
 }
 
 /**
+ * The base of every relative URL on the server. It is only read (its protocol,
+ * host and origin, and as the base of another `URL`), so one instance serves
+ * every call. In the browser the base is the location's origin, which can
+ * change, so it is read for each call.
+ */
+let serverBase: URL | undefined
+
+/**
  * Parses path-relative urls (e.g. `/hello/world?foo=bar`). If url isn't path-relative
  * (e.g. `./hello`) then at least base must be.
  * Absolute urls are rejected with one exception, in the browser, absolute urls that are on
@@ -37,9 +45,10 @@ export function parseRelativeUrl(
   base?: string,
   parseQuery = true
 ): ParsedRelativeUrl | Omit<ParsedRelativeUrl, 'query'> {
-  const globalBase = new URL(
-    typeof window === 'undefined' ? 'http://n' : getLocationOrigin()
-  )
+  const globalBase =
+    typeof window === 'undefined'
+      ? (serverBase ??= new URL('http://n'))
+      : new URL(getLocationOrigin())
 
   const resolvedBase = base
     ? new URL(base, globalBase)
