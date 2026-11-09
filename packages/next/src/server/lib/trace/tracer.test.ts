@@ -12,6 +12,7 @@ import type {
 import type { WorkStore } from '../../app-render/work-async-storage.external'
 import type { WorkUnitStore } from '../../app-render/work-unit-async-storage.external'
 import {
+  ProxyTracerProvider,
   ROOT_CONTEXT,
   context,
   createContextKey,
@@ -284,6 +285,58 @@ describe('trace context with the W3C propagator', () => {
       traceparent: `00-${TRACE_ID}-${SPAN_ID}-01`,
       tracestate: undefined,
     })
+  })
+})
+
+describe('isOpenTelemetryEnabled', () => {
+  // The class of the API's noop tracer provider, which is what a proxy
+  // provider without a delegate returns.
+  const NoopTracerProvider: object = new ProxyTracerProvider().getDelegate()
+    .constructor
+  const originalName = Object.getOwnPropertyDescriptor(
+    NoopTracerProvider,
+    'name'
+  )!
+
+  beforeEach(() => {
+    context.disable()
+    trace.disable()
+  })
+
+  afterEach(() => {
+    Object.defineProperty(NoopTracerProvider, 'name', originalName)
+    trace.disable()
+  })
+
+  it('is disabled when no tracer provider is registered', () => {
+    expect(originalName.value).toBe('NoopTracerProvider')
+    expect(getTracer().isOpenTelemetryEnabled()).toBe(false)
+  })
+
+  it('is disabled when the noop tracer provider class has no name', () => {
+    // A bundler that minifies `@opentelemetry/api` into the server bundle can
+    // emit the noop provider as an anonymous class expression, whose name is
+    // empty.
+    Object.defineProperty(NoopTracerProvider, 'name', {
+      ...originalName,
+      value: '',
+    })
+
+    expect(getTracer().isOpenTelemetryEnabled()).toBe(false)
+  })
+
+  it('is enabled when a tracer provider is registered', () => {
+    // The registered provider's class has no name either, so a provider is not
+    // taken for the noop one because of an empty name.
+    const tracerProvider = new (class {
+      getTracer() {
+        return new ProxyTracerProvider().getTracer('test')
+      }
+    })()
+    expect(tracerProvider.constructor.name).toBe('')
+    trace.setGlobalTracerProvider(tracerProvider)
+
+    expect(getTracer().isOpenTelemetryEnabled()).toBe(true)
   })
 })
 
