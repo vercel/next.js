@@ -71,6 +71,8 @@ try {
     'commands.jsonl',
     'invocations.jsonl',
     'upstream.jsonl',
+    'gh.jsonl',
+    'reports.jsonl',
     'upstream.json',
     'baseline.json',
     'package-runner.json',
