@@ -2972,6 +2972,18 @@ impl Project {
         ))
     }
 
+    /// Federation's browser entry, lazy chunks, CSS, and manifest are written under the
+    /// server output root rather than the regular client filesystem. Track them there
+    /// without excluding CSS, so dev subscriptions see exposed-module changes.
+    #[turbo_tasks::function]
+    pub async fn federation_changed(
+        self: Vc<Self>,
+        roots: Vc<OutputAssets>,
+    ) -> Result<Vc<Completion>> {
+        let path = self.node_root().owned().await?;
+        Ok(any_output_changed(roots, path, false))
+    }
+
     #[turbo_tasks::function]
     pub async fn client_main_modules(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let mut chunk_groups = Vec::new();
