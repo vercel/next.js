@@ -102,6 +102,16 @@ pub trait BackingListStorage<T>:
     /// Removes and yields all items in order.
     fn drain(&mut self) -> Self::Drain<'_>;
     fn shrink_to_fit(&mut self);
+    /// Shrinks the list (see [`Self::shrink_to_fit`]) once less than a third of its capacity is
+    /// used. Called by [`RawAutoMap::shrink_amortized`] after removals.
+    ///
+    /// The threshold leaves room for growing again, so alternating inserts and removals around
+    /// a capacity boundary don't reallocate every time.
+    fn shrink_amortized(&mut self) {
+        if self.capacity() > self.len() * 3 {
+            self.shrink_to_fit();
+        }
+    }
 }
 
 impl<T, const I: usize> BackingListStorage<T> for TinyVec<T, I, MAX_USEFUL_LINEAR_SCAN> {
@@ -138,6 +148,9 @@ impl<T, const I: usize> BackingListStorage<T> for TinyVec<T, I, MAX_USEFUL_LINEA
     }
     fn shrink_to_fit(&mut self) {
         TinyVec::shrink_to_fit(self)
+    }
+    fn shrink_amortized(&mut self) {
+        TinyVec::shrink_amortized(self)
     }
 }
 

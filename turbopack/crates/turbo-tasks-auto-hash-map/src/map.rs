@@ -376,13 +376,7 @@ where
 
     pub fn shrink_amortized(&mut self) {
         match self {
-            RawAutoMap::List(list, _) => {
-                // `shrink_to_fit` returns spilled storage to inline
-                // (or a tighter heap buffer) when the occupancy warrants it.
-                if list.capacity() > list.len() * 3 {
-                    list.shrink_to_fit();
-                }
-            }
+            RawAutoMap::List(list, _) => list.shrink_amortized(),
             RawAutoMap::Map(map) => {
                 if map.len() <= MIN_HASH_SIZE {
                     *self = Self::map_to_exact_list(map);
@@ -1636,6 +1630,74 @@ mod tests {
         exercise_list_storage::<TinyVec<(usize, usize), 2, MAX_USEFUL_LINEAR_SCAN>>();
         exercise_list_storage::<Vec<(usize, usize)>>();
         exercise_list_storage::<arrayvec::ArrayVec<(usize, usize), MAX_USEFUL_LINEAR_SCAN>>();
+    }
+
+    fn shrink_amortized_list_capacity<L: BackingListStorage<(usize, usize)>>() -> [usize; 2] {
+        let mut map = RawAutoMap::<
+            usize,
+            usize,
+            HashMap<usize, usize, BuildHasherDefault<FxHasher>>,
+            L,
+        >::default();
+        for i in 0..MAX_USEFUL_LINEAR_SCAN {
+            map.insert(i, i);
+        }
+        let list_capacity = |map: &RawAutoMap<_, _, _, L>| match map {
+            RawAutoMap::List(list, _) => list.capacity(),
+            RawAutoMap::Map(_) => panic!("expected the list variant"),
+        };
+        assert_eq!(list_capacity(&map), MAX_USEFUL_LINEAR_SCAN);
+        // 11 items in a capacity of 32: more than a third is used, so it keeps its capacity.
+        for i in 11..MAX_USEFUL_LINEAR_SCAN {
+            map.remove(&i);
+        }
+        map.shrink_amortized();
+        let kept = list_capacity(&map);
+        // 10 items: at most a third is used, so it shrinks.
+        map.remove(&10);
+        map.shrink_amortized();
+        let shrunk = list_capacity(&map);
+        assert_eq!(keys(&map), (0..10).collect::<Vec<_>>());
+        [kept, shrunk]
+    }
+
+    #[test]
+    fn test_shrink_amortized_list_threshold() {
+        assert_eq!(
+            shrink_amortized_list_capacity::<TinyVec<(usize, usize), 0, MAX_USEFUL_LINEAR_SCAN>>(),
+            [MAX_USEFUL_LINEAR_SCAN, 10]
+        );
+        // `Vec` uses the provided default.
+        let [kept, shrunk] = shrink_amortized_list_capacity::<Vec<(usize, usize)>>();
+        assert_eq!(kept, MAX_USEFUL_LINEAR_SCAN);
+        assert!((10..MAX_USEFUL_LINEAR_SCAN).contains(&shrunk), "{shrunk}");
+    }
+
+    /// Calls `BackingListStorage::shrink_amortized` directly at exactly a third of the capacity
+    /// (kept) and just below it (shrunk). Returns the capacities before, kept and shrunk.
+    fn list_shrink_amortized_capacities<L: BackingListStorage<u32>>() -> [usize; 3] {
+        let mut list = L::with_capacity(12);
+        let before = list.capacity();
+        for i in 0..4 {
+            list.push(i);
+        }
+        list.shrink_amortized();
+        let kept = list.capacity();
+        list.swap_remove(0);
+        list.shrink_amortized();
+        assert_eq!(list.len(), 3);
+        [before, kept, list.capacity()]
+    }
+
+    #[test]
+    fn test_list_storage_shrink_amortized() {
+        assert_eq!(
+            list_shrink_amortized_capacities::<TinyVec<u32, 0, MAX_USEFUL_LINEAR_SCAN>>(),
+            [12, 12, 3]
+        );
+        let [before, kept, shrunk] = list_shrink_amortized_capacities::<Vec<u32>>();
+        assert_eq!(kept, before);
+        assert!((3..before).contains(&shrunk), "{before} -> {shrunk}");
     }
 
     /// Futures holding the iterators across an `.await` must be `Send`, also for keys containing
