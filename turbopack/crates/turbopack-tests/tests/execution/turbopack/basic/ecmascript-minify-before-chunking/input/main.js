@@ -5,4 +5,4 @@ function unusedInEntry(a, b) {
   return a * b
 }
 
-console.log(double(21))
+export const result = double(21)
