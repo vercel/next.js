@@ -920,7 +920,7 @@ async function exportAppImpl(
   // that pass a preloaded config as well.
   if (!options.buildExport && nextConfig.cacheComponents) {
     throw new Error(
-      'Invariant: Cache Components cannot be enabled in export mode'
+      'Invariant: Cache Components cannot yet be enabled in export mode'
     )
   }
 
