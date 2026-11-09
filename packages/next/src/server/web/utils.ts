@@ -17,15 +17,23 @@ export function fromNodeOutgoingHttpHeaders(
   nodeHeaders: OutgoingHttpHeaders
 ): Headers {
   const headers = new Headers()
-  for (let [key, value] of Object.entries(nodeHeaders)) {
-    const values = Array.isArray(value) ? value : [value]
-    for (let v of values) {
-      if (typeof v === 'undefined') continue
-      if (typeof v === 'number') {
-        v = v.toString()
-      }
+  // The same names in the same order as `Object.entries`, without an entry
+  // array per header and without an array around a single value.
+  const keys = Object.keys(nodeHeaders)
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i]
+    const value = nodeHeaders[key]
+    if (Array.isArray(value)) {
+      for (let v of value as Array<string | number | undefined>) {
+        if (typeof v === 'undefined') continue
+        if (typeof v === 'number') {
+          v = v.toString()
+        }
 
-      headers.append(key, v)
+        headers.append(key, v)
+      }
+    } else if (typeof value !== 'undefined') {
+      headers.append(key, typeof value === 'number' ? value.toString() : value)
     }
   }
   return headers
