@@ -49,30 +49,24 @@ type AsyncResourceConstructor = typeof import('async_hooks').AsyncResource
 // function can reach, which is the async context and with it the stores of
 // the request, survives every scavenge until the next major GC.
 //
-// This module is also bundled for the Edge runtime and for the browser, so the
-// module is looked up at runtime instead of being required, and only in
-// bundles for Node.js. The branch has to be the `else` of the Edge check to be
-// removed from Edge bundles, where `process.getBuiltinModule` would be
-// reported as an unsupported Node.js API, and it is removed from browser
-// bundles, where a reference to `process` would pull in a polyfill.
+// This module is also bundled for the Edge runtime and for the browser, so it
+// can't require `async_hooks`, and it is loaded unbundled by the Node.js
+// server, so it can't decide by `process.env.NEXT_RUNTIME` either: that would
+// be an environment variable read at runtime. `node-environment-baseline`,
+// which only Node.js loads and which also provides the global
+// `AsyncLocalStorage`, registers the module on `globalThis` under this key.
 let NodeAsyncResource: AsyncResourceConstructor | undefined
-if (process.env.NEXT_RUNTIME === 'edge') {
-  // The Edge runtime has no `AsyncResource`.
-} else if (process.env.NEXT_RUNTIME === 'nodejs') {
-  if (
-    maybeGlobalAsyncLocalStorage &&
-    typeof process.getBuiltinModule === 'function'
-  ) {
-    const asyncHooks = process.getBuiltinModule('node:async_hooks') as
-      | typeof import('async_hooks')
-      | undefined
-    if (
-      asyncHooks &&
-      asyncHooks.AsyncLocalStorage === maybeGlobalAsyncLocalStorage
-    ) {
-      NodeAsyncResource = asyncHooks.AsyncResource
-    }
-  }
+const nodeAsyncHooks:
+  | Pick<typeof import('async_hooks'), 'AsyncLocalStorage' | 'AsyncResource'>
+  | undefined =
+  typeof globalThis !== 'undefined'
+    ? (globalThis as any)[Symbol.for('@next/node-async-hooks')]
+    : undefined
+if (
+  nodeAsyncHooks &&
+  nodeAsyncHooks.AsyncLocalStorage === maybeGlobalAsyncLocalStorage
+) {
+  NodeAsyncResource = nodeAsyncHooks.AsyncResource
 }
 
 export function createAsyncLocalStorage<
