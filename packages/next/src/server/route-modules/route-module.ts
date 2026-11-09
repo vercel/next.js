@@ -572,12 +572,29 @@ export abstract class RouteModule<
           )
         )
       }
-      const { join } = require('node:path') as typeof import('node:path')
-      const projectDir = join(
-        /* turbopackIgnore: true */
-        process.cwd(),
+      // This runs twice for every request, after `ensureInstrumentation`
+      // resolved the same directory: take it from there unless the working
+      // directory or the relative project directory are not the ones it
+      // resolved.
+      const cwd = process.cwd()
+      const relativeProjectDir =
         getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
-      )
+      const resolved = this.resolvedDirs
+      let projectDir: string
+      if (
+        resolved !== undefined &&
+        resolved.cwd === cwd &&
+        resolved.relativeProjectDir === relativeProjectDir
+      ) {
+        projectDir = resolved.absoluteProjectDir
+      } else {
+        const { join } = require('node:path') as typeof import('node:path')
+        projectDir = join(
+          /* turbopackIgnore: true */
+          cwd,
+          relativeProjectDir
+        )
+      }
 
       await this.loadCustomCacheHandlers(req, nextConfig)
 
