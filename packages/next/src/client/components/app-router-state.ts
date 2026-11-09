@@ -35,6 +35,7 @@ import {
   type NormalizedSearch,
 } from './segment-cache/cache-key'
 import type { CacheMap } from './segment-cache/cache-map'
+import type { NavigationLockPrefetch } from './segment-cache/navigation-testing-lock'
 import { schedulePrefetchTask } from './segment-cache/scheduler'
 import { PrefetchPriority, AppStage } from './segment-cache/types'
 import { getLinkForCurrentNavigation } from './links'
@@ -1001,9 +1002,16 @@ async function ensurePrefetchThenNavigate(
   // resolves when the task completes — after every segment response the task
   // cares about has settled — so the navigation below reads present data
   // rather than a still-in-flight entry.
-  const { beginNavigationLockPrefetch } =
-    require('./segment-cache/navigation-testing-lock') as typeof import('./segment-cache/navigation-testing-lock')
-  const navigationLockPrefetch = beginNavigationLockPrefetch()
+  //
+  // The testing API check lets the bundler drop the `require` from every
+  // build that does not expose the testing API. Such a build never calls
+  // this function.
+  let navigationLockPrefetch: NavigationLockPrefetch | null = null
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    const { beginNavigationLockPrefetch } =
+      require('./segment-cache/navigation-testing-lock') as typeof import('./segment-cache/navigation-testing-lock')
+    navigationLockPrefetch = beginNavigationLockPrefetch()
+  }
   const prefetchTask = schedulePrefetchTask(
     cacheKey,
     currentRoot,
@@ -1040,10 +1048,12 @@ async function ensurePrefetchThenNavigate(
   // Only transition to captured-SPA once the navigation is known to be an SPA.
   // If the result is an MPA navigation, leave the cookie pending and let the new
   // document load transition it to captured-MPA.
-  if (!result.pushRef.mpaNavigation) {
-    const { updateCapturedSPAToTree } =
-      require('./segment-cache/navigation-testing-lock') as typeof import('./segment-cache/navigation-testing-lock')
-    updateCapturedSPAToTree(currentFlightRouterState, result.tree)
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    if (!result.pushRef.mpaNavigation) {
+      const { updateCapturedSPAToTree } =
+        require('./segment-cache/navigation-testing-lock') as typeof import('./segment-cache/navigation-testing-lock')
+      updateCapturedSPAToTree(currentFlightRouterState, result.tree)
+    }
   }
 
   return result
