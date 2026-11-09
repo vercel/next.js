@@ -4,4 +4,4 @@ import { prop as atFoo } from '@/foo'
 
 import * as bar from 'bar'
 
-console.log(globalFoo, localFoo, atFoo, bar)
+export { globalFoo, localFoo, atFoo, bar }
