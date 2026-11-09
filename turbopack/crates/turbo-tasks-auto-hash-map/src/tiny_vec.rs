@@ -136,7 +136,7 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
     /// `actual` must be `<= self.capacity()` and the first `actual` elements
     /// must be initialized.
     #[inline]
-    fn set_len(&mut self, actual: usize) {
+    pub(crate) fn set_len(&mut self, actual: usize) {
         debug_assert!(actual <= self.capacity());
         debug_assert!(actual <= MAX);
         // actual <= MAX <= 254 => actual + 1 in 1..=255, never zero.
@@ -156,7 +156,7 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
     }
 
     #[inline]
-    fn as_mut_ptr(&mut self) -> *mut T {
+    pub(crate) fn as_mut_ptr(&mut self) -> *mut T {
         if self.is_spilled() {
             // SAFETY: spilled => `heap` is the active union field.
             unsafe { self.data.heap.as_ptr() }

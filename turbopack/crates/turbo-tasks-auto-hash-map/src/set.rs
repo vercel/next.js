@@ -353,7 +353,7 @@ where
     L: BackingListStorage<(K, ())>,
 {
     /// Order insensitive for unordered storages, order sensitive for ordered ones (see
-    /// [`BackingMapStorage::eq`]).
+    /// [`RawAutoMap`]'s `PartialEq`).
     fn eq(&self, other: &Self) -> bool {
         self.map == other.map
     }

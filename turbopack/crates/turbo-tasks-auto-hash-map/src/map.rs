@@ -21,7 +21,7 @@ use shrink_to_fit::ShrinkToFit;
 
 use crate::{
     MAX_USEFUL_LINEAR_SCAN, MIN_HASH_SIZE, TinyVec,
-    storage::{BackingListStorage, BackingMapIter, BackingMapStorage, MapEntry},
+    storage::{BackingListStorage, BackingMapIter, BackingMapStorage, ListPredicate, MapEntry},
 };
 
 /// A map that stores small numbers of entries in a linear list `L` and switches to a real map `M`
@@ -121,10 +121,14 @@ where
     M::Hasher: BuildHasher + Default,
     L: BackingListStorage<(K, V)>,
 {
-    fn convert_to_map(&mut self) -> &mut M {
+    /// Converts the list variant into the map variant (no-op for the map variant).
+    ///
+    /// The map is allocated for `additional_reserve` more entries than the list holds, but at
+    /// least for `MAX_USEFUL_LINEAR_SCAN * 2` entries, so that it doesn't need to grow right away.
+    fn convert_to_map(&mut self, additional_reserve: usize) -> &mut M {
         if let RawAutoMap::List(list, _) = self {
-            let mut map =
-                M::with_capacity_and_hasher(MAX_USEFUL_LINEAR_SCAN * 2, Default::default());
+            let capacity = (MAX_USEFUL_LINEAR_SCAN * 2).max(list.len() + additional_reserve);
+            let mut map = M::with_capacity_and_hasher(capacity, Default::default());
             map.extend(list.drain());
             *self = RawAutoMap::Map(Box::new(map));
         }
@@ -185,7 +189,7 @@ where
     #[cold]
     #[inline(never)]
     fn convert_to_map_and_insert(&mut self, key: K, value: V) {
-        self.convert_to_map().insert(key, value);
+        self.convert_to_map(1).insert(key, value);
     }
 
     /// The rare list -> map conversion of the vacant entries' `insert`, kept out of line like
@@ -194,7 +198,7 @@ where
     #[cold]
     #[inline(never)]
     fn convert_to_map_and_insert_entry(&mut self, key: K, value: V) -> &mut V {
-        match self.convert_to_map().entry(key) {
+        match self.convert_to_map(1).entry(key) {
             MapEntry::Occupied(entry) => M::occupied_into_mut(entry),
             MapEntry::Vacant(entry) => M::vacant_insert(entry, value),
         }
@@ -202,10 +206,15 @@ where
 
     /// The list -> map conversion of [`Self::extend`] for inputs that (by their size hint) don't
     /// fit into the list, kept out of line like [`Self::convert_to_map_and_insert`].
+    /// `additional_reserve` is the lower bound of the iterator's size hint.
     #[cold]
     #[inline(never)]
-    fn convert_to_map_and_extend(&mut self, iter: impl Iterator<Item = (K, V)>) {
-        let map = self.convert_to_map();
+    fn convert_to_map_and_extend(
+        &mut self,
+        iter: impl Iterator<Item = (K, V)>,
+        additional_reserve: usize,
+    ) {
+        let map = self.convert_to_map(additional_reserve);
         map.extend(iter);
         // The hint is not enforced
         if map.len() < MIN_HASH_SIZE {
@@ -258,7 +267,7 @@ where
             RawAutoMap::List(list, _) => {
                 let (lower, _) = iter.size_hint();
                 if list.len() + lower > MAX_USEFUL_LINEAR_SCAN {
-                    self.convert_to_map_and_extend(iter);
+                    self.convert_to_map_and_extend(iter, lower);
                     return;
                 }
                 for (k, v) in iter {
@@ -323,16 +332,11 @@ where
     {
         match self {
             RawAutoMap::List(list, _) => {
-                // For unordered storages this swap-removes, which is faster than the
-                // order-preserving algorithm of `Vec::retain`.
-                let mut i = 0;
-                while i < list.len() {
-                    let (key, value) = &mut list[i];
-                    if !f(key, value) {
-                        Self::list_remove(list, i);
-                    } else {
-                        i += 1;
-                    }
+                if M::UNORDERED {
+                    // Swap-removing is cheaper than keeping the order.
+                    list.swap_retain(|(key, value)| f(key, value));
+                } else {
+                    list.retain(|(key, value)| f(key, value));
                 }
             }
             RawAutoMap::Map(map) => {
@@ -345,17 +349,16 @@ where
     /// [HashMap::extract_if](https://docs.rs/hashbrown/latest/hashbrown/struct.HashMap.html#method.extract_if).
     /// Entries that aren't yielded because the iterator is dropped early stay in the map. Ordered
     /// storages preserve the order of the remaining entries.
-    pub fn extract_if<'l, F>(&'l mut self, f: F) -> ExtractIfIter<'l, L, F, M::ExtractIf<'l, F>>
+    #[allow(clippy::type_complexity)]
+    pub fn extract_if<'l, F>(
+        &'l mut self,
+        f: F,
+    ) -> ExtractIfIter<L::ExtractIf<'l, EntryPredicate<F>>, M::ExtractIf<'l, F>>
     where
         F: for<'a, 'b> FnMut(&'a K, &'b mut V) -> bool,
     {
         match self {
-            RawAutoMap::List(list, _) => ExtractIfIter::List {
-                list,
-                index: 0,
-                f,
-                unordered: M::UNORDERED,
-            },
+            RawAutoMap::List(list, _) => ExtractIfIter::List(list.extract_if(EntryPredicate(f))),
             RawAutoMap::Map(map) => ExtractIfIter::Map(map.extract_if(f)),
         }
     }
@@ -851,15 +854,48 @@ where
                         list.push((key, value));
                     }
                 } else {
-                    let (key, value) = list.remove(index);
+                    // Take the entry out with `swap_remove`, which moves the last item into
+                    // `index`. Until the entry is put back, the guard would move that item back
+                    // to the end (shifting the following items back), which restores the order
+                    // of the other entries also when `func` panics.
+                    let (key, value) = list.swap_remove(index);
+                    let mut guard = MoveToEndOnDrop {
+                        list: Some(&mut *list),
+                        index,
+                        _item: PhantomData,
+                    };
                     if let Some(value) = func(&key, value) {
-                        list.insert(index, (key, value));
+                        // Put the entry back at the end and swap it with the moved item, which
+                        // returns both to their original positions.
+                        let list = guard.list.take().unwrap();
+                        list.push((key, value));
+                        let last = list.len() - 1;
+                        list.swap(index, last);
                     }
                 }
             }
             OccupiedEntry::Map(entry) => {
                 M::occupied_replace_entry_with(entry, func);
             }
+        }
+    }
+}
+
+/// Used by [`OccupiedEntry::replace_entry_with`]: when dropped, moves the item at `index` to the
+/// end of the list, shifting the following items back by one.
+struct MoveToEndOnDrop<'l, T, L: BackingListStorage<T>> {
+    /// `None` when the move isn't needed anymore.
+    list: Option<&'l mut L>,
+    index: usize,
+    _item: PhantomData<fn() -> T>,
+}
+
+impl<T, L: BackingListStorage<T>> Drop for MoveToEndOnDrop<'_, T, L> {
+    fn drop(&mut self) {
+        if let Some(list) = self.list.take()
+            && self.index < list.len()
+        {
+            list[self.index..].rotate_left(1);
         }
     }
 }
@@ -1127,10 +1163,36 @@ where
     M::Hasher: BuildHasher,
     L: BackingListStorage<(K, V)>,
 {
-    /// Delegates to [`BackingMapStorage::eq`]: order insensitive for unordered storages, order
-    /// sensitive for ordered ones.
+    /// Order insensitive for unordered storages, order sensitive for ordered ones, independent of
+    /// whether the maps are in the list or the map variant.
     fn eq(&self, other: &Self) -> bool {
-        M::eq(self, other)
+        match (self, other) {
+            (RawAutoMap::Map(a), RawAutoMap::Map(b)) => M::eq(a, b),
+            (RawAutoMap::List(a, _), RawAutoMap::List(b, _)) => {
+                if M::UNORDERED {
+                    // Keys are unique, so it's enough to find every entry of `a` in `b`.
+                    a.len() == b.len()
+                        && a.iter().all(|(key, value)| {
+                            b.iter()
+                                .find(|(k, _)| k == key)
+                                .is_some_and(|(_, v)| v == value)
+                        })
+                } else {
+                    a[..] == b[..]
+                }
+            }
+            (RawAutoMap::List(list, _), RawAutoMap::Map(map))
+            | (RawAutoMap::Map(map), RawAutoMap::List(list, _)) => {
+                if list.len() != map.len() {
+                    return false;
+                }
+                if M::UNORDERED {
+                    list.iter().all(|(key, value)| map.get(key) == Some(value))
+                } else {
+                    list.iter().map(|(k, v)| (k, v)).eq(map.iter())
+                }
+            }
+        }
     }
 }
 
@@ -1203,7 +1265,7 @@ where
             }
             return RawAutoMap::Map(Box::new(map));
         }
-        let mut map = RawAutoMap::with_hasher();
+        let mut map = RawAutoMap::with_capacity_and_hasher(lower, Default::default());
         for (k, v) in iter {
             map.insert(k, v);
         }
@@ -1213,53 +1275,49 @@ where
 
 /// Iterator returned by [`RawAutoMap::extract_if`].
 ///
-/// `MI` is the map storage's extraction iterator ([`BackingMapStorage::ExtractIf`]). Like the
-/// owned iterators, this type takes it as a type parameter instead of naming a concrete map type,
-/// so any [`BackingMapStorage`] can be used.
-pub enum ExtractIfIter<'l, L, F, MI> {
-    List {
-        list: &'l mut L,
-        index: usize,
-        f: F,
-        /// [`BackingMapStorage::UNORDERED`] of the map storage.
-        unordered: bool,
-    },
+/// `LI` is the list storage's extraction iterator ([`BackingListStorage::ExtractIf`]) and `MI`
+/// the map storage's ([`BackingMapStorage::ExtractIf`]). Like the owned iterators, this type
+/// takes them as type parameters instead of naming concrete storage types, so any storages can be
+/// used. That also keeps the `Iterator` impl free of where clauses relating lifetimes, which
+/// would make futures holding this iterator across an `.await` fail to be `Send` (see
+/// [`BackingMapIter`]).
+pub enum ExtractIfIter<LI, MI> {
+    List(LI),
     Map(MI),
 }
 
-impl<K, V, L, F, MI> Iterator for ExtractIfIter<'_, L, F, MI>
+impl<LI, MI> Iterator for ExtractIfIter<LI, MI>
 where
-    L: BackingListStorage<(K, V)>,
-    F: for<'a, 'b> FnMut(&'a K, &'b mut V) -> bool,
-    MI: Iterator<Item = (K, V)>,
+    LI: Iterator,
+    MI: Iterator<Item = LI::Item>,
 {
-    type Item = (K, V);
+    type Item = LI::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            ExtractIfIter::List {
-                list,
-                index,
-                f,
-                unordered,
-            } => {
-                while *index < list.len() {
-                    let (key, value) = &mut list[*index];
-                    if f(key, value) {
-                        let item = if *unordered {
-                            list.swap_remove(*index)
-                        } else {
-                            list.remove(*index)
-                        };
-                        return Some(item);
-                    } else {
-                        *index += 1;
-                    }
-                }
-                None
-            }
+            ExtractIfIter::List(extract_if) => extract_if.next(),
             ExtractIfIter::Map(extract_if) => extract_if.next(),
         }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            ExtractIfIter::List(extract_if) => extract_if.size_hint(),
+            ExtractIfIter::Map(extract_if) => extract_if.size_hint(),
+        }
+    }
+}
+
+/// Adapts an entry predicate `FnMut(&K, &mut V) -> bool` of [`RawAutoMap::extract_if`] to the
+/// list storage's [`ListPredicate`] over `(K, V)` items.
+pub struct EntryPredicate<F>(F);
+
+impl<K, V, F> ListPredicate<(K, V)> for EntryPredicate<F>
+where
+    F: FnMut(&K, &mut V) -> bool,
+{
+    fn test(&mut self, (key, value): &mut (K, V)) -> bool {
+        (self.0)(key, value)
     }
 }
 
@@ -1272,7 +1330,7 @@ where
     L: BackingListStorage<(K, V)>,
 {
     fn shrink_to_fit(&mut self) {
-        if self.len() < MIN_HASH_SIZE {
+        if self.len() < MAX_USEFUL_LINEAR_SCAN {
             self.convert_to_list();
         }
 
@@ -2090,5 +2148,225 @@ mod tests {
         assert_eq!(size_of::<AutoMap<u64, u64, F, 4>>(), 72);
         assert_eq!(size_of::<AutoIndexMap<u32, u32>>(), 16);
         assert_eq!(size_of::<Option<AutoMap<NonZeroU32, ()>>>(), 24);
+    }
+
+    fn entries<M: BackingMapStorage<u32, u32>, L: BackingListStorage<(u32, u32)>>(
+        map: &RawAutoMap<u32, u32, M, L>,
+    ) -> Vec<(u32, u32)> {
+        map.iter().map(|(k, v)| (*k, *v)).collect()
+    }
+
+    #[test]
+    fn test_replace_entry_with_ordered_list() {
+        let make = || -> AutoIndexMap<u32, u32> { (0..5).map(|i| (i, i)).collect() };
+        for index in [0, 2, 4] {
+            // `Some` keeps the entry at its position.
+            let mut map = make();
+            assert!(matches!(map, RawAutoMap::List(..)));
+            match map.entry(index) {
+                Entry::Occupied(e) => e.replace_entry_with(|_, v| Some(v + 100)),
+                Entry::Vacant(_) => unreachable!(),
+            }
+            let expected: Vec<_> = (0..5)
+                .map(|i| (i, if i == index { i + 100 } else { i }))
+                .collect();
+            assert_eq!(entries(&map), expected);
+
+            // `None` removes the entry and keeps the order of the others.
+            let mut map = make();
+            match map.entry(index) {
+                Entry::Occupied(e) => e.replace_entry_with(|_, _| None),
+                Entry::Vacant(_) => unreachable!(),
+            }
+            let expected: Vec<_> = (0..5).filter(|i| *i != index).map(|i| (i, i)).collect();
+            assert_eq!(entries(&map), expected);
+
+            // A panic removes the entry and keeps the order of the others.
+            let mut map = make();
+            let result =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match map.entry(index) {
+                    Entry::Occupied(e) => e.replace_entry_with(|_, _| panic!("func panic")),
+                    Entry::Vacant(_) => unreachable!(),
+                }));
+            assert!(result.is_err());
+            assert_eq!(entries(&map), expected);
+        }
+    }
+
+    #[test]
+    fn test_replace_entry_with_panic_drops() {
+        use std::{cell::RefCell, rc::Rc};
+        struct Tracked(u32, Rc<RefCell<Vec<u32>>>);
+        impl Drop for Tracked {
+            fn drop(&mut self) {
+                self.1.borrow_mut().push(self.0);
+            }
+        }
+        let drops = Rc::new(RefCell::new(Vec::new()));
+        let mut map: AutoIndexMap<u32, Tracked> =
+            (0..5).map(|i| (i, Tracked(i, drops.clone()))).collect();
+        let result =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match map.entry(1) {
+                Entry::Occupied(e) => e.replace_entry_with(|_, _| panic!("func panic")),
+                Entry::Vacant(_) => unreachable!(),
+            }));
+        assert!(result.is_err());
+        // The value was moved into `func` and dropped while unwinding.
+        assert_eq!(*RefCell::borrow(&drops), vec![1]);
+        assert_eq!(
+            map.iter().map(|(k, _)| *k).collect::<Vec<_>>(),
+            vec![0, 2, 3, 4]
+        );
+        drop(map);
+        let mut all = RefCell::borrow(&drops).clone();
+        all.sort();
+        assert_eq!(all, vec![0, 1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_retain_list() {
+        let mut map: AutoIndexMap<u32, u32> = (0..20).map(|i| (i, i)).collect();
+        assert!(matches!(map, RawAutoMap::List(..)));
+        map.retain(|k, v| {
+            *v += 1;
+            k % 3 != 0
+        });
+        let expected: Vec<_> = (0..20).filter(|k| k % 3 != 0).map(|k| (k, k + 1)).collect();
+        assert_eq!(entries(&map), expected);
+
+        let mut map: AutoMap<u32, u32> = (0..20).map(|i| (i, i)).collect();
+        map.retain(|k, _| k % 3 != 0);
+        let mut actual = entries(&map);
+        actual.sort();
+        assert_eq!(
+            actual,
+            expected.iter().map(|(k, _)| (*k, *k)).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_extract_if_list_order() {
+        let mut map: AutoIndexMap<u32, u32> = (0..20).map(|i| (i, i)).collect();
+        let extracted: Vec<_> = map.extract_if(|k, _| k % 3 == 0).collect();
+        assert_eq!(
+            extracted,
+            (0..20)
+                .filter(|k| k % 3 == 0)
+                .map(|k| (k, k))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            entries(&map),
+            (0..20)
+                .filter(|k| k % 3 != 0)
+                .map(|k| (k, k))
+                .collect::<Vec<_>>()
+        );
+        // Early drop keeps the unvisited entries in order.
+        let mut iter = map.extract_if(|_, _| true);
+        assert_eq!(iter.next(), Some((1, 1)));
+        drop(iter);
+        assert_eq!(
+            entries(&map),
+            (2..20)
+                .filter(|k| k % 3 != 0)
+                .map(|k| (k, k))
+                .collect::<Vec<_>>()
+        );
+
+        let mut map: AutoMap<u32, u32> = (0..20).map(|i| (i, i)).collect();
+        let mut extracted: Vec<_> = map.extract_if(|k, _| k % 3 == 0).collect();
+        extracted.sort();
+        assert_eq!(
+            extracted,
+            (0..20)
+                .filter(|k| k % 3 == 0)
+                .map(|k| (k, k))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(map.len(), 13);
+    }
+
+    /// Returns the entries `keys` as a list and as a map variant.
+    fn variants<M, L>(keys: &[u32]) -> [RawAutoMap<u32, u32, M, L>; 2]
+    where
+        M: BackingMapStorage<u32, u32>,
+        M::Hasher: BuildHasher + Default,
+        L: BackingListStorage<(u32, u32)>,
+    {
+        let mut list = RawAutoMap::with_hasher();
+        for k in keys {
+            list.insert(*k, *k);
+        }
+        assert!(matches!(list, RawAutoMap::List(..)));
+        let mut map =
+            RawAutoMap::with_capacity_and_hasher(MAX_USEFUL_LINEAR_SCAN * 2, Default::default());
+        for k in keys {
+            map.insert(*k, *k);
+        }
+        assert!(matches!(map, RawAutoMap::Map(..)));
+        [list, map]
+    }
+
+    fn check_eq<M, L>(ordered: bool)
+    where
+        M: BackingMapStorage<u32, u32>,
+        M::Hasher: BuildHasher + Default,
+        L: BackingListStorage<(u32, u32)>,
+    {
+        let forward: Vec<u32> = (0..10).collect();
+        let backward: Vec<u32> = (0..10).rev().collect();
+        let shorter: Vec<u32> = (0..9).collect();
+        for a in variants::<M, L>(&forward) {
+            for b in variants::<M, L>(&forward) {
+                assert!(a == b);
+            }
+            for b in variants::<M, L>(&backward) {
+                assert_eq!(a == b, !ordered);
+                assert_eq!(b == a, !ordered);
+            }
+            for b in variants::<M, L>(&shorter) {
+                assert!(a != b);
+                assert!(b != a);
+            }
+            for mut b in variants::<M, L>(&forward) {
+                *b.get_mut(&5).unwrap() = 50;
+                assert!(a != b);
+                assert!(b != a);
+            }
+        }
+    }
+
+    #[test]
+    fn test_eq_variants() {
+        type List = TinyVec<(u32, u32), 0, MAX_USEFUL_LINEAR_SCAN>;
+        type F = BuildHasherDefault<FxHasher>;
+        check_eq::<HashMap<u32, u32, F>, List>(false);
+        check_eq::<IndexMap<u32, u32, F>, List>(true);
+    }
+
+    #[test]
+    fn test_shrink_to_fit_trait_threshold() {
+        for (len, converts) in [
+            (MAX_USEFUL_LINEAR_SCAN - 1, true),
+            (MAX_USEFUL_LINEAR_SCAN, false),
+        ] {
+            let mut map: AutoIndexMap<usize, usize> =
+                (0..MAX_USEFUL_LINEAR_SCAN * 2).map(|i| (i, i)).collect();
+            for i in len..MAX_USEFUL_LINEAR_SCAN * 2 {
+                map.remove(&i);
+            }
+            assert!(matches!(map, RawAutoMap::Map(..)));
+            ShrinkToFit::shrink_to_fit(&mut map);
+            assert_eq!(
+                matches!(map, RawAutoMap::List(..)),
+                converts,
+                "{len} entries"
+            );
+            assert_eq!(
+                map.iter().map(|(k, _)| *k).collect::<Vec<_>>(),
+                (0..len).collect::<Vec<_>>()
+            );
+        }
     }
 }

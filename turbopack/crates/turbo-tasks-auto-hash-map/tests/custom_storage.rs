@@ -4,16 +4,24 @@
 
 use std::{
     borrow::Borrow,
+    cell::{Cell, RefCell},
     hash::{BuildHasher, BuildHasherDefault, Hash},
+    ops::{Deref, DerefMut},
+    rc::Rc,
 };
 
 use auto_hash_map::{
     BackingListStorage, BackingMapIter, BackingMapStorage, MAX_USEFUL_LINEAR_SCAN, RawAutoMap,
     RawAutoSet, TinyVec,
     map::{ListIter, ListIterMut, ListValues, ListValuesMut},
-    storage::MapEntry,
+    storage::{ListPredicate, MapEntry},
 };
 use rustc_hash::FxHasher;
+
+thread_local! {
+    /// The capacity of the last [`LinearMap::with_capacity_and_hasher`] call on this thread.
+    static REQUESTED_CAPACITY: Cell<Option<usize>> = const { Cell::new(None) };
+}
 
 /// An unordered map storage that keeps its entries in a `Vec` and finds them by linear scan.
 #[derive(Clone)]
@@ -181,6 +189,7 @@ impl<K, V, H> BackingMapStorage<K, V> for LinearMap<K, V, H> {
         Self: 'a;
 
     fn with_capacity_and_hasher(capacity: usize, hasher: H) -> Self {
+        REQUESTED_CAPACITY.set(Some(capacity));
         Self {
             entries: Vec::with_capacity(capacity),
             _hasher: hasher,
@@ -406,14 +415,16 @@ impl<K, V, H> BackingMapStorage<K, V> for LinearMap<K, V, H> {
         &mut entry.last_mut().unwrap().1
     }
 
-    fn eq<L>(a: &RawAutoMap<K, V, Self, L>, b: &RawAutoMap<K, V, Self, L>) -> bool
+    fn eq(a: &Self, b: &Self) -> bool
     where
         K: Eq + Hash,
         V: PartialEq,
         H: BuildHasher,
-        L: BackingListStorage<(K, V)>,
     {
-        a.len() == b.len() && a.iter().all(|(k, v)| b.get(k) == Some(v))
+        a.len() == b.len()
+            && a.entries
+                .iter()
+                .all(|(k, v)| b.position(k).is_some_and(|i| b.entries[i].1 == *v))
     }
 }
 
@@ -421,6 +432,103 @@ type Fx = BuildHasherDefault<FxHasher>;
 type List<T> = TinyVec<T, 0, MAX_USEFUL_LINEAR_SCAN>;
 type LinearAutoMap<K, V> = RawAutoMap<K, V, LinearMap<K, V, Fx>, List<(K, V)>>;
 type LinearAutoSet<K> = RawAutoSet<K, LinearMap<K, (), Fx>, List<(K, ())>>;
+
+/// A list storage implemented outside of the crate with only the required methods, so the
+/// provided ones (`retain`, `swap_retain`, `shrink_amortized`) use their default
+/// implementations.
+pub struct MiniList<T>(Vec<T>);
+
+impl<T> Deref for MiniList<T> {
+    type Target = [T];
+    fn deref(&self) -> &[T] {
+        &self.0
+    }
+}
+
+impl<T> DerefMut for MiniList<T> {
+    fn deref_mut(&mut self) -> &mut [T] {
+        &mut self.0
+    }
+}
+
+impl<T> IntoIterator for MiniList<T> {
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<T>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+/// A simple (O(n²)) extraction iterator, as an example of a list storage's own implementation.
+pub struct MiniExtractIf<'a, T, P> {
+    list: &'a mut Vec<T>,
+    index: usize,
+    pred: P,
+}
+
+impl<T, P: ListPredicate<T>> Iterator for MiniExtractIf<'_, T, P> {
+    type Item = T;
+    fn next(&mut self) -> Option<T> {
+        while self.index < self.list.len() {
+            if self.pred.test(&mut self.list[self.index]) {
+                return Some(self.list.remove(self.index));
+            }
+            self.index += 1;
+        }
+        None
+    }
+}
+
+impl<T> BackingListStorage<T> for MiniList<T> {
+    type Drain<'a>
+        = std::vec::Drain<'a, T>
+    where
+        Self: 'a;
+    type ExtractIf<'a, P>
+        = MiniExtractIf<'a, T, P>
+    where
+        Self: 'a,
+        P: ListPredicate<T>;
+
+    const EMPTY: Self = MiniList(Vec::new());
+
+    fn with_capacity(capacity: usize) -> Self {
+        MiniList(Vec::with_capacity(capacity))
+    }
+    fn capacity(&self) -> usize {
+        self.0.capacity()
+    }
+    fn push(&mut self, value: T) {
+        self.0.push(value)
+    }
+    fn insert(&mut self, index: usize, value: T) {
+        self.0.insert(index, value)
+    }
+    fn swap_remove(&mut self, index: usize) -> T {
+        self.0.swap_remove(index)
+    }
+    fn remove(&mut self, index: usize) -> T {
+        self.0.remove(index)
+    }
+    fn clear(&mut self) {
+        self.0.clear()
+    }
+    fn drain(&mut self) -> Self::Drain<'_> {
+        self.0.drain(..)
+    }
+    fn extract_if<P: ListPredicate<T>>(&mut self, pred: P) -> Self::ExtractIf<'_, P> {
+        MiniExtractIf {
+            list: &mut self.0,
+            index: 0,
+            pred,
+        }
+    }
+    fn shrink_to_fit(&mut self) {
+        self.0.shrink_to_fit()
+    }
+}
+
+type MiniAutoMap<K, V> = RawAutoMap<K, V, LinearMap<K, V, Fx>, MiniList<(K, V)>>;
 
 fn sorted<T: Ord>(mut items: Vec<T>) -> Vec<T> {
     items.sort();
@@ -476,6 +584,40 @@ fn insert_get_remove_convert() {
     map.shrink_to_fit();
     assert!(!is_map(&map));
     assert_eq!(keys(&map), vec![0, 1, 2]);
+}
+
+#[test]
+fn conversion_reserves_capacity() {
+    const MAX: usize = MAX_USEFUL_LINEAR_SCAN;
+    let list = |n: u32| -> LinearAutoMap<u32, u32> {
+        let mut map = LinearAutoMap::new();
+        for i in 0..n {
+            map.insert(i, i);
+        }
+        assert!(!is_map(&map));
+        map
+    };
+    let start = 1000;
+
+    // `extend` reserves room for the whole (exact size) iterator.
+    for (len, n) in [(5, 40), (5, 28), (0, 33), (MAX as u32, 100)] {
+        let mut map = list(len);
+        REQUESTED_CAPACITY.set(None);
+        map.extend((start..start + n).map(|i| (i, i)));
+        assert!(is_map(&map));
+        assert_eq!(
+            REQUESTED_CAPACITY.get(),
+            Some((2 * MAX).max(len as usize + n as usize)),
+            "extend {n} items into a list of {len}"
+        );
+    }
+
+    // Converting by a single insert keeps the default reservation.
+    let mut map = list(MAX as u32);
+    REQUESTED_CAPACITY.set(None);
+    map.insert(start, 0);
+    assert!(is_map(&map));
+    assert_eq!(REQUESTED_CAPACITY.get(), Some(2 * MAX));
 }
 
 #[test]
@@ -602,3 +744,101 @@ trait RevCollect: Iterator + Sized {
 }
 
 impl<I: Iterator> RevCollect for I {}
+
+struct Tracked(u32, Rc<RefCell<Vec<u32>>>);
+
+impl Drop for Tracked {
+    fn drop(&mut self) {
+        self.1.borrow_mut().push(self.0);
+    }
+}
+
+fn tracked_list(n: u32, drops: &Rc<RefCell<Vec<u32>>>) -> MiniList<Tracked> {
+    let mut list = MiniList::with_capacity(n as usize);
+    for i in 0..n {
+        list.push(Tracked(i, drops.clone()));
+    }
+    list
+}
+
+#[test]
+fn default_retain() {
+    let n = 20;
+    let drops = Rc::new(RefCell::new(Vec::new()));
+    let mut list = tracked_list(n, &drops);
+    let mut visited = Vec::new();
+    list.retain(|t| {
+        visited.push(t.0);
+        t.0 % 3 != 0
+    });
+    assert_eq!(visited, (0..n).collect::<Vec<_>>());
+    let kept: Vec<u32> = (0..n).filter(|i| i % 3 != 0).collect();
+    assert_eq!(list.iter().map(|t| t.0).collect::<Vec<_>>(), kept);
+    assert_eq!(
+        sorted(RefCell::borrow(&drops).clone()),
+        (0..n).filter(|i| i % 3 == 0).collect::<Vec<_>>()
+    );
+
+    let mut visited = Vec::new();
+    list.swap_retain(|t| {
+        visited.push(t.0);
+        t.0 % 2 != 0
+    });
+    assert_eq!(sorted(visited), kept);
+    assert_eq!(
+        sorted(list.iter().map(|t| t.0).collect()),
+        kept.iter()
+            .copied()
+            .filter(|i| i % 2 != 0)
+            .collect::<Vec<_>>()
+    );
+    drop(list);
+    assert_eq!(
+        sorted(RefCell::borrow(&drops).clone()),
+        (0..n).collect::<Vec<_>>()
+    );
+
+    // Panics leave a valid list.
+    for swap in [false, true] {
+        let drops = Rc::new(RefCell::new(Vec::new()));
+        let mut list = tracked_list(n, &drops);
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let f = |t: &mut Tracked| {
+                assert_ne!(t.0, n / 2, "predicate panic");
+                t.0 % 2 == 0
+            };
+            if swap {
+                list.swap_retain(f)
+            } else {
+                list.retain(f)
+            }
+        }));
+        assert!(result.is_err());
+        assert!(list.iter().all(|t| !RefCell::borrow(&drops).contains(&t.0)));
+        drop(list);
+        assert_eq!(
+            sorted(RefCell::borrow(&drops).clone()),
+            (0..n).collect::<Vec<_>>()
+        );
+    }
+}
+
+#[test]
+fn map_with_external_list() {
+    let n = MAX_USEFUL_LINEAR_SCAN as u32 * 2;
+    let mut map: MiniAutoMap<u32, u32> = MiniAutoMap::with_hasher();
+    for i in 0..n {
+        map.insert(i, i);
+        assert_eq!(is_map(&map), i as usize >= MAX_USEFUL_LINEAR_SCAN);
+    }
+    map.retain(|k, _| *k < 10);
+    map.shrink_to_fit();
+    assert!(!is_map(&map));
+    map.retain(|k, _| k % 2 == 0);
+    assert_eq!(map.len(), 5);
+    let extracted: Vec<_> = map.extract_if(|k, _| *k < 4).collect();
+    assert_eq!(sorted(extracted), vec![(0, 0), (2, 2)]);
+    assert_eq!(sorted(map.iter().map(|(k, _)| *k).collect()), vec![4, 6, 8]);
+    let other: MiniAutoMap<u32, u32> = [8, 4, 6].into_iter().map(|k| (k, k)).collect();
+    assert_eq!(map, other);
+}
