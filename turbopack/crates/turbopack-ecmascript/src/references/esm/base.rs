@@ -329,9 +329,15 @@ impl ReferencedAsset {
                                 },
                             );
                         }
+                        Some(EsmExport::Error) | None if exports.dynamic_exports.is_empty() => {
+                            // The export is statically known to not exist (or failed to
+                            // resolve). The module is merged into this scope hoisting group, so it
+                            // might not have a module factory that could be imported. There is
+                            // nothing to bind to, so the binding evaluates to `undefined`.
+                            return Ok(None);
+                        }
                         Some(EsmExport::Error) | None => {
-                            // Export not found, either there was already an error, or
-                            // this is some dynamic (CJS) (re)export situation.
+                            // Export not found, this is some dynamic (CJS) (re)export situation.
                         }
                     }
                 }
