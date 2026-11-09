@@ -631,7 +631,8 @@ async fn compute_deferred_references(
     // import enter the cycle at another module. So a module stays eager when a cycle is reachable
     // from it over references that code is generated for, whatever else imports that cycle: the
     // answer then depends on no entry and on no other deferred import. Every module that is
-    // evaluated later, or never, is then outside of all cycles and still runs after its imports.
+    // evaluated later, or never, is then outside of all cycles. It still runs after everything it
+    // imports, unless code that one of those modules calls during its evaluation reads it first.
     let mut reaches_cycle = FxHashSet::default();
     graph_ref.traverse_edges_dfs(
         pairs.keys().map(|(_, target)| *target),
