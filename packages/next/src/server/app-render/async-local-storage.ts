@@ -125,10 +125,31 @@ export function bindSnapshot<T>(
   // WARNING: Don't pass a named function to this argument! See: https://github.com/facebook/react/pull/34911
   fn: T
 ): T {
+  if (NodeAsyncResource !== undefined && typeof fn === 'function') {
+    // Does what `AsyncLocalStorage.bind(fn)` does, without what makes it
+    // costly (see `NodeAsyncResource`): the resource captures the current
+    // async context and has the type that `bind()` gives it, and the
+    // returned function runs `fn` in that context with its own `this` and
+    // arguments. Unlike the function `bind()` returns, it does not have the
+    // `length` of `fn` or the deprecated `asyncResource` property.
+    return bindToAsyncResource(
+      new NodeAsyncResource(fn.name || 'bound-anonymous-fn'),
+      fn as (...args: unknown[]) => unknown
+    ) as T
+  }
   if (maybeGlobalAsyncLocalStorage) {
     return maybeGlobalAsyncLocalStorage.bind(fn)
   }
   return FakeAsyncLocalStorage.bind(fn)
+}
+
+function bindToAsyncResource(
+  resource: InstanceType<AsyncResourceConstructor>,
+  fn: (...args: unknown[]) => unknown
+) {
+  return function runInAsyncResource(this: unknown, ...args: unknown[]) {
+    return resource.runInAsyncScope(fn, this, ...args)
+  }
 }
 
 export function createSnapshot(): <R, TArgs extends any[]>(
