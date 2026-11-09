@@ -816,7 +816,8 @@ async function exportAppImpl(
     workerCountInUse: number,
     exportPaths: ExportPathEntry[],
     renderResumeDataCachesByPage?: Record<string, string>,
-    routePrefetchHintsByPage?: Record<string, PrefetchHints>
+    routePrefetchHintsByPage?: Record<string, PrefetchHints>,
+    renderOneAtATime: boolean = false
   ): Promise<ExportPagesResult> => {
     // A round with few pages (the pages that decide the prefetch hints of
     // their route, the fallback shells) would run in a single worker for the
@@ -905,6 +906,7 @@ async function exportAppImpl(
         fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
         renderResumeDataCachesByPage: batchRenderResumeDataCaches,
         routePrefetchHintsByPage: batchRoutePrefetchHints,
+        renderOneAtATime,
       })
     }
 
@@ -1025,11 +1027,24 @@ async function exportAppImpl(
 
       // The deciding pages are few, and every other page waits for them.
       initialWorkerCount = getWorkerCountForPages(otherExportPaths.length)
+      // With Cache Components, a worker renders these pages one at a time.
+      // They are the first pages of different routes, in a worker that has
+      // rendered nothing yet, and they read the same `use cache` entries (those
+      // of the layouts they share). Rendered together, which page generates
+      // such an entry and which pages wait for that generation depends on
+      // how long each route takes to load, and a page that waited gets the
+      // entry later in its final render than a page that generated it or
+      // found it in the cache handler: the same Flight rows in another order.
+      // One at a time, no page waits for another page's entry, as when the
+      // pages are rendered among the other pages of their route.
       const decidingResults = await exportPagesInBatches(
         worker,
         initialExportId,
         initialWorkerCount,
-        decidingExportPaths
+        decidingExportPaths,
+        undefined,
+        undefined,
+        renderOpts.cacheComponents === true
       )
       collectRoutePrefetchHints(
         decidingExportPaths,
