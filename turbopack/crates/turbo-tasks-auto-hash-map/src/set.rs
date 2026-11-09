@@ -18,7 +18,7 @@ use shrink_to_fit::ShrinkToFit;
 
 use crate::{
     MAX_USEFUL_LINEAR_SCAN, RawAutoMap, TinyVec,
-    storage::{BackingListStorage, BackingMapStorage},
+    storage::{BackingListStorage, BackingMapIter, BackingMapStorage},
 };
 
 /// A set that stores small numbers of items in a linear list `L` and switches to a real map `M`
@@ -31,16 +31,8 @@ pub struct RawAutoSet<K, M, L> {
     map: RawAutoMap<K, (), M, L>,
 }
 
-/// Unordered [`RawAutoSet`] backed by a [`HashMap`] and an `I`-inline [`TinyVec`].
-pub type AutoSet<K, H = BuildHasherDefault<FxHasher>, const I: usize = 0> =
-    RawAutoSet<K, HashMap<K, (), H>, TinyVec<(K, ()), I, MAX_USEFUL_LINEAR_SCAN>>;
-
-/// Insertion ordered [`RawAutoSet`] backed by an [`IndexMap`] and an `I`-inline [`TinyVec`].
-///
-/// Equality is order sensitive (`{a, b} != {b, a}`) and removals preserve the order of the
-/// remaining items.
-pub type AutoIndexSet<K, H = BuildHasherDefault<FxHasher>, const I: usize = 0> =
-    RawAutoSet<K, IndexMap<K, (), H>, TinyVec<(K, ()), I, MAX_USEFUL_LINEAR_SCAN>>;
+// The aliases are defined in the crate root. Re-exported here to keep the `set::` paths working.
+pub use crate::{AutoIndexSet, AutoSet};
 
 impl<K, M, L: BackingListStorage<(K, ())>> Default for RawAutoSet<K, M, L> {
     fn default() -> Self {
@@ -166,7 +158,7 @@ impl<K, M: BackingMapStorage<K, ()>, L: BackingListStorage<(K, ())>> RawAutoSet<
     }
 
     /// see [HashSet::iter](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.iter)
-    pub fn iter(&self) -> Iter<'_, K> {
+    pub fn iter(&self) -> Iter<M::Iter<'_>> {
         Iter(self.map.iter())
     }
 }
@@ -186,20 +178,36 @@ impl<'a, K, M: BackingMapStorage<K, ()>, L: BackingListStorage<(K, ())>> IntoIte
     for &'a RawAutoSet<K, M, L>
 {
     type Item = &'a K;
-    type IntoIter = Iter<'a, K>;
+    type IntoIter = Iter<M::Iter<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
-pub struct Iter<'a, K>(crate::map::Iter<'a, K, ()>);
+/// A borrowed iterator of a [`RawAutoSet`]. `MI` is [`BackingMapStorage::Iter`] of the map
+/// storage.
+pub struct Iter<MI: BackingMapIter>(crate::map::Iter<MI>);
 
-impl<'a, K> Iterator for Iter<'a, K> {
-    type Item = &'a K;
+/// Extracts the key from a borrowed map entry. Like [`BackingMapIter`], the impl doesn't relate the
+/// lifetimes of key and value, so the set iterator's trait impls are free of such where clauses.
+pub trait SetEntry {
+    type Key;
+    fn key(self) -> Self::Key;
+}
+
+impl<'a, K> SetEntry for (&'a K, &()) {
+    type Key = &'a K;
+    fn key(self) -> Self::Key {
+        self.0
+    }
+}
+
+impl<MI: BackingMapIter<Item: SetEntry>> Iterator for Iter<MI> {
+    type Item = <MI::Item as SetEntry>::Key;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|(k, _)| k)
+        self.0.next().map(SetEntry::key)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -207,7 +215,7 @@ impl<'a, K> Iterator for Iter<'a, K> {
     }
 }
 
-impl<K> Clone for Iter<'_, K> {
+impl<MI: BackingMapIter<List: Clone> + Clone> Clone for Iter<MI> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }

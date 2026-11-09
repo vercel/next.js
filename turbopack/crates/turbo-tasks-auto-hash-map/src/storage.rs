@@ -18,14 +18,52 @@ use std::{
 };
 
 use arrayvec::ArrayVec;
-use hashbrown::HashMap;
-use indexmap::{IndexMap, map::RawEntryApiV1};
+use hashbrown::{HashMap, hash_map as hashbrown_map};
+use indexmap::{IndexMap, map as indexmap_map, map::RawEntryApiV1};
 
 use crate::{
     MAX_USEFUL_LINEAR_SCAN, RawAutoMap, TinyVec,
-    map::{ExtractIfIter, Iter, IterMut, Values, ValuesMut},
+    map::{ExtractIfIter, ListIter, ListIterMut, ListValues, ListValuesMut},
     tiny_vec,
 };
+
+/// A borrowed iterator of a [`BackingMapStorage`] (e.g. [`BackingMapStorage::Iter`]), together
+/// with the iterator type ([`BackingMapIter::List`]) yielding the same items from the list
+/// variant of a [`RawAutoMap`].
+///
+/// The [`RawAutoMap`] iterators (e.g. [`crate::map::Iter`]) are generic over this trait and take
+/// their `Item` type from it. That keeps their trait impls free of where clauses that relate
+/// lifetimes, like `MI: Iterator<Item = (&'a K, &'a V)>`. Such where clauses can't be proven
+/// when checking whether a future holding the iterator across an `.await` is `Send`, because all
+/// lifetimes in the future's state are erased and treated as unrelated there. The compiler then
+/// fails with "lifetime bound not satisfied" (rust-lang/rust#100013), e.g. for
+/// `maps.iter().flat_map(|m| m.iter())`. Implementations of this trait shouldn't have such where
+/// clauses either.
+pub trait BackingMapIter: Iterator {
+    /// The iterator over the list variant, yielding the same items as this iterator.
+    type List: Iterator<Item = Self::Item>;
+}
+
+macro_rules! impl_backing_map_iter {
+    ($($ty:ident :: $iter:ident => $list:ident),* $(,)?) => {
+        $(
+            impl<'a, K, V> BackingMapIter for $ty::$iter<'a, K, V> {
+                type List = $list<'a, K, V>;
+            }
+        )*
+    };
+}
+
+impl_backing_map_iter!(
+    hashbrown_map::Iter => ListIter,
+    hashbrown_map::IterMut => ListIterMut,
+    hashbrown_map::Values => ListValues,
+    hashbrown_map::ValuesMut => ListValuesMut,
+    indexmap_map::Iter => ListIter,
+    indexmap_map::IterMut => ListIterMut,
+    indexmap_map::Values => ListValues,
+    indexmap_map::ValuesMut => ListValuesMut,
+);
 
 /// The result of looking up a key in a [`BackingMapStorage`] via
 /// [`BackingMapStorage::entry`] or [`BackingMapStorage::raw_entry_mut`].
@@ -191,6 +229,26 @@ pub trait BackingMapStorage<K, V>: Sized {
 
     type IntoIter: Iterator<Item = (K, V)>;
     type IntoValues: Iterator<Item = V>;
+    type Iter<'a>: BackingMapIter<Item = (&'a K, &'a V), List = ListIter<'a, K, V>> + Clone
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a;
+    type IterMut<'a>: BackingMapIter<Item = (&'a K, &'a mut V), List = ListIterMut<'a, K, V>>
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a;
+    type Values<'a>: BackingMapIter<Item = &'a V, List = ListValues<'a, K, V>>
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a;
+    type ValuesMut<'a>: BackingMapIter<Item = &'a mut V, List = ListValuesMut<'a, K, V>>
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a;
     type Drain<'a>: Iterator<Item = (K, V)>
     where
         Self: 'a;
@@ -214,25 +272,10 @@ pub trait BackingMapStorage<K, V>: Sized {
     }
     fn capacity(&self) -> usize;
     fn clear(&mut self);
-    // The borrowed iterators are concrete enums (instead of generic associated types), as
-    // projections of generic associated types break `Send` inference for futures holding them
-    // across an `.await` (rust-lang/rust#100013).
-    fn iter<'a>(&'a self) -> Iter<'a, K, V>
-    where
-        K: 'a,
-        V: 'a;
-    fn iter_mut<'a>(&'a mut self) -> IterMut<'a, K, V>
-    where
-        K: 'a,
-        V: 'a;
-    fn values<'a>(&'a self) -> Values<'a, K, V>
-    where
-        K: 'a,
-        V: 'a;
-    fn values_mut<'a>(&'a mut self) -> ValuesMut<'a, K, V>
-    where
-        K: 'a,
-        V: 'a;
+    fn iter<'a>(&'a self) -> Self::Iter<'a>;
+    fn iter_mut<'a>(&'a mut self) -> Self::IterMut<'a>;
+    fn values<'a>(&'a self) -> Self::Values<'a>;
+    fn values_mut<'a>(&'a mut self) -> Self::ValuesMut<'a>;
     fn into_entries(self) -> Self::IntoIter;
     fn into_values(self) -> Self::IntoValues;
     /// Removes and yields all entries (in order for ordered storages).
@@ -332,6 +375,30 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
 
     type IntoIter = hashbrown::hash_map::IntoIter<K, V>;
     type IntoValues = hashbrown::hash_map::IntoValues<K, V>;
+    type Iter<'a>
+        = hashbrown::hash_map::Iter<'a, K, V>
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a;
+    type IterMut<'a>
+        = hashbrown::hash_map::IterMut<'a, K, V>
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a;
+    type Values<'a>
+        = hashbrown::hash_map::Values<'a, K, V>
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a;
+    type ValuesMut<'a>
+        = hashbrown::hash_map::ValuesMut<'a, K, V>
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a;
     type Drain<'a>
         = hashbrown::hash_map::Drain<'a, K, V>
     where
@@ -365,33 +432,17 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
     fn clear(&mut self) {
         HashMap::clear(self)
     }
-    fn iter<'a>(&'a self) -> Iter<'a, K, V>
-    where
-        K: 'a,
-        V: 'a,
-    {
-        Iter::HashMap(HashMap::iter(self))
+    fn iter<'a>(&'a self) -> Self::Iter<'a> {
+        HashMap::iter(self)
     }
-    fn iter_mut<'a>(&'a mut self) -> IterMut<'a, K, V>
-    where
-        K: 'a,
-        V: 'a,
-    {
-        IterMut::HashMap(HashMap::iter_mut(self))
+    fn iter_mut<'a>(&'a mut self) -> Self::IterMut<'a> {
+        HashMap::iter_mut(self)
     }
-    fn values<'a>(&'a self) -> Values<'a, K, V>
-    where
-        K: 'a,
-        V: 'a,
-    {
-        Values::HashMap(HashMap::values(self))
+    fn values<'a>(&'a self) -> Self::Values<'a> {
+        HashMap::values(self)
     }
-    fn values_mut<'a>(&'a mut self) -> ValuesMut<'a, K, V>
-    where
-        K: 'a,
-        V: 'a,
-    {
-        ValuesMut::HashMap(HashMap::values_mut(self))
+    fn values_mut<'a>(&'a mut self) -> Self::ValuesMut<'a> {
+        HashMap::values_mut(self)
     }
     fn into_entries(self) -> Self::IntoIter {
         IntoIterator::into_iter(self)
@@ -578,6 +629,30 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
 
     type IntoIter = indexmap::map::IntoIter<K, V>;
     type IntoValues = indexmap::map::IntoValues<K, V>;
+    type Iter<'a>
+        = indexmap::map::Iter<'a, K, V>
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a;
+    type IterMut<'a>
+        = indexmap::map::IterMut<'a, K, V>
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a;
+    type Values<'a>
+        = indexmap::map::Values<'a, K, V>
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a;
+    type ValuesMut<'a>
+        = indexmap::map::ValuesMut<'a, K, V>
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a;
     type Drain<'a>
         = indexmap::map::Drain<'a, K, V>
     where
@@ -611,33 +686,17 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
     fn clear(&mut self) {
         IndexMap::clear(self)
     }
-    fn iter<'a>(&'a self) -> Iter<'a, K, V>
-    where
-        K: 'a,
-        V: 'a,
-    {
-        Iter::IndexMap(IndexMap::iter(self))
+    fn iter<'a>(&'a self) -> Self::Iter<'a> {
+        IndexMap::iter(self)
     }
-    fn iter_mut<'a>(&'a mut self) -> IterMut<'a, K, V>
-    where
-        K: 'a,
-        V: 'a,
-    {
-        IterMut::IndexMap(IndexMap::iter_mut(self))
+    fn iter_mut<'a>(&'a mut self) -> Self::IterMut<'a> {
+        IndexMap::iter_mut(self)
     }
-    fn values<'a>(&'a self) -> Values<'a, K, V>
-    where
-        K: 'a,
-        V: 'a,
-    {
-        Values::IndexMap(IndexMap::values(self))
+    fn values<'a>(&'a self) -> Self::Values<'a> {
+        IndexMap::values(self)
     }
-    fn values_mut<'a>(&'a mut self) -> ValuesMut<'a, K, V>
-    where
-        K: 'a,
-        V: 'a,
-    {
-        ValuesMut::IndexMap(IndexMap::values_mut(self))
+    fn values_mut<'a>(&'a mut self) -> Self::ValuesMut<'a> {
+        IndexMap::values_mut(self)
     }
     fn into_entries(self) -> Self::IntoIter {
         IntoIterator::into_iter(self)
