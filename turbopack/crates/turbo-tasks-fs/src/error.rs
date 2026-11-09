@@ -5,7 +5,7 @@ use std::{error::Error as StdError, fmt};
 use turbo_tasks::NonLocalValue;
 
 /// Wrapper to convert [`anyhow::Error`] to `impl std::error::Error` for use in
-/// [`CapturedEffect::apply`](turbo_tasks::CapturedEffect::apply).
+/// [`Effect::apply`](turbo_tasks::Effect::apply).
 // TODO(bgw): use a structured error type instead of anyhow for write/write_link
 #[derive(NonLocalValue)]
 pub(crate) struct AnyhowWrapper(anyhow::Error);
