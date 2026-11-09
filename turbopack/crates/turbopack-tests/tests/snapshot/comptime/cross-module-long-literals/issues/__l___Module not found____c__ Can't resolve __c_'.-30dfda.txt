@@ -1,4 +1,4 @@
-error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-long-literals/input/index.js:17:2  Module not found: Can't resolve './dead-code'
+error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-long-literals/input/index.js:17:3  Module not found: Can't resolve './dead-code'
   
       13 | // TODO ideally would still use for evaluation even though not inlined
       14 | if (LONG_STRING && LONG_NUMBER && LONG_BIG_NUMBER && REGEX) {

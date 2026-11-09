@@ -10,17 +10,17 @@ use turbo_tasks::{
 
 use crate::backend::{
     operation::{
-        AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext,
-        TaskGuard, aggregation_update::InnerOfUppersHasNewFollowersJob, get_aggregation_number,
-        get_uppers, invalidate::make_task_dirty_internal, is_aggregating_node,
+        AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext, TaskGuard,
+        aggregation_update::InnerOfUppersHasNewFollowersJob, get_aggregation_number, get_uppers,
+        invalidate::make_task_dirty_internal, is_aggregating_node,
     },
     storage_schema::TaskStorageAccessors,
 };
 
 pub fn connect_children(
-    ctx: &mut impl ExecuteContext<'_>,
+    ctx: &mut ExecuteContext<'_>,
     parent_task_id: TaskId,
-    mut parent_task: impl TaskGuard,
+    mut parent_task: TaskGuard<'_>,
     new_children: FxHashSet<TaskId>,
     parent_has_active_count: bool,
     should_track_activeness: bool,
@@ -46,7 +46,7 @@ pub fn connect_children(
     drop(parent_task);
 
     fn process_new_children(
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         new_follower_ids: SmallVec<[TaskId; 4]>,
         upper_ids: Option<SmallVec<[TaskId; 4]>>,
         parent_task_id: TaskId,

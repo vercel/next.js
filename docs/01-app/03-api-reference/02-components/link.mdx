@@ -979,11 +979,12 @@ For example, if you want to serve a `/dashboard` route that has authenticated an
 
 ```ts filename="proxy.ts" switcher
 import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-export function proxy(request: Request) {
+export function proxy(request: NextRequest) {
   const nextUrl = request.nextUrl
   if (nextUrl.pathname === '/dashboard') {
-    if (request.cookies.authToken) {
+    if (request.cookies.has('authToken')) {
       return NextResponse.rewrite(new URL('/auth/dashboard', request.url))
     } else {
       return NextResponse.rewrite(new URL('/public/dashboard', request.url))
@@ -998,7 +999,7 @@ import { NextResponse } from 'next/server'
 export function proxy(request) {
   const nextUrl = request.nextUrl
   if (nextUrl.pathname === '/dashboard') {
-    if (request.cookies.authToken) {
+    if (request.cookies.has('authToken')) {
       return NextResponse.rewrite(new URL('/auth/dashboard', request.url))
     } else {
       return NextResponse.rewrite(new URL('/public/dashboard', request.url))

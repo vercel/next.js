@@ -94,6 +94,14 @@ export function FixCardArrowUpIcon() {
   )
 }
 
+export function FixCardCheckIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M5 12l4 4L19 6" />
+    </svg>
+  )
+}
+
 export function FixCardMinusIcon() {
   return (
     <svg {...ICON_PROPS}>

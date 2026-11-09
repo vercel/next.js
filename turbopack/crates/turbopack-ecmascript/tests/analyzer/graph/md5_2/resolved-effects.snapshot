@@ -3,9 +3,9 @@
 0 -> 2 call = require*0*("crypt")
 - *0* require: The require method from CommonJS
 
-0 -> 4 free var = FreeVar(require)
+3 -> 4 free var = FreeVar(require)
 
-0 -> 5 call = require*0*("charenc")
+3 -> 5 call = require*0*("charenc")
 - *0* require: The require method from CommonJS
 
 0 -> 6 free var = FreeVar(require)
@@ -13,9 +13,9 @@
 0 -> 7 call = require*0*("is-buffer")
 - *0* require: The require method from CommonJS
 
-0 -> 9 free var = FreeVar(require)
+8 -> 9 free var = FreeVar(require)
 
-0 -> 10 call = require*0*("charenc")
+8 -> 10 call = require*0*("charenc")
 - *0* require: The require method from CommonJS
 
 0 -> 12 free var = FreeVar(String)
@@ -168,7 +168,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-21 -> 25 free var = FreeVar(Array)
+24 -> 25 free var = FreeVar(Array)
 
 21 -> 26 member call = ???*0*["call"](
     (
@@ -212,7 +212,7 @@
 - *11* message
   ⚠️  circular variable reference
 
-21 -> 28 free var = FreeVar(Array)
+27 -> 28 free var = FreeVar(Array)
 
 21 -> 29 member call = ???*0*["isArray"](
     (
@@ -3037,7 +3037,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 191 free var = FreeVar(module)
+190 -> 191 free var = FreeVar(module)
 
 0 -> 192 conditional = ((???*0* === undefined) | (???*1* === null))
 - *0* arguments[0]

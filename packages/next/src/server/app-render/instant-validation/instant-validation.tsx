@@ -50,6 +50,7 @@ import {
 } from './stream-utils'
 import type { DebugChannelPair } from '../debug-channel-server'
 import type { FlightComponentMod } from '../stream-ops'
+import { encodeTextChunk } from '../../stream-utils/node-web-streams-helper'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromNodeStream } from 'react-server-dom-webpack/client'
@@ -204,22 +205,27 @@ export async function collectStagedSegmentData(
     case ValidationPrefetchKind.StaticAppShell: {
       partialStages = [
         RenderStage.ShellStatic,
+        RenderStage.PrefetchStatic_prefetchApi,
         RenderStage.PrefetchStatic,
         RenderStage.NavigationStatic, // TODO(cache-stages): only if needed
-        RenderStage.Runtime,
+        RenderStage.PrefetchRuntime,
       ]
       break
     }
     case ValidationPrefetchKind.RuntimeAppShell: {
       partialStages = [
         RenderStage.ShellRuntime,
-        RenderStage.Runtime,
+        RenderStage.PrefetchRuntime_prefetchApi,
+        RenderStage.PrefetchRuntime,
         RenderStage.NavigationRuntime, // TODO(cache-stages): only if needed
       ]
       break
     }
     case ValidationPrefetchKind.LegacySpeculative: {
-      partialStages = [RenderStage.Static, RenderStage.Runtime]
+      partialStages = [
+        RenderStage.NavigationStatic,
+        RenderStage.PrefetchRuntime,
+      ]
       break
     }
   }
@@ -288,12 +294,13 @@ async function collectSegmentDataForStage(
     switch (currentStage) {
       case RenderStage.Before:
       case RenderStage.ShellStatic:
+      case RenderStage.PrefetchStatic_prefetchApi:
       case RenderStage.PrefetchStatic:
-      case RenderStage.Static:
       case RenderStage.NavigationStatic:
         return 'Prerender'
       case RenderStage.ShellRuntime: // TODO(app-shells) - proper environmentName
-      case RenderStage.Runtime:
+      case RenderStage.PrefetchRuntime_prefetchApi:
+      case RenderStage.PrefetchRuntime:
       case RenderStage.NavigationRuntime:
         return 'Prefetch'
       case RenderStage.Dynamic:
@@ -379,7 +386,12 @@ async function collectSegmentDataForStage(
           if (controller.currentStage === RenderStage.Before) {
             throw new InvariantError('Unexpected chunk emitted in Before stage')
           }
-          writeChunk(stageEntry, controller.currentStage, targetStage, chunk)
+          writeChunk(
+            stageEntry,
+            controller.currentStage,
+            targetStage,
+            encodeTextChunk(chunk)
+          )
         }
       })(),
       // accumulate Debug chunks
@@ -479,7 +491,7 @@ function onFlightRenderError(error: unknown): string | undefined {
 function createStagedStreamFromChunks(stageChunks: StageChunks) {
   // The successive stages are supersets of one another,
   // so we can index into the dynamic chunks everywhere
-  // and just look at the lengths of the Static/Runtime arrays
+  // and just look at the lengths of the partial stage arrays
   const allChunks = stageChunks[RenderStage.Dynamic]
 
   let chunkIx = 0
@@ -617,9 +629,10 @@ export async function createCombinedPayloadStream(
         // Accumulate Flight chunks
         (async () => {
           for await (const chunk of stream) {
-            allChunks.push(chunk)
+            const bytes = encodeTextChunk(chunk)
+            allChunks.push(bytes)
             if (isRenderable) {
-              renderableChunks.push(chunk)
+              renderableChunks.push(bytes)
             }
           }
         })(),
@@ -986,7 +999,7 @@ export function discoverValidationDepths(loaderTree: LoaderTree): number[] {
  * Walks the LoaderTree directly, loading modules and counting
  * URL-contributing layouts. When `depth` URL segments have been
  * consumed, the boundary flips from shared (dynamic stage) to new
- * (static/runtime stage). As the new subtree is built, we check for
+ * (the prefetched stage). As the new subtree is built, we check for
  * instant configs. If none are found, returns null — no validation
  * needed at this depth or deeper.
  *
@@ -1024,7 +1037,8 @@ export async function createCombinedPayloadAtDepth(
   clientReferenceManifest: ClientReferenceManifest,
   overrideStageForPartialSegments:
     | null
-    | RenderStage.Runtime
+    | RenderStage.PrefetchRuntime_prefetchApi
+    | RenderStage.PrefetchRuntime
     | RenderStage.NavigationRuntime
 ): Promise<ValidationPayloadResult | null> {
   const workStore = workAsyncStorage.getStore()
@@ -1297,8 +1311,8 @@ export async function createCombinedPayloadAtDepth(
         instantConfig === true ||
         (typeof instantConfig === 'object' && instantConfig !== null)
       ) {
-        const rawFactory: unknown = (layoutOrPageMod as any)
-          .__debugCreateInstantConfigStack
+        const rawFactory: unknown =
+          layoutOrPageMod.__debugCreateInstantConfigStack
         localCreateInstantStack =
           typeof rawFactory === 'function' ? (rawFactory as () => Error) : null
       }
@@ -1320,8 +1334,7 @@ export async function createCombinedPayloadAtDepth(
         break
       }
       case ValidationPrefetchKind.LegacySpeculative: {
-        // In legacy speculative prefetches, we always use static.
-        stage = overrideStageForPartialSegments ?? RenderStage.Static
+        stage = overrideStageForPartialSegments ?? RenderStage.NavigationStatic
         break
       }
     }
@@ -1447,7 +1460,8 @@ export async function createCombinedPayloadAtDepth(
       break
     }
     case ValidationPrefetchKind.LegacySpeculative: {
-      headStage = overrideStageForPartialSegments ?? RenderStage.Static
+      headStage =
+        overrideStageForPartialSegments ?? RenderStage.NavigationStatic
       break
     }
   }

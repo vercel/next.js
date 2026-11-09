@@ -300,8 +300,8 @@ function CompareSidebarContent({
               <span
                 className={cn(
                   'font-mono',
-                  compressedDelta > 0 && 'text-red-600 dark:text-red-400',
-                  compressedDelta < 0 && 'text-green-600 dark:text-green-400',
+                  compressedDelta > 0 && 'text-delta-increase',
+                  compressedDelta < 0 && 'text-delta-decrease',
                   compressedDelta === 0 && 'text-muted-foreground'
                 )}
               >

@@ -277,6 +277,8 @@ export type PrerenderDataTracking = {
   shouldAttemptStaticShell: boolean
   /** Corresponds to `PrefetchHint.ShouldAttemptStaticPrefetch`. */
   shouldAttemptStaticPrefetch: boolean
+  /** Corresponds to `PrefetchHint.ShouldAttemptStaticNavigation`. */
+  shouldAttemptStaticNavigation: boolean
 }
 
 export function createPrerenderDataTracking(): PrerenderDataTracking {
@@ -284,6 +286,7 @@ export function createPrerenderDataTracking(): PrerenderDataTracking {
     runtimeDataAccessed: createPromiseWithResolvers(),
     shouldAttemptStaticShell: true,
     shouldAttemptStaticPrefetch: true,
+    shouldAttemptStaticNavigation: true,
   }
 }
 
@@ -363,27 +366,40 @@ function trackRuntimeDataAccessed(
 ): void {
   switch (workUnitStore.type) {
     case 'prerender': {
-      const { prerenderDataTracking, stagedRendering } = workUnitStore
-      if (!prerenderDataTracking || !stagedRendering) {
+      const { prerenderDataTracking, stagedRendering, controller } =
+        workUnitStore
+      if (
+        !prerenderDataTracking ||
+        !stagedRendering ||
+        controller.signal.aborted
+      ) {
         return
       }
       const { currentStage } = stagedRendering
-      if (currentStage === RenderStage.Before) {
-        console.error(
-          new InvariantError(
-            'Unexpected trackRuntimeDataAccessed in the Before stage.'
+      // A static prerender only runs in the static stages. The
+      // validation-only stages, like `PrefetchStatic_prefetchApi`, aren't
+      // used here.
+      let currentPrerenderStage: StaticPrerenderStage
+      switch (currentStage) {
+        case RenderStage.ShellStatic:
+        case RenderStage.PrefetchStatic:
+        case RenderStage.NavigationStatic:
+          currentPrerenderStage = currentStage
+          break
+        case RenderStage.Before:
+        case RenderStage.PrefetchStatic_prefetchApi:
+        case RenderStage.ShellRuntime:
+        case RenderStage.PrefetchRuntime_prefetchApi:
+        case RenderStage.PrefetchRuntime:
+        case RenderStage.NavigationRuntime:
+        case RenderStage.Dynamic:
+        case RenderStage.Abandoned:
+          console.error(
+            new InvariantError(
+              `Unexpected trackRuntimeDataAccessed in the ${RenderStage[currentStage]} stage.`
+            )
           )
-        )
-        return
-      }
-      if (currentStage >= RenderStage.NavigationStatic) {
-        // Ignore any accesses that happen after `navigation()` resolves.
-        // The purpose of this tracking is to judge whether a runtime prefetch
-        // would give us a more complete result than a static one.
-        // But `navigation()` wouldn't have resolved in a runtime prefetch,
-        // so e.g. `await navigation(); await cookies()` wouldn't have more content
-        // in those, and we shouldn't count it.
-        return
+          return
       }
 
       const ensureStaticLevel =
@@ -400,37 +416,22 @@ function trackRuntimeDataAccessed(
 
       switch (dataKind) {
         case PrerenderDataKind.SessionData: {
-          // Potentially deopt both the shell and the prefetch,
-          // because if the shell accessed runtime data, so does the prefetch.
-          // However, if we're already past the shell stage, the shell is not affected.
-          // (which makes e.g. `await prefetch(); await cookies()` only affect the prefetch)
-          let firstAffectedStage:
-            | RenderStage.ShellStatic
-            | RenderStage.PrefetchStatic
-            | null = null
-
-          if (
-            currentStage <= RenderStage.ShellStatic &&
-            // Only track if we're not forcing the shell to be static.
-            ensureStaticLevel < EnsureStaticLevel.Shell
-          ) {
-            prerenderDataTracking.shouldAttemptStaticShell = false
-            firstAffectedStage ??= RenderStage.ShellStatic
-            logRuntimeDeopt?.(expression, 'shell')
-          }
-
-          if (
-            currentStage <= RenderStage.PrefetchStatic &&
-            // Only track if we're not forcing the prefetch to be static.
-            ensureStaticLevel < EnsureStaticLevel.Prefetch
-          ) {
-            prerenderDataTracking.shouldAttemptStaticPrefetch = false
-            // NOTE: if the shell is affected, don't override it.
-            firstAffectedStage ??= RenderStage.PrefetchStatic
-            logRuntimeDeopt?.(expression, 'prefetch')
-          }
-
+          // Potentially deopt all of shell/prefetch/navigation,
+          // because if the shell accessed runtime data, so does the prefetch and the navigation.
+          // However, if we're already past the a stage, then it is not affected.
+          // (which makes e.g. `await prefetch(); await cookies()` only affect the prefetch,
+          //  and `await navigation(); await cookies();` only affect the navigation)
+          const firstAffectedStage =
+            getFirstPrerenderStageAffectedByRuntimeAccess(
+              currentPrerenderStage,
+              ensureStaticLevel
+            )
           if (firstAffectedStage !== null) {
+            logRuntimeDeopt?.(expression, firstAffectedStage)
+            setRuntimeHintForAffectedStage(
+              prerenderDataTracking,
+              firstAffectedStage
+            )
             markRuntimeDataAccessWhenStageReached(
               prerenderDataTracking,
               stagedRendering,
@@ -441,25 +442,35 @@ function trackRuntimeDataAccessed(
         }
         case PrerenderDataKind.FallbackParams: {
           if (workUnitStore.isFallbackUpgradeable) {
-            // An fallback-param access is transient when the route is
+            // A fallback-param access is transient when the route is
             // fallback-upgradeable (i.e. ISR later produces the concrete prerender a
             // static prefetch would hit) so it does not indicate the need for a runtime
             // request and thus does not affect the static hints.
             //
-            // If runtime prefetches are not disallowed by `ensureStatic`, then we still
-            // set `runtimeDataAccessed` (while keeping the hints static). This means that
-            // if the concrete prerender isn't ready yet and we served the fallback, then
-            // the client knows it can use a *runtime* prefetch for speculative links --
-            // a runtime prefetch can provide the same content (or more) as the concrete
-            // prerender would.
-            if (ensureStaticLevel < EnsureStaticLevel.Prefetch) {
+            // If `ensureStatic` doesn't disallow runtime prefetches, we still
+            // set `runtimeDataAccessed`, but keep the hints static. So if we
+            // serve the fallback, the client knows it needs more. It waits for
+            // the concrete prerender first, and only sends a runtime request
+            // if that still needs runtime data, or if it gives up waiting.
+
+            const firstAffectedStage =
+              getFirstPrerenderStageAffectedByRuntimeAccess(
+                // `params` are URL data, so they are not included in shells, and can only affect
+                // the prefetch/navigation stages.
+                clampStageToAtLeast(
+                  currentPrerenderStage,
+                  RenderStage.PrefetchStatic
+                ),
+                ensureStaticLevel
+              )
+            if (firstAffectedStage !== null) {
+              logRuntimeUpgradeableFallback?.()
+              // Deliberately not touching the prefetch hints
               markRuntimeDataAccessWhenStageReached(
                 prerenderDataTracking,
                 stagedRendering,
-                // `params` are URL data, so they only affect the prefetch
-                RenderStage.PrefetchStatic
+                firstAffectedStage
               )
-              logRuntimeUpgradeableFallback?.()
             }
             break
           }
@@ -467,18 +478,25 @@ function trackRuntimeDataAccessed(
           // intentional fallthrough
         }
         case PrerenderDataKind.UrlData: {
-          // Only deopt the prefetch, not the shell, which cannot access URL data anyway.
-          if (
-            currentStage <= RenderStage.PrefetchStatic &&
-            ensureStaticLevel < EnsureStaticLevel.Prefetch
-          ) {
-            prerenderDataTracking.shouldAttemptStaticPrefetch = false
-            logRuntimeDeopt?.(expression, 'prefetch')
-
+          const firstAffectedStage =
+            getFirstPrerenderStageAffectedByRuntimeAccess(
+              // Only deopt prefetch/navigation, not the shell, which cannot access URL data anyway.
+              clampStageToAtLeast(
+                currentPrerenderStage,
+                RenderStage.PrefetchStatic
+              ),
+              ensureStaticLevel
+            )
+          if (firstAffectedStage !== null) {
+            logRuntimeDeopt?.(expression, firstAffectedStage)
+            setRuntimeHintForAffectedStage(
+              prerenderDataTracking,
+              firstAffectedStage
+            )
             markRuntimeDataAccessWhenStageReached(
               prerenderDataTracking,
               stagedRendering,
-              RenderStage.PrefetchStatic
+              firstAffectedStage
             )
           }
           break
@@ -501,6 +519,71 @@ function trackRuntimeDataAccessed(
       break
     default:
       workUnitStore satisfies never
+  }
+}
+
+type StaticPrerenderStage =
+  | RenderStage.ShellStatic
+  | RenderStage.PrefetchStatic
+  | RenderStage.NavigationStatic
+
+/**
+ * Returns the first stage that is affected by a runtime access
+ * in `currentStage`, factoring in the route's `ensureStatic` config.
+ * `null` indicates that no runtime requests can be used, so no stages
+ * should be marked as needing a runtime request.
+ * */
+function getFirstPrerenderStageAffectedByRuntimeAccess(
+  currentStage: StaticPrerenderStage,
+  ensureStaticLevel: EnsureStaticLevel
+): StaticPrerenderStage | null {
+  const firstPossibleAffectedStage =
+    getFirstPrerenderStageWithRuntimeData(ensureStaticLevel)
+  if (firstPossibleAffectedStage === null) {
+    return null
+  }
+  return clampStageToAtLeast(currentStage, firstPossibleAffectedStage)
+}
+
+/**
+ * Returns the first stage that may use runtime requests based on
+ * the route's `ensureStatic` config.
+ * `null` indicates that no runtime requests can be used.
+ * */
+function getFirstPrerenderStageWithRuntimeData(
+  ensureStaticLevel: EnsureStaticLevel
+): StaticPrerenderStage | null {
+  switch (ensureStaticLevel) {
+    case EnsureStaticLevel.None:
+      return RenderStage.ShellStatic
+    case EnsureStaticLevel.Shell:
+      return RenderStage.PrefetchStatic
+    case EnsureStaticLevel.Prefetch:
+      return RenderStage.NavigationStatic
+    case EnsureStaticLevel.Navigation:
+      return null
+  }
+}
+
+function clampStageToAtLeast<TStage extends RenderStage>(
+  stage: TStage,
+  minimumStage: TStage
+) {
+  return stage < minimumStage ? minimumStage : stage
+}
+
+function setRuntimeHintForAffectedStage(
+  prerenderDataTracking: PrerenderDataTracking,
+  firstAffectedStage: StaticPrerenderStage
+) {
+  if (firstAffectedStage <= RenderStage.ShellStatic) {
+    prerenderDataTracking.shouldAttemptStaticShell = false
+  }
+  if (firstAffectedStage <= RenderStage.PrefetchStatic) {
+    prerenderDataTracking.shouldAttemptStaticPrefetch = false
+  }
+  if (firstAffectedStage <= RenderStage.NavigationStatic) {
+    prerenderDataTracking.shouldAttemptStaticNavigation = false
   }
 }
 
@@ -541,10 +624,24 @@ function markRuntimeDataAccessWhenStageReached(
 }
 
 const logRuntimeDeopt = process.env.NEXT_PRIVATE_DEBUG_RUNTIME_DATA
-  ? (expression: string, kind: 'shell' | 'prefetch') => {
+  ? (expression: string, firstAffectedStage: StaticPrerenderStage) => {
       const { route } = workAsyncStorage.getStore()!
+
+      let stageDescription: string
+      switch (firstAffectedStage) {
+        case RenderStage.ShellStatic:
+          stageDescription = 'shell'
+          break
+        case RenderStage.PrefetchStatic:
+          stageDescription = 'prefetch'
+          break
+        case RenderStage.NavigationStatic:
+          stageDescription = 'navigation'
+          break
+      }
+
       console.log(
-        `Route '${route}': deopting to a runtime ${kind} because it used ${expression}`
+        `Route '${route}': deopting to a runtime ${stageDescription} because it used ${expression}`
       )
     }
   : undefined
@@ -746,8 +843,30 @@ class TrackedPromise<T> extends Promise<T> {
 
 export const RENDER_STAGES_BY_DATA_KIND = {
   sessionData: RenderStage.ShellRuntime as const,
-  staticLinkData: RenderStage.PrefetchStatic as const,
-  runtimeLinkData: RenderStage.Runtime as const,
+  /**
+   * Statically-prerenderable URL data, like static `params`.
+   * It may need to be pushed to a runtime stage in a runtime prerender,
+   * but it's semantically distinct from `runtimeUrlData` like `searchParams`,
+   * which is always excluded from static prerenders.
+   * */
+  staticUrlData: {
+    /**
+     * From that app's point of view, `prefetch()` is semantically the same as
+     * `staticUrlData`, because it does not resolve in a shell but resolves in
+     * a prefetch (even a static one).
+     * We handle it separately to provide a specialized error in validation renders.
+     */
+    prefetchApi: {
+      static: RenderStage.PrefetchStatic_prefetchApi as const,
+      runtime: RenderStage.PrefetchRuntime_prefetchApi as const,
+    },
+    static: RenderStage.PrefetchStatic as const,
+    runtime: RenderStage.PrefetchRuntime as const,
+  },
+  /**
+   * URL data that is never statically-prerenderable, like static `searchParams`.
+   * */
+  runtimeUrlData: RenderStage.PrefetchRuntime as const,
 }
 
 export function applyOwnerStack(error: Error): Error {

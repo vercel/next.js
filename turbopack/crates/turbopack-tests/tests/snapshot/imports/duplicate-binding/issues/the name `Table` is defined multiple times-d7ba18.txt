@@ -1,4 +1,4 @@
-error - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/imports/duplicate-binding/input/index.js:3:16  the name `Table` is defined multiple times
+error - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/imports/duplicate-binding/input/index.js:3:17  the name `Table` is defined multiple times
        1 | import { Table } from './table'
        2 | 
          +                 v---v

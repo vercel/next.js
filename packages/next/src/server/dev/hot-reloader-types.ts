@@ -14,9 +14,9 @@ import type {
 } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
 import type {
-  RequestInsight,
+  RequestInsightDelta,
   RequestInsightsSnapshot,
-} from '../../next-devtools/shared/request-insights'
+} from '../../shared/lib/request-insights'
 import type { ReactDebugChannelForBrowser } from './debug-channel'
 import type { AnyStream } from '../app-render/stream-ops'
 
@@ -263,7 +263,7 @@ export interface CacheIndicatorMessage {
 
 export interface RequestInsightsUpdateMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE
-  insight: RequestInsight
+  insight: RequestInsightDelta
 }
 
 export interface VulnerabilityInsightMessage {
@@ -348,6 +348,11 @@ export interface NextJsHotReloaderInterface {
    * them for code that changed while the server was down.
    */
   getServerComponentsHmrRefreshHash(): string
+  /** The client HMR baseline, available only with Turbopack HMR. */
+  getClientHmrVersion?(): string
+  onNativeRoutesChanged?(
+    listener: (pages: ReadonlySet<string>) => void
+  ): () => void
   setCacheStatus(status: ServerCacheStatus, htmlRequestId: string): void
   setReactDebugChannel(
     debugChannel: ReactDebugChannelForBrowser,

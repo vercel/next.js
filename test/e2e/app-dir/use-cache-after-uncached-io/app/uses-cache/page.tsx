@@ -28,7 +28,7 @@ async function Late() {
 async function getCachedData(): Promise<string> {
   'use cache'
   cacheLife('hours')
-  cacheTag('data')
+  cacheTag('use-cache-after-uncached-io:data')
 
   console.log('running getCachedData')
 

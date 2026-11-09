@@ -3,7 +3,7 @@
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { check, fetchViaHTTP, retry } from 'next-test-utils'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDev } from 'e2e-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
 const isTurbopackTest = Boolean(process.env.IS_TURBOPACK_TEST)
@@ -12,7 +12,7 @@ const isCustomDeploy = Boolean(process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH)
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
 // FIXME: Fails to deploy
-// @force-gate !deploy || !adapter || !turbopack
+// @force-gate !deploy || !adapter
 describe('Middleware Rewrite', () => {
   const { next, isNextDeploy } = nextTestSetup({
     files: {
@@ -36,7 +36,7 @@ describe('Middleware Rewrite', () => {
         },
       })
 
-      if (!(global as any).isNextDev) {
+      if (!isNextDev) {
         browser.elementByCss('#to-article-rewrite').moveTo()
 
         await retry(async () => {
@@ -414,7 +414,7 @@ describe('Middleware Rewrite', () => {
       expect(await element.text()).toEqual('About Bypassed Page')
     })
 
-    if (!(global as any).isNextDev) {
+    if (!isNextDev) {
       it('should opt out of prefetch caching for dynamic routes', async () => {
         const browser = await next.browser('/')
         await browser.eval('window.__SAME_PAGE = true')

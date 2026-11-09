@@ -10,6 +10,7 @@ import type { CompilerNameValues } from '../../shared/lib/constants'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 
 import createDebug from 'next/dist/compiled/debug'
+import { INSTRUMENTATION_INJECT_STUB_PATH } from '../../build/next-dir-paths'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
 import { runDependingOnPageType, isDeferredEntry } from '../../build/entries'
@@ -31,7 +32,6 @@ import { PageNotFoundError, stringifyError } from '../../shared/lib/utils'
 import {
   COMPILER_INDEXES,
   COMPILER_NAMES,
-  RSC_MODULE_TYPES,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../shared/lib/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
@@ -45,6 +45,7 @@ import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { PAGE_TYPES } from '../../lib/page-types'
+import { INSTRUMENTATION_HOOK_FILENAME } from '../../lib/constants'
 import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
@@ -390,13 +391,16 @@ interface PagePathData {
 /**
  * Attempts to find a page file path from the given pages absolute directory,
  * a page and allowed extensions. If the page can't be found it will throw an
- * error. It defaults the `/_error` page to Next.js internal error page.
+ * error. It defaults the `/_error` page to Next.js internal error page. When
+ * `hasInstrumentationInject` is true, the instrumentation hook is its stub,
+ * which chains the project's instrumentation file after the injected entries.
  *
  * @param rootDir Absolute path to the project root.
  * @param page The page normalized (it will be denormalized).
  * @param extensions Array of page extensions.
  * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
  * @param appDir Absolute path to the app folder with trailing `/app`.
+ * @param hasInstrumentationInject Whether `instrumentationInject` has entries.
  */
 export async function findPagePathData(
   rootDir: string,
@@ -404,12 +408,20 @@ export async function findPagePathData(
   extensions: string[],
   pagesDir: string | undefined,
   appDir: string | undefined,
-  isGlobalNotFoundEnabled: boolean
+  isGlobalNotFoundEnabled: boolean,
+  hasInstrumentationInject = false
 ): Promise<PagePathData> {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
 
   const isInstrumentation = isInstrumentationHookFile(normalizedPagePath)
+  if (isInstrumentation && hasInstrumentationInject) {
+    return {
+      filename: INSTRUMENTATION_INJECT_STUB_PATH,
+      bundlePath: INSTRUMENTATION_HOOK_FILENAME,
+      page: `/${INSTRUMENTATION_HOOK_FILENAME}`,
+    }
+  }
   if (isMiddlewareFile(normalizedPagePath) || isInstrumentation) {
     pagePath = await findPageFile(
       rootDir,
@@ -493,7 +505,7 @@ export async function findPagePathData(
       const pageUrl = ensureLeadingSlash(
         removePagePathTail(normalizePathSep(pagePath), {
           keepIndex: true,
-          extensions,
+          extensions: pagePath.endsWith('route.go') ? ['go'] : extensions,
         })
       )
 
@@ -548,6 +560,7 @@ export function onDemandEntryHandler({
   pagesDir,
   rootDir,
   appDir,
+  hasInstrumentationInject,
 }: {
   hotReloader: NextJsHotReloaderInterface
   maxInactiveAge: number
@@ -557,12 +570,13 @@ export function onDemandEntryHandler({
   pagesDir?: string
   rootDir: string
   appDir?: string
+  hasInstrumentationInject: boolean
 }) {
   const hasAppDir = !!appDir
   let curInvalidator: Invalidator = getInvalidator(
     multiCompiler.outputPath
   ) as any
-  const curEntries = getEntries(multiCompiler.outputPath) as any
+  const curEntries = getEntries(multiCompiler.outputPath)
 
   if (!curInvalidator) {
     curInvalidator = new Invalidator(multiCompiler)
@@ -640,7 +654,7 @@ export function onDemandEntryHandler({
   }
 
   const startBuilding = (compilation: webpack.Compilation) => {
-    const compilationName = compilation.name as any as CompilerNameValues
+    const compilationName = compilation.name as CompilerNameValues
     curInvalidator.startBuilding(compilationName)
     // Reset deferred entries state for this compilation cycle
     // This ensures onBeforeDeferredEntries will be called again during HMR
@@ -842,7 +856,8 @@ export function onDemandEntryHandler({
           nextConfig.pageExtensions,
           pagesDir,
           appDir,
-          !!nextConfig.experimental.globalNotFound
+          !!nextConfig.experimental.globalNotFound,
+          hasInstrumentationInject
         )
       }
 
@@ -928,9 +943,6 @@ export function onDemandEntryHandler({
       })
 
       const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
-      const isServerComponent =
-        isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
-
       let pageRuntime = staticInfo.runtime
 
       runDependingOnPageType({
@@ -938,8 +950,8 @@ export function onDemandEntryHandler({
         pageRuntime,
         pageType: pageBundleType,
         onClient: () => {
-          // Skip adding the client entry for app / Server Components.
-          if (isServerComponent || isInsideAppDir) {
+          // Skip adding the client entry for app pages.
+          if (isInsideAppDir) {
             return
           }
           added.set(COMPILER_NAMES.client, addEntry(COMPILER_NAMES.client))

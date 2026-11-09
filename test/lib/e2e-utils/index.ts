@@ -1,3 +1,4 @@
+import { getDeploymentTestEnvAssignments } from './deployment-test-env'
 import path from 'path'
 import assert from 'assert'
 import { flushAllTraces, setGlobal, trace } from 'next/dist/trace'
@@ -173,8 +174,6 @@ if (!process.env.NEXT_TEST_WASM && process.env.NEXT_TEST_WASM_AFTER_JEST) {
 
 export const isRspack = !!process.env.NEXT_RSPACK
 const isNextTestWasm = !!process.env.NEXT_TEST_WASM
-export const itTurbopack =
-  !isNextTestWasm && shouldUseTurbopack() ? it : it.skip
 
 /**
  * Whether the test is running against React 18 (based on
@@ -231,6 +230,24 @@ export class PatchedFileRef {
     this.fsPath = path
     this.cb = cb
   }
+}
+
+/**
+ * Return a PatchedFileRef that prepends captured test env assignments when the
+ * harness copies the file in deploy mode. Other modes copy the content
+ * unchanged. Nested app configs need this because the deploy harness only
+ * patches the fixture-root config.
+ *
+ * TODO: Patch nested configs automatically in the deploy harness so fixtures no
+ * longer need these explicit overrides.
+ * https://github.com/vercel/next.js/blob/3854a98484ec2ce5bafcb074ef0fbad5290dede2/test/lib/next-modes/base.ts#L520-L554
+ */
+export function patchFileWithDeployEnvAssignments(
+  path: string
+): PatchedFileRef {
+  return new PatchedFileRef(path, (content) =>
+    isNextDeploy ? getDeploymentTestEnvAssignments() + content : content
+  )
 }
 
 let nextInstance: NextInstance | undefined = undefined

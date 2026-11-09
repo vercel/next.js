@@ -1,4 +1,4 @@
-warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-errors/input/index.js:10:9  TP1008 import.meta.glob() first argument must be a string literal or array of string literals
+warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-errors/input/index.js:10:10  TP1008 import.meta.glob() first argument must be a string literal or array of string literals
   
        6 |   return import.meta.glob('./dir/*.js', {}, {})
        7 | }

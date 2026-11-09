@@ -27,6 +27,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -226,6 +227,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -425,6 +427,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -513,6 +516,85 @@
                                     ),
                                 ),
                             ),
+                            base_effects: [
+                                FreeVar {
+                                    var: "require",
+                                    ast_path: [
+                                        Program(
+                                            Script,
+                                        ),
+                                        Script(
+                                            Body(
+                                                3,
+                                            ),
+                                        ),
+                                        Stmt(
+                                            Decl,
+                                        ),
+                                        Decl(
+                                            Var,
+                                        ),
+                                        VarDecl(
+                                            Decls(
+                                                0,
+                                            ),
+                                        ),
+                                        VarDeclarator(
+                                            Init,
+                                        ),
+                                        Expr(
+                                            Call,
+                                        ),
+                                        CallExpr(
+                                            Args(
+                                                0,
+                                            ),
+                                        ),
+                                        ExprOrSpread(
+                                            Expr,
+                                        ),
+                                        Expr(
+                                            Fn,
+                                        ),
+                                        FnExpr(
+                                            Function,
+                                        ),
+                                        Function(
+                                            Body,
+                                        ),
+                                        FunctionBody(
+                                            Stmts(
+                                                0,
+                                            ),
+                                        ),
+                                        Stmt(
+                                            Return,
+                                        ),
+                                        ReturnStmt(
+                                            Arg,
+                                        ),
+                                        Expr(
+                                            Call,
+                                        ),
+                                        CallExpr(
+                                            Callee,
+                                        ),
+                                        Callee(
+                                            Expr,
+                                        ),
+                                        Expr(
+                                            Member,
+                                        ),
+                                        MemberExpr(
+                                            Obj,
+                                        ),
+                                        Expr(
+                                            Ident,
+                                        ),
+                                    ],
+                                    span: 281..288,
+                                },
+                            ],
                             ast_path: [
                                 Program(
                                     Script,
@@ -582,83 +664,6 @@
                             ],
                             span: 281..296,
                             in_truthiness_context: false,
-                        },
-                        FreeVar {
-                            var: "require",
-                            ast_path: [
-                                Program(
-                                    Script,
-                                ),
-                                Script(
-                                    Body(
-                                        3,
-                                    ),
-                                ),
-                                Stmt(
-                                    Decl,
-                                ),
-                                Decl(
-                                    Var,
-                                ),
-                                VarDecl(
-                                    Decls(
-                                        0,
-                                    ),
-                                ),
-                                VarDeclarator(
-                                    Init,
-                                ),
-                                Expr(
-                                    Call,
-                                ),
-                                CallExpr(
-                                    Args(
-                                        0,
-                                    ),
-                                ),
-                                ExprOrSpread(
-                                    Expr,
-                                ),
-                                Expr(
-                                    Fn,
-                                ),
-                                FnExpr(
-                                    Function,
-                                ),
-                                Function(
-                                    Body,
-                                ),
-                                FunctionBody(
-                                    Stmts(
-                                        0,
-                                    ),
-                                ),
-                                Stmt(
-                                    Return,
-                                ),
-                                ReturnStmt(
-                                    Arg,
-                                ),
-                                Expr(
-                                    Call,
-                                ),
-                                CallExpr(
-                                    Callee,
-                                ),
-                                Callee(
-                                    Expr,
-                                ),
-                                Expr(
-                                    Member,
-                                ),
-                                MemberExpr(
-                                    Obj,
-                                ),
-                                Expr(
-                                    Ident,
-                                ),
-                            ],
-                            span: 281..288,
                         },
                         MemberCall {
                             obj: FreeVar(
@@ -848,6 +853,63 @@
                 ),
             ),
         ),
+        base_effects: [
+            FreeVar {
+                var: "require",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            4,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Fn,
+                    ),
+                    FnDecl(
+                        Function,
+                    ),
+                    Function(
+                        Body,
+                    ),
+                    FunctionBody(
+                        Stmts(
+                            0,
+                        ),
+                    ),
+                    Stmt(
+                        Return,
+                    ),
+                    ReturnStmt(
+                        Arg,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Callee,
+                    ),
+                    Callee(
+                        Expr,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 339..346,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -895,61 +957,6 @@
         ],
         span: 339..354,
         in_truthiness_context: false,
-    },
-    FreeVar {
-        var: "require",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    4,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                Return,
-            ),
-            ReturnStmt(
-                Arg,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 339..346,
     },
     MemberCall {
         obj: FreeVar(

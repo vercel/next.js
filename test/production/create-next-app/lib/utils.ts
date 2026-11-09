@@ -7,6 +7,7 @@
 import { execSync, spawn, SpawnOptions } from 'child_process'
 import { existsSync, readFileSync } from 'fs'
 import { join, resolve } from 'path'
+import { fileURLToPath } from 'url'
 import glob from 'glob'
 import Conf from 'next/dist/compiled/conf'
 
@@ -25,6 +26,11 @@ import { serializeTestPkgPathsEnv } from './test-pkg-paths'
 
 const cli = require.resolve('create-next-app/dist/index.js')
 
+// Keep saved preferences inside each fixture so concurrent runs cannot reset
+// or overwrite one another's settings.
+export const getPreferencesDir = (cwd: string | URL = process.cwd()) =>
+  resolve(cwd instanceof URL ? fileURLToPath(cwd) : cwd, '.create-next-app')
+
 /**
  * Run the built version of `create-next-app` with the given arguments.
  */
@@ -34,7 +40,8 @@ export const createNextApp = (
   testVersion?: string,
   clearPreferences: boolean = true
 ) => {
-  const conf = new Conf({ projectName: 'create-next-app' })
+  const configDir = getPreferencesDir(options?.cwd)
+  const conf = new Conf({ projectName: 'create-next-app', cwd: configDir })
   if (clearPreferences) {
     conf.clear()
   }
@@ -64,7 +71,8 @@ export const createNextApp = (
     ...options,
     env: {
       ...cloneEnv,
-      ...options.env,
+      ...options?.env,
+      NEXT_PRIVATE_TEST_CONFIG_DIR: configDir,
     },
   })
 }

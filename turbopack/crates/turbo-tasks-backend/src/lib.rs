@@ -1,5 +1,6 @@
-#![feature(anonymous_lifetime_in_impl_trait)]
+#![feature(current_thread_id)]
 #![feature(deref_patterns)]
+#![feature(thread_id_value)]
 
 mod backend;
 mod backing_storage;
@@ -101,5 +102,29 @@ pub fn compact_database(
         max_merge_jobs: usize::MAX,
         ..turbo::COMPACT_CONFIG
     })?;
-    db.shutdown()
+    db.shutdown();
+    Ok(())
+}
+
+/// Internals exposed for benchmarks only. Not a stable API.
+#[doc(hidden)]
+pub mod private {
+    use anyhow::Result;
+    pub use turbo_persistence::ArcBytes;
+    use turbo_tasks::TaskId;
+
+    use crate::kv_backing_storage::TurboBackingStorage;
+    pub use crate::{
+        backend::{SpecificTaskDataCategory, storage_schema::TaskStorage},
+        kv_backing_storage::{PARALLEL_DECODE_THRESHOLD, decode_task_storage_batch},
+    };
+
+    /// See `TurboBackingStorage::batch_lookup_raw`.
+    pub fn batch_lookup_raw(
+        storage: &TurboBackingStorage,
+        task_ids: &[TaskId],
+        category: SpecificTaskDataCategory,
+    ) -> Result<Vec<Option<ArcBytes>>> {
+        storage.batch_lookup_raw(task_ids, category)
+    }
 }

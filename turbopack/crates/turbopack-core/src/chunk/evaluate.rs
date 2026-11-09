@@ -41,7 +41,10 @@ async fn to_evaluatable(
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
     let module = asset_context
-        .process(asset, ReferenceType::Entry(EntryReferenceSubType::Runtime))
+        .process(
+            asset,
+            ReferenceType::Entry(EntryReferenceSubType::default()),
+        )
         .module();
     let Some(entry) =
         ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(module.to_resolved().await?)

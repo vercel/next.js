@@ -1,18 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('react version', () => {
-  const dependencies = (global as any).isNextDeploy
-    ? // `link` is incompatible with the npm version used when this test is deployed
-      {
-        'library-with-exports': 'file:./library-with-exports',
-      }
-    : {
-        'library-with-exports': 'link:./library-with-exports',
-      }
-
   const { next } = nextTestSetup({
     files: __dirname,
-    dependencies,
+    dependencies: {
+      'library-with-exports': 'link:./library-with-exports',
+    },
   })
 
   it('Pages Router page headers with edge runtime', async () => {

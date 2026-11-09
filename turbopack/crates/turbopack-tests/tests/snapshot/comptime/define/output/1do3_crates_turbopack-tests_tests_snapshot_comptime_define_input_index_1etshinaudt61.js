@@ -1,5 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_comptime_define_input_index_1etshinaudt61.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/define/input/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_comptime_define_input_index_1etshinaudt61.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/define/input/index.js [test] (ecmascript)",((__turbopack_context__, module, exports) => {
 
 if ("TURBOPACK compile-time truthy", 1) {
     console.log('DEFINED_VALUE');
@@ -71,7 +70,6 @@ if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
 ;
 // TODO ideally this would also be inlined
 console.log(foo);
-}),
-]);
+})]);
 
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_comptime_define_input_index_1etshinaudt61.js.map

@@ -2,7 +2,13 @@
 
 import fs from 'fs-extra'
 import { join } from 'path'
-import { FileRef, isNextStart, nextTestSetup } from 'e2e-utils'
+import {
+  FileRef,
+  isNextStart,
+  nextTestSetup,
+  isNextDev,
+  isNextDeploy,
+} from 'e2e-utils'
 import { check, fetchViaHTTP, waitFor } from 'next-test-utils'
 
 const urlsError = 'Please use only absolute URLs'
@@ -76,7 +82,7 @@ describe('Middleware Runtime', () => {
           start: 'next start',
         },
       },
-      startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+      startCommand: isNextDev ? 'pnpm dev' : 'pnpm start',
       buildCommand: 'pnpm build',
       env: {
         ANOTHER_MIDDLEWARE_TEST: 'asdf2',
@@ -174,7 +180,7 @@ describe('Middleware Runtime', () => {
       expect(await res.text()).toContain('Example Domain')
     })
 
-    if ((global as any).isNextDev) {
+    if (isNextDev) {
       it('refreshes the page when middleware changes ', async () => {
         const browser = await next.browser(`/about`)
         await browser.eval('window.didrefresh = "hello"')
@@ -209,7 +215,7 @@ describe('Middleware Runtime', () => {
       })
     }
 
-    if ((global as any).isNextStart && !isNodeMiddleware) {
+    if (isNextStart && !isNodeMiddleware) {
       it('should have valid middleware field in manifest', async () => {
         const manifest = await fs.readJSON(
           join(next.testDir, '.next/server/middleware-manifest.json')
@@ -550,12 +556,12 @@ describe('Middleware Runtime', () => {
       const res = await fetchViaHTTP(next.url, `/%2`)
       expect(res.status).toBe(400)
 
-      if ((global as any).isNextStart) {
+      if (isNextStart) {
         expect(await res.text()).toContain('Bad Request')
       }
     })
 
-    if (!(global as any).isNextDeploy) {
+    if (!isNextDeploy) {
       // user agent differs on Vercel
       it('should set fetch user agent correctly', async () => {
         const res = await fetchViaHTTP(next.url, `/fetch-user-agent-default`)
@@ -579,7 +585,7 @@ describe('Middleware Runtime', () => {
         ANOTHER_MIDDLEWARE_TEST: 'asdf2',
         STRING_ENV_VAR: 'asdf3',
         MIDDLEWARE_TEST: 'asdf',
-        ...((global as any).isNextDeploy
+        ...(isNextDeploy
           ? {}
           : {
               NEXT_RUNTIME: isNodeMiddleware ? 'nodejs' : 'edge',
@@ -599,7 +605,7 @@ describe('Middleware Runtime', () => {
       expect('error' in readMiddlewareJSON(res)).toBe(false)
     })
 
-    if (!(global as any).isNextDeploy) {
+    if (!isNextDeploy) {
       it(`should accept a URL instance for fetch`, async () => {
         const response = await fetchViaHTTP(next.url, '/fetch-url')
         // TODO: why is an error expected here if it should work?
@@ -706,7 +712,7 @@ describe('Middleware Runtime', () => {
       expect(readMiddlewareError(response)).toContain(urlsError)
     })
 
-    if (!(global as any).isNextDeploy) {
+    if (!isNextDeploy) {
       // these errors differ on Vercel
       it('should throw when using Request with a relative URL', async () => {
         const response = await fetchViaHTTP(next.url, `/url/relative-request`)
