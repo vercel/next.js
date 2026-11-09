@@ -354,7 +354,7 @@ export class AppRouteRouteModule extends RouteModule<
     if (this.nextConfigOutput === 'export') {
       if (this._dynamic === 'force-dynamic') {
         throw new Error(
-          `export const dynamic = "force-dynamic" on page "${this.definition.pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+          `export const dynamic = "force-dynamic" on page "${this.definition.pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/app/guides/static-exports#route-handlers`
         )
       } else if (this.cacheComponents) {
         this.validateStaticExportMethods(userland)
@@ -362,7 +362,7 @@ export class AppRouteRouteModule extends RouteModule<
         // config or dynamic = "error" coercion. The prerender must complete.
       } else if (!isStaticGenEnabled(userland) && userland['GET']) {
         throw new Error(
-          `export const dynamic = "force-static"/export const revalidate not configured on route "${this.definition.pathname}" with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+          `export const dynamic = "force-static"/export const revalidate not configured on route "${this.definition.pathname}" with "output: export". See more info here: https://nextjs.org/docs/app/guides/static-exports#route-handlers`
         )
       } else {
         this._dynamic = 'error'
@@ -411,7 +411,7 @@ export class AppRouteRouteModule extends RouteModule<
     )
     if (unsupportedMethods.length > 0) {
       throw new Error(
-        `Route "${this.definition.pathname}" exports HTTP methods that cannot be used with "output: export": ${unsupportedMethods.join(', ')}. Only GET is supported.`
+        `Route "${this.definition.pathname}" exports HTTP methods that cannot be used with "output: export": ${unsupportedMethods.join(', ')}. Only GET is supported.\n\nLearn more: https://nextjs.org/docs/app/guides/static-exports#route-handlers`
       )
     }
   }

@@ -133,12 +133,14 @@ With Cache Components, an interrupt can preserve its status when it runs during 
 
 ## Platform Support
 
-| Deployment Option                                                   | Supported         |
-| ------------------------------------------------------------------- | ----------------- |
-| [Node.js server](/docs/app/getting-started/deploying#nodejs-server) | Yes               |
-| [Docker container](/docs/app/getting-started/deploying#docker)      | Yes               |
-| [Static export](/docs/app/getting-started/deploying#static-export)  | No                |
-| [Adapters](/docs/app/getting-started/deploying#adapters)            | Platform-specific |
+| Deployment Option                                                   | Supported                  |
+| ------------------------------------------------------------------- | -------------------------- |
+| [Node.js server](/docs/app/getting-started/deploying#nodejs-server) | Yes                        |
+| [Docker container](/docs/app/getting-started/deploying#docker)      | Yes                        |
+| [Static export](/docs/app/guides/static-exports#cache-components)   | Client-side fallbacks only |
+| [Adapters](/docs/app/getting-started/deploying#adapters)            | Platform-specific          |
+
+A [static export](/docs/app/guides/static-exports#cache-components) must finish all server-rendered content during the build. A loading boundary cannot defer server work until a request, but it can provide fallback UI for work that runs entirely in the browser.
 
 Learn how to [configure streaming](/docs/app/guides/self-hosting#streaming-and-suspense) when self-hosting Next.js.
 

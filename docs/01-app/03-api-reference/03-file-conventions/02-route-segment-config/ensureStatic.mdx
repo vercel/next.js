@@ -94,11 +94,13 @@ These constraints also apply to [`generateMetadata`](/docs/app/api-reference/fun
 
 Data cached with `use cache` can be prerendered. [`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation) are also allowed because a static prerender continues through their stage boundaries.
 
+A [static export](/docs/app/guides/static-exports#cache-components) applies this same complete-output requirement to every route, even without an `ensureStatic` export. The export requirement cannot be relaxed with `ensureStatic = false` or `instant = false`.
+
 #### Dynamic route parameters
 
 With `'navigation'`, a dynamic route must export [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params) and return at least one complete parameter set. Each result must include every dynamic parameter in the route, even if the parameter is unused or only read in a Client Component.
 
-Values returned by `generateStaticParams()` are available during prerendering. When a request uses a value that was not prerendered at build time, Next.js waits for the static result to be generated before serving it.
+Values returned by `generateStaticParams()` are available during prerendering. When a request uses a value that was not prerendered at build time, Next.js waits for the static result to be generated before serving it. With [`output: 'export'`](/docs/app/guides/static-exports#dynamic-routes), only the generated paths are available and unlisted paths return 404.
 
 With `'shell'` or `'prefetch'`, a value that was not prerendered serves the route's fallback shell instead, with `<Suspense>` fallbacks in place of its content, while Next.js generates the page in the background. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
 

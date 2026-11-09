@@ -127,7 +127,7 @@ export async function exportAppRoute(
     if (!isValidStatus) {
       if (isStaticExport) {
         throw new Error(
-          `Route "${normalizeAppPath(page)}" could not be statically exported with "output: export" because it returned status ${response.status}.`
+          `Route "${normalizeAppPath(page)}" could not be statically exported with "output: export" because it returned status ${response.status}.\n\nLearn more: https://nextjs.org/docs/app/guides/static-exports#route-handlers`
         )
       }
       return { cacheControl: { revalidate: 0, expire: undefined } }
@@ -184,7 +184,7 @@ export async function exportAppRoute(
 
     if (isStaticExport) {
       throw new Error(
-        `Route "${normalizeAppPath(page)}" could not be statically exported with "output: export".`,
+        `Route "${normalizeAppPath(page)}" could not be statically exported with "output: export".\n\nLearn more: https://nextjs.org/docs/app/guides/static-exports#route-handlers`,
         { cause: err }
       )
     }

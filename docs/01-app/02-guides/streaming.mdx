@@ -791,6 +791,8 @@ This is the [bots and crawlers](#bots-and-crawlers) behavior: the server waits f
 | [Static export](/docs/app/getting-started/deploying#static-export)  | No                |
 | [Adapters](/docs/app/getting-started/deploying#adapters)            | Platform-specific |
 
+[Static exports](/docs/app/guides/static-exports#cache-components) do not stream server-rendered content at request time. All server content must complete during the build. Client Components can still use `<Suspense>` for work that runs entirely in the browser.
+
 See the [Self-Hosting guide](/docs/app/guides/self-hosting#streaming-and-suspense) for detailed configuration instructions.
 
 ## Summary

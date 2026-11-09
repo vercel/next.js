@@ -775,10 +775,12 @@ Use Next.js's built-in `fetch()` deduplication or use separate Maps for cached a
 | ------------------------------------------------------------------- | ----------------- |
 | [Node.js server](/docs/app/getting-started/deploying#nodejs-server) | Yes               |
 | [Docker container](/docs/app/getting-started/deploying#docker)      | Yes               |
-| [Static export](/docs/app/getting-started/deploying#static-export)  | No                |
+| [Static export](/docs/app/guides/static-exports#cache-components)   | Build time only   |
 | [Adapters](/docs/app/getting-started/deploying#adapters)            | Platform-specific |
 
 Learn how to [configure caching](/docs/app/guides/self-hosting#caching-and-isr) when self-hosting Next.js.
+
+With a [static export](/docs/app/guides/static-exports#cache-components), caching can run during the build to produce the exported files. Serving those files does not read or revalidate the server cache. Rebuild and redeploy to update the exported data.
 
 ## Version History
 

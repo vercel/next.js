@@ -77,6 +77,12 @@ node .next/standalone/server.js
 
 </PagesOnly>
 
+## Static exports
+
+Set `output: 'export'` to generate HTML, CSS, JavaScript, and other static response files for a host without a Next.js server. [Cache Components](/docs/app/guides/static-exports#cache-components) can be used to generate this output during the build.
+
+See [Static Exports](/docs/app/guides/static-exports) for configuration, supported features, and deployment requirements.
+
 ## Caveats
 
 - While tracing in monorepo setups, the project directory is used for tracing by default. For `next build packages/web-app`, `packages/web-app` would be the tracing root and any files outside of that folder will not be included. To include files outside of this folder you can set `outputFileTracingRoot` in your `next.config.js`.

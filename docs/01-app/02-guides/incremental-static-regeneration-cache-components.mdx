@@ -43,6 +43,8 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
+> **Good to know**: ISR requires a Next.js server and is unavailable with [`output: 'export'`](/docs/app/guides/static-exports#cache-components). Cache Components can still prerender exported files during the build, but unlisted paths return 404 and updating exported content requires a rebuild and redeploy.
+
 ## Example
 
 We'll build a product catalog with category layouts and product detail pages using the [Recipe API](https://next-recipe-api.vercel.dev/). You can find the resources used in this example here:

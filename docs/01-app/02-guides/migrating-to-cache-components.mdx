@@ -882,6 +882,12 @@ async function getProducts() {
 
 > **Good to know:** Reading uncached or runtime data in a `GET` handler bails out of prerendering by **throwing**. A `try/catch` you already have around other operations will catch that bail-out. If the `catch` block logs the error, it adds noise to the build output. Set `experimental.hideLogsAfterAbort: true` to hide logs emitted after a bail-out.
 
+## Static exports
+
+You can keep [`output: 'export'`](/docs/app/guides/static-exports#cache-components) when enabling Cache Components. All server-rendered pages and complete `GET` Route Handler responses must be generated during the build. Remove legacy `dynamic = 'force-static'` exports and cache asynchronous data with `use cache` where appropriate.
+
+Return every exported path from `generateStaticParams`. The exported app cannot generate another path or revalidate server content after deployment. See [Static Exports](/docs/app/guides/static-exports#cache-components) and [Route Handler static exports](/docs/app/api-reference/file-conventions/route#static-exports) for the requirements.
+
 ## `generateMetadata` and `generateViewport`
 
 **Cache external data with `use cache`, or mark intentionally dynamic pages.** Under Cache Components, [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) and [`generateViewport`](/docs/app/api-reference/functions/generate-viewport) follow the same rules as components. If they read runtime data (`cookies()`, `headers()`, `params`, `searchParams`) or fetch uncached data while the rest of the page is otherwise prerenderable, Next.js raises an error so the choice is explicit. If the metadata depends on external but not runtime data, add `use cache`.

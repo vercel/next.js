@@ -70,7 +70,7 @@ The viewport is determined during prerendering rather than per request.
 ### Gotchas
 
 - This fixes viewport settings only. Page content, metadata, and other segments must also satisfy the static requirement.
-- A static export cannot read `cookies()`, `headers()`, `params`, or `searchParams`.
+- A static `viewport` export cannot read `cookies()`, `headers()`, `params`, or `searchParams`.
 
 ## Other options
 

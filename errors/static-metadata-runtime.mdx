@@ -70,7 +70,7 @@ The metadata is determined during prerendering rather than per request.
 ### Gotchas
 
 - This fixes metadata only. Page content and other segments must also satisfy the static requirement.
-- A static export cannot read `cookies()`, `headers()`, `params`, or `searchParams`.
+- A static `metadata` export cannot read `cookies()`, `headers()`, `params`, or `searchParams`.
 
 ## Other options
 

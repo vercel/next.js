@@ -233,13 +233,15 @@ async function DynamicContent() {
 
 In this example, `<h1>` and the `<Suspense>` fallback are included in the static shell. `DynamicContent` reads the cookie during rendering and passes it into `after` via closure. Since `cookies()` is called _outside_ the `after` callback (during the component's render), this works correctly.
 
+With a [static export](/docs/app/guides/static-exports), `after` callbacks run after prerendering during the build. Serving the exported files does not execute the callbacks again.
+
 ## Platform Support
 
 | Deployment Option                                                   | Supported         |
 | ------------------------------------------------------------------- | ----------------- |
 | [Node.js server](/docs/app/getting-started/deploying#nodejs-server) | Yes               |
 | [Docker container](/docs/app/getting-started/deploying#docker)      | Yes               |
-| [Static export](/docs/app/getting-started/deploying#static-export)  | No                |
+| [Static export](/docs/app/guides/static-exports)                    | Build time only   |
 | [Adapters](/docs/app/getting-started/deploying#adapters)            | Platform-specific |
 
 Learn how to [configure `after`](/docs/app/guides/self-hosting#after) when self-hosting Next.js.

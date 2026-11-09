@@ -75,6 +75,8 @@ With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheCompo
 
 For a Cache Components page, `ƒ` means the build accepted an empty HTML prerender. Next.js renders the route on request. A dynamic route can also include a fallback for pathnames not returned by `generateStaticParams`.
 
+With [`output: 'export'`](/docs/app/guides/static-exports#cache-components), exported pages use `○`, including pages whose remaining work runs entirely in the browser. There is no server to complete a partial prerender or generate unlisted paths after deployment.
+
 ### Other route entries
 
 Request-dependent [Route Handlers](/docs/app/api-reference/file-conventions/route) (API endpoints), Proxy (Middleware), and dynamic metadata routes such as `icon`, `opengraph-image`, and `twitter-image` use `ƒ`. These entries render on demand and do not use PPR.
@@ -82,6 +84,8 @@ Request-dependent [Route Handlers](/docs/app/api-reference/file-conventions/rout
 ### Prerender validation
 
 With Cache Components, `next build` validates that each App Router page can produce a static shell. Request-time values such as `params`, `cookies()`, and `headers()` outside of `<Suspense>` produce a [runtime data error](/docs/messages/blocking-prerender-runtime). Uncached data produces an [uncached data error](/docs/messages/blocking-prerender-dynamic). Each error links to the fixes that apply to that data source.
+
+For a [static export](/docs/app/guides/static-exports#cache-components), all server-rendered content must complete during the build, even inside `<Suspense>`. Pages use the [fully static route diagnostics](/docs/messages/static-route-dynamic). Route Handlers instead validate that the complete response can be exported. See [Route Handler static exports](/docs/app/api-reference/file-conventions/route#static-exports).
 
 ### Debug prerender errors
 

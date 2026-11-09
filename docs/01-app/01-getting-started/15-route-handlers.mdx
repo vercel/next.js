@@ -141,7 +141,13 @@ async function getProducts() {
 }
 ```
 
-> **Good to know**: `use cache` cannot be used directly inside a Route Handler body; extract it to a helper function. Cached responses revalidate according to `cacheLife` when a new request arrives.
+> **Good to know**: `use cache` cannot be used directly inside a Route Handler body; extract it to a helper function. With a Next.js server, cached responses revalidate according to `cacheLife` when a new request arrives. [Static exports](#static-exports) serve the build-time response until you rebuild and redeploy.
+
+### Static exports
+
+With [`output: 'export'`](/docs/app/guides/static-exports#route-handlers), Route Handlers generate files during `next build`. With Cache Components, the complete `GET` response must be prerendered. The app cannot run a handler for each browser request or revalidate the exported file.
+
+See [Route Handler static exports](/docs/app/api-reference/file-conventions/route#static-exports) for supported methods, build validation, and response requirements.
 
 ### Special Route Handlers
 
