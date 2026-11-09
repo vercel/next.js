@@ -494,6 +494,7 @@ export function getResolveRoutes(
           return Boolean(opts.minimalMode) || !fsChecker.getMiddlewareMatchers()
         case 'before_files_end':
           return !fsChecker.exportPathMapRoutes
+        case undefined:
         default:
           return false
       }
