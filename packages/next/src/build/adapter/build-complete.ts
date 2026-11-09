@@ -60,6 +60,7 @@ import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { getRedirectStatus, modifyRouteRegex } from '../../lib/redirect-status'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
+import { getImmutableStaticFolderPattern } from '../../lib/immutable-static-assets'
 import { sortSortableRoutes } from '../../shared/lib/router/utils/sortable-routes'
 import { defaultOverrides } from '../../server/require-hook'
 import { generateRoutesManifest } from '../generate-routes-manifest'
@@ -2643,7 +2644,7 @@ export async function handleBuildComplete({
             {
               // This ensures we only match known emitted-by-Next.js files and not
               // user-emitted files which may be missing a hash in their filename.
-              sourceRegex: `${path.posix.join(config.basePath || '/', '_next/static', `/(?:[^/]+/pages|pages|chunks|immutable|runtime|css|image|media|${escapeStringRegexp(buildId)})/.+`)}`,
+              sourceRegex: `${path.posix.join(config.basePath || '/', '_next/static', `/${getImmutableStaticFolderPattern(buildId)}/.+`)}`,
               // Next.js assets contain a hash or entropy in their filenames, so they
               // are guaranteed to be unique and cacheable indefinitely.
               headers: {
