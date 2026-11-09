@@ -82,6 +82,29 @@ export function getResolveRoutes(
   } & Partial<Header> &
     Partial<Redirect>
 
+  // The hostname is the same for every request, and formatting it tests it
+  // against the IPv6 pattern.
+  let previousHostname: string | undefined
+  let previousFormattedHostname = ''
+  const formatInitHostname = (hostname: string): string => {
+    if (hostname !== previousHostname) {
+      previousFormattedHostname = formatHostname(hostname)
+      previousHostname = hostname
+    }
+    return previousFormattedHostname
+  }
+
+  let previousNormalizers:
+    | {
+        basePath: string
+        buildId: string
+        normalizers: {
+          basePath: BasePathPathnameNormalizer | undefined
+          data: NextDataPathnameNormalizer
+        }
+      }
+    | undefined
+
   // The matcher of the internal steps below. They always apply; what they do
   // depends on their name.
   const matchInternalStep: PatchMatcher = () => ({})
@@ -180,7 +203,7 @@ export function getResolveRoutes(
     const initUrl = config.experimental.trustHostHeader
       ? `https://${req.headers.host || 'localhost'}${req.url}`
       : opts.port
-        ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
+        ? `${protocol}://${formatInitHostname(opts.hostname || 'localhost')}:${
             opts.port
           }${req.url}`
         : req.url || ''
@@ -368,13 +391,29 @@ export function getResolveRoutes(
       }
     }
 
-    const normalizers = {
-      basePath:
-        config.basePath && config.basePath !== '/'
-          ? new BasePathPathnameNormalizer(config.basePath)
-          : undefined,
-      data: new NextDataPathnameNormalizer(fsChecker.buildId),
+    // The normalizers only depend on the base path and the build id and hold
+    // no state, so those of the previous request are reused while both are
+    // the same.
+    const { basePath } = config
+    const { buildId } = fsChecker
+    if (
+      previousNormalizers === undefined ||
+      previousNormalizers.basePath !== basePath ||
+      previousNormalizers.buildId !== buildId
+    ) {
+      previousNormalizers = {
+        basePath,
+        buildId,
+        normalizers: {
+          basePath:
+            basePath && basePath !== '/'
+              ? new BasePathPathnameNormalizer(basePath)
+              : undefined,
+          data: new NextDataPathnameNormalizer(buildId),
+        },
+      }
     }
+    const normalizers = previousNormalizers.normalizers
 
     /**
      * Matches a route against the current pathname and its `has` and
