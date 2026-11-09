@@ -354,6 +354,9 @@ fn next_owned_ignores(
 
 #[turbo_tasks::function]
 async fn has_native_routes(project: ResolvedVc<Project>) -> Result<Vc<bool>> {
+    if project.next_config().go_proxy().await?.is_some() {
+        return Ok(Vc::cell(true));
+    }
     if *project.next_config().go_routes().await?
         && let Some(app) = *project.app_project().await?
     {

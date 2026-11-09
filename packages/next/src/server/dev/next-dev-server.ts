@@ -361,7 +361,10 @@ export default class DevServer extends Server {
       return findPageFile(
         this.dir,
         normalizedPath,
-        this.nextConfig.pageExtensions,
+        this.nextConfig.experimental.goProxy &&
+          (normalizedPath === '/proxy' || normalizedPath === '/src/proxy')
+          ? [...this.nextConfig.pageExtensions, 'go']
+          : this.nextConfig.pageExtensions,
         false
       ).then(Boolean)
     }

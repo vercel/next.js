@@ -1000,7 +1000,9 @@ impl ProjectContainer {
         let dist_dir = next_config.dist_dir().owned().await?;
         let dist_dir_root = next_config.dist_dir_root().owned().await?;
         Ok(Project {
-            go_sessions: if *next_config.go_routes().await? {
+            go_sessions: if *next_config.go_routes().await?
+                || next_config.go_proxy().await?.is_some()
+            {
                 Some(self.go_sessions)
             } else {
                 None
@@ -2505,6 +2507,12 @@ impl Project {
         let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
             return Ok(Vc::upcast(EmptyEndpoint::new(self)));
         };
+        if fs_path.file_name() == "proxy.go" {
+            return Ok(crate::app::go_proxy_endpoint(
+                self.to_resolved().await?,
+                fs_path.clone(),
+            ));
+        }
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
         let app_dir = find_app_dir(self.project_path().owned().await?)
             .owned()

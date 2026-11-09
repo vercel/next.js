@@ -548,6 +548,11 @@ impl DiskFileSystem {
         self.inner.watcher.stop_watching().await;
     }
 
+    /// Whether this filesystem treats a path as nonexistent under its read policy.
+    pub fn is_path_denied(&self, path: &FileSystemPath) -> bool {
+        self.inner.is_path_denied(path)
+    }
+
     /// Try to convert [`Path`] to [`FileSystemPath`]. Return `None` if the file path leaves the
     /// filesystem root. If no `relative_to` argument is given, it is assumed that the `sys_path` is
     /// relative to the [`DiskFileSystem`] root.

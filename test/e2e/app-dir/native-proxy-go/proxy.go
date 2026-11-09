@@ -1,0 +1,43 @@
+package main
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+)
+
+func Proxy(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("x-go-proxy", "yes")
+	w.Header().Set("x-private-token", strconv.FormatBool(r.Header.Get("x-next-internal-go-token") != ""))
+	switch r.URL.Path {
+	case "/native-proxy/blocked":
+		http.Error(w, "blocked by Go", http.StatusForbidden)
+	case "/native-proxy/rewrite":
+		Rewrite(w, "/api/proxy-query?rewritten=1")
+	case "/native-proxy/redirect":
+		http.Redirect(w, r, "/native-proxy/inspect", http.StatusTemporaryRedirect)
+	case "/native-proxy/override":
+		headers := r.Header.Clone()
+		headers.Set("x-from-go", "overridden")
+		headers.Del("x-client-remove")
+		OverrideRequestHeaders(w, headers)
+		Rewrite(w, "/native-proxy/inspect")
+	case "/native-proxy/cookies":
+		http.SetCookie(w, &http.Cookie{Name: "first", Value: "one", Path: "/"})
+		http.SetCookie(w, &http.Cookie{Name: "second", Value: "two", Path: "/"})
+		Rewrite(w, "/native-proxy/inspect")
+	case "/native-proxy/body":
+		body, _ := io.ReadAll(r.Body)
+		w.Header().Set("x-go-body", string(body))
+		Rewrite(w, "/native-proxy/inspect")
+	case "/native-proxy/stream":
+		w.WriteHeader(http.StatusCreated)
+		fmt.Fprint(w, "first\n")
+		w.(http.Flusher).Flush()
+		fmt.Fprint(w, strings.Repeat("go", 1000))
+	default:
+		Next(w)
+	}
+}

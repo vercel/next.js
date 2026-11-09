@@ -133,7 +133,7 @@ export async function collectBuildTraces({
         'next-minimal-server.js.nft.json'
       )
       const root = outputFileTracingRoot
-      let hasNativeRoutes = false
+      let hasNativeRoutes = Boolean(config.experimental.goProxy)
       if (config.experimental.goRoutes) {
         try {
           // One read per tracing worker, only after opting in. The emitted manifest
@@ -144,7 +144,7 @@ export async function collectBuildTraces({
               'utf8'
             )
           )
-          hasNativeRoutes = Object.values(appPaths).some((entry) =>
+          hasNativeRoutes ||= Object.values(appPaths).some((entry) =>
             entry.endsWith('.native.json')
           )
         } catch (error) {

@@ -91,7 +91,7 @@ interface SharedRouteFields {
   pathname: string
 
   /**
-   * sourcePage is the original source in the app or pages folder
+   * sourcePage identifies the original app/page source, or a root proxy source.
    */
   sourcePage: string
 
@@ -1118,23 +1118,70 @@ export async function handleBuildComplete({
 
       if (hasNodeMiddleware) {
         const middlewareFile = path.join(distDir, 'server', 'middleware.js')
+        const nativeDescriptorPath = path.join(
+          distDir,
+          'server',
+          'middleware.native.json'
+        )
+        const isGoProxy =
+          Boolean(config.experimental.goProxy) &&
+          (await fs.stat(nativeDescriptorPath).then(
+            () => true,
+            (error) => {
+              if (error.code === 'ENOENT') return false
+              throw error
+            }
+          ))
         const { assets, assetsHashes } = await handleTraceFiles(
-          middlewareFile,
+          isGoProxy ? nativeDescriptorPath : middlewareFile,
           'neutral'
         )
+        let filePath = middlewareFile
+        let sourcePage = 'middleware'
+        if (isGoProxy) {
+          const descriptor = JSON.parse(
+            await fs.readFile(nativeDescriptorPath, 'utf8')
+          )
+          if (
+            typeof descriptor.executable !== 'string' ||
+            path.isAbsolute(descriptor.executable) ||
+            !['proxy.go', 'src/proxy.go'].includes(descriptor.source)
+          ) {
+            throw new InvariantError('Invalid native Go proxy descriptor')
+          }
+          const serverDir = path.join(distDir, 'server')
+          filePath = path.resolve(serverDir, descriptor.executable)
+          const relativePath = path.relative(serverDir, filePath)
+          if (
+            !relativePath ||
+            relativePath === '..' ||
+            relativePath.startsWith(`..${path.sep}`) ||
+            path.isAbsolute(relativePath)
+          ) {
+            throw new InvariantError(
+              'Native proxy executable is outside server output'
+            )
+          }
+          for (const [destination, source] of Object.entries(assets)) {
+            if (source === filePath) delete assets[destination]
+          }
+          sourcePage = '/' + descriptor.source.slice(0, -3)
+        }
         const functionConfig =
           functionsConfigManifest.functions['/_middleware'] || {}
 
         outputs.middleware = {
           pathname: '/_middleware',
           id: '/_middleware',
-          sourcePage: 'middleware',
+          sourcePage,
           assets,
           assetsHashes,
           type: AdapterOutputType.MIDDLEWARE,
-          runtime: 'nodejs',
-          filePath: middlewareFile,
+          runtime: isGoProxy ? 'go' : 'nodejs',
+          filePath,
           config: {
+            maxDuration: functionConfig.maxDuration,
+            preferredRegion: functionConfig.regions,
             matchers:
               functionConfig.matchers?.map((item) => {
                 return {

@@ -99,4 +99,82 @@ describe('native route runtime', () => {
       cookie: 'session=value',
     })
   })
+
+  it('returns native middleware responses with public URLs, bodies and repeated cookies', async () => {
+    let token = ''
+    let received: {
+      url?: string
+      host?: string
+      protocol?: string
+      body?: string
+    } = {}
+    const server = http.createServer(async (req, res) => {
+      const chunks: Buffer[] = []
+      for await (const chunk of req) chunks.push(chunk)
+      received = {
+        url: req.url,
+        host: req.headers.host,
+        protocol: req.headers['x-forwarded-proto'] as string,
+        body: Buffer.concat(chunks).toString(),
+      }
+      expect(req.headers['x-next-internal-go-token']).toBe(token)
+      res.setHeader('set-cookie', ['first=one; Path=/', 'second=two; Path=/'])
+      res.writeHead(201)
+      res.write('first')
+      setImmediate(() => res.end('second'))
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const port = (server.address() as import('net').AddressInfo).port
+    const child = Object.assign(new EventEmitter(), {
+      stdout: new PassThrough(),
+      stdin: new PassThrough(),
+      exitCode: null as number | null,
+      kill: jest.fn(),
+    })
+    jest.spyOn(childProcess, 'spawn').mockImplementation((_, __, options) => {
+      token = options!.env!.__NEXT_GO_TOKEN!
+      setImmediate(() =>
+        child.stdout.write(`\x1eNEXT_GO_READY:${token}:${port}\n`)
+      )
+      return child as unknown as childProcess.ChildProcess
+    })
+    jest.spyOn(fs, 'readFile').mockResolvedValue(
+      JSON.stringify({
+        executable: 'worker',
+        goos: process.platform === 'win32' ? 'windows' : process.platform,
+        goarch: process.arch === 'x64' ? 'amd64' : process.arch,
+      })
+    )
+    const manager = new NativeRouteManager(__dirname, false)
+    try {
+      const response = await manager.invokeMiddleware(
+        'middleware.native.json',
+        new Request('https://public.example/path?query=one', {
+          method: 'POST',
+          body: 'request body',
+        })
+      )
+      expect(response.status).toBe(201)
+      expect(response.headers.getSetCookie()).toEqual([
+        'first=one; Path=/',
+        'second=two; Path=/',
+      ])
+      expect(await response.text()).toBe('firstsecond')
+      expect(received).toEqual({
+        url: '/path?query=one',
+        host: 'public.example',
+        protocol: 'https',
+        body: 'request body',
+      })
+    } finally {
+      child.exitCode = 0
+      child.emit('exit', 0)
+      child.stdout.destroy()
+      child.stdin.destroy()
+      await manager.close()
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve()))
+      )
+    }
+  })
 })

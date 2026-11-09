@@ -1,9 +1,9 @@
 import { spawn, type ChildProcess } from 'child_process'
 import { randomBytes } from 'crypto'
 import { promises as fs } from 'fs'
-import { Agent, type IncomingMessage, type ServerResponse } from 'http'
+import { Agent, request, type IncomingMessage, type ServerResponse } from 'http'
 import { join, relative, isAbsolute } from 'path'
-import type { Readable } from 'stream'
+import { Readable } from 'stream'
 import { proxyNativeRequest } from './native-route-proxy'
 
 interface Worker {
@@ -177,13 +177,7 @@ export class NativeRouteManager {
     }
   }
 
-  async invoke(
-    page: string,
-    entry: string,
-    req: IncomingMessage,
-    res: ServerResponse,
-    url: string
-  ): Promise<void> {
+  private async getWorker(page: string, entry: string): Promise<Worker> {
     if (this.closed) throw new Error('Next.js server is closing')
     // Development output can change between requests; production output cannot.
     let executable = this.dev ? undefined : this.executablePaths.get(entry)
@@ -227,6 +221,17 @@ export class NativeRouteManager {
       this.workers.delete(previous)
       old?.then((value) => this.retire(value)).catch(() => {})
     }
+    return worker
+  }
+
+  async invoke(
+    page: string,
+    entry: string,
+    req: IncomingMessage,
+    res: ServerResponse,
+    url: string
+  ): Promise<void> {
+    const worker = await this.getWorker(page, entry)
     // Disconnects during descriptor resolution or startup predate the
     // transport listeners below. Do not dispatch those requests to Go.
     if (req.aborted || res.destroyed) return
@@ -237,6 +242,97 @@ export class NativeRouteManager {
       worker.active--
       if (worker.retired) this.retire(worker)
     }
+  }
+
+  /** Return a response to Next's middleware adapter without finishing the client response. */
+  async invokeMiddleware(entry: string, req: Request): Promise<Response> {
+    req.signal.throwIfAborted()
+    const worker = await this.getWorker('/_middleware', entry)
+    req.signal.throwIfAborted()
+    const url = new URL(req.url)
+    const headers: Record<string, string> = Object.create(null)
+    req.headers.forEach((value, name) => {
+      if (
+        !name.startsWith('x-next-internal-go-') &&
+        ![
+          'connection',
+          'transfer-encoding',
+          'content-length',
+          'keep-alive',
+          'expect',
+        ].includes(name)
+      )
+        headers[name] = value
+    })
+    headers.host = url.host
+    headers['x-forwarded-proto'] = url.protocol.slice(0, -1)
+    headers['x-next-internal-go-token'] = worker.token
+    worker.active++
+    return new Promise<Response>((resolve, reject) => {
+      const upstream = request({
+        hostname: '127.0.0.1',
+        port: worker.port,
+        agent: worker.agent,
+        method: req.method,
+        path: url.pathname + url.search,
+        headers,
+      })
+      let finished = false
+      const finish = () => {
+        if (finished) return
+        finished = true
+        req.signal.removeEventListener('abort', abort)
+        worker.active--
+        if (worker.retired) this.retire(worker)
+      }
+      const abort = () => upstream.destroy(req.signal.reason)
+      req.signal.addEventListener('abort', abort, { once: true })
+      if (req.signal.aborted) abort()
+      upstream.once('error', (error) => {
+        finish()
+        reject(error)
+      })
+      upstream.once('response', (response) => {
+        response.once('close', finish)
+        response.once('end', finish)
+        const responseHeaders = new Headers()
+        for (let i = 0; i < response.rawHeaders.length; i += 2) {
+          const name = response.rawHeaders[i]
+          if (/^(connection|transfer-encoding|keep-alive)$/i.test(name))
+            continue
+          responseHeaders.append(name, response.rawHeaders[i + 1])
+        }
+        const status = response.statusCode || 502
+        const noBody =
+          req.method === 'HEAD' ||
+          [204, 205, 304].includes(status) ||
+          responseHeaders.has('x-middleware-next') ||
+          responseHeaders.has('x-middleware-rewrite') ||
+          (status >= 300 && status < 400 && responseHeaders.has('location'))
+        if (noBody) response.resume()
+        resolve(
+          new Response(
+            noBody
+              ? null
+              : (Readable.toWeb(response) as ReadableStream<Uint8Array>),
+            {
+              status,
+              headers: responseHeaders,
+            }
+          )
+        )
+      })
+      if (req.body) {
+        const body = Readable.fromWeb(
+          req.body as import('stream/web').ReadableStream<Uint8Array>
+        )
+        body.once('error', (error) => upstream.destroy(error))
+        upstream.once('error', () => body.destroy())
+        body.pipe(upstream)
+      } else {
+        upstream.end()
+      }
+    })
   }
 
   reconcile(pages: ReadonlySet<string>) {

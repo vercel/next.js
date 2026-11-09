@@ -423,10 +423,14 @@ export async function findPagePathData(
     }
   }
   if (isMiddlewareFile(normalizedPagePath) || isInstrumentation) {
+    const rootExtensions =
+      normalizedPagePath === '/proxy' || normalizedPagePath === '/src/proxy'
+        ? [...extensions, 'go']
+        : extensions
     pagePath = await findPageFile(
       rootDir,
       normalizedPagePath,
-      extensions,
+      rootExtensions,
       false
     )
 

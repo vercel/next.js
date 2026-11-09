@@ -440,6 +440,7 @@ async function startWatcher(
         path.join(rootDir!, '..'),
         nextConfig.pageExtensions
       ),
+      path.join(rootDir!, '..', 'proxy.go'),
       ...getPossibleInstrumentationHookFilenames(
         path.join(rootDir!, '..'),
         nextConfig.pageExtensions
@@ -567,6 +568,10 @@ async function startWatcher(
           middlewareFilePath = fileName
         }
         if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
+          if (proxyFilePath)
+            throw new Error(
+              'Only one proxy file is allowed, including proxy.go'
+            )
           proxyFilePath = fileName
         }
 
@@ -621,7 +626,8 @@ async function startWatcher(
 
         const fileExists = fs.existsSync(fileName)
         if (
-          !validFileMatcher.isPageFile(fileName) ||
+          (!validFileMatcher.isPageFile(fileName) &&
+            !(isAtConventionLevel && fileBase === 'proxy.go')) ||
           (meta?.accuracy === undefined && !fileExists)
         ) {
           continue
@@ -651,7 +657,8 @@ async function startWatcher(
 
         const rootFile = absolutePathToPage(fileName, {
           dir: dir,
-          extensions: nextConfig.pageExtensions,
+          extensions:
+            fileBase === 'proxy.go' ? ['go'] : nextConfig.pageExtensions,
           keepIndex: false,
           pagesType: PAGE_TYPES.ROOT,
         })

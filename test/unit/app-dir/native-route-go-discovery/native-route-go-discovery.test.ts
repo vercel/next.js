@@ -2,7 +2,10 @@ import {
   createValidFileMatcher,
   findPageFile,
 } from 'next/dist/server/lib/find-page-file'
-import { getAppPageStaticInfo } from 'next/dist/build/analysis/get-page-static-info'
+import {
+  getAppPageStaticInfo,
+  getPagesPageStaticInfo,
+} from 'next/dist/build/analysis/get-page-static-info'
 import { createPagesMapping } from 'next/dist/build/route-discovery'
 import { PAGE_TYPES } from 'next/dist/lib/page-types'
 import { join } from 'path'
@@ -85,6 +88,46 @@ describe('native route discovery', () => {
     )
     expect(result.page).toBe('/native/route')
     expect(normalizePathSep(result.filename)).toContain('/app/native/route.go')
+  })
+  it('requires opt-in and Turbopack for Go proxies, and statically builds matchers', async () => {
+    const saved = process.env.TURBOPACK
+    const params = {
+      pageFilePath: '/project/proxy.go',
+      nextConfig: {},
+      isDev: false,
+      page: '/proxy',
+      pageType: PAGE_TYPES.ROOT,
+    }
+    try {
+      delete process.env.TURBOPACK
+      await expect(getPagesPageStaticInfo(params)).rejects.toThrow(
+        'proxy.go requires Turbopack'
+      )
+      process.env.TURBOPACK = '1'
+      await expect(getPagesPageStaticInfo(params)).rejects.toThrow(
+        'experimental.goProxy'
+      )
+      const info = await getPagesPageStaticInfo({
+        ...params,
+        nextConfig: {
+          basePath: '/base',
+          experimental: {
+            goProxy: {
+              matcher: ['/protected/:path*'],
+              maxDuration: 42,
+              preferredRegion: 'iad1',
+            },
+          },
+        },
+      })
+      const matcher = info.middleware!.matchers![0]
+      expect(new RegExp(matcher.regexp).test('/base/protected/one')).toBe(true)
+      expect(new RegExp(matcher.regexp).test('/base/public')).toBe(false)
+      expect(info).toMatchObject({ maxDuration: 42, preferredRegion: ['iad1'] })
+    } finally {
+      if (saved === undefined) delete process.env.TURBOPACK
+      else process.env.TURBOPACK = saved
+    }
   })
   it('resolves Go and TS handlers while Rust diagnoses conflicts', async () => {
     await expect(

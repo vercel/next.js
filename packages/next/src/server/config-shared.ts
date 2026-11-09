@@ -513,6 +513,12 @@ export interface DeprecatedConfig {
 export interface ExperimentalConfig {
   /** Native Go App Router handlers. Turbopack and self-hosted next start only. */
   goRoutes?: boolean
+  /** Native Go proxy. Requires Turbopack and a Proxy(w, r) handler in proxy.go. */
+  goProxy?: {
+    matcher?: import('../build/segment-config/middleware/middleware-config').MiddlewareConfigMatcherInput
+    maxDuration?: number
+    preferredRegion?: string | string[]
+  }
   /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
   agentUpgrade?: 'security' | 'latest' | 'experimental-future' | false
   /**
@@ -2642,6 +2648,7 @@ export interface NextConfigRuntime {
   experimental: Pick<
     NextConfigComplete['experimental'],
     | 'goRoutes'
+    | 'goProxy'
     | 'taint'
     | 'agentFeedback'
     | 'serverActions'
@@ -2767,6 +2774,7 @@ export function getNextConfigRuntime(
     externalBrowserRuntime: ex.externalBrowserRuntime,
 
     goRoutes: ex.goRoutes,
+    goProxy: ex.goProxy,
     trustHostHeader: ex.trustHostHeader,
     isExperimentalCompile: ex.isExperimentalCompile,
   } satisfies Requiredish<NextConfigRuntime['experimental']>

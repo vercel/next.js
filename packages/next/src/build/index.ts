@@ -1469,7 +1469,7 @@ export default async function build(
       )
 
       const proxyDetectionRegExp = new RegExp(
-        `^${PROXY_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
+        `^${PROXY_FILENAME}\\.(?:${[...config.pageExtensions, 'go'].join('|')})$`
       )
 
       const instrumentationHookDetectionRegExp = new RegExp(
@@ -1506,6 +1506,10 @@ export default async function build(
           middlewareFilePath = rootPath
         }
         if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
+          if (proxyFilePath)
+            throw new Error(
+              'Only one proxy file is allowed, including proxy.go'
+            )
           proxyFilePath = rootPath
         }
         if (
@@ -2999,6 +3003,8 @@ export default async function build(
           hasNodeMiddleware = true
           functionsConfigManifest.functions['/_middleware'] = {
             runtime: 'nodejs',
+            maxDuration: staticInfo.maxDuration,
+            regions: staticInfo.preferredRegion,
             matchers: staticInfo.middleware?.matchers ?? [
               {
                 regexp: '^.*$',

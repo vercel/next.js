@@ -814,6 +814,29 @@ export async function getPagesPageStaticInfo({
   isDev,
   page,
 }: GetPageStaticInfoParams): Promise<PagesPageStaticInfo> {
+  if (/(?:^|[\\/])proxy\.go$/.test(pageFilePath)) {
+    if (!process.env.TURBOPACK)
+      throw new Error('proxy.go requires Turbopack; remove --webpack')
+    const config = nextConfig.experimental?.goProxy
+    if (!config) throw new Error('proxy.go requires experimental.goProxy: {}')
+    return {
+      type: PAGE_TYPES.PAGES,
+      config: undefined,
+      runtime: 'nodejs',
+      middleware: {
+        matchers: getMiddlewareMatchers(
+          config.matcher ?? '/:path*',
+          nextConfig
+        ),
+      },
+      preferredRegion:
+        typeof config.preferredRegion === 'string'
+          ? [config.preferredRegion]
+          : config.preferredRegion,
+      maxDuration: config.maxDuration,
+      hadUnsupportedValue: false,
+    }
+  }
   const content = tryToReadFile(pageFilePath, !isDev)
   if (!content || !PARSE_PATTERN.test(content)) {
     return {

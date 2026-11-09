@@ -12,7 +12,9 @@ use anyhow::{Context, Result, ensure};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TurboTasks, Vc};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystemPath};
+use turbo_tasks_fs::{
+    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, FileContent, FileSystemPath,
+};
 use turbopack_go::{
     GoBuildContext, GoBuildOptions, GoBuildOutcome, GoBuildSession, GoBundleResult, GoDeclarations,
     GoSessionPool, GoSourceSelection, GoSourceSet, GoTarget, GoToolchainOptions, filesystem,
@@ -1536,4 +1538,62 @@ async fn shared_pool_operation(tool: RcStr) -> Result<Vc<turbo_tasks::Completion
         .await?;
     other.await?.shutdown().await?;
     Ok(turbo_tasks::Completion::new())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn root_package_ignores_framework_output_directories() -> Result<()> {
+    let mut session = Session::new().await?;
+    session
+        .write(
+            "main.go",
+            "package main\nimport \"fmt\"\nfunc main() { fmt.Print(\"root-v1\") }\n",
+        )
+        .await?;
+    std::fs::create_dir_all(session.project.join(".next"))?;
+    std::fs::write(session.project.join(".next/output.go"), "not Go source")?;
+    let path: RcStr = session.project.to_string_lossy().into_owned().into();
+    session.fs = session
+        .tt
+        .run_once(async move {
+            framework_filesystem(path)
+                .resolve()
+                .strongly_consistent()
+                .await
+        })
+        .await?;
+    let first = session
+        .fetch_generated(&["main.go"], BTreeMap::new())
+        .await?;
+    assert_eq!(session.run_bytes(first).await?, "root-v1");
+    let builds = session.counts().1;
+    session
+        .write(".next/other.go", "still not a source")
+        .await?;
+    let unchanged = session
+        .fetch_generated(&["main.go"], BTreeMap::new())
+        .await?;
+    assert_eq!(session.run_bytes(unchanged).await?, "root-v1");
+    assert_eq!(session.counts().1, builds);
+    session
+        .write(
+            "main.go",
+            "package main\nimport \"fmt\"\nfunc main() { fmt.Print(\"root-v2\") }\n",
+        )
+        .await?;
+    let updated = session
+        .fetch_generated(&["main.go"], BTreeMap::new())
+        .await?;
+    assert_eq!(session.run_bytes(updated).await?, "root-v2");
+    Ok(())
+}
+
+#[turbo_tasks::function(operation, root)]
+fn framework_filesystem(path: RcStr) -> Vc<DiskFileSystem> {
+    DiskFileSystem::new_with_options(
+        rcstr!("go-framework-root"),
+        Vc::cell(path),
+        vec![rcstr!(".next")],
+        DiskWatcherConfig::default(),
+        DiskFileSystemMap::empty(),
+    )
 }
