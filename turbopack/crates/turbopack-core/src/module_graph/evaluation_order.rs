@@ -329,11 +329,12 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
     /// The groups of a list, as ranges of positions. A range of one module is a module that is
     /// not merged.
     ///
-    /// `referrers` is passed for a list whose groups need one way in. That is a list that can be
-    /// evaluated again while it is being evaluated: every module that is imported at that point
-    /// has to be the single entry point of its group then, so that it is found in the same state
-    /// with and without merging. So such a group has one entry point, and no other module of it
-    /// is referenced from outside.
+    /// `referrers` is passed for a list whose groups need one way in: such a group has one entry
+    /// point, and no other module of it is referenced from outside. The caller asks for that
+    /// where the traces don't say enough. One case is a list that can be loaded while it is being
+    /// evaluated: a module that is imported at that point is then found in the same state with
+    /// and without merging. The other is a list whose modules can read each other's bindings
+    /// before they are initialized.
     pub(crate) fn groups(&self, list: usize, referrers: Option<&[Referrers]>) -> Vec<Range<usize>> {
         let order = &self.lists[list];
         let Some(mut end) = order.modules.len().checked_sub(1) else {
