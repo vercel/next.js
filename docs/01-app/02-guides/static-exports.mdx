@@ -294,15 +294,16 @@ Features that require a Node.js server, or dynamic logic that cannot be computed
 - [Draft Mode](/docs/app/guides/draft-mode)
 - [Server Actions](/docs/app/getting-started/mutating-data)
 - [Intercepting Routes](/docs/app/api-reference/file-conventions/intercepting-routes)
-- [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching)
-
-Cache Components and Partial Prefetching are not yet supported with static exports. Disable `cacheComponents` and `partialPrefetching` when using `output: 'export'`.
 
 Attempting to use any of these features with `next dev` will result in an error, similar to setting the [`dynamic`](/docs/app/guides/caching-without-cache-components#dynamic) option to `error` in the root layout.
 
 ```jsx
 export const dynamic = 'error'
 ```
+
+### With Cache Components
+
+[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) are not yet supported with static exports. Disable `cacheComponents` and `partialPrefetching` when using `output: 'export'`.
 
 </AppOnly>
 
