@@ -136,7 +136,7 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
     /// `actual` must be `<= self.capacity()` and the first `actual` elements
     /// must be initialized.
     #[inline]
-    fn set_len(&mut self, actual: usize) {
+    pub(crate) fn set_len(&mut self, actual: usize) {
         debug_assert!(actual <= self.capacity());
         debug_assert!(actual <= MAX);
         // actual <= MAX <= 254 => actual + 1 in 1..=255, never zero.
@@ -156,7 +156,7 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
     }
 
     #[inline]
-    fn as_mut_ptr(&mut self) -> *mut T {
+    pub(crate) fn as_mut_ptr(&mut self) -> *mut T {
         if self.is_spilled() {
             // SAFETY: spilled => `heap` is the active union field.
             unsafe { self.data.heap.as_ptr() }
@@ -342,6 +342,47 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
             self.set_len(len - 1);
             out
         }
+    }
+
+    /// Remove the element at `index`, shifting all elements after it to the
+    /// left (order preserved, used by the ordered `List` backing an
+    /// `OrderedAutoSet`/`OrderedAutoMap`).
+    pub fn remove(&mut self, index: usize) -> T {
+        let len = self.len();
+        assert!(index < len, "index out of bounds: {index} >= {len}");
+        let ptr = self.as_mut_ptr();
+        // SAFETY: element `index` is initialized; the tail `index+1..len` is
+        // initialized and moved one slot left (overlapping copy).
+        unsafe {
+            let out = ptr.add(index).read();
+            ptr::copy(ptr.add(index + 1), ptr.add(index), len - index - 1);
+            self.set_len(len - 1);
+            out
+        }
+    }
+
+    /// Insert `value` at `index`, shifting all elements after it to the right.
+    /// Panics if `index > len` or if `len == MAX`.
+    pub fn insert(&mut self, index: usize, value: T) {
+        let len = self.len();
+        assert!(index <= len, "insertion index {index} > len {len}");
+        if len == self.capacity() {
+            // See `push` for why this is a hard assert.
+            assert!(
+                len < MAX,
+                "TinyVec capacity overflow: already at MAX = {MAX}"
+            );
+            self.grow();
+        }
+        let ptr = self.as_mut_ptr();
+        // SAFETY: `len < capacity`, so slot `len` exists; the tail
+        // `index..len` is moved one slot right (overlapping copy), then the
+        // now-vacant slot `index` is written.
+        unsafe {
+            ptr::copy(ptr.add(index), ptr.add(index + 1), len - index);
+            ptr.add(index).write(value);
+        }
+        self.set_len(len + 1);
     }
 
     #[inline]
@@ -747,6 +788,36 @@ mod tests {
         let mut got: Vec<u32> = v.iter().copied().collect();
         got.sort();
         assert_eq!(got, vec![10, 30, 40]);
+    }
+
+    #[test]
+    fn remove_and_insert_preserve_order() {
+        // inline and spilled
+        for inline in [false, true] {
+            let mut v: TinyVec<String, 4> = TinyVec::new();
+            let n = if inline { 4 } else { 7 };
+            v.extend((0..n).map(|i| i.to_string()));
+            assert_eq!(v.remove(1), "1");
+            assert_eq!(v.remove(v.len() - 1), (n - 1).to_string());
+            v.insert(0, "a".to_string());
+            v.insert(v.len(), "z".to_string());
+            v.insert(2, "m".to_string());
+            let mut expected: Vec<String> = (0..n).map(|i| i.to_string()).collect();
+            expected.remove(1);
+            expected.pop();
+            expected.insert(0, "a".to_string());
+            expected.push("z".to_string());
+            expected.insert(2, "m".to_string());
+            assert_eq!(v.as_slice(), expected.as_slice());
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn insert_panics_at_max() {
+        let mut v: TinyVec<u32, 0, 2> = TinyVec::new();
+        v.extend([1, 2]);
+        v.insert(0, 0);
     }
 
     #[test]
