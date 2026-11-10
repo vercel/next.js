@@ -159,6 +159,13 @@ export interface DevRoutesManifest {
   skipProxyUrlNormalize: RoutesManifest['skipProxyUrlNormalize']
 }
 
+// The files a route discovery pass runs on: Watchpack's time info entries, or
+// for the startup snapshot pass, the snapshot's files without watch times.
+type KnownFiles = Map<
+  string,
+  { timestamp?: number; accuracy?: number } | undefined
+>
+
 export type ServerFields = {
   actualMiddlewareFile?: string | undefined
   actualInstrumentationHookFile?: string | undefined
@@ -268,6 +275,99 @@ async function startWatcher(
   if (hasInstrumentationInject && !opts.turbo) {
     serverFields.actualInstrumentationHookFile = `/${INSTRUMENTATION_HOOK_FILENAME}`
   }
+
+  const pages = pagesDir ? [pagesDir] : []
+  const app = appDir ? [appDir] : []
+  const directories = [...pages, ...app]
+
+  // Snapshot the route directories. The first route discovery pass runs on
+  // this snapshot so requests don't have to wait for Watchpack's initial scan.
+  // The read is independent of the bundler, so it overlaps with creating the
+  // hot reloader (for Turbopack, waiting for the first entrypoints).
+  // Files modified at or after this time may not be reflected in the snapshot.
+  const snapshotStartTime = performance.now() + performance.timeOrigin
+  const initialFilesPromise = Promise.all(
+    directories.map(async (directory) => {
+      try {
+        return await recursiveReadDir(directory, {
+          relativePathnames: false,
+        })
+      } catch (err: any) {
+        // The directory can be removed while the dev server boots. Watchpack
+        // reports that as a removal later on.
+        if (err.code !== 'ENOENT') throw err
+        return []
+      }
+    })
+  ).then((files) => files.flat())
+  // Awaited below. Don't report a rejection as unhandled while the hot
+  // reloader is still being created.
+  initialFilesPromise.catch(() => {})
+
+  const rootDir = pagesDir || appDir
+  const files = [
+    ...getPossibleMiddlewareFilenames(
+      path.join(rootDir!, '..'),
+      nextConfig.pageExtensions
+    ),
+    ...getPossibleInstrumentationHookFilenames(
+      path.join(rootDir!, '..'),
+      nextConfig.pageExtensions
+    ),
+  ]
+
+  const envFiles = [
+    '.env.development.local',
+    '.env.local',
+    '.env.development',
+    '.env',
+  ].map((file) => path.join(dir, file))
+
+  files.push(...envFiles)
+
+  // tsconfig/jsconfig paths hot-reloading
+  const tsconfigPaths = [
+    path.join(dir, 'tsconfig.json'),
+    path.join(dir, 'jsconfig.json'),
+  ] as const
+  files.push(...tsconfigPaths)
+
+  // Start watching right away: Watchpack's initial scan of the project then
+  // overlaps with creating the hot reloader instead of delaying requests.
+  // Aggregations are only processed once the hot reloader exists (see
+  // `handleAggregation` below); until then they are just noted.
+  const wp = new Watchpack({
+    // Watchpack default is 200ms which adds 200ms of dead time on bootup.
+    aggregateTimeout: 5, // Matches webpack-config.ts.
+    ignored: (pathname: string) => {
+      return (
+        !files.some((file) => file.startsWith(pathname)) &&
+        !directories.some(
+          (d) => pathname.startsWith(d) || d.startsWith(pathname)
+        )
+      )
+    },
+  })
+  // Test-only: hold back processing Watchpack aggregations until this file
+  // exists, so tests can deterministically exercise the snapshot pass and the
+  // handoff to Watchpack.
+  const watcherReleaseFile =
+    process.env.__NEXT_TEST_MODE &&
+    process.env.__NEXT_TEST_DEV_WATCHER_HOLD_UNTIL
+      ? path.resolve(dir, process.env.__NEXT_TEST_DEV_WATCHER_HOLD_UNTIL)
+      : undefined
+  let onAggregated: (() => void) | undefined
+  let hasPendingAggregation = false
+  wp.on('aggregated', () => {
+    if (onAggregated) {
+      onAggregated()
+    } else {
+      hasPendingAggregation = true
+    }
+  })
+  // Watchpack reports every file it finds (`startTime: 0`), so files added or
+  // removed since the snapshot are caught by its first complete aggregation.
+  wp.watch({ directories: [dir], startTime: 0 })
 
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
     ? await (async () => {
@@ -402,29 +502,7 @@ async function startWatcher(
   let prevSortedRoutes: string[] = []
   let hasComputedSortedRoutes = false
 
-  const pages = pagesDir ? [pagesDir] : []
-  const app = appDir ? [appDir] : []
-  const directories = [...pages, ...app]
-
-  // Snapshot the route directories before watching starts. Watchpack can report
-  // its first aggregation while a directory scan is still in flight, so route
-  // discovery needs this snapshot to avoid observing a partial filesystem.
-  const initialFiles = (
-    await Promise.all(
-      directories.map(async (directory) => {
-        try {
-          return await recursiveReadDir(directory, {
-            relativePathnames: false,
-          })
-        } catch (err: any) {
-          // The directory can be removed while the dev server boots. Watchpack
-          // reports that as a removal later on.
-          if (err.code !== 'ENOENT') throw err
-          return []
-        }
-      })
-    )
-  ).flat()
+  const initialFiles = await initialFilesPromise
   const initialPageFiles = initialFiles.filter(validFileMatcher.isPageFile)
 
   await new Promise<void>(async (resolve, reject) => {
@@ -434,48 +512,10 @@ async function startWatcher(
       resolved = true
     }
 
-    const rootDir = pagesDir || appDir
-    const files = [
-      ...getPossibleMiddlewareFilenames(
-        path.join(rootDir!, '..'),
-        nextConfig.pageExtensions
-      ),
-      ...getPossibleInstrumentationHookFilenames(
-        path.join(rootDir!, '..'),
-        nextConfig.pageExtensions
-      ),
-    ]
     let nestedMiddleware: string[] = []
 
-    const envFiles = [
-      '.env.development.local',
-      '.env.local',
-      '.env.development',
-      '.env',
-    ].map((file) => path.join(dir, file))
-
-    files.push(...envFiles)
-
-    // tsconfig/jsconfig paths hot-reloading
-    const tsconfigPaths = [
-      path.join(dir, 'tsconfig.json'),
-      path.join(dir, 'jsconfig.json'),
-    ] as const
-    files.push(...tsconfigPaths)
-
-    const wp = new Watchpack({
-      // Watchpack default is 200ms which adds 200ms of dead time on bootup.
-      aggregateTimeout: 5, // Matches webpack-config.ts.
-      ignored: (pathname: string) => {
-        return (
-          !files.some((file) => file.startsWith(pathname)) &&
-          !directories.some(
-            (d) => pathname.startsWith(d) || d.startsWith(pathname)
-          )
-        )
-      },
-    })
     const fileWatchTimes = new Map()
+    let previousInterceptionRoutes: ReturnType<typeof buildCustomRoute>[] = []
     let enabledTypeScript = await verifyTypeScript(opts)
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
@@ -486,31 +526,70 @@ async function startWatcher(
     const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
-    let initialWatchTime = performance.now() + performance.timeOrigin
-    // Startup only waits this long for Watchpack to observe the files found by
-    // the snapshot above, so a file it never reports cannot stall the server.
+    // Files with a timestamp at or after this point are treated as changed.
+    // Files Next.js itself writes while booting (e.g. `next-env.d.ts`) are
+    // handled by the bootstrap and must not count as changes.
+    const initialWatchTime = performance.now() + performance.timeOrigin
+    // Watchpack's initial scan is only considered complete once it observed
+    // the files found by the snapshot above. After this deadline, the next
+    // aggregation is processed even if some snapshot files are still missing.
     const initialScanDeadline = initialWatchTime + 30_000
-    wp.on('aggregated', async () => {
+
+    // Whether a file takes part in route discovery. Everything else that
+    // Watchpack reports only has its watch time recorded.
+    const filesSet = new Set(files)
+    const isWatchedFile = (fileName: string) =>
+      filesSet.has(fileName) || directories.some((d) => fileName.startsWith(d))
+    const isRouteDiscoveryInput = (fileName: string) =>
+      filesSet.has(fileName) ||
+      (directories.some((d) => fileName.startsWith(d)) &&
+        validFileMatcher.isPageFile(fileName))
+
+    // The route discovery inputs at startup: the route directory snapshot
+    // plus the root-level files (proxy/middleware, instrumentation, env,
+    // tsconfig/jsconfig) that exist. `undefined` when there is no snapshot
+    // pass, in which case Watchpack's first aggregation is the initial pass.
+    let snapshotInputs: Set<string> | undefined
+    let hadWatchpackInitialScan = false
+
+    // A Watchpack aggregation needs a new pass unless it reports exactly the
+    // inputs of the snapshot pass, none of them modified since the snapshot.
+    const matchesSnapshot = (knownFiles: KnownFiles) => {
+      if (!snapshotInputs) return false
+      let count = 0
+      for (const [fileName, meta] of knownFiles) {
+        if (!isRouteDiscoveryInput(fileName)) continue
+        const timestamp = meta?.timestamp
+        // Conservative: a file that may have been modified after the snapshot
+        // was taken (allowing for the filesystem's timestamp accuracy), or
+        // an entry without a timestamp (e.g. a directory), needs a full pass.
+        if (
+          !snapshotInputs.has(fileName) ||
+          timestamp === undefined ||
+          timestamp + (meta?.accuracy ?? 2000) >= snapshotStartTime
+        ) {
+          return false
+        }
+        count++
+      }
+      return count === snapshotInputs.size
+    }
+
+    // One route discovery pass over `knownFiles`. The snapshot pass runs
+    // before Watchpack reported anything: its entries carry no watch times, so
+    // it doesn't record them or detect changes; Watchpack's first aggregation
+    // does that, as it would for the initial pass.
+    async function processRouteFiles(
+      knownFiles: KnownFiles,
+      isSnapshotPass: boolean
+    ) {
       const isInitialScan = !hadInitialScan
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: ProxyMatcher[] | undefined
       const routedPages: string[] = []
-      const knownFiles = wp.getTimeInfoEntries()
-
-      // Watchpack can emit an aggregation while its initial directory scan is
-      // still in flight. Ignore partial startup passes so route definitions and
-      // errors are not published until every initial page file is observable.
-      // Bounded by a deadline so an unwatchable file can never block startup.
-      if (
-        !resolved &&
-        performance.now() + performance.timeOrigin < initialScanDeadline &&
-        initialPageFiles.some(
-          (file) => fs.existsSync(file) && !knownFiles.has(file)
-        )
-      ) {
-        return
-      }
+      // Mirrors `routedPages` for constant-time lookups.
+      const routedPagesSet = new Set<string>()
       hadInitialScan = true
 
       const appPaths: Record<string, string[]> = {}
@@ -550,10 +629,7 @@ async function startWatcher(
       let middlewareFilePath: string | undefined
 
       for (const fileName of sortedKnownFiles) {
-        if (
-          !files.includes(fileName) &&
-          !directories.some((d) => fileName.startsWith(d))
-        ) {
+        if (!isWatchedFile(fileName)) {
           continue
         }
 
@@ -588,19 +664,22 @@ async function startWatcher(
 
         const meta = knownFiles.get(fileName)
 
-        const watchTime = fileWatchTimes.get(fileName)
-        const nextWatchTime = meta?.timestamp
-        // If the file is showing up for the first time or the meta.timestamp is changed since last time
-        // Files that were created before we started watching are not considered changed.
-        // If any file was created by Next.js while booting, we assume those changes
-        // are handled in the bootstrap phase.
-        // Files that existed before we booted should be handled during bootstrapping.
-        const fileChanged =
-          (watchTime === undefined &&
-            (nextWatchTime === undefined ||
-              nextWatchTime >= initialWatchTime)) ||
-          (watchTime && watchTime !== nextWatchTime)
-        fileWatchTimes.set(fileName, nextWatchTime)
+        let fileChanged = false
+        if (!isSnapshotPass) {
+          const watchTime = fileWatchTimes.get(fileName)
+          const nextWatchTime = meta?.timestamp
+          // If the file is showing up for the first time or the meta.timestamp is changed since last time
+          // Files that were created before we started watching are not considered changed.
+          // If any file was created by Next.js while booting, we assume those changes
+          // are handled in the bootstrap phase.
+          // Files that existed before we booted should be handled during bootstrapping.
+          fileChanged =
+            (watchTime === undefined &&
+              (nextWatchTime === undefined ||
+                nextWatchTime >= initialWatchTime)) ||
+            (watchTime && watchTime !== nextWatchTime)
+          fileWatchTimes.set(fileName, nextWatchTime)
+        }
 
         if (envFiles.includes(fileName)) {
           if (fileChanged) {
@@ -649,14 +728,18 @@ async function startWatcher(
             )
         )
 
-        const rootFile = absolutePathToPage(fileName, {
-          dir: dir,
-          extensions: nextConfig.pageExtensions,
-          keepIndex: false,
-          pagesType: PAGE_TYPES.ROOT,
-        })
+        // Proxy/middleware and instrumentation files can only be one of the
+        // root-level candidates in `files`; route directory files never are.
+        const rootFile = filesSet.has(fileName)
+          ? absolutePathToPage(fileName, {
+              dir: dir,
+              extensions: nextConfig.pageExtensions,
+              keepIndex: false,
+              pagesType: PAGE_TYPES.ROOT,
+            })
+          : undefined
 
-        if (isMiddlewareFile(rootFile)) {
+        if (rootFile !== undefined && isMiddlewareFile(rootFile)) {
           const getStaticInfoIncludingLayouts = (
             require('../../../build/get-static-info-including-layouts') as typeof import('../../../build/get-static-info-including-layouts')
           ).getStaticInfoIncludingLayouts
@@ -687,7 +770,7 @@ async function startWatcher(
           ]
           continue
         }
-        if (isInstrumentationHookFile(rootFile)) {
+        if (rootFile !== undefined && isInstrumentationHookFile(rootFile)) {
           serverFields.actualInstrumentationHookFile = rootFile
           await propagateServerField(
             opts,
@@ -826,7 +909,7 @@ async function startWatcher(
             appRoutes.push(routeEntry)
           }
 
-          if (routedPages.includes(pageName)) continue
+          if (routedPagesSet.has(pageName)) continue
         } else {
           // Pages router
           const existingPageFilePath = pagesPageFilePaths.get(pageName)
@@ -891,6 +974,7 @@ async function startWatcher(
         }
 
         routedPages.push(pageName)
+        routedPagesSet.add(pageName)
       }
 
       const numConflicting = conflictingAppPagePaths.size
@@ -1293,7 +1377,22 @@ async function startWatcher(
         )
       )
 
-      opts.fsChecker.rewrites.beforeFiles.push(...interceptionRoutes)
+      // Replace the interception rewrites from the previous pass in place. A
+      // removed interception route, including one only seen by the startup
+      // snapshot, must not leave a stale rewrite behind.
+      const beforeFilesRewrites = opts.fsChecker.rewrites.beforeFiles
+      if (previousInterceptionRoutes.length > 0) {
+        const previous = new Set(previousInterceptionRoutes)
+        let writeIndex = 0
+        for (const rewrite of beforeFilesRewrites) {
+          if (!previous.has(rewrite)) {
+            beforeFilesRewrites[writeIndex++] = rewrite
+          }
+        }
+        beforeFilesRewrites.length = writeIndex
+      }
+      beforeFilesRewrites.push(...interceptionRoutes)
+      previousInterceptionRoutes = interceptionRoutes
 
       const exportPathMap =
         (typeof nextConfig.exportPathMap === 'function' &&
@@ -1520,9 +1619,85 @@ async function startWatcher(
           Log.warn('Failed to reload dynamic routes:', e)
         }
       }
-    })
+    }
 
-    wp.watch({ directories: [dir], startTime: 0 })
+    const handleAggregation = async () => {
+      const knownFiles: KnownFiles = wp.getTimeInfoEntries()
+
+      if (!hadWatchpackInitialScan) {
+        // Watchpack can emit an aggregation while its initial directory scan
+        // is still in flight. Ignore partial passes so they can't publish a
+        // reduced set of routes. Bounded by a deadline so an unwatchable file
+        // can never hold back route updates.
+        if (
+          performance.now() + performance.timeOrigin < initialScanDeadline &&
+          initialPageFiles.some(
+            (file) => fs.existsSync(file) && !knownFiles.has(file)
+          )
+        ) {
+          return
+        }
+        hadWatchpackInitialScan = true
+        const isUnchangedSinceSnapshot = matchesSnapshot(knownFiles)
+        // Only needed for this comparison.
+        snapshotInputs = undefined
+
+        // Nothing changed since the snapshot pass: its results stand, so only
+        // record the watch times that later aggregations compare against.
+        if (isUnchangedSinceSnapshot) {
+          for (const [fileName, meta] of knownFiles) {
+            if (isWatchedFile(fileName)) {
+              fileWatchTimes.set(fileName, meta?.timestamp)
+            }
+          }
+          return
+        }
+      }
+
+      await processRouteFiles(knownFiles, false)
+    }
+
+    try {
+      // Watchpack may already have finished its initial scan while the hot
+      // reloader was created. Then its results are used as they are.
+      if (hasPendingAggregation && !watcherReleaseFile) {
+        hasPendingAggregation = false
+        await handleAggregation()
+      }
+      if (!hadInitialScan && initialFiles.length > 0) {
+        // Otherwise serve requests as soon as the snapshot is processed,
+        // instead of waiting for Watchpack's initial scan.
+        snapshotInputs = new Set(
+          initialFiles
+            .filter(isRouteDiscoveryInput)
+            .concat(files.filter((file) => fs.existsSync(file)))
+        )
+        await processRouteFiles(
+          new Map(Array.from(snapshotInputs, (file) => [file, undefined])),
+          true
+        )
+      }
+    } finally {
+      const startHandlingAggregations = () => {
+        onAggregated = handleAggregation
+        // Aggregations reported while the passes above were running.
+        if (hasPendingAggregation) {
+          hasPendingAggregation = false
+          handleAggregation()
+        }
+      }
+      if (watcherReleaseFile) {
+        const releaseTimer = setInterval(() => {
+          if (fs.existsSync(watcherReleaseFile)) {
+            clearInterval(releaseTimer)
+            startHandlingAggregations()
+          }
+        }, 50)
+        releaseTimer.unref()
+      } else {
+        startHandlingAggregations()
+      }
+    }
   })
 
   const clientPagesManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_PAGES_MANIFEST}`
