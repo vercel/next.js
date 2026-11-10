@@ -334,6 +334,8 @@ A route can be reached two ways, and a `<Suspense>` boundary can cover one witho
 - **Initial page load**: Use `page.goto()` to test the static UI from the document response.
 - **Client navigation**: Click a `<Link>` to test the destination's prefetched UI. [Per-link prefetching](/docs/app/guides/optimizing-prefetching) can add request-specific content to this UI.
 
+A completed page response can include content that was not prefetched. To verify what is ready for a client navigation, click the actual link inside `instant()` and assert against the visible UI. This exercises the router's prefetch behavior without constructing internal RSC request headers.
+
 ```typescript filename="e2e/navigation.test.ts" highlight={6-18,29-41}
 import { test, expect } from '@playwright/test'
 import { instant } from '@next/playwright'
