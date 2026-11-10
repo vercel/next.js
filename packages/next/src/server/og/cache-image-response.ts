@@ -4,7 +4,6 @@ import { createHash, type Hash } from 'node:crypto'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
-import { createHangingInputAbortSignal } from '../app-render/dynamic-rendering'
 import { makeDynamicHangingPromise } from '../dynamic-rendering-utils'
 import {
   getClientReferenceManifest,
@@ -100,18 +99,37 @@ async function getCachedImageResponseArrayBuffer(
 
   const [element, options] = args
 
-  // `createHangingInputAbortSignal` aborts once the prerender's cache-sourced
-  // input is ready, so anything the serialization below is still awaiting past
-  // that point can be treated as dynamic (non-cache) input. In the prospective
-  // pass it aborts when `cacheSignal.inputReady()` resolves (no cache reads
-  // in progress); in the final pass the caches are already filled, so it just
-  // aborts on the next tick.
-  const hangingInputAbortSignal = createHangingInputAbortSignal(workUnitStore)
+  // The serialization below is bounded by the prerender's own render signal,
+  // not by the hanging-input abort signal. That signal aborts one tick after
+  // it is created in the final pass (see `createHangingInputAbortSignal`),
+  // so a fully static tree loses the race whenever its Flight serialization
+  // does not finish within a single microtask drain. Under
+  // `--debug-prerender` the dev React build is used, and the same tree is
+  // then intermittently classified as dynamic across identical builds.
+  // A serialization still pending at that point is not necessarily waiting
+  // on dynamic input; it may just need more turns to flush.
+  //
+  // The render signal aborts only when the prerender itself ends: in the
+  // final pass the route handler's macrotask budget aborts it, and a tree
+  // awaiting genuinely dynamic input (e.g. `cookies()` or an uncached
+  // `fetch`) suspends on a hanging promise that only settles when that
+  // signal aborts, at which point the prerender halts and the tree is
+  // correctly treated as partial below. Finite rendering work, however
+  // many turns it needs, is allowed to finish.
+  //
+  // In the prospective pass the render signal is effectively never aborted
+  // (only a synchronous dynamic access aborts it, and that throws out of
+  // the handler first), so a tree awaiting dynamic input simply never
+  // finishes serializing there and is never cached; the final pass then
+  // classifies it as dynamic as above. Nothing here awaits the
+  // serialization in the prospective pass, so a stalled serialization
+  // cannot hang the build.
 
   // We open the cache read lazily, once we know the serialization completed and
   // we're about to render and store the image. Opening it before serializing
-  // would keep `cacheSignal.inputReady()` from resolving and thus prevent the
-  // abort signal from ever firing, deadlocking the prospective prerender.
+  // would hold the prospective prerender's `cacheReady()` open across a
+  // serialization that may never complete (a tree awaiting dynamic input),
+  // deadlocking the prospective prerender.
   let readState: 'ready' | 'pending' | 'done' = 'ready'
 
   function beginReadOnce() {
@@ -130,10 +148,7 @@ async function getCachedImageResponseArrayBuffer(
 
   // We serialize the element tree with `prerenderToNodeStream` rather than
   // `renderToPipeableStream`. It's the right fit for prerendering, and it
-  // schedules work deferred for size (`deferTask`) on microtasks, so a fully
-  // static tree finishes flushing before the abort signal fires; a tree still
-  // pending at abort time is then genuinely waiting on dynamic input rather
-  // than just deferred.
+  // schedules work deferred for size (`deferTask`) on microtasks.
   //
   // `renderToPipeableStream` would schedule that deferred work on
   // `setImmediate` instead, which isn't necessarily a deal-breaker: the
@@ -145,13 +160,13 @@ async function getCachedImageResponseArrayBuffer(
   // The prerender halts silently on abort, leaving unfulfilled references in
   // place rather than reporting through `onError`. So to tell a halt (the tree
   // needed dynamic input) apart from a normal completion, we record whether the
-  // abort fired before the serialization finished. `abort()` runs this listener
-  // synchronously, well before we read `resultIsPartial` below.
+  // render signal aborted before the serialization finished. `abort()` runs
+  // this listener synchronously, well before we read `resultIsPartial` below.
   let prerenderCompleted = false
   let resultIsPartial = false
   let serializationError: unknown
 
-  hangingInputAbortSignal.addEventListener(
+  renderSignal.addEventListener(
     'abort',
     () => {
       if (!prerenderCompleted) {
@@ -169,7 +184,7 @@ async function getCachedImageResponseArrayBuffer(
     // `options` are already-resolved plain data; they're folded into the cache
     // key directly and passed to satori as-is below.
     const { prelude } = await prerenderToNodeStream(element, clientModules, {
-      signal: hangingInputAbortSignal,
+      signal: renderSignal,
       filterStackFrame: undefined,
       onError(error) {
         // A halt (our deliberate abort) emits nothing, so this is only called
