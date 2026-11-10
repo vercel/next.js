@@ -1,12 +1,14 @@
 //! Prints the memory used by `AutoSet`, `hashbrown::HashSet`, `AutoIndexSet` and
-//! `indexmap::IndexSet` after inserting `n` keys, for the same sizes and keys as the `auto_set`
-//! benchmark.
+//! `indexmap::IndexSet` after inserting `n` keys, for the sizes of the `auto_set` benchmark plus a
+//! few more small ones, with the same keys as the benchmark.
 //!
 //! The memory of a set is `size_of` the set itself plus the heap bytes it holds, measured with a
-//! counting global allocator. The sets are built by inserting the keys one by one, without
-//! `shrink_to_fit`, so this includes the spare capacity left by growing.
+//! counting global allocator. The sets are built by inserting the keys one by one. `bytes` is
+//! measured right after that, so it includes the spare capacity left by growing. `shrunk_bytes` is
+//! measured after a following `shrink_to_fit()` on the same set; for the auto sets this also
+//! converts a small map back into the list.
 //!
-//! The output is CSV (`set,n,bytes`) on stdout:
+//! The output is CSV (`set,n,bytes,shrunk_bytes`) on stdout:
 //!
 //! ```sh
 //! cargo run --release -p auto-hash-map --example memory_usage
@@ -69,13 +71,18 @@ unsafe impl GlobalAlloc for CountingAlloc {
 #[global_allocator]
 static ALLOC: CountingAlloc = CountingAlloc;
 
-/// Same sizes as the `auto_set` benchmark.
-const SIZES: [usize; 16] = [
+/// The sizes of the `auto_set` benchmark, plus 3, 5, 6, 7 and 12.
+const SIZES: [usize; 21] = [
     0,
     1,
     2,
+    3,
     4,
+    5,
+    6,
+    7,
     8,
+    12,
     16,
     24,
     32,
@@ -99,6 +106,7 @@ trait MeasuredSet: Default {
 
     fn insert(&mut self, key: u64);
     fn len(&self) -> usize;
+    fn shrink_to_fit(&mut self);
 }
 
 macro_rules! impl_measured_set {
@@ -112,6 +120,9 @@ macro_rules! impl_measured_set {
             fn len(&self) -> usize {
                 <$ty>::len(self)
             }
+            fn shrink_to_fit(&mut self) {
+                <$ty>::shrink_to_fit(self);
+            }
         }
     };
 }
@@ -121,8 +132,9 @@ impl_measured_set!(hashbrown::HashSet<u64, FxBuildHasher>, "HashSet");
 impl_measured_set!(AutoIndexSet<u64>, "AutoIndexSet");
 impl_measured_set!(indexmap::IndexSet<u64, FxBuildHasher>, "IndexSet");
 
-/// Returns the bytes used by a set of type `S` after inserting `n` keys.
-fn measure<S: MeasuredSet>(n: usize) -> usize {
+/// Returns the bytes used by a set of type `S` after inserting `n` keys, and after a following
+/// `shrink_to_fit()`.
+fn measure<S: MeasuredSet>(n: usize) -> (usize, usize) {
     let before = LIVE_BYTES.load(Ordering::Relaxed);
     let mut set = S::default();
     for i in 0..n {
@@ -130,16 +142,20 @@ fn measure<S: MeasuredSet>(n: usize) -> usize {
     }
     assert_eq!(set.len(), n);
     let heap = LIVE_BYTES.load(Ordering::Relaxed) - before;
+    set.shrink_to_fit();
+    assert_eq!(set.len(), n);
+    let shrunk_heap = LIVE_BYTES.load(Ordering::Relaxed) - before;
     drop(black_box(set));
-    size_of::<S>() + heap
+    (size_of::<S>() + heap, size_of::<S>() + shrunk_heap)
 }
 
 fn print<S: MeasuredSet>(n: usize) {
-    println!("{},{n},{}", S::NAME, measure::<S>(n));
+    let (bytes, shrunk_bytes) = measure::<S>(n);
+    println!("{},{n},{bytes},{shrunk_bytes}", S::NAME);
 }
 
 fn main() {
-    println!("set,n,bytes");
+    println!("set,n,bytes,shrunk_bytes");
     for n in SIZES {
         print::<AutoSet<u64>>(n);
         print::<hashbrown::HashSet<u64, FxBuildHasher>>(n);
