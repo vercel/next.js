@@ -11,6 +11,8 @@
 //!   ([`BackingMapStorage::eq`]). Other map types can implement it too: all its iterator, entry and
 //!   extraction types are associated types, so [`RawAutoMap`](crate::RawAutoMap) doesn't depend on
 //!   the concrete map type. Their borrowed iterators also implement [`BackingMapIter`].
+//! * [`IndexedBackingMapStorage`] adds positional access (`get_index`, `get_index_of`) for
+//!   insertion ordered map storages. It is implemented for [`indexmap::IndexMap`].
 //! * [`BackingListStorage`] is implemented for [`TinyVec`], [`Vec`] and [`ArrayVec`]. A list holds
 //!   at most [`MAX_USEFUL_LINEAR_SCAN`] items. Other list types can implement it too.
 
@@ -656,6 +658,38 @@ pub trait BackingMapStorage<K, V>: Sized {
         K: Eq + Hash,
         V: PartialEq,
         Self::Hasher: BuildHasher;
+}
+
+/// A [`BackingMapStorage`] with positional access to its entries.
+///
+/// Only implemented by insertion ordered storages ([`BackingMapStorage::UNORDERED`] is `false`),
+/// so the index of an entry is its position in iteration order, in both the list and the map
+/// variant of a [`RawAutoMap`](crate::RawAutoMap).
+pub trait IndexedBackingMapStorage<K, V>: BackingMapStorage<K, V> {
+    /// The entry at position `index`, if `index < len`.
+    fn get_index(&self, index: usize) -> Option<(&K, &V)>;
+    /// The position of `key`, if it is in the map.
+    fn get_index_of<Q>(&self, key: &Q) -> Option<usize>
+    where
+        K: Eq + Hash + Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+        Self::Hasher: BuildHasher;
+}
+
+impl<K, V, H> IndexedBackingMapStorage<K, V> for IndexMap<K, V, H> {
+    #[inline]
+    fn get_index(&self, index: usize) -> Option<(&K, &V)> {
+        IndexMap::get_index(self, index)
+    }
+    #[inline]
+    fn get_index_of<Q>(&self, key: &Q) -> Option<usize>
+    where
+        K: Eq + Hash + Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+        H: BuildHasher,
+    {
+        IndexMap::get_index_of(self, key)
+    }
 }
 
 impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {

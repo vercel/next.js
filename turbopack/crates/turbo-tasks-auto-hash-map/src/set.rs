@@ -1,4 +1,5 @@
 use std::{
+    borrow::Borrow,
     fmt::Debug,
     hash::{BuildHasher, BuildHasherDefault, Hash},
     marker::PhantomData,
@@ -10,13 +11,14 @@ use bincode::{
     enc::Encoder,
     error::{DecodeError, EncodeError},
 };
+use indexmap::{IndexMap, IndexSet};
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use shrink_to_fit::ShrinkToFit;
 
 use crate::{
     MAX_USEFUL_LINEAR_SCAN, RawAutoMap, TinyVec,
-    storage::{BackingListStorage, BackingMapIter, BackingMapStorage},
+    storage::{BackingListStorage, BackingMapIter, BackingMapStorage, IndexedBackingMapStorage},
 };
 
 /// A set that stores small numbers of items in a linear list `L` and switches to a real map `M`
@@ -384,6 +386,41 @@ where
     }
 }
 
+/// Positional access for insertion ordered sets, like [`IndexSet`]'s. See
+/// [`RawAutoMap::get_index`].
+impl<K, M, L> RawAutoSet<K, M, L>
+where
+    M: IndexedBackingMapStorage<K, ()>,
+    L: BackingListStorage<(K, ())>,
+{
+    /// see [IndexSet::get_index](https://docs.rs/indexmap/latest/indexmap/set/struct.IndexSet.html#method.get_index)
+    pub fn get_index(&self, index: usize) -> Option<&K> {
+        self.map.get_index(index).map(|(k, _)| k)
+    }
+
+    /// see [IndexSet::get_index_of](https://docs.rs/indexmap/latest/indexmap/set/struct.IndexSet.html#method.get_index_of)
+    pub fn get_index_of<Q>(&self, key: &Q) -> Option<usize>
+    where
+        K: Eq + Hash + Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+        M::Hasher: BuildHasher,
+    {
+        self.map.get_index_of(key)
+    }
+}
+
+/// Converts an [`IndexSet`] keeping its order.
+impl<K, H, L> From<IndexSet<K, H>> for RawAutoSet<K, IndexMap<K, (), H>, L>
+where
+    K: Eq + Hash,
+    H: BuildHasher + Default,
+    L: BackingListStorage<(K, ())>,
+{
+    fn from(set: IndexSet<K, H>) -> Self {
+        set.into_iter().collect()
+    }
+}
+
 impl<K, M, L> FromIterator<K> for RawAutoSet<K, M, L>
 where
     K: Hash + Eq,
@@ -650,5 +687,43 @@ mod tests {
         assert_eq!(size_of::<AutoSet<(NonZeroU32, u32), F, 3>>(), 32);
         assert_eq!(size_of::<Option<AutoSet<NonZeroU32>>>(), 24);
         assert_eq!(size_of::<OrderedAutoSet<NonZeroU32>>(), 16);
+    }
+
+    #[test]
+    fn test_ordered_auto_set_get_index() {
+        for n in [5usize, MAX_USEFUL_LINEAR_SCAN + 18] {
+            let mut set: OrderedAutoSet<usize> = (0..n).rev().collect();
+            for (index, key) in (0..n).rev().enumerate() {
+                assert_eq!(set.get_index(index), Some(&key));
+                assert_eq!(set.get_index_of(&key), Some(index));
+            }
+            assert_eq!(set.get_index(n), None);
+            assert_eq!(set.get_index_of(&n), None);
+            set.remove(&(n - 1));
+            assert_eq!(set.get_index(0), Some(&(n - 2)));
+            assert_eq!(set.get_index_of(&(n - 2)), Some(0));
+        }
+    }
+
+    #[test]
+    fn test_ordered_auto_set_from_index_set() {
+        type F = BuildHasherDefault<FxHasher>;
+        for n in [
+            0usize,
+            5,
+            MAX_USEFUL_LINEAR_SCAN,
+            MAX_USEFUL_LINEAR_SCAN + 1,
+            100,
+        ] {
+            let index_set: indexmap::IndexSet<usize, F> = (0..n).rev().collect();
+            let set: OrderedAutoSet<usize> = index_set.clone().into();
+            assert_eq!(set.len(), n);
+            assert_eq!(
+                set.iter().copied().collect::<Vec<_>>(),
+                (0..n).rev().collect::<Vec<_>>()
+            );
+            let collected: OrderedAutoSet<usize> = index_set.into_iter().collect();
+            assert_eq!(set, collected);
+        }
     }
 }

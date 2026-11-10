@@ -11,6 +11,7 @@ use bincode::{
     enc::Encoder,
     error::{DecodeError, EncodeError},
 };
+use indexmap::IndexMap;
 use rustc_hash::FxHasher;
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
@@ -21,7 +22,10 @@ use shrink_to_fit::ShrinkToFit;
 
 use crate::{
     MAX_USEFUL_LINEAR_SCAN, MIN_HASH_SIZE, TinyVec,
-    storage::{BackingListStorage, BackingMapIter, BackingMapStorage, ListPredicate, MapEntry},
+    storage::{
+        BackingListStorage, BackingMapIter, BackingMapStorage, IndexedBackingMapStorage,
+        ListPredicate, MapEntry,
+    },
 };
 
 /// A map that stores small numbers of entries in a linear list `L` and switches to a real map `M`
@@ -420,6 +424,54 @@ where
         match self {
             RawAutoMap::List(list, _) => list.iter().any(|(k, _)| *k == *key),
             RawAutoMap::Map(map) => map.contains_key(key),
+        }
+    }
+}
+
+/// Positional access for insertion ordered maps, like [`IndexMap`]'s. The index of an entry is its
+/// position in iteration order. In the list variant these are a slice index and a linear scan.
+impl<K, V, M, L> RawAutoMap<K, V, M, L>
+where
+    M: IndexedBackingMapStorage<K, V>,
+    L: BackingListStorage<(K, V)>,
+{
+    /// see [IndexMap::get_index](https://docs.rs/indexmap/latest/indexmap/map/struct.IndexMap.html#method.get_index)
+    pub fn get_index(&self, index: usize) -> Option<(&K, &V)> {
+        match self {
+            RawAutoMap::List(list, _) => list.get(index).map(|(k, v)| (k, v)),
+            RawAutoMap::Map(map) => map.get_index(index),
+        }
+    }
+
+    /// see [IndexMap::get_index_of](https://docs.rs/indexmap/latest/indexmap/map/struct.IndexMap.html#method.get_index_of)
+    pub fn get_index_of<Q>(&self, key: &Q) -> Option<usize>
+    where
+        K: Eq + Hash + Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+        M::Hasher: BuildHasher,
+    {
+        match self {
+            RawAutoMap::List(list, _) => list.iter().position(|(k, _)| *k.borrow() == *key),
+            RawAutoMap::Map(map) => map.get_index_of(key),
+        }
+    }
+}
+
+/// Converts an [`IndexMap`] keeping its order. Maps that fit into the list variant become a list.
+impl<K, V, H, L> From<IndexMap<K, V, H>> for RawAutoMap<K, V, IndexMap<K, V, H>, L>
+where
+    L: BackingListStorage<(K, V)>,
+{
+    fn from(map: IndexMap<K, V, H>) -> Self {
+        if map.len() <= MAX_USEFUL_LINEAR_SCAN {
+            let mut list = L::with_capacity(map.len());
+            // The keys of a map are unique, so they can be pushed without checking.
+            for entry in map {
+                list.push(entry);
+            }
+            RawAutoMap::List(list, PhantomData)
+        } else {
+            RawAutoMap::Map(Box::new(map))
         }
     }
 }
@@ -2636,6 +2688,66 @@ mod tests {
         for n in [10, MAX_USEFUL_LINEAR_SCAN * 3] {
             check_extract_if_fold::<HashMap<usize, usize, F>>(n);
             check_extract_if_fold::<IndexMap<usize, usize, F>>(n);
+        }
+    }
+
+    #[test]
+    fn test_ordered_auto_map_get_index() {
+        // 5 entries stay a list, 50 entries are a map.
+        for n in [5usize, MAX_USEFUL_LINEAR_SCAN + 18] {
+            let mut map: OrderedAutoMap<usize, usize> = (0..n).rev().map(|i| (i, i * 10)).collect();
+            assert_eq!(
+                matches!(map, RawAutoMap::Map(..)),
+                n > MAX_USEFUL_LINEAR_SCAN
+            );
+            for (index, key) in (0..n).rev().enumerate() {
+                assert_eq!(map.get_index(index), Some((&key, &(key * 10))));
+                assert_eq!(map.get_index_of(&key), Some(index));
+            }
+            assert_eq!(map.get_index(n), None);
+            assert_eq!(map.get_index_of(&n), None);
+
+            // An order preserving removal shifts the later entries.
+            map.remove(&(n - 2));
+            assert_eq!(map.get_index(1), Some((&(n - 3), &((n - 3) * 10))));
+            assert_eq!(map.get_index_of(&(n - 3)), Some(1));
+            assert_eq!(map.get_index_of(&(n - 2)), None);
+            // A new entry goes to the end.
+            map.insert(n + 1, 0);
+            assert_eq!(map.get_index_of(&(n + 1)), Some(n - 1));
+            assert_eq!(map.get_index(n - 1), Some((&(n + 1), &0)));
+        }
+
+        // The index stays the same across the list -> map conversion.
+        let mut map = OrderedAutoMap::new();
+        for i in (0..MAX_USEFUL_LINEAR_SCAN + 1).rev() {
+            map.insert(i, ());
+        }
+        assert!(matches!(map, RawAutoMap::Map(..)));
+        assert_eq!(map.get_index_of(&MAX_USEFUL_LINEAR_SCAN), Some(0));
+        assert_eq!(map.get_index_of(&0), Some(MAX_USEFUL_LINEAR_SCAN));
+    }
+
+    #[test]
+    fn test_ordered_auto_map_from_index_map() {
+        type F = BuildHasherDefault<FxHasher>;
+        for n in [
+            0usize,
+            5,
+            MAX_USEFUL_LINEAR_SCAN,
+            MAX_USEFUL_LINEAR_SCAN + 1,
+            100,
+        ] {
+            let index_map: IndexMap<usize, usize, F> = (0..n).rev().map(|i| (i, i * 2)).collect();
+            let map: OrderedAutoMap<usize, usize> = index_map.clone().into();
+            assert_eq!(map.len(), n);
+            assert_eq!(
+                matches!(map, RawAutoMap::Map(..)),
+                n > MAX_USEFUL_LINEAR_SCAN
+            );
+            assert_eq!(keys(&map), (0..n).rev().collect::<Vec<_>>());
+            let collected: OrderedAutoMap<usize, usize> = index_map.into_iter().collect();
+            assert_eq!(map, collected);
         }
     }
 }
