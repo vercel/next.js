@@ -114,7 +114,7 @@ impl WebAssemblyModuleAsset {
             ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
                 rcstr!("WASM_PATH") => ResolvedVc::upcast(RawWebAssemblyModuleAsset::new(*self.source, *self.asset_context).to_resolved().await?),
                 rcstr!("WASM_HELPER") => helper,
-            })),
+            }.into())),
         ).module();
 
         Ok(module)

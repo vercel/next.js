@@ -4,8 +4,8 @@ use anyhow::Result;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, FxIndexSet, ResolvedVc, State, TryJoinIterExt, ValueToStringRef, Vc,
-    fxindexset,
+    Completion, FxIndexMap, FxIndexSet, OrderedIndexMap, ResolvedVc, State, TryJoinIterExt,
+    ValueToStringRef, Vc, fxindexset,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -21,10 +21,7 @@ use crate::source::{
 };
 
 #[turbo_tasks::value(transparent)]
-struct OutputAssetsMap(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>,
-);
+struct OutputAssetsMap(OrderedIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>);
 
 type ExpandedState = State<FxHashSet<RcStr>>;
 
@@ -45,7 +42,7 @@ impl AssetGraphContentSource {
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
-            root_assets: ResolvedVc::cell(fxindexset! { root_asset }),
+            root_assets: ResolvedVc::cell(fxindexset! { root_asset }.into()),
             expanded: None,
         })
     }
@@ -59,7 +56,7 @@ impl AssetGraphContentSource {
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
-            root_assets: ResolvedVc::cell(fxindexset! { root_asset }),
+            root_assets: ResolvedVc::cell(fxindexset! { root_asset }.into()),
             expanded: Some(State::new(FxHashSet::default())),
         })
     }
@@ -72,7 +69,8 @@ impl AssetGraphContentSource {
                 &self.root_path,
                 self.expanded.as_ref(),
             )
-            .await?,
+            .await?
+            .into(),
         ))
     }
 }
