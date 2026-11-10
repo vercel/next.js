@@ -18,7 +18,7 @@ use next_core::{
         BuildManifest, ClientBuildManifest, EdgeFunctionDefinition, MiddlewaresManifestV2,
         PagesManifest, ProxyMatcher, Regions,
     },
-    next_pages::create_page_ssr_entry_module,
+    next_pages::{PagesEntryKind, create_page_ssr_entry_module},
     next_server::{
         ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
     },
@@ -62,7 +62,7 @@ use turbopack_core::{
     },
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
-    reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
+    reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
     virtual_output::VirtualOutputAsset,
@@ -383,6 +383,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().encryption_key(),
+            self.project().client_source_map_generation_options(),
         ))
     }
 
@@ -471,6 +472,7 @@ impl PagesProject {
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
             *self.project().should_write_nft_manifests().await?,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -490,6 +492,7 @@ impl PagesProject {
             self.project().client_compile_time_info().environment(),
             // There is no NFT on edge,
             false,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -508,6 +511,7 @@ impl PagesProject {
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
             *self.project().should_write_nft_manifests().await?,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -527,6 +531,7 @@ impl PagesProject {
             self.project().client_compile_time_info().environment(),
             // There is no NFT on edge
             false,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -1008,21 +1013,21 @@ impl PageEndpoint {
     async fn internal_ssr_chunk_module(self: Vc<Self>) -> Result<Vc<InternalSsrChunkModule>> {
         let this = self.await?;
 
-        let (reference_type, project_root, module_context, edge_module_context) = match this.ty {
+        let (kind, project_root, module_context, edge_module_context) = match this.ty {
             PageEndpointType::Html | PageEndpointType::SsrOnly => (
-                ReferenceType::Entry(EntryReferenceSubType::Page),
+                PagesEntryKind::Page,
                 this.pages_project.project().project_path().owned().await?,
                 this.pages_project.ssr_module_context(),
                 this.pages_project.edge_ssr_module_context(),
             ),
             PageEndpointType::Data => (
-                ReferenceType::Entry(EntryReferenceSubType::PageData),
+                PagesEntryKind::Data,
                 this.pages_project.project().project_path().owned().await?,
                 this.pages_project.ssr_module_context(),
                 this.pages_project.edge_ssr_module_context(),
             ),
             PageEndpointType::Api => (
-                ReferenceType::Entry(EntryReferenceSubType::PagesApi),
+                PagesEntryKind::Api,
                 this.pages_project.project().project_path().owned().await?,
                 this.pages_project.api_module_context(),
                 this.pages_project.edge_api_module_context(),
@@ -1040,7 +1045,7 @@ impl PageEndpoint {
             // rendering for edge is part of the page bundle.
             if this.pathname == "/_app" || this.pathname == "/_document" {
                 let ssr_module = module_context
-                    .process(self.source(), reference_type)
+                    .process(self.source(), kind.reference_type())
                     .module();
                 InternalSsrChunkModule {
                     ssr_module: ssr_module.to_resolved().await?,
@@ -1057,7 +1062,7 @@ impl PageEndpoint {
             } else {
                 let modules = create_page_ssr_entry_module(
                     this.pathname.clone(),
-                    reference_type,
+                    kind,
                     project_root,
                     if runtime == NextRuntime::Edge {
                         Vc::upcast(edge_module_context)

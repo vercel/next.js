@@ -1,24 +1,21 @@
 import { RevenueChart } from './RevenueChart'
 import { LatestInvoices } from './LatestInvoices'
 import { CardStats } from './CardStats'
-
-async function getDashboardData() {
-  const res = await fetch('https://api.example.com/dashboard')
-  return res.json()
-}
+import { getCardStats, getRevenue, getInvoices } from './data'
 
 export default async function Page() {
-  const data = await getDashboardData()
+  const [cards, revenue, invoices] = await Promise.all([
+    getCardStats(),
+    getRevenue(),
+    getInvoices(),
+  ])
 
   return (
     <main>
       <h1>Dashboard</h1>
-      <CardStats
-        totalRevenue={data.totalRevenue}
-        totalInvoices={data.totalInvoices}
-      />
-      <RevenueChart revenue={data.revenue} />
-      <LatestInvoices invoices={data.invoices} />
+      <CardStats {...cards} />
+      <RevenueChart revenue={revenue} />
+      <LatestInvoices invoices={invoices} />
     </main>
   )
 }

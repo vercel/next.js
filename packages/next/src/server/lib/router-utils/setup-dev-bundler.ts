@@ -81,6 +81,7 @@ import {
   fillStaticMetadataSegment,
   normalizeMetadataPageToRoute,
 } from '../../../lib/metadata/get-metadata-route'
+import { initializeRequestInsightsJournal } from '../trace/request-insights-journal'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
 import {
@@ -237,11 +238,16 @@ async function startWatcher(
   const lockfile = await Lockfile.acquireWithRetriesOrExit(
     path.join(distDir, 'lock'),
     'next dev',
-    true,
-    JSON.stringify(serverInfo),
-    opts.dir,
-    opts.nextConfig.distDir
+    {
+      content: JSON.stringify(serverInfo),
+      projectDir: opts.dir,
+      relativeDistDir: opts.nextConfig.distDir,
+    }
   )
+
+  if (nextConfig.experimental.requestInsights) {
+    await initializeRequestInsightsJournal(distDir)
+  }
 
   const validFileMatcher = createValidFileMatcher(
     nextConfig.pageExtensions,

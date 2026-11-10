@@ -653,8 +653,12 @@ export default class NextNodeServer extends BaseServer<
         'invariant: imageOptimizer should not be called in minimal mode'
       )
     } else {
-      const { imageOptimizer, fetchExternalImage, fetchInternalImage } =
-        require('./image-optimizer') as typeof import('./image-optimizer')
+      const {
+        imageOptimizer,
+        fetchExternalImage,
+        fetchInternalImage,
+        getImageOptimizerTransformOptions,
+      } = require('./image-optimizer') as typeof import('./image-optimizer')
 
       const handleInternalReq = async (
         newReq: IncomingMessage,
@@ -702,14 +706,16 @@ export default class NextNodeServer extends BaseServer<
             href,
             req.originalRequest,
             res.originalResponse,
-            this.nextConfig.images.maximumResponseBody,
-            handleInternalReq
+            handleInternalReq,
+            this.nextConfig.images
           )
 
-      return imageOptimizer(imageUpstream, paramsResult, this.nextConfig, {
-        isDev: this.dev,
-        previousCacheEntry,
-      })
+      return imageOptimizer(
+        imageUpstream,
+        paramsResult,
+        getImageOptimizerTransformOptions(this.nextConfig),
+        { isDev: this.dev, previousCacheEntry }
+      )
     }
   }
 

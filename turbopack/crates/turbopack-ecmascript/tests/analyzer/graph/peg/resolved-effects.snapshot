@@ -1,4 +1,4 @@
-0 -> 2 free var = FreeVar(module)
+1 -> 2 free var = FreeVar(module)
 
 0 -> 6 call = new (...) => undefined()
 
@@ -10,7 +10,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 15 free var = FreeVar(Error)
+14 -> 15 free var = FreeVar(Error)
 
 0 -> 16 conditional = (???*0* === "function")
 - *0* typeof(???*1*)
@@ -22,7 +22,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-16 -> 18 free var = FreeVar(Error)
+17 -> 18 free var = FreeVar(Error)
 
 16 -> 19 member call = ???*0*["captureStackTrace"](???*1*, (...) => undefined)
 - *0* FreeVar(Error)
@@ -119,11 +119,11 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 55 member call = ???*0*["charCodeAt"](0)
+53 -> 55 member call = ???*0*["charCodeAt"](0)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 56 member call = ???*0*["toString"](16)
+52 -> 56 member call = ???*0*["toString"](16)
 - *0* ???*1*["charCodeAt"](0)
   ⚠️  unknown callee object
 - *1* arguments[0]
@@ -141,17 +141,17 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 67 member call = ???*0*["replace"](/\\/g, "\\\\")
+65 -> 67 member call = ???*0*["replace"](/\\/g, "\\\\")
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 68 member call = ???*0*["replace"](/"/g, "\\\"")
+64 -> 68 member call = ???*0*["replace"](/"/g, "\\\"")
 - *0* ???*1*["replace"](/\\/g, "\\\\")
   ⚠️  unknown callee object
 - *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 69 member call = ???*0*["replace"](/\0/g, "\\0")
+63 -> 69 member call = ???*0*["replace"](/\0/g, "\\0")
 - *0* ???*1*["replace"](/"/g, "\\\"")
   ⚠️  unknown callee object
 - *1* ???*2*["replace"](/\\/g, "\\\\")
@@ -159,7 +159,7 @@
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 70 member call = ???*0*["replace"](/\t/g, "\\t")
+62 -> 70 member call = ???*0*["replace"](/\t/g, "\\t")
 - *0* ???*1*["replace"](/\0/g, "\\0")
   ⚠️  unknown callee object
 - *1* ???*2*["replace"](/"/g, "\\\"")
@@ -169,7 +169,7 @@
 - *3* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 71 member call = ???*0*["replace"](/\n/g, "\\n")
+61 -> 71 member call = ???*0*["replace"](/\n/g, "\\n")
 - *0* ???*1*["replace"](/\t/g, "\\t")
   ⚠️  unknown callee object
 - *1* ???*2*["replace"](/\0/g, "\\0")
@@ -181,7 +181,7 @@
 - *4* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 72 member call = ???*0*["replace"](/\r/g, "\\r")
+60 -> 72 member call = ???*0*["replace"](/\r/g, "\\r")
 - *0* ???*1*["replace"](/\n/g, "\\n")
   ⚠️  unknown callee object
 - *1* ???*2*["replace"](/\t/g, "\\t")
@@ -193,7 +193,7 @@
 - *4* ???["replace"](/\\/g, "\\\\")
   ⚠️  unknown callee object
 
-0 -> 73 member call = ???*0*["replace"](/[\x00-\x0F]/g, (...) => `\x0${hex(ch)}`)
+59 -> 73 member call = ???*0*["replace"](/[\x00-\x0F]/g, (...) => `\x0${hex(ch)}`)
 - *0* ???*1*["replace"](/\r/g, "\\r")
   ⚠️  unknown callee object
 - *1* ???*2*["replace"](/\n/g, "\\n")
@@ -237,17 +237,17 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 90 member call = ???*0*["replace"](/\\/g, "\\\\")
+88 -> 90 member call = ???*0*["replace"](/\\/g, "\\\\")
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 91 member call = ???*0*["replace"](/\]/g, "\\]")
+87 -> 91 member call = ???*0*["replace"](/\]/g, "\\]")
 - *0* ???*1*["replace"](/\\/g, "\\\\")
   ⚠️  unknown callee object
 - *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 92 member call = ???*0*["replace"](/\^/g, "\\^")
+86 -> 92 member call = ???*0*["replace"](/\^/g, "\\^")
 - *0* ???*1*["replace"](/\]/g, "\\]")
   ⚠️  unknown callee object
 - *1* ???*2*["replace"](/\\/g, "\\\\")
@@ -255,7 +255,7 @@
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 93 member call = ???*0*["replace"](/-/g, "\\-")
+85 -> 93 member call = ???*0*["replace"](/-/g, "\\-")
 - *0* ???*1*["replace"](/\^/g, "\\^")
   ⚠️  unknown callee object
 - *1* ???*2*["replace"](/\]/g, "\\]")
@@ -265,7 +265,7 @@
 - *3* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 94 member call = ???*0*["replace"](/\0/g, "\\0")
+84 -> 94 member call = ???*0*["replace"](/\0/g, "\\0")
 - *0* ???*1*["replace"](/-/g, "\\-")
   ⚠️  unknown callee object
 - *1* ???*2*["replace"](/\^/g, "\\^")
@@ -277,7 +277,7 @@
 - *4* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 95 member call = ???*0*["replace"](/\t/g, "\\t")
+83 -> 95 member call = ???*0*["replace"](/\t/g, "\\t")
 - *0* ???*1*["replace"](/\0/g, "\\0")
   ⚠️  unknown callee object
 - *1* ???*2*["replace"](/-/g, "\\-")
@@ -289,7 +289,7 @@
 - *4* ???["replace"](/\\/g, "\\\\")
   ⚠️  unknown callee object
 
-0 -> 96 member call = ???*0*["replace"](/\n/g, "\\n")
+82 -> 96 member call = ???*0*["replace"](/\n/g, "\\n")
 - *0* ???*1*["replace"](/\t/g, "\\t")
   ⚠️  unknown callee object
 - *1* ???*2*["replace"](/\0/g, "\\0")
@@ -301,7 +301,7 @@
 - *4* ???["replace"](/\]/g, "\\]")
   ⚠️  unknown callee object
 
-0 -> 97 member call = ???*0*["replace"](/\r/g, "\\r")
+81 -> 97 member call = ???*0*["replace"](/\r/g, "\\r")
 - *0* ???*1*["replace"](/\n/g, "\\n")
   ⚠️  unknown callee object
 - *1* ???*2*["replace"](/\t/g, "\\t")
@@ -313,7 +313,7 @@
 - *4* ???["replace"](/\^/g, "\\^")
   ⚠️  unknown callee object
 
-0 -> 98 member call = ???*0*["replace"](/[\x00-\x0F]/g, (...) => `\x0${hex(ch)}`)
+80 -> 98 member call = ???*0*["replace"](/[\x00-\x0F]/g, (...) => `\x0${hex(ch)}`)
 - *0* ???*1*["replace"](/\r/g, "\\r")
   ⚠️  unknown callee object
 - *1* ???*2*["replace"](/\n/g, "\\n")
@@ -441,7 +441,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 134 member call = new ???*0*(???*1*)["slice"](0, -1)
+132 -> 134 member call = new ???*0*(???*1*)["slice"](0, -1)
 - *0* FreeVar(Array)
   ⚠️  unknown global
   ⚠️  This value might have side effects
@@ -902,7 +902,7 @@
 
 0 -> 272 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("u", false)
 
-0 -> 274 free var = FreeVar(String)
+273 -> 274 free var = FreeVar(String)
 
 0 -> 275 free var = FreeVar(parseInt)
 
@@ -3684,7 +3684,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1029 member call = ???*0*["substr"](???*1*, 6)
+1027 -> 1029 member call = ???*0*["substr"](???*1*, 6)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
@@ -3730,7 +3730,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1041 member call = ???*0*["substr"](???*1*, 3)
+1039 -> 1041 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
@@ -3776,7 +3776,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1053 member call = ???*0*["substr"](???*1*, 4)
+1051 -> 1053 member call = ???*0*["substr"](???*1*, 4)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
@@ -3822,7 +3822,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1065 member call = ???*0*["substr"](???*1*, 5)
+1063 -> 1065 member call = ???*0*["substr"](???*1*, 5)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
@@ -3868,7 +3868,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1077 member call = ???*0*["substr"](???*1*, 5)
+1075 -> 1077 member call = ???*0*["substr"](???*1*, 5)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
@@ -3914,7 +3914,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1089 member call = ???*0*["substr"](???*1*, 2)
+1087 -> 1089 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
@@ -3960,7 +3960,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1101 member call = ???*0*["substr"](???*1*, 2)
+1099 -> 1101 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
@@ -4006,7 +4006,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1113 member call = ???*0*["substr"](???*1*, 4)
+1111 -> 1113 member call = ???*0*["substr"](???*1*, 4)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
@@ -4052,7 +4052,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1125 member call = ???*0*["substr"](???*1*, 2)
+1123 -> 1125 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
@@ -4098,7 +4098,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1137 member call = ???*0*["substr"](???*1*, 5)
+1135 -> 1137 member call = ???*0*["substr"](???*1*, 5)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
@@ -4144,7 +4144,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1149 member call = ???*0*["substr"](???*1*, 3)
+1147 -> 1149 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
@@ -4200,7 +4200,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1163 member call = ???*0*["substr"](???*1*, 4)
+1161 -> 1163 member call = ???*0*["substr"](???*1*, 4)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
@@ -4256,7 +4256,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1177 member call = ???*0*["substr"](???*1*, 3)
+1175 -> 1177 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
@@ -4312,7 +4312,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1191 member call = ???*0*["substr"](???*1*, 2)
+1189 -> 1191 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
@@ -4368,7 +4368,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1205 member call = ???*0*["substr"](???*1*, 3)
+1203 -> 1205 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
@@ -4424,7 +4424,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1219 member call = ???*0*["substr"](???*1*, 7)
+1217 -> 1219 member call = ???*0*["substr"](???*1*, 7)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
@@ -4470,7 +4470,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1231 member call = ???*0*["substr"](???*1*, 6)
+1229 -> 1231 member call = ???*0*["substr"](???*1*, 6)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
@@ -4516,7 +4516,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1243 member call = ???*0*["substr"](???*1*, 5)
+1241 -> 1243 member call = ???*0*["substr"](???*1*, 5)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
