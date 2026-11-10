@@ -346,7 +346,7 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
 
     /// Remove the element at `index`, shifting all elements after it to the
     /// left (order preserved, used by the ordered `List` backing an
-    /// `AutoIndexSet`/`AutoIndexMap`).
+    /// `OrderedAutoSet`/`OrderedAutoMap`).
     pub fn remove(&mut self, index: usize) -> T {
         let len = self.len();
         assert!(index < len, "index out of bounds: {index} >= {len}");

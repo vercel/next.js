@@ -20,7 +20,7 @@ pub type AutoMap<K, V, H = BuildHasherDefault<FxHasher>, const I: usize = 0> =
 /// Insertion ordered [`RawAutoMap`] backed by an [`IndexMap`] and an `I`-inline [`TinyVec`].
 ///
 /// Equality is order sensitive and removals preserve the order of the remaining entries.
-pub type AutoIndexMap<K, V, H = BuildHasherDefault<FxHasher>, const I: usize = 0> =
+pub type OrderedAutoMap<K, V, H = BuildHasherDefault<FxHasher>, const I: usize = 0> =
     RawAutoMap<K, V, IndexMap<K, V, H>, TinyVec<(K, V), I, MAX_USEFUL_LINEAR_SCAN>>;
 
 /// Unordered [`RawAutoSet`] backed by a [`HashMap`] and an `I`-inline [`TinyVec`].
@@ -31,7 +31,7 @@ pub type AutoSet<K, H = BuildHasherDefault<FxHasher>, const I: usize = 0> =
 ///
 /// Equality is order sensitive (`{a, b} != {b, a}`) and removals preserve the order of the
 /// remaining items.
-pub type AutoIndexSet<K, H = BuildHasherDefault<FxHasher>, const I: usize = 0> =
+pub type OrderedAutoSet<K, H = BuildHasherDefault<FxHasher>, const I: usize = 0> =
     RawAutoSet<K, IndexMap<K, (), H>, TinyVec<(K, ()), I, MAX_USEFUL_LINEAR_SCAN>>;
 
 // Values based on data from https://github.com/yegor256/micromap#benchmark

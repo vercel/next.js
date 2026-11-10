@@ -22,7 +22,7 @@ use crate::{
 /// A set that stores small numbers of items in a linear list `L` and switches to a real map `M`
 /// when it grows. See [`RawAutoMap`].
 ///
-/// Use the [`AutoSet`] (hash map based, unordered) or [`AutoIndexSet`] (index map based,
+/// Use the [`AutoSet`] (hash map based, unordered) or [`OrderedAutoSet`] (index map based,
 /// insertion ordered) aliases instead of naming this type directly.
 #[derive(Clone)]
 pub struct RawAutoSet<K, M, L> {
@@ -30,7 +30,7 @@ pub struct RawAutoSet<K, M, L> {
 }
 
 // The aliases are defined in the crate root. Re-exported here to keep the `set::` paths working.
-pub use crate::{AutoIndexSet, AutoSet};
+pub use crate::{AutoSet, OrderedAutoSet};
 
 impl<K, M, L: BackingListStorage<(K, ())>> Default for RawAutoSet<K, M, L> {
     fn default() -> Self {
@@ -461,25 +461,25 @@ mod tests {
     }
 
     #[test]
-    fn test_auto_index_set_eq_is_order_sensitive() {
-        let a = AutoIndexSet::<_>::from(["a", "b"]);
-        let a2 = AutoIndexSet::<_>::from(["a", "b"]);
-        let b = AutoIndexSet::<_>::from(["b", "a"]);
+    fn test_ordered_auto_set_eq_is_order_sensitive() {
+        let a = OrderedAutoSet::<_>::from(["a", "b"]);
+        let a2 = OrderedAutoSet::<_>::from(["a", "b"]);
+        let b = OrderedAutoSet::<_>::from(["b", "a"]);
         assert_eq!(a, a2);
         assert_eq!(hash_of(&a), hash_of(&a2));
         assert_ne!(a, b);
 
-        let a: AutoIndexSet<usize> = (0..MAX_USEFUL_LINEAR_SCAN * 2).collect();
-        let a2: AutoIndexSet<usize> = (0..MAX_USEFUL_LINEAR_SCAN * 2).collect();
-        let b: AutoIndexSet<usize> = (0..MAX_USEFUL_LINEAR_SCAN * 2).rev().collect();
+        let a: OrderedAutoSet<usize> = (0..MAX_USEFUL_LINEAR_SCAN * 2).collect();
+        let a2: OrderedAutoSet<usize> = (0..MAX_USEFUL_LINEAR_SCAN * 2).collect();
+        let b: OrderedAutoSet<usize> = (0..MAX_USEFUL_LINEAR_SCAN * 2).rev().collect();
         assert_eq!(a, a2);
         assert_ne!(a, b);
     }
 
     #[test]
-    fn test_auto_index_set_order() {
+    fn test_ordered_auto_set_order() {
         let n = MAX_USEFUL_LINEAR_SCAN * 2;
-        let mut set = AutoIndexSet::new();
+        let mut set = OrderedAutoSet::new();
         for i in (0..n).rev() {
             assert!(set.insert(i));
         }
@@ -536,14 +536,14 @@ mod tests {
             assert_eq!(set.len(), 3);
         }
         check(|n| (0..n).rev().collect::<AutoSet<usize>>());
-        check(|n| (0..n).rev().collect::<AutoIndexSet<usize>>());
+        check(|n| (0..n).rev().collect::<OrderedAutoSet<usize>>());
     }
 
     #[test]
     fn test_swap_remove() {
         for n in [5, MAX_USEFUL_LINEAR_SCAN * 2] {
             // Ordered: the last item moves into the removed slot, in list and map mode.
-            let mut set: AutoIndexSet<usize> = (0..n).collect();
+            let mut set: OrderedAutoSet<usize> = (0..n).collect();
             assert!(set.swap_remove(&1));
             assert!(!set.swap_remove(&1));
             assert!(!set.swap_remove(&(n + 7)));
@@ -597,7 +597,7 @@ mod tests {
             );
             assert_eq!(rest_by_fold(make().iter()).len(), n.saturating_sub(1));
 
-            let make = || (0..n).rev().collect::<AutoIndexSet<usize>>();
+            let make = || (0..n).rev().collect::<OrderedAutoSet<usize>>();
             let expected: Vec<usize> = (0..n).rev().collect();
             assert_eq!(by_fold(make().iter()), by_next(make().iter()));
             assert_eq!(
@@ -621,20 +621,20 @@ mod tests {
     }
 
     #[test]
-    fn test_auto_index_set_serialization_preserves_order() {
+    fn test_ordered_auto_set_serialization_preserves_order() {
         for n in [5, MAX_USEFUL_LINEAR_SCAN * 2] {
-            let set: AutoIndexSet<usize> = (0..n).rev().collect();
+            let set: OrderedAutoSet<usize> = (0..n).rev().collect();
             let expected = (0..n).rev().collect::<Vec<_>>();
 
             let config = bincode::config::standard();
             let bytes = bincode::encode_to_vec(&set, config).unwrap();
-            let (decoded, _): (AutoIndexSet<usize>, _) =
+            let (decoded, _): (OrderedAutoSet<usize>, _) =
                 bincode::decode_from_slice(&bytes, config).unwrap();
             assert_eq!(decoded, set);
             assert_eq!(decoded.iter().copied().collect::<Vec<_>>(), expected);
 
             let json = serde_json::to_string(&set).unwrap();
-            let decoded: AutoIndexSet<usize> = serde_json::from_str(&json).unwrap();
+            let decoded: OrderedAutoSet<usize> = serde_json::from_str(&json).unwrap();
             assert_eq!(decoded, set);
             assert_eq!(decoded.iter().copied().collect::<Vec<_>>(), expected);
         }
@@ -649,6 +649,6 @@ mod tests {
         assert_eq!(size_of::<AutoSet<NonZeroU32>>(), 16);
         assert_eq!(size_of::<AutoSet<(NonZeroU32, u32), F, 3>>(), 32);
         assert_eq!(size_of::<Option<AutoSet<NonZeroU32>>>(), 24);
-        assert_eq!(size_of::<AutoIndexSet<NonZeroU32>>(), 16);
+        assert_eq!(size_of::<OrderedAutoSet<NonZeroU32>>(), 16);
     }
 }

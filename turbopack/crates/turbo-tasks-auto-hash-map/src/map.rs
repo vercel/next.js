@@ -28,7 +28,7 @@ use crate::{
 /// when it grows beyond `MAX_USEFUL_LINEAR_SCAN` entries.
 ///
 /// The map storage `M` decides whether the map is ordered (see [`BackingMapStorage::UNORDERED`]).
-/// Use the [`AutoMap`] (hash map based, unordered) or [`AutoIndexMap`] (index map based,
+/// Use the [`AutoMap`] (hash map based, unordered) or [`OrderedAutoMap`] (index map based,
 /// insertion ordered) aliases instead of naming this type directly.
 #[derive(Clone)]
 pub enum RawAutoMap<K, V, M, L> {
@@ -37,7 +37,7 @@ pub enum RawAutoMap<K, V, M, L> {
 }
 
 // The aliases are defined in the crate root. Re-exported here to keep the `map::` paths working.
-pub use crate::{AutoIndexMap, AutoMap};
+pub use crate::{AutoMap, OrderedAutoMap};
 
 impl<K, V, M, L: BackingListStorage<(K, V)>> Default for RawAutoMap<K, V, M, L> {
     fn default() -> Self {
@@ -1435,11 +1435,11 @@ mod tests {
     }
 
     #[test]
-    fn test_auto_index_map_eq_is_order_sensitive() {
+    fn test_ordered_auto_map_eq_is_order_sensitive() {
         for n in [3, MAX_USEFUL_LINEAR_SCAN * 2] {
-            let a: AutoIndexMap<usize, usize> = (0..n).map(|i| (i, i)).collect();
-            let a2: AutoIndexMap<usize, usize> = (0..n).map(|i| (i, i)).collect();
-            let b: AutoIndexMap<usize, usize> = (0..n).rev().map(|i| (i, i)).collect();
+            let a: OrderedAutoMap<usize, usize> = (0..n).map(|i| (i, i)).collect();
+            let a2: OrderedAutoMap<usize, usize> = (0..n).map(|i| (i, i)).collect();
+            let b: OrderedAutoMap<usize, usize> = (0..n).rev().map(|i| (i, i)).collect();
             assert_eq!(a, a2);
             assert_eq!(hash_of(&a), hash_of(&a2));
             assert_ne!(a, b);
@@ -1447,11 +1447,11 @@ mod tests {
 
         // List variant vs. map variant with the same content.
         let n = MIN_HASH_SIZE + 4;
-        let mut list = AutoIndexMap::new();
+        let mut list = OrderedAutoMap::new();
         for i in 0..n {
             list.insert(i, i);
         }
-        let mut map = AutoIndexMap::new();
+        let mut map = OrderedAutoMap::new();
         for i in 0..MAX_USEFUL_LINEAR_SCAN * 2 {
             map.insert(i, i);
         }
@@ -1468,9 +1468,9 @@ mod tests {
     }
 
     #[test]
-    fn test_auto_index_map_order() {
+    fn test_ordered_auto_map_order() {
         let n = MAX_USEFUL_LINEAR_SCAN * 2;
-        let mut map = AutoIndexMap::new();
+        let mut map = OrderedAutoMap::new();
         // Reverse insertion order so that order != key order.
         for i in (0..n).rev() {
             map.insert(i, i);
@@ -1540,9 +1540,9 @@ mod tests {
     }
 
     #[test]
-    fn test_auto_index_map_swap_remove() {
+    fn test_ordered_auto_map_swap_remove() {
         // List mode: the last entry moves into the removed slot.
-        let mut map: AutoIndexMap<usize, usize> = (0..5).map(|i| (i, i * 10)).collect();
+        let mut map: OrderedAutoMap<usize, usize> = (0..5).map(|i| (i, i * 10)).collect();
         assert!(matches!(map, RawAutoMap::List(..)));
         assert_eq!(map.swap_remove(&1), Some(10));
         assert_eq!(map.swap_remove(&1), None);
@@ -1554,7 +1554,7 @@ mod tests {
 
         // Map mode: same semantics as `IndexMap::swap_remove`.
         let n = MAX_USEFUL_LINEAR_SCAN * 2;
-        let mut map: AutoIndexMap<usize, usize> = (0..n).map(|i| (i, i * 10)).collect();
+        let mut map: OrderedAutoMap<usize, usize> = (0..n).map(|i| (i, i * 10)).collect();
         assert!(matches!(map, RawAutoMap::Map(..)));
         assert_eq!(map.swap_remove(&0), Some(0));
         assert_eq!(map.swap_remove(&0), None);
@@ -1578,14 +1578,14 @@ mod tests {
     }
 
     #[test]
-    fn test_auto_index_map_entry_order_across_conversion() {
+    fn test_ordered_auto_map_entry_order_across_conversion() {
         let n = MAX_USEFUL_LINEAR_SCAN * 2;
-        let mut map = AutoIndexMap::new();
+        let mut map = OrderedAutoMap::new();
         for i in (0..n).rev() {
             *map.entry(i).or_default() += i;
         }
         assert_eq!(keys(&map), (0..n).rev().collect::<Vec<_>>());
-        let mut map = AutoIndexMap::new();
+        let mut map = OrderedAutoMap::new();
         for i in (0..n).rev() {
             match map.raw_entry_mut(&i) {
                 RawEntry::Occupied(_) => panic!(),
@@ -1605,29 +1605,29 @@ mod tests {
     }
 
     #[test]
-    fn test_auto_index_map_serialization_preserves_order() {
+    fn test_ordered_auto_map_serialization_preserves_order() {
         for n in [5, MAX_USEFUL_LINEAR_SCAN * 2] {
-            let map: AutoIndexMap<usize, usize> = (0..n).rev().map(|i| (i, i)).collect();
+            let map: OrderedAutoMap<usize, usize> = (0..n).rev().map(|i| (i, i)).collect();
             let expected = (0..n).rev().collect::<Vec<_>>();
 
             let config = bincode::config::standard();
             let bytes = bincode::encode_to_vec(&map, config).unwrap();
-            let (decoded, _): (AutoIndexMap<usize, usize>, _) =
+            let (decoded, _): (OrderedAutoMap<usize, usize>, _) =
                 bincode::decode_from_slice(&bytes, config).unwrap();
             assert_eq!(keys(&decoded), expected);
             assert_eq!(decoded, map);
 
             let json = serde_json::to_string(&map).unwrap();
-            let decoded: AutoIndexMap<usize, usize> = serde_json::from_str(&json).unwrap();
+            let decoded: OrderedAutoMap<usize, usize> = serde_json::from_str(&json).unwrap();
             assert_eq!(keys(&decoded), expected);
             assert_eq!(decoded, map);
         }
     }
 
     #[test]
-    fn test_auto_index_map_entry_removal_and_replacement_order() {
+    fn test_ordered_auto_map_entry_removal_and_replacement_order() {
         for n in [MIN_HASH_SIZE, MAX_USEFUL_LINEAR_SCAN * 2] {
-            let mut map: AutoIndexMap<usize, usize> = (0..n).map(|i| (i, i)).collect();
+            let mut map: OrderedAutoMap<usize, usize> = (0..n).map(|i| (i, i)).collect();
             let mut expected = (0..n).collect::<Vec<_>>();
 
             match map.entry(2) {
@@ -1808,9 +1808,9 @@ mod tests {
         // Iterators returned from closures are inferred under a higher-ranked lifetime.
         async fn nested(
             mut maps: Vec<AutoMap<Key, Key>>,
-            mut index_maps: Vec<AutoIndexMap<Key, Key>>,
+            mut index_maps: Vec<OrderedAutoMap<Key, Key>>,
             sets: Vec<crate::AutoSet<Key>>,
-            index_sets: Vec<crate::AutoIndexSet<Key>>,
+            index_sets: Vec<crate::OrderedAutoSet<Key>>,
         ) {
             for _x in maps.iter().flat_map(|m| m.iter()) {
                 yield_now().await;
@@ -1846,7 +1846,7 @@ mod tests {
                 yield_now().await;
             }
         }
-        async fn index_map(mut map: AutoIndexMap<Key, Key>) {
+        async fn index_map(mut map: OrderedAutoMap<Key, Key>) {
             for _x in map.iter() {
                 yield_now().await;
             }
@@ -1866,7 +1866,7 @@ mod tests {
                 yield_now().await;
             }
         }
-        async fn sets(set: crate::AutoSet<Key>, index_set: crate::AutoIndexSet<Key>) {
+        async fn sets(set: crate::AutoSet<Key>, index_set: crate::OrderedAutoSet<Key>) {
             for _x in set.iter() {
                 yield_now().await;
             }
@@ -1881,9 +1881,9 @@ mod tests {
             }
         }
         assert_send(hash_map(AutoMap::new()));
-        assert_send(index_map(AutoIndexMap::new()));
+        assert_send(index_map(OrderedAutoMap::new()));
         assert_send(nested(Vec::new(), Vec::new(), Vec::new(), Vec::new()));
-        assert_send(sets(crate::AutoSet::new(), crate::AutoIndexSet::new()));
+        assert_send(sets(crate::AutoSet::new(), crate::OrderedAutoSet::new()));
     }
 
     #[test]
@@ -1910,9 +1910,9 @@ mod tests {
             }
         }
         check(AutoMap::<NoClone, NoClone>::new());
-        check(AutoIndexMap::<NoClone, NoClone>::new());
+        check(OrderedAutoMap::<NoClone, NoClone>::new());
 
-        let mut set = crate::AutoIndexSet::<NoClone>::new();
+        let mut set = crate::OrderedAutoSet::<NoClone>::new();
         let mut hash_set = crate::AutoSet::<NoClone>::new();
         for i in 0..MAX_USEFUL_LINEAR_SCAN as u32 + 2 {
             set.insert(NoClone(i));
@@ -1966,10 +1966,10 @@ mod tests {
             }
         }
         check(AutoMap::<usize, usize>::new());
-        check(AutoIndexMap::<usize, usize>::new());
+        check(OrderedAutoMap::<usize, usize>::new());
 
         // The ordered map keeps the order across the conversion.
-        let mut map = AutoIndexMap::<usize, usize>::new();
+        let mut map = OrderedAutoMap::<usize, usize>::new();
         map.extend([(5, 5), (1, 1)]);
         map.extend((10..50).rev().map(|i| (i, i)));
         assert!(matches!(map, RawAutoMap::Map(..)));
@@ -1978,7 +1978,7 @@ mod tests {
         assert_eq!(keys(&map), expected);
 
         // A size hint that isn't kept still leaves a map (see `test_overstated_hint_keeps_map`).
-        let mut map = AutoIndexMap::<usize, usize>::new();
+        let mut map = OrderedAutoMap::<usize, usize>::new();
         map.extend([(9, 9)]);
         map.extend(Overstated {
             next: 0,
@@ -2077,10 +2077,10 @@ mod tests {
             (0..n)
                 .rev()
                 .map(|i| (i, i * 10))
-                .collect::<AutoIndexMap<_, _>>()
+                .collect::<OrderedAutoMap<_, _>>()
         });
         // The ordered map's `fold` keeps the insertion order.
-        let map: AutoIndexMap<usize, usize> = (0..40).rev().map(|i| (i, i)).collect();
+        let map: OrderedAutoMap<usize, usize> = (0..40).rev().map(|i| (i, i)).collect();
         assert_eq!(
             map.iter().fold(Vec::new(), |mut keys, (k, _)| {
                 keys.push(*k);
@@ -2112,7 +2112,7 @@ mod tests {
                 self.1.borrow_mut().push(format!("drop key {}", self.0));
             }
         }
-        fn make(log: &Rc<RefCell<Vec<String>>>) -> AutoIndexMap<Key, u32> {
+        fn make(log: &Rc<RefCell<Vec<String>>>) -> OrderedAutoMap<Key, u32> {
             (0..3).map(|i| (Key(i, log.clone()), i)).collect()
         }
         let log = Rc::new(RefCell::new(Vec::new()));
@@ -2138,9 +2138,9 @@ mod tests {
     fn test_alias_paths() {
         // The aliases are defined in the crate root, the module paths keep working.
         let _: crate::map::AutoMap<u32, u32> = crate::AutoMap::new();
-        let _: crate::map::AutoIndexMap<u32, u32> = crate::AutoIndexMap::new();
+        let _: crate::map::OrderedAutoMap<u32, u32> = crate::OrderedAutoMap::new();
         let _: crate::set::AutoSet<u32> = crate::AutoSet::new();
-        let _: crate::set::AutoIndexSet<u32> = crate::AutoIndexSet::new();
+        let _: crate::set::OrderedAutoSet<u32> = crate::OrderedAutoSet::new();
     }
 
     #[test]
@@ -2151,7 +2151,7 @@ mod tests {
         // Generalizing the storage must not change the size of the existing aliases.
         assert_eq!(size_of::<AutoMap<u32, u32>>(), 16);
         assert_eq!(size_of::<AutoMap<u64, u64, F, 4>>(), 72);
-        assert_eq!(size_of::<AutoIndexMap<u32, u32>>(), 16);
+        assert_eq!(size_of::<OrderedAutoMap<u32, u32>>(), 16);
         assert_eq!(size_of::<Option<AutoMap<NonZeroU32, ()>>>(), 24);
     }
 
@@ -2163,7 +2163,7 @@ mod tests {
 
     #[test]
     fn test_replace_entry_with_ordered_list() {
-        let make = || -> AutoIndexMap<u32, u32> { (0..5).map(|i| (i, i)).collect() };
+        let make = || -> OrderedAutoMap<u32, u32> { (0..5).map(|i| (i, i)).collect() };
         for index in [0, 2, 4] {
             // `Some` keeps the entry at its position.
             let mut map = make();
@@ -2211,7 +2211,7 @@ mod tests {
         // 5 entries stay a list; 50 entries are a map.
         for (n, index) in [(5u32, 1u32), (50, 20)] {
             RefCell::borrow_mut(&drops).clear();
-            let mut map: AutoIndexMap<u32, Tracked> =
+            let mut map: OrderedAutoMap<u32, Tracked> =
                 (0..n).map(|i| (i, Tracked(i, drops.clone()))).collect();
             assert_eq!(matches!(map, RawAutoMap::Map(..)), n == 50);
             let result =
@@ -2235,7 +2235,7 @@ mod tests {
 
     #[test]
     fn test_retain_list() {
-        let mut map: AutoIndexMap<u32, u32> = (0..20).map(|i| (i, i)).collect();
+        let mut map: OrderedAutoMap<u32, u32> = (0..20).map(|i| (i, i)).collect();
         assert!(matches!(map, RawAutoMap::List(..)));
         map.retain(|k, v| {
             *v += 1;
@@ -2256,7 +2256,7 @@ mod tests {
 
     #[test]
     fn test_extract_if_list_order() {
-        let mut map: AutoIndexMap<u32, u32> = (0..20).map(|i| (i, i)).collect();
+        let mut map: OrderedAutoMap<u32, u32> = (0..20).map(|i| (i, i)).collect();
         let extracted: Vec<_> = map.extract_if(|k, _| k % 3 == 0).collect();
         assert_eq!(
             extracted,
@@ -2361,7 +2361,7 @@ mod tests {
             (MAX_USEFUL_LINEAR_SCAN, true),
             (MAX_USEFUL_LINEAR_SCAN + 1, false),
         ] {
-            let mut map: AutoIndexMap<usize, usize> =
+            let mut map: OrderedAutoMap<usize, usize> =
                 (0..MAX_USEFUL_LINEAR_SCAN * 2).map(|i| (i, i)).collect();
             for i in len..MAX_USEFUL_LINEAR_SCAN * 2 {
                 map.remove(&i);
@@ -2396,7 +2396,7 @@ mod tests {
     #[test]
     fn test_shrink_to_fit_trait_list() {
         // A list with spare capacity is still shrunk.
-        let mut map: AutoIndexMap<usize, usize> = AutoIndexMap::new();
+        let mut map: OrderedAutoMap<usize, usize> = OrderedAutoMap::new();
         for i in 0..20 {
             map.insert(i, i);
         }
@@ -2508,8 +2508,8 @@ mod tests {
     #[test]
     fn test_replace_entry_with_index_map() {
         const N: u32 = 100;
-        let make = || -> AutoIndexMap<u32, u32> {
-            let map: AutoIndexMap<u32, u32> = (0..N).map(|i| (i, i)).collect();
+        let make = || -> OrderedAutoMap<u32, u32> {
+            let map: OrderedAutoMap<u32, u32> = (0..N).map(|i| (i, i)).collect();
             assert!(matches!(map, RawAutoMap::Map(..)));
             map
         };
