@@ -271,12 +271,25 @@ pub(crate) enum UrlModuleMode {
 
 impl SinglePatternMapping {
     /// Creates an expression evaluating to the URL (the first `new URL()` argument) this mapping
-    /// points to. URL externals evaluate to their request, and anything that can't be resolved
-    /// to a URL evaluates to `about:blank`.
-    pub fn create_url(&self, module_mode: UrlModuleMode) -> Expr {
+    /// points to:
+    /// - modules evaluate to the URL of their asset, URL externals to their request,
+    /// - ignored requests and unresolvable requests that aren't relative (`is_relative`, i.e. they
+    ///   could be absolute, protocol-relative or server-relative URLs) keep the `request`,
+    /// - relative unresolvable requests and everything else evaluate to `about:blank`,
+    /// - dropped ones evaluate to `0` (the `new URL()` is never called).
+    pub fn create_url(
+        &self,
+        request: Cow<'_, Expr>,
+        is_relative: bool,
+        module_mode: UrlModuleMode,
+    ) -> Expr {
+        if self.keeps_url_request(is_relative) {
+            return request.into_owned();
+        }
         match self {
-            Self::Invalid | Self::Unresolvable(_) => quote!("'about:blank'" as Expr),
-            Self::Ignored => quote!("{}" as Expr),
+            Self::Ignored | Self::Invalid | Self::Unresolvable(_) => {
+                quote!("'about:blank'" as Expr)
+            }
             Self::Dropped => quote!("0" as Expr),
             Self::Module(module_id) | Self::ModuleLoader(module_id) => match module_mode {
                 UrlModuleMode::Require => quote!(
@@ -292,6 +305,15 @@ impl SinglePatternMapping {
             },
             Self::External(request, ExternalType::Url) => request.as_str().into(),
             Self::External(_, _) => quote!("'about:blank'" as Expr),
+        }
+    }
+
+    /// Whether [`Self::create_url`] keeps the request as the URL.
+    fn keeps_url_request(&self, is_relative: bool) -> bool {
+        match self {
+            Self::Ignored => true,
+            Self::Unresolvable(_) => !is_relative,
+            _ => false,
         }
     }
 }
@@ -347,12 +369,23 @@ fn create_url_context_map(
         .map(|(k, v)| (k.as_str(), v))
         .chain(aliases)
         .map(|(k, v)| {
+            // An entry that keeps the request gets the runtime request (which can differ from
+            // the key in its query and fragment)
+            let value = if v.keeps_url_request(is_relative_url_request(k)) {
+                quote_expr!("{module: (request) => request}")
+            } else {
+                quote_expr!(
+                    "{module: () => $module}",
+                    module: Expr = v.create_url(
+                        Cow::Owned(k.into()),
+                        is_relative_url_request(k),
+                        module_mode,
+                    ),
+                )
+            };
             PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                 key: PropName::Str(k.into()),
-                value: quote_expr!(
-                    "{module: () => $module}",
-                    module: Expr = v.create_url(module_mode),
-                ),
+                value,
             })))
         })
         .collect();
@@ -361,6 +394,12 @@ fn create_url_context_map(
         span: DUMMY_SP,
         props,
     })
+}
+
+/// Whether a `new URL()` request is known to be relative (in contrast to a potentially absolute,
+/// protocol-relative or server-relative URL). Matches the runtime check of `moduleContext`.
+fn is_relative_url_request(request: &str) -> bool {
+    request.starts_with("./") || request.starts_with("../")
 }
 
 impl PatternMapping {
@@ -395,28 +434,39 @@ impl PatternMapping {
     }
 
     /// Creates an expression evaluating to the URL (the first `new URL()` argument) of the asset
-    /// matching `key_expr`. With multiple possible assets, it's looked up at runtime (with the
-    /// request's query and fragment ignored when there's no exact match), evaluating to
-    /// `about:blank` when nothing matches. `bare_aliases` must be set when the request can be
-    /// without a leading `./` at runtime (i.e. it isn't a relative request).
+    /// matching `key_expr` (see [`SinglePatternMapping::create_url`]).
+    ///
+    /// A `dynamic` request is always looked up at runtime, also with zero or one result, as the
+    /// runtime request might not be one of the resolved ones. The lookup ignores the request's
+    /// query and fragment when there's no exact match, and keeps an unknown request unless it's
+    /// relative (then it evaluates to `about:blank`). `is_relative` tells whether the request is
+    /// a relative request (`./…` or `../…`): otherwise, a request that is unresolvable at
+    /// compile time is kept, and the runtime lookup also accepts requests without the leading
+    /// `./` that resolving relatively adds to the keys.
     pub fn create_url(
         &self,
         key_expr: Expr,
         module_mode: UrlModuleMode,
-        bare_aliases: bool,
+        dynamic: bool,
+        is_relative: bool,
     ) -> Expr {
-        match self {
-            PatternMapping::Single(pm) => pm.create_url(module_mode),
-            PatternMapping::Map(map) => {
-                let map = create_url_context_map(map, module_mode, bare_aliases);
-
-                quote!("$turbopack_module_context($map, true)($key)" as Expr,
-                    turbopack_module_context: Expr = TURBOPACK_MODULE_CONTEXT.into(),
-                    map: Expr = map,
-                    key: Expr = key_expr
-                )
+        let empty;
+        let map = match self {
+            PatternMapping::Single(pm) if !dynamic => {
+                return pm.create_url(Cow::Owned(key_expr), is_relative, module_mode);
             }
-        }
+            // A dynamic request with a single mapping didn't resolve to anything
+            PatternMapping::Single(_) => {
+                empty = FxIndexMap::default();
+                &empty
+            }
+            PatternMapping::Map(map) => map,
+        };
+        quote!("$turbopack_module_context($map, 1)($key)" as Expr,
+            turbopack_module_context: Expr = TURBOPACK_MODULE_CONTEXT.into(),
+            map: Expr = create_url_context_map(map, module_mode, !is_relative),
+            key: Expr = key_expr
+        )
     }
 
     pub fn create_import(&self, key_expr: Expr, import_externals: bool) -> Expr {

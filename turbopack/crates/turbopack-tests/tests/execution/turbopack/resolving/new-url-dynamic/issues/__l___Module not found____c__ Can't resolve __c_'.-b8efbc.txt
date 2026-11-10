@@ -1,0 +1,21 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/new-url-dynamic/input/index.js:40:2  Module not found: Can't resolve './missing.txt'
+  
+      36 | 
+      37 | const staticBareMissingUrl = () =>
+      38 |   new URL('missing.txt', import.meta.url).toString()
+      39 | const staticRelativeMissingUrl = () =>
+         +   v---------------------------------------v
+      40 +   new URL('./missing.txt', import.meta.url).toString()
+         +   ^---------------------------------------^
+      41 | 
+      42 | const expectAboutBlank = (fn) => {
+      43 |   const before = evaluations
+      44 |   expect(fn()).toBe('about:blank')
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: relative './missing.txt'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/new-url-dynamic/input/index.js
+  | Type of request: url request
+  |

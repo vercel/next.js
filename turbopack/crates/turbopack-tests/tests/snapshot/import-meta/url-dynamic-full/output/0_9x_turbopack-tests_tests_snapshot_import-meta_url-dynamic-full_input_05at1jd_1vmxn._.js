@@ -27,7 +27,7 @@ const assetUrl = new URL(__turbopack_context__.f({
     "./assets/b.txt": {
         module: ()=>__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url-dynamic-full/input/assets/b.txt (static in ecmascript)")
     }
-}, true)(`./assets/${name}`), location.origin);
+}, 1)(`./assets/${name}`), location.origin);
 const staticUrl = new URL(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url-dynamic-full/input/assets/a.txt (static in ecmascript)"), location.origin);
 console.log(assetUrl, staticUrl);
 }),

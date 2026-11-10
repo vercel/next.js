@@ -85,7 +85,7 @@ type ModuleContextMap = Record<ModuleId, ModuleContextEntry>
 interface ModuleContextEntry {
   // Not present for `new URL()` contexts, which are never asked for module ids
   id?: () => ModuleId
-  module: () => any
+  module: (request: string) => any
 }
 
 interface ModuleContext {
@@ -692,17 +692,15 @@ function parseRequest(request: string): string {
   return request
 }
 
-const URL_CONTEXT_FALLBACK: ModuleContextEntry = {
-  module: () => 'about:blank',
-}
 /**
  * `require.context`, require/import expression and `new URL()` runtime.
  *
  * A `new URL()` context (`isUrl`) looks a request that doesn't exactly match a key up again
- * without its query and fragment (e.g. a dynamic query that isn't part of a module key), and
- * evaluates to `about:blank` when nothing matches.
+ * without its query and fragment (e.g. a dynamic query that isn't part of a module key). When
+ * nothing matches, a relative request (`./…` or `../…`) evaluates to `about:blank`, while any
+ * other request (an absolute, protocol-relative or server-relative URL) is kept as the URL.
  */
-function moduleContext(map: ModuleContextMap, isUrl?: boolean): ModuleContext {
+function moduleContext(map: ModuleContextMap, isUrl?: 1): ModuleContext {
   function lookup(id: string): ModuleContextEntry {
     if (hasOwnProperty.call(map, id)) {
       return map[id]
@@ -712,7 +710,8 @@ function moduleContext(map: ModuleContextMap, isUrl?: boolean): ModuleContext {
       if (hasOwnProperty.call(map, parsedId)) {
         return map[parsedId]
       }
-      return URL_CONTEXT_FALLBACK
+      const url = /^\.\.?\//.test(id) ? 'about:blank' : id
+      return { module: () => url }
     }
 
     const e = new Error(`Cannot find module '${id}'`)
@@ -721,7 +720,8 @@ function moduleContext(map: ModuleContextMap, isUrl?: boolean): ModuleContext {
   }
 
   function moduleContext(id: string): Exports {
-    return lookup(id).module()
+    // URL entries that keep the request as the URL get the runtime request
+    return lookup(id).module(id)
   }
 
   moduleContext.keys = (): string[] => {

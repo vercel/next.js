@@ -1,0 +1,21 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/new-url-dynamic/input/index.js:33:2  Module not found: Can't resolve '/no-such-dir/' <dynamic>
+  
+      29 |   new URL(`https://example.invalid/${track(name)}`, import.meta.url).toString()
+      30 | const protocolRelativeUrl = (name) =>
+      31 |   new URL(`//example.invalid/${track(name)}`, import.meta.url).toString()
+      32 | const serverRelativeUrl = (name) =>
+         +   v-----------------------------------------------------v
+      33 +   new URL(`/no-such-dir/${track(name)}`, import.meta.url).toString()
+         +   ^-----------------------------------------------------^
+      34 | const bareMissingUrl = (name) =>
+      35 |   new URL(`no-such-dir/${track(name)}`, import.meta.url).toString()
+      36 | 
+      37 | const staticBareMissingUrl = () =>
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: server relative '/no-such-dir/' <dynamic>
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/new-url-dynamic/input/index.js
+  | Type of request: url request
+  |

@@ -1,0 +1,21 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/new-url-dynamic/input/index.js:29:2  Module not found: Can't resolve <dynamic>
+  
+      25 | const noMatchUrl = (name) =>
+      26 |   new URL(`./no-match/${track(name)}`, import.meta.url).toString()
+      27 | 
+      28 | const absoluteUrl = (name) =>
+         +   v----------------------------------------------------------------v
+      29 +   new URL(`https://example.invalid/${track(name)}`, import.meta.url).toString()
+         +   ^----------------------------------------------------------------^
+      30 | const protocolRelativeUrl = (name) =>
+      31 |   new URL(`//example.invalid/${track(name)}`, import.meta.url).toString()
+      32 | const serverRelativeUrl = (name) =>
+      33 |   new URL(`/no-such-dir/${track(name)}`, import.meta.url).toString()
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: dynamic
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/new-url-dynamic/input/index.js
+  | Type of request: url request
+  |

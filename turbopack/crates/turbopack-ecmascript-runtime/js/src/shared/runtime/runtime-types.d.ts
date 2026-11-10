@@ -56,10 +56,7 @@ type GetChunkRelativeURL = (
 
 type CommonJsRequire = (moduleId: ModuleId) => Exports
 type RuntimeRequire = (request: string) => Exports
-type ModuleContextFactory = (
-  map: ModuleContextMap,
-  isUrl?: boolean
-) => ModuleContext
+type ModuleContextFactory = (map: ModuleContextMap, isUrl?: 1) => ModuleContext
 type EsmImport = (
   moduleId: ModuleId,
   allowExportDefault: boolean

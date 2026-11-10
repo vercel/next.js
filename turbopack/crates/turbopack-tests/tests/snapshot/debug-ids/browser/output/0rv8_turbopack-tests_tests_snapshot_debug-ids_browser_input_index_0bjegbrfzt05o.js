@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="2bb6848a-179e-056d-37a2-e994a18f4ae6")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="047c9f64-6991-5839-cfd6-144de74ddb68")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -527,15 +527,13 @@ contextPrototype.r = commonJsRequire;
     }
     return request;
 }
-const URL_CONTEXT_FALLBACK = {
-    module: ()=>'about:blank'
-};
 /**
  * `require.context`, require/import expression and `new URL()` runtime.
  *
  * A `new URL()` context (`isUrl`) looks a request that doesn't exactly match a key up again
- * without its query and fragment (e.g. a dynamic query that isn't part of a module key), and
- * evaluates to `about:blank` when nothing matches.
+ * without its query and fragment (e.g. a dynamic query that isn't part of a module key). When
+ * nothing matches, a relative request (`./…` or `../…`) evaluates to `about:blank`, while any
+ * other request (an absolute, protocol-relative or server-relative URL) is kept as the URL.
  */ function moduleContext(map, isUrl) {
     function lookup(id) {
         if (hasOwnProperty.call(map, id)) {
@@ -546,14 +544,18 @@ const URL_CONTEXT_FALLBACK = {
             if (hasOwnProperty.call(map, parsedId)) {
                 return map[parsedId];
             }
-            return URL_CONTEXT_FALLBACK;
+            const url = /^\.\.?\//.test(id) ? 'about:blank' : id;
+            return {
+                module: ()=>url
+            };
         }
         const e = new Error(`Cannot find module '${id}'`);
         e.code = 'MODULE_NOT_FOUND';
         throw e;
     }
     function moduleContext(id) {
-        return lookup(id).module();
+        // URL entries that keep the request as the URL get the runtime request
+        return lookup(id).module(id);
     }
     moduleContext.keys = ()=>{
         return Object.keys(map);
@@ -2667,5 +2669,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=2bb6848a-179e-056d-37a2-e994a18f4ae6
+//# debugId=047c9f64-6991-5839-cfd6-144de74ddb68
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map

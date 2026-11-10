@@ -9,6 +9,8 @@ const assetUrl = (name) =>
 const singleUrl = (name) =>
   new URL(`./single/${track(name)}`, import.meta.url).toString()
 const bareUrl = (name) => new URL(`assets/${name}`, import.meta.url).toString()
+const bareSingleUrl = (name) =>
+  new URL(`single/${name}`, import.meta.url).toString()
 const suffixedUrl = (name, suffix) =>
   new URL(`./assets/${name}${suffix}`, import.meta.url).toString()
 const constantSuffixUrl = (name) =>
@@ -22,6 +24,20 @@ const fullyDynamicUrl = (request) =>
 
 const noMatchUrl = (name) =>
   new URL(`./no-match/${track(name)}`, import.meta.url).toString()
+
+const absoluteUrl = (name) =>
+  new URL(`https://example.invalid/${track(name)}`, import.meta.url).toString()
+const protocolRelativeUrl = (name) =>
+  new URL(`//example.invalid/${track(name)}`, import.meta.url).toString()
+const serverRelativeUrl = (name) =>
+  new URL(`/no-such-dir/${track(name)}`, import.meta.url).toString()
+const bareMissingUrl = (name) =>
+  new URL(`no-such-dir/${track(name)}`, import.meta.url).toString()
+
+const staticBareMissingUrl = () =>
+  new URL('missing.txt', import.meta.url).toString()
+const staticRelativeMissingUrl = () =>
+  new URL('./missing.txt', import.meta.url).toString()
 
 const expectAboutBlank = (fn) => {
   const before = evaluations
@@ -80,4 +96,28 @@ it('should evaluate the request expression exactly once', () => {
   const before = evaluations
   assetUrl('beta.txt')
   expect(evaluations - before).toBe(1)
+})
+
+it('should keep non-relative runtime requests that matched no file', () => {
+  expect(bareUrl('missing.txt')).toMatch(/(^|\/)assets\/missing\.txt$/)
+  expect(bareSingleUrl('missing.txt')).toMatch(/(^|\/)single\/missing\.txt$/)
+  expect(bareSingleUrl('only.txt')).toMatch(/only\.[^/]*txt$/)
+  const before = evaluations
+  expect(absoluteUrl('x.txt')).toBe('https://example.invalid/x.txt')
+  expect(protocolRelativeUrl('x.txt')).toMatch(
+    /^([a-z]+:)?\/\/example\.invalid\/x\.txt$/
+  )
+  expect(serverRelativeUrl('x.txt')).toMatch(
+    /^([a-z]+:\/\/)?\/no-such-dir\/x\.txt$/
+  )
+  expect(bareMissingUrl('x.txt')).toMatch(/(^|\/)no-such-dir\/x\.txt$/)
+  expect(evaluations - before).toBe(4)
+})
+
+it('should keep a static bare request that matched no file', () => {
+  expect(staticBareMissingUrl()).toMatch(/(^|\/)missing\.txt$/)
+})
+
+it('should resolve a static relative request that matched no file to about:blank', () => {
+  expect(staticRelativeMissingUrl()).toBe('about:blank')
 })

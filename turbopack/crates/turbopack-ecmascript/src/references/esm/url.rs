@@ -131,10 +131,11 @@ impl UrlAssetReferenceCodeGen {
     /// as similar to the webpack's behavior. This is based on the
     /// configuration (UrlRewriteBehavior), and the current context
     /// (rendering). The URL of the referenced asset (`<url>`) is created by
-    /// [`PatternMapping::create_url`]: for a request with a single result it's
-    /// a constant expression, otherwise (e.g. `new URL(`./${name}`, import.meta.url)`)
-    /// the asset is looked up at runtime from a request -> URL map. The
-    /// following table shows the behavior:
+    /// [`PatternMapping::create_url`]: for a request without dynamic parts it's
+    /// a constant expression (or the original request), otherwise (e.g.
+    /// `new URL(`./${name}`, import.meta.url)`) the asset is looked up at
+    /// runtime from a request -> URL map. The following table shows the
+    /// behavior:
     /*
      * original call: `new URL(url, base);`
     ┌───────────────────────────────┬──────────────────────────────────────┐
@@ -149,7 +150,10 @@ impl UrlAssetReferenceCodeGen {
     /// For modules, `<url>` is `__turbopack_require__(id)` (which exports the
     /// asset path), except for `Full` in non-client rendering, where it is
     /// `__turbopack_resolve_module_id_path__(id)` (the absolute path, which
-    /// makes the base irrelevant). URL externals evaluate to their request.
+    /// makes the base irrelevant). URL externals, ignored requests and
+    /// unresolvable requests that aren't relative (potentially absolute,
+    /// protocol-relative or server-relative URLs) evaluate to their request,
+    /// other unresolvable requests to `about:blank`.
     ///
     /// A request without any constant parts (e.g. `new URL(variable,
     /// import.meta.url)`) is left untouched.
@@ -160,15 +164,13 @@ impl UrlAssetReferenceCodeGen {
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
 
+        let request_pattern = reference.request.request_pattern().await?;
         if reference.url_rewrite_behavior == UrlRewriteBehavior::None
-            || !reference
-                .request
-                .request_pattern()
-                .await?
-                .has_constant_parts()
+            || !request_pattern.has_constant_parts()
         {
             return Ok(CodeGeneration::empty());
         }
+        let dynamic = request_pattern.has_dynamic_parts();
 
         let pattern_mapping = PatternMapping::resolve_request(
             *reference.request,
@@ -199,9 +201,10 @@ impl UrlAssetReferenceCodeGen {
             _ => UrlModuleMode::Require,
         };
         let relative = reference.url_rewrite_behavior == UrlRewriteBehavior::Relative;
-        // Keys of a relative request (`./…`) match the runtime request, other requests (e.g. a
-        // bare `assets/…`) are resolved relatively and need aliases without the leading `./`.
-        let bare_aliases = !matches!(&*reference.request.await?, Request::Relative { .. });
+        // Only a relative request (`./…` or `../…`) is known not to be an absolute,
+        // protocol-relative or server-relative URL. Other requests (e.g. a bare `assets/…`) are
+        // resolved relatively, so their keys have a leading `./` the runtime request doesn't have.
+        let is_relative = matches!(&*reference.request.await?, Request::Relative { .. });
 
         let visitor = create_visitor!(trie, self.path, visit_mut_expr, |new_expr: &mut Expr| {
             let Expr::New(NewExpr {
@@ -213,7 +216,7 @@ impl UrlAssetReferenceCodeGen {
             let Some(ExprOrSpread { expr, spread: None }) = args.get_mut(0) else {
                 return;
             };
-            let url = pattern_mapping.create_url(*expr.take(), module_mode, bare_aliases);
+            let url = pattern_mapping.create_url(*expr.take(), module_mode, dynamic, is_relative);
             if relative {
                 *new_expr = quote!(
                     "new $turbopack_relative_url($url)" as Expr,
