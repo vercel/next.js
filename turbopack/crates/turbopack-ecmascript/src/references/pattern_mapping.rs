@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::HashSet};
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashSet;
 use swc_core::{
@@ -275,8 +275,11 @@ impl SinglePatternMapping {
     /// - modules evaluate to the URL of their asset, URL externals to their request,
     /// - ignored requests and unresolvable requests that aren't relative (`is_relative`, i.e. they
     ///   could be absolute, protocol-relative or server-relative URLs) keep the `request`,
-    /// - relative unresolvable requests and everything else evaluate to `about:blank`,
+    /// - relative unresolvable requests and invalid ones evaluate to `about:blank`,
     /// - dropped ones evaluate to `0` (the `new URL()` is never called).
+    ///
+    /// Externals other than URL externals aren't supported and must be rejected with
+    /// [`PatternMapping::ensure_url_externals`] first.
     pub fn create_url(
         &self,
         request: Cow<'_, Expr>,
@@ -304,8 +307,27 @@ impl SinglePatternMapping {
                 ),
             },
             Self::External(request, ExternalType::Url) => request.as_str().into(),
-            Self::External(_, _) => quote!("'about:blank'" as Expr),
+            Self::External(request, ty) => {
+                unreachable!(
+                    "unsupported external type {ty:?} for URL reference with request {request:?} \
+                     must be rejected by PatternMapping::ensure_url_externals"
+                )
+            }
         }
+    }
+
+    /// Fails for externals that can't be used as a `new URL()` reference.
+    fn ensure_url_external(&self) -> Result<()> {
+        if let Self::External(request, ty) = self
+            && *ty != ExternalType::Url
+        {
+            bail!(
+                "Unsupported external type {:?} for URL reference with request: {:?}",
+                ty,
+                request
+            );
+        }
+        Ok(())
     }
 
     /// Whether [`Self::create_url`] keeps the request as the URL.
@@ -430,6 +452,15 @@ impl PatternMapping {
                     key: Expr = key_expr
                 )
             }
+        }
+    }
+
+    /// Fails when the mapping (or any entry of it) is an external other than a URL external, as
+    /// those can't be referenced by `new URL()`. Must be checked before [`Self::create_url`].
+    pub fn ensure_url_externals(&self) -> Result<()> {
+        match self {
+            PatternMapping::Single(pm) => pm.ensure_url_external(),
+            PatternMapping::Map(map) => map.values().try_for_each(|pm| pm.ensure_url_external()),
         }
     }
 

@@ -153,7 +153,8 @@ impl UrlAssetReferenceCodeGen {
     /// makes the base irrelevant). URL externals, ignored requests and
     /// unresolvable requests that aren't relative (potentially absolute,
     /// protocol-relative or server-relative URLs) evaluate to their request,
-    /// other unresolvable requests to `about:blank`.
+    /// other unresolvable requests to `about:blank`. Other externals fail the
+    /// code generation.
     ///
     /// A request without any constant parts (e.g. `new URL(variable,
     /// import.meta.url)`) is left untouched.
@@ -181,6 +182,7 @@ impl UrlAssetReferenceCodeGen {
             Some(Vc::upcast(*self.reference)),
         )
         .await?;
+        pattern_mapping.ensure_url_externals()?;
 
         // For rendering environments (CSR), we rewrite the `import.meta.url` to
         // be a location.origin because it allows us to access files from the root of
