@@ -714,9 +714,7 @@ mod tests {
 
     /// The production batch lookup preserves request order, duplicates and missing entries on
     /// both sides of the parallel cutoff.
-    // Default worker count like the other database tests here: under the WASI test host, file
-    // descriptors are per thread, so committing SST files from extra runtime workers fails.
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn test_batch_lookup_data_roundtrip_at_parallel_threshold() -> Result<()> {
         let tempdir = test_temp_dir()?;
         let db = TurboKeyValueDatabase::new(tempdir.path().to_path_buf(), TEST_STORAGE_OPTIONS)?;

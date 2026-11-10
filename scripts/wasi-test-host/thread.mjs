@@ -10,10 +10,11 @@ import process from 'node:process'
 import { WASI } from 'node:wasi'
 import { parentPort, workerData } from 'node:worker_threads'
 
+import { createPreview1Imports } from './fs.mjs'
 import { createReadCustomSection } from './lib.mjs'
 import { createThreadRuntime } from './spawn.mjs'
 
-const { threadIds, args, env, preopens } = workerData
+const { threadIds, fdTable, args, env, preopens } = workerData
 
 const handler = new ThreadMessageHandler({
   postMessage: (message) => parentPort.postMessage(message),
@@ -36,6 +37,7 @@ const handler = new ThreadMessageHandler({
       module: wasmModule,
       memory: wasmMemory,
       threadIds,
+      fdTable,
       args,
       env,
       preopens,
@@ -47,7 +49,12 @@ const handler = new ThreadMessageHandler({
     })
 
     const instance = await WebAssembly.instantiate(wasmModule, {
-      ...wasi.getImportObject(),
+      // Files go through the fd table shared with every other thread; the rest stays local.
+      wasi_snapshot_preview1: createPreview1Imports({
+        buffer: fdTable,
+        memory: wasmMemory,
+        wasi,
+      }),
       env: {
         memory: wasmMemory,
         read_custom_section: createReadCustomSection(wasmModule, wasmMemory),

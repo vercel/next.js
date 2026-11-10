@@ -23,6 +23,11 @@ The other missing host feature is
 memory and atomics, but Node's `WASI#getImportObject()` exposes only `wasi_snapshot_preview1`, not the
 proposal's `wasi` namespace. `@emnapi/wasi-threads` bridges that import to Node Workers.
 
+Threads also need one file descriptor table. `node:wasi` keeps its fd table inside each `WASI`
+instance, and every thread is a separate instance, so a file opened on one thread would be a bad
+descriptor (or a different file) on all the others. The host therefore implements the filesystem
+imports itself over a table shared by every thread; see [Files](#files).
+
 The same hook will be needed by the Next.js wasm loader for Turbopack itself, so the
 `read_custom_section` implementation here is a first cut of that work rather than test-only
 scaffolding.
@@ -36,19 +41,27 @@ cargo test -p turbo-tasks --lib --target wasm32-wasip1-threads
 cargo test -p turbo-tasks-backend --lib --target wasm32-wasip1-threads
 ```
 
+The host's own tests run without a wasm build:
+
+```sh
+node --test scripts/wasi-test-host/*.test.mjs
+```
+
 Building for that target also needs a WASI C toolchain, because `lz4-sys` and `zstd-sys` have C build
 scripts — see the `test-next-napi-bindings-wasi` job in `.github/workflows/build_and_test.yml` for the
 wasi-sdk setup.
 
 ## What it provides
 
-| Import                     | Source                                                                                    |
-| -------------------------- | ----------------------------------------------------------------------------------------- |
-| `wasi_snapshot_preview1.*` | `node:wasi`                                                                               |
-| `wasi.thread-spawn`        | `@emnapi/wasi-threads` over `node:worker_threads` (`spawn.mjs`)                           |
-| `env.memory`               | a shared `WebAssembly.Memory` matching the explicit linker limits in `.cargo/config.toml` |
-| `env.read_custom_section`  | `WebAssembly.Module.customSections` (`lib.mjs`)                                           |
-| filesystem                 | working directory at `/`; the system `os.tmpdir()` at `/tmp`, also exported as `TMPDIR`   |
+| Import                                  | Source                                                                                    |
+| --------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `wasi_snapshot_preview1.fd_*`, `path_*` | `node:fs` over an fd table shared by all threads (`fs.mjs`)                               |
+| `wasi_snapshot_preview1.poll_oneoff`    | clock-only: `node:wasi`; on fds: the shared table (`fs.mjs`)                              |
+| other `wasi_snapshot_preview1.*`        | `node:wasi`, one instance per thread                                                      |
+| `wasi.thread-spawn`                     | `@emnapi/wasi-threads` over `node:worker_threads` (`spawn.mjs`)                           |
+| `env.memory`                            | a shared `WebAssembly.Memory` matching the explicit linker limits in `.cargo/config.toml` |
+| `env.read_custom_section`               | `WebAssembly.Module.customSections` (`lib.mjs`)                                           |
+| filesystem                              | working directory at `/`; the system `os.tmpdir()` at `/tmp`, also exported as `TMPDIR`   |
 
 `@emnapi/wasi-threads` owns Worker lifecycle, compiled-module transfer, load/start ordering, and
 cleanup. A small local adapter remains because Rust imports the original one-argument
@@ -77,9 +90,54 @@ make the module usable. `registry::tests::registries_are_populated` guards this 
 
 WASI preview1's `std::env::temp_dir()` is unsupported, so Rust tests cannot use
 `tempfile::tempdir()` directly. The runner pre-opens the system's actual temporary directory as
-`/tmp` for the main instance and every pthread, and exports that guest path through `TMPDIR`.
+`/tmp` for the whole process (see [Files](#files)), and exports that guest path through `TMPDIR`.
 `turbo-tasks-backend`'s `test_temp_dir()` helper reads it explicitly, keeping fixtures out of the
 checkout and Cargo `target` tree.
+
+### Files
+
+Rust programs pass open files between threads all the time: Tokio tasks move between workers, and
+`turbo-persistence` creates, syncs and reads files from parallel helper jobs. With `node:wasi`'s
+per-instance fd table, that fails (`Bad file descriptor`) or, worse, an fd number names a different
+file on another thread.
+
+Host OS fds, unlike that table, are process-wide across Workers. So `fs.mjs` implements the `fd_*`
+and `path_*` imports on synchronous `node:fs` calls, and keeps the guest fd table — host fd, file
+type, flags, rights, offset, and for directories their host path — in a `SharedArrayBuffer` that
+every thread maps:
+
+- **I/O stays concurrent.** Each call runs on the calling thread. Only fd allocation, `fd_close` and
+  `fd_renumber` take a short lock on the table, never across a syscall, and lookups are lock-free
+  (a per-entry sequence counter makes sure a lookup never sees half of a replaced entry). A thread
+  blocked in a read does not hold up file I/O on any other thread.
+- **fds belong to the process, not the thread.** The main thread opens stdio and the preopens once.
+  Workers are created with `trackUnmanagedFds: false`, so a thread exiting does not close host fds
+  that other threads still use; a guest fd stays valid until the guest closes it.
+- **The file offset is shared** across threads, like a real fd's. Node has no `lseek`, so the offset
+  of a seekable fd lives in the table, and the calls that use it (`fd_read`, `fd_write`, `fd_seek`,
+  `fd_tell`) hold that fd's own I/O lock across their syscall. Concurrent reads or writes through one
+  fd therefore never see the same bytes twice or overwrite each other. The lock is per fd: other
+  fds, positioned I/O (`fd_pread`/`fd_pwrite`, which `turbo-persistence` uses for SST reads),
+  syncs, stats, path calls and non-seekable fds (pipes, FIFOs, stdio) never wait for it.
+- **Paths stay inside the directory fd.** Components resolve in order, like the OS, so `link/..` is
+  the parent of the link's target. Absolute paths, `..` above the base, and symlinks (in any
+  component) that lead out of it fail with `ENOTCAPABLE`. A directory fd resolves through its host
+  path, so it remembers the directory's `dev`/`ino` and fails with `ENOENT` once that path names
+  something else, such as after a rename. Resolution is not atomic with the syscall that follows; this
+  is a test host, not a sandbox.
+- **What `node:fs` cannot do is an errno, not a fallback.** Rights are reported but not enforced, so
+  `fd_fdstat_set_rights` only accepts the current rights. `fd_fdstat_set_flags` only accepts the
+  current flags. `fd_allocate` cannot reserve space, and offsets beyond `Number.MAX_SAFE_INTEGER` are
+  rejected rather than rounded. All of these return `ENOTSUP`, `EINVAL` or `EOVERFLOW`. `poll_oneoff`
+  reports regular files and directories as ready and other fd types as `ENOTSUP`. Nothing falls back
+  to `node:wasi`'s private table.
+
+`fs.test.mjs` covers these properties, including:
+
+- a thread blocked on a FIFO read not stopping another from opening, writing, syncing and closing a
+  file;
+- several threads reading or writing records through one fd;
+- lookups racing `fd_close`/`fd_renumber`.
 
 ### Threads
 
