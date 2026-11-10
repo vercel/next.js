@@ -1,0 +1,35 @@
+{
+  "name": "nextjs",
+  "description": "Official Next.js agent skills",
+  "author": {
+    "name": "Next.js Team",
+    "url": "https://nextjs.org"
+  },
+  "homepage": "https://nextjs.org/docs",
+  "repository": "https://github.com/vercel/next.js",
+  "license": "MIT",
+  "keywords": [
+    "nextjs",
+    "react",
+    "cache-components",
+    "partial-prerendering",
+    "partial-prefetching",
+    "skills"
+  ],
+  "skills": [
+    "./next-bundle-optimizer",
+    "./next-cache-components-adoption",
+    "./next-cache-components-optimizer",
+    "./next-dev-loop",
+    "./next-partial-prefetching-adoption",
+    "./next-partial-prefetching-optimizer"
+  ],
+  "interface": {
+    "displayName": "Next.js",
+    "shortDescription": "Official Next.js agent skills",
+    "longDescription": "Agent skills for Cache Components, Partial Prefetching, and Next.js runtime verification, installed from the skills already in this repository.",
+    "developerName": "Next.js Team",
+    "category": "Developer Tools",
+    "websiteURL": "https://nextjs.org/docs"
+  }
+}
