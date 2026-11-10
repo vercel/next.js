@@ -3193,7 +3193,11 @@ export default async function build(
           mappedPages[page].startsWith('private-next-pages')
       )
       usedStaticStatusPages.forEach((page) => {
-        if (!ssgPages.has(page) && !customAppGetInitialProps) {
+        if (
+          !isCompileMode &&
+          !ssgPages.has(page) &&
+          !customAppGetInitialProps
+        ) {
           staticPages.add(page)
         }
       })
