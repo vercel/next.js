@@ -28,20 +28,41 @@ describe('Link rendering', () => {
     ['ftp', 'ftp://example.com/socket'],
     ['gopher', 'gopher://example.com/socket'],
     ['file', 'file://example.com/socket'],
-    ['news', 'news:example.comsocket'],
+    ['news', 'news:example.com/socket'],
     ['sftp', 'sftp:example.comsocket'],
     ['web+https', 'web+https:example.comsocket'],
   ])('should format a URL object with protocol %s', (protocol, href) => {
+    const pathname = protocol === 'news' ? '/socket' : 'socket'
     const element = React.createElement(
       Link,
       {
-        href: { protocol, hostname: 'example.com', pathname: 'socket' },
+        href: { protocol, hostname: 'example.com', pathname },
       },
       'to another page'
     )
 
     expect(ReactDOM.renderToString(element)).toBe(
       `<a href="${href}">to another page</a>`
+    )
+  })
+
+  it('should preserve explicit slashes for a custom protocol', () => {
+    const element = React.createElement(
+      Link,
+      {
+        href: {
+          protocol: 'sftp',
+          slashes: true,
+          host: 'example.com:8080',
+          pathname: '/socket',
+          query: { download: '1' },
+        },
+      },
+      'to another page'
+    )
+
+    expect(ReactDOM.renderToString(element)).toBe(
+      '<a href="sftp://example.com:8080/socket?download=1">to another page</a>'
     )
   })
 })
