@@ -39,13 +39,11 @@ export function appendNodeOutgoingHttpHeaders(
     const key = keys[i]
     const value = nodeHeaders[key]
     if (Array.isArray(value)) {
-      for (let v of value as Array<string | number | undefined>) {
+      const values = value as Array<string | number | undefined>
+      for (let j = 0; j < values.length; j++) {
+        const v = values[j]
         if (typeof v === 'undefined') continue
-        if (typeof v === 'number') {
-          v = v.toString()
-        }
-
-        headers.append(key, v)
+        headers.append(key, typeof v === 'number' ? v.toString() : v)
       }
     } else if (typeof value !== 'undefined') {
       headers.append(key, typeof value === 'number' ? value.toString() : value)
