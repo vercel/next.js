@@ -433,7 +433,7 @@ revalidateTag('posts')
 revalidateTag('posts', 'max')
 ```
 
-To preserve immediate expiration and [client refresh](/docs/app/api-reference/functions/updateTag#client-cache-behavior) in Server Actions, use [`updateTag`](/docs/app/api-reference/functions/updateTag) instead.
+If you need immediate expiration rather than stale-while-revalidate, use [`updateTag`](/docs/app/api-reference/functions/updateTag) in Server Actions instead. This also preserves [client refresh](/docs/app/api-reference/functions/updateTag#client-cache-behavior).
 
 ```ts filename="app/actions.ts" switcher
 'use server'
