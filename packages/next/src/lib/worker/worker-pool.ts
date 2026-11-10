@@ -3,6 +3,7 @@ import { fork } from 'child_process'
 import { Worker as NodeWorker } from 'worker_threads'
 import { PassThrough } from 'stream'
 import path from 'path'
+import type { ForkServer, ForkServerWorkerProcess } from './fork-server'
 import {
   CHILD_MESSAGE_INITIALIZE,
   CHILD_MESSAGE_CALL,
@@ -63,6 +64,12 @@ export interface WorkerPoolOptions {
     env?: Partial<NodeJS.ProcessEnv>
     execArgv?: string[]
   }
+  /**
+   * Spawn child_process workers through this fork server instead of forking
+   * the current process, while it is available. Has no effect for
+   * worker_threads. (default: fork the current process)
+   */
+  forkServer?: ForkServer
   /** Arguments passed to the optional setup() function in the worker module */
   setupArgs?: unknown[]
   /**
@@ -112,8 +119,8 @@ const enum WorkerState {
 }
 
 interface PoolWorker {
-  /** The underlying child process or worker thread */
-  process: ChildProcess | NodeWorker
+  /** The underlying child process (forked or spawned by the fork server) or worker thread */
+  process: ChildProcess | ForkServerWorkerProcess | NodeWorker
   /** Uniform handle for message passing and lifecycle management */
   handle: WorkerHandle
   /** Map of in-flight request IDs to their resolve/reject callbacks */
@@ -135,16 +142,27 @@ const FORCE_EXIT_DELAY = 5000
 const CPU_PROFILE_FORCE_EXIT_DELAY = 60_000
 
 /**
- * A worker abstraction that wraps `ChildProcess` and `NodeWorker`,
- * exposing a uniform interface for message passing, exit handling, and
- * lifecycle management. This avoids repeated `instanceof` checks
- * throughout the pool logic.
+ * The subset of the `ChildProcess` API used by the pool. Implemented by forked
+ * `ChildProcess`es and by `ForkServerWorkerProcess`.
+ */
+interface ChildProcessLike extends NodeJS.EventEmitter {
+  send(message: unknown, callback: (error: Error | null) => void): boolean
+  kill(signal?: NodeJS.Signals): boolean
+  stdout: NodeJS.ReadableStream | null
+  stderr: NodeJS.ReadableStream | null
+}
+
+/**
+ * A worker abstraction that wraps `ChildProcess`, `ForkServerWorkerProcess`
+ * and `NodeWorker`, exposing a uniform interface for message passing, exit
+ * handling, and lifecycle management. This avoids repeated `instanceof`
+ * checks throughout the pool logic.
  */
 class WorkerHandle {
   private _thread: NodeWorker | null
-  private _process: ChildProcess | null
+  private _process: ChildProcessLike | null
 
-  constructor(proc: ChildProcess | NodeWorker) {
+  constructor(proc: ChildProcess | ForkServerWorkerProcess | NodeWorker) {
     if (proc instanceof NodeWorker) {
       this._thread = proc
       this._process = null
@@ -165,8 +183,11 @@ class WorkerHandle {
 
   /** Listen for messages from the worker */
   onMessage(callback: (message: ParentMessage) => void): void {
-    const target = (this._thread ?? this._process)!
-    target.on('message', callback as (...args: unknown[]) => void)
+    if (this._thread) {
+      this._thread.on('message', callback)
+    } else {
+      this._process!.on('message', callback)
+    }
   }
 
   /** Listen for exit events. worker_threads only emits a code; signal is null. */
@@ -194,8 +215,11 @@ class WorkerHandle {
    * "failed to fork" would surface as unhandled 'error' events.
    */
   onError(callback: (error: Error) => void): void {
-    const target = (this._thread ?? this._process)!
-    target.on('error', callback)
+    if (this._thread) {
+      this._thread.on('error', callback)
+    } else {
+      this._process!.on('error', callback)
+    }
   }
 
   /** Get a readable stream (stdout or stderr) from the worker */
@@ -440,10 +464,15 @@ export class WorkerPool {
 
   /** Spawn a new worker process/thread and register it with the pool. */
   private _spawnWorker(): PoolWorker {
-    const { workerPath, enableWorkerThreads, forkOptions, setupArgs } =
-      this._options
+    const {
+      workerPath,
+      enableWorkerThreads,
+      forkOptions,
+      forkServer,
+      setupArgs,
+    } = this._options
 
-    let proc: ChildProcess | NodeWorker
+    let proc: ChildProcess | ForkServerWorkerProcess | NodeWorker
 
     if (enableWorkerThreads) {
       const threadChildPath = path.resolve(__dirname, 'worker-thread-child.js')
@@ -458,7 +487,7 @@ export class WorkerPool {
         __dirname,
         'worker-process-child.js'
       )
-      proc = fork(processChildPath, [], {
+      const spawnOptions = {
         cwd: process.cwd(),
         env: {
           ...process.env,
@@ -467,8 +496,10 @@ export class WorkerPool {
         execArgv:
           forkOptions?.execArgv ??
           process.execArgv.filter((arg) => !/^--(debug|inspect)/.test(arg)),
-        silent: true,
-      })
+      }
+      proc = forkServer?.isAvailable
+        ? forkServer.spawn(processChildPath, spawnOptions)
+        : fork(processChildPath, [], { ...spawnOptions, silent: true })
     }
 
     const handle = new WorkerHandle(proc)

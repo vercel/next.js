@@ -9,8 +9,10 @@ import {
   type DebugAddress,
 } from '../../server/lib/utils'
 import { WorkerPool, WorkerExitError } from './worker-pool'
+import type { ForkServer } from './fork-server'
 
 export { WorkerPool, WorkerExitError } from './worker-pool'
+export { ForkServer } from './fork-server'
 
 export interface WorkerOptions {
   /**
@@ -22,6 +24,11 @@ export interface WorkerOptions {
   forkOptions?: {
     env?: Partial<NodeJS.ProcessEnv> | undefined
   }
+  /**
+   * Spawn worker processes through this fork server instead of forking the
+   * current process (see `fork-server.ts`). Passed through to WorkerPool.
+   */
+  forkServer?: ForkServer
   /**
    * Maximum number of workers to spawn (default: os.cpus().length - 1, minimum 1)
    */
@@ -198,6 +205,7 @@ export class Worker {
       maxRetries = 0,
       concurrencyPerWorker,
       forkOptions,
+      forkServer,
       maxBootingWorkers,
     } = options
 
@@ -240,6 +248,7 @@ export class Worker {
           ...process.execArgv.filter((arg) => !/^--(debug|inspect)/.test(arg)),
         ],
       },
+      forkServer,
       onCustomMessage: (data) => {
         if (
           data &&
