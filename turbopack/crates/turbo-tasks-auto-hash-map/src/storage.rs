@@ -15,9 +15,11 @@
 //!   insertion ordered map storages. It is implemented for [`indexmap::IndexMap`].
 //! * [`BackingListStorage`] is implemented for [`TinyVec`], [`Vec`] and [`ArrayVec`]. A list holds
 //!   at most [`MAX_USEFUL_LINEAR_SCAN`] items. Other list types can implement it too.
+//!
+//! Key lookups take any `Q: Hash + `[`Equivalent`]`<K>`, like `hashbrown` and `indexmap` do. Every
+//! `Q` that `K` borrows as is equivalent to `K`.
 
 use std::{
-    borrow::Borrow,
     hash::{BuildHasher, Hash},
     marker::PhantomData,
     ops::{Deref, DerefMut},
@@ -26,6 +28,8 @@ use std::{
 
 use arrayvec::ArrayVec;
 use hashbrown::{HashMap, hash_map as hashbrown_map};
+/// The key equivalence trait of `hashbrown` and `indexmap`, used by all key lookups.
+pub use indexmap::Equivalent;
 use indexmap::{IndexMap, map as indexmap_map, map::RawEntryApiV1};
 
 use crate::{
@@ -561,15 +565,17 @@ pub trait BackingMapStorage<K, V>: Sized {
         K: Eq + Hash,
         Self::Hasher: BuildHasher;
     /// Removes `key`. Ordered storages preserve the order of the other entries.
-    fn remove(&mut self, key: &K) -> Option<V>
+    fn remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         Self::Hasher: BuildHasher;
     /// Removes `key` by swapping the last entry into its place. This is O(1) for ordered storages
     /// too, but changes their order. Unordered storages remove the same way as [`Self::remove`].
-    fn swap_remove(&mut self, key: &K) -> Option<V>
+    fn swap_remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         Self::Hasher: BuildHasher;
     fn extend(&mut self, iter: impl Iterator<Item = (K, V)>)
     where
@@ -577,16 +583,23 @@ pub trait BackingMapStorage<K, V>: Sized {
         Self::Hasher: BuildHasher;
     fn get<Q>(&self, key: &Q) -> Option<&V>
     where
-        K: Eq + Hash + Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         Self::Hasher: BuildHasher;
-    fn get_mut(&mut self, key: &K) -> Option<&mut V>
+    fn get_key_value<Q>(&self, key: &Q) -> Option<(&K, &V)>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         Self::Hasher: BuildHasher;
-    fn contains_key(&self, key: &K) -> bool
+    fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
+        Self::Hasher: BuildHasher;
+    fn contains_key<Q>(&self, key: &Q) -> bool
+    where
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         Self::Hasher: BuildHasher;
     fn shrink_to_fit(&mut self)
     where
@@ -628,8 +641,8 @@ pub trait BackingMapStorage<K, V>: Sized {
 
     fn raw_entry_mut<Q>(&mut self, key: &Q) -> MapEntry<Self::RawOccupied<'_>, Self::RawVacant<'_>>
     where
-        K: Eq + Hash + Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         Self::Hasher: BuildHasher;
     fn raw_occupied_get_mut<'e, 'a>(entry: &'e mut Self::RawOccupied<'a>) -> &'e mut V
     where
@@ -671,8 +684,8 @@ pub trait IndexedBackingMapStorage<K, V>: BackingMapStorage<K, V> {
     /// The position of `key`, if it is in the map.
     fn get_index_of<Q>(&self, key: &Q) -> Option<usize>
     where
-        K: Eq + Hash + Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         Self::Hasher: BuildHasher;
 }
 
@@ -684,8 +697,8 @@ impl<K, V, H> IndexedBackingMapStorage<K, V> for IndexMap<K, V, H> {
     #[inline]
     fn get_index_of<Q>(&self, key: &Q) -> Option<usize>
     where
-        K: Eq + Hash + Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         IndexMap::get_index_of(self, key)
@@ -818,17 +831,19 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
         HashMap::insert(self, key, value)
     }
     #[inline]
-    fn remove(&mut self, key: &K) -> Option<V>
+    fn remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         HashMap::remove(self, key)
     }
     #[inline]
-    fn swap_remove(&mut self, key: &K) -> Option<V>
+    fn swap_remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         HashMap::remove(self, key)
@@ -844,24 +859,35 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
     #[inline]
     fn get<Q>(&self, key: &Q) -> Option<&V>
     where
-        K: Eq + Hash + Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         HashMap::get(self, key)
     }
     #[inline]
-    fn get_mut(&mut self, key: &K) -> Option<&mut V>
+    fn get_key_value<Q>(&self, key: &Q) -> Option<(&K, &V)>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
+        H: BuildHasher,
+    {
+        HashMap::get_key_value(self, key)
+    }
+    #[inline]
+    fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
+    where
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         HashMap::get_mut(self, key)
     }
     #[inline]
-    fn contains_key(&self, key: &K) -> bool
+    fn contains_key<Q>(&self, key: &Q) -> bool
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         HashMap::contains_key(self, key)
@@ -933,8 +959,8 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
     #[inline]
     fn raw_entry_mut<Q>(&mut self, key: &Q) -> MapEntry<Self::RawOccupied<'_>, Self::RawVacant<'_>>
     where
-        K: Eq + Hash + Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         match HashMap::raw_entry_mut(self).from_key(key) {
@@ -1140,17 +1166,19 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
         IndexMap::insert(self, key, value)
     }
     #[inline]
-    fn remove(&mut self, key: &K) -> Option<V>
+    fn remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         IndexMap::shift_remove(self, key)
     }
     #[inline]
-    fn swap_remove(&mut self, key: &K) -> Option<V>
+    fn swap_remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         IndexMap::swap_remove(self, key)
@@ -1166,24 +1194,35 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
     #[inline]
     fn get<Q>(&self, key: &Q) -> Option<&V>
     where
-        K: Eq + Hash + Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         IndexMap::get(self, key)
     }
     #[inline]
-    fn get_mut(&mut self, key: &K) -> Option<&mut V>
+    fn get_key_value<Q>(&self, key: &Q) -> Option<(&K, &V)>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
+        H: BuildHasher,
+    {
+        IndexMap::get_key_value(self, key)
+    }
+    #[inline]
+    fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
+    where
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         IndexMap::get_mut(self, key)
     }
     #[inline]
-    fn contains_key(&self, key: &K) -> bool
+    fn contains_key<Q>(&self, key: &Q) -> bool
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         IndexMap::contains_key(self, key)
@@ -1279,8 +1318,8 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
     #[inline]
     fn raw_entry_mut<Q>(&mut self, key: &Q) -> MapEntry<Self::RawOccupied<'_>, Self::RawVacant<'_>>
     where
-        K: Eq + Hash + Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         match self.raw_entry_mut_v1().from_key(key) {

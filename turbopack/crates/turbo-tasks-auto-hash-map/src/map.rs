@@ -1,5 +1,4 @@
 use std::{
-    borrow::Borrow,
     fmt::{Debug, Formatter},
     hash::{BuildHasher, BuildHasherDefault, Hash},
     marker::PhantomData,
@@ -23,8 +22,8 @@ use shrink_to_fit::ShrinkToFit;
 use crate::{
     MAX_USEFUL_LINEAR_SCAN, MIN_HASH_SIZE, TinyVec,
     storage::{
-        BackingListStorage, BackingMapIter, BackingMapStorage, IndexedBackingMapStorage,
-        ListPredicate, MapEntry,
+        BackingListStorage, BackingMapIter, BackingMapStorage, Equivalent,
+        IndexedBackingMapStorage, ListPredicate, MapEntry,
     },
 };
 
@@ -160,6 +159,55 @@ where
         RawAutoMap::List(list, PhantomData)
     }
 
+    /// Wraps a whole backing map. Maps that fit into the list variant become a list (in iteration
+    /// order), larger maps are moved in as they are.
+    fn from_backing_map(mut map: M) -> Self {
+        if map.len() <= MAX_USEFUL_LINEAR_SCAN {
+            Self::map_to_exact_list(&mut map)
+        } else {
+            RawAutoMap::Map(Box::new(map))
+        }
+    }
+
+    /// Creates a map from entries whose keys are unique, e.g. the entries of another map.
+    ///
+    /// Unlike [`FromIterator`] it doesn't compare keys while the entries fit into the list
+    /// variant. Like [`FromIterator`], it builds the map variant right away when the lower bound of
+    /// the size hint doesn't fit into the list. Ordered storages keep the order of the iterator.
+    ///
+    /// The caller must ensure that the keys are unique. Duplicate keys are a logic error: the
+    /// content of the map is unspecified then (but it stays memory safe). Debug builds check for
+    /// duplicates in the list variant.
+    pub fn from_unique_iterator(iter: impl IntoIterator<Item = (K, V)>) -> Self {
+        let mut iter = iter.into_iter();
+        let (lower, _) = iter.size_hint();
+        if lower > MAX_USEFUL_LINEAR_SCAN {
+            let mut map = M::with_capacity_and_hasher(lower, Default::default());
+            map.extend(iter);
+            return RawAutoMap::Map(Box::new(map));
+        }
+        let mut list = L::with_capacity(lower);
+        while list.len() < MAX_USEFUL_LINEAR_SCAN {
+            let Some((key, value)) = iter.next() else {
+                return RawAutoMap::List(list, PhantomData);
+            };
+            debug_assert!(
+                list.iter().all(|(k, _)| *k != key),
+                "from_unique_iterator: duplicate key"
+            );
+            list.push((key, value));
+        }
+        // The list is full. Any further entry (the size hint was understated) needs the map.
+        let Some((key, value)) = iter.next() else {
+            return RawAutoMap::List(list, PhantomData);
+        };
+        let mut this: Self = RawAutoMap::List(list, PhantomData);
+        let map: &mut M = this.convert_to_map(iter.size_hint().0 + 1);
+        map.insert(key, value);
+        map.extend(iter);
+        this
+    }
+
     /// see [HashMap::insert](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.insert)
     #[inline]
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
@@ -218,11 +266,14 @@ where
     ///
     /// Ordered storages preserve the order of the remaining entries.
     #[inline]
-    pub fn remove(&mut self, key: &K) -> Option<V> {
+    pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
+    where
+        Q: Hash + Equivalent<K> + ?Sized,
+    {
         match self {
             RawAutoMap::List(list, _) => {
                 for i in 0..list.len() {
-                    if list[i].0 == *key {
+                    if key.equivalent(&list[i].0) {
                         return Some(Self::list_remove(list, i).1);
                     }
                 }
@@ -238,11 +289,14 @@ where
     /// This always swaps, also for ordered storages, so it's O(1) there but changes the order of
     /// the remaining entries. For unordered storages it's the same as [`Self::remove`].
     #[inline]
-    pub fn swap_remove(&mut self, key: &K) -> Option<V> {
+    pub fn swap_remove<Q>(&mut self, key: &Q) -> Option<V>
+    where
+        Q: Hash + Equivalent<K> + ?Sized,
+    {
         match self {
             RawAutoMap::List(list, _) => {
                 for i in 0..list.len() {
-                    if list[i].0 == *key {
+                    if key.equivalent(&list[i].0) {
                         return Some(list.swap_remove(i).1);
                     }
                 }
@@ -294,12 +348,11 @@ where
 
     pub fn raw_entry_mut<Q>(&mut self, key: &Q) -> RawEntry<'_, K, V, M, L>
     where
-        K: Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        Q: Hash + Equivalent<K> + ?Sized,
     {
         // Look up the list position first, so that the vacant entry can borrow the whole map.
         let list_position = match self {
-            RawAutoMap::List(list, _) => Some(list.iter().position(|(k, _)| k.borrow() == key)),
+            RawAutoMap::List(list, _) => Some(list.iter().position(|(k, _)| key.equivalent(k))),
             RawAutoMap::Map(_) => None,
         };
         match (list_position, self) {
@@ -398,31 +451,50 @@ where
     /// see [HashMap::get](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.get)
     pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
-        K: Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        Q: Hash + Equivalent<K> + ?Sized,
     {
         match self {
             RawAutoMap::List(list, _) => list
                 .iter()
-                .find_map(|(k, v)| if *k.borrow() == *key { Some(v) } else { None }),
+                .find_map(|(k, v)| if key.equivalent(k) { Some(v) } else { None }),
             RawAutoMap::Map(map) => map.get(key),
         }
     }
 
+    /// see [HashMap::get_key_value](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.get_key_value)
+    pub fn get_key_value<Q>(&self, key: &Q) -> Option<(&K, &V)>
+    where
+        Q: Hash + Equivalent<K> + ?Sized,
+    {
+        match self {
+            RawAutoMap::List(list, _) => list
+                .iter()
+                .find(|(k, _)| key.equivalent(k))
+                .map(|(k, v)| (k, v)),
+            RawAutoMap::Map(map) => map.get_key_value(key),
+        }
+    }
+
     /// see [HashMap::get_mut](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.get_mut)
-    pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
+    pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
+    where
+        Q: Hash + Equivalent<K> + ?Sized,
+    {
         match self {
             RawAutoMap::List(list, _) => list
                 .iter_mut()
-                .find_map(|(k, v)| if *k == *key { Some(v) } else { None }),
+                .find_map(|(k, v)| if key.equivalent(k) { Some(v) } else { None }),
             RawAutoMap::Map(map) => map.get_mut(key),
         }
     }
 
     /// see [HashMap::contains_key](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.contains_key)
-    pub fn contains_key(&self, key: &K) -> bool {
+    pub fn contains_key<Q>(&self, key: &Q) -> bool
+    where
+        Q: Hash + Equivalent<K> + ?Sized,
+    {
         match self {
-            RawAutoMap::List(list, _) => list.iter().any(|(k, _)| *k == *key),
+            RawAutoMap::List(list, _) => list.iter().any(|(k, _)| key.equivalent(k)),
             RawAutoMap::Map(map) => map.contains_key(key),
         }
     }
@@ -446,33 +518,54 @@ where
     /// see [IndexMap::get_index_of](https://docs.rs/indexmap/latest/indexmap/map/struct.IndexMap.html#method.get_index_of)
     pub fn get_index_of<Q>(&self, key: &Q) -> Option<usize>
     where
-        K: Eq + Hash + Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         M::Hasher: BuildHasher,
     {
         match self {
-            RawAutoMap::List(list, _) => list.iter().position(|(k, _)| *k.borrow() == *key),
+            RawAutoMap::List(list, _) => list.iter().position(|(k, _)| key.equivalent(k)),
             RawAutoMap::Map(map) => map.get_index_of(key),
         }
     }
 }
 
-/// Converts an [`IndexMap`] keeping its order. Maps that fit into the list variant become a list.
+/// Converts an [`IndexMap`] keeping its order. Maps that fit into the list variant become a list,
+/// larger maps are moved in as they are.
 impl<K, V, H, L> From<IndexMap<K, V, H>> for RawAutoMap<K, V, IndexMap<K, V, H>, L>
 where
+    K: Eq + Hash,
+    H: BuildHasher + Default,
     L: BackingListStorage<(K, V)>,
 {
     fn from(map: IndexMap<K, V, H>) -> Self {
-        if map.len() <= MAX_USEFUL_LINEAR_SCAN {
-            let mut list = L::with_capacity(map.len());
-            // The keys of a map are unique, so they can be pushed without checking.
-            for entry in map {
-                list.push(entry);
-            }
-            RawAutoMap::List(list, PhantomData)
-        } else {
-            RawAutoMap::Map(Box::new(map))
-        }
+        Self::from_backing_map(map)
+    }
+}
+
+/// Converts a [`hashbrown::HashMap`]. Maps that fit into the list variant become a list, larger
+/// maps are moved in as they are.
+impl<K, V, H, L> From<hashbrown::HashMap<K, V, H>>
+    for RawAutoMap<K, V, hashbrown::HashMap<K, V, H>, L>
+where
+    K: Eq + Hash,
+    H: BuildHasher + Default,
+    L: BackingListStorage<(K, V)>,
+{
+    fn from(map: hashbrown::HashMap<K, V, H>) -> Self {
+        Self::from_backing_map(map)
+    }
+}
+
+/// Converts a [`BTreeMap`](std::collections::BTreeMap). Ordered storages keep its key order.
+impl<K, V, M, L> From<std::collections::BTreeMap<K, V>> for RawAutoMap<K, V, M, L>
+where
+    K: Eq + Hash,
+    M: BackingMapStorage<K, V>,
+    M::Hasher: BuildHasher + Default,
+    L: BackingListStorage<(K, V)>,
+{
+    fn from(map: std::collections::BTreeMap<K, V>) -> Self {
+        Self::from_unique_iterator(map)
     }
 }
 
@@ -514,6 +607,11 @@ impl<K, V, M: BackingMapStorage<K, V>, L: BackingListStorage<(K, V)>> RawAutoMap
             RawAutoMap::List(list, _) => Iter::List(ListValuesMut(list.iter_mut())),
             RawAutoMap::Map(map) => Iter::Map(map.values_mut()),
         }
+    }
+
+    /// see [HashMap::keys](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.keys)
+    pub fn keys(&self) -> Keys<Iter<M::Iter<'_>>> {
+        Keys(self.iter())
     }
 
     /// see [HashMap::values](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.values)
@@ -574,6 +672,28 @@ pub type IterMut<MI> = Iter<MI>;
 pub type Values<MI> = Iter<MI>;
 /// See [`Iter`], with `MI` = [`BackingMapStorage::ValuesMut`].
 pub type ValuesMut<MI> = Iter<MI>;
+
+/// Iterator returned by [`RawAutoMap::keys`]: the keys of the `(key, value)` items of `I`.
+///
+/// Like [`Iter`], the trait impls avoid where clauses relating lifetimes (see [`BackingMapIter`]).
+#[derive(Clone)]
+pub struct Keys<I>(I);
+
+impl<A, B, I: Iterator<Item = (A, B)>> Iterator for Keys<I> {
+    type Item = A;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|(key, _)| key)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+
+    fn fold<Acc, F: FnMut(Acc, Self::Item) -> Acc>(self, init: Acc, mut f: F) -> Acc {
+        self.0.fold(init, |acc, (key, _)| f(acc, key))
+    }
+}
 
 impl<MI: BackingMapIter> Iterator for Iter<MI> {
     type Item = MI::Item;
@@ -2748,6 +2868,200 @@ mod tests {
             assert_eq!(keys(&map), (0..n).rev().collect::<Vec<_>>());
             let collected: OrderedAutoMap<usize, usize> = index_map.into_iter().collect();
             assert_eq!(map, collected);
+        }
+    }
+
+    #[test]
+    fn test_keys() {
+        for n in [0usize, 5, MAX_USEFUL_LINEAR_SCAN + 18] {
+            let map: OrderedAutoMap<usize, usize> = (0..n).rev().map(|i| (i, i * 2)).collect();
+            assert_eq!(map.keys().size_hint(), (n, Some(n)));
+            assert_eq!(map.keys().copied().collect::<Vec<_>>(), keys(&map));
+            assert_eq!(
+                map.keys().fold(Vec::new(), |mut acc, k| {
+                    acc.push(*k);
+                    acc
+                }),
+                (0..n).rev().collect::<Vec<_>>()
+            );
+            let unordered: AutoMap<usize, usize> = (0..n).map(|i| (i, i)).collect();
+            let mut unordered_keys: Vec<usize> = unordered.keys().copied().collect();
+            unordered_keys.sort();
+            assert_eq!(unordered_keys, (0..n).collect::<Vec<_>>());
+        }
+    }
+
+    #[test]
+    fn test_equivalent_lookups() {
+        /// A borrowed lookup key for `(String, u32)` keys, which don't borrow as it.
+        #[derive(Hash)]
+        struct Ref<'a>(&'a str, u32);
+        impl Equivalent<(String, u32)> for Ref<'_> {
+            fn equivalent(&self, key: &(String, u32)) -> bool {
+                self.0 == key.0 && self.1 == key.1
+            }
+        }
+
+        fn check<M, L>()
+        where
+            M: IndexedBackingMapStorage<(String, u32), usize>,
+            M::Hasher: BuildHasher + Default,
+            L: BackingListStorage<((String, u32), usize)>,
+        {
+            for n in [5usize, MAX_USEFUL_LINEAR_SCAN + 18] {
+                let mut map: RawAutoMap<(String, u32), usize, M, L> =
+                    (0..n).map(|i| ((i.to_string(), i as u32), i)).collect();
+                for i in 0..n {
+                    let name = i.to_string();
+                    let key = Ref(&name, i as u32);
+                    assert_eq!(map.get(&key), Some(&i));
+                    assert_eq!(
+                        map.get_key_value(&key),
+                        Some((&(name.clone(), i as u32), &i))
+                    );
+                    assert!(map.contains_key(&key));
+                    assert_eq!(map.get_index_of(&key), Some(i));
+                    *map.get_mut(&key).unwrap() += 1;
+                    assert!(matches!(map.raw_entry_mut(&key), RawEntry::Occupied(_)));
+                }
+                assert_eq!(map.get(&Ref("0", 1)), None);
+                assert!(matches!(
+                    map.raw_entry_mut(&Ref("0", 1)),
+                    RawEntry::Vacant(_)
+                ));
+                assert_eq!(map.remove(&Ref("1", 1)), Some(2));
+                assert_eq!(map.swap_remove(&Ref("0", 0)), Some(1));
+                assert_eq!(map.len(), n - 2);
+                // `Borrow` lookups keep working: `(String, u32)` is equivalent to itself.
+                assert_eq!(map.get(&("2".to_string(), 2)), Some(&3));
+            }
+        }
+        type F = BuildHasherDefault<FxHasher>;
+        check::<IndexMap<(String, u32), usize, F>, TinyVec<((String, u32), usize), 0, 32>>();
+
+        // Unordered maps and sets accept the same lookups.
+        let mut map: AutoMap<(String, u32), usize> =
+            (0..50).map(|i| ((i.to_string(), i as u32), i)).collect();
+        assert_eq!(map.get(&Ref("7", 7)), Some(&7));
+        assert_eq!(map.remove(&Ref("7", 7)), Some(7));
+        assert!(!map.contains_key(&Ref("7", 7)));
+        let set: crate::AutoSet<(String, u32)> = (0..5).map(|i| (i.to_string(), i)).collect();
+        assert!(set.contains(&Ref("3", 3)));
+        assert!(!set.contains(&Ref("3", 4)));
+    }
+
+    /// An iterator whose lower size hint claims `hint` items, regardless of how many it yields.
+    struct Hinted<I> {
+        iter: I,
+        hint: usize,
+    }
+
+    impl<I: Iterator> Iterator for Hinted<I> {
+        type Item = I::Item;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            self.iter.next()
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            (self.hint, None)
+        }
+    }
+
+    #[test]
+    fn test_from_unique_iterator() {
+        for n in [
+            0usize,
+            1,
+            5,
+            MAX_USEFUL_LINEAR_SCAN,
+            MAX_USEFUL_LINEAR_SCAN + 1,
+            100,
+        ] {
+            let expected: Vec<usize> = (0..n).rev().collect();
+            // Exact size hint, an understated one (`filter` reports 0) and an overstated one.
+            let exact: OrderedAutoMap<usize, usize> =
+                OrderedAutoMap::from_unique_iterator((0..n).rev().map(|i| (i, i * 2)));
+            let understated: OrderedAutoMap<usize, usize> = OrderedAutoMap::from_unique_iterator(
+                (0..n).rev().filter(|_| true).map(|i| (i, i * 2)),
+            );
+            let overstated: OrderedAutoMap<usize, usize> =
+                OrderedAutoMap::from_unique_iterator(Hinted {
+                    iter: (0..n).rev().map(|i| (i, i * 2)),
+                    hint: 100,
+                });
+            for map in [&exact, &understated] {
+                assert_eq!(
+                    matches!(map, RawAutoMap::Map(..)),
+                    n > MAX_USEFUL_LINEAR_SCAN
+                );
+            }
+            // A size hint above the list size builds a map, like `collect`.
+            assert!(matches!(overstated, RawAutoMap::Map(..)));
+            for map in [exact, understated, overstated] {
+                assert_eq!(map.len(), n);
+                assert_eq!(keys(&map), expected);
+                for i in 0..n {
+                    assert_eq!(map.get(&i), Some(&(i * 2)));
+                }
+                let collected: OrderedAutoMap<usize, usize> =
+                    (0..n).rev().map(|i| (i, i * 2)).collect();
+                assert_eq!(map, collected);
+            }
+
+            let unordered: AutoMap<usize, usize> =
+                AutoMap::from_unique_iterator((0..n).map(|i| (i, i * 2)));
+            assert_eq!(
+                matches!(unordered, RawAutoMap::Map(..)),
+                n > MAX_USEFUL_LINEAR_SCAN
+            );
+            assert_eq!(unordered, (0..n).map(|i| (i, i * 2)).collect());
+        }
+    }
+
+    #[test]
+    fn test_from_hash_map() {
+        type F = BuildHasherDefault<FxHasher>;
+        for n in [
+            0usize,
+            5,
+            MAX_USEFUL_LINEAR_SCAN,
+            MAX_USEFUL_LINEAR_SCAN + 1,
+            100,
+        ] {
+            let hash_map: HashMap<usize, usize, F> = (0..n).map(|i| (i, i * 2)).collect();
+            let map: AutoMap<usize, usize> = hash_map.clone().into();
+            assert_eq!(
+                matches!(map, RawAutoMap::Map(..)),
+                n > MAX_USEFUL_LINEAR_SCAN
+            );
+            assert_eq!(map.len(), n);
+            assert_eq!(map, hash_map.into_iter().collect());
+        }
+    }
+
+    #[test]
+    fn test_from_btree_map() {
+        for n in [
+            0usize,
+            5,
+            MAX_USEFUL_LINEAR_SCAN,
+            MAX_USEFUL_LINEAR_SCAN + 1,
+            100,
+        ] {
+            let btree_map: std::collections::BTreeMap<usize, usize> =
+                (0..n).rev().map(|i| (i, i * 2)).collect();
+            let ordered: OrderedAutoMap<usize, usize> = btree_map.clone().into();
+            let unordered: AutoMap<usize, usize> = btree_map.into();
+            for is_map in [
+                matches!(ordered, RawAutoMap::Map(..)),
+                matches!(unordered, RawAutoMap::Map(..)),
+            ] {
+                assert_eq!(is_map, n > MAX_USEFUL_LINEAR_SCAN);
+            }
+            // The ordered map keeps the key order of the `BTreeMap`.
+            assert_eq!(keys(&ordered), (0..n).collect::<Vec<_>>());
+            assert_eq!(unordered, (0..n).map(|i| (i, i * 2)).collect());
         }
     }
 }

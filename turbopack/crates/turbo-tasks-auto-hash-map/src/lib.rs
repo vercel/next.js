@@ -11,7 +11,7 @@ pub use map::RawAutoMap;
 use rustc_hash::FxHasher;
 pub use set::RawAutoSet;
 pub use storage::{
-    BackingListStorage, BackingMapIter, BackingMapStorage, IndexedBackingMapStorage,
+    BackingListStorage, BackingMapIter, BackingMapStorage, Equivalent, IndexedBackingMapStorage,
 };
 pub use tiny_vec::TinyVec;
 
