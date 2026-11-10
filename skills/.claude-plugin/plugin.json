@@ -1,12 +1,13 @@
 {
   "name": "nextjs",
-  "version": "0.1.0",
-  "description": "Official Next.js skills: adopt and optimize Cache Components, adopt Partial Prefetching, and verify runtime behavior against a running dev server.",
+  "version": "0.1.1",
+  "displayName": "Next.js",
+  "description": "Official Next.js agent skills for adopting and optimizing Cache Components and Partial Prefetching, auditing browser bundles with next analyze, and verifying runtime behavior against a running next dev server with /_next/mcp and agent-browser.",
   "author": {
     "name": "Next.js Team",
     "url": "https://nextjs.org"
   },
-  "homepage": "https://nextjs.org/docs",
+  "homepage": "https://nextjs.org",
   "repository": "https://github.com/vercel/next.js",
   "license": "MIT",
   "keywords": [
@@ -15,7 +16,10 @@
     "cache-components",
     "partial-prerendering",
     "partial-prefetching",
-    "skills"
+    "bundle-optimizer",
+    "skills",
+    "coding-agents"
   ],
-  "skills": ["./"]
+  "skills": ["./"],
+  "icon": "./assets/logo.svg"
 }

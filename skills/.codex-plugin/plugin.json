@@ -1,11 +1,12 @@
 {
   "name": "nextjs",
-  "description": "Official Next.js agent skills",
+  "version": "0.1.1",
+  "description": "Official Next.js agent skills for Cache Components, Partial Prefetching, bundle audits, and runtime verification.",
   "author": {
     "name": "Next.js Team",
     "url": "https://nextjs.org"
   },
-  "homepage": "https://nextjs.org/docs",
+  "homepage": "https://nextjs.org",
   "repository": "https://github.com/vercel/next.js",
   "license": "MIT",
   "keywords": [
@@ -14,6 +15,7 @@
     "cache-components",
     "partial-prerendering",
     "partial-prefetching",
+    "bundle-optimizer",
     "skills"
   ],
   "skills": [
@@ -26,10 +28,23 @@
   ],
   "interface": {
     "displayName": "Next.js",
-    "shortDescription": "Official Next.js agent skills",
-    "longDescription": "Agent skills for Cache Components, Partial Prefetching, and Next.js runtime verification, installed from the skills already in this repository.",
+    "shortDescription": "Adopt and optimize Cache Components, Partial Prefetching, and Next.js runtime behavior",
+    "longDescription": "Official Next.js agent skills that ship in the vercel/next.js repository. They teach coding agents how to adopt and optimize Cache Components and Partial Prefetching, audit browser bundles with next analyze, and verify runtime behavior against a running next dev server.\n\nUse them when enabling cacheComponents or partialPrefetching, fixing blocking-prerender and instant-navigation insights, growing a route's static shell, deciding what selected navigations should prefetch, reducing oversized client bundles, or confirming a change works at runtime with /_next/mcp and agent-browser — not just that it compiles.\n\nThe skill text is the same guidance already maintained under skills/ in this repository.",
     "developerName": "Next.js Team",
     "category": "Developer Tools",
-    "websiteURL": "https://nextjs.org/docs"
+    "capabilities": [
+      "Cache Components adoption",
+      "Partial Prefetching workflows",
+      "Bundle and runtime verification"
+    ],
+    "websiteURL": "https://nextjs.org",
+    "defaultPrompt": [
+      "Adopt Cache Components and fix the blocking routes the build reports",
+      "Enable Partial Prefetching and preserve our existing prefetched UI with instant() tests",
+      "Audit this app's client bundles and report oversized dependencies"
+    ],
+    "brandColor": "#000000",
+    "composerIcon": "./assets/logo.svg",
+    "logo": "./assets/logo.svg"
   }
 }

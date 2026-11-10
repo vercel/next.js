@@ -1,32 +1,36 @@
 {
   "name": "nextjs",
+  "description": "Official Next.js agent skills for Claude Code",
   "owner": {
-    "name": "Vercel"
+    "name": "Vercel",
+    "url": "https://vercel.com"
   },
-  "description": "Official Next.js agent skills",
   "plugins": [
     {
       "name": "nextjs",
       "displayName": "Next.js",
-      "description": "Official Next.js skills: adopt and optimize Cache Components, adopt Partial Prefetching, and verify runtime behavior against a running dev server.",
       "source": "./skills",
       "strict": false,
+      "description": "Official Next.js agent skills for adopting and optimizing Cache Components and Partial Prefetching, auditing browser bundles with next analyze, and verifying runtime behavior against a running next dev server with /_next/mcp and agent-browser.",
+      "version": "0.1.1",
       "author": {
         "name": "Next.js Team",
         "url": "https://nextjs.org"
       },
-      "homepage": "https://nextjs.org/docs",
+      "homepage": "https://nextjs.org",
       "repository": "https://github.com/vercel/next.js",
       "license": "MIT",
+      "category": "development",
       "keywords": [
         "nextjs",
         "react",
         "cache-components",
         "partial-prerendering",
         "partial-prefetching",
-        "skills"
-      ],
-      "category": "development"
+        "bundle-optimizer",
+        "skills",
+        "coding-agents"
+      ]
     }
   ]
 }
