@@ -1051,6 +1051,10 @@ export function createStaticWorker(
               __NEXT_PRIVATE_CPU_PROFILE: 'build-static-worker',
             }
           : undefined),
+        // The worker environment is captured when the worker is created, which
+        // can be before the build sets `NEXT_PHASE` on this process (see
+        // `prespawnedStaticWorker`), so pass it explicitly.
+        NEXT_PHASE: PHASE_PRODUCTION_BUILD,
         // worker.ts copies this value into globalThis.NEXT_CLIENT_ASSET_SUFFIX
         __NEXT_PRERENDER_CLIENT_ASSET_SUFFIX:
           config.supportsImmutableAssets || !config.deploymentId
@@ -1903,6 +1907,44 @@ export default async function build(
         },
       })
 
+      const totalPageCount = pageKeys.pages.length + (pageKeys.app?.length || 0)
+
+      // Turbopack compiles in this process, so its heap is large by the time
+      // pages are collected and prerendered. Forking a static worker then is
+      // slow: the kernel copies and later tears down this process's page
+      // tables, and the copy-on-write faults it causes slow down the threads
+      // that are still running (e.g. Turbopack persisting its cache). Start the
+      // workers before compiling, while this process is still small. They wait
+      // idle until page data collection dispatches to them, which only starts
+      // once Turbopack has shut down and released its memory (see below).
+      //
+      // Not needed for `compile` mode, which doesn't use the static worker, or
+      // for worker threads, which aren't forked. Skipped with
+      // `memoryBasedWorkersCount`, which sizes the pool by the free memory left
+      // after compiling, and with `runAfterProductionCompile`, which runs before
+      // the workers would otherwise be created and may change the environment
+      // they inherit.
+      let prespawnedStaticWorker: StaticWorker | undefined
+      if (
+        bundler === Bundler.Turbopack &&
+        !isGenerateMode &&
+        !isCompileMode &&
+        !config.experimental.workerThreads &&
+        !config.experimental.memoryBasedWorkersCount &&
+        !config.compiler?.runAfterProductionCompile
+      ) {
+        staticWorker = prespawnedStaticWorker = createStaticWorker(config, {
+          numberOfWorkers: getNumberOfWorkers(config, totalPageCount),
+          // Port offset 0: export-page workers get the first debugger port after
+          // the parent process (base + 1 + 0).
+          debuggerPortOffset: 0,
+        })
+        const worker = prespawnedStaticWorker
+        nextBuildSpan
+          .traceChild('prespawn-static-workers')
+          .traceFn(() => worker.prespawn())
+      }
+
       let shutdownPromise = Promise.resolve()
       if (!isGenerateMode) {
         if (bundler === Bundler.Turbopack) {
@@ -2269,7 +2311,6 @@ export default async function build(
       // #endregion
       // #region Collect data
 
-      const totalPageCount = pageKeys.pages.length + (pageKeys.app?.length || 0)
       const numberOfWorkers = getNumberOfWorkers(config, totalPageCount)
       const collectingPageDataStart = process.hrtime()
       const postCompileSpinner = createSpinner(
@@ -2361,12 +2402,25 @@ export default async function build(
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-      staticWorker = createStaticWorker(config, {
-        numberOfWorkers,
-        // Port offset 0: export-page workers get the first debugger port after
-        // the parent process (base + 1 + 0).
-        debuggerPortOffset: 0,
-      })
+      if (prespawnedStaticWorker) {
+        // Turbopack keeps its heap until its shutdown (which persists the cache)
+        // finishes. Without the slow forks after compiling, page data
+        // collection would start right away and the workers would load page
+        // bundles while that heap is still alive, raising the build's peak
+        // memory. Wait for the shutdown so the two don't overlap.
+        await nextBuildSpan
+          .traceChild('wait-for-turbopack-shutdown')
+          .traceAsyncFn(() => shutdownPromise)
+      }
+
+      staticWorker =
+        prespawnedStaticWorker ??
+        createStaticWorker(config, {
+          numberOfWorkers,
+          // Port offset 0: export-page workers get the first debugger port
+          // after the parent process (base + 1 + 0).
+          debuggerPortOffset: 0,
+        })
 
       const analysisBegin = process.hrtime()
       const staticCheckSpan = nextBuildSpan.traceChild('static-check')

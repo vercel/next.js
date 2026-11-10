@@ -243,6 +243,107 @@ describe('WorkerPool', () => {
   })
 
   // -----------------------------------------------------------------------
+  // Eager spawning
+  // -----------------------------------------------------------------------
+  describe('prespawn()', () => {
+    it('spawns maxWorkers workers at once, regardless of maxBootingWorkers', () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 5,
+        maxBootingWorkers: 1,
+      })
+      expect(pool.prespawn()).toBe(5)
+      expect(spawnedProcesses).toHaveLength(5)
+      expect(pool.getWorkerCount()).toBe(5)
+      // Every worker is told to load its module right away
+      for (const proc of spawnedProcesses) {
+        expect(proc.sent[0]).toEqual([
+          CHILD_MESSAGE_INITIALIZE,
+          '/fake/worker.js',
+          [],
+        ])
+      }
+      pool.shutdownNow()
+    })
+
+    it('only tops up to maxWorkers and is idempotent', () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 3,
+      })
+      pool.dispatch('a', [])
+      expect(spawnedProcesses).toHaveLength(1)
+      expect(pool.prespawn()).toBe(2)
+      expect(pool.prespawn()).toBe(0)
+      expect(spawnedProcesses).toHaveLength(3)
+      expect(pool.getWorkerCount()).toBe(3)
+      pool.shutdownNow()
+    })
+
+    it('does nothing once the pool is shutting down', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 2,
+      })
+      const endPromise = pool.shutdown()
+      expect(pool.prespawn()).toBe(0)
+      expect(spawnedProcesses).toHaveLength(0)
+      await endPromise
+    })
+
+    it('queues calls dispatched while workers boot and spreads them once ready', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 3,
+        maxBootingWorkers: 1,
+      })
+      pool.prespawn()
+      const calls = [
+        pool.dispatch('a', [1]),
+        pool.dispatch('b', [2]),
+        pool.dispatch('c', [3]),
+      ]
+      // No extra workers are spawned for these calls
+      expect(spawnedProcesses).toHaveLength(3)
+      const callsSent = () =>
+        spawnedProcesses.flatMap((p) =>
+          p.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+        )
+      expect(callsSent()).toHaveLength(0)
+
+      for (const proc of spawnedProcesses) {
+        replyReady(proc)
+      }
+      // Each prespawned worker gets one call (concurrencyPerWorker = 1)
+      for (const proc of spawnedProcesses) {
+        const procCalls = proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+        expect(procCalls).toHaveLength(1)
+        replyOk(proc, procCalls[0][1] as number, procCalls[0][2])
+      }
+      expect((await Promise.all(calls)).sort()).toEqual(['a', 'b', 'c'])
+      pool.shutdownNow()
+    })
+
+    it('shuts down unused prespawned workers gracefully', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 2,
+      })
+      pool.prespawn()
+      // One worker finished booting, the other is still booting
+      replyReady(spawnedProcesses[0])
+
+      const endPromise = pool.shutdown()
+      for (const proc of spawnedProcesses) {
+        expect(proc.sent).toContainEqual([CHILD_MESSAGE_END])
+        proc.emit('exit', 0, null)
+      }
+      expect(await endPromise).toEqual({ forceExited: false })
+      expect(pool.getWorkerCount()).toBe(0)
+    })
+  })
+
+  // -----------------------------------------------------------------------
   // INITIALIZE message
   // -----------------------------------------------------------------------
   describe('initialization', () => {

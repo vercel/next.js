@@ -4,7 +4,7 @@ Custom worker pool implementation for Next.js, replacing `jest-worker`.
 
 ## Key Features
 
-- **Lazy spawning**: Workers are created on-demand when jobs are dispatched, not at construction time
+- **Lazy spawning**: Workers are created on-demand when jobs are dispatched, not at construction time. `prespawn()` starts them all up front instead, e.g. so `next build` can fork its static workers before Turbopack grows the parent's heap (forking a process with a large heap is slow)
 - **Dynamic scaling**: Worker count grows as concurrent jobs increase, up to `maxWorkers`. Workers are never scaled down — once spawned, a worker persists until the pool is shut down.
 - **Per-worker concurrency**: Configurable concurrent calls per worker via `concurrencyPerWorker`
 - **Boot throttling**: `maxBootingWorkers` limits how many workers start concurrently, preventing resource contention when many tasks arrive at once
@@ -135,6 +135,7 @@ On END, the child runs `teardown()` (if exported) and then exits with `process.e
 | Method                   | Returns                             | Description                                                                                                                                          |
 | ------------------------ | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `dispatch(method, args)` | `Promise<unknown>`                  | Call a method on a worker; spawns/queues as needed                                                                                                   |
+| `prespawn()`             | `number`                            | Spawn workers up to `maxWorkers` right away, ignoring `maxBootingWorkers`; returns how many were spawned. No-op once shutting down                   |
 | `shutdown()`             | `Promise<{ forceExited: boolean }>` | Graceful shutdown: sends END to workers, waits for exit (5s force-kill timeout, 60s with `NEXT_CPU_PROF` so workers can finish writing CPU profiles) |
 | `shutdownNow()`          | `void`                              | Immediate shutdown: force-kills all workers, rejects in-flight and queued tasks                                                                      |
 | `getStdout()`            | `PassThrough`                       | Merged stdout stream from all workers                                                                                                                |
@@ -170,6 +171,7 @@ The `Worker` class wraps `WorkerPool` and adds retry logic, NODE_OPTIONS managem
 | ------------------------ | ----------------------------------- | ----------------------------------------------------------------------- |
 | `shutdown()`             | `Promise<{ forceExited: boolean }>` | Graceful shutdown; removes process exit handler; throws if called twice |
 | `shutdownNow()`          | `void`                              | Immediate shutdown; idempotent                                          |
+| `prespawn()`             | `void`                              | Spawn all `maxWorkers` workers now (see `WorkerPool.prespawn()`)        |
 | `setOnActivity(cb)`      | `void`                              | Replace the activity callback                                           |
 | `setOnActivityAbort(cb)` | `void`                              | Replace the activity-abort callback                                     |
 

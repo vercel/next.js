@@ -1831,6 +1831,10 @@ impl TurboTasksBackend {
             eprintln!("WARNING: Saving the filesystem cache failed:\n    {err:#}");
         }
         self.storage.drop_contents();
+        // Return the freed storage to the OS now. Embedders can keep doing work in the same
+        // process after stopping, and the allocator otherwise retains that memory until a later
+        // collection.
+        TurboMalloc::collect(true);
         // Do final cleanup, this is best effort and unfailable
         self.backing_storage.shutdown();
     }

@@ -47,6 +47,12 @@ class WorkerPoolMock {
   shutdownNow() {
     this._shutdownNow = true
   }
+
+  prespawnCalls = 0
+  prespawn() {
+    this.prespawnCalls++
+    return 0
+  }
 }
 
 class WorkerExitErrorMock extends Error {
@@ -451,6 +457,35 @@ describe('lib/worker shutdown and shutdownNow', () => {
     worker.shutdownNow()
     worker.shutdownNow() // should not throw
     worker.shutdownNow() // should not throw
+  })
+})
+
+describe('lib/worker prespawn', () => {
+  afterEach(() => {
+    jest.resetModules()
+    latestPoolOptions = undefined
+    latestPoolInstance = undefined
+  })
+
+  it('delegates to pool.prespawn()', () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, noopOptions)
+    const pool = latestPoolInstance!
+    expect(pool.prespawnCalls).toBe(0)
+    worker.prespawn()
+    expect(pool.prespawnCalls).toBe(1)
+    worker.shutdownNow()
+  })
+
+  it('does nothing after shutdown', async () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, noopOptions)
+    const pool = latestPoolInstance!
+    await worker.shutdown()
+    worker.prespawn()
+    expect(pool.prespawnCalls).toBe(0)
   })
 })
 

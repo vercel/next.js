@@ -219,7 +219,8 @@ class WorkerHandle {
 /**
  * Low-level worker pool that manages process/thread lifecycle, task dispatch,
  * and queue draining. Workers are spawned lazily on the first dispatch and
- * scale up to `maxWorkers`. Use `dispatch()` to call exported functions in the
+ * scale up to `maxWorkers`, unless `prespawn()` starts them up front. Use
+ * `dispatch()` to call exported functions in the
  * worker module and `shutdown()` or `shutdownNow()` to shut down.
  */
 export class WorkerPool {
@@ -257,7 +258,8 @@ export class WorkerPool {
   private _timeoutInterval: ReturnType<typeof setInterval> | null = null
 
   /**
-   * Create a new pool. No workers are spawned until the first `dispatch()` call.
+   * Create a new pool. No workers are spawned until the first `dispatch()` call
+   * (or an explicit `prespawn()`).
    * Validates options and applies defaults for optional fields.
    */
   constructor(options: WorkerPoolOptions) {
@@ -335,6 +337,32 @@ export class WorkerPool {
       // or finishes a previous call.
       this._taskQueue.push({ method, args, resolve, reject })
     })
+  }
+
+  /**
+   * Spawn workers now, up to `maxWorkers`, instead of waiting for `dispatch()`
+   * to spawn them lazily. Returns the number of workers spawned.
+   *
+   * All missing workers are spawned at once: `maxBootingWorkers` doesn't
+   * apply. This is meant for callers that know they'll need the whole pool
+   * later and want to pay for starting it now, e.g. before the parent process
+   * grows a large heap, which makes every later `fork()` slower (the kernel
+   * copies the parent's page tables). Prespawned workers load their module and
+   * run `setup()` right away; calls dispatched while they boot are queued and
+   * served once they're ready, as for lazily spawned workers.
+   *
+   * Does nothing once the pool is shutting down.
+   */
+  prespawn(): number {
+    if (this._ending) {
+      return 0
+    }
+    let spawned = 0
+    while (this._allWorkers.size < this._options.maxWorkers) {
+      this._spawnWorker()
+      spawned++
+    }
+    return spawned
   }
 
   /** Returns the merged stdout stream from all worker processes */

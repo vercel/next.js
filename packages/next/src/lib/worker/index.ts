@@ -312,6 +312,14 @@ export class Worker {
     this._activityAborted = false
   }
 
+  /**
+   * Spawn all `maxWorkers` workers now instead of lazily on the first calls.
+   * See `WorkerPool.prespawn()`. Does nothing once the worker is shut down.
+   */
+  prespawn(): void {
+    this._pool?.prespawn()
+  }
+
   /** Remove the `process.on('exit')` handler to prevent listener leaks */
   private _removeExitHandler(): void {
     if (this._exitHandler) {
