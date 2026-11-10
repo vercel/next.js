@@ -144,25 +144,27 @@ function handleLoading(
         }
       }
 
+      // Compare the rendered box with the image's intrinsic proportions. The
+      // width and height props alone cannot tell a cropped or rounded image
+      // from a distorted one.
       const { width, height, naturalWidth, naturalHeight } = img
       if (
         img.getAttribute('data-nimg') !== 'fill' &&
         width > 0 &&
         height > 0 &&
         naturalWidth > 0 &&
-        naturalHeight > 0
+        naturalHeight > 0 &&
+        // Other object-fit values crop or letterbox instead of distorting.
+        window.getComputedStyle(img).objectFit === 'fill'
       ) {
+        const renderedRatio = width / height
         const intrinsicRatio = naturalWidth / naturalHeight
-        // The DOM rounds rendered dimensions and truncates density-corrected
-        // natural dimensions. Account for both, including when scaled up.
-        const widthTolerance = 1 + height / naturalHeight
-        const heightTolerance = 1 + width / naturalWidth
-        if (
-          Math.abs(width - height * intrinsicRatio) > widthTolerance &&
-          Math.abs(height - width / intrinsicRatio) > heightTolerance &&
-          // Other object-fit values preserve the source image's aspect ratio.
-          window.getComputedStyle(img).objectFit === 'fill'
-        ) {
+        // Rendered dimensions are rounded to whole pixels and natural
+        // dimensions are truncated after density correction, so allow for
+        // that much error in each dimension.
+        const tolerance =
+          0.5 / width + 0.5 / height + 1 / naturalWidth + 1 / naturalHeight
+        if (Math.abs(renderedRatio / intrinsicRatio - 1) > tolerance) {
           warnOnce(
             `Image with src "${origSrc}" is rendered with a different aspect ratio than its intrinsic dimensions. Adjust the width and height props, or use CSS 'width: "auto"' or 'height: "auto"' to preserve the aspect ratio. Read more: https://nextjs.org/docs/app/api-reference/components/image#style`
           )
