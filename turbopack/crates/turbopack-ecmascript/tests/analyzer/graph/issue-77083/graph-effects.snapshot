@@ -13,7 +13,7 @@
                         export: Some(
                             "assert",
                         ),
-                        member: None,
+                        members: {},
                         ast_path: [
                             Program(
                                 Module,
@@ -277,7 +277,7 @@
         export: Some(
             "assert",
         ),
-        member: None,
+        members: {},
         ast_path: [
             Program(
                 Module,
@@ -437,7 +437,7 @@
         export: Some(
             "assert",
         ),
-        member: None,
+        members: {},
         ast_path: [
             Program(
                 Module,
