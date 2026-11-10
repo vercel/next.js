@@ -687,13 +687,24 @@ impl TaskStorage {
 
     /// Removes the lazy field at `idx` via swap_remove.
     ///
-    /// Fields are removed from finished tasks (e.g. `dirty` once a task is clean) long after
-    /// `cleanup_after_execution` last shrank the Vec, so shrink it once it is mostly empty. Not on
-    /// every removal: a slightly smaller `realloc` keeps the block in place and releases nothing,
-    /// but costs a call each time a field comes and goes.
+    /// Fields removed while the task executes usually come back, and `cleanup_after_execution`
+    /// shrinks the Vec when the execution completes, so then it is only shrunk once mostly empty.
+    /// Fields removed from a task that isn't executing (e.g. `dirty` once the task is clean) leave
+    /// a slot nothing would reclaim, so then it is shrunk to fit. Removing `in_progress` itself
+    /// counts as executing: it is replaced when an execution starts, and removed right before that
+    /// cleanup when it completes.
     fn remove_lazy_at(&mut self, idx: usize) -> LazyField {
         let field = self.lazy.swap_remove(idx);
-        self.lazy.shrink_amortized();
+        let executing = matches!(field, LazyField::InProgress(_))
+            || self
+                .lazy
+                .iter()
+                .any(|field| matches!(field, LazyField::InProgress(_)));
+        if executing {
+            self.lazy.shrink_amortized();
+        } else {
+            self.lazy.shrink_to_fit();
+        }
         field
     }
 
