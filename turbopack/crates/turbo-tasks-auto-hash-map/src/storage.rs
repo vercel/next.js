@@ -21,6 +21,7 @@
 
 use std::{
     hash::{BuildHasher, Hash},
+    iter::FusedIterator,
     marker::PhantomData,
     ops::{Deref, DerefMut},
     ptr,
@@ -454,6 +455,45 @@ impl<T, L: sealed::ListBuffer<T>, P: ListPredicate<T>> Iterator for ListExtractI
     fn size_hint(&self) -> (usize, Option<usize>) {
         (0, Some(self.old_len - self.idx))
     }
+
+    // Same steps as `next`, but in one loop: the buffer pointer is read once, as nothing else
+    // can access the list while this iterator borrows it mutably.
+    #[inline]
+    fn fold<B, F>(mut self, init: B, mut f: F) -> B
+    where
+        F: FnMut(B, T) -> B,
+    {
+        let ptr = self.list.buffer_ptr();
+        let mut acc = init;
+        while self.idx < self.old_len {
+            let i = self.idx;
+            // Same invariant as in `next`.
+            // SAFETY: `i < old_len`, so the item at `i` is initialized and unvisited, and no
+            // other reference to it exists.
+            let item = unsafe { &mut *ptr.add(i) };
+            // If `test` panics, `idx` still points at the item, so it's kept by `drop`.
+            let extract = self.pred.test(item);
+            self.idx += 1;
+            if extract {
+                self.del += 1;
+                // SAFETY: the item is initialized. It's in the gap from now on, so it's never
+                // read again. `idx` and `del` are already updated, so if `f` panics, `drop`
+                // closes the gap correctly.
+                let item = unsafe { ptr::read(ptr.add(i)) };
+                acc = f(acc, item);
+            } else if self.del > 0 {
+                // SAFETY: see `next`.
+                unsafe { ptr::copy_nonoverlapping(ptr.add(i), ptr.add(i - self.del), 1) };
+            }
+        }
+        acc
+    }
+}
+
+// After returning `None`, `idx == old_len`, so it keeps returning `None`.
+impl<T, L: sealed::ListBuffer<T>, P: ListPredicate<T>> FusedIterator
+    for ListExtractIf<'_, T, L, P>
+{
 }
 
 impl<T, L: sealed::ListBuffer<T>, P> Drop for ListExtractIf<'_, T, L, P> {
@@ -1596,6 +1636,124 @@ mod tests {
         assert_eq!(&list[..], &[N]);
     }
 
+    /// `fold` extracts the same items as `next`, also after `next` was called, and a panic in
+    /// the predicate or the `fold` closure keeps the list consistent like an early drop.
+    fn check_extract_if_fold<L: BackingListStorage<Tracked>>() {
+        fn push(mut acc: Vec<Tracked>, t: Tracked) -> Vec<Tracked> {
+            acc.push(t);
+            acc
+        }
+
+        // Full `fold`.
+        let drops = Rc::new(RefCell::new(Vec::new()));
+        let mut list: L = make(N, &drops);
+        let mut visited = Vec::new();
+        let extracted = list
+            .extract_if(|t: &mut Tracked| {
+                visited.push(t.id);
+                t.id % 3 == 0
+            })
+            .fold(Vec::new(), push);
+        assert_eq!(visited, (0..N).collect::<Vec<_>>());
+        assert_eq!(
+            ids(&extracted),
+            (0..N).filter(|id| id % 3 == 0).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            ids(&list),
+            (0..N).filter(|id| id % 3 != 0).collect::<Vec<_>>()
+        );
+        assert!(RefCell::borrow(&drops).is_empty());
+        drop(extracted);
+        drop(list);
+        assert_eq!(
+            sorted(RefCell::borrow(&drops).clone()),
+            (0..N).collect::<Vec<_>>()
+        );
+
+        // `next` first (leaving a gap), then `fold` the rest.
+        let drops = Rc::new(RefCell::new(Vec::new()));
+        let mut list: L = make(N, &drops);
+        let mut iter = list.extract_if(|t: &mut Tracked| t.id % 2 == 1);
+        let first = iter.next().unwrap();
+        assert_eq!(first.id, 1);
+        let rest = iter.fold(vec![first], push);
+        assert_eq!(
+            ids(&rest),
+            (0..N).filter(|id| id % 2 == 1).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            ids(&list),
+            (0..N).filter(|id| id % 2 == 0).collect::<Vec<_>>()
+        );
+        drop(rest);
+        drop(list);
+        assert_eq!(
+            sorted(RefCell::borrow(&drops).clone()),
+            (0..N).collect::<Vec<_>>()
+        );
+
+        // A panic in the predicate during `fold`.
+        let drops = Rc::new(RefCell::new(Vec::new()));
+        let mut list: L = make(N, &drops);
+        let mut extracted = Vec::new();
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            list.extract_if(|t: &mut Tracked| {
+                if t.id == N / 2 {
+                    panic!("predicate panic");
+                }
+                t.id % 2 == 0
+            })
+            .fold((), |(), t| extracted.push(t))
+        }));
+        assert!(result.is_err());
+        let mut expected: Vec<u32> = (0..N / 2).filter(|id| id % 2 == 1).collect();
+        expected.extend(N / 2..N);
+        assert_eq!(ids(&list), expected);
+        assert_eq!(
+            ids(&extracted),
+            (0..N / 2).filter(|id| id % 2 == 0).collect::<Vec<_>>()
+        );
+        assert!(RefCell::borrow(&drops).is_empty());
+        drop(extracted);
+        drop(list);
+        assert_eq!(
+            sorted(RefCell::borrow(&drops).clone()),
+            (0..N).collect::<Vec<_>>()
+        );
+
+        // A panic in the `fold` closure: the item passed to it is dropped while unwinding, the
+        // unvisited items stay in order.
+        let drops = Rc::new(RefCell::new(Vec::new()));
+        let mut list: L = make(N, &drops);
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            list.extract_if(|t: &mut Tracked| t.id % 2 == 0)
+                .fold((), |(), t| {
+                    if t.id == 4 {
+                        panic!("fold panic");
+                    }
+                })
+        }));
+        assert!(result.is_err());
+        let mut expected = vec![1, 3];
+        expected.extend(5..N);
+        assert_eq!(ids(&list), expected);
+        assert_eq!(sorted(RefCell::borrow(&drops).clone()), vec![0, 2, 4]);
+        drop(list);
+        assert_eq!(
+            sorted(RefCell::borrow(&drops).clone()),
+            (0..N).collect::<Vec<_>>()
+        );
+
+        // Fused: `None` after the end.
+        let drops = Rc::new(RefCell::new(Vec::new()));
+        let mut list: L = make(N, &drops);
+        let mut iter = list.extract_if(|t: &mut Tracked| t.id == 0);
+        assert_eq!(iter.next().map(|t| t.id), Some(0));
+        assert!(iter.next().is_none());
+        assert!(iter.next().is_none());
+    }
+
     fn check_all<L: BackingListStorage<Tracked>>() {
         check_retain::<L>();
         check_swap_retain::<L>();
@@ -1603,6 +1761,7 @@ mod tests {
         check_retain_panic::<L>(true);
         check_extract_if::<L>();
         check_extract_if_panic::<L>();
+        check_extract_if_fold::<L>();
     }
 
     #[test]

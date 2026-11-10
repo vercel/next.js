@@ -1,6 +1,7 @@
 use std::{
     fmt::Debug,
     hash::{BuildHasher, BuildHasherDefault, Hash},
+    iter::FusedIterator,
     marker::PhantomData,
 };
 
@@ -250,6 +251,16 @@ impl<MI: BackingMapIter<Item: SetEntry>> Iterator for Iter<MI> {
     }
 }
 
+impl<MI> ExactSizeIterator for Iter<MI> where
+    MI: BackingMapIter<Item: SetEntry, List: ExactSizeIterator> + ExactSizeIterator
+{
+}
+
+impl<MI> FusedIterator for Iter<MI> where
+    MI: BackingMapIter<Item: SetEntry, List: FusedIterator> + FusedIterator
+{
+}
+
 impl<MI: BackingMapIter<List: Clone> + Clone> Clone for Iter<MI> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
@@ -277,6 +288,20 @@ impl<K, LI: Iterator<Item = (K, ())>, MI: Iterator<Item = (K, ())>> Iterator for
     {
         self.0.fold(init, move |acc, (k, _)| f(acc, k))
     }
+}
+
+impl<K, LI, MI> ExactSizeIterator for IntoIter<LI, MI>
+where
+    LI: ExactSizeIterator<Item = (K, ())>,
+    MI: ExactSizeIterator<Item = (K, ())>,
+{
+}
+
+impl<K, LI, MI> FusedIterator for IntoIter<LI, MI>
+where
+    LI: FusedIterator<Item = (K, ())>,
+    MI: FusedIterator<Item = (K, ())>,
+{
 }
 
 impl<K, M, L> Serialize for RawAutoSet<K, M, L>
@@ -505,7 +530,33 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::MIN_HASH_SIZE;
+    use crate::{AutoSet, MIN_HASH_SIZE, OrderedAutoSet};
+
+    macro_rules! check_exact_size {
+        ($set:ty) => {
+            for n in [0, 5, 50] {
+                let set: $set = (0..n).collect();
+                fn check<I: ExactSizeIterator + FusedIterator>(mut iter: I, n: u32) {
+                    assert_eq!(iter.len(), n as usize);
+                    for remaining in (0..n as usize).rev() {
+                        assert!(iter.next().is_some());
+                        assert_eq!(iter.len(), remaining);
+                    }
+                    assert!(iter.next().is_none());
+                    assert!(iter.next().is_none());
+                }
+                check(set.iter(), n);
+                check((&set).into_iter(), n);
+                check(set.clone().into_iter(), n);
+            }
+        };
+    }
+
+    #[test]
+    fn iterators_exact_size_and_fused() {
+        check_exact_size!(AutoSet<u32>);
+        check_exact_size!(OrderedAutoSet<u32>);
+    }
 
     #[test]
     fn test_auto_set() {

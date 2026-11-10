@@ -1,6 +1,7 @@
 use std::{
     fmt::{Debug, Formatter},
     hash::{BuildHasher, BuildHasherDefault, Hash},
+    iter::FusedIterator,
     marker::PhantomData,
 };
 
@@ -695,6 +696,10 @@ impl<A, B, I: Iterator<Item = (A, B)>> Iterator for Keys<I> {
     }
 }
 
+impl<A, B, I: ExactSizeIterator<Item = (A, B)>> ExactSizeIterator for Keys<I> {}
+
+impl<A, B, I: FusedIterator<Item = (A, B)>> FusedIterator for Keys<I> {}
+
 impl<MI: BackingMapIter> Iterator for Iter<MI> {
     type Item = MI::Item;
 
@@ -725,6 +730,14 @@ impl<MI: BackingMapIter> Iterator for Iter<MI> {
         }
     }
 }
+
+// Like the `Iterator` impl, these only bound `MI` and its `List` (see `BackingMapIter`).
+impl<MI: BackingMapIter<List: ExactSizeIterator> + ExactSizeIterator> ExactSizeIterator
+    for Iter<MI>
+{
+}
+
+impl<MI: BackingMapIter<List: FusedIterator> + FusedIterator> FusedIterator for Iter<MI> {}
 
 impl<MI: BackingMapIter<List: Clone> + Clone> Clone for Iter<MI> {
     fn clone(&self) -> Self {
@@ -767,6 +780,10 @@ impl<'a, K, V> Iterator for ListIter<'a, K, V> {
     }
 }
 
+impl<K, V> ExactSizeIterator for ListIter<'_, K, V> {}
+
+impl<K, V> FusedIterator for ListIter<'_, K, V> {}
+
 /// [`BackingMapIter::List`] of [`BackingMapStorage::IterMut`].
 pub struct ListIterMut<'a, K, V>(std::slice::IterMut<'a, (K, V)>);
 
@@ -789,6 +806,10 @@ impl<'a, K, V> Iterator for ListIterMut<'a, K, V> {
         self.0.fold(init, move |acc, (k, v)| f(acc, (&*k, v)))
     }
 }
+
+impl<K, V> ExactSizeIterator for ListIterMut<'_, K, V> {}
+
+impl<K, V> FusedIterator for ListIterMut<'_, K, V> {}
 
 /// [`BackingMapIter::List`] of [`BackingMapStorage::Values`].
 pub struct ListValues<'a, K, V>(std::slice::Iter<'a, (K, V)>);
@@ -820,6 +841,10 @@ impl<'a, K, V> Iterator for ListValues<'a, K, V> {
     }
 }
 
+impl<K, V> ExactSizeIterator for ListValues<'_, K, V> {}
+
+impl<K, V> FusedIterator for ListValues<'_, K, V> {}
+
 /// [`BackingMapIter::List`] of [`BackingMapStorage::ValuesMut`].
 pub struct ListValuesMut<'a, K, V>(std::slice::IterMut<'a, (K, V)>);
 
@@ -842,6 +867,10 @@ impl<'a, K, V> Iterator for ListValuesMut<'a, K, V> {
         self.0.fold(init, move |acc, (_, v)| f(acc, v))
     }
 }
+
+impl<K, V> ExactSizeIterator for ListValuesMut<'_, K, V> {}
+
+impl<K, V> FusedIterator for ListValuesMut<'_, K, V> {}
 
 // The owned iterator types are parameterized by the concrete iterator types of the backing
 // storages (`LI` for the list, `MI` for the map) instead of naming projections like `M::IntoIter`
@@ -882,6 +911,13 @@ impl<LI: Iterator, MI: Iterator<Item = LI::Item>> Iterator for IntoIter<LI, MI> 
     }
 }
 
+impl<LI: ExactSizeIterator, MI: ExactSizeIterator<Item = LI::Item>> ExactSizeIterator
+    for IntoIter<LI, MI>
+{
+}
+
+impl<LI: FusedIterator, MI: FusedIterator<Item = LI::Item>> FusedIterator for IntoIter<LI, MI> {}
+
 pub enum IntoValues<LI, MI> {
     List(LI),
     Map(MI),
@@ -916,6 +952,16 @@ impl<K, V, LI: Iterator<Item = (K, V)>, MI: Iterator<Item = V>> Iterator for Int
             IntoValues::Map(iter) => iter.fold(init, f),
         }
     }
+}
+
+impl<K, V, LI: ExactSizeIterator<Item = (K, V)>, MI: ExactSizeIterator<Item = V>> ExactSizeIterator
+    for IntoValues<LI, MI>
+{
+}
+
+impl<K, V, LI: FusedIterator<Item = (K, V)>, MI: FusedIterator<Item = V>> FusedIterator
+    for IntoValues<LI, MI>
+{
 }
 
 pub enum Entry<'a, K, V, M: BackingMapStorage<K, V> + 'a, L> {
@@ -1492,6 +1538,13 @@ where
     }
 }
 
+impl<LI, MI> FusedIterator for ExtractIfIter<LI, MI>
+where
+    LI: FusedIterator,
+    MI: FusedIterator<Item = LI::Item>,
+{
+}
+
 /// Adapts an entry predicate `FnMut(&K, &mut V) -> bool` of [`RawAutoMap::extract_if`] to the
 /// list storage's [`ListPredicate`] over `(K, V)` items.
 pub struct EntryPredicate<F>(F);
@@ -1535,6 +1588,57 @@ mod tests {
     use indexmap::IndexMap;
 
     use super::*;
+    use crate::{AutoMap, OrderedAutoMap};
+
+    fn exact<I: ExactSizeIterator + FusedIterator>(iter: I) -> I {
+        iter
+    }
+
+    /// Checks `len()` while iterating, for all iterators of a map with `n` entries.
+    macro_rules! check_exact_size {
+        ($map:ty) => {
+            for n in [0, 5, 50] {
+                let mut map = <$map>::default();
+                for i in 0..n {
+                    map.insert(i, i);
+                }
+                assert_eq!(
+                    matches!(map, RawAutoMap::List(..)),
+                    n <= MAX_USEFUL_LINEAR_SCAN as u32
+                );
+                fn check<I: ExactSizeIterator + FusedIterator>(mut iter: I, n: u32) {
+                    for remaining in (0..n as usize).rev() {
+                        assert!(iter.next().is_some());
+                        assert_eq!(iter.len(), remaining);
+                    }
+                    assert!(iter.next().is_none());
+                    assert!(iter.next().is_none());
+                    assert_eq!(iter.len(), 0);
+                }
+                check(exact(map.iter()), n);
+                check(exact(map.iter_mut()), n);
+                check(exact(map.values()), n);
+                check(exact(map.values_mut()), n);
+                check(exact(map.keys()), n);
+                check(exact((&map).into_iter()), n);
+                check(exact(map.clone().into_iter()), n);
+                check(exact(map.clone().into_values()), n);
+                fn fused<I: FusedIterator>(iter: I) -> I {
+                    iter
+                }
+                assert_eq!(
+                    fused(map.extract_if(|k, _| k % 2 == 0)).count(),
+                    n.div_ceil(2) as usize
+                );
+            }
+        };
+    }
+
+    #[test]
+    fn iterators_exact_size_and_fused() {
+        check_exact_size!(AutoMap<u32, u32>);
+        check_exact_size!(OrderedAutoMap<u32, u32>);
+    }
 
     #[test]
     fn test_auto_map() {
