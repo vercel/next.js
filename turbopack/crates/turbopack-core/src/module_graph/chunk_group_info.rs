@@ -10,8 +10,8 @@ use tracing::Instrument;
 use turbo_bitset::Bitset;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat, turbofmt,
+    FxIndexMap, FxIndexSet, NonLocalValue, OrderedIndexSet, ReadRef, ResolvedVc, TryJoinIterExt,
+    ValueToString, Vc, debug::ValueDebugFormat, turbofmt,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -140,9 +140,9 @@ pub struct ChunkGroupInfo {
     /// chunk groups would compare equal and keep the old order, while the bitsets in
     /// `module_chunk_groups` and the indices in `chunk_group_indices` use the new numbering.
     pub chunk_groups: Vec<ChunkGroup>,
+    /// The key of each chunk group, indexed like `chunk_groups`. Ordered for the same reason.
     #[turbo_tasks(unsafe_ignore)]
-    #[bincode(with = "turbo_bincode::indexset")]
-    pub chunk_group_keys: FxIndexSet<ChunkGroupKey>,
+    pub chunk_group_keys: OrderedIndexSet<ChunkGroupKey>,
     /// The same keys as `chunk_group_keys`, mapped to their index, in a keyed cell so a single
     /// index lookup does not depend on the whole `ChunkGroupInfo`. See [`ChunkGroupKeyToIndex`].
     pub chunk_group_indices: ResolvedVc<ChunkGroupKeyToIndex>,
