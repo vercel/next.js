@@ -128,7 +128,7 @@ describe('typescript-plugin', () => {
       'Disallow rendering dynamic params'
     )
     expect(documentationText(result).join(' ')).toContain(
-      'not available when Cache Components is enabled'
+      'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/dynamicParams'
     )
   })
 
