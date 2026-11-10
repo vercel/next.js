@@ -269,13 +269,7 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> AutoMap<K, V, H,
 
     pub fn shrink_amortized(&mut self) {
         match self {
-            AutoMap::List(list) => {
-                // `TinyVec::shrink_to_fit` returns spilled storage to inline
-                // (or a tighter heap buffer) when the occupancy warrants it.
-                if list.capacity() > list.len() * 3 {
-                    list.shrink_to_fit();
-                }
-            }
+            AutoMap::List(list) => list.shrink_amortized(),
             AutoMap::Map(map) => {
                 if map.len() <= MIN_HASH_SIZE {
                     let mut list = TinyVec::with_capacity(map.len());

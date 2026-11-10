@@ -138,7 +138,7 @@ function normalizeNextConfigZodErrors(
         message +=
           '\n`experimental.dynamicIO` has been replaced by `cacheComponents`. Please update your next.config file accordingly.'
         message +=
-          '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents'
+          '\nLearn more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
       }
     }
 

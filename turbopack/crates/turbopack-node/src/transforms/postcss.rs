@@ -400,7 +400,7 @@ async fn postcss_executor(
     let config_asset = asset_context
         .process(
             config_loader_source(project_path, postcss_config_path.clone()),
-            ReferenceType::Entry(EntryReferenceSubType::Undefined),
+            ReferenceType::Entry(EntryReferenceSubType::default()),
         )
         .module()
         .to_resolved()

@@ -145,7 +145,7 @@ pub async fn create_web_entry_source(
         .map(|request| {
             let origin_path = origin_path.clone();
             async move {
-                let ty = ReferenceType::Entry(EntryReferenceSubType::Web);
+                let ty = ReferenceType::Entry(EntryReferenceSubType::default());
                 asset_context
                     .resolve_asset(origin_path, request, resolve_options, ty)
                     .await?

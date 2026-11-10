@@ -2133,6 +2133,7 @@ async fn resolve_internal_inline(
                                     .to_string(),
                             ),
                             source: None,
+                            hint: None,
                         }
                         .resolved_cell()
                         .emit();
@@ -2155,6 +2156,7 @@ async fn resolve_internal_inline(
                         resolve_options: options.to_resolved().await?,
                         error_message: Some("windows imports are not implemented yet".to_string()),
                         source: None,
+                        hint: None,
                     }
                     .resolved_cell()
                     .emit();
@@ -2250,6 +2252,7 @@ async fn resolve_internal_inline(
                         resolve_options: options.to_resolved().await?,
                         error_message: None,
                         source: None,
+                        hint: None,
                     }
                     .resolved_cell()
                     .emit();
@@ -2791,6 +2794,7 @@ async fn apply_in_package(
             resolve_options: options.to_resolved().await?,
             error_message: Some(format!("invalid alias field value: {value}")),
             source: None,
+            hint: None,
         }
         .resolved_cell()
         .emit();
@@ -3429,6 +3433,7 @@ async fn resolve_package_internal_with_imports_field(
             resolve_options: resolve_options.to_resolved().await?,
             error_message: None,
             source: None,
+            hint: None,
         }
         .resolved_cell()
         .emit();

@@ -454,6 +454,41 @@ describe('create-next-app', () => {
     })
   })
 
+  it('should print success and next steps commands when creating an app from template', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'success-message'
+
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-linter',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--no-import-alias',
+          '--skip-install',
+          '--no-react-compiler',
+          '--no-agents-md',
+          '--no-agent-feedback',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+          stdio: 'pipe',
+        }
+      )
+      expect(res.exitCode).toBe(0)
+      expect(res.stdout).toContain('Created success-message')
+      expect(res.stdout).toContain(
+        'Inside that directory, you can run several commands:'
+      )
+      expect(res.stdout).toContain('Starts the development server.')
+      expect(res.stdout).toContain('We suggest that you begin by typing:')
+    })
+  })
+
   it('should replace all import alias occurrences when custom --import-alias is specified', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'custom-import-alias'
@@ -478,6 +513,7 @@ describe('create-next-app', () => {
           '--skip-install',
           '--no-react-compiler',
           '--no-agents-md',
+          '--no-agent-feedback',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
