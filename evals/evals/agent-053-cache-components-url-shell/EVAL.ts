@@ -28,13 +28,13 @@ test('enables Cache Components without opt-outs', () => {
 
 test('keeps a useful shop frame in the static shell', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The product route must show useful route-independent shop framing before awaiting params or searchParams. The solution must not hide the entire route behind one null, empty, or generic Suspense boundary. Accept framing in a parent layout with loading.tsx around the async page, as well as framing in the page outside explicit Suspense boundaries.`
+    `The product page must return useful route-independent shop framing before awaiting params or searchParams. The solution must not hide the entire page behind one null, empty, or generic Suspense boundary. Accept equivalent component and file organization.`
   )
 })
 
 test('resolves URL data below meaningful boundaries', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The product slug and currency must resolve below meaningful Suspense fallbacks while useful shop framing remains visible. Accept forwarding params and searchParams into async children, or awaiting them in an async page covered by loading.tsx when the parent layout already supplies that framing. Reject a URL-data wait that blocks the useful shop frame. Accept equivalent component and file organization.`
+    `The product page must forward the params and searchParams promises into one or more children below meaningful Suspense fallbacks, where the product slug and currency are resolved. Reject solutions that await either URL promise before returning the useful shop frame. Accept equivalent component and file organization.`
   )
 })
 
