@@ -40,6 +40,7 @@ mod marker_trait;
 pub mod message_queue;
 mod native_function;
 mod once_map;
+mod ordered_json;
 mod output;
 pub mod panic_hooks;
 pub mod parallel;
@@ -140,6 +141,8 @@ pub type FxIndexSet<T> = indexmap::IndexSet<T, BuildHasherDefault<FxHasher>>;
 pub type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
 /// Insertion ordered maps and sets with order sensitive equality, see [`auto_hash_map`].
 pub use auto_hash_map::{OrderedAutoMap, OrderedAutoSet};
+
+pub use crate::ordered_json::{OrderedJsonMap, OrderedJsonValue};
 pub type FxDashMap<K, V> = dashmap::DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
 // Copied from indexmap! and indexset!
