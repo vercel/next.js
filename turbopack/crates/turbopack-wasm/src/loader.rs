@@ -5,7 +5,9 @@ use indoc::{formatdoc, writedoc};
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{File, FileContent};
-use turbopack_core::{asset::AssetContent, source::Source, virtual_source::VirtualSource};
+use turbopack_core::{
+    asset::AssetContent, ident::AssetIdent, source::Source, virtual_source::VirtualSource,
+};
 use turbopack_ecmascript::utils::StringifyJs;
 
 use crate::{analysis::analyze, source::WebAssemblySource, wasm_edge_var_name};
@@ -65,8 +67,8 @@ pub(crate) async fn instantiating_loader_source(
 
     let code: RcStr = code.into();
 
-    Ok(Vc::upcast(VirtualSource::new(
-        source.ident().await?.path.append("_.loader.mjs")?,
+    Ok(Vc::upcast(VirtualSource::new_with_ident(
+        loader_ident(source).await?,
         AssetContent::file(FileContent::Content(File::from(code)).cell()),
     )))
 }
@@ -99,8 +101,19 @@ pub(crate) async fn compiling_loader_source(
     }
     .into();
 
-    Ok(Vc::upcast(VirtualSource::new(
-        source.ident().await?.path.append("_.loader.mjs")?,
+    Ok(Vc::upcast(VirtualSource::new_with_ident(
+        loader_ident(source).await?,
         AssetContent::file(FileContent::Content(File::from(code)).cell()),
     )))
+}
+
+/// The loader is named after the WebAssembly source, keeping its query, so that a `?module`
+/// import gets a different loader than a plain one.
+async fn loader_ident(source: Vc<WebAssemblySource>) -> Result<Vc<AssetIdent>> {
+    Ok(source
+        .ident()
+        .owned()
+        .await?
+        .rename_as("*_.loader.mjs")
+        .into_vc())
 }

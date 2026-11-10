@@ -64,7 +64,7 @@ use turbopack_resolve::{
     typescript::type_resolve,
 };
 use turbopack_static::{css::StaticUrlCssModule, ecma::StaticUrlJsModule};
-use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySource};
+use turbopack_wasm::{module_asset::wasm_module, source::WebAssemblySource};
 
 use crate::{
     evaluate_context::{config_tracing_module_context, node_evaluate_asset_context},
@@ -283,14 +283,14 @@ async fn apply_module_type(
                 .to_resolved()
                 .await?,
         ),
-        ModuleType::WebAssembly { source_ty } => ResolvedVc::upcast(
-            WebAssemblyModuleAsset::new(
+        ModuleType::WebAssembly { source_ty } => {
+            wasm_module(
                 WebAssemblySource::new(*source, *source_ty),
                 Vc::upcast(module_asset_context),
             )
             .to_resolved()
-            .await?,
-        ),
+            .await?
+        }
         ModuleType::Custom(custom) => {
             custom
                 .create_module(*source, module_asset_context, reference_type)
