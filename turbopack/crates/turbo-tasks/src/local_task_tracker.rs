@@ -72,9 +72,9 @@ impl LocalTaskTracker {
 
     /// Test-only: register an in-flight detached future (`spawn_detached_for_testing`). No
     /// `LocalTask` slot is allocated; this just bumps the counter. Balanced by a matching
-    /// [`dec_in_flight`] when the wrapped future completes.
+    /// [`decrement_in_flight`] when the wrapped future completes.
     ///
-    /// [`dec_in_flight`]: LocalTaskTracker::dec_in_flight
+    /// [`decrement_in_flight`]: LocalTaskTracker::decrement_in_flight
     pub(crate) fn register_detached(&mut self) {
         self.in_flight += 1;
     }

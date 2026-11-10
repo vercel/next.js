@@ -8,23 +8,13 @@ on:
     types: [opened, synchronize, reopened]
     paths:
       - '.github/workflows/next-upgrade-evals.yml'
-      - 'evals/lib/**'
       - 'evals/next-upgrade/**'
+      - 'evals/lib/pack.js'
+      - 'evals/lib/setup.ts'
       - 'patches/@vercel__agent-eval@*.patch'
-      - 'pnpm-lock.yaml'
-      - 'package.json'
-      - 'turbo.json'
-      - 'packages/next/package.json'
-      - 'packages/next/turbo.json'
-      - 'packages/next-codemod/**'
-      - 'packages/next/src/bin/next.ts'
+      - 'packages/next-codemod/bin/upgrade.ts'
       - 'packages/next/src/cli/next-upgrade.ts'
-      - 'packages/next/src/cli/next-build.ts'
-      - 'packages/next/src/cli/next-dev.ts'
       - 'packages/next/src/lib/upgrade/**'
-      - 'packages/next/src/server/config*.ts'
-      - 'docs/01-app/02-guides/upgrading/**'
-      - 'docs/02-pages/02-guides/upgrading/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

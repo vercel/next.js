@@ -20,9 +20,8 @@
 //! # Type parameters
 //! * `INLINE` — elements stored inline in the struct before spilling to the heap. `INLINE = 0` (the
 //!   default) is a pure heap vector with a 2-byte header — 16 B on 64-bit, vs 24 B for `Vec`.
-//! * `MAX` — hard cap on the element count. Defaults to [`MAX_LIST_SIZE`](crate::MAX_LIST_SIZE).
-//!   Pushing past `MAX` panics; growth doubles until it would exceed `MAX`, then caps at exactly
-//!   `MAX`.
+//! * `MAX` — hard cap on the element count. Defaults to `MAX_TINY_VEC_SIZE`. Pushing past `MAX`
+//!   panics; growth doubles until it would exceed `MAX`, then caps at exactly `MAX`.
 //!
 //! # Representation
 //! * `cap == INLINE`: elements live inline in `data.inline[..len]`.
@@ -240,6 +239,34 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
         }
     }
 
+    /// Resize the heap buffer to `new_cap` elements with `realloc`, which lets the
+    /// allocator keep the block in place when the new size fits it.
+    ///
+    /// # Safety
+    /// `self` must be spilled and `new_cap` must be `> INLINE` and `>= len`.
+    unsafe fn realloc_heap(&mut self, new_cap: usize) {
+        debug_assert!(self.is_spilled() && new_cap > INLINE && new_cap >= self.len());
+        let old_layout = Self::layout(self.capacity());
+        let new_layout = Self::layout(new_cap);
+        if old_layout.size() != 0 {
+            // SAFETY: the heap buffer was allocated by `alloc`/`realloc_heap` with
+            // `old_layout`; `new_layout` has the same alignment and a non-zero size.
+            let ptr = unsafe {
+                alloc::realloc(
+                    self.data.heap.as_ptr() as *mut u8,
+                    old_layout,
+                    new_layout.size(),
+                )
+            } as *mut T;
+            match NonNull::new(ptr) {
+                Some(ptr) => self.data = Data { heap: ptr },
+                None => alloc::handle_alloc_error(new_layout),
+            }
+        }
+        // else: ZST `T`, the dangling pointer stays valid.
+        self.cap = new_cap as u8;
+    }
+
     /// Ensure capacity for at least one more element, spilling inline -> heap or
     /// growing the heap allocation as needed. Never exceeds `MAX` (the caller —
     /// `push` — asserts room before calling).
@@ -248,26 +275,32 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
         debug_assert!(old_cap < MAX, "TinyVec grown past MAX");
         // Growth schedule: jump off inline capacity, then double, clamped to MAX.
         let new_cap = (old_cap.max(1) * 2).clamp(INLINE + 1, MAX);
+        if self.is_spilled() {
+            // SAFETY: spilled, and `new_cap > old_cap >= len`, `new_cap > INLINE`.
+            unsafe { self.realloc_heap(new_cap) };
+            return;
+        }
         let len = self.len();
-
         let new_heap = Self::alloc(new_cap);
-        // Move existing elements into the new allocation.
+        // Move the inline elements into the new allocation.
         // SAFETY: source holds `len` initialized elements; dest has room for
         // `new_cap >= len`. Regions don't overlap (fresh allocation).
         unsafe {
             ptr::copy_nonoverlapping(self.as_ptr(), new_heap.as_ptr(), len);
         }
-        if self.is_spilled() {
-            // Free the old heap buffer (elements already moved out).
-            // SAFETY: old buffer was allocated by `alloc` with `old_cap`.
-            unsafe {
-                let old = self.data.heap;
-                Self::dealloc(old, old_cap);
-            }
-        }
-        // else: inline storage needs no deallocation.
         self.data = Data { heap: new_heap };
         self.cap = new_cap as u8;
+    }
+
+    /// Appends `value`, growing a full buffer by exactly one element instead of doubling it.
+    ///
+    /// For vecs that rarely grow and should not keep spare capacity, such as one holding a set of
+    /// fields that are each added at most once: doubling there leaves up to half the allocation
+    /// unused after every shrink. Panics if `len == MAX`.
+    #[inline]
+    pub fn push_exact(&mut self, value: T) {
+        self.reserve(1);
+        self.push(value);
     }
 
     /// Appends `value`. Panics if `len == MAX`.
@@ -334,6 +367,16 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
         }
     }
 
+    /// Shrinks the buffer (see [`Self::shrink_to_fit`]) once at most a third of it is used.
+    ///
+    /// Meant to follow removals: the threshold leaves room for the doubling growth, so
+    /// alternating pushes and removals around a capacity boundary do not reallocate every time.
+    pub fn shrink_amortized(&mut self) {
+        if self.capacity() > self.len() * 3 {
+            self.shrink_to_fit();
+        }
+    }
+
     /// Shrink a spilled buffer back to inline storage when it fits, or to a
     /// tighter heap allocation. No-op when already inline.
     pub fn shrink_to_fit(&mut self) {
@@ -361,17 +404,9 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
                 Self::dealloc(old, old_cap);
             }
         } else if self.capacity() > len {
-            // Reallocate the heap buffer to exactly `len`.
-            let new_heap = Self::alloc(len);
-            // SAFETY: move `len` elements to the tighter buffer, free the old.
-            unsafe {
-                ptr::copy_nonoverlapping(self.data.heap.as_ptr(), new_heap.as_ptr(), len);
-                let old = self.data.heap;
-                let old_cap = self.capacity();
-                Self::dealloc(old, old_cap);
-                self.data = Data { heap: new_heap };
-                self.cap = len as u8;
-            }
+            // Shrink the heap buffer to exactly `len`.
+            // SAFETY: spilled, and `len > INLINE` (checked above).
+            unsafe { self.realloc_heap(len) };
         }
     }
 
@@ -403,16 +438,19 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
         if target <= INLINE {
             return;
         }
+        if self.is_spilled() {
+            if target > self.capacity() {
+                // SAFETY: spilled, and `target > capacity >= len`, `target > INLINE`.
+                unsafe { self.realloc_heap(target) };
+            }
+            return;
+        }
         let len = self.len();
         let new_heap = Self::alloc(target);
         // SAFETY: source holds `len` initialized elements; dest has room for
         // `target >= needed >= len`. Fresh allocation, so regions don't overlap.
         unsafe {
             ptr::copy_nonoverlapping(self.as_ptr(), new_heap.as_ptr(), len);
-        }
-        // SAFETY: free the old buffer if it was heap-allocated (elements moved).
-        unsafe {
-            self.dealloc_if_spilled();
         }
         self.data = Data { heap: new_heap };
         self.cap = target as u8;

@@ -9,15 +9,14 @@
 //! previous execution. Collectibles emitted in the meantime will be seen when the read happens, so
 //! they must make the collector dirty without making the running execution stale.
 //!
-//! There are two variants:
-//! - [`collector_is_not_re_executed_for_collectibles_it_has_not_read_yet`] lets the input change
-//!   race freely. It re-executes the collector right after its previous execution completed, which
-//!   also covers that the completion's cleanup can't remove the left-over dependencies of the next
-//!   execution. Its overlap depends on timing: a `State` invalidates its readers one by one, so the
-//!   collector could in principle read the source before the source was invalidated, see the old
-//!   collectibles, and then legitimately re-execute when the new ones arrive.
-//! - [`gated_collector_is_not_re_executed_for_collectibles_it_has_not_read_yet`] stages the overlap
-//!   explicitly with [`Gates`], so it doesn't depend on that order.
+//! The input change re-executes the collector right after its previous execution completed, which
+//! also covers that the completion's cleanup can't remove the left-over dependencies of the next
+//! execution.
+//!
+//! The overlap is staged explicitly with [`Gates`]. Without them it depends on timing: a `State`
+//! invalidates its readers one by one, so the collector can read the source before the source was
+//! invalidated, see the old collectibles, and then legitimately re-execute when the new ones
+//! arrive.
 
 use std::{
     future::{Future, poll_fn},
@@ -54,84 +53,12 @@ impl ValueToString for Thing {
     }
 }
 
-#[derive(NonLocalValue, Default)]
-struct ExecutionCounter {
-    executions: AtomicUsize,
-}
-
 #[turbo_tasks::function]
 async fn emit_one(i: u32) -> Result<Vc<()>> {
     emit(ResolvedVc::upcast::<Box<dyn ValueToString>>(
         Thing(i).resolved_cell(),
     ));
     Ok(Vc::cell(()))
-}
-
-/// Emits `count` distinct collectibles, so changing `count` changes the collectible set.
-#[turbo_tasks::function]
-async fn emit_all(input: ResolvedVc<Input>) -> Result<Vc<()>> {
-    let count = *input.await?.count.get();
-    try_join_all((0..count).map(|i| emit_one(i).into_future())).await?;
-    Ok(Vc::cell(()))
-}
-
-#[turbo_tasks::function(operation, root)]
-async fn source(input: ResolvedVc<Input>) -> Result<Vc<()>> {
-    emit_all(*input).await?;
-    Ok(Vc::cell(()))
-}
-
-#[turbo_tasks::function(operation, root)]
-async fn collector(
-    input: ResolvedVc<Input>,
-    take: bool,
-    counter: TransientInstance<ExecutionCounter>,
-) -> Result<Vc<u32>> {
-    counter.executions.fetch_add(1, Ordering::AcqRel);
-    // Depend on the input directly, so that a change re-executes the collector right away, while
-    // the source is still emitting.
-    let _ = *input.await?.count.get();
-    let source = source(input);
-    source.read_strongly_consistent().await?;
-    let collectibles = if take {
-        source.take_collectibles::<Box<dyn ValueToString>>()
-    } else {
-        source.peek_collectibles::<Box<dyn ValueToString>>()
-    };
-    Ok(Vc::cell(collectibles.len() as u32))
-}
-
-async fn executions_after_change(take: bool) -> Result<usize> {
-    let input = ReadRef::new_owned(Input {
-        count: State::new(5),
-    });
-    let input_vc = ReadRef::resolved_cell(input.clone());
-    let counter = TransientInstance::new(ExecutionCounter::default());
-    let collector = collector(input_vc, take, counter.clone());
-
-    assert_eq!(*collector.read_strongly_consistent().await?, 5);
-    let initial = counter.executions.load(Ordering::Acquire);
-    assert_eq!(initial, 1, "take={take}: initial executions");
-
-    input.count.set(200);
-    assert_eq!(*collector.read_strongly_consistent().await?, 200);
-    Ok(counter.executions.load(Ordering::Acquire) - initial)
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn collector_is_not_re_executed_for_collectibles_it_has_not_read_yet() {
-    run_once(&REGISTRATION, async || {
-        for take in [false, true] {
-            assert_eq!(
-                executions_after_change(take).await?,
-                1,
-                "take={take}: executions after the input change"
-            );
-        }
-        anyhow::Ok(())
-    })
-    .await
-    .unwrap()
 }
 
 /// Shared between the collector and the emitter of one gated test case.
@@ -166,8 +93,9 @@ async fn wait_for(gate: &watch::Sender<bool>) {
         .expect("the sender is alive while it is borrowed");
 }
 
-/// Like [`emit_all`], but after the input change it only emits once the collector is waiting for
-/// the source.
+/// Emits `count` distinct collectibles, so changing `count` changes the collectible set.
+///
+/// After the input change it only emits once the collector is waiting for the source.
 #[turbo_tasks::function]
 async fn gated_emit_all(
     input: ResolvedVc<Input>,
@@ -188,8 +116,11 @@ async fn gated_source(input: ResolvedVc<Input>, gates: TransientInstance<Gates>)
     Ok(Vc::cell(()))
 }
 
-/// Like [`collector`], but after the input change it only reads the source once the source was
-/// invalidated by it (the emitter's new execution has started).
+/// Reads the collectibles of [`gated_source`].
+///
+/// It depends on the input directly, so that a change re-executes it right away. After the input
+/// change it only reads the source once the source was invalidated by it (the emitter's new
+/// execution has started).
 #[turbo_tasks::function(operation, root)]
 async fn gated_collector(
     input: ResolvedVc<Input>,

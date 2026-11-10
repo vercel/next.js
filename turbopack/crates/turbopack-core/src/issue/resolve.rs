@@ -24,6 +24,8 @@ pub struct ResolvingIssue {
     pub resolve_options: ResolvedVc<ResolveOptions>,
     pub error_message: Option<String>,
     pub source: Option<IssueSource>,
+    /// A suggestion for how to fix the issue, shown at the end of the description.
+    pub hint: Option<RcStr>,
 }
 
 #[async_trait]
@@ -75,6 +77,9 @@ impl Issue for ResolvingIssue {
                     }
                 }
             }
+        }
+        if let Some(hint) = &self.hint {
+            writeln!(description, "{hint}")?;
         }
         Ok(Some(StyledString::Text(description.into())))
     }

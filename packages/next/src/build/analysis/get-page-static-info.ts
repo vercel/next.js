@@ -78,7 +78,6 @@ export type ProxyConfig = {
 }
 
 export interface SharedPageStaticInfo {
-  rsc?: RSCModuleType
   generateSitemaps?: boolean
   generateImageMetadata?: boolean
   middleware?: ProxyConfig
@@ -651,6 +650,18 @@ export async function getAppPageStaticInfo({
   isDev,
   page,
 }: GetPageStaticInfoParams): Promise<AppPageStaticInfo> {
+  if (/(?:^|[\\/])route\.go$/.test(pageFilePath)) {
+    if (!process.env.TURBOPACK)
+      throw new Error('route.go requires Turbopack; remove --webpack')
+    return {
+      type: PAGE_TYPES.APP,
+      config: { dynamic: 'force-dynamic' },
+      runtime: undefined,
+      preferredRegion: undefined,
+      maxDuration: undefined,
+      hadUnsupportedValue: false,
+    }
+  }
   const content = tryToReadFile(pageFilePath, !isDev)
   if (!content || !PARSE_PATTERN.test(content)) {
     return {
@@ -680,8 +691,6 @@ export async function getAppPageStaticInfo({
     exports,
     directives,
   } = checkExports(ast, AppSegmentConfigSchemaKeys, page)
-
-  const { type: rsc } = getRSCModuleInformation(content, true)
 
   const exportedConfig: Record<string, unknown> = {}
   if (exports) {
@@ -788,7 +797,6 @@ export async function getAppPageStaticInfo({
 
   return {
     type: PAGE_TYPES.APP,
-    rsc,
     generateImageMetadata,
     generateSitemaps,
     config,
@@ -827,8 +835,6 @@ export async function getPagesPageStaticInfo({
   })
 
   const { exports } = checkExports(ast, PagesSegmentConfigSchemaKeys, page)
-
-  const { type: rsc } = getRSCModuleInformation(content, true)
 
   const exportedConfig: Record<string, unknown> = {}
   if (exports) {
@@ -901,7 +907,6 @@ export async function getPagesPageStaticInfo({
 
   return {
     type: PAGE_TYPES.PAGES,
-    rsc,
     config,
     middleware: parseMiddlewareConfig(page, exportedConfig.config, nextConfig),
     runtime: resolvedRuntime,

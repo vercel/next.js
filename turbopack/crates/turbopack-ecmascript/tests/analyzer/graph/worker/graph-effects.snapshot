@@ -50,6 +50,58 @@
                 ),
             ),
         ),
+        base_effects: [
+            ImportMeta {
+                ast_path: [
+                    Program(
+                        Module,
+                    ),
+                    Module(
+                        Body(
+                            0,
+                        ),
+                    ),
+                    ModuleItem(
+                        Stmt,
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        New,
+                    ),
+                    NewExpr(
+                        Args(
+                            1,
+                        ),
+                    ),
+                    ExprOrSpread(
+                        Expr,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        MetaProp,
+                    ),
+                ],
+                span: 40..51,
+            },
+        ],
         ast_path: [
             Program(
                 Module,
@@ -93,56 +145,6 @@
         ],
         span: 40..55,
         in_truthiness_context: false,
-    },
-    ImportMeta {
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    0,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                New,
-            ),
-            NewExpr(
-                Args(
-                    1,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                MetaProp,
-            ),
-        ],
-        span: 40..51,
     },
     Call {
         func: FreeVar(

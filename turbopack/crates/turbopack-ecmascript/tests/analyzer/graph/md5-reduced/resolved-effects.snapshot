@@ -1,4 +1,4 @@
-0 -> 2 free var = FreeVar(module)
+1 -> 2 free var = FreeVar(module)
 
 0 -> 3 free var = FreeVar(md5)
 

@@ -3,6 +3,7 @@ import {
   FileRef,
   patchFileWithDeployEnvAssignments,
   isNextDeploy,
+  isNextDev,
 } from 'e2e-utils'
 import {
   waitForRedbox,
@@ -15,7 +16,7 @@ import { realpathSync } from 'fs'
 import { pathToFileURL } from 'url'
 
 describe('non-root-project-monorepo', () => {
-  const { next, isTurbopack, isNextDev, isRspack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: {
       apps: new FileRef(path.resolve(__dirname, 'apps')),
       packages: new FileRef(path.resolve(__dirname, 'packages')),
@@ -35,7 +36,7 @@ describe('non-root-project-monorepo', () => {
     },
     packageJson: require('./package.json'),
     buildCommand: 'pnpm build',
-    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+    startCommand: isNextDev ? 'pnpm dev' : 'pnpm start',
     installCommand: 'pnpm i',
   })
 

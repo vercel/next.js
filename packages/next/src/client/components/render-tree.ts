@@ -34,12 +34,12 @@ import {
   readSegmentCacheEntryForNavigation,
   waitForSegmentCacheEntry,
   invalidateRouteCacheEntries,
-  spawnStaticStageCacheWrite,
-  writeRuntimePrefetchStreamIntoCache,
+  bufferAndWriteNavigationResponse,
   EntryStatus,
   MetadataOnlyRequestTree,
 } from './segment-cache/cache'
 import { discoverKnownRoute } from './segment-cache/optimistic-routes'
+import { Completeness } from './segment-cache/types'
 import type { NormalizedSearch } from './segment-cache/cache-key'
 import type { CacheMap } from './segment-cache/cache-map'
 import {
@@ -51,9 +51,11 @@ import {
 import {
   readFromBFCache,
   readFromBFCacheDuringRegularNavigation,
+  readFromBFCacheSincePreparedAt,
   writeToBFCache,
   updateBFCacheEntryFromDynamicResponse,
   computeDynamicStaleAt,
+  type BFCacheEntry,
 } from './segment-cache/bfcache'
 import type { VaryParams } from '../../shared/lib/segment-cache/vary-params-decoding'
 
@@ -98,6 +100,16 @@ export const enum FreshnessPolicy {
   RefreshAll,
   HMRRefresh,
   Gesture,
+  // The prepare phase of `router.experimental_prepare()`. Behaves like
+  // Default, except the result is never committed, and nothing is retried if
+  // the requests fail. Its only lasting effect is the data written into the
+  // BFCache, which the commit reuses.
+  Prepare,
+  // The commit phase of `router.experimental_prepare()`. A fresh navigation,
+  // like Default, except that like HistoryTraversal it reads from the BFCache
+  // regardless of stale time — but only entries written since the prepare
+  // phase started (`preparedAt`).
+  CommitPrepared,
 }
 
 const enum NavigationTaskStatus {
@@ -178,6 +190,7 @@ export function createInitialRenderTreeForHydration(
   }
   const parentNeedsDynamicRequest = false
   const restrictToShell = false
+  const preparedAt = null
   // Hydration is bound to the shared map.
   const map = segmentCacheMap
   const tree = createRenderTreeOnNavigation(
@@ -188,7 +201,8 @@ export function createInitialRenderTreeForHydration(
     parentNeedsDynamicRequest,
     accumulation,
     map,
-    restrictToShell
+    restrictToShell,
+    preparedAt
   )
   const head = createRenderTreeOnNavigation(
     navigatedAt,
@@ -198,7 +212,8 @@ export function createInitialRenderTreeForHydration(
     parentNeedsDynamicRequest,
     accumulation,
     map,
-    restrictToShell
+    restrictToShell,
+    preparedAt
   )
   return createRootNavigationTask(tree, head)
 }
@@ -247,7 +262,10 @@ export function startPPRNavigation(
   map: CacheMap<SegmentCacheEntry>,
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
-  restrictToShell: boolean
+  restrictToShell: boolean,
+  // When freshness is CommitPrepared, the time the prepare phase started.
+  // Null for all other navigations.
+  preparedAt: number | null
 ): RootNavigationTask | null {
   const parentNeedsDynamicRequest = false
   const parentRefreshState = null
@@ -267,7 +285,8 @@ export function startPPRNavigation(
     parentRefreshState,
     accumulation,
     map,
-    restrictToShell
+    restrictToShell,
+    preparedAt
   )
   if (tree === null) {
     // The route tree changed at or above the root layout. Perform a full-page
@@ -286,7 +305,8 @@ export function startPPRNavigation(
     parentRefreshState,
     accumulation,
     map,
-    restrictToShell
+    restrictToShell,
+    preparedAt
   )
   if (head === null) {
     // Unreachable: a one-node tree has no root layout to change and no slots.
@@ -326,7 +346,10 @@ function updateRenderTreeOnNavigation(
   map: CacheMap<SegmentCacheEntry>,
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
-  restrictToShell: boolean
+  restrictToShell: boolean,
+  // When freshness is CommitPrepared, the time the prepare phase started.
+  // Null for all other navigations.
+  preparedAt: number | null
 ): NavigationTask | null {
   // Check if the route structure changed. If only the params changed, that's
   // handled further down.
@@ -363,13 +386,14 @@ function updateRenderTreeOnNavigation(
       // case, because it acts like a root layout, but in the router tree, it
       // is rendered in the same position as app/layout.tsx.
       //
-      // Any navigation to the global Not Found route should trigger a
+      // Any navigation to or from the global Not Found route should trigger a
       // full-page navigation.
       //
       // TODO: We should probably model this by changing the key of the root
       // segment when this happens. Then the root layout check would work
       // as expected, without a special case.
-      newSegment === NOT_FOUND_SEGMENT_KEY
+      newSegment === NOT_FOUND_SEGMENT_KEY ||
+      oldRenderTree.segment === NOT_FOUND_SEGMENT_KEY
     ) {
       return null
     }
@@ -381,7 +405,8 @@ function updateRenderTreeOnNavigation(
       parentNeedsDynamicRequest,
       accumulation,
       map,
-      restrictToShell
+      restrictToShell,
+      preparedAt
     )
   }
 
@@ -390,6 +415,8 @@ function updateRenderTreeOnNavigation(
   let shouldRefreshDynamicData: boolean = false
   switch (freshness) {
     case FreshnessPolicy.Default:
+    case FreshnessPolicy.Prepare:
+    case FreshnessPolicy.CommitPrepared:
     case FreshnessPolicy.HistoryTraversal:
     case FreshnessPolicy.Hydration:
     case FreshnessPolicy.Gesture:
@@ -429,6 +456,8 @@ function updateRenderTreeOnNavigation(
     }
     switch (freshness) {
       case FreshnessPolicy.Default:
+      case FreshnessPolicy.Prepare:
+      case FreshnessPolicy.CommitPrepared:
       case FreshnessPolicy.Gesture: {
         // If the existing data didn't read any of the params that changed, we
         // can keep using it. Refreshes always fetch new data, and back/forward
@@ -472,7 +501,8 @@ function updateRenderTreeOnNavigation(
           seedDynamicStaleAt,
           bfcacheId,
           map,
-          restrictToShell
+          restrictToShell,
+          preparedAt
         )
         newRenderTree = result.node
         needsDynamicRequest = result.needsDynamicRequest
@@ -500,7 +530,8 @@ function updateRenderTreeOnNavigation(
       // Refreshing data preserves the identity of the active segment.
       oldRenderTree.data.bfcacheId,
       map,
-      restrictToShell
+      restrictToShell,
+      preparedAt
     )
     newRenderTree = result.node
     needsDynamicRequest = result.needsDynamicRequest
@@ -622,7 +653,8 @@ function updateRenderTreeOnNavigation(
         refreshState,
         accumulation,
         map,
-        restrictToShell
+        restrictToShell,
+        preparedAt
       )
 
       if (taskChild === null) {
@@ -698,6 +730,8 @@ function accumulateScrollRef(
 ): void {
   switch (freshness) {
     case FreshnessPolicy.Default:
+    case FreshnessPolicy.Prepare:
+    case FreshnessPolicy.CommitPrepared:
     case FreshnessPolicy.Gesture:
     case FreshnessPolicy.RefreshAll:
     case FreshnessPolicy.HMRRefresh:
@@ -728,7 +762,10 @@ function createRenderTreeOnNavigation(
   map: CacheMap<SegmentCacheEntry>,
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
-  restrictToShell: boolean
+  restrictToShell: boolean,
+  // When freshness is CommitPrepared, the time the prepare phase started.
+  // Null for all other navigations.
+  preparedAt: number | null
 ): NavigationTask {
   // Same traversal as updateRenderTreeOnNavigation, but simpler. We switch to this
   // path once we reach the part of the tree that was not in the previous route.
@@ -751,7 +788,8 @@ function createRenderTreeOnNavigation(
     // bfcacheId.
     generateBFCacheId(freshness),
     map,
-    restrictToShell
+    restrictToShell,
+    preparedAt
   )
   const newRenderTree = result.node
   const needsDynamicRequest = result.needsDynamicRequest
@@ -784,7 +822,8 @@ function createRenderTreeOnNavigation(
         parentNeedsDynamicRequest || needsDynamicRequest,
         accumulation,
         map,
-        restrictToShell
+        restrictToShell,
+        preparedAt
       )
 
       taskChildren.set(parallelRouteKey, taskChild)
@@ -997,7 +1036,10 @@ function createRenderTreeForSegment(
   map: CacheMap<SegmentCacheEntry>,
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
-  restrictToShell: boolean
+  restrictToShell: boolean,
+  // When freshness is CommitPrepared, the time the prepare phase started.
+  // Null for all other navigations.
+  preparedAt: number | null
 ): { node: RouteTree<CacheNode>; needsDynamicRequest: boolean } {
   // Construct an owned render tree using data from the BFCache, the client's
   // Segment Cache, or seeded from a server response.
@@ -1021,7 +1063,44 @@ function createRenderTreeForSegment(
   // During certain kinds of navigations, we may be able to render from
   // the BFCache.
   switch (freshness) {
-    case FreshnessPolicy.Default: {
+    case FreshnessPolicy.CommitPrepared: {
+      // Reuse the data seeded by the prepare phase, even if it's stale,
+      // including any segments whose dynamic data is still streaming in.
+      if (process.env.__NEXT_PREPARE_NAVIGATION && preparedAt !== null) {
+        //
+        // TODO: This accepts entries written by any navigation in the same
+        // millisecond as the prepare phase started. Track an epoch on BFCache
+        // entries instead, similar to how the prefetch cache works.
+        const preparedEntry = readFromBFCacheSincePreparedAt(
+          preparedAt,
+          tree.varyPath
+        )
+        if (preparedEntry !== null) {
+          // As with a back/forward navigation, skip the prefetched state if
+          // the dynamic data has already started arriving. Unlike a
+          // back/forward navigation, this is a fresh navigation, so we use
+          // the caller-supplied bfcacheId.
+          const dropPrefetchRsc = didBFCacheEntryRscResolve(preparedEntry)
+          return {
+            node: createRenderTree(
+              tree,
+              createCacheNode(
+                preparedEntry.rsc,
+                dropPrefetchRsc ? null : preparedEntry.prefetchRsc,
+                preparedEntry.varyParams,
+                bfcacheId
+              )
+            ),
+            needsDynamicRequest: false,
+          }
+        }
+      }
+      // Nothing was seeded by the prepare phase. Proceed like a regular
+      // navigation.
+      // Intentional fallthrough
+    }
+    case FreshnessPolicy.Default:
+    case FreshnessPolicy.Prepare: {
       // Check BFCache during regular navigations. The entry's staleAt
       // determines whether it's still fresh. This is used when
       // staleTimes.dynamic is configured globally or when a page exports
@@ -1085,17 +1164,7 @@ function createRenderTreeForSegment(
         // Only show prefetched data if the dynamic data is still pending. This
         // avoids a flash back to the prefetch state in a case where it's highly
         // likely to have already streamed in.
-        //
-        // Tehnically, what we're actually checking is whether the dynamic
-        // network response was received. But since it's a streaming response,
-        // this does not mean that all the dynamic data has fully streamed in.
-        // It just means that _some_ of the dynamic data was received. But as a
-        // heuristic, we assume that the rest dynamic data will stream in
-        // quickly, so it's still better to skip the prefetch state.
-        const oldRsc = bfcacheEntry.rsc
-        const oldRscDidResolve =
-          !isDeferredRsc(oldRsc) || oldRsc.status !== 'pending'
-        const dropPrefetchRsc = oldRscDidResolve
+        const dropPrefetchRsc = didBFCacheEntryRscResolve(bfcacheEntry)
         // Restore the bfcacheId from the cached entry so that back/forward
         // navigations preserve the original id, regardless of whether
         // `cacheComponents` Activity preservation is enabled.
@@ -1138,7 +1207,8 @@ function createRenderTreeForSegment(
       case EntryStatus.Fulfilled: {
         // Happy path: a cache hit
         cachedRsc = segmentEntry.rsc
-        isCachedRscPartial = segmentEntry.isPartial
+        isCachedRscPartial =
+          segmentEntry.completeness !== Completeness.FullyComplete
         cachedVaryParams = segmentEntry.varyParams
         break
       }
@@ -1158,11 +1228,11 @@ function createRenderTreeForSegment(
         // do yet another request to fill in the remaining data, creating
         // a waterfall.
         //
-        // The one exception is if this segment is being fetched with via
-        // prefetch={true} (i.e. the "force stale" or "full" strategy). If so,
-        // we can assume the response will be full. This field is set to `false`
-        // for such segments.
-        isCachedRscPartial = segmentEntry.isPartial
+        // The exception is a request we expect to return the segment fully
+        // complete, like a legacy prefetch. If so, we can assume the response
+        // will have nothing left to request.
+        isCachedRscPartial =
+          segmentEntry.completeness !== Completeness.FullyComplete
         break
       }
       case EntryStatus.Empty:
@@ -1275,6 +1345,16 @@ function createRenderTreeForSegment(
   }
 }
 
+// Whether the dynamic response for a BFCache entry was received. Technically,
+// this doesn't mean all the dynamic data has fully streamed in, only that
+// _some_ of it was received. But as a heuristic, we assume the rest will stream
+// in quickly, so it's better to skip the prefetch state than to flash back to
+// it.
+function didBFCacheEntryRscResolve(entry: BFCacheEntry): boolean {
+  const rsc = entry.rsc
+  return !isDeferredRsc(rsc) || rsc.status !== 'pending'
+}
+
 function createCacheNode(
   rsc: React.ReactNode | null,
   prefetchRsc: React.ReactNode | null,
@@ -1354,7 +1434,9 @@ export function spawnDynamicRequests(
       dynamicRequestTree = MetadataOnlyRequestTree
     } else {
       // This navigation was fully cached. There are no dynamic requests to spawn.
-      previousNavigationDidMismatch = false
+      if (freshnessPolicy !== FreshnessPolicy.Prepare) {
+        previousNavigationDidMismatch = false
+      }
       return
     }
   }
@@ -1450,7 +1532,8 @@ export function spawnDynamicRequests(
     primaryRequestPromise,
     refreshRequestPromises,
     routeCacheEntry,
-    navigateType
+    navigateType,
+    freshnessPolicy
   )
   // `finishNavigationTask` is responsible for error handling, so we can attach
   // noop callbacks to this promise.
@@ -1465,7 +1548,8 @@ async function finishNavigationTask(
     ReturnType<typeof fetchMissingDynamicData>
   > | null,
   routeCacheEntry: FulfilledRouteCacheEntry | null,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  freshnessPolicy: FreshnessPolicy
 ): Promise<void> {
   // Wait for all the requests to finish, or for the first one to fail.
   let exitStatus = await waitForRequestsToFinish(
@@ -1493,6 +1577,25 @@ async function finishNavigationTask(
     if (headExitStatus > exitStatus) {
       exitStatus = headExitStatus
     }
+  }
+
+  if (
+    process.env.__NEXT_PREPARE_NAVIGATION &&
+    freshnessPolicy === FreshnessPolicy.Prepare
+  ) {
+    // These are the requests of a prepared navigation
+    // (`router.experimental_prepare()`). Preparing must never navigate on its
+    // own, so we skip the retry, including when the commit has already
+    // happened while these requests were in flight.
+    //
+    // TODO: Handle failures. Currently, the BFCache entries written by the
+    // prepare phase are left as-is: a mismatch leaves segments that lazily
+    // fetch during render, a network error leaves segments that error, and a
+    // redirect leaves the wrong canonical URL. The commit (and any
+    // back/forward navigation) will render them. Instead, perform the retry as
+    // another prepare-style navigation that only fills the cache, and track
+    // the mismatch loop guard per prepared navigation rather than globally.
+    return
   }
 
   switch (exitStatus) {
@@ -1783,28 +1886,18 @@ async function fetchMissingDynamicData(
       await navigationLock
     }
 
-    if (routeCacheEntry !== null && result.staticStageResponse !== null) {
-      spawnStaticStageCacheWrite(
+    if (routeCacheEntry !== null) {
+      bufferAndWriteNavigationResponse(
         now,
-        result.staticStageResponse,
+        result.flightResponse,
         result.isResponsePartial,
-        result.responseHeaders,
-        dynamicRequestTree,
-        result.renderedSearch,
-        map
-      )
-    }
-
-    if (routeCacheEntry !== null && result.runtimePrefetchStream !== null) {
-      writeRuntimePrefetchStreamIntoCache(
-        now,
-        result.runtimePrefetchStream,
+        result.responseChunks,
         dynamicRequestTree,
         result.renderedSearch,
         map
       ).catch(() => {
-        // The runtime prefetch cache write failed. Not fatal — the
-        // navigation completed normally, we just won't cache runtime data.
+        // The cache write failed. Not fatal — the navigation completed
+        // normally, we just won't write into the cache.
       })
     }
 

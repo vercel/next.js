@@ -53,7 +53,7 @@ struct FieldInfo {
     field_type: Type,
     storage_type: StorageType,
     category: Category,
-    /// If true, field is lazily allocated in Vec<LazyField> (the default).
+    /// If true, field is lazily allocated in `Vec<LazyField>` (the default).
     /// If false (marked with `inline`), field is stored directly on TaskStorage.
     lazy: bool,
     /// If true, filter out values that reference transient tasks during encoding.
@@ -61,7 +61,7 @@ struct FieldInfo {
     /// For collections: filter out entries where key/value is_transient() returns true.
     filter_transient: bool,
     /// If true, use Default::default() semantics instead of Option for inline direct fields.
-    /// The field type should be T (not Option<T>), and empty is represented by T::default().
+    /// The field type should be `T` (not `Option<T>`), and empty is represented by `T::default()`.
     use_default: bool,
     /// If true, shrink this collection after task execution completes.
     /// Empty collections are removed entirely from the lazy vec.
@@ -130,7 +130,8 @@ impl FieldInfo {
     ///
     /// Used by mutators that track unconditionally (a replace/batch/counter update that reaches the
     /// track call is always a real change), so the returned `TrackOutcome` is discarded with
-    /// `let _ =`. Mutators that track-then-undo use [`track_modification_outcome_expr`] instead.
+    /// `let _ =`. Mutators that track-then-undo use
+    /// [`track_modification_outcome_expr`](Self::track_modification_outcome_expr) instead.
     fn track_modification_call(&self) -> TokenStream {
         let field_name_str = self.field_name.to_string();
         match self.category {
@@ -148,13 +149,14 @@ impl FieldInfo {
         }
     }
 
-    /// [`track_modification_call`], but for `filter_transient` fields it only
-    /// fires when `key_expr` is not transient — transient entries are dropped at
+    /// [`track_modification_call`](Self::track_modification_call), but for `filter_transient`
+    /// fields it only fires when `key_expr` is not transient — transient entries are dropped at
     /// encode (see [`generate_filter_predicate`]), so mutating one changes no
     /// persistable bytes. Safe because tracking is monotonic (we only omit, never
     /// clear). `key_expr` is the entry whose transience decides tracking and is
-    /// matched with `.is_transient()`. Identical to [`track_modification_call`]
-    /// for non-`filter_transient` fields.
+    /// matched with `.is_transient()`. Identical to
+    /// [`track_modification_call`](Self::track_modification_call) for non-`filter_transient`
+    /// fields.
     fn track_modification_call_guarded(&self, key_expr: TokenStream) -> TokenStream {
         if !self.filter_transient || self.is_transient() {
             return self.track_modification_call();
@@ -169,8 +171,9 @@ impl FieldInfo {
 
     /// An *expression* (no trailing `;`) that calls `self.track_modification(...)` and evaluates to
     /// a `TrackOutcome`. Used by mutators that track-before-mutate and then undo if the mutation
-    /// was a no-op (see [`track_modification_undo_expr`]). For transient *fields* there is nothing
-    /// to track, so it evaluates to `TrackOutcome::NoChange`.
+    /// was a no-op (see [`track_modification_undo_expr`](Self::track_modification_undo_expr)). For
+    /// transient *fields* there is nothing to track, so it evaluates to
+    /// `TrackOutcome::NoChange`.
     fn track_modification_outcome_expr(&self) -> TokenStream {
         let field_name_str = self.field_name.to_string();
         match self.category {
@@ -184,9 +187,10 @@ impl FieldInfo {
         }
     }
 
-    /// Like [`track_modification_outcome_expr`], but for `filter_transient` fields it only tracks
-    /// when `key_expr` is not transient (transient entries change no persistable bytes), evaluating
-    /// to `TrackOutcome::NoChange` otherwise. Identical to [`track_modification_outcome_expr`] for
+    /// Like [`track_modification_outcome_expr`](Self::track_modification_outcome_expr), but for
+    /// `filter_transient` fields it only tracks when `key_expr` is not transient (transient
+    /// entries change no persistable bytes), evaluating to `TrackOutcome::NoChange` otherwise.
+    /// Identical to [`track_modification_outcome_expr`](Self::track_modification_outcome_expr) for
     /// non-`filter_transient` fields.
     fn track_modification_outcome_expr_guarded(&self, key_expr: TokenStream) -> TokenStream {
         if !self.filter_transient || self.is_transient() {
@@ -1998,7 +2002,7 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
                 Some((#unwraper)(old))
             } else {
                 #track_insert
-                self.typed_mut().lazy.push(#constructor);
+                self.typed_mut().lazy.push_exact(#constructor);
                 None
             }
         }
@@ -2228,7 +2232,7 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
                     Some((#unwraper)(old))
                 } else {
                     #track_modification
-                    self.typed_mut().lazy.push(#ctor);
+                    self.typed_mut().lazy.push_exact(#ctor);
                     None
                 }
             };
@@ -2302,7 +2306,7 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
                     }
                     #track_modification
                     let set: #field_type = iter.collect();
-                    self.typed_mut().lazy.push(#ctor);
+                    self.typed_mut().lazy.push_exact(#ctor);
                 }
             }
         } else {
@@ -2459,10 +2463,35 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
     // no-op so no undo is needed.
     let remove_outcome = field.track_modification_outcome_expr_guarded(quote! { key });
     let remove_undo = field.track_modification_undo_expr(quote! { _track_outcome });
+    // Binds the map to mutate to `map`. For lazy fields it is located (or created) by index, so
+    // `drop_if_empty` can remove the `LazyField` variant by that index once a mutation left the
+    // map empty (`is_empty` is O(1)).
+    let (bind_map, drop_if_empty) = if is_option {
+        let matches = field.lazy_matches_closure();
+        let extractor = field.lazy_extractor_closure();
+        let constructor = field.lazy_constructor(quote! { Default::default() });
+        (
+            quote! {
+                let idx = self.typed_mut().get_or_create_lazy_index(#matches, || #constructor);
+                let map = self.typed_mut().lazy_at_mut(idx, #extractor);
+            },
+            quote! {
+                if map.is_empty() {
+                    self.typed_mut().remove_lazy_at(idx);
+                }
+            },
+        )
+    } else {
+        (quote! { let map = #mut_expr; }, quote! {})
+    };
+
     let remove_body = if field.is_transient() {
         quote! {
             #track_modification
-            #mut_expr.remove(key)
+            #bind_map
+            let removed = map.remove(key);
+            #drop_if_empty
+            removed
         }
     } else if is_option {
         // Lazy: still locate the map without allocating it (a bare `field_mut()` would create an
@@ -2471,8 +2500,13 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         quote! {
             let (idx, _) = self.typed().find_lazy_ref(#extractor)?;
             let _track_outcome = #remove_outcome;
-            let removed = self.typed_mut().lazy_at_mut(idx, #extractor).remove(key);
-            if removed.is_none() { #remove_undo }
+            let map = self.typed_mut().lazy_at_mut(idx, #extractor);
+            let removed = map.remove(key);
+            if removed.is_none() {
+                #remove_undo
+            } else if map.is_empty() {
+                self.typed_mut().remove_lazy_at(idx);
+            }
             removed
         }
     } else {
@@ -2510,7 +2544,10 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         let update_positive_crossing_name = field.infixed_ident("update", "positive_crossing");
         let update_positive_crossing_body = if field.is_transient() {
             quote! {
-                #mut_expr.update_positive_crossing(key, delta)
+                #bind_map
+                let crossed = map.update_positive_crossing(key, delta);
+                #drop_if_empty
+                crossed
             }
         } else {
             quote! {
@@ -2518,7 +2555,10 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                     return false;
                 }
                 #track_modification_key
-                #mut_expr.update_positive_crossing(key, delta)
+                #bind_map
+                let crossed = map.update_positive_crossing(key, delta);
+                #drop_if_empty
+                crossed
             }
         };
 
@@ -2537,7 +2577,10 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
 
     let update_count_body = if field.is_transient() {
         quote! {
-            #mut_expr.update_count(key, delta)
+            #bind_map
+            let crossed = map.update_count(key, delta);
+            #drop_if_empty
+            crossed
         }
     } else {
         quote! {
@@ -2545,16 +2588,20 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                 return false;
             }
             #track_modification_key
-            #mut_expr.update_count(key, delta)
+            #bind_map
+            let crossed = map.update_count(key, delta);
+            #drop_if_empty
+            crossed
         }
     };
 
     let update_counts_body = if field.is_transient() {
         quote! {
-            let map = #mut_expr;
+            #bind_map
             for key in keys {
                 map.update_count(key, delta);
             }
+            #drop_if_empty
         }
     } else if field.filter_transient {
         // Batch update: track once, iff at least one key is non-transient
@@ -2573,10 +2620,11 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
             if keys.iter().any(|key| !key.is_transient()) {
                 #track_modification
             }
-            let map = #mut_expr;
+            #bind_map
             for key in keys {
                 map.update_count(key, delta);
             }
+            #drop_if_empty
         }
     } else {
         quote! {
@@ -2584,16 +2632,20 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                 return;
             }
             #track_modification
-            let map = #mut_expr;
+            #bind_map
             for key in keys {
                 map.update_count(key, delta);
             }
+            #drop_if_empty
         }
     };
 
     let update_and_get_body = if field.is_transient() {
         quote! {
-            #mut_expr.update_and_get(key, delta)
+            #bind_map
+            let value = map.update_and_get(key, delta);
+            #drop_if_empty
+            value
         }
     } else {
         quote! {
@@ -2601,7 +2653,10 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                 return self.#get_name(&key).copied().unwrap_or_default();
             }
             #track_modification_key
-            #mut_expr.update_and_get(key, delta)
+            #bind_map
+            let value = map.update_and_get(key, delta);
+            #drop_if_empty
+            value
         }
     };
 
@@ -2629,13 +2684,17 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                         } else {
                             let mut new_map = CounterMap::default();
                             new_map.insert(key, value);
-                            self.typed_mut().lazy.push(#constructor);
+                            self.typed_mut().lazy.push_exact(#constructor);
                         }
                     }
                     None => {
                         // the position must be available, otherwise `f` would have mapped None to None and thus the != check above would have failed.
-                        self.typed_mut().lazy_at_mut(position.unwrap(), #extractor).remove(&key);
-
+                        let position = position.unwrap();
+                        let map = self.typed_mut().lazy_at_mut(position, #extractor);
+                        map.remove(&key);
+                        if map.is_empty() {
+                            self.typed_mut().remove_lazy_at(position);
+                        }
                     }
                 }
             }
@@ -3345,7 +3404,7 @@ fn gen_drop_lazy_match_arm(field: &FieldInfo) -> TokenStream {
     }
 }
 
-/// Extract the inner type from Option<T>, or return the type as-is if not Option
+/// Extract the inner type from `Option<T>`, or return the type as-is if not Option
 fn extract_option_inner_type(ty: &Type) -> TokenStream {
     // Try to parse as Option<T> and extract T
     if let Type::Path(type_path) = ty
@@ -3361,7 +3420,7 @@ fn extract_option_inner_type(ty: &Type) -> TokenStream {
     quote! { #ty }
 }
 
-/// Extract the element type K from AutoSet<K> (which is FxHashSet<K>)
+/// Extract the element type `K` from `AutoSet<K>` (which is `FxHashSet<K>`)
 fn extract_set_element_type(ty: &Type) -> Option<TokenStream> {
     if let Type::Path(type_path) = ty
         && let Some(segment) = type_path.path.segments.last()
@@ -3472,8 +3531,8 @@ fn gen_decode_body(grouped_fields: &GroupedFields, category: Category) -> TokenS
 /// Generate encode/decode methods for TaskStorage serialization.
 ///
 /// Generates four methods:
-/// - `encode_meta<E>(&self, encoder: &mut E)` - Encode meta category fields
-/// - `encode_data<E>(&self, encoder: &mut E)` - Encode data category fields
+/// - `encode_meta(&self, encoder: &mut TurboBincodeEncoder)` - Encode meta category fields
+/// - `encode_data(&self, encoder: &mut TurboBincodeEncoder)` - Encode data category fields
 /// - `decode_meta<D>(&mut self, decoder: &mut D)` - Decode meta category fields
 /// - `decode_data<D>(&mut self, decoder: &mut D)` - Decode data category fields
 ///
@@ -3531,9 +3590,9 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
         impl TaskStorage {
             /// Encode meta category fields directly to bincode.
             /// Only persistent (non-transient) fields are encoded.
-            pub fn encode_meta<E: bincode::enc::Encoder>(
+            pub fn encode_meta(
                 &self,
-                encoder: &mut E,
+                encoder: &mut turbo_bincode::TurboBincodeEncoder<'_>,
             ) -> Result<(), bincode::error::EncodeError> {
                 #encode_meta_body
                 #encode_meta_flags
@@ -3542,9 +3601,9 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
 
             /// Encode data category fields directly to bincode.
             /// Only persistent (non-transient) fields are encoded.
-            pub fn encode_data<E: bincode::enc::Encoder>(
+            pub fn encode_data(
                 &self,
-                encoder: &mut E,
+                encoder: &mut turbo_bincode::TurboBincodeEncoder<'_>,
             ) -> Result<(), bincode::error::EncodeError> {
                 #encode_data_body
                 #encode_data_flags
@@ -3636,8 +3695,9 @@ fn generate_filter_predicate(field: &FieldInfo) -> Option<(TokenStream, FilterPr
 /// is already a reference from the match arm).
 ///
 /// For non-filtered fields, encodes the value directly.
-/// For filtered fields, uses a single-pass collect to a Vec, then encodes.
-/// This avoids multiple iterations (check non-empty + count + encode).
+/// For filtered collections, reserves the unfiltered length as the length prefix, encodes the
+/// surviving entries in a single pass, then patches the prefix with the actual count. This avoids
+/// both iterating twice (count + encode) and collecting the entries into a temporary `Vec`.
 fn generate_encode_value(field: &FieldInfo, value_ref: TokenStream) -> TokenStream {
     let Some((predicate, pred_type)) = generate_filter_predicate(field) else {
         // No filtering needed, just encode normally
@@ -3657,40 +3717,35 @@ fn generate_encode_value(field: &FieldInfo, value_ref: TokenStream) -> TokenStre
             }
         }
         FilterPredicateType::Set => {
-            // For AutoSet<K>, filter out transient keys - collect once then encode
+            // For AutoSet<K>, filter out transient keys
             quote! {
                 {
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for key in filtered {
-                        bincode::Encode::encode(key, encoder)?;
-                    }
+                    let collection = #value_ref;
+                    turbo_bincode::encode_len_prefixed(encoder, collection.len(), |encoder| {
+                        let mut count = 0usize;
+                        for key in collection.iter().filter(#predicate) {
+                            bincode::Encode::encode(key, encoder)?;
+                            count += 1;
+                        }
+                        Ok(count)
+                    })?;
                 }
             }
         }
-        FilterPredicateType::CounterMap => {
-            // For counter maps, filter out entries with transient keys - collect once
+        FilterPredicateType::CounterMap | FilterPredicateType::Map => {
+            // For maps, filter out entries with transient keys (or values, for AutoMap)
             quote! {
                 {
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for (key, value) in filtered {
-                        bincode::Encode::encode(key, encoder)?;
-                        bincode::Encode::encode(value, encoder)?;
-                    }
-                }
-            }
-        }
-        FilterPredicateType::Map => {
-            // For maps, filter out entries with transient keys or values - collect once
-            quote! {
-                {
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for (key, value) in filtered {
-                        bincode::Encode::encode(key, encoder)?;
-                        bincode::Encode::encode(value, encoder)?;
-                    }
+                    let collection = #value_ref;
+                    turbo_bincode::encode_len_prefixed(encoder, collection.len(), |encoder| {
+                        let mut count = 0usize;
+                        for (key, value) in collection.iter().filter(#predicate) {
+                            bincode::Encode::encode(key, encoder)?;
+                            bincode::Encode::encode(value, encoder)?;
+                            count += 1;
+                        }
+                        Ok(count)
+                    })?;
                 }
             }
         }
@@ -3707,8 +3762,8 @@ fn generate_encode_inline_field(field: &FieldInfo) -> TokenStream {
 
 /// Generate code to encode a lazy field value with index.
 ///
-/// For filtered fields, collects to a Vec first, then checks if non-empty before
-/// writing index. This avoids multiple iterations over the data.
+/// For filtered fields, writes the index and entries in a single pass and truncates them away
+/// again if every entry was filtered out. This avoids multiple iterations over the data.
 fn generate_encode_lazy_field_with_index(field: &FieldInfo, index: u8) -> TokenStream {
     let Some((predicate, pred_type)) = generate_filter_predicate(field) else {
         // No filtering needed - encode directly
@@ -3732,32 +3787,46 @@ fn generate_encode_lazy_field_with_index(field: &FieldInfo, index: u8) -> TokenS
             }
         }
         FilterPredicateType::Set => {
-            // Collect once, check if non-empty, then encode
+            // Encode optimistically in a single pass, then roll back the index too if every entry
+            // was filtered out
             quote! {
                 {
-                    let filtered: Vec<_> = data.iter().filter(#predicate).collect();
-                    if !filtered.is_empty() {
-                        bincode::Encode::encode(&#index, encoder)?;
-                        bincode::Encode::encode(&filtered.len(), encoder)?;
-                        for key in filtered {
-                            bincode::Encode::encode(key, encoder)?;
-                        }
+                    let start = bincode::enc::Encoder::writer(encoder).buffer.len();
+                    bincode::Encode::encode(&#index, encoder)?;
+                    let count =
+                        turbo_bincode::encode_len_prefixed(encoder, data.len(), |encoder| {
+                            let mut count = 0usize;
+                            for key in data.iter().filter(#predicate) {
+                                bincode::Encode::encode(key, encoder)?;
+                                count += 1;
+                            }
+                            Ok(count)
+                        })?;
+                    if count == 0 {
+                        bincode::enc::Encoder::writer(encoder).buffer.truncate(start);
                     }
                 }
             }
         }
         FilterPredicateType::CounterMap | FilterPredicateType::Map => {
-            // Collect once, check if non-empty, then encode
+            // Encode optimistically in a single pass, then roll back the index too if every entry
+            // was filtered out
             quote! {
                 {
-                    let filtered: Vec<_> = data.iter().filter(#predicate).collect();
-                    if !filtered.is_empty() {
-                        bincode::Encode::encode(&#index, encoder)?;
-                        bincode::Encode::encode(&filtered.len(), encoder)?;
-                        for (key, value) in filtered {
-                            bincode::Encode::encode(key, encoder)?;
-                            bincode::Encode::encode(value, encoder)?;
-                        }
+                    let start = bincode::enc::Encoder::writer(encoder).buffer.len();
+                    bincode::Encode::encode(&#index, encoder)?;
+                    let count =
+                        turbo_bincode::encode_len_prefixed(encoder, data.len(), |encoder| {
+                            let mut count = 0usize;
+                            for (key, value) in data.iter().filter(#predicate) {
+                                bincode::Encode::encode(key, encoder)?;
+                                bincode::Encode::encode(value, encoder)?;
+                                count += 1;
+                            }
+                            Ok(count)
+                        })?;
+                    if count == 0 {
+                        bincode::enc::Encoder::writer(encoder).buffer.truncate(start);
                     }
                 }
             }
@@ -3766,7 +3835,7 @@ fn generate_encode_lazy_field_with_index(field: &FieldInfo, index: u8) -> TokenS
 }
 
 /// Generate code to encode lazy fields to bincode.
-/// Uses sentinel-terminated format: [index, data]... [sentinel]
+/// Uses sentinel-terminated format: `[index, data]... [sentinel]`
 fn generate_encode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
     if fields.is_empty() {
         return quote! {};
@@ -3827,7 +3896,7 @@ fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
                     ));
                 }
             };
-            self.lazy.push(field);
+            self.lazy.push_exact(field);
         }
     }
 }
@@ -4018,7 +4087,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
                 match incoming {
                     #(#merge_lazy_arms)*
                     _ => {
-                        self.lazy.push(incoming);
+                        self.lazy.push_exact(incoming);
                     }
                 }
             }
@@ -4048,7 +4117,7 @@ fn gen_restore_lazy_merge_arm(field: &FieldInfo, discriminant: u8) -> TokenStrea
                 };
                 residue.merge_restore(incoming);
             } else {
-                self.lazy.push(LazyField::#variant_name(incoming));
+                self.lazy.push_exact(LazyField::#variant_name(incoming));
             }
         }
     }

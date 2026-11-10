@@ -190,7 +190,7 @@ jobs:
         NEXT_TEST_MODE=deploy \
         IS_WEBPACK_TEST=1 \
         NEXT_ENABLE_ADAPTER=0 \
-        NEXT_TEST_DEPLOY_TARGET_VERCEL=1 \
+        NEXT_TEST_DEPLOY_TARGET_VERCEL="${{ github.event.inputs.deployScriptPath == '' && '1' || '' }}" \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
@@ -347,10 +347,15 @@ jobs:
     if: >-
       ${{
         always() &&
+        github.event_name == 'release' &&
         github.event.inputs.deployScriptPath == '' &&
         github.repository_owner == 'vercel' &&
         !startsWith(needs.setup.outputs.next-version, 'http')
       }}
+    permissions:
+      contents: read
+      # Minting a GitHub OIDC token to authenticate the results upload.
+      id-token: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -375,11 +380,6 @@ jobs:
 
       - name: Upload adapter test results
         run: |
-          if [ -z "${ADAPTER_TEST_RESULTS_SECRET:-}" ]; then
-            echo "ADAPTER_TEST_RESULTS_SECRET is not configured, skipping upload"
-            exit 0
-          fi
-
           if [ ! -d adapter-test-results ]; then
             echo "No adapter test artifact directory found, skipping upload"
             exit 0
@@ -391,8 +391,4 @@ jobs:
           fi
 
           node scripts/upload-adapter-test-results.mjs \
-            --results-root adapter-test-results \
-            --provider vercel \
-            --commit-sha "${{ github.sha }}"
-        env:
-          ADAPTER_TEST_RESULTS_SECRET: ${{ secrets.ADAPTER_TEST_RESULTS_SECRET }}
+            --results-root adapter-test-results
