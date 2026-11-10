@@ -397,11 +397,14 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 name = "auto-hash-map"
 version = "0.1.0"
 dependencies = [
+ "arrayvec 0.7.6",
  "bincode",
  "codspeed-criterion-compat",
  "hashbrown 0.15.4",
+ "indexmap 2.14.0",
  "rustc-hash 2.1.1",
  "serde",
+ "serde_json",
  "shrink-to-fit",
  "turbo-tasks-malloc",
 ]
@@ -581,7 +584,7 @@ dependencies = [
 [[package]]
 name = "bincode"
 version = "2.0.1"
-source = "git+https://github.com/vercel-labs/bincode-fork.git?branch=main#64e3c5e11da1715cd06d319552e780f5e9349281"
+source = "git+https://github.com/vercel-labs/bincode-fork.git?branch=main#099bf4fdb9b7208adc78d3f78a8fd2586460d9f3"
 dependencies = [
  "bincode_derive",
  "serde",
@@ -591,7 +594,7 @@ dependencies = [
 [[package]]
 name = "bincode_derive"
 version = "2.0.1"
-source = "git+https://github.com/vercel-labs/bincode-fork.git?branch=main#64e3c5e11da1715cd06d319552e780f5e9349281"
+source = "git+https://github.com/vercel-labs/bincode-fork.git?branch=main#099bf4fdb9b7208adc78d3f78a8fd2586460d9f3"
 dependencies = [
  "virtue",
 ]
@@ -9534,6 +9537,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "auto-hash-map",
  "bincode",
  "either",
  "indoc",
@@ -9733,6 +9737,7 @@ dependencies = [
  "tokio-util",
  "tracing",
  "turbo-bincode",
+ "turbo-frozenmap",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
@@ -10013,6 +10018,7 @@ name = "turbopack-nodejs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "auto-hash-map",
  "bincode",
  "either",
  "fs-err",

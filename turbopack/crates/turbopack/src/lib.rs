@@ -33,7 +33,8 @@ use turbopack_core::{
     output::{ExpandedOutputAssets, OutputAsset},
     raw_module::RawModule,
     reference_type::{
-        CssReferenceSubType, EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType,
+        CssReferenceSubType, EcmaScriptModulesReferenceSubType, EntryReferenceSubType, InnerAssets,
+        ReferenceType,
     },
     resolve::{
         ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
@@ -95,6 +96,16 @@ async fn apply_module_type(
         _ => None,
     };
     let is_evaluation = matches!(&part, Some(ModulePart::Evaluation));
+    // A standalone entry isn't canonicalized: nothing imports its exports, so a facade or module
+    // fragments would have nothing to tree shake, and whether the module has reexports would
+    // change the identity of the entry, which HMR can't follow when an edit adds or removes one.
+    let is_standalone_entry = matches!(
+        &reference_type,
+        ReferenceType::Entry(EntryReferenceSubType {
+            standalone: true,
+            ..
+        })
+    );
     let is_lazy_dynamic_import = matches!(
         &reference_type,
         ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::LazyDynamicImport)
@@ -199,7 +210,9 @@ async fn apply_module_type(
                     }
                 }
 
-                let canonicalization = if module_fragments_enabled {
+                let canonicalization = if is_standalone_entry {
+                    EcmascriptModuleCanonicalization::None
+                } else if module_fragments_enabled {
                     EcmascriptModuleCanonicalization::ModuleFragments(
                         part.cloned().unwrap_or_else(ModulePart::facade),
                     )

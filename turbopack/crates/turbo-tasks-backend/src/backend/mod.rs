@@ -1199,14 +1199,17 @@ impl TurboTasksBackend {
         let _ = task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence);
     }
 
-    /// Refines the [`CellKey::Provisional`] dependency of `reader` on `cell` of `task_id` (created
-    /// by a `Vc::keyed_reader()` or `Vc::lazy_reader()` read): it's replaced with
-    /// [`CellKey::Hash`] dependencies on `key_hashes`. With no `key_hashes` (an unaccessed
+    /// Refines the [`CellKeyKind::Provisional`] dependency of `reader` on `cell` of `task_id`
+    /// (created by a `Vc::keyed_reader()` or `Vc::lazy_reader()` read): it's replaced with
+    /// [`CellKeyKind::Hash`] dependencies on `key_hashes`. With no `key_hashes` (an unaccessed
     /// `LazyReadRef`), it's removed.
     ///
     /// When the cell content is currently missing (e.g. while `update_cell` invalidates its
-    /// dependents), the [`CellKey::Provisional`] dependency is kept, conservatively depending on
-    /// the whole cell.
+    /// dependents), the [`CellKeyKind::Provisional`] dependency is kept, conservatively depending
+    /// on the whole cell.
+    ///
+    /// [`CellKeyKind::Provisional`]: turbo_tasks::CellKeyKind::Provisional
+    /// [`CellKeyKind::Hash`]: turbo_tasks::CellKeyKind::Hash
     fn refine_provisional_cell_dependency(
         &self,
         task_id: TaskId,
@@ -1230,7 +1233,7 @@ impl TurboTasksBackend {
             task: task_id,
             cell,
         };
-        let provisional = CellKey::Provisional(id);
+        let provisional = CellKey::provisional(id);
         task.remove_cell_dependents_keyed(&(reverse, provisional));
         reader_task.remove_cell_dependencies_keyed(&(target, provisional));
         reader_task.remove_outdated_cell_dependencies_keyed(&(target, provisional));
@@ -1239,7 +1242,7 @@ impl TurboTasksBackend {
             return;
         }
         for k in key_hashes {
-            let key = CellKey::Hash(k);
+            let key = CellKey::hash(k);
             let _ = task.add_cell_dependents_keyed((reverse, key));
             if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, key)) {
                 let _ = reader_task.add_cell_dependencies_keyed((target, key));
@@ -1247,8 +1250,8 @@ impl TurboTasksBackend {
         }
     }
 
-    /// Converts all [`CellKey::Provisional`] dependencies of `reader` that are still present into
-    /// normal (full) cell dependencies. Called when an execution of `reader` that made
+    /// Converts all [`CellKeyKind::Provisional`] dependencies of `reader` that are still present
+    /// into normal (full) cell dependencies. Called when an execution of `reader` that made
     /// `Vc::keyed_reader()` or `Vc::lazy_reader()` reads completes, as the ids are only meaningful
     /// within that execution.
     ///
@@ -1257,14 +1260,17 @@ impl TurboTasksBackend {
     /// the dependencies are still kept consistent), or when their refinement was refused (see
     /// `refine_provisional_cell_dependency`).
     ///
-    /// A concurrent `update_cell` that collected the [`CellKey::Provisional`] dependent before the
-    /// conversion still invalidates `reader`, as it always invalidates collected
-    /// [`CellKey::Provisional`] dependents.
+    /// A concurrent `update_cell` that collected the [`CellKeyKind::Provisional`] dependent before
+    /// the conversion still invalidates `reader`, as it always invalidates collected
+    /// [`CellKeyKind::Provisional`] dependents.
     ///
     /// Unlike [`Self::refine_provisional_cell_dependency`], which narrows a dependency to
-    /// [`CellKey::Hash`] dependencies and refuses while the cell content is missing, this doesn't
-    /// depend on the cell content and converts to a full dependency (or just removes the edge when
-    /// the cell's task is immutable), so it can't reuse that method.
+    /// [`CellKeyKind::Hash`] dependencies and refuses while the cell content is missing, this
+    /// doesn't depend on the cell content and converts to a full dependency (or just removes the
+    /// edge when the cell's task is immutable), so it can't reuse that method.
+    ///
+    /// [`CellKeyKind::Provisional`]: turbo_tasks::CellKeyKind::Provisional
+    /// [`CellKeyKind::Hash`]: turbo_tasks::CellKeyKind::Hash
     fn convert_remaining_provisional_cell_dependencies_at_task_completion(
         &self,
         ctx: &mut ExecuteContext<'_>,
@@ -1273,7 +1279,7 @@ impl TurboTasksBackend {
         let remaining: SmallVec<[(CellRef, CellKey); 4]> = ctx
             .task(reader, TaskDataCategory::Data)
             .iter_cell_dependencies_keyed()
-            .filter(|(_, key)| matches!(key, CellKey::Provisional(_)))
+            .filter(|(_, key)| key.is_provisional())
             .collect();
         for (target, key) in remaining {
             let reverse = CellRef {
@@ -2394,8 +2400,9 @@ impl TurboTasksBackend {
                 || !ctx
                     .task(task_id, TaskDataCategory::Data)
                     .iter_cell_dependencies_keyed()
-                    .any(|(_, key)| matches!(key, CellKey::Provisional(_))),
-            "`CellKey::Provisional` dependencies must be converted when the execution completes"
+                    .any(|(_, key)| key.is_provisional()),
+            "`CellKeyKind::Provisional` dependencies must be converted when the execution \
+             completes"
         );
 
         let TaskExecutionCompletePrepareResult {

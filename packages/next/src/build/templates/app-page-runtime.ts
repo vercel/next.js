@@ -564,33 +564,26 @@ export function createAppPageEntrypoint({
     const minimalPostponed = isRoutePPREnabled
       ? getRequestMeta(req, 'postponed')
       : undefined
+    // An empty string requests a dynamic render without cached postponed state.
     const hasPostponedState = typeof minimalPostponed === 'string'
 
-    // If PPR is enabled, and this is a RSC request (but not a prefetch), then
-    // we can use this fact to only generate the flight data for the request
-    // because we can't cache the HTML (as it's also dynamic).
     const staticPrefetchDataRoute = prerenderedRoute?.prefetchDataRoute
     const isEnsureStaticPage = prerenderInfo?._isEnsureStaticPage === true
 
-    let isDynamicRSCRequest =
+    const isDynamicRSCRequest =
       isRoutePPREnabled &&
       isRSCRequest &&
       !isPrefetchRSCRequest &&
-      // If generated at build time, treat the RSC request as static
-      // so we can serve the prebuilt .rsc without a dynamic render.
-      // Only do this for routes that have a concrete prefetchDataRoute.
-      !staticPrefetchDataRoute &&
+      // In minimal mode, supplied postponed state takes precedence over
+      // `staticPrefetchDataRoute`. The build sets that value when it emits a
+      // complete RSC file. Revalidation can produce a partial result for the
+      // same route. The supplied postponed state then requires a dynamic RSC
+      // render despite the complete build-time output.
+      (isMinimalMode ? hasPostponedState : !staticPrefetchDataRoute) &&
       // Do not serve `ensureStatic = "navigation"` with a dynamic response,
       // (we want to do a blocking prerender instead)
       // TODO(ensure-static): express this in a cleaner way
       !isEnsureStaticPage
-
-    // During a PPR revalidation, the RSC request is not dynamic if postponed
-    // metadata is absent. An empty string represents a resume request without
-    // postponed state, which should perform a full dynamic render.
-    if (isMinimalMode) {
-      isDynamicRSCRequest = isDynamicRSCRequest && hasPostponedState
-    }
 
     // Need to read this before it's stripped by stripFlightHeaders. We don't
     // need to transfer it to the request meta because it's only read
@@ -824,12 +817,14 @@ export function createAppPageEntrypoint({
         context: AppPageRouteHandlerContext,
         renderOperation: AppPageRenderOperation
       ) => {
-        const nextRes = new NodeNextResponse(res)
-
         const result =
           renderOperation === 'prerender'
-            ? routeModule.prerender(nextRes, context)
-            : routeModule.render(new NodeNextRequest(req), nextRes, context)
+            ? routeModule.prerender(context)
+            : routeModule.render(
+                new NodeNextRequest(req),
+                new NodeNextResponse(res),
+                context
+              )
 
         return result.finally(() => {
           if (!span) return
@@ -2217,6 +2212,29 @@ export function createAppPageEntrypoint({
           })
         }
 
+        // Apply the selected entry's status before a platform callback can
+        // deliver it. PPR Flight responses keep their request status.
+        if (cachedData.status && (!isRSCRequest || !isRoutePPREnabled)) {
+          res.statusCode = cachedData.status
+        }
+
+        // RSC payloads encode redirects. The non-minimal server sends them with
+        // a 200 status.
+        if (
+          !isMinimalMode &&
+          cachedData.status &&
+          RedirectStatusCode[cachedData.status] &&
+          isRSCRequest
+        ) {
+          res.statusCode = 200
+        }
+
+        span?.setAttribute('http.status_code', res.statusCode)
+        if (res.statusCode >= 500) {
+          span?.setStatus({ code: SpanStatusCode.ERROR })
+          span?.setAttribute('error.type', res.statusCode.toString())
+        }
+
         // `onCacheEntry` lets the platform capture a freshly prerendered result
         // so the proxy can write it to the ISR cache; on deploy it returns true
         // and the function returns below. In debug-shell mode the render was
@@ -2256,23 +2274,6 @@ export function createAppPageEntrypoint({
         const tags = cachedData.headers?.[NEXT_CACHE_TAGS_HEADER]
         if (isMinimalMode && isSSG && tags && typeof tags === 'string') {
           res.setHeader(NEXT_CACHE_TAGS_HEADER, tags)
-        }
-
-        // If the request is a data request, then we shouldn't set the status code
-        // from the response because it should always be 200. This should be gated
-        // behind the experimental PPR flag.
-        if (cachedData.status && (!isRSCRequest || !isRoutePPREnabled)) {
-          res.statusCode = cachedData.status
-        }
-
-        // Redirect information is encoded in RSC payload, so we don't need to use redirect status codes
-        if (
-          !isMinimalMode &&
-          cachedData.status &&
-          RedirectStatusCode[cachedData.status] &&
-          isRSCRequest
-        ) {
-          res.statusCode = 200
         }
 
         // Mark that the request did postpone.

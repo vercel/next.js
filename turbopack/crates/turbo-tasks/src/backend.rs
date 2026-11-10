@@ -628,9 +628,10 @@ pub trait Backend: Sized + Sync + Send {
     /// `has_provisional_reads` is true when the execution made
     /// [`Vc::keyed_reader`][crate::Vc::keyed_reader] or
     /// [`Vc::lazy_reader`][crate::Vc::lazy_reader] reads.
-    /// The backend must then convert all [`CellKey::Provisional`][crate::CellKey::Provisional]
-    /// dependencies of the task that are still present into normal (full) cell dependencies, as
-    /// their ids are only meaningful within this execution.
+    /// The backend must then convert all
+    /// [`CellKeyKind::Provisional`][crate::CellKeyKind::Provisional] dependencies of the task that
+    /// are still present into normal (full) cell dependencies, as their ids are only meaningful
+    /// within this execution.
     ///
     /// Returns `Some(priority)` if the task was invalidated again while executing and must be
     /// re-run. The caller is responsible for re-scheduling the task at the returned priority
@@ -675,12 +676,12 @@ pub trait Backend: Sized + Sync + Send {
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<ReadOutcome<TypedCellContent>>;
 
-    /// Refines the [`CellKey::Provisional(id)`][crate::CellKey::Provisional] dependency of
+    /// Refines the [`CellKeyKind::Provisional(id)`][crate::CellKeyKind::Provisional] dependency of
     /// `reader` on the cell `index` of `task`, which was created by a
     /// [`Vc::keyed_reader`][crate::Vc::keyed_reader] or
     /// [`Vc::lazy_reader`][crate::Vc::lazy_reader] read: it's replaced with
-    /// [`CellKey::Hash`][crate::CellKey::Hash] dependencies on each of the `key_hashes`, in a
-    /// single operation. With no `key_hashes`, the dependency is removed.
+    /// [`CellKeyKind::Hash`][crate::CellKeyKind::Hash] dependencies on each of the `key_hashes`, in
+    /// a single operation. With no `key_hashes`, the dependency is removed.
     ///
     /// Must only be called from within the same execution of `reader` that created the
     /// dependency.
