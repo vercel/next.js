@@ -29,6 +29,17 @@ The profile sets the point past which data correctness is more important than be
 
 > **Good to know**: A revalidation is triggered by a request, not by the `revalidateTag` call, so pages using the tag revalidate as they are visited rather than all at once.
 
+### Client cache behavior
+
+In a Server Action invoked by a client, the cache profile determines whether `revalidateTag` also refreshes the client:
+
+- With a profile that resolves to a nonzero `expire` value, such as `'max'`, `revalidateTag` does not trigger a re-render of the current route in the action's response or invalidate the client cache. The page reflects the change on a later read.
+- With `{ expire: 0 }`, a named profile that resolves to `expire: 0`, or the deprecated single-argument form, `revalidateTag` has the same client effects as [`updateTag`](/docs/app/api-reference/functions/updateTag#client-cache-behavior). It re-renders the current route in the action's response, even if that route does not use the tag. It also currently invalidates all prefetched routes and cached route data used for back/forward navigation. This does not unmount Activity-preserved pages or reset their local React state.
+
+Other operations in the same action, such as [`refresh`](/docs/app/api-reference/functions/refresh), can still cause a re-render when using `'max'`.
+
+Calling `revalidateTag` in a Route Handler invalidates server-side cached data without immediately refreshing an open page's client cache.
+
 ## Parameters
 
 ```ts

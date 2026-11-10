@@ -435,6 +435,8 @@ revalidateTag('posts', 'max')
 
 If you need immediate expiration rather than stale-while-revalidate, use [`updateTag`](/docs/app/api-reference/functions/updateTag) in Server Actions instead.
 
+In a Server Action, switching from `revalidateTag(tag)` to `revalidateTag(tag, 'max')` also stops the call from triggering a current-route re-render and client cache invalidation. Use `updateTag(tag)` to preserve those immediate client effects. See [client cache behavior](/docs/app/api-reference/functions/revalidateTag#client-cache-behavior).
+
 ```ts filename="app/actions.ts" switcher
 'use server'
 
