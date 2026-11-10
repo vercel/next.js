@@ -8,7 +8,7 @@ const action = async (...args: any[]) => {
 }
 
 // simulate client-side version skew by changing the action ID to something the server won't recognize
-setServerActionId(action, 'decafc0ffeebad01')
+setServerActionId(action, '0'.repeat(42))
 
 export default function Page() {
   return (

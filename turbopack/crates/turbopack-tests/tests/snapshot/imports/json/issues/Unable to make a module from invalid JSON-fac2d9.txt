@@ -1,4 +1,4 @@
-error - [code gen] /turbopack/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json:3:25  Unable to make a module from invalid JSON
+error - [code gen] /turbopack/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json:3:26  Unable to make a module from invalid JSON
        1 | {
        2 |   "nested": {
          +                          v

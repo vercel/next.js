@@ -1,4 +1,79 @@
 [
+    DestructuredMember {
+        obj: Call(
+            3,
+            FreeVar(
+                "require",
+            ),
+            [
+                Constant(
+                    Str(
+                        Atom(
+                            "os",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "platform",
+                ),
+            ),
+        ),
+        span: 9..17,
+    },
+    DestructuredMember {
+        obj: Call(
+            3,
+            FreeVar(
+                "require",
+            ),
+            [
+                Constant(
+                    Str(
+                        Atom(
+                            "os",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "endianness",
+                ),
+            ),
+        ),
+        span: 19..29,
+    },
+    DestructuredMember {
+        obj: Call(
+            3,
+            FreeVar(
+                "require",
+            ),
+            [
+                Constant(
+                    Str(
+                        Atom(
+                            "os",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "arch",
+                ),
+            ),
+        ),
+        span: 31..35,
+    },
     FreeVar {
         var: "require",
         ast_path: [
@@ -84,6 +159,31 @@
         span: 40..53,
         in_try: false,
         new: false,
+    },
+    DestructuredMember {
+        obj: Call(
+            3,
+            FreeVar(
+                "require",
+            ),
+            [
+                Constant(
+                    Str(
+                        Atom(
+                            "process",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "platform",
+                ),
+            ),
+        ),
+        span: 63..71,
     },
     FreeVar {
         var: "require",
@@ -253,6 +353,64 @@
                 ),
             ),
         ),
+        base_effects: [
+            FreeVar {
+                var: "process",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            3,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Args(
+                            0,
+                        ),
+                    ),
+                    ExprOrSpread(
+                        Expr,
+                    ),
+                    Expr(
+                        Tpl,
+                    ),
+                    Tpl(
+                        Exprs(
+                            0,
+                        ),
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 171..178,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -300,62 +458,7 @@
             ),
         ],
         span: 171..183,
-    },
-    FreeVar {
-        var: "process",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    3,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Tpl,
-            ),
-            Tpl(
-                Exprs(
-                    0,
-                ),
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 171..178,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -989,6 +1092,64 @@
                 ),
             ),
         ),
+        base_effects: [
+            FreeVar {
+                var: "process",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            5,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Args(
+                            0,
+                        ),
+                    ),
+                    ExprOrSpread(
+                        Expr,
+                    ),
+                    Expr(
+                        Tpl,
+                    ),
+                    Tpl(
+                        Exprs(
+                            1,
+                        ),
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 345..352,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -1036,62 +1197,7 @@
             ),
         ],
         span: 345..361,
-    },
-    FreeVar {
-        var: "process",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    5,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Tpl,
-            ),
-            Tpl(
-                Exprs(
-                    1,
-                ),
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 345..352,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -1300,6 +1406,64 @@
                 ),
             ),
         ),
+        base_effects: [
+            FreeVar {
+                var: "process",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            6,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Args(
+                            0,
+                        ),
+                    ),
+                    ExprOrSpread(
+                        Expr,
+                    ),
+                    Expr(
+                        Tpl,
+                    ),
+                    Tpl(
+                        Exprs(
+                            0,
+                        ),
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 419..426,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -1347,62 +1511,7 @@
             ),
         ],
         span: 419..431,
-    },
-    FreeVar {
-        var: "process",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    6,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Tpl,
-            ),
-            Tpl(
-                Exprs(
-                    0,
-                ),
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 419..426,
+        in_truthiness_context: false,
     },
     Member {
         obj: FreeVar(
@@ -1415,6 +1524,64 @@
                 ),
             ),
         ),
+        base_effects: [
+            FreeVar {
+                var: "process",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            6,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Args(
+                            0,
+                        ),
+                    ),
+                    ExprOrSpread(
+                        Expr,
+                    ),
+                    Expr(
+                        Tpl,
+                    ),
+                    Tpl(
+                        Exprs(
+                            1,
+                        ),
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 438..445,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -1462,62 +1629,7 @@
             ),
         ],
         span: 438..454,
-    },
-    FreeVar {
-        var: "process",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    6,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Tpl,
-            ),
-            Tpl(
-                Exprs(
-                    1,
-                ),
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 438..445,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -1732,6 +1844,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1779,6 +1892,7 @@
             ),
         ],
         span: 512..518,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -1794,6 +1908,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1841,6 +1956,7 @@
             ),
         ],
         span: 522..532,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -2061,6 +2177,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2108,6 +2225,7 @@
             ),
         ],
         span: 592..598,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(

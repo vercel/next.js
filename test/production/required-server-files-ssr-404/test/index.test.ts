@@ -716,6 +716,47 @@ describe('Required Server Files', () => {
         expect($('#slug-page').text()).toBe('[slug] page')
       })
 
+      it('should preserve dynamic route identity from x-matched-path', async () => {
+        const res = await fetchViaHTTP(
+          appPort,
+          '/dynamic/first/second',
+          undefined,
+          withInvocationId({
+            headers: {
+              'x-matched-path': '/dynamic/[...path]',
+            },
+            redirect: 'manual',
+          })
+        )
+
+        const html = await res.text()
+        const $ = cheerio.load(html)
+        const props = JSON.parse($('#props').text())
+
+        expect($('#catch-all-page').text()).toBe('[...path] page')
+        expect(props.path).toEqual(['first', 'second'])
+      })
+
+      it('should rematch the concrete path after using x-matched-path', async () => {
+        const res = await fetchViaHTTP(
+          appPort,
+          '/dynamic/first',
+          undefined,
+          withInvocationId({
+            headers: {
+              'x-matched-path': '/dynamic/[...path]',
+            },
+            redirect: 'manual',
+          })
+        )
+
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        expect($('#dynamic').text()).toBe('dynamic page')
+        expect($('#slug').text()).toBe('first')
+      })
+
       it('should handle 404s properly', async () => {
         for (const pathname of [
           '/static/some-file.js',

@@ -1,0 +1,1 @@
+Migrate this app to Cache Components incrementally. Make the smallest safe first change that enables Cache Components, keeps the build passing, and preserves the current rendering and caching behavior.

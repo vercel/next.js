@@ -61,6 +61,11 @@ export function createWebpackAliases({
   const pageExtensions = config.pageExtensions
   const customAppAliases: CompilerAliases = {}
   const customDocumentAliases: CompilerAliases = {}
+  const isInstantNavigationTestingEnabled =
+    config.cacheComponents === true &&
+    (dev || config.experimental.exposeTestingApiInProductionBuild === true)
+  const isConcurrentRouterQueueEnabled =
+    config.experimental.concurrentRouterQueue === true
 
   // tell webpack where to look for _app and _document
   // using aliases to allow falling back to the default
@@ -165,9 +170,6 @@ export function createWebpackAliases({
             'private-next-empty-module',
           ],
 
-          // disable typechecker, webpack5 allows aliases to be set to false to create a no-op module
-          'private-next-empty-module': false as any,
-
           // In the browser bundle, swap every module that has a `.browser` sibling
           // (see browser-variant-modules.ts, generated from the filesystem) for that
           // sibling. The default module holds the full server logic; bundling it would
@@ -180,8 +182,62 @@ export function createWebpackAliases({
               `next/dist/${moduleId}.browser`,
             ])
           ),
+
+          // When the Instant Navigation Testing API is unavailable (Cache
+          // Components is disabled, or this is a production build without
+          // `experimental.exposeTestingApiInProductionBuild`), swap the
+          // navigation lock implementation for an inert shim so the testing
+          // machinery does not ship in the browser bundle. Same resolved-path
+          // matching as the browser-variant swap above.
+          ...(!isInstantNavigationTestingEnabled
+            ? {
+                [path.join(
+                  NEXT_PROJECT_ROOT_DIST,
+                  'client/components/segment-cache/navigation-testing-lock.js'
+                ) + '$']:
+                  'next/dist/client/components/segment-cache/navigation-testing-lock.disabled',
+              }
+            : {}),
+
+          // When `experimental.concurrentRouterQueue` is enabled, resolve the
+          // router's forked entry-point modules (the navigator interface and
+          // the callServer action door) to the concurrent implementations.
+          // Neither the interface module nor the sequential implementation is
+          // bundled at all. Same resolved-path matching as the swaps above.
+          ...(isConcurrentRouterQueueEnabled
+            ? {
+                [path.join(
+                  NEXT_PROJECT_ROOT_DIST,
+                  'client/components/navigator.js'
+                ) + '$']: 'next/dist/client/components/concurrent-router-queue',
+                [path.join(
+                  NEXT_PROJECT_ROOT_DIST,
+                  'client/app-call-server.js'
+                ) + '$']: 'next/dist/client/concurrent-call-server',
+              }
+            : {}),
         }
-      : {}),
+      : {
+          // The project's own `instrumentation.{pageExt}` file, chained after
+          // the `instrumentationInject` entries by
+          // `next-instrumentation-inject-loader`. Checks the project root,
+          // then `src/`, trying each page extension in config order. Exact
+          // names, so compound extensions like `page.ts` match. Turbopack also
+          // checks parent folders and tries longer extensions first, so with
+          // more than one candidate file the two bundlers can pick different
+          // ones.
+          'private-next-instrumentation-user': [
+            ...['', 'src'].flatMap((subDir) =>
+              pageExtensions.map((ext) =>
+                path.join(dir, subDir, `instrumentation.${ext}`)
+              )
+            ),
+            'private-next-empty-module',
+          ],
+        }),
+
+    // disable typechecker, webpack5 allows aliases to be set to false to create a no-op module
+    'private-next-empty-module': false as any,
 
     [DOT_NEXT_ALIAS]: distDir,
     ...(isClient || isEdgeServer ? getOptimizedModuleAliases() : {}),

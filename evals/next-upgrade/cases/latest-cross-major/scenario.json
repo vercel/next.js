@@ -1,0 +1,7 @@
+{
+  "kind": "direct",
+  "policy": "latest",
+  "app": "member-dashboard/next-13",
+  "sourceVersion": "13.5.11",
+  "targetVersion": "16.4.0"
+}

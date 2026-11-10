@@ -11,6 +11,7 @@ export type PanelStateKind =
   | 'segment-explorer'
   | 'panel-selector'
   | 'instant-navs'
+  | 'request-insights'
   | 'turbo-info'
   | 'cache-disabled'
   | 'cold-cache'

@@ -22,13 +22,13 @@ use crate::{
 
 /// A bidirectional message channel using unbounded mpsc.
 #[derive(Clone)]
-pub(crate) struct MessageChannel<T: Send + Sync + 'static> {
+struct MessageChannel<T: Send + Sync + 'static> {
     sender: UnboundedSender<T>,
     receiver: Arc<AsyncMutex<UnboundedReceiver<T>>>,
 }
 
 impl<T: Send + Sync + 'static> MessageChannel<T> {
-    pub(super) fn unbounded() -> Self {
+    fn unbounded() -> Self {
         let (sender, receiver) = mpsc::unbounded_channel();
         Self {
             sender,
@@ -36,7 +36,7 @@ impl<T: Send + Sync + 'static> MessageChannel<T> {
         }
     }
 
-    pub(crate) async fn send(&self, message: T) -> Result<()> {
+    async fn send(&self, message: T) -> Result<()> {
         self.sender
             .send(message)
             .map_err(|_| anyhow::anyhow!("failed to send message"))
@@ -44,13 +44,13 @@ impl<T: Send + Sync + 'static> MessageChannel<T> {
 
     /// Synchronous, non-blocking send (the channel is unbounded). Lets callers
     /// on the napi env thread enqueue without going async.
-    pub(crate) fn send_sync(&self, message: T) -> Result<()> {
+    fn send_sync(&self, message: T) -> Result<()> {
         self.sender
             .send(message)
             .map_err(|_| anyhow::anyhow!("failed to send message"))
     }
 
-    pub(crate) async fn recv(&self) -> Result<T> {
+    async fn recv(&self) -> Result<T> {
         let mut rx = self.receiver.lock().await;
         rx.recv()
             .await
@@ -59,10 +59,10 @@ impl<T: Send + Sync + 'static> MessageChannel<T> {
 }
 
 #[derive(Default)]
-pub(crate) struct PoolState {
-    pub(crate) idle_workers: Mutex<Vec<u32>>,
-    pub(crate) stats: Arc<Mutex<NodeJsPoolStats>>,
-    pub(crate) waiters: Mutex<Vec<oneshot::Sender<u32>>>,
+pub(super) struct PoolState {
+    pub(super) idle_workers: Mutex<Vec<u32>>,
+    pub(super) stats: Arc<Mutex<NodeJsPoolStats>>,
+    pub(super) waiters: Mutex<Vec<oneshot::Sender<u32>>>,
 }
 
 #[turbo_tasks::value(cell = "new", serialization = "skip", eq = "manual", shared)]
@@ -75,28 +75,25 @@ pub(super) struct WorkerOptions {
 // Allow dead_code for test builds where napi exports are not entry points
 #[allow(dead_code)]
 pub(super) struct TaskMessage {
-    pub task_id: u32,
-    pub data: Bytes,
+    pub(super) task_id: u32,
+    pub(super) data: Bytes,
 }
 
 #[derive(Default)]
-pub(crate) struct WorkerPoolOperation {
+pub(super) struct WorkerPoolOperation {
     #[allow(clippy::type_complexity)]
     worker_routed_channel: Mutex<FxHashMap<u32, Arc<MessageChannel<(u32, Bytes)>>>>,
     #[allow(clippy::type_complexity)]
     task_routed_channel: Mutex<FxHashMap<u32, Arc<MessageChannel<Bytes>>>>,
-    pub(crate) pools: Mutex<FxHashMap<Arc<WorkerOptions>, Arc<PoolState>>>,
+    pub(super) pools: Mutex<FxHashMap<Arc<WorkerOptions>, Arc<PoolState>>>,
 }
 
 impl WorkerPoolOperation {
-    pub(crate) async fn get_pool_state(
-        &self,
-        worker_options: Arc<WorkerOptions>,
-    ) -> Arc<PoolState> {
+    async fn get_pool_state(&self, worker_options: Arc<WorkerOptions>) -> Arc<PoolState> {
         self.pools.lock().entry(worker_options).or_default().clone()
     }
 
-    pub(crate) fn scale_down(&self) -> Result<()> {
+    pub(super) fn scale_down(&self) -> Result<()> {
         let mut to_terminate = Vec::new();
 
         {
@@ -122,7 +119,7 @@ impl WorkerPoolOperation {
         Ok(())
     }
 
-    pub(crate) fn scale_zero(&self) -> Result<()> {
+    pub(super) fn scale_zero(&self) -> Result<()> {
         let mut to_terminate = Vec::new();
 
         {
@@ -146,11 +143,7 @@ impl WorkerPoolOperation {
         Ok(())
     }
 
-    pub(crate) fn terminate_worker(
-        &self,
-        worker_options: Arc<WorkerOptions>,
-        worker_id: u32,
-    ) -> Result<()> {
+    fn terminate_worker(&self, worker_options: Arc<WorkerOptions>, worker_id: u32) -> Result<()> {
         self.remove_worker_channel(worker_id);
         worker_thread::terminate_worker(worker_options, worker_id);
         Ok(())
@@ -160,7 +153,7 @@ impl WorkerPoolOperation {
         self.worker_routed_channel.lock().remove(&worker_id);
     }
 
-    pub(crate) async fn recv_task_message_in_worker(&self, worker_id: u32) -> Result<(u32, Bytes)> {
+    pub(super) async fn recv_task_message_in_worker(&self, worker_id: u32) -> Result<(u32, Bytes)> {
         let channel = {
             let mut map = self.worker_routed_channel.lock();
             map.entry(worker_id)
@@ -173,7 +166,7 @@ impl WorkerPoolOperation {
             .with_context(|| format!("failed to recv message in worker {worker_id}"))
     }
 
-    pub(crate) fn send_task_message(&self, message: TaskMessage) -> Result<()> {
+    pub(super) fn send_task_message(&self, message: TaskMessage) -> Result<()> {
         let channel = {
             let mut map = self.task_routed_channel.lock();
             map.entry(message.task_id)
@@ -186,20 +179,20 @@ impl WorkerPoolOperation {
     }
 }
 
-pub(crate) static WORKER_POOL_OPERATION: LazyLock<WorkerPoolOperation> =
+pub(super) static WORKER_POOL_OPERATION: LazyLock<WorkerPoolOperation> =
     LazyLock::new(WorkerPoolOperation::default);
 
-pub(crate) fn terminate_worker(worker_options: Arc<WorkerOptions>, worker_id: u32) -> Result<()> {
+fn terminate_worker(worker_options: Arc<WorkerOptions>, worker_id: u32) -> Result<()> {
     WORKER_POOL_OPERATION.terminate_worker(worker_options, worker_id)
 }
 
-pub(crate) async fn get_pool_state(worker_options: Arc<WorkerOptions>) -> Arc<PoolState> {
+pub(super) async fn get_pool_state(worker_options: Arc<WorkerOptions>) -> Arc<PoolState> {
     WORKER_POOL_OPERATION.get_pool_state(worker_options).await
 }
 
 /// Pre-allocated channels for a single task's communication.
 /// Holds Arc references to avoid HashMap lookups during send/recv.
-pub(crate) struct TaskChannels {
+pub(super) struct TaskChannels {
     /// Channel for Rust -> Worker communication (task_id, data)
     worker_channel: Arc<MessageChannel<(u32, Bytes)>>,
     /// Channel for Worker -> Rust communication (data)
@@ -210,7 +203,7 @@ pub(crate) struct TaskChannels {
 impl TaskChannels {
     /// Create and register channels for a new task.
     /// Channels are inserted into the global maps so JS workers can find them.
-    pub(crate) fn new(task_id: u32, worker_id: u32) -> Self {
+    pub(super) fn new(task_id: u32, worker_id: u32) -> Self {
         let worker_channel = {
             let mut map = WORKER_POOL_OPERATION.worker_routed_channel.lock();
             map.entry(worker_id)
@@ -233,7 +226,7 @@ impl TaskChannels {
     }
 
     /// Send message to worker (Rust -> JS Worker)
-    pub(crate) async fn send_to_worker(&self, message: Bytes) -> Result<()> {
+    async fn send_to_worker(&self, message: Bytes) -> Result<()> {
         self.worker_channel
             .send((self.task_id, message))
             .await
@@ -241,7 +234,7 @@ impl TaskChannels {
     }
 
     /// Receive message from worker (JS Worker -> Rust)
-    pub(crate) async fn recv_from_worker(&self) -> Result<Bytes> {
+    async fn recv_from_worker(&self) -> Result<Bytes> {
         self.task_channel
             .recv()
             .await
@@ -259,14 +252,14 @@ impl Drop for TaskChannels {
     }
 }
 
-pub(crate) struct WorkerOperation {
-    pub(crate) worker_options: Arc<WorkerOptions>,
-    pub(crate) worker_id: u32,
-    pub(crate) state: Arc<PoolState>,
-    pub(crate) on_drop: Option<Box<dyn FnOnce(u32) + Send + Sync>>,
-    pub(crate) _permits: AcquiredPermits,
+pub(super) struct WorkerOperation {
+    pub(super) worker_options: Arc<WorkerOptions>,
+    pub(super) worker_id: u32,
+    pub(super) state: Arc<PoolState>,
+    pub(super) on_drop: Option<Box<dyn FnOnce(u32) + Send + Sync>>,
+    pub(super) _permits: AcquiredPermits,
     /// Pre-allocated channels for this task
-    pub(crate) channels: TaskChannels,
+    pub(super) channels: TaskChannels,
 }
 
 impl Drop for WorkerOperation {
@@ -301,6 +294,8 @@ impl Operation for WorkerOperation {
         if self.on_drop.is_some() {
             self.state.stats.lock().remove_worker();
             self.on_drop = None;
+            // Clearing the return-to-pool callback does not stop the underlying Node.js worker.
+            let _ = terminate_worker(self.worker_options.clone(), self.worker_id);
         }
     }
 }

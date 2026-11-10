@@ -8,7 +8,7 @@ use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    debug::ValueDebugFormat,
 };
 
 use crate::{
@@ -49,7 +49,7 @@ struct BatchChunkItemsWithInfo(
     FxHashMap<ChunkItemOrBatchWithAsyncModuleInfo, ResolvedVc<ChunkItemsWithInfo>>,
 );
 
-#[derive(Clone, PartialEq, Eq, TraceRawVcs, NonLocalValue, ValueDebugFormat, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, NonLocalValue, ValueDebugFormat, Encode, Decode)]
 enum ChunkItemOrBatchWithInfo {
     ChunkItem {
         chunk_item: ChunkItemWithAsyncModuleInfo,
@@ -361,6 +361,7 @@ pub async fn make_chunks(
                     make_chunk(
                         chunk_items,
                         Vec::new(),
+                        Vec::new(),
                         &mut format!("{key_prefix}{ty_name}"),
                         &mut split_context,
                     )
@@ -401,30 +402,59 @@ struct SplitContext<'a> {
     chunks: &'a mut Vec<Vc<Box<dyn Chunk>>>,
 }
 
+fn build_chunk(
+    chunk_items: Vec<&'_ ChunkItemOrBatchWithInfo>,
+    batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
+    component_chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
+    split_context: &SplitContext<'_>,
+) -> Vc<Box<dyn Chunk>> {
+    split_context.ty.chunk(
+        *split_context.chunking_context,
+        chunk_items
+            .into_iter()
+            .map(|item| match item {
+                ChunkItemOrBatchWithInfo::ChunkItem { chunk_item, .. } => {
+                    ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(*chunk_item)
+                }
+                &ChunkItemOrBatchWithInfo::Batch { batch, .. } => {
+                    ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch)
+                }
+            })
+            .collect(),
+        ResolvedVc::deref_vec(batch_groups),
+        ResolvedVc::deref_vec(component_chunks),
+    )
+}
+
+/// The chunk items and batch groups that make up one component chunk of a merged chunk.
+type ComponentChunkItems<'l> = (
+    Vec<&'l ChunkItemOrBatchWithInfo>,
+    Vec<ResolvedVc<ChunkItemBatchGroup>>,
+);
+
 /// Creates a chunk with the given `chunk_items. `key` should be unique.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(key = display(key)))]
 async fn make_chunk(
     chunk_items: Vec<&'_ ChunkItemOrBatchWithInfo>,
     batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
+    components: Vec<ComponentChunkItems<'_>>,
     key: &mut String,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {
-    split_context.chunks.push(
-        split_context.ty.chunk(
-            *split_context.chunking_context,
-            chunk_items
-                .into_iter()
-                .map(|item| match item {
-                    ChunkItemOrBatchWithInfo::ChunkItem { chunk_item, .. } => {
-                        ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(*chunk_item)
-                    }
-                    &ChunkItemOrBatchWithInfo::Batch { batch, .. } => {
-                        ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch)
-                    }
-                })
-                .collect(),
-            ResolvedVc::deref_vec(batch_groups),
-        ),
-    );
+    let mut component_chunks = Vec::with_capacity(components.len());
+    for (component_items, component_batch_groups) in components {
+        component_chunks.push(
+            build_chunk(
+                component_items,
+                component_batch_groups,
+                Vec::new(),
+                split_context,
+            )
+            .to_resolved()
+            .await?,
+        );
+    }
+    let chunk = build_chunk(chunk_items, batch_groups, component_chunks, split_context);
+    split_context.chunks.push(chunk);
     Ok(())
 }

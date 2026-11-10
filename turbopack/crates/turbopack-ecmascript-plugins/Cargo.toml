@@ -38,10 +38,22 @@ swc_core = { workspace = true, features = [
   "ecma_ast",
   "ecma_visit",
   "common",
+] }
+swc_emotion = { workspace = true }
+swc_relay = { workspace = true }
+
+# SWC's plugin host is native-only, so its features must not be enabled for wasm.
+#
+# `swc_core/__plugin_transform_host` turns on `swc/plugin`, which pulls in the plugin runner and
+# `tokio`'s multi-thread runtime, and compiles SWC's `target_arch = "wasm32"` plugin path. SWC does
+# not support executing wasm plugins from inside wasm (see
+# https://github.com/swc-project/swc/issues/3934), and hosting them needs the wasmtime backend gated
+# out below, so enabling these for wasm builds code that can never run.
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+swc_core = { workspace = true, features = [
   "__plugin_transform_host",
   "__plugin_transform_host_schema_v1",
 ] }
+# wasmtime cannot be hosted inside wasm (no JIT, and `wasi-common` needs native filesystem APIs).
 swc_plugin_backend_wasmtime = { workspace = true }
-swc_emotion = { workspace = true }
-swc_relay = { workspace = true }
 

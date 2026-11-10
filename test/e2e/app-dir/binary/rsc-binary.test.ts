@@ -2,14 +2,12 @@ import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 describe('RSC binary serialization', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: {
       'server-only': 'latest',
     },
   })
-  if (skipped) return
 
   afterEach(async () => {
     await next.stop()

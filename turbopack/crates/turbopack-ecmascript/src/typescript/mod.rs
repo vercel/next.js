@@ -62,7 +62,7 @@ impl Module for TsConfigModuleAsset {
         references.extend(
             configs[1..]
                 .iter()
-                .map(|(_, config_asset)| async move {
+                .map(async |(_, config_asset)| {
                     Ok(ResolvedVc::upcast(
                         TsExtendsReference::new(**config_asset)
                             .to_resolved()

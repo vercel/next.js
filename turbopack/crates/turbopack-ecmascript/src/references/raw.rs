@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use tracing::Instrument;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -8,9 +8,9 @@ use turbopack_core::{
     file_source::FileSource,
     issue::IssueSource,
     raw_module::RawModule,
-    reference::ModuleReference,
+    reference::{DynamicTraceReference, ModuleReference},
     resolve::{
-        ModuleResolveResult, RequestKey,
+        ModuleResolveResult, RequestKey, ResolveResult,
         pattern::{Pattern, PatternMatch, read_matches},
         resolve_raw,
     },
@@ -18,30 +18,59 @@ use turbopack_core::{
 
 use crate::references::util::check_and_emit_too_many_matches_warning;
 
+/// Look for statically named files in the project root without expanding directories. The
+/// package-local reference is resolved separately with its entire original pattern.
+pub async fn resolve_static_files(
+    context_dir: &Option<FileSystemPath>,
+    path: ResolvedVc<Pattern>,
+    collect_affecting_sources: bool,
+) -> Result<Option<Vc<ResolveResult>>> {
+    let Some(context_dir) = context_dir else {
+        return Ok(None);
+    };
+    let Some(static_pattern) = path.await?.filter_static() else {
+        return Ok(None);
+    };
+    Ok(Some(resolve_raw(
+        context_dir.clone(),
+        Pattern::new(static_pattern),
+        collect_affecting_sources,
+        /* force_in_lookup_dir */ true,
+    )))
+}
+
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
 #[value_to_string("raw asset {path}")]
 pub struct FileSourceReference {
-    context_dir: FileSystemPath,
+    static_files_only_context_dir: Option<FileSystemPath>,
+    fallback_context_dir: FileSystemPath,
     path: ResolvedVc<Pattern>,
     collect_affecting_sources: bool,
     issue_source: IssueSource,
+    /// The dynamic function whose access triggered this reference (e.g.
+    /// `fs.readFileSync`), used to name the call in diagnostics.
+    origin_fn_name: RcStr,
 }
 
 #[turbo_tasks::value_impl]
 impl FileSourceReference {
     #[turbo_tasks::function]
     pub fn new(
-        context_dir: FileSystemPath,
+        static_files_only_context_dir: Option<FileSystemPath>,
+        fallback_context_dir: FileSystemPath,
         path: ResolvedVc<Pattern>,
         collect_affecting_sources: bool,
         issue_source: IssueSource,
+        origin_fn_name: RcStr,
     ) -> Vc<Self> {
         Self::cell(FileSourceReference {
-            context_dir,
+            static_files_only_context_dir,
+            fallback_context_dir,
             path,
             collect_affecting_sources,
             issue_source,
+            origin_fn_name,
         })
     }
 }
@@ -55,24 +84,33 @@ impl ModuleReference for FileSourceReference {
             pattern = display(self.path.to_string().await?)
         );
         async {
-            let result = resolve_raw(
-                self.context_dir.clone(),
+            let fallback = resolve_raw(
+                self.fallback_context_dir.clone(),
                 *self.path,
                 self.collect_affecting_sources,
                 /* force_in_lookup_dir */ false,
             )
-            .as_raw_module_result()
-            .to_resolved()
-            .await?;
+            .as_raw_module_result();
+            let result = if let Some(static_files) = resolve_static_files(
+                &self.static_files_only_context_dir,
+                self.path,
+                self.collect_affecting_sources,
+            )
+            .await?
+            {
+                ModuleResolveResult::concat(vec![static_files.as_raw_module_result(), fallback])
+            } else {
+                fallback
+            };
             check_and_emit_too_many_matches_warning(
-                *result,
+                result,
                 self.issue_source,
-                self.context_dir.clone(),
+                self.fallback_context_dir.clone(),
                 self.path,
             )
             .await?;
 
-            Ok(*result)
+            Ok(result)
         }
         .instrument(span)
         .await
@@ -89,27 +127,42 @@ impl ModuleReference for FileSourceReference {
     }
 }
 
+#[turbo_tasks::value_impl]
+impl DynamicTraceReference for FileSourceReference {
+    fn origin_fn_name(&self) -> RcStr {
+        self.origin_fn_name.clone()
+    }
+}
+
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
 #[value_to_string("directory assets {path}")]
 pub struct DirAssetReference {
-    context_dir: FileSystemPath,
+    static_files_only_context_dir: Option<FileSystemPath>,
+    fallback_context_dir: FileSystemPath,
     path: ResolvedVc<Pattern>,
     issue_source: IssueSource,
+    /// The dynamic function whose access triggered this reference (e.g.
+    /// `fs.readdir`), used to name the call in diagnostics.
+    origin_fn_name: RcStr,
 }
 
 #[turbo_tasks::value_impl]
 impl DirAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        context_dir: FileSystemPath,
+        static_files_only_context_dir: Option<FileSystemPath>,
+        fallback_context_dir: FileSystemPath,
         path: ResolvedVc<Pattern>,
         issue_source: IssueSource,
+        origin_fn_name: RcStr,
     ) -> Vc<Self> {
         Self::cell(DirAssetReference {
-            context_dir,
+            static_files_only_context_dir,
+            fallback_context_dir,
             path,
             issue_source,
+            origin_fn_name,
         })
     }
 }
@@ -169,7 +222,7 @@ async fn resolve_reference_from_dir(
                 }
                 let path: FileSystemPath = match &realpath.path_result {
                     Ok(path) => path.clone(),
-                    Err(e) => bail!(e.as_error_message(file, &realpath).await?),
+                    Err(error) => bail!(error.clone()),
                 };
                 results.push((
                     RequestKey::new(matched_path.clone()),
@@ -198,11 +251,19 @@ impl ModuleReference for DirAssetReference {
             pattern = display(self.path.to_string().await?)
         );
         async {
-            let result = resolve_reference_from_dir(self.context_dir.clone(), *self.path).await?;
+            let fallback =
+                resolve_reference_from_dir(self.fallback_context_dir.clone(), *self.path).await?;
+            let result = if let Some(static_files) =
+                resolve_static_files(&self.static_files_only_context_dir, self.path, true).await?
+            {
+                ModuleResolveResult::concat(vec![static_files.as_raw_module_result(), fallback])
+            } else {
+                fallback
+            };
             check_and_emit_too_many_matches_warning(
                 result,
                 self.issue_source,
-                self.context_dir.clone(),
+                self.fallback_context_dir.clone(),
                 self.path,
             )
             .await?;
@@ -220,5 +281,12 @@ impl ModuleReference for DirAssetReference {
 
     fn source(&self) -> Option<IssueSource> {
         Some(self.issue_source)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl DynamicTraceReference for DirAssetReference {
+    fn origin_fn_name(&self) -> RcStr {
+        self.origin_fn_name.clone()
     }
 }

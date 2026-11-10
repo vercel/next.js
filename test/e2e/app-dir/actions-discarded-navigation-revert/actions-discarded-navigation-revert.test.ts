@@ -16,7 +16,7 @@ describe('discarded action settling while a navigation is pending (#86151)', () 
     options?: { allowErrorStatusCodes: number[] }
   ) {
     let page: Playwright.Page
-    const browser = await next.browser('/', {
+    const browser = await next.browser('/adr', {
       beforePageLoad(p: Playwright.Page) {
         page = p
       },
@@ -67,8 +67,8 @@ describe('discarded action settling while a navigation is pending (#86151)', () 
 
     // If B ran too early, it saw the pre-navigation page — but that is not
     // necessarily visible yet. Running one more action makes it visible:
-    // with the bug, the URL flips back to "/" here instead of staying
-    // on /dest.
+    // with the bug, the URL flips back to "/adr" here instead of staying
+    // on /adr/dest.
     await act(
       async () => {
         await browser.elementById('dispatch-c').click()
@@ -77,7 +77,7 @@ describe('discarded action settling while a navigation is pending (#86151)', () 
     )
     await browser.waitForElementByCss('#status-c[data-status="c-result"]')
 
-    expect(new URL(await browser.url()).pathname).toBe('/dest')
+    expect(new URL(await browser.url()).pathname).toBe('/adr/dest')
     expect(await browser.elementById('dest').text()).toBe('Destination page')
 
     return { browser, initialRender }
@@ -113,7 +113,7 @@ describe('discarded action settling while a navigation is pending (#86151)', () 
   // entirely — the URL never even changed to the navigation target.)
   it('runs an action dispatched during the navigation once it finishes', async () => {
     let page: Playwright.Page
-    const browser = await next.browser('/', {
+    const browser = await next.browser('/adr', {
       beforePageLoad(p: Playwright.Page) {
         page = p
       },
@@ -149,7 +149,60 @@ describe('discarded action settling while a navigation is pending (#86151)', () 
     )
 
     await browser.waitForElementByCss('#status-b[data-status="b-result"]')
-    expect(new URL(await browser.url()).pathname).toBe('/dest')
+    expect(new URL(await browser.url()).pathname).toBe('/adr/dest')
+    expect(await browser.elementById('dest').text()).toBe('Destination page')
+  })
+
+  // An action queued behind the navigation runs after it — but running is
+  // not enough: the state it produces must also render. B revalidates here,
+  // so its settlement must repaint the layout stamp without any
+  // further interaction.
+  it('renders the state produced by an action that settles after the navigation', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/adr', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page)
+
+    const initialRender = await browser
+      .elementById('stamp')
+      .getAttribute('data-render')
+
+    await act(
+      async () => {
+        // Start server action A. Its response is withheld, so it stays in
+        // flight throughout this scope.
+        await act(async () => {
+          await browser.elementById('dispatch-resolve').click()
+        }, 'block')
+
+        // Start server action B, which revalidates. It queues behind A.
+        await act(async () => {
+          await browser.elementById('dispatch-b-revalidate').click()
+        }, 'no-requests')
+
+        // Navigate before A or B finished. This discards A. The navigation
+        // response is withheld too.
+        await act(
+          async () => {
+            await browser.elementById('go-dest').click()
+          },
+          { includes: 'Destination page', block: true }
+        )
+      },
+      // B ran after the navigation and returned its result.
+      { includes: 'revalidated' }
+    )
+
+    await browser.waitForElementByCss('#status-b[data-status="revalidated"]')
+
+    // B revalidated, so the layout stamp it produced must render.
+    await browser.waitForElementByCss(
+      `#stamp:not([data-render="${initialRender}"])`
+    )
+    expect(new URL(await browser.url()).pathname).toBe('/adr/dest')
     expect(await browser.elementById('dest').text()).toBe('Destination page')
   })
 
@@ -161,7 +214,7 @@ describe('discarded action settling while a navigation is pending (#86151)', () 
     await browser.waitForElementByCss(
       `#stamp:not([data-render="${initialRender}"])`
     )
-    expect(new URL(await browser.url()).pathname).toBe('/dest')
+    expect(new URL(await browser.url()).pathname).toBe('/adr/dest')
     expect(await browser.elementById('dest').text()).toBe('Destination page')
   })
 })

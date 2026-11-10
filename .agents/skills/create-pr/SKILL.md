@@ -5,7 +5,7 @@ description: >
   Use when the user asks to create a branch, commit current changes, open a
   PR or draft PR, publish a pull request, or recover from gh pr create / PR
   template issues. Covers .github/pull_request_template.md, --body formatting,
-  NEXT_JS_LLM_PR, codex/ branch names, and Codex app git directives.
+  <agent-name>/ branch names, and Codex app git directives.
 metadata:
   internal: true
 ---
@@ -13,6 +13,15 @@ metadata:
 # Create PR
 
 Use this skill when turning local work into a GitHub pull request.
+
+## Fork PRs vs Branch PRs
+
+Before writing a PR description, check whether this is a branch PR (the
+branch lives in `vercel/next.js`) or a fork PR (an external contribution from
+a fork). You may write full descriptions for branch PRs, but not for fork
+PRs — inform the user, offer to review their description or provide technical
+details, and give them the GitHub URL to create the PR themselves. See
+"GitHub Pull Requests and Issues" in `AGENTS.md` for the full policy.
 
 ## Workflow
 
@@ -30,10 +39,12 @@ Use this skill when turning local work into a GitHub pull request.
 2. Create or confirm the branch:
 
    ```bash
-   git switch -c codex/<short-topic>
+   git switch -c <agent-name>/<short-topic>
    ```
 
-   Use the `codex/` prefix unless the user asks for a different name. If a
+   Prefix the branch with your agent's name as a single lowercase word, such
+   as `codex/`, `claude/`, or `fleet/` (e.g. `claude/<short-topic>`), unless
+   the user asks for a different name. If a
    `.git/*lock` or `Operation not permitted` error appears, rerun the same Git
    command with sandbox escalation. Do not assume a branch namespace conflict
    until checking refs with `git branch --list`, `git show-ref`, or
@@ -79,13 +90,13 @@ Use this PR body format:
 - `<command that passed>`
 - Not run: `<command>` (`<reason>`)
 
-<!-- NEXT_JS_LLM_PR -->
+<!-- NEXT_JS_LLM -->
 ```
 
 The "what" should be explained from the end-user perspective or developer perspective. Only include implementation changes if they're not obvious from the diff.
 
 A "why" should be included if the change isn't self-explanatory, or if the motivation is not clear from the diff.
-Omitting the "why" should be used sparringly and only for small changes.
+Omitting the "why" should be used sparingly and only for small changes.
 
 Do not include trivial verification commands that CI already covers (e.g. `pnpm run build`), but do include any manual verification steps. If the PR changes a test, you don't need to repeat the command to run that test. But if you used an existing test to validate some behavior didn't change, include that test.
 

@@ -13,7 +13,7 @@ export async function multiArgAction(a, b, c) {
   return { sum: a + b + c }
 }
 
-// Action that redirects (should show 303 status)
+// Action that redirects
 export async function redirectAction(path) {
   redirect(path)
 }

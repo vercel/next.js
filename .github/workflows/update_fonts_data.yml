@@ -7,10 +7,13 @@ on:
   # Allow manual runs
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   create-pull-request:
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'vercel'
+    environment: bot-autonomous
     steps:
       - name: Create GitHub App token
         id: release-app-token
@@ -21,6 +24,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: next.js
           permission-contents: write
+          permission-pull-requests: write
 
       - name: Get GitHub App user ID
         id: release-app-user
@@ -47,7 +51,7 @@ jobs:
 
       - name: Setup corepack
         run: |
-          npm i -g corepack@0.31
+          npm i -g corepack@0.34.7
           corepack enable
 
       - name: Install dependencies
@@ -61,7 +65,6 @@ jobs:
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
           RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
           RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}
-          PR_GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: fonts-data
           SCRIPT: scripts/update-google-fonts.js
           PR_TITLE: Update font data

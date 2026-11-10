@@ -1,7 +1,7 @@
 import { CachedData, getCachedData } from '../../data-fetching'
 
 export const instant = true
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 const CACHE_KEY = __dirname + '/__PAGE__'
 

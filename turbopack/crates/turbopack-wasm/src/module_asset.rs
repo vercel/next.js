@@ -21,6 +21,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
     },
+    chunk_item_content_with_code_from,
     references::async_module::OptionAsyncModule,
 };
 
@@ -212,7 +213,9 @@ impl ChunkableModule for WebAssemblyModuleAsset {
 impl EcmascriptChunkPlaceable for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports> {
-        self.loader().get_exports()
+        // This module hands out the *loader* module's exports as its own, so they must not carry
+        // a mangling decision — see `EcmascriptExports::borrowed`.
+        self.loader().get_exports().borrowed()
     }
 
     #[turbo_tasks::function]
@@ -222,11 +225,11 @@ impl EcmascriptChunkPlaceable for WebAssemblyModuleAsset {
 
     #[turbo_tasks::function]
     async fn chunk_item_content(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        module_graph: Vc<ModuleGraph>,
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
-        estimated: bool,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         if matches!(
             *chunking_context.chunk_loading().await?,
@@ -238,12 +241,13 @@ impl EcmascriptChunkPlaceable for WebAssemblyModuleAsset {
             );
         }
 
-        // Delegate to the loader's chunk item content
-        Ok(self.loader().chunk_item_content(
-            chunking_context,
-            module_graph,
+        // Generate the loader's code under this module's graph identity. The loader is a
+        // separately processed virtual module and has no export-usage entry of its own.
+        Ok(chunk_item_content_with_code_from(
+            *ResolvedVc::upcast(self),
+            self.loader(),
+            *chunking_context,
             async_module_info,
-            estimated,
         ))
     }
 

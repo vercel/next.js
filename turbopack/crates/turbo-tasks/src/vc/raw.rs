@@ -8,20 +8,28 @@ use std::{
 };
 
 use anyhow::Result;
-use auto_hash_map::AutoSet;
-use bincode::{Decode, Encode};
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError, IntegerType},
+    impl_borrow_decode,
+};
 use serde::{Deserialize, Serialize};
+use turbo_bincode::fixed_width;
 
 use crate::{
-    CollectiblesSource, ReadCellOptions, ReadConsistency, ReadOutputOptions, ResolvedVc, TaskId,
-    TaskPersistence, TraitTypeId, ValueTypeId, VcValueTrait,
+    ReadCellOptions, ReadConsistency, ReadOutputOptions, TaskId, TaskPersistence, TraitTypeId,
+    ValueTypeId,
     backend::TypedCellContent,
     event::EventListener,
     id::{ExecutionId, LocalTaskId, TASK_ID_MAX},
     manager::{
-        ReadCellTracking, ReadTracking, SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK,
-        TurboTasksApi, read_local_output, with_turbo_tasks,
+        CellKey, ReadCellTracking, ReadTracking,
+        SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK, ScheduleKey, TurboTasksApi,
+        execute_read_target_inline, read_local_output, with_turbo_tasks,
     },
+    read_options::ReadOutcome,
     registry::get_value_type,
     turbo_tasks,
 };
@@ -35,8 +43,31 @@ use crate::{
 /// bits 21..=0  (22 bits): cell index
 /// ```
 /// Because the `ValueTypeId` is always `>= 1`, the type is trivially non-zero
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CellId(NonZeroU32);
+
+// The `ValueTypeId` occupies the high bits, so the packed word is always `>= 2^22` and a varint
+// would always take 5 bytes.
+impl Encode for CellId {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        fixed_width::encode_u32(encoder, self.raw())
+    }
+}
+
+impl<Context> Decode<Context> for CellId {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let raw = fixed_width::decode_u32(decoder)?;
+        if raw >> CELL_INDEX_BITS == 0 {
+            return Err(DecodeError::NonZeroTypeIsZero {
+                non_zero_type: IntegerType::U32,
+            });
+        }
+        // SAFETY: the type id bits are non-zero, which is all `from_raw` requires.
+        Ok(unsafe { Self::from_raw(raw) })
+    }
+}
+
+impl_borrow_decode!(CellId);
 
 /// Number of low bits used for the cell index.
 const CELL_INDEX_BITS: u32 = 22;
@@ -142,8 +173,41 @@ impl Display for CellId {
 /// ```
 /// [`Vc`]: crate::Vc
 /// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
 pub struct RawVc(NonZeroU64);
+
+// RawVc serializes its packed integer directly, so TaskId's guards cannot check embedded task
+// ids. Keep the original serde newtype shape while rejecting transient values.
+impl Serialize for RawVc {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        debug_assert!(
+            !self.is_transient(),
+            "transient RawVc must not be serialized"
+        );
+        serializer.serialize_newtype_struct("RawVc", &self.0)
+    }
+}
+
+// Encoded `RawVc`s are almost always `TaskCell`s, whose high bits hold a `CellId`, so a varint
+// would take 9 bytes. `OperationVc` (always `TaskOutput`) stores a bare `TaskId`, not a `RawVc`.
+impl Encode for RawVc {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        debug_assert!(!self.is_transient(), "transient RawVc must not be encoded");
+        fixed_width::encode_u64(encoder, self.bits())
+    }
+}
+
+impl<Context> Decode<Context> for RawVc {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        NonZeroU64::new(fixed_width::decode_u64(decoder)?)
+            .map(RawVc)
+            .ok_or(DecodeError::NonZeroTypeIsZero {
+                non_zero_type: IntegerType::U64,
+            })
+    }
+}
+
+impl_borrow_decode!(RawVc);
 
 /// The unpacked form of [`RawVc`], produced by [`RawVc::unpack`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -152,7 +216,7 @@ pub enum RawVcUnpacked {
     /// representation used by [`OperationVc`][crate::OperationVc].
     TaskOutput(TaskId),
     /// A pointer to a specific [`Vc::cell`][crate::Vc::cell] or `.cell()` call within a task. This
-    /// is the representation used by [`ResolvedVc`].
+    /// is the representation used by [`ResolvedVc`][crate::ResolvedVc].
     ///
     /// [`CellId`] contains the [`ValueTypeId`], which can be useful for efficient downcasting.
     TaskCell(TaskId, CellId),
@@ -446,14 +510,6 @@ impl RawVc {
         Ok(local_output)
     }
 
-    pub(crate) fn connect(&self) {
-        let Some(task_id) = self.as_task_output() else {
-            panic!("RawVc::connect() must only be called on a RawVc::TaskOutput");
-        };
-        let tt = turbo_tasks();
-        tt.connect_task(task_id);
-    }
-
     pub fn try_get_task_id(&self) -> Option<TaskId> {
         (!self.is_local_output()).then(|| self.read_task_id())
     }
@@ -483,50 +539,6 @@ impl RawVc {
     }
 }
 
-/// This implementation of `CollectiblesSource` assumes that `self` is a `RawVc::TaskOutput`.
-impl CollectiblesSource for RawVc {
-    fn peek_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<ResolvedVc<T>> {
-        let Some(task_id) = self.as_task_output() else {
-            panic!(
-                "<RawVc as CollectiblesSource>::peek_collectibles() must only be called on a \
-                 RawVc::TaskOutput"
-            );
-        };
-        let tt = turbo_tasks();
-        let map = tt.read_task_collectibles(task_id, T::get_trait_type_id());
-        map.into_iter()
-            .filter_map(|(raw, count)| (count > 0).then_some(raw.try_into().unwrap()))
-            .collect()
-    }
-
-    fn take_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<ResolvedVc<T>> {
-        let Some(task_id) = self.as_task_output() else {
-            panic!(
-                "<RawVc as CollectiblesSource>::take_collectibles() must only be called on a \
-                 RawVc::TaskOutput"
-            );
-        };
-        let tt = turbo_tasks();
-        let map = tt.read_task_collectibles(task_id, T::get_trait_type_id());
-        tt.unemit_collectibles(T::get_trait_type_id(), &map);
-        map.into_iter()
-            .filter_map(|(raw, count)| (count > 0).then_some(raw.try_into().unwrap()))
-            .collect()
-    }
-
-    fn drop_collectibles<T: VcValueTrait + ?Sized>(self) {
-        let Some(task_id) = self.as_task_output() else {
-            panic!(
-                "<RawVc as CollectiblesSource>::drop_collectibles() must only be called on a \
-                 RawVc::TaskOutput"
-            );
-        };
-        let tt = turbo_tasks();
-        let map = tt.read_task_collectibles(task_id, T::get_trait_type_id());
-        tt.unemit_collectibles(T::get_trait_type_id(), &map);
-    }
-}
-
 /// Polls a pending [`EventListener`] slot. Returns [`Poll::Pending`] if the event has not yet
 /// fired. On [`Poll::Ready`], clears the slot so it is not polled again.
 fn poll_listener(
@@ -553,6 +565,15 @@ fn suppress_top_level_task_check<R>(strongly_consistent: bool, f: impl FnOnce() 
     } else {
         f()
     }
+}
+
+/// Executes the task a read is waiting for when it is only scheduled, so the read can continue
+/// without waiting for a worker.
+///
+/// Must be called *outside* [`with_turbo_tasks`]: executing a task enters a task-local scope of its
+/// own, which panics while the read borrows `TURBO_TASKS`.
+fn execute_inline(key: ScheduleKey) {
+    execute_read_target_inline(&*turbo_tasks(), key);
 }
 
 #[must_use]
@@ -604,14 +625,20 @@ impl Future for ResolveRawVcFuture {
         // SAFETY: we are not moving self
         let this = unsafe { self.get_unchecked_mut() };
 
-        let poll_fn = |tt: &Arc<dyn TurboTasksApi>| -> Poll<Self::Output> {
+        let strongly_consistent = this.strongly_consistent;
+        // `execute_inline` is the task to execute inline, reported out-of-band so that the value
+        // path stays exactly as cheap as it was. It is only set for tasks that are merely
+        // scheduled; one that a worker is already executing cannot be taken over.
+        let mut poll_fn = |tt: &Arc<dyn TurboTasksApi>,
+                           execute_inline: &mut Option<ScheduleKey>|
+         -> Poll<Self::Output> {
             'outer: loop {
                 ready!(poll_listener(&mut this.listener, cx));
-                let listener = match this.current.unpack() {
+                let (listener, key) = match this.current.unpack() {
                     RawVcUnpacked::TaskOutput(task) => {
                         let read_result = tt.try_read_task_output(task, this.read_output_options);
                         match read_result {
-                            Ok(Ok(vc)) => {
+                            Ok(ReadOutcome::Value(vc)) => {
                                 // turbo-tasks-backend doesn't currently have any sort of
                                 // "transaction" or global lock mechanism to group together chains
                                 // of `TaskOutput`/`TaskCell` reads.
@@ -624,7 +651,19 @@ impl Future for ResolveRawVcFuture {
                                 this.current = vc;
                                 continue 'outer;
                             }
-                            Ok(Err(listener)) => listener,
+                            // Nobody has started the task yet, so the caller may take it over.
+                            Ok(ReadOutcome::Scheduled(listener)) => {
+                                (listener, Some(ScheduleKey::Task(task)))
+                            }
+                            Ok(ReadOutcome::InProgress(listener)) => {
+                                // A worker is on it; nothing to take over. Loop back so
+                                // `poll_listener` registers the waker on this listener — returning
+                                // `Pending` here would sleep through the event.
+                                #[cfg(feature = "inline_execution_stats")]
+                                tt.note_waited_for_in_progress_task();
+                                this.listener = Some(listener);
+                                continue 'outer;
+                            }
                             Err(err) => return Poll::Ready(Err(err)),
                         }
                     }
@@ -640,22 +679,40 @@ impl Future for ResolveRawVcFuture {
                                 this.current = vc;
                                 continue 'outer;
                             }
-                            Ok(Err(listener)) => listener,
+                            Ok(Err(listener)) => (
+                                listener,
+                                Some(ScheduleKey::current_local_task(execution_id, local_task_id)),
+                            ),
                             Err(err) => return Poll::Ready(Err(err)),
                         }
                     }
                 };
+                // The task is not done yet, so we have to wait for it — unless it is merely
+                // scheduled, in which case our caller executes it and we read again.
                 this.listener = Some(listener);
+                *execute_inline = key;
+                return Poll::Pending;
             }
         };
 
-        // HACK: Temporarily suppress top-level task check if doing strongly consistent read.
-        //
-        // This masks a bug: There's an unlikely TOCTOU race condition in `poll_fn`. Because the
-        // strongly consistent read isn't a single atomic operation, any inner `TaskOutput` or
-        // `TaskCell` could get mutated after the strongly consistent read of the outer
-        // `TaskOutput`.
-        suppress_top_level_task_check(this.strongly_consistent, || with_turbo_tasks(poll_fn))
+        loop {
+            let mut execute_inline_key = None;
+            // HACK: Temporarily suppress top-level task check if doing strongly consistent read.
+            //
+            // This masks a bug: There's an unlikely TOCTOU race condition in `poll_fn`. Because the
+            // strongly consistent read isn't a single atomic operation, any inner `TaskOutput` or
+            // `TaskCell` could get mutated after the strongly consistent read of the outer
+            // `TaskOutput`.
+            let result = suppress_top_level_task_check(strongly_consistent, || {
+                with_turbo_tasks(|tt| poll_fn(tt, &mut execute_inline_key))
+            });
+            if let Some(key) = execute_inline_key {
+                // Not inside `with_turbo_tasks`, see `execute_inline`.
+                execute_inline(key);
+                continue;
+            }
+            return result;
+        }
     }
 }
 
@@ -670,7 +727,7 @@ pub struct ReadRawVcFuture {
 /// Phase 1 and phase 2 of [`ReadRawVcFuture`] use disjoint sets of fields. Storing them in an
 /// enum keeps the future smaller than holding both sets simultaneously.
 enum ReadRawVcState {
-    /// Phase 1: resolves the [`RawVc`] pointer chain to a [`RawVc::TaskCell`].
+    /// Phase 1: resolves the [`RawVc`] pointer chain to a [`RawVcUnpacked::TaskCell`].
     Resolving(ResolveRawVcFuture),
     /// Phase 2: the resolved task/cell identity plus a listener for the cell read wait.
     Reading {
@@ -712,8 +769,46 @@ impl ReadRawVcFuture {
 
     /// Track the value as a dependency with an key.
     pub fn track_with_key(mut self, key: u64) -> Self {
-        self.read_cell_options.tracking = ReadCellTracking::Tracked { key: Some(key) };
+        self.read_cell_options.tracking = ReadCellTracking::Tracked {
+            key: Some(CellKey::Hash(key)),
+        };
         self.map_resolve(|r| r.track_with_key())
+    }
+
+    /// Track the value as a [`CellKey::Provisional`] dependency of a
+    /// [`Vc::keyed_reader`](crate::Vc::keyed_reader) or
+    /// [`Vc::lazy_reader`](crate::Vc::lazy_reader) read. Like
+    /// [`ReadRawVcFuture::track_with_key`], this also tracks the reads of task outputs while
+    /// resolving the [`RawVc`].
+    ///
+    /// Must be called before the future is polled the first time.
+    pub(crate) fn set_track_provisional(&mut self, id: u32) {
+        let ReadRawVcState::Resolving(resolve) = &mut self.state else {
+            unreachable!("set_track_provisional must be called before the cell is read");
+        };
+        resolve.read_output_options.tracking = ReadTracking::Tracked;
+        self.read_cell_options.tracking = ReadCellTracking::Tracked {
+            key: Some(CellKey::Provisional(id)),
+        };
+    }
+
+    /// Track the remaining reads as normal full dependencies, e.g. when a
+    /// [`CellKey::Provisional`] read is polled in a different task execution than the one that
+    /// allocated its id. Can be called at any time before the future completes.
+    pub(crate) fn set_track_full(&mut self) {
+        if let ReadRawVcState::Resolving(resolve) = &mut self.state {
+            resolve.read_output_options.tracking = ReadTracking::Tracked;
+        }
+        self.read_cell_options.tracking = ReadCellTracking::Tracked { key: None };
+    }
+
+    /// The task cell the [`RawVc`] was resolved to. Only available once the future has completed
+    /// successfully.
+    pub(crate) fn resolved_cell(&self) -> Option<(TaskId, CellId)> {
+        match self.state {
+            ReadRawVcState::Reading { task, index, .. } => Some((task, index)),
+            ReadRawVcState::Resolving(_) => None,
+        }
     }
 
     /// This will not track the value as dependency, but will still track the error as dependency,
@@ -777,23 +872,53 @@ impl Future for ReadRawVcFuture {
         let index = *index;
         let read_cell_options = this.read_cell_options;
 
-        let poll_fn = |tt: &Arc<dyn TurboTasksApi>| -> Poll<Self::Output> {
+        let strongly_consistent = *strongly_consistent;
+
+        let mut poll_fn = |tt: &Arc<dyn TurboTasksApi>,
+                           execute_inline: &mut Option<ScheduleKey>|
+         -> Poll<Self::Output> {
             loop {
                 ready!(poll_listener(listener, cx));
-                let new_listener = match tt.try_read_task_cell(task, index, read_cell_options) {
-                    Ok(Ok(content)) => return Poll::Ready(Ok(content)),
-                    Ok(Err(l)) => l,
-                    Err(err) => return Poll::Ready(Err(err)),
-                };
+                let (new_listener, key) =
+                    match tt.try_read_task_cell(task, index, read_cell_options) {
+                        Ok(ReadOutcome::Value(content)) => return Poll::Ready(Ok(content)),
+                        Ok(ReadOutcome::Scheduled(l)) => (l, Some(ScheduleKey::Task(task))),
+                        Ok(ReadOutcome::InProgress(l)) => {
+                            // A worker is already filling the cell; nothing to take over. Loop back
+                            // so `poll_listener` registers the waker on this listener — returning
+                            // `Pending` here would sleep through the event.
+                            #[cfg(feature = "inline_execution_stats")]
+                            tt.note_waited_for_in_progress_task();
+                            *listener = Some(l);
+                            continue;
+                        }
+                        Err(err) => return Poll::Ready(Err(err)),
+                    };
+                // The cell isn't available yet, so we have to wait for the task that fills it —
+                // unless that task is merely scheduled, in which case our caller executes it and we
+                // read again.
                 *listener = Some(new_listener);
+                *execute_inline = key;
+                return Poll::Pending;
             }
         };
 
-        // Phase 2 must also suppress the top-level task check when phase 1 was
-        // strongly-consistent. The suppression from `ResolveRawVcFuture::poll` only lasts for
-        // the duration of that individual `poll` call and does not carry over to subsequent calls
-        // or to this phase.
-        suppress_top_level_task_check(*strongly_consistent, || with_turbo_tasks(poll_fn))
+        loop {
+            let mut execute_inline_key = None;
+            // Phase 2 must also suppress the top-level task check when phase 1 was
+            // strongly-consistent. The suppression from `ResolveRawVcFuture::poll` only lasts for
+            // the duration of that individual `poll` call and does not carry over to subsequent
+            // calls or to this phase.
+            let result = suppress_top_level_task_check(strongly_consistent, || {
+                with_turbo_tasks(|tt| poll_fn(tt, &mut execute_inline_key))
+            });
+            if let Some(key) = execute_inline_key {
+                // Not inside `with_turbo_tasks`, see `execute_inline`.
+                execute_inline(key);
+                continue;
+            }
+            return result;
+        }
     }
 }
 
@@ -951,6 +1076,10 @@ mod tests {
     #[test]
     #[cfg(debug_assertions)]
     #[should_panic(expected = "TaskId exceeds 31 bits")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     fn task_output_panics_on_out_of_range_task_id() {
         // `TASK_ID_MAX + 1` is the first value that sets bit 31.
         // SAFETY: non-zero.
@@ -961,6 +1090,10 @@ mod tests {
     #[test]
     #[cfg(debug_assertions)]
     #[should_panic(expected = "TaskId exceeds 31 bits")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     fn task_cell_panics_on_out_of_range_task_id() {
         // SAFETY: non-zero.
         let task = unsafe { TaskId::new_unchecked(TASK_ID_MAX + 1) };
@@ -971,6 +1104,10 @@ mod tests {
     #[test]
     #[cfg(debug_assertions)]
     #[should_panic(expected = "exceeds")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     fn cell_id_panics_on_out_of_range_type_id() {
         // SAFETY: `MAX_VALUE_TYPE_ID + 1` is non-zero.
         let type_id = unsafe { ValueTypeId::new_unchecked(CellId::MAX_VALUE_TYPE_ID + 1) };
@@ -979,6 +1116,10 @@ mod tests {
     #[test]
     #[cfg(debug_assertions)]
     #[should_panic(expected = "exceeds")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     fn cell_id_panics_on_out_of_range_index() {
         let type_id = unsafe { ValueTypeId::new_unchecked(1) };
         let _ = CellId::new(type_id, CellId::MAX_CELL_INDEX + 1);

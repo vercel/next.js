@@ -1,8 +1,8 @@
 function resolveArray<T>(value: T | T[]): T[] {
   if (Array.isArray(value)) {
-    return value as any
+    return value
   }
-  return [value] as any
+  return [value]
 }
 
 function resolveAsArrayOrUndefined<T>(

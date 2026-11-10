@@ -1,4 +1,5 @@
 import assert from 'assert'
+import http from 'http'
 import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
 import {
@@ -7,9 +8,10 @@ import {
   fetchViaHTTP,
   getClientBuildManifestLoaderChunkUrlPath,
   renderViaHTTP,
-  waitFor,
 } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Remove this suite from the deploy manifest.
+// It was excluded as a known deploy failure without a documented root cause.
 describe('basePath', () => {
   const basePath = '/docs'
 
@@ -57,21 +59,62 @@ describe('basePath', () => {
     },
   })
 
+  let externalServer: http.Server | undefined
+  let externalUrl = 'https://example.vercel.sh'
+
+  beforeAll(async () => {
+    // Avoid third-party network and DOM dependencies when the browser can reach
+    // the test runner. Deployed tests cannot reach a server on this process.
+    if (isNextDeploy) return
+
+    externalServer = http.createServer((_req, res) => {
+      res.setHeader('Content-Type', 'text/html')
+      res.end('<!doctype html><p data-external-page>external page</p>')
+    })
+
+    await new Promise<void>((resolve, reject) => {
+      externalServer!.once('error', reject)
+      externalServer!.listen(0, '127.0.0.1', () => {
+        externalServer!.off('error', reject)
+        const address = externalServer!.address()
+        if (!address || typeof address === 'string') {
+          reject(new Error('Failed to determine the external server port'))
+          return
+        }
+        externalUrl = `http://127.0.0.1:${address.port}`
+        resolve()
+      })
+    })
+  })
+
+  afterAll(async () => {
+    if (!externalServer) return
+
+    await new Promise<void>((resolve, reject) => {
+      externalServer!.close((err) => (err ? reject(err) : resolve()))
+    })
+  })
+
   it('should navigate to external site and back', async () => {
-    const browser = await next.browser(`${basePath}/external-and-back`)
-    const initialText = await browser.elementByCss('p').text()
-    expect(initialText).toBe('server')
+    const browser = await next.browser(
+      `${basePath}/external-and-back?external=${encodeURIComponent(externalUrl)}`
+    )
+    const initialUrl = await browser.url()
+    expect(await browser.elementById('from').text()).toBe('server')
 
-    await browser
-      .elementByCss('a')
-      .click()
-      .waitForElementByCss('input', { state: 'attached' })
-      .back()
-      .waitForElementByCss('p')
+    await browser.elementByCss('a').click()
+    await browser.waitForCondition(
+      `window.location.origin !== ${JSON.stringify(new URL(initialUrl).origin)}`
+    )
+    if (!isNextDeploy) {
+      await browser.waitForElementByCss('[data-external-page]')
+    }
 
-    await waitFor(1000)
-    const newText = await browser.elementByCss('p').text()
-    expect(newText).toBe('server')
+    await browser.back()
+    await browser.waitForCondition(
+      `window.location.href === ${JSON.stringify(initialUrl)} && document.querySelector('#from')`
+    )
+    expect(await browser.elementById('from').text()).toBe('server')
   })
 
   if (process.env.BROWSER_NAME === 'safari') {
@@ -107,91 +150,90 @@ describe('basePath', () => {
   })
 
   if (!isNextDev) {
-    if (!isNextDeploy) {
-      it('should add basePath to routes-manifest', async () => {
-        const routesManifest = JSON.parse(
-          await next.readFile('.next/routes-manifest.json')
+    // @force-gate !deploy
+    it('should add basePath to routes-manifest', async () => {
+      const routesManifest = JSON.parse(
+        await next.readFile('.next/routes-manifest.json')
+      )
+      expect(routesManifest.basePath).toBe(basePath)
+    })
+
+    // @force-gate !deploy
+    it('should prefetch pages correctly when manually called', async () => {
+      const browser = await next.browser(`${basePath}/other-page`)
+      await browser.eval('window.next.router.prefetch("/gssp")')
+
+      let chunk = getClientBuildManifestLoaderChunkUrlPath(
+        next.testDir,
+        '/gssp'
+      )
+
+      await check(async () => {
+        const links = await browser.elementsByCss('link[rel=prefetch]')
+
+        for (const link of links) {
+          const href = await link.getAttribute('href')
+          if (href.includes(chunk)) {
+            return true
+          }
+        }
+
+        const scripts = await browser.elementsByCss('script')
+
+        for (const script of scripts) {
+          const src = await script.getAttribute('src')
+          if (src.includes(chunk)) {
+            return true
+          }
+        }
+        return false
+      }, true)
+    })
+
+    // @force-gate !deploy
+    it('should prefetch pages correctly in viewport with <Link>', async () => {
+      const browser = await next.browser(`${basePath}/hello`)
+      await browser.eval('window.next.router.prefetch("/gssp")')
+
+      await check(async () => {
+        const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
+        hrefs.sort()
+
+        assert.deepEqual(
+          hrefs.map((href) =>
+            new URL(href).pathname.replace(/\/_next\/data\/[^/]+/, '')
+          ),
+          [
+            `${basePath}/gsp.json`,
+            `${basePath}/index.json`,
+            // `${basePath}/index/index.json`,
+          ]
         )
-        expect(routesManifest.basePath).toBe(basePath)
-      })
 
-      it('should prefetch pages correctly when manually called', async () => {
-        const browser = await next.browser(`${basePath}/other-page`)
-        await browser.eval('window.next.router.prefetch("/gssp")')
-
-        let chunk = getClientBuildManifestLoaderChunkUrlPath(
+        let chunkGsp = getClientBuildManifestLoaderChunkUrlPath(
+          next.testDir,
+          '/gsp'
+        )
+        let chunkGssp = getClientBuildManifestLoaderChunkUrlPath(
           next.testDir,
           '/gssp'
         )
+        let chunkOtherPage = getClientBuildManifestLoaderChunkUrlPath(
+          next.testDir,
+          '/other-page'
+        )
 
-        await check(async () => {
-          const links = await browser.elementsByCss('link[rel=prefetch]')
-
-          for (const link of links) {
-            const href = await link.getAttribute('href')
-            if (href.includes(chunk)) {
-              return true
-            }
-          }
-
-          const scripts = await browser.elementsByCss('script')
-
-          for (const script of scripts) {
-            const src = await script.getAttribute('src')
-            if (src.includes(chunk)) {
-              return true
-            }
-          }
-          return false
-        }, true)
-      })
-
-      it('should prefetch pages correctly in viewport with <Link>', async () => {
-        const browser = await next.browser(`${basePath}/hello`)
-        await browser.eval('window.next.router.prefetch("/gssp")')
-
-        await check(async () => {
-          const hrefs = await browser.eval(
-            `Object.keys(window.next.router.sdc)`
-          )
-          hrefs.sort()
-
-          assert.deepEqual(
-            hrefs.map((href) =>
-              new URL(href).pathname.replace(/\/_next\/data\/[^/]+/, '')
-            ),
-            [
-              `${basePath}/gsp.json`,
-              `${basePath}/index.json`,
-              // `${basePath}/index/index.json`,
-            ]
-          )
-
-          let chunkGsp = getClientBuildManifestLoaderChunkUrlPath(
-            next.testDir,
-            '/gsp'
-          )
-          let chunkGssp = getClientBuildManifestLoaderChunkUrlPath(
-            next.testDir,
-            '/gssp'
-          )
-          let chunkOtherPage = getClientBuildManifestLoaderChunkUrlPath(
-            next.testDir,
-            '/other-page'
-          )
-
-          const prefetches = await browser.eval(
-            `[].slice.call(document.querySelectorAll("link[rel=prefetch]")).map((e) => new URL(e.href).pathname)`
-          )
-          expect(prefetches).toContainEqual(expect.stringContaining(chunkGsp))
-          expect(prefetches).toContainEqual(expect.stringContaining(chunkGssp))
-          expect(prefetches).toContainEqual(
-            expect.stringContaining(chunkOtherPage)
-          )
-          return 'yes'
-        }, 'yes')
-      })
-    }
+        const prefetches = await browser.eval(
+          `[].slice.call(document.querySelectorAll("link[rel=prefetch]")).map((e) => new URL(e.href).pathname)`
+        )
+        expect(prefetches).toContainEqual(expect.stringContaining(chunkGsp))
+        expect(prefetches).toContainEqual(expect.stringContaining(chunkGssp))
+        expect(prefetches).toContainEqual(
+          expect.stringContaining(chunkOtherPage)
+        )
+        return 'yes'
+      }, 'yes')
+    })
   }
 
   it('should serve public file with basePath correctly', async () => {
@@ -332,7 +374,7 @@ describe('basePath', () => {
       { redirect: 'manual' }
     )
     expect(res.status).toBe(308)
-    const { pathname } = new URL(res.headers.get('location'))
+    const { pathname } = new URL(res.headers.get('location'), res.url)
     expect(pathname).toBe(`${basePath}/hello`)
     const text = await res.text()
     expect(text).toContain(`${basePath}/hello`)
@@ -346,7 +388,7 @@ describe('basePath', () => {
       { redirect: 'manual' }
     )
     expect(res.status).toBe(308)
-    const { pathname } = new URL(res.headers.get('location'))
+    const { pathname } = new URL(res.headers.get('location'), res.url)
     expect(pathname).toBe(`${basePath}`)
     const text = await res.text()
     expect(text).toContain(`${basePath}`)
@@ -361,35 +403,35 @@ describe('basePath', () => {
     )
   })
 
-  if (!isNextDeploy) {
-    it('should navigate an absolute local url with basePath', async () => {
-      const browser = await next.browser(
-        `${basePath}/absolute-url-basepath?port=${next.appPort}`
-      )
-      await browser.eval('window._didNotNavigate = true')
-      await browser.waitForElementByCss('#absolute-link').click()
-      const text = await browser
-        .waitForElementByCss('#something-else-page')
-        .text()
+  // @force-gate !deploy
+  it('should navigate an absolute local url with basePath', async () => {
+    const browser = await next.browser(
+      `${basePath}/absolute-url-basepath?port=${next.appPort}`
+    )
+    await browser.eval('window._didNotNavigate = true')
+    await browser.waitForElementByCss('#absolute-link').click()
+    const text = await browser
+      .waitForElementByCss('#something-else-page')
+      .text()
 
-      expect(text).toBe('something else')
-      expect(await browser.eval('window._didNotNavigate')).toBe(true)
-    })
+    expect(text).toBe('something else')
+    expect(await browser.eval('window._didNotNavigate')).toBe(true)
+  })
 
-    it('should navigate an absolute local url without basePath', async () => {
-      const browser = await next.browser(
-        `${basePath}/absolute-url-no-basepath?port=${next.appPort}`
-      )
-      await browser.waitForElementByCss('#absolute-link').click()
-      await check(
-        () => browser.eval(() => location.pathname),
-        '/rewrite-no-basepath'
-      )
-      const text = await browser.elementByCss('body').text()
+  // @force-gate !deploy
+  it('should navigate an absolute local url without basePath', async () => {
+    const browser = await next.browser(
+      `${basePath}/absolute-url-no-basepath?port=${next.appPort}`
+    )
+    await browser.waitForElementByCss('#absolute-link').click()
+    await check(
+      () => browser.eval(() => location.pathname),
+      '/rewrite-no-basepath'
+    )
+    const text = await browser.elementByCss('body').text()
 
-      expect(text).toContain('Example Domain')
-    })
-  }
+    expect(text).toContain('Example Domain')
+  })
 
   it('should show the hello page under the /docs prefix', async () => {
     const browser = await next.browser(`${basePath}/hello`)

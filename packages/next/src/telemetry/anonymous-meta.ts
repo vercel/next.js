@@ -3,6 +3,7 @@ import isWslBoolean from 'next/dist/compiled/is-wsl'
 import os from 'os'
 
 import * as ciEnvironment from '../server/ci-info'
+import { getAgentName } from './agent-name'
 
 type AnonymousMeta = {
   systemPlatform: NodeJS.Platform
@@ -18,11 +19,12 @@ type AnonymousMeta = {
   isCI: boolean
   ciName: string | null
   nextVersion: string
+  agentName: string | null
 }
 
 let traits: AnonymousMeta | undefined
 
-export function getAnonymousMeta(): AnonymousMeta {
+export async function getAnonymousMeta(): Promise<AnonymousMeta> {
   if (traits) {
     return traits
   }
@@ -35,7 +37,7 @@ export function getAnonymousMeta(): AnonymousMeta {
     systemRelease: os.release(),
     systemArchitecture: os.arch(),
     // Machine information
-    cpuCount: cpus.length,
+    cpuCount: os.availableParallelism(),
     cpuModel: cpus.length ? cpus[0].model : null,
     cpuSpeed: cpus.length ? cpus[0].speed : null,
     memoryInMb: Math.trunc(os.totalmem() / Math.pow(1024, 2)),
@@ -46,6 +48,7 @@ export function getAnonymousMeta(): AnonymousMeta {
     isCI: ciEnvironment.isCI,
     ciName: (ciEnvironment.isCI && ciEnvironment.name) || null,
     nextVersion: process.env.__NEXT_VERSION as string,
+    agentName: await getAgentName(),
   }
 
   return traits

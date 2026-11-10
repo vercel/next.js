@@ -1,3 +1,11 @@
+import ClientEntry from './client-entry'
+import './page.css'
+
 export default function Page() {
-  return <div>Hello World</div>
+  return (
+    <div className="analyze-page">
+      Hello World
+      <ClientEntry />
+    </div>
+  )
 }

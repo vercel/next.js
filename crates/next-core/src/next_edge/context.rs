@@ -1,13 +1,13 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
         AssetSuffix, ChunkingConfig, ChunkingContext, CrossOrigin, MangleType, MinifyType,
-        SourceMapsType, UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
+        SourceMapSourceType, UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
@@ -16,6 +16,7 @@ use turbopack_core::{
     module_graph::{
         binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
     },
+    source_map::{OptionSourceMapType, SourceMapGenerationOptions},
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
@@ -26,7 +27,6 @@ use crate::{
     app_structure::CollectedRootParams,
     mode::NextMode,
     next_config::NextConfig,
-    next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_edge_import_map},
     next_server::context::ServerContextType,
     next_shared::resolve::NextSharedRuntimeResolvePlugin,
@@ -69,6 +69,7 @@ pub async fn get_edge_compile_time_info(
     define_env: Vc<OptionEnvMap>,
     node_version: ResolvedVc<NodeJsVersion>,
     report_system_env_inlining: Vc<IssueSeverity>,
+    import_meta_env_base_url: RcStr,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::EdgeWorker(
@@ -83,6 +84,7 @@ pub async fn get_edge_compile_time_info(
             .to_resolved()
             .await?,
     )
+    .import_meta_env_base_url(import_meta_env_base_url)
     .cell()
     .await
 }
@@ -111,25 +113,8 @@ pub async fn get_edge_resolve_options_context(
             .to_resolved()
             .await?;
 
-    let before_resolve_plugins = if matches!(
-        ty,
-        ServerContextType::Pages { .. }
-            | ServerContextType::AppSSR { .. }
-            | ServerContextType::AppRSC { .. }
-    ) {
-        vec![ResolvedVc::upcast(
-            NextFontLocalResolvePlugin::new(project_path.clone())
-                .to_resolved()
-                .await?,
-        )]
-    } else {
-        vec![]
-    };
-
     let after_resolve_plugins = vec![ResolvedVc::upcast(
-        NextSharedRuntimeResolvePlugin::new(project_path.clone())
-            .to_resolved()
-            .await?,
+        NextSharedRuntimeResolvePlugin::new().to_resolved().await?,
     )];
 
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
@@ -152,8 +137,10 @@ pub async fn get_edge_resolve_options_context(
         fallback_import_map: Some(next_edge_fallback_import_map),
         module: true,
         browser: true,
+        // A request starting with `/` is resolved from the project directory, which is not
+        // necessarily the root of the filesystem (e.g. in a monorepo).
+        server_relative_root: Some(project_path.clone()),
         after_resolve_plugins,
-        before_resolve_plugins,
 
         ..Default::default()
     };
@@ -184,7 +171,7 @@ pub async fn get_edge_resolve_options_context(
 }
 
 #[turbo_tasks::task_input(contains_unresolved_vcs)]
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct EdgeChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,
@@ -195,9 +182,11 @@ pub struct EdgeChunkingContextOptions {
     pub export_usage: Vc<OptionBindingUsageInfo>,
     pub unused_references: Vc<UnusedReferences>,
     pub turbo_minify: Vc<bool>,
-    pub turbo_source_maps: Vc<SourceMapsType>,
+    pub emitted_source_map_type: Vc<OptionSourceMapType>,
+    pub source_map_generation_options: Vc<SourceMapGenerationOptions>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
+    pub minify_before_chunking: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub client_root: FileSystemPath,
     pub client_static_folder_name: RcStr,
@@ -223,9 +212,11 @@ pub async fn get_edge_chunking_context_with_client_assets(
         export_usage,
         unused_references,
         turbo_minify,
-        turbo_source_maps,
+        emitted_source_map_type,
+        source_map_generation_options,
         no_mangling,
         scope_hoisting,
+        minify_before_chunking,
         nested_async_chunking,
         client_root,
         client_static_folder_name,
@@ -263,7 +254,17 @@ pub async fn get_edge_chunking_context_with_client_assets(
     } else {
         MinifyType::NoMinify
     })
-    .source_maps(*turbo_source_maps.await?)
+    .emitted_source_map_type(*emitted_source_map_type.await?)
+    .source_map_generation_options(*source_map_generation_options.await?)
+    // The edge server runtime is browser-like, so it uses a `BrowserChunkingContext` whose default
+    // source map source type is `TurbopackUri` (sources left as `turbopack:///[project]/...`).
+    // Match the Node.js server context instead so server stack traces get real file paths:
+    // absolute `file://` URIs in dev, relative paths in production.
+    .source_map_source_type(if next_mode.is_development() {
+        SourceMapSourceType::AbsoluteFileUri
+    } else {
+        SourceMapSourceType::RelativeUri
+    })
     .cross_origin(cross_origin_loading)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
@@ -289,7 +290,8 @@ pub async fn get_edge_chunking_context_with_client_assets(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?);
+            .module_merging(*scope_hoisting.await?)
+            .minify_before_chunking(*minify_before_chunking.await?);
     }
 
     Ok(Vc::upcast(builder.build()))
@@ -310,9 +312,11 @@ pub async fn get_edge_chunking_context(
         export_usage,
         unused_references,
         turbo_minify,
-        turbo_source_maps,
+        emitted_source_map_type,
+        source_map_generation_options,
         no_mangling,
         scope_hoisting,
+        minify_before_chunking,
         nested_async_chunking,
         client_root,
         client_static_folder_name,
@@ -367,7 +371,17 @@ pub async fn get_edge_chunking_context(
     } else {
         MinifyType::NoMinify
     })
-    .source_maps(*turbo_source_maps.await?)
+    .emitted_source_map_type(*emitted_source_map_type.await?)
+    .source_map_generation_options(*source_map_generation_options.await?)
+    // The edge server runtime is browser-like, so it uses a `BrowserChunkingContext` whose default
+    // source map source type is `TurbopackUri` (sources left as `turbopack:///[project]/...`).
+    // Match the Node.js server context instead so server stack traces get real file paths:
+    // absolute `file://` URIs in dev, relative paths in production.
+    .source_map_source_type(if next_mode.is_development() {
+        SourceMapSourceType::AbsoluteFileUri
+    } else {
+        SourceMapSourceType::RelativeUri
+    })
     .cross_origin(cross_origin)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
@@ -393,7 +407,8 @@ pub async fn get_edge_chunking_context(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?);
+            .module_merging(*scope_hoisting.await?)
+            .minify_before_chunking(*minify_before_chunking.await?);
     }
 
     Ok(Vc::upcast(builder.build()))

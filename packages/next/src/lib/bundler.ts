@@ -1,8 +1,34 @@
+import * as Log from '../build/output/log'
+
 /// Utilties for configuring the bundler to use.
 export enum Bundler {
   Turbopack,
   Webpack,
   Rspack,
+}
+
+export function bundlerName(bundler: Bundler): string {
+  switch (bundler) {
+    case Bundler.Turbopack:
+      return 'Turbopack'
+    case Bundler.Webpack:
+      return 'webpack'
+    case Bundler.Rspack:
+      return 'Rspack'
+  }
+}
+
+/**
+ * Derive the currently configured bundler from the environment.
+ */
+export function getBundlerFromEnv(): Bundler {
+  if (process.env.NEXT_RSPACK) {
+    return Bundler.Rspack
+  }
+  if (process.env.TURBOPACK) {
+    return Bundler.Turbopack
+  }
+  return Bundler.Webpack
 }
 /**
  * Parse the bundler arguments and potentially sets the `TURBOPACK` environment variable.
@@ -16,6 +42,7 @@ export function parseBundlerArgs(options: {
   turbo?: boolean
   turbopack?: boolean
   webpack?: boolean
+  customWebpack?: boolean
 }): Bundler {
   const bundlerFlags = new Map<Bundler, string[]>()
   const setBundlerFlag = (bundler: Bundler, flag: string) => {
@@ -42,6 +69,9 @@ export function parseBundlerArgs(options: {
   if (options.webpack) {
     setBundlerFlag(Bundler.Webpack, '--webpack')
   }
+  if (options.customWebpack) {
+    setBundlerFlag(Bundler.Webpack, '--custom-webpack')
+  }
 
   if (process.env.IS_WEBPACK_TEST) {
     setBundlerFlag(
@@ -62,7 +92,10 @@ export function parseBundlerArgs(options: {
     )
   }
 
-  if (bundlerFlags.size > 1) {
+  if (
+    bundlerFlags.size > 1 ||
+    (options.webpack === true && options.customWebpack === true)
+  ) {
     console.error(
       `Multiple bundler flags set: ${Array.from(bundlerFlags.values()).flat().join(', ')}.
 
@@ -95,6 +128,11 @@ Edit your command or your package.json script to configure only one bundler.`
 export function finalizeBundlerFromConfig(fromOptions: Bundler) {
   // Reading the next config can set NEXT_RSPACK environment variables.
   if (process.env.NEXT_RSPACK) {
+    if (fromOptions !== Bundler.Rspack) {
+      Log.event(
+        `Switching bundler from ${bundlerName(fromOptions)} to Rspack based on config`
+      )
+    }
     return Bundler.Rspack
   }
   return fromOptions

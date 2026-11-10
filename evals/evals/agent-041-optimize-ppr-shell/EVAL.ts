@@ -1,61 +1,138 @@
-/**
- * Optimize PPR Shell
- *
- * Tests whether the agent decomposes a monolithic loading.tsx (which creates
- * a single implicit Suspense boundary around the entire page) into granular
- * Suspense boundaries — one per dashboard section — so each section can
- * stream independently and the PPR shell contains more static content.
- *
- * Tricky because the starting code uses Next.js's loading.tsx convention,
- * which is an implicit Suspense boundary. Agents need to recognize that
- * loading.tsx creates an all-or-nothing loading state, and that optimizing
- * the PPR shell requires replacing it with per-section Suspense boundaries
- * so each section can stream independently.
- */
-
 import { expect, test } from 'vitest'
-import { readFileSync } from 'fs'
-import { join } from 'path'
+import { chromium, expect as browserExpect } from '@playwright/test'
+import { createServer, type ServerResponse } from 'node:http'
+import { randomUUID, randomInt } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import {
+  buildNextApp,
+  startNextServer,
+} from './__agent_eval__/next-test-utils.mjs'
 
-const appDir = join(process.cwd(), 'app')
-
-function readFile(name: string): string {
-  return readFileSync(join(appDir, name), 'utf-8')
-}
-
-test('Page has at least 3 Suspense boundaries', () => {
-  const page = readFile('page.tsx')
-
-  const suspenseCount = (page.match(/<Suspense[\s>]/g) || []).length
-  expect(suspenseCount).toBeGreaterThanOrEqual(3)
+test('keeps Cache Components enabled', () => {
+  expect(readFileSync('next.config.ts', 'utf8')).toMatch(
+    /cacheComponents\s*:\s*true/
+  )
 })
 
-test('Each dashboard section has its own Suspense boundary in page.tsx', () => {
-  const page = readFile('page.tsx')
-
-  // Split page into Suspense blocks: text between each <Suspense and </Suspense>
-  const suspenseBlocks = page.split(/<Suspense[\s>]/).slice(1)
-
-  const components = ['CardStats', 'RevenueChart', 'LatestInvoices']
-  for (const component of components) {
-    const inOwnBlock = suspenseBlocks.some(
-      (block) => block.includes(component) && block.includes('</Suspense>')
-    )
-    expect(inOwnBlock, `${component} should be inside its own <Suspense>`).toBe(
-      true
-    )
+test('streams the shell and each ready section without waiting for the others', async () => {
+  const month = `Revenue-${randomUUID()}`
+  const customer = `Customer-${randomUUID()}`
+  const total = randomInt(100000, 999999)
+  const payloads = {
+    cards: { totalRevenue: total, totalInvoices: 24 },
+    revenue: [{ month, amount: 12000 }],
+    invoices: [{ id: '1', name: customer, amount: 500 }],
   }
-})
-
-test('Page does not await all data before rendering', () => {
-  const page = readFile('page.tsx')
-
-  // The page should not call getDashboardData() or fetch() at the top level.
-  // A simple check: the page shouldn't contain the original monolithic fetch.
-  expect(page).not.toMatch(/await\s+getDashboardData\s*\(/)
-
-  // The page component itself should not be async (data fetching moves into children)
-  // OR if it is async, it should not await a data fetch before returning JSX.
-  // We check the simpler signal: getDashboardData should not be called in page.tsx at all.
-  expect(page).not.toMatch(/getDashboardData\s*\(/)
-})
+  const pending = new Map<string, ServerResponse>()
+  let allRequested!: () => void
+  function waitForRequests() {
+    return new Promise<void>((resolve) => {
+      allRequested = resolve
+    })
+  }
+  let hold = false
+  const api = createServer((request, response) => {
+    const section = request.url?.slice(1) as keyof typeof payloads
+    if (!(section in payloads)) {
+      response.writeHead(404).end()
+      return
+    }
+    if (hold) {
+      pending.set(section, response)
+      if (pending.size === 3) allRequested()
+    } else response.end(JSON.stringify(payloads[section]))
+  })
+  await new Promise<void>((resolve) => api.listen(0, '127.0.0.1', resolve))
+  const address = api.address()
+  if (!address || typeof address === 'string') throw new Error('No API address')
+  const previousOrigin = process.env.DASHBOARD_API_URL
+  process.env.DASHBOARD_API_URL = `http://127.0.0.1:${address.port}`
+  let app: Awaited<ReturnType<typeof startNextServer>> | undefined
+  let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
+  try {
+    await buildNextApp()
+    app = await startNextServer()
+    browser = await chromium.launch({ headless: true })
+    const sections = ['cards', 'revenue', 'invoices'] as const
+    for (const first of sections) {
+      const context = await browser.newContext()
+      const abort = new AbortController()
+      const requestsReady = waitForRequests()
+      hold = true
+      const timer = setTimeout(() => abort.abort(), 15_000)
+      try {
+        const page = await context.newPage()
+        const response = await page.goto(app.url, {
+          waitUntil: 'commit',
+          timeout: 15_000,
+        })
+        expect(response?.ok()).toBe(true)
+        const content = {
+          cards: page.getByText(
+            new RegExp(`^\\$(?:${total.toLocaleString('en-US')}|${total})$`)
+          ),
+          revenue: page.getByText(month),
+          invoices: page.getByText(customer),
+        }
+        function release(section: keyof typeof payloads) {
+          const request = pending.get(section)
+          expect(request, `${section} must load independently`).toBeDefined()
+          pending.delete(section)
+          request!.end(JSON.stringify(payloads[section]))
+        }
+        await browserExpect(
+          page.getByRole('heading', { name: 'Dashboard', exact: true })
+        ).toBeVisible()
+        for (const section of sections) {
+          await browserExpect(content[section]).not.toBeVisible()
+        }
+        await Promise.race([
+          requestsReady,
+          new Promise<never>((_, reject) =>
+            abort.signal.addEventListener(
+              'abort',
+              () => reject(new Error('Sections did not start independently')),
+              { once: true }
+            )
+          ),
+        ])
+        expect([...pending.keys()].sort()).toEqual([...sections].sort())
+        release(first)
+        // Every section must become visible with the other two still blocked.
+        // HTML in React's hidden streaming segments does not count.
+        await browserExpect(
+          content[first],
+          `${first} must reveal before the other sections are ready`
+        ).toBeVisible()
+        for (const section of sections) {
+          if (section !== first) {
+            await browserExpect(content[section]).not.toBeVisible()
+            release(section)
+          }
+        }
+        for (const section of sections) {
+          await browserExpect(content[section]).toBeVisible()
+        }
+      } finally {
+        clearTimeout(timer)
+        abort.abort()
+        hold = false
+        for (const [section, response] of pending) {
+          response.end(
+            JSON.stringify(payloads[section as keyof typeof payloads])
+          )
+        }
+        pending.clear()
+        await context.close()
+      }
+    }
+  } finally {
+    for (const response of pending.values()) response.end('{}')
+    await browser?.close()
+    await app?.stop()
+    api.closeAllConnections()
+    await new Promise<void>((resolve) => api.close(() => resolve()))
+    if (previousOrigin === undefined) delete process.env.DASHBOARD_API_URL
+    else process.env.DASHBOARD_API_URL = previousOrigin
+  }
+}, 240_000)

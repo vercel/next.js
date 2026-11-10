@@ -69,10 +69,11 @@ describe('instant-nav-panel', () => {
     })
   }
 
-  async function clickLink(browser: Playwright, href: string) {
-    await browser.eval((page) => {
-      document.querySelector<HTMLAnchorElement>(`[href="${page}"]`)!.click()
-    }, href)
+  async function clickLink(browser: Playwright, href: string, id?: string) {
+    const selector = id ? `#${id}` : `[href="${href}"]`
+    await browser.eval((selector) => {
+      document.querySelector<HTMLAnchorElement>(selector)!.click()
+    }, selector)
   }
 
   function getInstantNavPanel(browser: Playwright) {
@@ -321,6 +322,30 @@ describe('instant-nav-panel', () => {
     await browser
       .locator('[data-testid="dynamic-content"]')
       .waitFor({ state: 'visible', timeout: 30000 })
+  }
+
+  async function expectPostLoadingAt(pathname: string, browser: Playwright) {
+    await retry(
+      async () => {
+        expect(new URL(await browser.url()).pathname).toBe(pathname)
+      },
+      3_000,
+      100
+    )
+
+    await browser
+      .locator('[data-testid="post-loading"]')
+      .first()
+      .waitFor({ state: 'visible' })
+  }
+
+  async function expectPostRenderedAt(pathname: string, browser: Playwright) {
+    await retry(async () => {
+      expect(new URL(await browser.url()).pathname).toBe(pathname)
+      expect(await browser.elementByCss('[data-testid="post"]').text()).toBe(
+        `Post ${pathname.split('/').pop()}`
+      )
+    })
   }
 
   async function expectAwaitConnectionPageLoading(browser: Playwright) {
@@ -607,6 +632,39 @@ describe('instant-nav-panel', () => {
       await clearInstantModeCookie(browser)
     })
 
+    it('should continue capturing loading navigations when starting on a dynamic route', async () => {
+      const browser = await next.browser('/post/1')
+      await clearInstantModeCookie(browser)
+      await browser.waitForElementByCss('[data-testid="post"]')
+      await waitForAppHydration(browser)
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await expectPendingPanel(browser)
+
+      await clickLink(browser, '/post/2')
+      await expectSpaPanel(browser)
+      await expectPostLoadingAt('/post/2', browser)
+
+      await clickLink(browser, '/post/1')
+      await expectPostLoadingAt('/post/1', browser)
+    })
+
+    it('should continue capturing loading navigations after starting on the home route', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await expectPendingPanel(browser)
+
+      await clickLink(browser, '/post/1')
+      await expectSpaPanel(browser)
+      await expectPostLoadingAt('/post/1', browser)
+
+      await clickLink(browser, '/post/2')
+      await expectPostLoadingAt('/post/2', browser)
+    })
+
     it('should reset the panel and app when pressing the close button from captured SPA state', async () => {
       const browser = await openHomeWithTargetPageWarmup()
 
@@ -641,16 +699,52 @@ describe('instant-nav-panel', () => {
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
-      // The prefetch link shares its href with #link-to-target, so select it
-      // by id rather than by href.
-      await browser.eval(() => {
-        document
-          .querySelector<HTMLAnchorElement>('#link-to-target-prefetch')!
-          .click()
-      })
+      await clickLink(
+        browser,
+        '/target-page/my-post?search=foo',
+        'link-to-target-prefetch'
+      )
       await expectSpaPanel(browser)
 
       await expectTargetPageSpaShellWithRuntimeData(browser)
+    })
+
+    it('works for repeat clicks to links with prefetch={true} (regression)', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+
+      // 1. Enable the Nav Inspector and click the link
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await clickLink(
+        browser,
+        '/target-page/my-post?search=foo',
+        'link-to-target-prefetch'
+      )
+      await expectSpaPanel(browser)
+
+      // 2. Close the Nav Inspector and navigate home
+      await closePanelViaHeader(browser)
+      await waitForPanelRouterTransition()
+      await waitForInstantModeCookieAbsent(browser)
+      await clickLink(browser, '/')
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await waitForAppHydration(browser)
+
+      // 3. Enable the inspector and click the link again. This used to hang
+      // in a pending state while firing an infinite loop of prefetch
+      // requests: the previous capture's runtime-prefetch entries survive in
+      // the segment cache at concrete vary paths, shadowing the entries the
+      // new capture's prefetch creates at the more generic shell vary paths,
+      // so every scheduler pass discarded and refetched forever.
+      await reopenInstantNavPanelFromMenu(browser)
+      await expectIdlePanel(browser)
+      await clickStartCapturing(browser)
+      await clickLink(
+        browser,
+        '/target-page/my-post?search=foo',
+        'link-to-target-prefetch'
+      )
+      await expectSpaPanel(browser)
     })
 
     it('should restart capture and return to awaiting navigation after resuming from SPA state', async () => {
@@ -726,6 +820,123 @@ describe('instant-nav-panel', () => {
 
       await expectMpaPanel(browser)
       await expectTargetPageMpaShell(browser)
+    })
+  })
+
+  describe('history traversals', () => {
+    it('re-arms the capture when navigating back from a captured SPA navigation', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await clickLink(browser, '/target-page/my-post?search=foo')
+      await expectSpaPanel(browser)
+      await expectTargetPageSpaShell(browser)
+
+      // The SPA capture is recorded as soon as the prefetch resolves, which
+      // can be before the navigation commits the new URL. Wait for the URL to
+      // change before traversing so back() returns to home.
+      await retry(async () => {
+        expect(await browser.url()).toContain('/target-page/my-post')
+      }, 10000)
+
+      await browser.back()
+
+      // The traversal restores home with its real content.
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await retry(async () => {
+        expect(await browser.url()).not.toContain('/target-page')
+      })
+
+      // The capture no longer corresponds to what's on screen, so the panel
+      // returns to awaiting the next navigation, with the cookie still set.
+      await expectPendingPanel(browser)
+      await waitForInstantModeCookie(browser)
+
+      // The next navigation is captured again. (The revisited route renders
+      // from the navigation cache rather than showing the shell — same as a
+      // recapture after Resume.)
+      await clickLink(browser, '/target-page/my-post?search=foo')
+      await expectSpaPanel(browser)
+    })
+
+    it('shows real content on forward after back while awaiting navigation', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await clickLink(browser, '/target-page/my-post?search=foo')
+      await expectSpaPanel(browser)
+      await expectTargetPageSpaShell(browser)
+      await retry(async () => {
+        expect(await browser.url()).toContain('/target-page/my-post')
+      }, 10000)
+
+      await browser.back()
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await expectPendingPanel(browser)
+
+      // The re-arm released the captured scope, so the target page's dynamic
+      // data finished streaming in. Forward restores it with real content and
+      // does not start a new capture.
+      await browser.forward()
+      await expectTargetPageRendered(browser)
+      await expectPendingPanel(browser)
+    })
+
+    it('returns the panel to pending when navigating back after repeated captured navigations', async () => {
+      const browser = await next.browser('/post/1')
+      await clearInstantModeCookie(browser)
+      await browser.waitForElementByCss('[data-testid="post"]')
+      await waitForAppHydration(browser)
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await expectPendingPanel(browser)
+
+      // Two captured navigations in a row. The second navigation takes over
+      // the capture, releasing the first navigation's withheld data.
+      await clickLink(browser, '/post/2')
+      await expectSpaPanel(browser)
+      await expectPostLoadingAt('/post/2', browser)
+
+      await clickLink(browser, '/post/1')
+      await expectPostLoadingAt('/post/1', browser)
+
+      // Traversals are not captured, so going back resets the panel to
+      // awaiting the next navigation, with the cookie still set. The revisited
+      // page shows real content — its data was released when the second
+      // navigation took over the capture.
+      await browser.back()
+      await expectPostRenderedAt('/post/2', browser)
+      await expectPendingPanel(browser)
+      await waitForInstantModeCookie(browser)
+
+      // The traversal also released the current capture's withheld data, so
+      // forward restores real content too and does not start a new capture.
+      await browser.forward()
+      await expectPostRenderedAt('/post/1', browser)
+      await expectPendingPanel(browser)
+    })
+
+    it('captures a page load when reloading after back', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await clickLink(browser, '/target-page/my-post?search=foo')
+      await expectSpaPanel(browser)
+      await retry(async () => {
+        expect(await browser.url()).toContain('/target-page/my-post')
+      }, 10000)
+
+      await browser.back()
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await expectPendingPanel(browser)
+
+      await browser.refresh()
+      await getInstantNavPanel(browser)
+      await expectMpaPanel(browser)
     })
   })
 
