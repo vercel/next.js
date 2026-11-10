@@ -1731,7 +1731,8 @@ impl PageEndpoint {
                             .edge_env()
                             .owned()
                             .await?
-                            .into_inner(),
+                            .into_iter()
+                            .collect(),
                     };
                     let middleware_manifest_v2 = MiddlewaresManifestV2 {
                         sorted_middleware: vec![this.pathname.clone()],

@@ -84,7 +84,7 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, NonLocalValue, OrderedIndexMap, ReadRef, ResolvedVc,
+    FxDashMap, FxIndexMap, NonLocalValue, OrderedAutoMap, ReadRef, ResolvedVc,
     SerializationInvalidator, TryJoinIterExt, Upcast, ValueToString, Vc,
     get_serialization_invalidator, parking_lot_mutex_bincode, turbofmt,
 };
@@ -445,7 +445,7 @@ pub trait EcmascriptParsable {
 #[derive(Default, Debug)]
 pub struct EnvVarInfo {
     /// List of environment variables accessed at runtime (not inlined) in the module.
-    pub runtime: OrderedIndexMap<RcStr, EnvVarAccessMode>,
+    pub runtime: OrderedAutoMap<RcStr, EnvVarAccessMode>,
     // TODO add this back once we can do it without regressing performance
     // Whether the module potentially references all environment variables (because of a
     // non-statically analyzeable `process.env`).

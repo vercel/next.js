@@ -10,7 +10,7 @@ use std::{env, sync::Mutex};
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, OrderedIndexMap, Vc};
+use turbo_tasks::{FxIndexMap, OrderedAutoMap, Vc};
 
 pub use self::{
     command_line::CommandLineProcessEnv, custom::CustomProcessEnv, dotenv::DotenvProcessEnv,
@@ -20,7 +20,7 @@ pub use self::{
 /// Like [`EnvMap`], but with `serialization = "skip"` to avoid storing
 /// environment variables (which may contain secrets) in the persistent cache.
 #[turbo_tasks::value(transparent, serialization = "skip")]
-pub struct TransientEnvMap(OrderedIndexMap<RcStr, RcStr>);
+pub struct TransientEnvMap(OrderedAutoMap<RcStr, RcStr>);
 
 #[turbo_tasks::value_impl]
 impl TransientEnvMap {
@@ -32,7 +32,7 @@ impl TransientEnvMap {
 
 /// A map of environment variables.
 #[turbo_tasks::value(transparent, cell = "keyed")]
-pub struct EnvMap(OrderedIndexMap<RcStr, RcStr>);
+pub struct EnvMap(OrderedAutoMap<RcStr, RcStr>);
 
 /// An [`EnvMap`] with uppercased keys, used for key-granular case-insensitive lookups.
 ///
@@ -40,7 +40,7 @@ pub struct EnvMap(OrderedIndexMap<RcStr, RcStr>);
 /// persisted in the [`EnvMap`] it's derived from. Keyed comparison needs the previous content, so
 /// persisting it keeps a dirty recomputation after a warm restore from invalidating every reader.
 #[turbo_tasks::value(transparent, cell = "keyed")]
-struct UppercaseEnvMap(OrderedIndexMap<RcStr, RcStr>);
+struct UppercaseEnvMap(OrderedAutoMap<RcStr, RcStr>);
 
 #[turbo_tasks::function]
 async fn uppercase_env_map(map: Vc<EnvMap>) -> Result<Vc<UppercaseEnvMap>> {

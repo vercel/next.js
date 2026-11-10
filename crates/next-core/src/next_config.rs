@@ -10,7 +10,7 @@ use serde_json::Value as JsonValue;
 use turbo_esregex::{EsRegex, EsRegexSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, OperationValue, OrderedIndexMap, ResolvedVc, TryJoinIterExt, Vc,
+    FxIndexMap, NonLocalValue, OperationValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, Vc,
     debug::ValueDebugFormat,
 };
 use turbo_tasks_env::EnvMap;
@@ -58,7 +58,7 @@ use crate::{
 pub const DIST_PROFILES_DIR_NAME: &str = ".next-profiles";
 
 #[turbo_tasks::value(transparent)]
-pub struct ModularizeImports(OrderedIndexMap<String, ModularizeImportPackageConfig>);
+pub struct ModularizeImports(OrderedAutoMap<String, ModularizeImportPackageConfig>);
 
 #[turbo_tasks::value(transparent)]
 #[derive(Clone, Debug)]
@@ -82,7 +82,7 @@ impl Default for CacheKinds {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct CacheHandlersMap(OrderedIndexMap<RcStr, RcStr>);
+pub struct CacheHandlersMap(OrderedAutoMap<RcStr, RcStr>);
 
 #[turbo_tasks::value(eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
@@ -100,9 +100,9 @@ pub struct NextConfig {
     /// custom path to a cache handler to use
     cache_handler: Option<RcStr>,
     #[bincode(with_serde)]
-    cache_handlers: Option<OrderedIndexMap<RcStr, RcStr>>,
+    cache_handlers: Option<OrderedAutoMap<RcStr, RcStr>>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    env: OrderedIndexMap<String, JsonValue>,
+    env: OrderedAutoMap<String, JsonValue>,
     experimental: ExperimentalConfig,
     images: ImageConfig,
     page_extensions: Vec<RcStr>,
@@ -115,7 +115,7 @@ pub struct NextConfig {
     react_strict_mode: Option<bool>,
     transpile_packages: Option<Vec<RcStr>>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    modularize_imports: Option<OrderedIndexMap<String, ModularizeImportPackageConfig>>,
+    modularize_imports: Option<OrderedAutoMap<String, ModularizeImportPackageConfig>>,
     dist_dir: RcStr,
     dist_dir_root: RcStr,
     deployment_id: Option<RcStr>,
@@ -486,7 +486,7 @@ pub struct TurbopackConfig {
     /// Ordered: rules are applied in config order, so reordering them changes which loaders run
     /// and in which order.
     #[serde(default)]
-    pub rules: OrderedIndexMap<RcStr, RuleConfigCollection>,
+    pub rules: OrderedAutoMap<RcStr, RuleConfigCollection>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
@@ -1621,7 +1621,7 @@ impl Issue for InvalidLoaderRuleConditionIssue {
 
 #[turbo_tasks::value(transparent)]
 pub struct OutputFileTracingIncludesExcludes(
-    OrderedIndexMap<ResolvedVc<Glob>, Vec<(RcStr, FileSystemPath)>>,
+    OrderedAutoMap<ResolvedVc<Glob>, Vec<(RcStr, FileSystemPath)>>,
 );
 
 impl OutputFileTracingIncludesExcludes {
@@ -2315,7 +2315,7 @@ impl NextConfig {
         let mut cache_kinds = CacheKinds::default();
 
         if let Some(handlers) = self.cache_handlers.as_ref() {
-            cache_kinds.extend(handlers.keys().cloned());
+            cache_kinds.extend(handlers.iter().map(|(key, _)| key.clone()));
         }
 
         cache_kinds.cell()

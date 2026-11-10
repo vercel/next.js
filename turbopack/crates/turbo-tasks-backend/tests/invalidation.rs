@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use rustc_hash::{FxHashMap, FxHashSet};
-use turbo_tasks::{OperationVc, OrderedIndexMap, ResolvedVc, State, Vc};
+use turbo_tasks::{OperationVc, OrderedAutoMap, ResolvedVc, State, Vc};
 use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
@@ -178,8 +178,8 @@ async fn has_value(set: OperationVc<Set>, key: String) -> Result<Vc<HasValueResu
     Ok(HasValueResult { value, random }.cell())
 }
 
-/// A keyed cell over an `OrderedIndexMap`: reordering the entries must invalidate readers of the
-/// whole map, and only readers of keys that moved.
+/// A keyed cell over an `OrderedAutoMap`: reordering the entries must invalidate readers of the
+/// whole map, but not readers of single keys whose values didn't change.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_invalidation_ordered_map_reorder() {
     run(&REGISTRATION, async || {
@@ -209,8 +209,21 @@ async fn test_invalidation_ordered_map_reorder() {
         assert_eq!(*keys_ref2, ["a", "c", "b"]);
         assert_eq!(a_ref2.value, Some(1));
         assert_eq!(b_ref2.value, Some(2));
-        // `a` didn't move, so its reader wasn't invalidated.
+        // Keyed readers are not affected by the order.
         assert_eq!(a_ref.random, a_ref2.random);
+        assert_eq!(b_ref.random, b_ref2.random);
+
+        // `a` changes and `b` and `c` swap back: only the reader of `a` is invalidated.
+        state.set(3);
+
+        let keys_ref3 = keys.read_strongly_consistent().await?;
+        let a_ref3 = a.read_strongly_consistent().await?;
+        let b_ref3 = b.read_strongly_consistent().await?;
+        assert_eq!(*keys_ref3, ["a", "b", "c"]);
+        assert_eq!(a_ref3.value, Some(10));
+        assert_eq!(b_ref3.value, Some(2));
+        assert_ne!(a_ref2.random, a_ref3.random);
+        assert_eq!(b_ref2.random, b_ref3.random);
 
         anyhow::Ok(())
     })
@@ -219,7 +232,7 @@ async fn test_invalidation_ordered_map_reorder() {
 }
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
-struct OrderedMap(OrderedIndexMap<String, u32>);
+struct OrderedMap(OrderedAutoMap<String, u32>);
 
 #[turbo_tasks::function(operation, root)]
 async fn create_ordered_map(step: ResolvedVc<Step>) -> Result<Vc<OrderedMap>> {
@@ -229,6 +242,7 @@ async fn create_ordered_map(step: ResolvedVc<Step>) -> Result<Vc<OrderedMap>> {
     let entries: &[(&str, u32)] = match *step_value {
         1 => &[("a", 1), ("b", 2), ("c", 3)],
         2 => &[("a", 1), ("c", 3), ("b", 2)],
+        3 => &[("a", 10), ("b", 2), ("c", 3)],
         _ => &[],
     };
     Ok(Vc::cell(
@@ -245,7 +259,7 @@ struct Keys(Vec<String>);
 #[turbo_tasks::function(operation, root)]
 async fn get_ordered_keys(map: OperationVc<OrderedMap>) -> Result<Vc<Keys>> {
     let map = map.connect().await?;
-    Ok(Vc::cell(map.keys().cloned().collect()))
+    Ok(Vc::cell(map.iter().map(|(key, _)| key.clone()).collect()))
 }
 
 #[turbo_tasks::function(operation, root)]

@@ -2,7 +2,7 @@ use anyhow::Result;
 use either::Either;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, OrderedIndexSet, ResolvedVc, ValueToString, Vc,
+    FxIndexSet, OrderedAutoSet, ResolvedVc, ValueToString, Vc,
     graph::{AdjacencyMap, GraphTraversal},
 };
 use turbo_tasks_fs::FileSystemPath;
@@ -111,7 +111,7 @@ pub struct ExpandedOutputAssets(Vec<ResolvedVc<Box<dyn OutputAsset>>>);
 
 /// A set of [OutputAsset]s
 #[turbo_tasks::value(transparent)]
-pub struct OutputAssetsSet(OrderedIndexSet<ResolvedVc<Box<dyn OutputAsset>>>);
+pub struct OutputAssetsSet(OrderedAutoSet<ResolvedVc<Box<dyn OutputAsset>>>);
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]

@@ -45,9 +45,9 @@ use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue,
-    OperationVc, OrderedIndexMap, ReadRef, ResolvedVc, State, TransientInstance,
-    TryFlatJoinIterExt, TryJoinIterExt, Vc, debug::ValueDebugFormat, fxindexmap,
-    message_queue::TraceEvent, turbo_tasks,
+    OperationVc, OrderedAutoMap, ReadRef, ResolvedVc, State, TransientInstance, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc, debug::ValueDebugFormat, fxindexmap, message_queue::TraceEvent,
+    turbo_tasks,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
@@ -1158,7 +1158,7 @@ pub struct Project {
 
     project_file_system: OperationVc<DiskFileSystem>,
     output_file_system: OperationVc<DiskFileSystem>,
-    pub(crate) additional_roots: OrderedIndexMap<RcStr, AdditionalDiskFileSystem>,
+    pub(crate) additional_roots: OrderedAutoMap<RcStr, AdditionalDiskFileSystem>,
 }
 
 #[turbo_tasks::value]

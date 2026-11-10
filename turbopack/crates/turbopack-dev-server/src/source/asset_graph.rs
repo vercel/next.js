@@ -4,7 +4,7 @@ use anyhow::Result;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, FxIndexSet, OrderedIndexMap, ResolvedVc, State, TryJoinIterExt,
+    Completion, FxIndexMap, OrderedAutoMap, OrderedAutoSet, ResolvedVc, State, TryJoinIterExt,
     ValueToStringRef, Vc, fxindexset,
 };
 use turbo_tasks_fs::FileSystemPath;
@@ -21,7 +21,7 @@ use crate::source::{
 };
 
 #[turbo_tasks::value(transparent)]
-struct OutputAssetsMap(OrderedIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>);
+struct OutputAssetsMap(OrderedAutoMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>);
 
 type ExpandedState = State<FxHashSet<RcStr>>;
 
@@ -76,7 +76,7 @@ impl AssetGraphContentSource {
 }
 
 async fn expand(
-    root_assets: &FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>,
+    root_assets: &OrderedAutoSet<ResolvedVc<Box<dyn OutputAsset>>>,
     root_path: &FileSystemPath,
     expanded: Option<&ExpandedState>,
 ) -> Result<FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>> {
