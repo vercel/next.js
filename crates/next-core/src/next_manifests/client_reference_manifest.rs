@@ -1,6 +1,6 @@
 use anyhow::Result;
 use either::Either;
-use indoc::formatdoc;
+use indoc::{formatdoc, indoc};
 use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
@@ -14,8 +14,8 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        ChunkingContext, CrossOrigin, ModuleChunkItemIdExt, ModuleId as TurbopackModuleId,
-        OutputChunk,
+        ChunkGroupResult, ChunkingContext, CrossOrigin, ModuleChunkItemIdExt,
+        ModuleId as TurbopackModuleId, OutputChunk,
     },
     module_graph::async_module_info::AsyncModulesInfo,
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
@@ -96,7 +96,7 @@ pub struct ManifestNodeEntry {
     /// Export name.
     pub name: RcStr,
     /// Chunks for the module. JS and CSS.
-    pub chunks: Vec<ClientChunk>,
+    pub chunks: ManifestChunks,
     // TODO(WEB-434)
     pub r#async: bool,
 }
@@ -108,11 +108,47 @@ pub struct ManifestNodeEntry {
 /// chunks) is instead emitted as a `[url, componentChunkPaths, componentChunkSizes]` array. This
 /// us to dynamically choose to load the whole chunk or individual components of it, as neeeded.
 /// The sizes (bytes of the emitted files) feed the runtime's split-vs-whole cost heuristic.
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(untagged)]
 pub enum ClientChunk {
     Path(RcStr),
     Merged(RcStr, Vec<RcStr>, Vec<u64>),
+}
+
+/// The `chunks` of a [`ManifestNodeEntry`] as serialized into the manifest file.
+///
+/// All client references of a layout segment share the same client and SSR chunk lists, and those
+/// lists can contain hundreds of chunks. Instead of repeating a list for every client reference,
+/// the manifest file emits each distinct list once in a table and the entries refer to it by
+/// index ([`ManifestChunks::Shared`]). A small script at the end of the manifest file replaces the
+/// indices with the (shared) arrays, so consumers of `globalThis.__RSC_MANIFEST` always see a
+/// `chunks` array.
+#[derive(Serialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum ManifestChunks {
+    /// Index into the manifest file's client chunk list table (for `clientModules`) or SSR chunk
+    /// list table (for `ssrModuleMapping` and `edgeSSRModuleMapping`).
+    Shared(usize),
+    /// An inline list of chunks.
+    Inline(Vec<ClientChunk>),
+}
+
+/// Interns lists of chunks, so that each distinct list is only serialized once.
+struct ChunkListTable<T> {
+    lists: FxIndexSet<Vec<T>>,
+}
+
+impl<T: Eq + std::hash::Hash> ChunkListTable<T> {
+    fn new() -> Self {
+        Self {
+            lists: FxIndexSet::default(),
+        }
+    }
+
+    /// Returns the index of `list` in the table, adding it if necessary.
+    fn intern(&mut self, list: Vec<T>) -> usize {
+        self.lists.insert_full(list).0
+    }
 }
 
 #[turbo_tasks::value(shared)]
@@ -286,6 +322,15 @@ async fn build_manifest(
 
         let mut client_reference_chunk_paths: FxHashSet<RcStr> = FxHashSet::default();
 
+        // All client references of a layout segment share the same chunk groups, so the chunk
+        // lists are computed once per chunk group and emitted once per manifest.
+        let mut client_chunk_lists = ChunkListTable::<ClientChunk>::new();
+        let mut ssr_chunk_lists = ChunkListTable::<RcStr>::new();
+        let mut client_chunk_list_by_group: FxHashMap<ResolvedVc<ChunkGroupResult>, usize> =
+            FxHashMap::default();
+        let mut ssr_chunk_list_by_group: FxHashMap<ResolvedVc<OutputAssetsWithReferenced>, usize> =
+            FxHashMap::default();
+
         for (client_reference_module, client_reference_module_ref) in client_references_ecmascript {
             let app_client_reference_ty =
                 ClientReferenceType::EcmascriptClientReference(client_reference_module);
@@ -300,99 +345,120 @@ async fn build_manifest(
             let client_module = client_reference_module_ref.client_module;
             let client_chunk_item_id = &ids.client_id;
 
-            let (client_chunks_paths, client_is_async) = if let Some(client_assets) =
+            let (client_chunks_index, client_is_async) = if let Some(&client_assets) =
                 client_component_client_chunks.get(&app_client_reference_ty)
             {
-                let client_chunks = client_assets.primary_assets().await?;
-                let client_referenced_assets = client_assets.referenced_assets().await?;
-                references.extend(client_chunks.iter());
-                references.extend(client_referenced_assets.iter());
+                let index = if let Some(&index) = client_chunk_list_by_group.get(&client_assets) {
+                    index
+                } else {
+                    let client_chunks = client_assets.primary_assets().await?;
+                    let client_referenced_assets = client_assets.referenced_assets().await?;
+                    references.extend(client_chunks.iter());
+                    references.extend(client_referenced_assets.iter());
 
-                let client_chunks_paths =
-                    cached_chunk_paths(&mut client_chunk_path_cache, client_chunks.iter().copied())
+                    let client_chunks_paths = cached_chunk_paths(
+                        &mut client_chunk_path_cache,
+                        client_chunks.iter().copied(),
+                    )
+                    .await?;
+
+                    let js_chunks = client_chunks_paths
+                        .filter_map(|(chunk, chunk_path)| {
+                            client_relative_path
+                                .get_path_to(&chunk_path)
+                                .map(|path| (chunk, path.to_string()))
+                        })
+                        // It's possible that a chunk also emits CSS files, that will
+                        // be handled separately.
+                        .filter(|(_, path)| path.ends_with(".js"))
+                        .collect::<Vec<_>>();
+
+                    for (_, path) in &js_chunks {
+                        client_reference_chunk_paths.insert(RcStr::from(path.as_str()));
+                    }
+
+                    let chunk_paths = js_chunks
+                        .into_iter()
+                        .map(async |(chunk, path)| {
+                            let url = RcStr::from(format!(
+                                "{}{}{}",
+                                prefix_path,
+                                path.split('/').map(encode_uri_component).format("/"),
+                                suffix_path
+                            ));
+                            // If this is a merged chunk, emit its component chunk paths
+                            // alongside the URL so the browser runtime can split it during
+                            // navigation.
+                            let components =
+                                client_chunk_components(*chunk, client_relative_path.clone())
+                                    .owned()
+                                    .await?;
+                            Ok(if components.is_empty() {
+                                ClientChunk::Path(url)
+                            } else {
+                                let (paths, sizes) = components.into_iter().unzip();
+                                ClientChunk::Merged(url, paths, sizes)
+                            })
+                        })
+                        .try_join()
                         .await?;
 
-                let js_chunks = client_chunks_paths
-                    .filter_map(|(chunk, chunk_path)| {
-                        client_relative_path
-                            .get_path_to(&chunk_path)
-                            .map(|path| (chunk, path.to_string()))
-                    })
-                    // It's possible that a chunk also emits CSS files, that will
-                    // be handled separately.
-                    .filter(|(_, path)| path.ends_with(".js"))
-                    .collect::<Vec<_>>();
-
-                for (_, path) in &js_chunks {
-                    client_reference_chunk_paths.insert(RcStr::from(path.as_str()));
-                }
-
-                let chunk_paths = js_chunks
-                    .into_iter()
-                    .map(async |(chunk, path)| {
-                        let url = RcStr::from(format!(
-                            "{}{}{}",
-                            prefix_path,
-                            path.split('/').map(encode_uri_component).format("/"),
-                            suffix_path
-                        ));
-                        // If this is a merged chunk, emit its component chunk paths alongside the
-                        // URL so the browser runtime can split it during navigation.
-                        let components =
-                            client_chunk_components(*chunk, client_relative_path.clone())
-                                .owned()
-                                .await?;
-                        Ok(if components.is_empty() {
-                            ClientChunk::Path(url)
-                        } else {
-                            let (paths, sizes) = components.into_iter().unzip();
-                            ClientChunk::Merged(url, paths, sizes)
-                        })
-                    })
-                    .try_join()
-                    .await?;
+                    let index = client_chunk_lists.intern(chunk_paths);
+                    client_chunk_list_by_group.insert(client_assets, index);
+                    index
+                };
 
                 let is_async = async_modules.contains(&ResolvedVc::upcast(client_module));
 
-                (chunk_paths, is_async)
+                (index, is_async)
             } else {
-                (Vec::new(), false)
+                (client_chunk_lists.intern(Vec::new()), false)
             };
 
             if let (Some(ssr_chunk_item_id), Some(rsc_chunk_item_id)) = (&ids.ssr_id, &ids.rsc_id) {
                 let ssr_module = client_reference_module_ref.ssr_module;
 
-                let (ssr_chunks_paths, ssr_is_async) = if *runtime == NextRuntime::Edge {
+                let (ssr_chunks_index, ssr_is_async) = if *runtime == NextRuntime::Edge {
                     // the chunks get added to the middleware-manifest.json instead
                     // of this file because the
                     // edge runtime doesn't support dynamically
                     // loading chunks.
-                    (Vec::new(), false)
-                } else if let Some(ssr_assets) =
+                    (ssr_chunk_lists.intern(Vec::new()), false)
+                } else if let Some(&ssr_assets) =
                     client_component_ssr_chunks.get(&app_client_reference_ty)
                 {
-                    let ssr_chunks = ssr_assets.primary_assets().await?;
-                    let ssr_referenced_assets = ssr_assets.referenced_assets().await?;
-                    references.extend(ssr_chunks.iter());
-                    references.extend(ssr_referenced_assets.iter());
+                    let index = if let Some(&index) = ssr_chunk_list_by_group.get(&ssr_assets) {
+                        index
+                    } else {
+                        let ssr_chunks = ssr_assets.primary_assets().await?;
+                        let ssr_referenced_assets = ssr_assets.referenced_assets().await?;
+                        references.extend(ssr_chunks.iter());
+                        references.extend(ssr_referenced_assets.iter());
 
-                    let ssr_chunks_paths =
-                        cached_chunk_paths(&mut ssr_chunk_path_cache, ssr_chunks.iter().copied())
-                            .await?;
-                    let chunk_paths = ssr_chunks_paths
-                        .filter_map(|(_, chunk_path)| {
-                            node_root_ref
-                                .get_path_to(&chunk_path)
-                                .map(ToString::to_string)
-                        })
-                        .map(RcStr::from)
-                        .collect::<Vec<_>>();
+                        let ssr_chunks_paths = cached_chunk_paths(
+                            &mut ssr_chunk_path_cache,
+                            ssr_chunks.iter().copied(),
+                        )
+                        .await?;
+                        let chunk_paths = ssr_chunks_paths
+                            .filter_map(|(_, chunk_path)| {
+                                node_root_ref
+                                    .get_path_to(&chunk_path)
+                                    .map(ToString::to_string)
+                            })
+                            .map(RcStr::from)
+                            .collect::<Vec<_>>();
+
+                        let index = ssr_chunk_lists.intern(chunk_paths);
+                        ssr_chunk_list_by_group.insert(ssr_assets, index);
+                        index
+                    };
 
                     let is_async = async_modules.contains(&ResolvedVc::upcast(ssr_module));
 
-                    (chunk_paths, is_async)
+                    (index, is_async)
                 } else {
-                    (Vec::new(), false)
+                    (ssr_chunk_lists.intern(Vec::new()), false)
                 };
 
                 let rsc_is_async = if *runtime == NextRuntime::Edge {
@@ -406,7 +472,7 @@ async fn build_manifest(
                     ManifestNodeEntry {
                         name: rcstr!("*"),
                         id: client_chunk_item_id.into(),
-                        chunks: client_chunks_paths,
+                        chunks: ManifestChunks::Shared(client_chunks_index),
                         // This should of course be client_is_async, but SSR can become
                         // async due to ESM externals, and
                         // the ssr_manifest_node is currently ignored
@@ -421,10 +487,7 @@ async fn build_manifest(
                     ManifestNodeEntry {
                         name: rcstr!("*"),
                         id: ssr_chunk_item_id.into(),
-                        chunks: ssr_chunks_paths
-                            .into_iter()
-                            .map(ClientChunk::Path)
-                            .collect(),
+                        chunks: ManifestChunks::Shared(ssr_chunks_index),
                         // See above
                         r#async: client_is_async || ssr_is_async,
                     },
@@ -436,7 +499,7 @@ async fn build_manifest(
                     ManifestNodeEntry {
                         name: rcstr!("*"),
                         id: rsc_chunk_item_id.into(),
-                        chunks: vec![],
+                        chunks: ManifestChunks::Inline(vec![]),
                         r#async: rsc_is_async,
                     },
                 );
@@ -537,44 +600,72 @@ async fn build_manifest(
         // note this only applies to the manifests, assets are placed to the original
         // path still (same as webpack does)
         let normalized_manifest_entry = entry_name.replace("%5F", "_");
+        let content = client_reference_manifest_file_content(
+            &normalized_manifest_entry,
+            &client_reference_manifest_json,
+            &serde_json::to_string(&client_chunk_lists.lists).unwrap(),
+            &serde_json::to_string(&ssr_chunk_lists.lists).unwrap(),
+            add_deployment_id_at_runtime,
+        );
         Ok(ClientReferenceManifestResult {
-            content: AssetContent::file(
-                FileContent::Content(File::from(formatdoc! {
-                    r#"
-                        globalThis.__RSC_MANIFEST = globalThis.__RSC_MANIFEST || {{}};
-                        globalThis.__RSC_MANIFEST[{entry_name}] = {manifest};
-                        {suffix}
-                    "#,
-                    entry_name = StringifyJs(&normalized_manifest_entry),
-                    manifest = &client_reference_manifest_json,
-                    suffix = if add_deployment_id_at_runtime {
-                        formatdoc!{
-                            r#"
-                            for (const key in globalThis.__RSC_MANIFEST[{entry_name}].clientModules) {{
-                                const val = {{ ...globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] }}
-                                globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] = val
-                                val.chunks = val.chunks.map((c) =>
-                                    typeof c === 'string'
-                                        ? `${{c}}?dpl=${{process.env.NEXT_DEPLOYMENT_ID}}`
-                                        : [`${{c[0]}}?dpl=${{process.env.NEXT_DEPLOYMENT_ID}}`, c[1], c[2]])
-                            }}
-                            "#,
-                            entry_name = StringifyJs(&normalized_manifest_entry),
-                        }
-                    } else {
-                        "".to_string()
-                    }
-                }))
-                .cell(),
-            )
-            .to_resolved()
-            .await?,
+            content: AssetContent::file(FileContent::Content(File::from(content)).cell())
+                .to_resolved()
+                .await?,
             references: ResolvedVc::cell(references.into_iter().collect()),
         }
         .cell())
     }
     .instrument(span)
     .await
+}
+
+/// Generates the JavaScript code of a client reference manifest file.
+///
+/// The manifest JSON refers to chunk lists by index (see [`ManifestChunks::Shared`]). The emitted
+/// script assigns the manifest JSON to `globalThis.__RSC_MANIFEST[entry_name]` first (so tools can
+/// extract it from the file without evaluating it) and then replaces the indices with the arrays
+/// from the chunk list tables. Entries using the same list share the same array.
+fn client_reference_manifest_file_content(
+    entry_name: &str,
+    manifest_json: &str,
+    client_chunk_lists_json: &str,
+    ssr_chunk_lists_json: &str,
+    add_deployment_id_at_runtime: bool,
+) -> String {
+    let deployment_id_suffix = if add_deployment_id_at_runtime {
+        indoc! {r#"
+            clientChunks = clientChunks.map((chunks) =>
+              chunks.map((c) =>
+                typeof c === 'string'
+                  ? `${c}?dpl=${process.env.NEXT_DEPLOYMENT_ID}`
+                  : [`${c[0]}?dpl=${process.env.NEXT_DEPLOYMENT_ID}`, c[1], c[2]]
+              )
+            )
+        "#}
+    } else {
+        ""
+    };
+    formatdoc! {
+        r#"
+            globalThis.__RSC_MANIFEST = globalThis.__RSC_MANIFEST || {{}};
+            globalThis.__RSC_MANIFEST[{entry_name}] = {manifest_json};
+            (function (manifest, clientChunks, ssrChunks) {{
+            {deployment_id_suffix}for (const key in manifest.clientModules) {{
+              const entry = manifest.clientModules[key]
+              entry.chunks = clientChunks[entry.chunks]
+            }}
+            for (const mapping of [manifest.ssrModuleMapping, manifest.edgeSSRModuleMapping]) {{
+              for (const id in mapping) {{
+                for (const name in mapping[id]) {{
+                  const entry = mapping[id][name]
+                  entry.chunks = ssrChunks[entry.chunks]
+                }}
+              }}
+            }}
+            }})(globalThis.__RSC_MANIFEST[{entry_name}], {client_chunk_lists_json}, {ssr_chunk_lists_json});
+        "#,
+        entry_name = StringifyJs(entry_name),
+    }
 }
 
 impl From<&TurbopackModuleId> for ModuleId {

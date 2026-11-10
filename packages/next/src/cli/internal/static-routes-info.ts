@@ -387,14 +387,14 @@ function collectServerEntryFiles(
  * The file is a JS module that assigns a JSON object to a global. The exact
  * shape varies by bundler:
  *
- *   Turbopack (with optional suffix that re-writes `clientModules[k] = val`
- *   when a deployment ID is set):
+ *   Turbopack (followed by a script that replaces the `chunks` indices of
+ *   `clientModules` / `ssrModuleMapping` entries with arrays from shared
+ *   chunk list tables, so in the JSON blob those `chunks` are numbers):
  *     globalThis.__RSC_MANIFEST = globalThis.__RSC_MANIFEST || {};
  *     globalThis.__RSC_MANIFEST["/page"] = {...};
- *     for (const key in globalThis.__RSC_MANIFEST["/page"].clientModules) {
- *       globalThis.__RSC_MANIFEST["/page"].clientModules[key] = val;
+ *     (function (manifest, clientChunks, ssrChunks) {
  *       ...
- *     }
+ *     })(globalThis.__RSC_MANIFEST["/page"], [...], [...]);
  *
  *   Webpack (no spaces around `=`, single line):
  *     globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST["/page"]={...};
