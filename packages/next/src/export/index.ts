@@ -846,6 +846,7 @@ async function exportAppImpl(
     byPage: new Map(),
     ssgNotFoundPaths: new Set(),
     turborepoAccessTraceResults: new Map(),
+    usedDefaultImageLoader: false,
   }
 
   const failedExportAttemptsByPage: Map<string, boolean> = new Map()
@@ -855,6 +856,10 @@ async function exportAppImpl(
     if ('error' in result) {
       failedExportAttemptsByPage.set(pageKey, true)
       continue
+    }
+
+    if (result.usedDefaultImageLoader) {
+      collector.usedDefaultImageLoader = true
     }
 
     if (result.turborepoAccessTraceResult) {

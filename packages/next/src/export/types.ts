@@ -87,6 +87,10 @@ export type ExportRouteResult =
 export type ExportPageResult = ExportRouteResult & {
   duration: number
   turborepoAccessTraceResult?: SerializableTurborepoAccessTraceResult
+  /**
+   * If this worker has rendered an optimized image with the default loader.
+   */
+  usedDefaultImageLoader?: boolean
 }
 
 export type ExportPagesResult = {
@@ -185,4 +189,9 @@ export type ExportAppResult = {
    * Traced dependencies for each page.
    */
   turborepoAccessTraceResults: Map<string, TurborepoAccessTraceResult>
+
+  /**
+   * If any page rendered an optimized image with the default loader.
+   */
+  usedDefaultImageLoader: boolean
 }

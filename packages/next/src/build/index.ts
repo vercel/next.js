@@ -3184,6 +3184,7 @@ export default async function build(
       const prefetchHints: Record<string, PrefetchHints> = {}
 
       const tbdPrerenderRoutes: string[] = []
+      let usedDefaultImageLoader = false
 
       const { i18n } = config
 
@@ -3504,6 +3505,12 @@ export default async function build(
           prerenderManifest.notFoundRoutes = Array.from(
             exportResult.ssgNotFoundPaths
           )
+
+          // App Router pages only load `next/image` while they are
+          // prerendered, so `isPageStatic` can't detect it.
+          if (exportResult.usedDefaultImageLoader) {
+            usedDefaultImageLoader = true
+          }
 
           // remove server bundles that were exported
           for (const page of staticPages) {
@@ -4667,7 +4674,8 @@ export default async function build(
         version: 1,
         hasExportPathMap: typeof config.exportPathMap === 'function',
         exportTrailingSlash: config.trailingSlash === true,
-        isNextImageImported: isNextImageImported === true,
+        isNextImageImported:
+          isNextImageImported === true || usedDefaultImageLoader,
       })
       await fs.unlink(path.join(distDir, EXPORT_DETAIL)).catch((err) => {
         if (err.code === 'ENOENT') {
