@@ -1,11 +1,11 @@
-0 -> 3 free var = FreeVar(Math)
+2 -> 3 free var = FreeVar(Math)
 
 0 -> 4 member call = ???*0*["random"]()
 - *0* FreeVar(Math)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 6 free var = FreeVar(JSON)
+5 -> 6 free var = FreeVar(JSON)
 
 0 -> 7 conditional = ((???*0* | "true") === "true")
 - *0* ???*1*["variable"]

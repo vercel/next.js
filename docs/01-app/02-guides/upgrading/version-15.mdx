@@ -50,12 +50,25 @@ bun add next@latest react@latest react-dom@latest eslint-config-next@latest
 
 ## React 19
 
+<AppOnly>
+
 - The minimum versions of `react` and `react-dom` is now 19.
+
+</AppOnly>
+
+<PagesOnly>
+
+- The Pages Router supports both React 18 and React 19, so upgrading `react` and `react-dom` to 19 is optional.
+
+</PagesOnly>
+
 - `useFormState` has been replaced by `useActionState`. The `useFormState` hook is still available in React 19, but it is deprecated and will be removed in a future release. `useActionState` is recommended and includes additional properties like reading the `pending` state directly. [Learn more](https://react.dev/reference/react/useActionState).
 - `useFormStatus` now includes additional keys like `data`, `method`, and `action`. If you are not using React 19, only the `pending` key is available. [Learn more](https://react.dev/reference/react-dom/hooks/useFormStatus).
 - Read more in the [React 19 upgrade guide](https://react.dev/blog/2024/04/25/react-19-upgrade-guide).
 
 > **Good to know:** If you are using TypeScript, ensure you also upgrade `@types/react` and `@types/react-dom` to their latest versions.
+
+<AppOnly>
 
 ## Async Request APIs (Breaking change)
 
@@ -472,13 +485,9 @@ export async function GET(request, segmentData) {
 }
 ```
 
-<AppOnly>
-
 ## `runtime` configuration (Breaking change)
 
 The `runtime` [segment configuration](/docs/app/api-reference/file-conventions/route-segment-config/runtime) previously supported a value of `experimental-edge` in addition to `edge`. Both configurations refer to the same thing, and to simplify the options, we will now error if `experimental-edge` is used. To fix this, update your `runtime` configuration to `edge`. A [codemod](/docs/app/guides/upgrading/codemods#app-dir-runtime-config-experimental-edge) is available to automatically do this.
-
-</AppOnly>
 
 ## `fetch` requests
 
@@ -541,6 +550,8 @@ module.exports = nextConfig
 ```
 
 [Layouts](/docs/app/api-reference/file-conventions/layout) and [loading states](/docs/app/api-reference/file-conventions/loading) are still cached and reused on navigation.
+
+</AppOnly>
 
 ## `next/font`
 
@@ -645,10 +656,15 @@ After applying the changes relevant to your app, review these action items befor
 you consider the migration complete:
 
 - [ ] React dependencies and types meet the React 19 requirements for the app's router.
-- [ ] Async Request API access, including affected helpers and callers, is migrated. Resolve codemod error comments and `UnsafeUnwrapped` casts instead of treating them as completed repairs.
-- [ ] Route segment runtime settings no longer use `experimental-edge`.
 - [ ] Font imports use `next/font` instead of `@next/font`.
 - [ ] Existing `bundlePagesExternals` and `serverComponentsExternalPackages` settings use their documented stable names while preserving package configuration.
 - [ ] `NextRequest` `geo` and `ip` consumers use an appropriate source for the actual hosting provider.
 - [ ] Apps that relied on automatic Speed Insights instrumentation have an explicit integration if they still need it.
 - [ ] The app's supported checks and affected runtime behavior pass. Remaining required failures keep the migration incomplete.
+
+<AppOnly>
+
+- [ ] Async Request API access, including affected helpers and callers, is migrated. Resolve codemod error comments and `UnsafeUnwrapped` casts instead of treating them as completed repairs.
+- [ ] Route segment runtime settings no longer use `experimental-edge`.
+
+</AppOnly>

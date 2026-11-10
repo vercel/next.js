@@ -3,13 +3,13 @@ use std::mem::take;
 
 use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
-use turbo_tasks::TaskId;
+use turbo_tasks::{CellKey, TaskId};
 
 use crate::{
     backend::{
         TaskDataCategory,
         operation::{
-            AggregatedDataUpdate, ExecuteContext, TaskGuard,
+            AggregatedDataUpdate, CollectiblesUpdateVec, ExecuteContext, TaskGuard,
             aggregation_update::{
                 AggregationUpdateJob, AggregationUpdateQueue, InnerOfUppersLostFollowersJob,
                 get_aggregation_number, get_uppers, is_aggregating_node,
@@ -29,10 +29,12 @@ pub enum OutdatedEdge {
         dependent: TaskId,
         cell: CellRef,
     },
-    HashedCellDependency {
+    /// `dependent` reads `cell` with a [`CellKey`] (a hashed sub-value, or a `Vc::keyed_reader()`
+    /// or `Vc::lazy_reader()` read).
+    KeyedCellDependency {
         dependent: TaskId,
         cell: CellRef,
-        key: u64,
+        key: CellKey,
     },
     /// `dependent` reads the output of `output_task`.
     OutputDependency {
@@ -60,8 +62,8 @@ pub fn capture_all_edges(task: &TaskGuard<'_>) -> Vec<OutdatedEdge> {
                 cell,
             }),
     );
-    old_edges.extend(task.iter_cell_dependencies_hashed().map(|(cell, key)| {
-        OutdatedEdge::HashedCellDependency {
+    old_edges.extend(task.iter_cell_dependencies_keyed().map(|(cell, key)| {
+        OutdatedEdge::KeyedCellDependency {
             dependent: task_id,
             cell,
             key,
@@ -83,8 +85,8 @@ pub fn capture_all_edges(task: &TaskGuard<'_>) -> Vec<OutdatedEdge> {
                 },
             }),
     );
-    old_edges.extend(task.iter_cell_dependents_hashed().map(|(entry, key)| {
-        OutdatedEdge::HashedCellDependency {
+    old_edges.extend(task.iter_cell_dependents_keyed().map(|(entry, key)| {
+        OutdatedEdge::KeyedCellDependency {
             dependent: entry.task,
             cell: CellRef {
                 task: task_id,
@@ -225,7 +227,7 @@ fn cleanup_old_edges_inner(
                 }
             }
             OutdatedEdge::Collectible(collectible, count) => {
-                let mut collectibles = Vec::new();
+                let mut collectibles = CollectiblesUpdateVec::new();
                 collectibles.push((collectible, -count));
                 outdated.retain(|e| match e {
                     OutdatedEdge::Collectible(collectible, count) => {
@@ -274,15 +276,15 @@ fn cleanup_old_edges_inner(
                     task.remove_outdated_cell_dependencies(&cell);
                 }
             }
-            OutdatedEdge::HashedCellDependency {
+            OutdatedEdge::KeyedCellDependency {
                 dependent,
                 cell,
                 key,
             } => {
-                // Same as above but in the `_hashed` sets.
+                // Same as above but in the `_keyed` sets.
                 {
                     let mut task = ctx.task(cell.task, TaskDataCategory::Data);
-                    task.remove_cell_dependents_hashed(&(
+                    task.remove_cell_dependents_keyed(&(
                         CellRef {
                             task: dependent,
                             cell: cell.cell,
@@ -292,8 +294,8 @@ fn cleanup_old_edges_inner(
                 }
                 {
                     let mut task = ctx.task(dependent, TaskDataCategory::Data);
-                    task.remove_cell_dependencies_hashed(&(cell, key));
-                    task.remove_outdated_cell_dependencies_hashed(&(cell, key));
+                    task.remove_cell_dependencies_keyed(&(cell, key));
+                    task.remove_outdated_cell_dependencies_keyed(&(cell, key));
                 }
             }
             OutdatedEdge::OutputDependency {
@@ -336,22 +338,17 @@ fn cleanup_old_edges_inner(
         }
     }
 
-    while !stop_when_only_rebalance_remains || !queue.only_rebalance_remains() {
-        if queue.process(ctx) {
-            #[cfg(feature = "trace_aggregation_update_stats")]
-            let stats = take(&mut queue.stats);
-            #[cfg(not(feature = "trace_aggregation_update_stats"))]
-            let stats = ();
-            return (stats, None);
-        }
+    if stop_when_only_rebalance_remains {
+        // Edge removal is done; hand the rebalance back to the caller. Any
+        // other pending work would be dropped here, so `execute_until_rebalance`
+        // asserts that nothing else is left.
+        let balance_edges = queue.execute_until_rebalance(ctx);
+        return (Default::default(), Some(DeferredCleanup { balance_edges }));
     }
-    // Edge removal is done; hand the rebalance back to the caller. Any
-    // other pending work would be dropped here, so `only_rebalance_remains`
-    // asserts that nothing else is left.
-    (
-        Default::default(),
-        Some(DeferredCleanup {
-            balance_edges: queue.take_deferred_balance_edges().collect(),
-        }),
-    )
+    queue.execute(ctx);
+    #[cfg(feature = "trace_aggregation_update_stats")]
+    let stats = take(&mut queue.stats);
+    #[cfg(not(feature = "trace_aggregation_update_stats"))]
+    let stats = ();
+    (stats, None)
 }

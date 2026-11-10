@@ -561,7 +561,7 @@ macro_rules! __rcstr_static_submit {
 
 /// Read-only lookup table mapping precomputed hash -> static StaticPrehashedString.
 /// Built once on first access from all `rcstr!` constants gathered at link time into
-/// [`STATIC_RCSTRS`].
+/// `STATIC_RCSTRS`.
 ///
 /// Multiple `rcstr!` calls with the same string content will each scatter an entry, but we
 /// deduplicate by content here so only one entry per unique string is stored.
@@ -706,7 +706,7 @@ impl RcStrInterning {
         }
     }
 
-    /// Intern the [`Display`](std::fmt::Display) output of a value.
+    /// Intern the [`Display`] output of a value.
     pub fn intern_display(&mut self, v: &impl std::fmt::Display) -> RcStr {
         self.intern_owned(v.to_string())
     }

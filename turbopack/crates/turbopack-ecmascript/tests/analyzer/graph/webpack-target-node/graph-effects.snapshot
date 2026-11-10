@@ -13,6 +13,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -93,6 +94,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -173,6 +175,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -253,6 +256,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -501,6 +505,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1014,6 +1019,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1367,6 +1373,322 @@
                 ),
             ),
         ),
+        base_effects: [
+            Member {
+                obj: Variable(
+                    (
+                        "res",
+                        #6,
+                    ),
+                ),
+                prop: Constant(
+                    Str(
+                        Atom(
+                            "status",
+                        ),
+                    ),
+                ),
+                base_effects: [],
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            1,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Callee,
+                    ),
+                    Callee(
+                        Expr,
+                    ),
+                    Expr(
+                        Paren,
+                    ),
+                    ParenExpr(
+                        Expr,
+                    ),
+                    Expr(
+                        Arrow,
+                    ),
+                    ArrowExpr(
+                        Body,
+                    ),
+                    ArrowFunctionBody(
+                        FunctionBody,
+                    ),
+                    FunctionBody(
+                        Stmts(
+                            3,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Assign,
+                    ),
+                    AssignExpr(
+                        Right,
+                    ),
+                    Expr(
+                        Object,
+                    ),
+                    ObjectLit(
+                        Props(
+                            0,
+                        ),
+                    ),
+                    PropOrSpread(
+                        Prop,
+                    ),
+                    Prop(
+                        KeyValue,
+                    ),
+                    KeyValueProp(
+                        Value,
+                    ),
+                    Expr(
+                        Arrow,
+                    ),
+                    ArrowExpr(
+                        Body,
+                    ),
+                    ArrowFunctionBody(
+                        FunctionBody,
+                    ),
+                    FunctionBody(
+                        Stmts(
+                            4,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Fn,
+                    ),
+                    FnDecl(
+                        Function,
+                    ),
+                    Function(
+                        Body,
+                    ),
+                    FunctionBody(
+                        Stmts(
+                            1,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Callee,
+                    ),
+                    Callee(
+                        Expr,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Callee,
+                    ),
+                    Callee(
+                        Expr,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                ],
+                span: 965..975,
+                in_truthiness_context: false,
+            },
+            MemberCall {
+                obj: Variable(
+                    (
+                        "res",
+                        #6,
+                    ),
+                ),
+                prop: Constant(
+                    Str(
+                        Atom(
+                            "status",
+                        ),
+                    ),
+                ),
+                args: [
+                    Value(
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    200.0,
+                                ),
+                            ),
+                        ),
+                    ),
+                ],
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            1,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Callee,
+                    ),
+                    Callee(
+                        Expr,
+                    ),
+                    Expr(
+                        Paren,
+                    ),
+                    ParenExpr(
+                        Expr,
+                    ),
+                    Expr(
+                        Arrow,
+                    ),
+                    ArrowExpr(
+                        Body,
+                    ),
+                    ArrowFunctionBody(
+                        FunctionBody,
+                    ),
+                    FunctionBody(
+                        Stmts(
+                            3,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Assign,
+                    ),
+                    AssignExpr(
+                        Right,
+                    ),
+                    Expr(
+                        Object,
+                    ),
+                    ObjectLit(
+                        Props(
+                            0,
+                        ),
+                    ),
+                    PropOrSpread(
+                        Prop,
+                    ),
+                    Prop(
+                        KeyValue,
+                    ),
+                    KeyValueProp(
+                        Value,
+                    ),
+                    Expr(
+                        Arrow,
+                    ),
+                    ArrowExpr(
+                        Body,
+                    ),
+                    ArrowFunctionBody(
+                        FunctionBody,
+                    ),
+                    FunctionBody(
+                        Stmts(
+                            4,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Fn,
+                    ),
+                    FnDecl(
+                        Function,
+                    ),
+                    Function(
+                        Body,
+                    ),
+                    FunctionBody(
+                        Stmts(
+                            1,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Callee,
+                    ),
+                    Callee(
+                        Expr,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                ],
+                span: 965..980,
+                in_try: false,
+                new: false,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -1492,319 +1814,6 @@
         ],
         span: 965..985,
         in_truthiness_context: false,
-    },
-    Member {
-        obj: Variable(
-            (
-                "res",
-                #6,
-            ),
-        ),
-        prop: Constant(
-            Str(
-                Atom(
-                    "status",
-                ),
-            ),
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Paren,
-            ),
-            ParenExpr(
-                Expr,
-            ),
-            Expr(
-                Arrow,
-            ),
-            ArrowExpr(
-                Body,
-            ),
-            ArrowFunctionBody(
-                FunctionBody,
-            ),
-            FunctionBody(
-                Stmts(
-                    3,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Object,
-            ),
-            ObjectLit(
-                Props(
-                    0,
-                ),
-            ),
-            PropOrSpread(
-                Prop,
-            ),
-            Prop(
-                KeyValue,
-            ),
-            KeyValueProp(
-                Value,
-            ),
-            Expr(
-                Arrow,
-            ),
-            ArrowExpr(
-                Body,
-            ),
-            ArrowFunctionBody(
-                FunctionBody,
-            ),
-            FunctionBody(
-                Stmts(
-                    4,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    1,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 965..975,
-        in_truthiness_context: false,
-    },
-    MemberCall {
-        obj: Variable(
-            (
-                "res",
-                #6,
-            ),
-        ),
-        prop: Constant(
-            Str(
-                Atom(
-                    "status",
-                ),
-            ),
-        ),
-        args: [
-            Value(
-                Constant(
-                    Num(
-                        ConstantNumber(
-                            200.0,
-                        ),
-                    ),
-                ),
-            ),
-        ],
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Paren,
-            ),
-            ParenExpr(
-                Expr,
-            ),
-            Expr(
-                Arrow,
-            ),
-            ArrowExpr(
-                Body,
-            ),
-            ArrowFunctionBody(
-                FunctionBody,
-            ),
-            FunctionBody(
-                Stmts(
-                    3,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Object,
-            ),
-            ObjectLit(
-                Props(
-                    0,
-                ),
-            ),
-            PropOrSpread(
-                Prop,
-            ),
-            Prop(
-                KeyValue,
-            ),
-            KeyValueProp(
-                Value,
-            ),
-            Expr(
-                Arrow,
-            ),
-            ArrowExpr(
-                Body,
-            ),
-            ArrowFunctionBody(
-                FunctionBody,
-            ),
-            FunctionBody(
-                Stmts(
-                    4,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    1,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Call,
-            ),
-        ],
-        span: 965..980,
-        in_try: false,
-        new: false,
     },
     MemberCall {
         obj: MemberCall(
@@ -2167,6 +2176,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2329,6 +2339,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2615,6 +2626,81 @@
                 ),
             ),
         ),
+        base_effects: [
+            FreeVar {
+                var: "module",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            1,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Callee,
+                    ),
+                    Callee(
+                        Expr,
+                    ),
+                    Expr(
+                        Paren,
+                    ),
+                    ParenExpr(
+                        Expr,
+                    ),
+                    Expr(
+                        Arrow,
+                    ),
+                    ArrowExpr(
+                        Body,
+                    ),
+                    ArrowFunctionBody(
+                        FunctionBody,
+                    ),
+                    FunctionBody(
+                        Stmts(
+                            8,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Assign,
+                    ),
+                    AssignExpr(
+                        Left,
+                    ),
+                    AssignTarget(
+                        Simple,
+                    ),
+                    SimpleAssignTarget(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 1342..1348,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -2680,78 +2766,5 @@
         ],
         span: 1342..1356,
         in_truthiness_context: false,
-    },
-    FreeVar {
-        var: "module",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Paren,
-            ),
-            ParenExpr(
-                Expr,
-            ),
-            Expr(
-                Arrow,
-            ),
-            ArrowExpr(
-                Body,
-            ),
-            ArrowFunctionBody(
-                FunctionBody,
-            ),
-            FunctionBody(
-                Stmts(
-                    8,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Left,
-            ),
-            AssignTarget(
-                Simple,
-            ),
-            SimpleAssignTarget(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 1342..1348,
     },
 ]

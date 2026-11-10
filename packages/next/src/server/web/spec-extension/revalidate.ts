@@ -76,9 +76,13 @@ export function updateTag(tag: string) {
 }
 
 /**
- * This function allows you to refresh client cache from server actions.
- * It's useful as dynamic data can be cached on the client which won't
- * be refreshed by updateTag
+ * Refreshes the current route from a Server Action.
+ *
+ * This clears client cache entries used for back/forward navigation, but
+ * keeps other prefetched routes and server-side cached data. Use `updateTag`
+ * or `revalidatePath` when the mutation changes cached data.
+ *
+ * Read more: [Next.js Docs: `refresh`](https://nextjs.org/docs/app/api-reference/functions/refresh)
  */
 export function refresh() {
   const workStore = workAsyncStorage.getStore()

@@ -5,12 +5,13 @@ use std::{
     hash::{Hash, Hasher},
     io::{BufRead, Read, Result as IoResult, Write},
     mem,
-    ops::{AddAssign, Deref},
+    ops::{AddAssign, Deref, Range},
     pin::Pin,
+    sync::OnceLock,
     task::{Context as TaskContext, Poll},
 };
 
-use RopeElem::{Local, Shared};
+use RopeElem::{Local, Shared, Skipped};
 use anyhow::{Context, Result};
 use bincode::{
     Decode, Encode,
@@ -57,6 +58,34 @@ enum RopeElem {
 
     /// Shared holds the Arc container of another rope.
     Shared(InnerRope),
+
+    /// Another rope with a range of its bytes removed, see [`Rope::skip`].
+    Skipped(Arc<SkippedRope>),
+}
+
+/// The contents of a [`RopeElem::Skipped`]: `rope` without the bytes in `range`.
+///
+/// Creating one only records the rope and the range. The sections covering the remaining bytes
+/// are computed the first time they are read, and cached.
+#[derive(Debug)]
+struct SkippedRope {
+    rope: InnerRope,
+    range: Range<usize>,
+    /// The number of remaining bytes. Never zero.
+    len: usize,
+    remaining: OnceLock<InnerRope>,
+}
+
+impl SkippedRope {
+    /// The sections covering the remaining bytes.
+    fn remaining(&self) -> &InnerRope {
+        self.remaining.get_or_init(|| {
+            let mut elems = Vec::new();
+            self.rope.slice_into(0..self.range.start, &mut elems);
+            self.rope.slice_into(self.range.end..usize::MAX, &mut elems);
+            InnerRope::from(elems)
+        })
+    }
 }
 
 /// RopeBuilder provides a mutable container to append bytes/strings. This can
@@ -125,6 +154,37 @@ impl Rope {
 
     pub fn into_bytes(self) -> Bytes {
         self.data.into_bytes(self.length)
+    }
+
+    /// Returns this rope's bytes without the bytes in `range`.
+    ///
+    /// This is O(1): it neither walks nor copies the rope. The sections covering the remaining
+    /// bytes are computed when the result is first read, sharing whole sections and slicing only
+    /// the ones at the edges of `range`.
+    ///
+    /// Panics if `range` is out of bounds or decreasing.
+    pub fn skip(&self, range: Range<usize>) -> Rope {
+        assert!(
+            range.start <= range.end && range.end <= self.length,
+            "rope skip {range:?} out of bounds for length {}",
+            self.length
+        );
+        if range.is_empty() {
+            return self.clone();
+        }
+        let len = self.length - range.len();
+        if len == 0 {
+            return Rope::default();
+        }
+        Rope {
+            length: len,
+            data: InnerRope::from(vec![Skipped(Arc::new(SkippedRope {
+                rope: self.data.clone(),
+                range,
+                len,
+                remaining: OnceLock::new(),
+            }))]),
+        }
     }
 }
 
@@ -581,11 +641,46 @@ impl From<Vec<u8>> for Uncommitted {
 }
 
 impl InnerRope {
+    /// Total number of bytes, walking every section. Named so as not to shadow the element count
+    /// `len` that `Deref` to the element vector provides.
+    fn byte_len(&self) -> usize {
+        self.iter().map(|v| v.byte_len()).sum()
+    }
+
+    /// Pushes the elements covering `range` (relative to the start of this rope) onto `out`.
+    fn slice_into(&self, range: Range<usize>, out: &mut Vec<RopeElem>) {
+        let mut offset = 0;
+        for elem in self.iter() {
+            if offset >= range.end {
+                break;
+            }
+            let len = elem.byte_len();
+            let elem_end = offset + len;
+            let start = range.start.max(offset);
+            let end = range.end.min(elem_end);
+            if start < end {
+                if start == offset && end == elem_end {
+                    out.push(elem.clone());
+                } else {
+                    match elem {
+                        Local(bytes) => out.push(Local(bytes.slice(start - offset..end - offset))),
+                        Shared(inner) => inner.slice_into(start - offset..end - offset, out),
+                        Skipped(skipped) => skipped
+                            .remaining()
+                            .slice_into(start - offset..end - offset, out),
+                    }
+                }
+            }
+            offset = elem_end;
+        }
+    }
+
     /// Returns a String instance of all bytes.
     fn to_str(&self, len: usize) -> Result<Cow<'_, str>> {
         match &self[..] {
             [] => Ok(Cow::Borrowed("")),
             [Shared(inner)] => inner.to_str(len),
+            [Skipped(skipped)] => skipped.remaining().to_str(len),
             [Local(bytes)] => {
                 let utf8 = std::str::from_utf8(bytes);
                 utf8.context("failed to convert rope into string")
@@ -606,6 +701,7 @@ impl InnerRope {
         match &self[..] {
             [] => Cow::Borrowed(EMPTY_BUF),
             [Shared(inner)] => inner.to_bytes(len),
+            [Skipped(skipped)] => skipped.remaining().to_bytes(len),
             [Local(bytes)] => Cow::Borrowed(bytes),
             _ => {
                 let mut read = RopeReader::new(self, 0);
@@ -676,6 +772,7 @@ impl From<Vec<RopeElem>> for InnerRope {
                         // none of its elements are empty.
                         debug_assert!(!s.is_empty(), "must not have empty InnerRope");
                     }
+                    Skipped(s) => debug_assert!(s.len > 0, "must not have empty SkippedRope"),
                 }
             }
         }
@@ -693,6 +790,14 @@ impl Deref for InnerRope {
 }
 
 impl RopeElem {
+    fn byte_len(&self) -> usize {
+        match self {
+            Local(b) => b.len(),
+            Shared(r) => r.byte_len(),
+            Skipped(s) => s.len,
+        }
+    }
+
     fn maybe_cmp(&self, other: &Self) -> Option<Ordering> {
         match (self, other) {
             (Local(a), Local(b)) => {
@@ -713,6 +818,7 @@ impl RopeElem {
                 // equality.
                 None
             }
+            (Skipped(a), Skipped(b)) if Arc::ptr_eq(a, b) => Some(Ordering::Equal),
             _ => None,
         }
     }
@@ -721,6 +827,7 @@ impl RopeElem {
         match self {
             Local(bytes) => bytes,
             Shared(inner) => inner.into_bytes(len),
+            Skipped(skipped) => skipped.remaining().clone().into_bytes(len),
         }
     }
 }
@@ -733,6 +840,7 @@ impl DeterministicHash for RopeElem {
         match self {
             Local(bytes) => state.write_bytes(bytes),
             Shared(inner) => inner.deterministic_hash(state),
+            Skipped(skipped) => skipped.remaining().deterministic_hash(state),
         }
     }
 }
@@ -906,6 +1014,7 @@ impl<'a> From<&'a RopeElem> for StackElem<'a> {
         match el {
             Local(bytes) => Self::Local(bytes),
             Shared(inner) => Self::Shared(inner, 0),
+            Skipped(skipped) => Self::Shared(skipped.remaining(), 0),
         }
     }
 }
@@ -944,21 +1053,8 @@ mod test {
         fn new(value: Vec<RopeElem>) -> Self {
             let data = InnerRope::from(value);
             Rope {
-                length: data.len(),
+                length: data.byte_len(),
                 data,
-            }
-        }
-    }
-    impl InnerRope {
-        fn len(&self) -> usize {
-            self.iter().map(|v| v.len()).sum()
-        }
-    }
-    impl RopeElem {
-        fn len(&self) -> usize {
-            match self {
-                RopeElem::Local(b) => b.len(),
-                RopeElem::Shared(r) => r.len(),
             }
         }
     }
@@ -968,6 +1064,160 @@ mod test {
         let empty = RopeBuilder::default().build();
         let mut reader = empty.read();
         assert!(reader.next().is_none());
+    }
+
+    /// A rope with local and nested shared sections of different sizes, and its text.
+    fn nested_rope() -> (Rope, &'static str) {
+        let rope = Rope::new(vec![
+            "abc".into(),
+            vec!["de".into(), vec!["fghi".into()].into()].into(),
+            "j".into(),
+            vec!["klmno".into()].into(),
+        ]);
+        (rope, "abcdefghijklmno")
+    }
+
+    fn without(text: &str, start: usize, end: usize) -> String {
+        format!("{}{}", &text[..start], &text[end..])
+    }
+
+    /// Checks every way of reading `rope` against the expected bytes.
+    fn assert_reads(rope: &Rope, expected: &str, label: &str) {
+        let flat = Rope::from(expected.to_string());
+        assert_eq!(rope.len(), expected.len(), "len {label}");
+        assert_eq!(rope.to_str().unwrap(), expected, "to_str {label}");
+        assert_eq!(&*rope.to_bytes(), expected.as_bytes(), "to_bytes {label}");
+        let chunks = rope.read().flat_map(|b| b.to_vec()).collect::<Vec<_>>();
+        assert_eq!(chunks, expected.as_bytes(), "iteration {label}");
+
+        let mut small_reads = Vec::new();
+        let mut reader = rope.read();
+        let mut buf = [0u8; 2];
+        loop {
+            let n = reader.read(&mut buf).unwrap();
+            if n == 0 {
+                break;
+            }
+            small_reads.extend_from_slice(&buf[..n]);
+        }
+        assert_eq!(small_reads, expected.as_bytes(), "read {label}");
+
+        let mut buffered = Vec::new();
+        let mut reader = rope.read();
+        loop {
+            let available = reader.fill_buf().unwrap();
+            if available.is_empty() {
+                break;
+            }
+            let n = min(available.len(), 3);
+            buffered.extend_from_slice(&available[..n]);
+            reader.consume(n);
+        }
+        assert_eq!(buffered, expected.as_bytes(), "fill_buf {label}");
+
+        assert_eq!(rope, &flat, "eq {label}");
+        assert_eq!(rope.cmp(&flat), std::cmp::Ordering::Equal, "cmp {label}");
+        let mut hasher = Xxh3Hash64Hasher::new();
+        hasher.write_ref(rope);
+        let mut flat_hasher = Xxh3Hash64Hasher::new();
+        flat_hasher.write_ref(&flat);
+        assert_eq!(hasher.finish(), flat_hasher.finish(), "hash {label}");
+
+        let config = bincode::config::standard();
+        let encoded = bincode::encode_to_vec(rope, config).unwrap();
+        assert_eq!(
+            encoded,
+            bincode::encode_to_vec(&flat, config).unwrap(),
+            "encode {label}"
+        );
+        let (decoded, _): (Rope, _) = bincode::decode_from_slice(&encoded, config).unwrap();
+        assert_eq!(decoded.to_str().unwrap(), expected, "decode {label}");
+
+        assert_eq!(
+            rope.clone().into_bytes(),
+            expected.as_bytes(),
+            "into_bytes {label}"
+        );
+    }
+
+    #[test]
+    fn skip_removes_every_range() {
+        let (rope, text) = nested_rope();
+        for start in 0..=text.len() {
+            for end in start..=text.len() {
+                let skipped = rope.skip(start..end);
+                assert_reads(
+                    &skipped,
+                    &without(text, start, end),
+                    &format!("{start}..{end}"),
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn skip_of_skip_and_nested_skip() {
+        let (rope, text) = nested_rope();
+        let once = rope.skip(2..5);
+        let once_text = without(text, 2, 5);
+        for start in 0..=once_text.len() {
+            for end in start..=once_text.len() {
+                let twice = once.skip(start..end);
+                assert_reads(
+                    &twice,
+                    &without(&once_text, start, end),
+                    &format!("2..5 then {start}..{end}"),
+                );
+            }
+        }
+
+        let mut builder = RopeBuilder::default();
+        builder.push_static_bytes(b"<");
+        builder.concat(&once);
+        builder.push_static_bytes(b">");
+        let nested = builder.build();
+        let nested_text = format!("<{once_text}>");
+        assert_reads(&nested, &nested_text, "nested");
+        assert_reads(
+            &nested.skip(1..4),
+            &without(&nested_text, 1, 4),
+            "skip of nested",
+        );
+    }
+
+    #[test]
+    fn skip_reads_are_repeatable() {
+        let (rope, text) = nested_rope();
+        let skipped = rope.skip(4..9);
+        let expected = without(text, 4, 9);
+        assert_reads(&skipped, &expected, "first read");
+        assert_reads(&skipped, &expected, "second read");
+        assert_reads(&skipped.clone(), &expected, "clone");
+        assert_eq!(skipped, skipped.clone());
+    }
+
+    #[test]
+    fn skip_empty_and_full_ranges() {
+        let (rope, text) = nested_rope();
+        assert_reads(&rope.skip(3..3), text, "empty range");
+        assert!(rope.skip(0..text.len()).is_empty());
+        assert_reads(&rope.skip(0..text.len()), "", "full range");
+        assert!(Rope::default().skip(0..0).is_empty());
+    }
+
+    #[test]
+    #[should_panic(expected = "out of bounds")]
+    fn skip_past_the_end_panics() {
+        let (rope, text) = nested_rope();
+        rope.skip(3..text.len() + 1);
+    }
+
+    #[test]
+    #[should_panic(expected = "out of bounds")]
+    #[allow(clippy::reversed_empty_ranges)]
+    fn skip_decreasing_range_panics() {
+        let (rope, _) = nested_rope();
+        rope.skip(5..4);
     }
 
     #[test]

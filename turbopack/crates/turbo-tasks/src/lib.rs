@@ -24,6 +24,7 @@ mod dyn_task_inputs;
 mod effect;
 mod error;
 pub mod event;
+mod fixint;
 pub mod graph;
 mod id;
 mod id_factory;
@@ -91,6 +92,7 @@ pub use crate::{
         resolve_strongly_consistent_and_take_and_apply_effects, take_effects,
     },
     error::PrettyPrintError,
+    fixint::{FixintU64, FixintU128},
     id::{
         ExecutionId, FunctionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId,
     },
@@ -100,11 +102,12 @@ pub use crate::{
     },
     join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt},
     manager::{
-        CurrentCellRef, GcRoot, InputResolution, ReadCellTracking, ReadConsistency, ReadTracking,
-        ScheduleKey, TaskPersistence, TaskPriority, TurboTasks, TurboTasksApi, TurboTasksCallApi,
-        Unused, UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished,
-        mark_stateful, mark_top_level_task, prevent_gc, run, run_once, run_once_with_reason,
-        trait_call, try_turbo_tasks, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
+        CellKey, CellKeyKind, CurrentCellRef, GcRoot, InputResolution, ReadCellTracking,
+        ReadConsistency, ReadTracking, ScheduleKey, TaskPersistence, TaskPriority, TurboTasks,
+        TurboTasksApi, TurboTasksCallApi, Unused, UpdateInfo, dynamic_call, emit,
+        get_serialization_invalidator, mark_finished, mark_stateful, mark_top_level_task,
+        prevent_gc, run, run_once, run_once_with_reason, trait_call, try_turbo_tasks, turbo_tasks,
+        turbo_tasks_scope, turbo_tasks_weak,
         unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
     mapped_read_ref::MappedReadRef,
@@ -123,8 +126,9 @@ pub use crate::{
     value::{TransientInstance, TransientValue},
     value_type::{Evictability, TraitMethod, TraitType, ValueType, ValueTypePersistence},
     vc::{
-        CellId, Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, OrdResolvedVc,
-        RawVc, RawVcUnpacked, ReadRawVcFuture, ReadVcFuture, ResolveOperationVcFuture,
+        CellId, Dynamic, KeyedReadRef, LazyReadRef, NonLocalValue, OperationValue, OperationVc,
+        OptionVcExt, OrdResolvedVc, RawVc, RawVcUnpacked, ReadKeyedReaderVcFuture,
+        ReadLazyReaderVcFuture, ReadRawVcFuture, ReadVcFuture, ResolveOperationVcFuture,
         ResolveRawVcFuture, ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast, UpcastStrict,
         ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellHashedCompareMode,
         VcCellKeyedCompareMode, VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead,
@@ -283,7 +287,7 @@ pub use turbo_tasks_macros::value;
 ///
 /// - `unsafe impl NonLocalValue for X {}` (unless `contains_unresolved_vcs` is set).
 /// - `impl TaskInput for X` with a field-walking `is_transient`. By default `is_resolved` and
-///   `resolve_input` use the trait defaults (`true` and a [`CloneReady`] future — 8 bytes, no
+///   `resolve_input` use the trait defaults (`true` and a `CloneReady` future — 8 bytes, no
 ///   async-fn envelope); when `contains_unresolved_vcs` is set, both are emitted as
 ///   field-walking implementations as well.
 ///

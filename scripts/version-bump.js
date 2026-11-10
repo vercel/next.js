@@ -20,8 +20,6 @@
 
    --preid <id>            prerelease identifier for pre* increments
    --no-git-tag-version    update the manifests but do not commit or tag
-   --allow-branch <glob>   override the branches releases may run from;
-                           repeatable, `**` allows any branch
 */
 
 const fs = require('fs/promises')
@@ -32,7 +30,6 @@ const { readReleaseVersion } = require('./release-version')
 
 const repoRoot = path.join(__dirname, '..')
 const packagesDir = path.join(repoRoot, 'packages')
-const releaseBranchesPath = path.join(__dirname, 'release-branches.json')
 
 const SEMVER_INCREMENTS = new Set([
   'major',
@@ -53,8 +50,6 @@ function parseArgs(argv) {
   /** @type {string | undefined} */
   let preid
   let gitTagVersion = true
-  /** @type {string[]} */
-  const allowBranch = []
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
@@ -62,9 +57,6 @@ function parseArgs(argv) {
     switch (arg) {
       case '--preid':
         preid = argv[++i]
-        break
-      case '--allow-branch':
-        allowBranch.push(argv[++i])
         break
       case '--no-git-tag-version':
         gitTagVersion = false
@@ -86,39 +78,7 @@ function parseArgs(argv) {
     throw new Error('Missing <version|increment> argument')
   }
 
-  return { versionArg, preid, gitTagVersion, allowBranch }
-}
-
-/**
- * Releases are restricted to `canary` and the long-lived LTS release branches
- * (`releases/lts/active`, `releases/lts/maintenance`) listed in
- * `scripts/release-branches.json`.
- *
- * @param {string[]} allowBranchOverride
- */
-async function assertBranchIsAllowed(allowBranchOverride) {
-  const patterns =
-    allowBranchOverride.length > 0
-      ? allowBranchOverride
-      : JSON.parse(await fs.readFile(releaseBranchesPath, 'utf8'))
-
-  if (patterns.includes('**')) {
-    return
-  }
-
-  const { stdout: currentBranch } = await execa('git', [
-    'rev-parse',
-    '--abbrev-ref',
-    'HEAD',
-  ])
-
-  if (!patterns.includes(currentBranch.trim())) {
-    throw new Error(
-      `Refusing to bump the version on branch "${currentBranch.trim()}". ` +
-        `Allowed branches: ${patterns.join(', ')}. ` +
-        `Pass \`--allow-branch **\` to override.`
-    )
-  }
+  return { versionArg, preid, gitTagVersion }
 }
 
 /**
@@ -196,11 +156,7 @@ async function writeVersionToPackages(nextVersion) {
 }
 
 async function main() {
-  const { versionArg, preid, gitTagVersion, allowBranch } = parseArgs(
-    process.argv.slice(2)
-  )
-
-  await assertBranchIsAllowed(allowBranch)
+  const { versionArg, preid, gitTagVersion } = parseArgs(process.argv.slice(2))
 
   const currentVersion = readReleaseVersion()
   const nextVersion = computeNextVersion(currentVersion, versionArg, preid)
@@ -244,6 +200,5 @@ if (require.main === module) {
 module.exports = {
   parseArgs,
   computeNextVersion,
-  assertBranchIsAllowed,
   writeVersionToPackages,
 }

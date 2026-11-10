@@ -18,13 +18,17 @@ branch.
 
 ## Inputs
 
-- Require a PR number and a target release branch:
-  `releases/lts/active` (the current major's release line) or
-  `releases/lts/maintenance` (the previous major's), depending on which
-  released line needs the fix.
+- Require a PR number and a target release branch. Almost always the target
+  is one of the LTS branches: `releases/lts/active` (the current major's
+  release line) or `releases/lts/maintenance` (the previous major's). Only in
+  exceptionally rare circumstances — a fix for an older minor line that
+  neither LTS branch supports anymore — is the target a non-LTS branch
+  (`next-<major>-<minor>`, which any maintainer can create by pushing a
+  branch from that line's last tag).
 - If the target branch is not provided and cannot be inferred confidently from
-  the user's request, ask before mutating git state.
-- Treat the target branch as variable; do not hard-code either LTS branch
+  the user's request, ask before mutating git state — and default to an LTS
+  branch unless the user explicitly names an old minor line.
+- Treat the target branch as variable; do not hard-code a specific branch
   except when the user explicitly asks for it.
 
 ## Workflow
@@ -63,8 +67,11 @@ branch.
    git switch -c backport-<pr-number>-to-<target-branch> origin/<target-branch>
    ```
 
-   After switching branches in this repo, run `pnpm build-all` before Next.js
-   integration tests unless the user explicitly limits the task to preparing the
+   Bootstrapping this checkout does not require `pnpm build-all` since
+   `pnpm install` pulls in recent native bindings. Before running Next.js
+   integration tests, build what the branch switch and cherry-pick changed:
+   `pnpm build` for JS changes, `pnpm build-all` only for Rust/Turbopack
+   changes. Skip builds entirely if the task is limited to preparing the
    cherry-pick or PR.
 
 5. Cherry-pick the landed commit with provenance:
@@ -90,10 +97,18 @@ branch.
 
 ## PR Shape
 
+The PR title should indicate the target branch and the original PR title.
+
 Use a title like:
 
 ```text
-[backport] <original PR title>
+[lts-active] <original PR title>
+```
+
+or
+
+```text
+[lts-maintenance] <original PR title>
 ```
 
 Use a concise PR body:

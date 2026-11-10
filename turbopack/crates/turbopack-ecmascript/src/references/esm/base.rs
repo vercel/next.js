@@ -2,9 +2,13 @@ use anyhow::{Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use either::Either;
+use rustc_hash::FxHashSet;
 use strsim::jaro;
 use swc_core::{
-    common::{BytePos, DUMMY_SP, Span, SyntaxContext, source_map::PURE_SP},
+    common::{
+        BytePos, DUMMY_SP, Span, SyntaxContext,
+        source_map::{PURE_SP, SmallPos},
+    },
     ecma::ast::{
         ComputedPropName, Decl, Expr, ExprStmt, Ident, Lit, MemberExpr, MemberProp, Number,
         SeqExpr, Stmt, Str,
@@ -39,13 +43,14 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
-    EcmascriptModuleAsset, ScopeHoistingContext,
-    analyzer::imports::ImportAnnotations,
+    EcmascriptModuleAsset, EcmascriptParsable, ScopeHoistingContext,
+    analyzer::imports::{ImportAnnotations, ImportedSymbol},
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     export::Liveness,
     magic_identifier,
     module_fragments::{TURBOPACK_PART_IMPORT_SOURCE, part::module::EcmascriptModulePartAsset},
+    parse::ParseResult,
     references::{
         esm::{
             EsmExport,
@@ -81,20 +86,16 @@ pub enum ReferencedAssetIdent {
         ctxt: SyntaxContext,
         liveness: Liveness,
     },
-    /// The given export (or namespace) should be imported and will be assigned to a new variable.
+    /// The given export (or namespace) should be imported and accessed as `export` on the
+    /// `import_source.namespace_ident()` variable.
     Module {
-        /// The name of the variable that will hold the imported namespace. Cached from
-        /// `import_source.get_namespace_ident(..)` at resolution time so downstream sync
-        /// visitors can read it without re-entering the async layer.
-        namespace_ident: String,
         ctxt: Option<SyntaxContext>,
         export: Option<RcStr>,
-        /// Describes what to import to populate the variable that `namespace_ident` names.
+        /// What to import to populate the variable that will hold the imported namespace.
         ///
         /// When the ident was resolved through a re-export chain (e.g. `export * as X from
         /// './inner'`), this is the final module in that chain, not the directly referenced
-        /// asset — so the `.i(...)` call that initializes the variable loads the module whose
-        /// namespace `namespace_ident` claims to hold.
+        /// asset.
         import_source: ImportSource,
     },
 }
@@ -105,27 +106,63 @@ pub enum ImportSource {
     /// Import an in-graph module.
     Module {
         asset: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        /// The name of the variable that should hold the imported namespace.
+        namespace_ident: String,
     },
     /// Import an external dependency. The emitting site decides between
     /// `__turbopack_external_import` and `__turbopack_external_require` based on its own
     /// `import_externals` flag.
-    External { request: RcStr, ty: ExternalType },
+    External {
+        request: RcStr,
+        ty: ExternalType,
+        /// The name of the variable that should hold the imported namespace.
+        namespace_ident: String,
+    },
 }
 
 impl ImportSource {
-    /// Compute the name of the variable that should hold the imported namespace.
-    pub async fn get_namespace_ident(
-        &self,
+    async fn new_module(
+        asset: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<String> {
-        Ok(match self {
-            ImportSource::Module { asset } => {
-                ReferencedAsset::get_ident_from_placeable(asset, chunking_context).await?
-            }
-            ImportSource::External { request, ty } => {
-                magic_identifier::mangle(&format!("{ty} external {request}"))
-            }
+    ) -> Result<Self> {
+        Ok(ImportSource::Module {
+            asset,
+            namespace_ident: ReferencedAsset::get_ident_from_placeable(*asset, chunking_context)
+                .await?,
         })
+    }
+
+    fn new_external(request: RcStr, ty: ExternalType) -> Self {
+        let namespace_ident = magic_identifier::mangle(&format!("{ty} external {request}"));
+        ImportSource::External {
+            request,
+            ty,
+            namespace_ident,
+        }
+    }
+
+    /// The name of the variable that should hold the imported namespace.
+    pub fn namespace_ident(&self) -> &str {
+        match self {
+            ImportSource::Module {
+                namespace_ident, ..
+            }
+            | ImportSource::External {
+                namespace_ident, ..
+            } => namespace_ident,
+        }
+    }
+
+    /// Like [`ImportSource::namespace_ident`], but takes ownership of the name.
+    pub fn into_namespace_ident(self) -> String {
+        match self {
+            ImportSource::Module {
+                namespace_ident, ..
+            }
+            | ImportSource::External {
+                namespace_ident, ..
+            } => namespace_ident,
+        }
     }
 }
 
@@ -133,10 +170,10 @@ impl ReferencedAssetIdent {
     pub fn into_module_namespace_ident(self) -> Option<(String, Option<SyntaxContext>)> {
         match self {
             ReferencedAssetIdent::Module {
-                namespace_ident,
+                import_source,
                 ctxt,
                 ..
-            } => Some((namespace_ident, ctxt)),
+            } => Some((import_source.into_namespace_ident(), ctxt)),
             ReferencedAssetIdent::LocalBinding { .. } => None,
         }
     }
@@ -149,16 +186,16 @@ impl ReferencedAssetIdent {
                 liveness: _,
             } => Either::Left(Ident::new(ident.as_str().into(), span, *ctxt)),
             ReferencedAssetIdent::Module {
-                namespace_ident,
                 ctxt,
                 export,
-                import_source: _,
+                import_source,
             } => {
+                let namespace_ident = import_source.namespace_ident();
                 if let Some(export) = export {
                     Either::Right(MemberExpr {
                         span,
                         obj: Box::new(Expr::Ident(Ident::new(
-                            namespace_ident.as_str().into(),
+                            namespace_ident.into(),
                             DUMMY_SP,
                             ctxt.unwrap_or_default(),
                         ))),
@@ -173,7 +210,7 @@ impl ReferencedAssetIdent {
                     })
                 } else {
                     Either::Left(Ident::new(
-                        namespace_ident.as_str().into(),
+                        namespace_ident.into(),
                         span,
                         ctxt.unwrap_or_default(),
                     ))
@@ -282,7 +319,6 @@ impl ReferencedAsset {
                                 .await?
                                 {
                                     Some(ReferencedAssetIdent::Module {
-                                        namespace_ident,
                                         // Overwrite the context. This import isn't
                                         // inserted in the module that uses the import,
                                         // but in the module containing the reexport
@@ -290,7 +326,6 @@ impl ReferencedAsset {
                                         export,
                                         import_source,
                                     }) => Some(ReferencedAssetIdent::Module {
-                                        namespace_ident,
                                         ctxt: Some(ctxt),
                                         export,
                                         import_source,
@@ -299,16 +334,28 @@ impl ReferencedAsset {
                                 },
                             );
                         }
-                        Some(EsmExport::Error) | None => {
-                            // Export not found, either there was already an error, or
-                            // this is some dynamic (CJS) (re)export situation.
+                        Some(EsmExport::Error) => {
+                            // The export has failed to resolve. The module is merged into this
+                            // scope hoisting group, so it might not have a module factory that
+                            // could be imported. There is nothing to bind to, so the binding
+                            // evaluates to `undefined`.
+                            return Ok(None);
+                        }
+                        None if exports.dynamic_exports.is_empty() => {
+                            // The export is statically known to not exist. The module is merged
+                            // into this scope hoisting group, so it might not have a module
+                            // factory that could be imported. There is nothing to bind to, so the
+                            // binding evaluates to `undefined`.
+                            return Ok(None);
+                        }
+                        None => {
+                            // Export not found, this is some dynamic (CJS) (re)export situation.
                         }
                     }
                 }
 
-                let import_source = ImportSource::Module { asset: *asset };
+                let import_source = ImportSource::new_module(*asset, chunking_context).await?;
                 Some(ReferencedAssetIdent::Module {
-                    namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
                     ctxt: None,
                     // The target module may emit its exports under shortened keys. This is the
                     // only place a cross-module export access is materialized, and it resolves
@@ -323,18 +370,11 @@ impl ReferencedAsset {
                     import_source,
                 })
             }
-            ReferencedAsset::External(request, ty) => {
-                let import_source = ImportSource::External {
-                    request: request.clone(),
-                    ty: *ty,
-                };
-                Some(ReferencedAssetIdent::Module {
-                    namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
-                    ctxt: None,
-                    export,
-                    import_source,
-                })
-            }
+            ReferencedAsset::External(request, ty) => Some(ReferencedAssetIdent::Module {
+                ctxt: None,
+                export,
+                import_source: ImportSource::new_external(request.clone(), *ty),
+            }),
             ReferencedAsset::NonPlaceable(module) => {
                 // The module exists but has no ECMAScript bindings, so there is
                 // nothing this identifier could refer to. Report it instead of
@@ -368,7 +408,7 @@ impl ReferencedAsset {
     }
 
     pub(crate) async fn get_ident_from_placeable(
-        asset: &Vc<Box<dyn EcmascriptChunkPlaceable>>,
+        asset: Vc<Box<dyn EcmascriptChunkPlaceable>>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<String> {
         let id = asset.chunk_item_id(chunking_context).await?;
@@ -736,6 +776,8 @@ impl ModuleReference for EsmAssetReference {
                         export: export_name.clone(),
                         module,
                         source: self.issue_source,
+                        importing_module: self.module,
+                        request: self.request.clone(),
                     }
                     .resolved_cell()
                     .emit();
@@ -906,14 +948,13 @@ impl EsmAssetReference {
                                     // no need to import
                                 }
                                 Some(ReferencedAssetIdent::Module {
-                                    namespace_ident,
                                     ctxt,
                                     export: _,
                                     import_source,
                                 }) => {
-                                    if subsumed_imports
-                                        .namespaces
-                                        .contains(&(namespace_ident.clone(), ctxt))
+                                    let namespace_key =
+                                        (import_source.namespace_ident().to_owned(), ctxt);
+                                    if subsumed_imports.namespaces.contains(&namespace_key)
                                         && (!matches!(
                                             this.export_name,
                                             Some(ModulePart::Evaluation)
@@ -926,12 +967,12 @@ impl EsmAssetReference {
                                         break 'import;
                                     }
                                     let name = Ident::new(
-                                        namespace_ident.into(),
+                                        namespace_key.0.into(),
                                         DUMMY_SP,
                                         ctxt.unwrap_or_default(),
                                     );
                                     let (key, mut call_expr) = match import_source {
-                                        ImportSource::Module { asset } => {
+                                        ImportSource::Module { asset, .. } => {
                                             let id = asset.chunk_item_id(chunking_context).await?;
                                             // Include ctxt in the key to prevent incorrect
                                             // deduplication when multiple merged modules import the
@@ -949,6 +990,7 @@ impl EsmAssetReference {
                                         ImportSource::External {
                                             request,
                                             ty: ExternalType::EcmaScriptModule,
+                                            ..
                                         } => {
                                             if !*chunking_context
                                                 .environment()
@@ -979,6 +1021,7 @@ impl EsmAssetReference {
                                         ImportSource::External {
                                             request,
                                             ty: ExternalType::CommonJs | ExternalType::Url,
+                                            ..
                                         } => {
                                             if !*chunking_context
                                                 .environment()
@@ -1052,6 +1095,40 @@ pub struct InvalidExport {
     export: RcStr,
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     source: IssueSource,
+    /// The module containing the import declaration, used to find the other names imported by the
+    /// same declaration (so they aren't suggested as alternatives).
+    importing_module: ResolvedVc<EcmascriptModuleAsset>,
+    /// The request of the import declaration.
+    request: RcStr,
+}
+
+impl InvalidExport {
+    /// Returns the export names referenced by the other specifiers of the import (or re-export)
+    /// declaration that requested the missing export. All specifiers of one declaration share the
+    /// declaration's span and request.
+    ///
+    /// This reads the importing module's parse result, so it's only meant to be called when the
+    /// issue is rendered.
+    async fn names_imported_by_same_declaration(&self) -> Result<FxHashSet<RcStr>> {
+        let ParseResult::Ok { eval_context, .. } = &*self.importing_module.failsafe_parse().await?
+        else {
+            return Ok(FxHashSet::default());
+        };
+        let source = self.importing_module.await?.source;
+        Ok(eval_context
+            .imports
+            .references()
+            .filter_map(|r| {
+                let ImportedSymbol::Symbol(name) = &r.imported_symbol else {
+                    return None;
+                };
+                (IssueSource::from_swc_offsets(source, r.span.lo.to_u32(), r.span.hi.to_u32())
+                    == self.source
+                    && *r.module_path.to_string_lossy() == *self.request)
+                    .then(|| RcStr::from(&**name))
+            })
+            .collect())
+    }
 }
 
 #[async_trait]
@@ -1079,34 +1156,39 @@ impl Issue for InvalidExport {
 
     async fn description(&self) -> Result<Option<StyledString>> {
         let export_names = all_known_export_names(*self.module).await?;
+        let already_imported = self.names_imported_by_same_declaration().await?;
         let did_you_mean = export_names
             .iter()
+            .filter(|s| !already_imported.contains(*s))
             .map(|s| (s, jaro(self.export.as_str(), s.as_str())))
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
             .map(|(s, _)| s);
-        Ok(Some(StyledString::Stack(vec![
-            StyledString::Line(vec![
-                StyledString::Text(rcstr!("The export ")),
-                StyledString::Code(self.export.clone()),
-                StyledString::Text(rcstr!(" was not found in module ")),
-                StyledString::Strong(self.module.ident().to_string().owned().await?),
-                StyledString::Text(rcstr!(".")),
-            ]),
-            if let Some(did_you_mean) = did_you_mean {
-                StyledString::Line(vec![
-                    StyledString::Text(rcstr!("Did you mean to import ")),
-                    StyledString::Code(did_you_mean.clone()),
-                    StyledString::Text(rcstr!("?")),
-                ])
-            } else {
-                StyledString::Strong(rcstr!("The module has no exports at all."))
-            },
-            StyledString::Text(
-                "All exports of the module are statically known (It doesn't have dynamic \
-                 exports). So it's known statically that the requested export doesn't exist."
-                    .into(),
-            ),
-        ])))
+        let mut lines = vec![StyledString::Line(vec![
+            StyledString::Text(rcstr!("The export ")),
+            StyledString::Code(self.export.clone()),
+            StyledString::Text(rcstr!(" was not found in module ")),
+            StyledString::Strong(self.module.ident().to_string().owned().await?),
+            StyledString::Text(rcstr!(".")),
+        ])];
+        if let Some(did_you_mean) = did_you_mean {
+            lines.push(StyledString::Line(vec![
+                StyledString::Text(rcstr!("Did you mean to import ")),
+                StyledString::Code(did_you_mean.clone()),
+                StyledString::Text(rcstr!("?")),
+            ]));
+        } else if export_names.is_empty() {
+            lines.push(StyledString::Strong(rcstr!(
+                "The module has no exports at all."
+            )));
+        }
+        // Otherwise all exports are already imported by the same declaration, so there is nothing
+        // to suggest.
+        lines.push(StyledString::Text(
+            "All exports of the module are statically known (It doesn't have dynamic exports). So \
+             it's known statically that the requested export doesn't exist."
+                .into(),
+        ));
+        Ok(Some(StyledString::Stack(lines)))
     }
 
     async fn detail(&self) -> Result<Option<StyledString>> {

@@ -14,6 +14,7 @@ import type { OpaqueFallbackRouteParams } from './request/fallback-params'
 import type { IncrementalCache } from './lib/incremental-cache'
 import type { RevalidateFn } from './lib/router-utils/router-server-context'
 import type { NextRequest } from './web/exports'
+import type { RequestInsightsIdentity } from './lib/trace/request-insights-identity'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
@@ -49,6 +50,8 @@ export type OnCacheEntryHandler = (
 ) => Promise<boolean | void> | boolean | void
 
 export interface RequestMeta {
+  /** Server-owned identity for the development Request Insights timeline. */
+  requestInsightsIdentity?: RequestInsightsIdentity
   /**
    * The query that was used to make the request.
    */
@@ -69,6 +72,12 @@ export interface RequestMeta {
    * be read multiple times.
    */
   clonableBody?: CloneableBody
+
+  /**
+   * Exact byte length of the buffered body replacing the original request.
+   * Unlike Content-Length, this accounts for the proxy body buffering limit.
+   */
+  replayBodySize?: number
 
   /**
    * True when the request matched a locale domain that was configured in the
@@ -115,6 +124,9 @@ export interface RequestMeta {
    * regardless of whether it runs the HMR client.
    */
   hmrRefreshHash?: string
+
+  /** Client HMR version captured before rendering dev-server HTML. */
+  initialHmrVersion?: string
 
   /**
    * Equals the segment path that was used for the prefetch RSC request.
@@ -196,6 +208,11 @@ export interface RequestMeta {
   invokePath?: string
 
   /**
+   * True when an App route matched the locale-prefixed invocation pathname.
+   */
+  didMatchLocalePrefixedPath?: boolean
+
+  /**
    * The specific page output we should be matching
    */
   invokeOutput?: string
@@ -219,6 +236,13 @@ export interface RequestMeta {
    * Whether the request is a middleware invocation
    */
   middlewareInvoke?: boolean
+
+  /**
+   * The W3C `traceparent` of the middleware invocation's `handleRequest` span,
+   * written onto the request headers so the middleware span and the render
+   * that follows are siblings under that span.
+   */
+  middlewareInvokeTraceparent?: string
 
   /**
    * Whether the request should render the fallback shell or not.
@@ -313,6 +337,10 @@ export interface RequestMeta {
   minimalMode?: boolean
 
   /**
+   * Dev passes the selected shell's staged params from base-server to the App
+   * Page handler here. The handler captures this input once and passes an
+   * explicit map to each render instead of updating this metadata.
+   *
    * Staged renders defer these route params until after the static stage. They
    * keep their concrete request values instead of replacing them with
    * placeholders. Dev static-shell validation uses the same set for the
@@ -323,8 +351,8 @@ export interface RequestMeta {
    * - A layout's `params` containing only `top` can resolve statically.
    * - A page's `params` containing `bottom` waits until after the static stage.
    *
-   * A set recorded in postponed state overrides this metadata on a resume,
-   * including an explicitly empty set.
+   * A mask recorded in postponed state overrides the supplied map on a resume,
+   * including an explicitly empty set or null.
    */
   stagedFallbackParams?: OpaqueFallbackRouteParams | null
 
