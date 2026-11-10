@@ -12,7 +12,7 @@ use std::{
     process::abort,
     sync::{
         Arc, Mutex, RwLock, Weak,
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
     },
     task::{Context, Poll, Waker},
     time::{Duration, Instant},
@@ -150,6 +150,18 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         options: ReadCellOptions,
     ) -> Result<ReadOutcome<TypedCellContent>>;
 
+    /// Refines the [`CellKeyKind::Provisional(id)`][CellKeyKind::Provisional] dependency of the
+    /// current task (`reader`) on the cell `index` of `task` to [`CellKeyKind::Hash`] dependencies
+    /// on each of the `key_hashes`. See [`Backend::refine_provisional_cell_dependency`].
+    fn refine_provisional_cell_dependency(
+        &self,
+        task: TaskId,
+        index: CellId,
+        reader: TaskId,
+        id: u32,
+        key_hashes: &mut dyn Iterator<Item = u64>,
+    );
+
     /// Reads a [`RawVcUnpacked::LocalOutput`][crate::RawVcUnpacked::LocalOutput]. If the task has
     /// completed, returns the [`RawVc`] the local task points to.
     ///
@@ -197,6 +209,9 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         index: CellId,
     ) -> Result<TypedCellContent>;
 
+    /// See [`Backend::drop_task_cell_content_hint`].
+    fn drop_task_cell_content_hint(&self, task: TaskId, index: CellId);
+
     fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent>;
     fn update_own_task_cell(
         &self,
@@ -210,7 +225,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn mark_own_task_as_finished(&self, task: TaskId);
 
     /// Pin a task against garbage collection. Delegates to
-    /// [`Backend::pin_task_for_gc`](crate::backend::Backend::pin_task_for_gc).
+    /// [`Backend::pin_task_for_gc`].
     fn pin_task_for_gc(&self, task: TaskId);
 
     /// Removes a pin added by [`pin_task_for_gc`](TurboTasksApi::pin_task_for_gc).
@@ -339,12 +354,121 @@ pub enum ReadConsistency {
     Strong,
 }
 
+/// Identifies the part of a cell a tracked cell read depends on, when it doesn't depend on the
+/// whole cell content (which is represented by `None` in an `Option<CellKey>`).
+///
+/// One of the [`CellKeyKind`]s, packed into a single word: the top bit tells them apart, so a key
+/// hash keeps 63 bits. Keyed dependencies are stored per dependent and per dependency, so this
+/// halves their key from the 16 bytes an enum of a `u64` and a `u32` would take. Always build
+/// keys with [`CellKey::hash`] and [`CellKey::provisional`] so equal keys compare equal.
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Encode, Decode)]
+#[repr(transparent)]
+pub struct CellKey(#[bincode(fixint)] u64);
+
+/// The unpacked form of a [`CellKey`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CellKeyKind {
+    /// The read only depends on the sub-value identified by this key hash (see
+    /// [`KeyedEq`]). The dependency is only invalidated when the value of this key changes.
+    ///
+    /// Only the low 63 bits of the hash are kept.
+    Hash(u64),
+    /// A provisional dependency of a [`Vc::keyed_reader`](crate::Vc::keyed_reader) or
+    /// [`Vc::lazy_reader`](crate::Vc::lazy_reader) read: a temporary hold on the whole cell that
+    /// is refined later. For invalidation it behaves like a dependency on the whole cell
+    /// (invalidated by any change of the cell), but it is a separate dependency that is uniquely
+    /// identified by this counter of `keyed_reader()` / `lazy_reader()` calls within the current
+    /// task execution. This allows the [`KeyedReadRef`](crate::KeyedReadRef) to refine it to
+    /// [`CellKeyKind::Hash`] dependencies of the accessed keys once it's dropped, and the
+    /// [`LazyReadRef`](crate::LazyReadRef) to remove it when the value wasn't accessed, without
+    /// affecting other dependencies on the same cell. `Provisional` dependencies that are still
+    /// present when the execution completes are converted to normal (full) dependencies, so they
+    /// never outlive the execution that created them. (When that's because a ref or future wasn't
+    /// dropped within the execution, completing the execution also panics.)
+    Provisional(u32),
+}
+
+impl CellKey {
+    const PROVISIONAL: u64 = 1 << 63;
+
+    /// A dependency on the sub-value whose key hashes to `hash`, see [`CellKeyKind::Hash`]. The
+    /// top bit of `hash` is dropped.
+    pub const fn hash(hash: u64) -> Self {
+        Self(hash & !Self::PROVISIONAL)
+    }
+
+    /// The provisional dependency with the given id, see [`CellKeyKind::Provisional`].
+    pub const fn provisional(id: u32) -> Self {
+        Self(Self::PROVISIONAL | id as u64)
+    }
+
+    pub const fn kind(self) -> CellKeyKind {
+        if self.is_provisional() {
+            CellKeyKind::Provisional(self.0 as u32)
+        } else {
+            CellKeyKind::Hash(self.0)
+        }
+    }
+
+    pub const fn is_provisional(self) -> bool {
+        self.0 & Self::PROVISIONAL != 0
+    }
+}
+
+impl Debug for CellKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(&self.kind(), f)
+    }
+}
+
+#[cfg(test)]
+mod cell_key_tests {
+    use super::{CellKey, CellKeyKind};
+
+    #[test]
+    fn packs_into_one_word() {
+        assert_eq!(size_of::<CellKey>(), 8);
+    }
+
+    #[test]
+    fn hashes_keep_their_low_63_bits() {
+        assert_eq!(CellKey::hash(0x1234).kind(), CellKeyKind::Hash(0x1234));
+        // A hash with the top bit set is still a hash, without that bit.
+        let key = CellKey::hash(u64::MAX);
+        assert!(!key.is_provisional());
+        assert_eq!(key.kind(), CellKeyKind::Hash(u64::MAX >> 1));
+        assert_eq!(key, CellKey::hash(u64::MAX >> 1));
+    }
+
+    #[test]
+    fn encodes_at_fixed_width() {
+        let key = CellKey::hash(0x1234);
+        let mut buf = turbo_bincode::TurboBincodeBuffer::new();
+        let mut encoder = turbo_bincode::new_turbo_bincode_encoder(&mut buf);
+        bincode::Encode::encode(&key, &mut encoder).unwrap();
+        assert_eq!(buf.len(), 8);
+        let mut decoder = turbo_bincode::new_turbo_bincode_decoder(&buf);
+        let decoded: CellKey = bincode::Decode::decode(&mut decoder).unwrap();
+        assert_eq!(decoded, key);
+    }
+
+    #[test]
+    fn provisional_ids_round_trip() {
+        for id in [0, 1, u32::MAX] {
+            let key = CellKey::provisional(id);
+            assert!(key.is_provisional());
+            assert_eq!(key.kind(), CellKeyKind::Provisional(id));
+            assert_ne!(key, CellKey::hash(id as u64));
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ReadCellTracking {
     /// Reads are tracked as dependencies of the current task.
     Tracked {
-        /// The key used for the dependency
-        key: Option<u64>,
+        /// The part of the cell the dependency is on. `None` depends on the whole cell.
+        key: Option<CellKey>,
     },
     /// The read is only tracked when there is an error, otherwise it is untracked.
     ///
@@ -367,7 +491,7 @@ impl ReadCellTracking {
         }
     }
 
-    pub fn key(&self) -> Option<u64> {
+    pub fn key(&self) -> Option<CellKey> {
         match self {
             ReadCellTracking::Tracked { key } => *key,
             ReadCellTracking::TrackOnlyError => None,
@@ -386,7 +510,10 @@ impl Display for ReadCellTracking {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ReadCellTracking::Tracked { key: None } => write!(f, "tracked"),
-            ReadCellTracking::Tracked { key: Some(key) } => write!(f, "tracked with key {key}"),
+            ReadCellTracking::Tracked { key: Some(key) } => match key.kind() {
+                CellKeyKind::Hash(key) => write!(f, "tracked with key {key}"),
+                CellKeyKind::Provisional(id) => write!(f, "tracked as provisional read {id}"),
+            },
             ReadCellTracking::TrackOnlyError => write!(f, "track only error"),
             ReadCellTracking::Untracked => write!(f, "untracked"),
         }
@@ -573,7 +700,7 @@ pub struct InlineExecutionStats {
     pub waited_in_progress: u64,
 }
 
-/// The counters behind [`InlineExecutionStats`].
+/// The counters behind `InlineExecutionStats`.
 ///
 /// Without the `inline_execution_stats` feature this is zero-sized and every method is an empty
 /// `#[inline]` no-op, so the counting compiles away: the counters sit on the read-miss path, and a
@@ -824,14 +951,34 @@ struct CurrentTaskStateHandle {
 
 struct CurrentTaskStateInner {
     current_task_id: Option<TaskId>,
+    /// Counter of [`Vc::keyed_reader`](crate::Vc::keyed_reader) and
+    /// [`Vc::lazy_reader`](crate::Vc::lazy_reader) reads in this execution, used to give every
+    /// [`CellKeyKind::Provisional`] dependency a unique id.
+    provisional_read_counter: AtomicU32,
+    /// Number of `keyed_reader` / `lazy_reader` futures and tracked
+    /// [`KeyedReadRef`](crate::KeyedReadRef)s / [`LazyReadRef`](crate::LazyReadRef)s of this
+    /// execution that haven't been dropped within this execution yet. When it isn't zero at the
+    /// end of the execution, completing it panics (see [`PROVISIONAL_READ_REF_LEAKED`]).
+    alive_provisional_read_refs: AtomicU32,
     state: RwLock<CurrentTaskState>,
 }
+
+/// The panic message of a task execution that didn't drop all of its
+/// [`KeyedReadRef`](crate::KeyedReadRef)s, [`LazyReadRef`](crate::LazyReadRef)s and
+/// [`Vc::keyed_reader`](crate::Vc::keyed_reader) / [`Vc::lazy_reader`](crate::Vc::lazy_reader)
+/// futures.
+const PROVISIONAL_READ_REF_LEAKED: &str =
+    "A `KeyedReadRef` or `LazyReadRef` was not dropped within the task execution that created it. \
+     It (and the `keyed_reader` / `lazy_reader` future) must be dropped before the task function \
+     returns, and must not be moved to other threads or tasks.";
 
 impl CurrentTaskStateHandle {
     fn new(state: CurrentTaskState) -> Self {
         Self {
             inner: Arc::new(CurrentTaskStateInner {
                 current_task_id: state.task_id,
+                provisional_read_counter: AtomicU32::new(0),
+                alive_provisional_read_refs: AtomicU32::new(0),
                 state: RwLock::new(state),
             }),
         }
@@ -839,6 +986,82 @@ impl CurrentTaskStateHandle {
 
     fn current_task_id(&self) -> Option<TaskId> {
         self.inner.current_task_id
+    }
+}
+
+/// Identifies the [`CellKeyKind::Provisional`] dependency of a
+/// [`Vc::keyed_reader`](crate::Vc::keyed_reader) or [`Vc::lazy_reader`](crate::Vc::lazy_reader)
+/// read and the task execution that created it.
+pub(crate) struct ProvisionalReadDependency {
+    /// The execution state of the reading task. Only used for identity (a `Weak` keeps the
+    /// allocation alive, so the pointer can't be reused by another execution).
+    execution: Weak<CurrentTaskStateInner>,
+    pub(crate) reader: TaskId,
+    pub(crate) id: u32,
+}
+
+impl ProvisionalReadDependency {
+    /// Allocates a new [`CellKeyKind::Provisional`] dependency id for the current task execution.
+    /// Returns `None` when not called from within a task execution (e.g. a top-level `run`),
+    /// where reads are not tracked anyway. In that case the read is tracked as a normal (full)
+    /// dependency.
+    ///
+    /// Panics when the `u32` ids of this execution are exhausted, which isn't possible in
+    /// practice.
+    pub(crate) fn new_for_current_task() -> Option<Self> {
+        CURRENT_TASK_STATE
+            .try_with(|ts| {
+                let reader = ts.current_task_id()?;
+                let id = ts
+                    .inner
+                    .provisional_read_counter
+                    .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+                    .expect(
+                        "too many `keyed_reader` / `lazy_reader` reads in a single task execution",
+                    );
+                Some(Self {
+                    execution: Arc::downgrade(&ts.inner),
+                    reader,
+                    id,
+                })
+            })
+            .ok()
+            .flatten()
+    }
+
+    /// Registers a `keyed_reader` / `lazy_reader` future or a
+    /// [`KeyedReadRef`](crate::KeyedReadRef) / [`LazyReadRef`](crate::LazyReadRef) holding this
+    /// dependency as alive. It must be released with
+    /// [`ProvisionalReadDependency::release_alive_ref`] within the same task execution, otherwise
+    /// completing the execution panics. Only called within the creating execution.
+    pub(crate) fn register_alive_ref(&self) {
+        if let Some(execution) = self.execution.upgrade() {
+            execution
+                .alive_provisional_read_refs
+                .fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    /// Releases a registration made with [`ProvisionalReadDependency::register_alive_ref`]. Only
+    /// called when the holder is dropped (or the read fails) within the creating execution
+    /// ([`ProvisionalReadDependency::is_current_execution`]).
+    pub(crate) fn release_alive_ref(&self) {
+        if let Some(execution) = self.execution.upgrade() {
+            execution
+                .alive_provisional_read_refs
+                .fetch_sub(1, Ordering::Relaxed);
+        }
+    }
+
+    /// Whether this is called within the task execution that created the dependency and that
+    /// execution is still running (it hasn't reported completion to the backend yet).
+    pub(crate) fn is_current_execution(&self) -> bool {
+        CURRENT_TASK_STATE
+            .try_with(|ts| {
+                std::ptr::eq(self.execution.as_ptr(), Arc::as_ptr(&ts.inner))
+                    && ts.read().unwrap().cell_counters.is_some()
+            })
+            .unwrap_or(false)
     }
 }
 
@@ -1656,17 +1879,59 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                 };
 
                                 let finished_state = this.finish_current_task_state();
-                                let cell_counters = CURRENT_TASK_STATE
-                                    .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
-                                this.backend.task_execution_completed(
+                                let (
+                                    cell_counters,
+                                    has_provisional_reads,
+                                    leaked_provisional_read_refs,
+                                ) = CURRENT_TASK_STATE.with(|ts| {
+                                    // Taking the cell counters ends the execution: later
+                                    // drops of its `KeyedReadRef`s and `LazyReadRef`s are
+                                    // no longer counted.
+                                    let cell_counters =
+                                        ts.write().unwrap().cell_counters.take().unwrap();
+                                    // All reads of this execution are done (local tasks
+                                    // were awaited above), so the backend only needs to
+                                    // look for remaining `CellKeyKind::Provisional`
+                                    // dependencies when `keyed_reader()` or
+                                    // `lazy_reader()` was used.
+                                    let has_provisional_reads =
+                                        ts.inner.provisional_read_counter.load(Ordering::Relaxed)
+                                            > 0;
+                                    let leaked_provisional_read_refs = has_provisional_reads
+                                        && ts
+                                            .inner
+                                            .alive_provisional_read_refs
+                                            .load(Ordering::Relaxed)
+                                            > 0;
+                                    (
+                                        cell_counters,
+                                        has_provisional_reads,
+                                        leaked_provisional_read_refs,
+                                    )
+                                });
+                                // A `KeyedReadRef` / `LazyReadRef` (or its future) that outlives
+                                // the execution is a bug in the task function. Complete the
+                                // execution first, so the backend converts the remaining
+                                // `CellKeyKind::Provisional` dependencies to normal ones, then
+                                // panic. This is outside the per-task panic boundary, so it aborts
+                                // the process.
+                                let stale_priority = this.backend.task_execution_completed(
                                     task_id,
                                     result,
                                     &cell_counters,
+                                    has_provisional_reads,
                                     #[cfg(feature = "verify_determinism")]
                                     finished_state.stateful,
                                     finished_state.has_invalidator,
                                     &*this,
-                                )
+                                );
+                                if leaked_provisional_read_refs {
+                                    panic!(
+                                        "{PROVISIONAL_READ_REF_LEAKED} Task: {}",
+                                        this.backend.get_task_name(task_id, &*this)
+                                    );
+                                }
+                                stale_priority
                             }
                             .instrument(span)
                             .await
@@ -1942,6 +2207,18 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             .try_read_task_cell(task, index, reader, options, self)
     }
 
+    fn refine_provisional_cell_dependency(
+        &self,
+        task: TaskId,
+        index: CellId,
+        reader: TaskId,
+        id: u32,
+        key_hashes: &mut dyn Iterator<Item = u64>,
+    ) {
+        self.backend
+            .refine_provisional_cell_dependency(task, index, reader, id, key_hashes, self)
+    }
+
     fn try_read_own_task_cell(
         &self,
         current_task: TaskId,
@@ -1949,6 +2226,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
     ) -> Result<TypedCellContent> {
         self.backend
             .try_read_own_task_cell(current_task, index, self)
+    }
+
+    fn drop_task_cell_content_hint(&self, task: TaskId, index: CellId) {
+        self.backend.drop_task_cell_content_hint(task, index, self)
     }
 
     #[track_caller]

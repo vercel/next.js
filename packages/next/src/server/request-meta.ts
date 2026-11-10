@@ -14,6 +14,7 @@ import type { OpaqueFallbackRouteParams } from './request/fallback-params'
 import type { IncrementalCache } from './lib/incremental-cache'
 import type { RevalidateFn } from './lib/router-utils/router-server-context'
 import type { NextRequest } from './web/exports'
+import type { RequestInsightsIdentity } from './lib/trace/request-insights-identity'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
@@ -49,6 +50,8 @@ export type OnCacheEntryHandler = (
 ) => Promise<boolean | void> | boolean | void
 
 export interface RequestMeta {
+  /** Server-owned identity for the development Request Insights timeline. */
+  requestInsightsIdentity?: RequestInsightsIdentity
   /**
    * The query that was used to make the request.
    */
@@ -69,6 +72,12 @@ export interface RequestMeta {
    * be read multiple times.
    */
   clonableBody?: CloneableBody
+
+  /**
+   * Exact byte length of the buffered body replacing the original request.
+   * Unlike Content-Length, this accounts for the proxy body buffering limit.
+   */
+  replayBodySize?: number
 
   /**
    * True when the request matched a locale domain that was configured in the
@@ -197,6 +206,11 @@ export interface RequestMeta {
    * The path we routed to and should be invoked
    */
   invokePath?: string
+
+  /**
+   * True when an App route matched the locale-prefixed invocation pathname.
+   */
+  didMatchLocalePrefixedPath?: boolean
 
   /**
    * The specific page output we should be matching

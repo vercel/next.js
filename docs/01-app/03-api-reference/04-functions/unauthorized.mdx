@@ -10,7 +10,7 @@ related:
     - app/api-reference/config/next-config-js/authInterrupts
 ---
 
-The `unauthorized` function throws an error that renders a Next.js 401 page. It's useful for handling authentication errors, when a request is not signed in. You can customize the UI using the [`unauthorized.js` file](/docs/app/api-reference/file-conventions/unauthorized).
+The `unauthorized` function throws an error that renders the unauthorized UI. It's useful for handling authentication errors when a request is not signed in. You can customize the UI using the [`unauthorized.js` file](/docs/app/api-reference/file-conventions/unauthorized).
 
 Invoking `unauthorized()` throws a `NEXT_HTTP_ERROR_FALLBACK;401` error and terminates rendering of the route segment where it was thrown. Next.js also injects a `<meta name="robots" content="noindex" />` tag so the page is not indexed. Because it works by throwing, call it in the render path: a component, or a function a component `await`s. A call left in an un-awaited promise throws where nothing catches it, and no unauthorized UI renders.
 
@@ -188,7 +188,7 @@ export default function Unauthorized() {
 
 The response starts streaming from the `<Suspense>` boundary before `unauthorized()` runs, so it keeps its `200` status. Next.js adds a `noindex` tag.
 
-Calling `unauthorized()` before streaming starts returns a `401`. A page that reaches `unauthorized()` during prerendering can remain `○` Static and serve a `401`. A request-time check can run in [Proxy](/docs/app/api-reference/file-conventions/proxy) before the page renders. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
+`unauthorized()` returns a `401` when it runs before the response starts, including during prerendering. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
 
 ### Displaying login UI to unauthenticated users
 
@@ -266,7 +266,7 @@ import db from '@/app/lib/db'
 export async function updateProfile(data: FormData) {
   const session = await verifySession()
 
-  // If the user is not authenticated, return a 401
+  // If unauthenticated, render the nearest unauthorized boundary
   if (!session) {
     unauthorized()
   }
@@ -286,7 +286,7 @@ import db from '@/app/lib/db'
 export async function updateProfile(data) {
   const session = await verifySession()
 
-  // If the user is not authenticated, return a 401
+  // If unauthenticated, render the nearest unauthorized boundary
   if (!session) {
     unauthorized()
   }
@@ -309,7 +309,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // Verify the user's session
   const session = await verifySession()
 
-  // If no session exists, return a 401 and render unauthorized.tsx
+  // If no session exists, return an empty 401 response
   if (!session) {
     unauthorized()
   }
@@ -326,7 +326,7 @@ import { unauthorized } from 'next/navigation'
 export async function GET() {
   const session = await verifySession()
 
-  // If the user is not authenticated, return a 401 and render unauthorized.tsx
+  // If the user is not authenticated, return an empty 401 response
   if (!session) {
     unauthorized()
   }

@@ -1,3 +1,4 @@
+// run deploy tests: v1
 import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
 import cookie from 'cookie'
@@ -46,7 +47,9 @@ describe('Prerender Preview Mode', () => {
   it('should throw error when setting too large of preview data', async () => {
     const res = await next.fetch('/api/preview?tooBig=true')
     expect(res.status).toBe(500)
-    expect(await res.text()).toBe('too big')
+    expect(await res.text()).toBe(
+      'Preview data is limited to 2KB currently, reduce how much data you are storing as preview data to continue'
+    )
   })
 
   let previewCookieString: string
@@ -72,6 +75,15 @@ describe('Prerender Preview Mode', () => {
     }
     expect(cookies[1]).toHaveProperty('__next_preview_data')
     expect(cookies[1]).not.toHaveProperty('Max-Age')
+
+    const payload = JSON.parse(
+      Buffer.from(
+        cookies[1].__next_preview_data.split('.')[1],
+        'base64url'
+      ).toString()
+    )
+    expect(payload).toHaveProperty('iat', expect.any(Number))
+    expect(payload).not.toHaveProperty('exp')
 
     previewCookieString =
       cookie.serialize('__prerender_bypass', cookies[0].__prerender_bypass) +
@@ -102,6 +114,53 @@ describe('Prerender Preview Mode', () => {
     }
     expect(cookies[1]).toHaveProperty('__next_preview_data')
     expect(cookies[1]['Max-Age']).toBe(expiry)
+
+    const payload = JSON.parse(
+      Buffer.from(
+        cookies[1].__next_preview_data.split('.')[1],
+        'base64url'
+      ).toString()
+    )
+    expect(payload.exp - payload.iat).toBe(Number(expiry))
+  })
+
+  it.each(['0', '-60'])(
+    'should reject preview data with maxAge %s',
+    async (maxAge) => {
+      const previewRes = await next.fetch(`/api/preview?cookieMaxAge=${maxAge}`)
+      expect(previewRes.status).toBe(200)
+
+      const cookies = previewRes.headers
+        .get('set-cookie')!
+        .split(',')
+        .map((raw) => cookie.parse(raw))
+      const previewCookie =
+        cookie.serialize('__prerender_bypass', cookies[0].__prerender_bypass) +
+        '; ' +
+        cookie.serialize('__next_preview_data', cookies[1].__next_preview_data)
+      const res = await next.fetch('/api/read', {
+        headers: { Cookie: previewCookie },
+      })
+
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({ previewData: false })
+    }
+  )
+
+  it('should reject preview data with an invalid signature', async () => {
+    const cookies = cookie.parse(previewCookieString)
+    const token = cookies.__next_preview_data.split('.')
+    token[2] = (token[2][0] === 'a' ? 'b' : 'a') + token[2].slice(1)
+    const previewCookie =
+      cookie.serialize('__prerender_bypass', cookies.__prerender_bypass) +
+      '; ' +
+      cookie.serialize('__next_preview_data', token.join('.'))
+    const res = await next.fetch('/api/read', {
+      headers: { Cookie: previewCookie },
+    })
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ previewData: false })
   })
 
   it('should set custom path cookies', async () => {

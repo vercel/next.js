@@ -43,7 +43,8 @@ use turbopack_core::{
     ident::Layer,
     issue::{CollectibleIssuesExt, IssueFilter},
     module_graph::{
-        ModuleGraph, SingleModuleGraph, binding_usage_info::compute_binding_usage_info,
+        ModuleGraph, ModuleGraphOptions, SingleModuleGraph,
+        binding_usage_info::compute_binding_usage_info,
     },
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
@@ -295,6 +296,10 @@ struct TestOptions {
     cjs_scope_hoisting: bool,
     #[serde(default)]
     minify: bool,
+    /// Minify each module factory on its own instead of the assembled chunk. Only has an effect
+    /// together with `minify`.
+    #[serde(default)]
+    minify_before_chunking: bool,
     #[serde(default)]
     production_chunking: bool,
     #[serde(default)]
@@ -333,6 +338,7 @@ impl Default for TestOptions {
             cross_module_constants: true,
             infer_module_side_effects: default_true(),
             minify: false,
+            minify_before_chunking: false,
             production_chunking: false,
             global_module_ids: false,
             numeric_module_ids: false,
@@ -414,7 +420,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     let test_path = project_path.join("input/index.js")?;
 
     let chunk_root_path = path.join("output")?;
-    let static_root_path = path.join("static")?;
+    // Static assets live inside the output root so that they are emitted together with the
+    // chunks, which lets tests check that a referenced asset was actually written.
+    let static_root_path = chunk_root_path.join("static")?;
 
     let chunk_root_path_in_root_path_offset = project_path
         .join("output")?
@@ -589,8 +597,19 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 
     let single_graph = SingleModuleGraph::new_with_entries(
         entries.graph_entries().to_resolved().await?,
-        false,
-        true,
+        ModuleGraphOptions {
+            include_binding_usage: true,
+            // `compute_side_effect_free_module_info` (run below via `compute_binding_usage_info`
+            // when removing unused imports) reads `side_effects` from the graph node.
+            include_side_effects: options.remove_unused_imports,
+            // Module merging (driven by `scope_hoisting` in the chunking context below) reads
+            // `is_mergeable` from the graph node and bails if absent.
+            include_mergeable: options.scope_hoisting,
+            // `get_global_module_id_strategy` (used for global/numeric ids below) reads the
+            // stringified ident from the graph node.
+            include_ident_strings: options.global_module_ids || options.numeric_module_ids,
+            ..Default::default()
+        },
     );
     let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
 
@@ -598,6 +617,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         Some(compute_binding_usage_info(
             module_graph,
             options.remove_unused_imports,
+            /* drop_unused_module_data */ false,
         ))
     } else {
         None
@@ -628,6 +648,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     } else {
         MinifyType::NoMinify
     })
+    .minify_before_chunking(options.minify_before_chunking)
     .export_usage(if options.remove_unused_exports {
         Some(binding_usage.unwrap().connect().to_resolved().await?)
     } else {

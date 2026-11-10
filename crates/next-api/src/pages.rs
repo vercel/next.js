@@ -18,7 +18,7 @@ use next_core::{
         BuildManifest, ClientBuildManifest, EdgeFunctionDefinition, MiddlewaresManifestV2,
         PagesManifest, ProxyMatcher, Regions,
     },
-    next_pages::create_page_ssr_entry_module,
+    next_pages::{PagesEntryKind, create_page_ssr_entry_module},
     next_server::{
         ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
     },
@@ -62,7 +62,7 @@ use turbopack_core::{
     },
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
-    reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
+    reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
     virtual_output::VirtualOutputAsset,
@@ -383,6 +383,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().encryption_key(),
+            self.project().client_source_map_generation_options(),
         ))
     }
 
@@ -471,6 +472,7 @@ impl PagesProject {
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
             *self.project().should_write_nft_manifests().await?,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -490,6 +492,7 @@ impl PagesProject {
             self.project().client_compile_time_info().environment(),
             // There is no NFT on edge,
             false,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -508,6 +511,7 @@ impl PagesProject {
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
             *self.project().should_write_nft_manifests().await?,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -527,6 +531,7 @@ impl PagesProject {
             self.project().client_compile_time_info().environment(),
             // There is no NFT on edge
             false,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -828,8 +833,7 @@ impl PageEndpoint {
         // availability, so both entry groups have to live in the same graph. Build a graph
         // "chain" for app, page -- the same layout segment optimization `ssr_module_graph` uses
         // for document, app, page.
-        let should_trace = *project.should_write_nft_manifests().await?;
-        let should_read_binding_usage = project.next_mode().await?.is_production();
+        let graph_options = project.module_graph_options().await?;
 
         let mut graphs = vec![];
         let mut visited_modules = VisitedModules::empty();
@@ -846,8 +850,7 @@ impl PageEndpoint {
                     heuristics: EntryHeuristics::default(),
                 }]),
                 visited_modules,
-                should_trace,
-                should_read_binding_usage,
+                graph_options,
             );
             graphs.push(graph);
             visited_modules = VisitedModules::concatenate(visited_modules, graph);
@@ -859,8 +862,7 @@ impl PageEndpoint {
                 heuristics: EntryHeuristics::default(),
             }]),
             visited_modules,
-            should_trace,
-            should_read_binding_usage,
+            graph_options,
         );
         graphs.push(graph);
 
@@ -874,9 +876,11 @@ impl PageEndpoint {
 
         if *project.per_page_module_graph().await? {
             let next_mode = project.next_mode();
-            let next_mode_ref = next_mode.await?;
-            let should_trace = *project.should_write_nft_manifests().await?;
-            let should_read_binding_usage = next_mode_ref.is_production();
+            let remove_unused_imports = *project
+                .next_config()
+                .turbopack_remove_unused_imports(next_mode)
+                .await?;
+            let graph_options = project.module_graph_options().await?;
 
             let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
             // Implements layout segment optimization to compute a graph "chain" for document, app,
@@ -894,8 +898,7 @@ impl PageEndpoint {
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
                     GraphEntries::from_chunk_groups(vec![layout_chunk_group_entry(module)]),
                     visited_modules,
-                    should_trace,
-                    should_read_binding_usage,
+                    graph_options,
                 );
                 graphs.push(graph);
                 visited_modules = VisitedModules::concatenate(visited_modules, graph);
@@ -907,19 +910,18 @@ impl PageEndpoint {
                     heuristics: EntryHeuristics::default(),
                 }]),
                 visited_modules,
-                should_trace,
-                should_read_binding_usage,
+                graph_options,
             );
             graphs.push(graph);
 
-            let remove_unused_imports = *project
-                .next_config()
-                .turbopack_remove_unused_imports(next_mode)
-                .await?;
-
             let graph = if remove_unused_imports {
                 let graph = ModuleGraph::from_graphs(graphs.clone(), None);
-                let binding_usage_info = compute_binding_usage_info(graph, true);
+                // This is a per-route graph: a module that is unused here might still be code
+                // generated via another graph, so dropping its data would only cause re-parses.
+                let binding_usage_info = compute_binding_usage_info(
+                    graph, /* remove_unused_imports */ true,
+                    /* drop_unused_module_data */ false,
+                );
                 ModuleGraph::from_graphs(graphs, Some(binding_usage_info))
             } else {
                 ModuleGraph::from_graphs(graphs, None)
@@ -1011,21 +1013,21 @@ impl PageEndpoint {
     async fn internal_ssr_chunk_module(self: Vc<Self>) -> Result<Vc<InternalSsrChunkModule>> {
         let this = self.await?;
 
-        let (reference_type, project_root, module_context, edge_module_context) = match this.ty {
+        let (kind, project_root, module_context, edge_module_context) = match this.ty {
             PageEndpointType::Html | PageEndpointType::SsrOnly => (
-                ReferenceType::Entry(EntryReferenceSubType::Page),
+                PagesEntryKind::Page,
                 this.pages_project.project().project_path().owned().await?,
                 this.pages_project.ssr_module_context(),
                 this.pages_project.edge_ssr_module_context(),
             ),
             PageEndpointType::Data => (
-                ReferenceType::Entry(EntryReferenceSubType::PageData),
+                PagesEntryKind::Data,
                 this.pages_project.project().project_path().owned().await?,
                 this.pages_project.ssr_module_context(),
                 this.pages_project.edge_ssr_module_context(),
             ),
             PageEndpointType::Api => (
-                ReferenceType::Entry(EntryReferenceSubType::PagesApi),
+                PagesEntryKind::Api,
                 this.pages_project.project().project_path().owned().await?,
                 this.pages_project.api_module_context(),
                 this.pages_project.edge_api_module_context(),
@@ -1043,7 +1045,7 @@ impl PageEndpoint {
             // rendering for edge is part of the page bundle.
             if this.pathname == "/_app" || this.pathname == "/_document" {
                 let ssr_module = module_context
-                    .process(self.source(), reference_type)
+                    .process(self.source(), kind.reference_type())
                     .module();
                 InternalSsrChunkModule {
                     ssr_module: ssr_module.to_resolved().await?,
@@ -1060,7 +1062,7 @@ impl PageEndpoint {
             } else {
                 let modules = create_page_ssr_entry_module(
                     this.pathname.clone(),
-                    reference_type,
+                    kind,
                     project_root,
                     if runtime == NextRuntime::Edge {
                         Vc::upcast(edge_module_context)
@@ -1446,6 +1448,8 @@ impl PageEndpoint {
             client_relative_path,
             pages,
             polyfill_files: Default::default(),
+            // App Router only for now; the Pages Router still inlines React's instructions.
+            external_browser_runtime_file: None,
             root_main_files: Default::default(),
             root_main_files_per_page: Default::default(),
             pages_chunk_group_bootstrap_params,

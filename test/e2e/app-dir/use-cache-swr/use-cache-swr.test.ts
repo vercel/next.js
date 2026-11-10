@@ -415,6 +415,37 @@ describe('use-cache-swr', () => {
     }
   })
 
+  // Development persists into its front cache before the configured write
+  // fails, so that failure does not leave the same stale entry to retry.
+  // @force-gate start
+  it('retries background revalidation after its handler write fails', async () => {
+    const id = `failed-refresh-${randomUUID()}`
+    const initial = await warmData(id)
+    const pathname = `/caller-context/warm?id=${id}`
+    const stale = await next.fetch(pathname).then((response) => response.json())
+    expect(stale.value).toBe(initial.value)
+    await retry(() => {
+      expect(getOutput()).toContain(
+        `PersistentCacheHandler::write-failed caller-context:${id}`
+      )
+    })
+    expect(dataRequestCountsByKey.get(`fill:${id}`)).toBe(2)
+    const retried = await next
+      .fetch(pathname)
+      .then((response) => response.json())
+    expect(retried.value).toBe(initial.value)
+    await retry(() => {
+      expect(dataRequestCountsByKey.get(`fill:${id}`)).toBe(3)
+      expect(getOutput()).toContain(
+        `PersistentCacheHandler::write-completed caller-context:${id}`
+      )
+    })
+    const refreshed = await next
+      .fetch(pathname)
+      .then((response) => response.json())
+    expect(refreshed.value).not.toBe(initial.value)
+  })
+
   it('should serve stale data and then refreshed data on a subsequent request', async () => {
     const browser = await next.browser('/')
     const initialOuter = await browser.elementById('outer-data').text()

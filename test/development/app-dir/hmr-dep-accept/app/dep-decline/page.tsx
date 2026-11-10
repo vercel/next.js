@@ -17,6 +17,8 @@ export default function DepDeclinePage() {
     if (import.meta.turbopackHot) {
       // Decline updates for this dependency — should trigger full reload
       import.meta.turbopackHot.decline('./dep')
+    } else if (import.meta.webpackHot) {
+      import.meta.webpackHot.decline('./dep')
     }
   }, [])
 

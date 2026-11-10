@@ -30,16 +30,20 @@ use turbo_tasks::{FxIndexSet, ResolvedVc, Vc, duration_span};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
+#[cfg(test)]
+use crate::pool_stats::PoolStatsSnapshot;
 use crate::{
     AssetsForSourceMapping,
     backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
     evaluate::{EvaluateOperation, EvaluatePool, NodeJsConnectError, Operation},
     format::FormattingMode,
-    pool_stats::{AcquiredPermits, NodeJsPoolStats, PoolStatsSnapshot},
+    pool_stats::{AcquiredPermits, NodeJsPoolStats},
     source_map::apply_source_mapping,
 };
 
 mod heap_queue;
+#[cfg(test)]
+mod tests;
 use heap_queue::HeapQueue;
 
 struct NodeJsPoolProcess {
@@ -127,7 +131,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
     /// lines that has beem emitted by other [OutputStreamHandler] instances
     /// with the same `shared` before.
     /// Returns when one operation is done.
-    pub async fn handle_operation(&mut self) -> Result<()> {
+    async fn handle_operation(&mut self) -> Result<()> {
         let Self {
             stream,
             shared,
@@ -625,13 +629,13 @@ impl ProcessArgs {
     eq = "manual",
     shared
 )]
-pub struct ChildProcessPool {
+struct ChildProcessPool {
     cwd: PathBuf,
     entrypoint: PathBuf,
     env: FxHashMap<RcStr, RcStr>,
-    pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    pub assets_root: FileSystemPath,
-    pub project_dir: FileSystemPath,
+    assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    assets_root: FileSystemPath,
+    project_dir: FileSystemPath,
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
     idle_processes: Arc<HeapQueue<NodeJsPoolProcess>>,
     /// Semaphore to limit the number of concurrent operations in general
@@ -653,7 +657,7 @@ pub struct ChildProcessPool {
 impl ChildProcessPool {
     /// * debug: Whether to automatically enable Node's `--inspect-brk` when spawning it. Note:
     ///   automatically overrides concurrency to 1.
-    pub fn create(
+    fn create(
         cwd: PathBuf,
         entrypoint: PathBuf,
         env: FxHashMap<RcStr, RcStr>,
@@ -762,6 +766,7 @@ impl EvaluateOperation for ChildProcessPool {
     }
 
     /// Returns a snapshot of the pool's internal statistics.
+    #[cfg(test)]
     fn stats(&self) -> PoolStatsSnapshot {
         self.stats.lock().snapshot()
     }
@@ -863,14 +868,14 @@ impl ChildProcessPool {
             .context("creating new process")
     }
 
-    pub fn scale_down() {
+    fn scale_down() {
         let pools = ACTIVE_POOLS.lock().clone();
         for pool in pools {
             pool.reduce_to_one();
         }
     }
 
-    pub fn scale_zero() {
+    fn scale_zero() {
         let pools = ACTIVE_POOLS.lock().clone();
         for pool in pools {
             pool.reduce_to_zero(&ACTIVE_POOLS);
@@ -878,7 +883,7 @@ impl ChildProcessPool {
     }
 }
 
-pub struct ChildProcessOperation {
+struct ChildProcessOperation {
     process: Option<NodeJsPoolProcess>,
     // This is used for drop
     #[allow(dead_code)]

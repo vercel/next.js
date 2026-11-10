@@ -2,7 +2,7 @@
 
 0 -> 2 dynamic import = FreeVar(import)("a")
 
-0 -> 5 free var = FreeVar(process)
+4 -> 5 free var = FreeVar(process)
 
 0 -> 6 conditional = (process.env*0*["NEXT_RUNTIME"] === "edge")
 - *0* process.env: The Node.js process.env property: https://nodejs.org/api/process.html#processenv

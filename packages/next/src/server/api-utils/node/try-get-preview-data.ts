@@ -85,11 +85,14 @@ export function tryGetPreviewData(
     data: string
   }
   try {
-    const jsonwebtoken =
-      require('next/dist/compiled/jsonwebtoken') as typeof import('next/dist/compiled/jsonwebtoken')
-    encryptedPreviewData = jsonwebtoken.verify(
-      tokenPreviewData,
-      options.previewModeSigningKey
+    const { createVerifier } =
+      require('next/dist/compiled/fast-jwt') as typeof import('next/dist/compiled/fast-jwt')
+    const verify = createVerifier({
+      key: options.previewModeSigningKey,
+      algorithms: ['HS256'],
+    })
+    encryptedPreviewData = verify(
+      tokenPreviewData
     ) as typeof encryptedPreviewData
   } catch {
     // TODO: warn

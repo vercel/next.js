@@ -218,7 +218,8 @@ impl SnapshotCoordinator {
     /// operations from entering, then atomically close admission at a zero-active boundary.
     ///
     /// Waits for as long as it takes. If the wait gets long, `on_slow_settle` is called after
-    /// [`SLOW_SETTLE_REPORT`] and again each time the total wait doubles.
+    /// the slow-settle report timeout (by default [`DEFAULT_SLOW_SETTLE_REPORT_TIME`]) and again
+    /// each time the total wait doubles.
     ///
     /// Concurrent callers panic. Production callers
     /// must serialize themselves (see `snapshot_in_progress` lock in

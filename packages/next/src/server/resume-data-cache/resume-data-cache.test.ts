@@ -24,7 +24,7 @@ function createMockedCache() {
       entry: {
         value: streamFromString('value'),
         tags: [],
-        stale: 0,
+        stale: 30,
         timestamp: 0,
         expire: 300,
         revalidate: 1,
@@ -43,7 +43,7 @@ function createMockedCache() {
       entry: {
         value: streamFromString('value'),
         tags: [],
-        stale: 0,
+        stale: 30,
         timestamp: 0,
         expire: 299,
         revalidate: 1,
@@ -62,10 +62,28 @@ function createMockedCache() {
       entry: {
         value: streamFromString('value'),
         tags: [],
-        stale: 0,
+        stale: 30,
         timestamp: 0,
         expire: 300,
         revalidate: 0,
+      },
+      hasExplicitRevalidate: true,
+      hasExplicitExpire: true,
+      readRootParamNames: undefined,
+      dynamicNestedCacheError: undefined,
+    })
+  )
+
+  cache.cache.set(
+    'non-prefetchable',
+    Promise.resolve({
+      entry: {
+        value: streamFromString('value'),
+        tags: [],
+        stale: 29,
+        timestamp: 0,
+        expire: 300,
+        revalidate: 1,
       },
       hasExplicitRevalidate: true,
       hasExplicitExpire: true,
@@ -166,11 +184,11 @@ describe('stringifyResumeDataCache', () => {
 
     if (isCacheComponentsEnabled) {
       expect(serialized).toMatchInlineSnapshot(
-        `"{"store":{"fetch":{},"cache":{"success":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":1}},"encryptedBoundArgs":{}}}"`
+        `"{"store":{"fetch":{},"cache":{"success":{"entry":{"value":"dmFsdWU=","tags":[],"stale":30,"timestamp":0,"expire":300,"revalidate":1},"hasExplicitRevalidate":true,"hasExplicitExpire":true}},"encryptedBoundArgs":{}}}"`
       )
     } else {
       expect(serialized).toMatchInlineSnapshot(
-        `"{"store":{"fetch":{},"cache":{"success":{"entry":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":1},"hasExplicitRevalidate":true,"hasExplicitExpire":true},"dynamic-expire":{"entry":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":299,"revalidate":1},"hasExplicitRevalidate":true,"hasExplicitExpire":true},"zero-revalidate":{"entry":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":0},"hasExplicitRevalidate":true,"hasExplicitExpire":true}},"encryptedBoundArgs":{}}}"`
+        `"{"store":{"fetch":{},"cache":{"success":{"entry":{"value":"dmFsdWU=","tags":[],"stale":30,"timestamp":0,"expire":300,"revalidate":1},"hasExplicitRevalidate":true,"hasExplicitExpire":true},"dynamic-expire":{"entry":{"value":"dmFsdWU=","tags":[],"stale":30,"timestamp":0,"expire":299,"revalidate":1},"hasExplicitRevalidate":true,"hasExplicitExpire":true},"zero-revalidate":{"entry":{"value":"dmFsdWU=","tags":[],"stale":30,"timestamp":0,"expire":300,"revalidate":0},"hasExplicitRevalidate":true,"hasExplicitExpire":true},"non-prefetchable":{"entry":{"value":"dmFsdWU=","tags":[],"stale":29,"timestamp":0,"expire":300,"revalidate":1},"hasExplicitRevalidate":true,"hasExplicitExpire":true}},"encryptedBoundArgs":{}}}"`
       )
     }
   })
@@ -187,11 +205,11 @@ describe('stringifyResumeDataCache', () => {
     // but the failed entry will be ignored and omitted from the output.
     if (isCacheComponentsEnabled) {
       expect(serialized).toMatchInlineSnapshot(
-        `"{"store":{"fetch":{},"cache":{"success":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":1}},"encryptedBoundArgs":{}}}"`
+        `"{"store":{"fetch":{},"cache":{"success":{"entry":{"value":"dmFsdWU=","tags":[],"stale":30,"timestamp":0,"expire":300,"revalidate":1},"hasExplicitRevalidate":true,"hasExplicitExpire":true}},"encryptedBoundArgs":{}}}"`
       )
     } else {
       expect(serialized).toMatchInlineSnapshot(
-        `"{"store":{"fetch":{},"cache":{"success":{"entry":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":1},"hasExplicitRevalidate":true,"hasExplicitExpire":true},"dynamic-expire":{"entry":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":299,"revalidate":1},"hasExplicitRevalidate":true,"hasExplicitExpire":true},"zero-revalidate":{"entry":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":0},"hasExplicitRevalidate":true,"hasExplicitExpire":true}},"encryptedBoundArgs":{}}}"`
+        `"{"store":{"fetch":{},"cache":{"success":{"entry":{"value":"dmFsdWU=","tags":[],"stale":30,"timestamp":0,"expire":300,"revalidate":1},"hasExplicitRevalidate":true,"hasExplicitExpire":true},"dynamic-expire":{"entry":{"value":"dmFsdWU=","tags":[],"stale":30,"timestamp":0,"expire":299,"revalidate":1},"hasExplicitRevalidate":true,"hasExplicitExpire":true},"zero-revalidate":{"entry":{"value":"dmFsdWU=","tags":[],"stale":30,"timestamp":0,"expire":300,"revalidate":0},"hasExplicitRevalidate":true,"hasExplicitExpire":true},"non-prefetchable":{"entry":{"value":"dmFsdWU=","tags":[],"stale":29,"timestamp":0,"expire":300,"revalidate":1},"hasExplicitRevalidate":true,"hasExplicitExpire":true}},"encryptedBoundArgs":{}}}"`
       )
     }
   })
@@ -243,7 +261,7 @@ describe('parseResumeDataCache', () => {
         disableResumeDataCacheCompression
       )
 
-      expect(parsed.cache.size).toBe(isCacheComponentsEnabled ? 1 : 3)
+      expect(parsed.cache.size).toBe(isCacheComponentsEnabled ? 1 : 4)
       expect(parsed.fetch.size).toBe(0)
       expect(parsed.cache.has('fallback-hole')).toBe(false)
       expect(parsed.cache.has('runtime-hole')).toBe(false)

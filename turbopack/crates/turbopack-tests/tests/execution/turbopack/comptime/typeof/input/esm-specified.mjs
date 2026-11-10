@@ -1,0 +1,10 @@
+globalThis.typeofs ??= {}
+globalThis.typeofs['esm-specified'] = {
+  require: typeof require,
+  importMeta: typeof import.meta,
+  // ESM, should be `undefined`
+  module: typeof module,
+  exports: typeof exports,
+  // ESM, should be require stub
+  requireValue: require,
+}
