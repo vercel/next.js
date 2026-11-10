@@ -1,11 +1,11 @@
 import { RouteKind } from 'next/dist/server/route-kind'
 import { nextTestSetup } from 'e2e-utils'
 import imageSize from 'image-size'
-import { check, getDistDir } from 'next-test-utils'
+import { check, expectDirectives, getDistDir } from 'next-test-utils'
 
 const CACHE_HEADERS = {
-  NONE: 'no-cache, no-store',
-  REVALIDATE: 'public, max-age=0, must-revalidate',
+  NONE: ['no-cache', 'no-store'],
+  REVALIDATE: ['public', 'max-age=0', 'must-revalidate'],
 }
 
 const hashRegex = /\?\w+/
@@ -24,7 +24,10 @@ describe('app dir - metadata dynamic routes', () => {
       const text = await res.text()
 
       expect(res.headers.get('content-type')).toContain('text/plain')
-      expect(res.headers.get('cache-control')).toBe(CACHE_HEADERS.REVALIDATE)
+      expectDirectives(
+        res.headers.get('cache-control'),
+        CACHE_HEADERS.REVALIDATE
+      )
 
       expect(text).toMatchInlineSnapshot(`
         "User-Agent: Googlebot
@@ -48,7 +51,10 @@ describe('app dir - metadata dynamic routes', () => {
       const text = await res.text()
 
       expect(res.headers.get('content-type')).toBe('application/xml')
-      expect(res.headers.get('cache-control')).toBe(CACHE_HEADERS.REVALIDATE)
+      expectDirectives(
+        res.headers.get('cache-control'),
+        CACHE_HEADERS.REVALIDATE
+      )
 
       expect(text).toMatchInlineSnapshot(`
              "<?xml version="1.0" encoding="UTF-8"?>
@@ -191,7 +197,10 @@ describe('app dir - metadata dynamic routes', () => {
       expect(res.headers.get('content-type')).toContain(
         'application/manifest+json'
       )
-      expect(res.headers.get('cache-control')).toBe(CACHE_HEADERS.REVALIDATE)
+      expectDirectives(
+        res.headers.get('cache-control'),
+        CACHE_HEADERS.REVALIDATE
+      )
 
       expect(json).toMatchObject({
         name: 'Next.js App',
@@ -215,7 +224,8 @@ describe('app dir - metadata dynamic routes', () => {
       const res = await next.fetch('/opengraph-image')
 
       expect(res.headers.get('content-type')).toBe('image/png')
-      expect(res.headers.get('cache-control')).toBe(
+      expectDirectives(
+        res.headers.get('cache-control'),
         isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.REVALIDATE
       )
     })
@@ -225,7 +235,8 @@ describe('app dir - metadata dynamic routes', () => {
       let res = await next.fetch('/twitter-image')
 
       expect(res.headers.get('content-type')).toBe('image/png')
-      expect(res.headers.get('cache-control')).toBe(
+      expectDirectives(
+        res.headers.get('cache-control'),
         isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.REVALIDATE
       )
 
@@ -247,7 +258,8 @@ describe('app dir - metadata dynamic routes', () => {
       // edge runtime
       res = await next.fetch('/twitter-image2')
       expect(res.headers.get('content-type')).toBe('image/png')
-      expect(res.headers.get('cache-control')).toBe(
+      expectDirectives(
+        res.headers.get('cache-control'),
         isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.REVALIDATE
       )
     })
@@ -348,7 +360,8 @@ describe('app dir - metadata dynamic routes', () => {
       const res = await next.fetch('/icon')
 
       expect(res.headers.get('content-type')).toBe('image/png')
-      expect(res.headers.get('cache-control')).toBe(
+      expectDirectives(
+        res.headers.get('cache-control'),
         isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.REVALIDATE
       )
     })
@@ -357,7 +370,8 @@ describe('app dir - metadata dynamic routes', () => {
       const res = await next.fetch('/apple-icon')
 
       expect(res.headers.get('content-type')).toBe('image/png')
-      expect(res.headers.get('cache-control')).toBe(
+      expectDirectives(
+        res.headers.get('cache-control'),
         isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.REVALIDATE
       )
     })

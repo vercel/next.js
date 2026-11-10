@@ -2,18 +2,18 @@ import { nextTestSetup } from 'e2e-utils'
 // TODO(deploy-test-completion): Assertions may differ from a local Next.js
 // server when deployed.
 // @force-gate !deploy
-// @force-gate !start || !turbopackDev
 describe('API routes', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
 
   it('should return data when catch-all', async () => {
-    const data = await next
-      .fetch('/api/users/1', {})
-      .then((res) => res.ok && res.json())
-
-    expect(data).toEqual({ slug: ['1'] })
+    const res = await next.fetch('/api/users/1')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      route: 'users',
+      query: { slug: ['1'] },
+    })
   })
 
   it('should return redirect when catch-all with index and trailing slash', async () => {
@@ -26,18 +26,14 @@ describe('API routes', () => {
   })
 
   it('should return data when catch-all with index and trailing slash', async () => {
-    const data = await next
-      .fetch('/api/users/', {})
-      .then((res) => res.ok && res.json())
-
-    expect(data).toEqual({})
+    const res = await next.fetch('/api/users/')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ route: 'users', query: {} })
   })
 
   it('should return data when catch-all with index and no trailing slash', async () => {
-    const data = await next
-      .fetch('/api/users', {})
-      .then((res) => res.ok && res.json())
-
-    expect(data).toEqual({})
+    const res = await next.fetch('/api/users')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ route: 'users', query: {} })
   })
 })

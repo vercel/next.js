@@ -158,7 +158,7 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
 
     /// Noop. Urls in `@supports` are not used.
     ///
-    /// See https://github.com/vercel/next.js/issues/63102
+    /// See <https://github.com/vercel/next.js/issues/63102>
     fn visit_supports_condition(
         &mut self,
         _: &mut lightningcss::rules::supports::SupportsCondition<'_>,

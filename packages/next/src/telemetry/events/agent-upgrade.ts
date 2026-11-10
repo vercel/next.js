@@ -1,3 +1,5 @@
+import type { PackageManager } from '../../lib/helpers/get-pkg-manager'
+
 // Shared values keep event payloads consistent across the CLI, nudges, and handoffs.
 export type AgentUpgradePolicy = 'security' | 'latest' | 'experimental-future'
 
@@ -65,6 +67,10 @@ export function eventAgentUpgradeRunStarted(fields: {
   origin: AgentUpgradeOrigin
   agentProduct: string | null
   requestedPolicy: AgentUpgradePolicy | null
+  fromVersion: string | null
+  nodeVersion: string
+  packageManager: PackageManager | null
+  packageManagerVersion: string | null
 }) {
   return event('NEXT_AGENT_UPGRADE_RUN_STARTED', fields)
 }
@@ -76,6 +82,8 @@ export function eventAgentUpgradeCLIResult(fields: {
   resolvedPolicy: AgentUpgradePolicy | null
   handoffMethod: AgentUpgradeHandoffMethod | null
   selectedAgentProduct: string | null
+  fromVersion: string | null
+  targetVersion: string | null
 }) {
   return event('NEXT_AGENT_UPGRADE_CLI_RESULT', fields)
 }
@@ -84,6 +92,7 @@ export function eventAgentUpgradeCLIResult(fields: {
 export function eventAgentUpgradeAgentResult(fields: {
   runId: string
   result: 'success' | 'failure'
+  resultVersion: string | null
 }) {
   return event('NEXT_AGENT_UPGRADE_AGENT_RESULT', fields)
 }

@@ -1,4 +1,4 @@
-error - [bindings] /turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/this-export/input/index.js:1:0  Export used doesn't exist in target module
+error - [bindings] /turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/this-export/input/index.js:1:1  Export used doesn't exist in target module
   
          + v-----------------------------v
        1 + import { used } from './lib.js'

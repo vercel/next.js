@@ -1,0 +1,4 @@
+# `node-pty` downloads or compiles its native binary in an install script, and
+# pnpm does not run a dependency's build scripts unless they are approved here.
+allowBuilds:
+  node-pty: true

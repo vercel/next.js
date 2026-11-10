@@ -1,3 +1,4 @@
+import stripAnsi from 'strip-ansi'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('import.meta.glob matching a file without a module type', () => {
@@ -13,12 +14,14 @@ describe('import.meta.glob matching a file without a module type', () => {
 
   it('should say which glob matched the file', async () => {
     const { cliOutput, exitCode } = await next.build()
+    // The call site is shown in a syntax highlighted code frame.
+    const output = stripAnsi(cliOutput)
 
     expect(exitCode).not.toBe(0)
-    expect(cliOutput).toContain('gamma.txt')
+    expect(output).toContain('gamma.txt')
     // The call site, so the glob that pulled the file in can be found.
-    expect(cliOutput).toContain('app/x-txt/page.tsx')
-    expect(cliOutput).toContain('import.meta.glob')
+    expect(output).toContain('app/x-txt/page.tsx')
+    expect(output).toContain('import.meta.glob')
   })
 
   it('should link to the current webpack loaders documentation', async () => {

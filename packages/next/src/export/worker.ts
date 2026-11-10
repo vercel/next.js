@@ -59,6 +59,7 @@ import type { PagesRenderContext, PagesSharedContext } from '../server/render'
 import type { AppSharedContext } from '../server/app-render/app-render'
 import { MultiFileWriter } from '../lib/multi-file-writer'
 import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
+import { getExportPathPageKey } from './utils'
 import { installGlobalBehaviors } from '../server/node-environment-extensions/global-behaviors'
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
@@ -148,7 +149,7 @@ async function exportPageImpl(
   let updatedPath = exportPath._ssgPath || path
   let locale = exportPath._locale || commonRenderOpts.locale
 
-  if (commonRenderOpts.locale) {
+  if (commonRenderOpts.locale && !isAppDir) {
     const localePathResult = normalizeLocalePath(path, commonRenderOpts.locales)
 
     if (localePathResult.detectedLocale) {
@@ -318,7 +319,11 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
-    const routeMatch: RouteMatch = { resolvedPathname }
+    const routeMatch: RouteMatch = {
+      resolvedPathname,
+      // Build prerenders currently have no Vary header to mark interception.
+      couldBeIntercepted: false,
+    }
     const sharedContext: AppSharedContext = {
       buildId,
       deploymentId,
@@ -328,6 +333,7 @@ async function exportPageImpl(
     return exportAppPage(
       req,
       res,
+      req.url,
       page,
       path,
       pathname,
@@ -438,7 +444,7 @@ export async function exportPages(
     maxAttempts: number
   ) => {
     const { page, path } = exportPath
-    const pageKey = page !== path ? `${page}: ${path}` : path
+    const pageKey = getExportPathPageKey(exportPath)
     let attempt = 0
     let result
 

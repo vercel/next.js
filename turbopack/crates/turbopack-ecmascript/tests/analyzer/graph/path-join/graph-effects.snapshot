@@ -197,6 +197,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Module,
@@ -321,6 +322,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Module,
@@ -445,6 +447,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Module,
@@ -569,6 +572,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Module,
@@ -693,6 +697,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Module,
@@ -995,6 +1000,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Module,
@@ -1058,6 +1064,54 @@
                 ),
             ),
         ),
+        base_effects: [
+            ImportedBinding {
+                esm_reference_index: 1,
+                export: Some(
+                    "default",
+                ),
+                member: Some(
+                    "join",
+                ),
+                ast_path: [
+                    Program(
+                        Module,
+                    ),
+                    Module(
+                        Body(
+                            11,
+                        ),
+                    ),
+                    ModuleItem(
+                        Stmt,
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 486..488,
+            },
+        ],
         ast_path: [
             Program(
                 Module,
@@ -1090,52 +1144,6 @@
         ],
         span: 486..493,
         in_truthiness_context: false,
-    },
-    ImportedBinding {
-        esm_reference_index: 1,
-        export: Some(
-            "default",
-        ),
-        member: Some(
-            "join",
-        ),
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    11,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 486..488,
     },
     ImportedBinding {
         esm_reference_index: 3,

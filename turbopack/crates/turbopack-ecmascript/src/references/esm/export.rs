@@ -654,9 +654,12 @@ async fn compact_reference_target(
     let referenced_asset =
         ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?;
     let Some(ReferencedAssetIdent::Module {
-        namespace_ident,
         ctxt,
-        import_source: ImportSource::Module { asset },
+        import_source:
+            ImportSource::Module {
+                asset,
+                namespace_ident,
+            },
         ..
     }) = referenced_asset
         .get_ident(chunking_context, None, scope_hoisting_context)
@@ -774,10 +777,13 @@ async fn build_compact_reexports(
         let referenced_asset =
             ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
         let Some(ReferencedAssetIdent::Module {
-            namespace_ident,
             ctxt,
             export: Some(imported_key),
-            import_source: ImportSource::Module { asset },
+            import_source:
+                ImportSource::Module {
+                    asset,
+                    namespace_ident,
+                },
         }) = referenced_asset
             .get_ident(
                 chunking_context,
@@ -1035,7 +1041,7 @@ impl EsmExports {
 
             for dynamic_export_asset in &expanded.dynamic_exports {
                 let ident = ReferencedAsset::get_ident_from_placeable(
-                    dynamic_export_asset,
+                    **dynamic_export_asset,
                     chunking_context,
                 )
                 .await?;
@@ -1262,20 +1268,17 @@ impl EsmExports {
                     .into(),
                 ));
                 match exprs {
-                    // Accessors carry the discriminator, values do not. Values are by far the
-                    // common case, and tagging the accessors is still unambiguous: the tag is
-                    // always followed by a function, while a value of `0` is followed by the next
-                    // binding's name or by the end of the array.
                     ExportBinding::Getter(getter) => {
-                        getters.push(Some(Expr::Lit(Lit::Num(Number::from(0))).into()));
                         getters.push(Some(getter.into()));
                     }
                     ExportBinding::GetterSetter(getter, setter) => {
-                        getters.push(Some(Expr::Lit(Lit::Num(Number::from(0))).into()));
                         getters.push(Some(getter.into()));
                         getters.push(Some(setter.into()));
                     }
                     ExportBinding::Value(value) => {
+                        // We need to push a discriminator in this case to make the fact that we are
+                        // binding a value unambiguous to the runtime.
+                        getters.push(Some(Expr::Lit(Lit::Num(Number::from(0))).into()));
                         getters.push(Some(value.into()));
                     }
                     ExportBinding::None => {}

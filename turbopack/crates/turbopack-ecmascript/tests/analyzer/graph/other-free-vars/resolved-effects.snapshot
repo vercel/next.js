@@ -1,6 +1,6 @@
 0 -> 1 free var = FreeVar(Object)
 
-0 -> 3 free var = FreeVar(Object)
+2 -> 3 free var = FreeVar(Object)
 
 0 -> 4 member call = Object*0*["keys"](Object*1*)
 - *0* Object: The global Object variable

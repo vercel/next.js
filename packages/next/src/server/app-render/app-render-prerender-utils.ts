@@ -1,5 +1,9 @@
 import type { Readable } from 'node:stream'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import {
+  encodeTextChunk,
+  nodeToWebByteStream,
+} from '../stream-utils/node-web-streams-helper'
 
 export type AnyStream = ReadableStream<Uint8Array> | Readable
 
@@ -55,9 +59,7 @@ export class ReactServerResult {
           __non_webpack_require__('node:stream') as typeof import('node:stream')
         ).Readable
       }
-      const webStream = Readable.toWeb(
-        this._stream
-      ) as ReadableStream<Uint8Array>
+      const webStream = nodeToWebByteStream(this._stream)
       const tee = webStream.tee()
       this._stream = Readable.fromWeb(
         tee[0] as import('stream/web').ReadableStream
@@ -86,35 +88,36 @@ export class ReactServerResult {
 }
 
 type ReplayableStreamSubscriber = {
-  onChunk: (chunk: Uint8Array) => void
+  onChunk: (chunk: string | Uint8Array) => void
   onEnd: () => void
   onError: (err: Error) => void
 }
 
 /**
- * Buffers all chunks from a Node.js Readable stream and allows creating new
+ * Buffers byte or string chunks from a Node.js Readable stream and allows creating new
  * Readable streams that replay the buffered chunks plus any subsequent chunks
  * from the source. Multiple replay streams can be created independently.
  */
 export class ReplayableNodeStream {
-  private _chunks: Array<Uint8Array> | null
+  private _chunks: Array<string | Uint8Array> | null
   private _done: boolean
   private _error: Error | null
   private _subscribers: Set<ReplayableStreamSubscriber>
+  private _objectMode: boolean
 
   constructor(stream: Readable) {
     this._chunks = []
     this._done = false
     this._error = null
     this._subscribers = new Set()
+    this._objectMode = stream.readableObjectMode
 
-    stream.on('data', (chunk: Buffer | Uint8Array) => {
-      const buf = chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk)
+    stream.on('data', (chunk: string | Uint8Array) => {
       if (this._chunks !== null) {
-        this._chunks.push(buf)
+        this._chunks.push(chunk)
       }
       for (const sub of this._subscribers) {
-        sub.onChunk(buf)
+        sub.onChunk(chunk)
       }
     })
 
@@ -180,6 +183,9 @@ export class ReplayableNodeStream {
     const sourceError = this._error
 
     const stream = new ReadableCtor({
+      // Replay the source representation, including the original boundaries
+      // that the Node Flight reader uses to frame text rows.
+      objectMode: this._objectMode,
       read() {
         if (!bufferDrained) {
           bufferDrained = true
@@ -269,7 +275,7 @@ export async function createReactServerPrerenderResultFromRender(
     }
   } else {
     for await (const chunk of underlying) {
-      chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk))
+      chunks.push(encodeTextChunk(chunk))
     }
   }
 

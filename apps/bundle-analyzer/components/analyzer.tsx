@@ -32,15 +32,21 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
+import {
+  AnalyzeData,
+  ModulesData,
+  assertMatchingModuleIndex,
+} from '@/lib/analyze-data'
 import {
   analyzeDataUrl,
   fetchAnalyzeData,
   fetchModulesData,
+  routesFromSummaries,
   useHistoryIndex,
   useSuspenseJsonData,
+  useSuspenseRouteSummaries,
 } from '@/lib/analyzer-data'
-import { diffRoutesWithSizes, diffSources, type RouteSummary } from '@/lib/diff'
+import { diffRoutesWithSizes, diffSources } from '@/lib/diff'
 import { useSidebarResize } from '@/lib/use-sidebar-resize'
 import { useAnalyzerRoute } from '@/lib/use-analyzer-route'
 import {
@@ -48,7 +54,7 @@ import {
   computeModuleDepthMap,
   computeSourceLoadScopes,
 } from '@/lib/module-graph'
-import type { SnapshotMetadata } from '@/lib/snapshot'
+import { snapshotBaseDir, type SnapshotMetadata } from '@/lib/snapshot'
 import { NetworkError } from '@/lib/errors'
 import { formatBytes } from '@/lib/utils'
 import { createAnalyzeTreemapSource, SizeMode } from '@/lib/treemap-layout'
@@ -165,12 +171,10 @@ function useAnalyzerModel(compare: boolean) {
   )
 
   // Routes for the active build, which is also comparison side B.
-  const currentRoutes = useSuspenseJsonData<string[]>(
-    `${comparisonBaseDir}/routes.json`,
-    { revalidateOnFocus: false, revalidateOnReconnect: false }
-  )
+  const routeSummaries = useSuspenseRouteSummaries(comparisonBaseDir)
+  const currentRoutes = routesFromSummaries(routeSummaries)
 
-  // Whether the selected route exists on comparison side B. routes.json is
+  // Whether the selected route exists on comparison side B. The summaries are
   // the source of truth because output directories can retain stale routes.
   const currentAnalyzeRouteExists =
     selectedRoute != null && currentRoutes.includes(selectedRoute)
@@ -214,7 +218,7 @@ function useAnalyzerModel(compare: boolean) {
   // previous selection is unlikely to exist in the new diff.
   useEffect(() => {
     setCompareSelectedKey(null)
-  }, [selectedRoute, routeState.fromId, routeState.toId])
+  }, [selectedRoute, routeState.fromName, routeState.toName])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -245,6 +249,7 @@ function useAnalyzerModel(compare: boolean) {
     if (!analyzeData) {
       return { moduleDepthMap: new Map(), sourceLoadScopes: new Map() }
     }
+    assertMatchingModuleIndex(modulesData, analyzeData, 'Current snapshot')
 
     const activeEntries = computeActiveEntries(modulesData, analyzeData)
     return {
@@ -305,10 +310,6 @@ function useAnalyzerModel(compare: boolean) {
     })
   }, [analyzeData, baselineSnapshot, filterSource])
 
-  const routeSummaries = useSuspenseJsonData<RouteSummary[]>(
-    `${comparisonBaseDir}/route-summaries.json`,
-    { revalidateOnFocus: false, revalidateOnReconnect: false }
-  )
   const clientRouteTotals = new Map(
     routeSummaries.map(({ route, client }) => [
       route,
@@ -333,19 +334,20 @@ function useAnalyzerModel(compare: boolean) {
   return {
     analyzeData,
     baselineSnapshot,
-    baselineIsLatest: compare && routeState.fromId === 'latest',
+    baselineIsLatest: compare && routeState.fromName === null,
     compareSelectedKey,
     compareView: activeView,
     comparisonSnapshot,
     historySnapshots: history?.snapshots ?? [],
     historyError: historyError instanceof NetworkError,
     invalidComparison: routeState.invalidComparison,
+    invalidSingleBuild: routeState.invalidSingleBuild,
     latestSnapshot,
     isCompareMode: compare,
-    singleBuildId: routeState.singleBuildId,
+    singleBuildName: routeState.singleBuildName,
     singleSnapshot: routeState.singleSnapshot,
-    fromId: routeState.fromId,
-    toId: routeState.toId,
+    fromName: routeState.fromName,
+    toName: routeState.toName,
     activeBaseDir: routeState.activeBaseDir,
     currentRoutes,
     routePickerOpen,
@@ -439,9 +441,9 @@ function AnalyzerTopBar({
       historyLoading={model.isHistoryLoading}
       historyError={model.historyError}
       latestSnapshot={model.latestSnapshot}
-      singleBuildId={model.singleBuildId}
-      fromId={model.fromId}
-      toId={model.toId}
+      singleBuildName={model.singleBuildName}
+      fromName={model.fromName}
+      toName={model.toName}
       onSingleBuildChange={model.routeState.setSingleBuild}
       onComparisonChange={model.routeState.setComparison}
       routesBaseDir={model.activeBaseDir}
@@ -470,7 +472,7 @@ function CompareAnalyzerView({ model }: { model: AnalyzerModel }) {
   if (
     model.baselineSnapshot &&
     !model.invalidComparison &&
-    model.fromId !== (model.toId ?? 'latest')
+    model.fromName !== model.toName
   )
     return <ValidComparison model={model} />
 
@@ -501,7 +503,7 @@ function ValidComparisonContent({
 }) {
   const baselineBaseDir = model.baselineIsLatest
     ? '/data'
-    : `/history/${baselineSnapshot.id}`
+    : snapshotBaseDir(baselineSnapshot)
   const { data: baselineModulesData } = useSWR(
     `${baselineBaseDir}/modules.data`,
     fetchModulesData,
@@ -511,14 +513,8 @@ function ValidComparisonContent({
       suspense: true,
     }
   )
-  const baselineRoutes = useSuspenseJsonData<string[]>(
-    `${baselineBaseDir}/routes.json`,
-    { revalidateOnFocus: false, revalidateOnReconnect: false }
-  )
-  const baselineRouteSummaries = useSuspenseJsonData<RouteSummary[]>(
-    `${baselineBaseDir}/route-summaries.json`,
-    { revalidateOnFocus: false, revalidateOnReconnect: false }
-  )
+  const baselineRouteSummaries = useSuspenseRouteSummaries(baselineBaseDir)
+  const baselineRoutes = routesFromSummaries(baselineRouteSummaries)
   const baselineRouteTotals = new Map(
     baselineRouteSummaries.map(({ route, size, compressed_size }) => [
       route,
@@ -535,6 +531,7 @@ function ValidComparisonContent({
     baselineSnapshot,
     baselineIsLatest: model.baselineIsLatest,
     comparisonSnapshot: model.comparisonSnapshot,
+    baselineRouteCount: baselineRoutes.length,
     comparisonRouteCount: model.currentRoutes.length,
     routeDiff,
     baselineModulesData,
@@ -600,6 +597,7 @@ type ComparisonLayoutProps = Pick<
   | 'baselineSnapshot'
   | 'baselineIsLatest'
   | 'comparisonSnapshot'
+  | 'baselineRouteCount'
   | 'comparisonRouteCount'
   | 'routeDiff'
 > & { baselineModulesData: ModulesData }
@@ -613,6 +611,13 @@ function ComparisonContent({
   baselineAnalyzeData: AnalyzeData | null
   layoutProps: ComparisonLayoutProps
 }) {
+  if (baselineAnalyzeData) {
+    assertMatchingModuleIndex(
+      layoutProps.baselineModulesData,
+      baselineAnalyzeData,
+      'Baseline snapshot'
+    )
+  }
   const baselineModuleDepthMap = baselineAnalyzeData
     ? computeModuleDepthMap(
         layoutProps.baselineModulesData,
@@ -678,7 +683,7 @@ function ComparisonContent({
 }
 
 function SingleAnalyzerView({ model }: { model: AnalyzerModel }) {
-  if (model.singleBuildId && model.isHistoryLoading) {
+  if (model.singleBuildName && model.isHistoryLoading) {
     return (
       <AnalyzerFrame topBar={<AnalyzerTopBar model={model} />}>
         <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
@@ -687,7 +692,10 @@ function SingleAnalyzerView({ model }: { model: AnalyzerModel }) {
       </AnalyzerFrame>
     )
   }
-  if (model.singleBuildId && !model.singleSnapshot && !model.isHistoryLoading) {
+  if (
+    model.invalidSingleBuild ||
+    (model.singleBuildName && !model.singleSnapshot && !model.isHistoryLoading)
+  ) {
     return (
       <AnalyzerFrame topBar={<AnalyzerTopBar model={model} />}>
         <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">

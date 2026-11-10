@@ -5,6 +5,7 @@ describe.each([
   '__NEXT_CACHE_COMPONENTS',
   '__NEXT_PARTIAL_PREFETCHING',
   '__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS',
+  '__NEXT_TEST_AXIS',
 ])('deployment capture of %s', (flag) => {
   beforeEach(() => {
     jest.replaceProperty(process, 'env', {
@@ -12,6 +13,7 @@ describe.each([
       __NEXT_CACHE_COMPONENTS: '',
       __NEXT_PARTIAL_PREFETCHING: '',
       __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS: '',
+      __NEXT_TEST_AXIS: '',
     })
   })
 

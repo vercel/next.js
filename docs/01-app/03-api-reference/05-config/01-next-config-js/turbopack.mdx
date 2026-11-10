@@ -76,7 +76,7 @@ Turbopack uses the [`loader-runner`](https://github.com/webpack/loader-runner) l
 
 **File system and output:**
 
-- [`fs`](https://webpack.js.org/api/loaders/#thisfs) - Partial support: only `fs.readFile` is currently implemented.
+- [`fs`](https://webpack.js.org/api/loaders/#thisfs) - Partial support: asynchronous `fs.readFile` and `fs.stat` are implemented. Other methods, including synchronous filesystem methods, are not supported.
 - [`emitFile`](https://webpack.js.org/api/loaders/#thisemitfile) - No support
 
 **Utilities:**
@@ -159,14 +159,27 @@ To avoid ambiguous references to files, additional roots may not overlap `turbop
 
 Additional roots change Next.js's [`trace format`](/docs/app/api-reference/config/next-config-js/output#turbopack-nft-extensions).
 
-When using [`output: "standalone"`](/docs/app/api-reference/config/next-config-js/output#automatically-copying-traced-files), unbundled files stored in these additional roots will be copied to a subdirectory of the output directory containing the configured name of the root.
+When using [`output: "standalone"`](/docs/app/api-reference/config/next-config-js/output#automatically-copying-traced-files), unbundled files stored in these additional roots will be copied to a subdirectory of the output directory named after the root. For roots configured in `next.config.js`, this is the configured name with an `@` prefix (e.g. `next_additional_roots/@linkedPackages`).
+
+#### Global virtual store
+
+Some package managers can install packages into a global virtual store outside of the project. Set `experimental.turbopackDetectGlobalVirtualStore` to `true` to detect the store and add it as an additional root named `gvs`. Currently, only pnpm 11 or later with the [global virtual store](https://pnpm.io/global-virtual-store) enabled is supported.
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    turbopackDetectGlobalVirtualStore: true,
+  },
+}
+```
+
+Next.js reads the `virtualStoreDir` in `node_modules/.modules.yaml`, searching from the project directory up to `turbopack.root`. The root is only added when the store is outside of `turbopack.root`.
 
 ### Configuring webpack loaders
 
 If you need loader support beyond what's built in, many webpack loaders already work with Turbopack. There are currently some limitations:
 
 - Only a core subset of the webpack loader API is implemented. Currently, there is enough coverage for some popular loaders, and we'll expand our API support in the future.
-- Only loaders that return JavaScript code are supported. Loaders that transform files like stylesheets or images are not currently supported.
 - Options passed to webpack loaders must be plain JavaScript primitives, objects, and arrays. For example, it's not possible to pass `require()` plugin modules as option values.
 
 To configure loaders, add the names of the loaders you've installed and any options in `next.config.js`, mapping file extensions to a list of loaders. Rules are evaluated in order.
@@ -189,6 +202,8 @@ module.exports = {
 > **Good to know**: Globs used in the `rules` object match based on file name, unless the glob contains a `/` character, which will cause it to match based on the full project-relative file path. Windows file paths are normalized to use unix-style `/` path separators.
 >
 > Turbopack uses a modified version of the [Rust `globset` library](https://docs.rs/globset/latest/globset/).
+>
+> `as` renames the loader output so it's processed according to its new extension. The `*` stands for the original file name, so `as: '*.js'` makes `icon.svg` be treated as `icon.svg.js`. When `as` has one leading `*` followed by a suffix the file name already ends with, the name is kept as is. For example, `as: '*.css'` on a `'*.css'` rule leaves `styles.module.css` unchanged, so it's still handled as a [CSS Module](/docs/app/getting-started/css#css-modules).
 
 For loaders that require configuration options, you can use an object format instead of a string:
 
@@ -438,14 +453,15 @@ The option automatically adds a polyfill for debug IDs to the JavaScript bundle 
 
 ## Version History
 
-| Version  | Changes                                              |
-| -------- | ---------------------------------------------------- |
-| `16.4.0` | `experimental.turbopackAdditionalRoots` was added    |
-| `16.2.0` | `turbopackLoader` import attributes were added.      |
-| `16.2.0` | `turbopack.rules.*.type` was added.                  |
-| `16.2.0` | `turbopack.rules.*.condition.contentType` was added. |
-| `16.2.0` | `turbopack.rules.*.condition.query` was added.       |
-| `16.0.0` | `turbopack.debugIds` was added.                      |
-| `16.0.0` | `turbopack.rules.*.condition` was added.             |
-| `15.3.0` | `experimental.turbo` is changed to `turbopack`.      |
-| `13.0.0` | `experimental.turbo` introduced.                     |
+| Version  | Changes                                                    |
+| -------- | ---------------------------------------------------------- |
+| `16.5.0` | `experimental.turbopackDetectGlobalVirtualStore` was added |
+| `16.4.0` | `experimental.turbopackAdditionalRoots` was added          |
+| `16.2.0` | `turbopackLoader` import attributes were added.            |
+| `16.2.0` | `turbopack.rules.*.type` was added.                        |
+| `16.2.0` | `turbopack.rules.*.condition.contentType` was added.       |
+| `16.2.0` | `turbopack.rules.*.condition.query` was added.             |
+| `16.0.0` | `turbopack.debugIds` was added.                            |
+| `16.0.0` | `turbopack.rules.*.condition` was added.                   |
+| `15.3.0` | `experimental.turbo` is changed to `turbopack`.            |
+| `13.0.0` | `experimental.turbo` introduced.                           |

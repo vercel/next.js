@@ -1,6 +1,7 @@
 'use client'
 
 import { darken, lighten, readableColor } from 'polished'
+import { useTheme } from 'next-themes'
 import type React from 'react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -35,7 +36,10 @@ interface TreemapVisualizerProps {
    * to the default file-type-based color. Used by the compare view to color
    * tiles by diff status (added/removed/grew/shrank) instead of by file type.
    */
-  getFileColorOverride?: (node: LayoutNode) => string | undefined
+  getFileColorOverride?: (
+    node: LayoutNode,
+    colors: CanvasColors
+  ) => string | undefined
   /**
    * Optional override for the size label shown on a tile. Returning `undefined`
    * falls back to `formatBytes(node.size)`. Used by the compare view to show
@@ -50,20 +54,23 @@ interface TreemapVisualizerProps {
   overlay?: React.ReactNode
 }
 
-function getFileColor(node: {
-  js?: boolean
-  css?: boolean
-  json?: boolean
-  asset?: boolean
-  server?: boolean
-  client?: boolean
-  traced?: boolean
-  specialModuleType: SpecialModule | null
-}): string {
+function getFileColor(
+  node: {
+    js?: boolean
+    css?: boolean
+    json?: boolean
+    asset?: boolean
+    server?: boolean
+    client?: boolean
+    traced?: boolean
+    specialModuleType: SpecialModule | null
+  },
+  colors: CanvasColors
+): string {
   const { js, css, json, asset, client, traced, specialModuleType } = node
 
   if (isPolyfill(specialModuleType)) {
-    return '#5f707f'
+    return colors.polyfill
   }
 
   let color = '#9ca3af' // gray-400 default
@@ -284,6 +291,7 @@ function nodeOrDescendantsMatchSearch(
 
 function drawTreemap(
   ctx: CanvasRenderingContext2D,
+  colors: CanvasColors,
   node: LayoutNode,
   hoveredAncestorChain: number[] | null,
   selectedAncestorChain: number[],
@@ -292,7 +300,9 @@ function drawTreemap(
   searchQuery: string,
   originalData: LayoutNode,
   immediateHoveredSourceIndex: number | undefined,
-  getFileColorOverride: ((node: LayoutNode) => string | undefined) | undefined,
+  getFileColorOverride:
+    | ((node: LayoutNode, colors: CanvasColors) => string | undefined)
+    | undefined,
   getFileSizeLabel: ((node: LayoutNode) => string | undefined) | undefined,
   getFileLoadScope: ((sourceIndex: number) => SourceLoadScope) | undefined,
   currentPath: string[] = [],
@@ -314,8 +324,6 @@ function drawTreemap(
 
     // Draw ancestor title bars (nodes on path but before the focused node)
     if (isOnFocusPath && !isFocusedNode && type === 'directory') {
-      const colors = getThemeColors()
-
       if (titleBarHeight && rect.height > 20) {
         ctx.fillStyle = colors.dirTitleBg
         ctx.globalAlpha = 1.0
@@ -344,6 +352,7 @@ function drawTreemap(
         for (const child of children) {
           drawTreemap(
             ctx,
+            colors,
             child,
             hoveredAncestorChain,
             selectedAncestorChain,
@@ -411,14 +420,13 @@ function drawTreemap(
   }
 
   const opacity = fadeOut ? 0.3 : 1.0
-  const colors = getThemeColors()
-
   // Check if this is the immediately hovered node for brightness boost
   const isImmediateHovered =
     sourceIndex !== undefined && sourceIndex === immediateHoveredSourceIndex
 
   if (type === 'file') {
-    let color = getFileColorOverride?.(node) ?? getFileColor(node)
+    let color =
+      getFileColorOverride?.(node, colors) ?? getFileColor(node, colors)
 
     // Apply brightness boost to immediately hovered node
     if (isImmediateHovered) {
@@ -663,6 +671,7 @@ function drawTreemap(
 
         drawTreemap(
           ctx,
+          colors,
           child,
           hoveredAncestorChain,
           selectedAncestorChain,
@@ -798,7 +807,7 @@ export function TreemapVisualizer({
     canvasHeight: 800,
     devicePixelRatio: 1,
   })
-  const [, _setTheme] = useState<'light' | 'dark'>('light')
+  const { resolvedTheme } = useTheme()
 
   // The focused chain needs a manual memo: without it the compiler misses
   // the expensive layout and redraws the canvas on unrelated renders.
@@ -904,6 +913,7 @@ export function TreemapVisualizer({
 
     drawTreemap(
       ctx,
+      getThemeColors(),
       layout,
       hoveredAncestorChain,
       selectedAncestorChain,
@@ -923,6 +933,7 @@ export function TreemapVisualizer({
     dimensions.cssWidth,
     dimensions.cssHeight,
     dimensions.devicePixelRatio,
+    resolvedTheme,
     isMouseInTreemap,
     focusedAncestorChain,
     searchQuery,
@@ -1079,7 +1090,11 @@ function isDarkMode(): boolean {
 
 function getThemeColors() {
   const dark = isDarkMode()
+  const styles = getComputedStyle(document.documentElement)
   return {
+    increase: styles.getPropertyValue('--delta-increase').trim(),
+    decrease: styles.getPropertyValue('--delta-decrease').trim(),
+    polyfill: styles.getPropertyValue('--polyfill').trim(),
     text: dark ? '#ffffff' : '#000000',
     textMuted: dark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)',
     border: dark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(180, 180, 180, 0.5)',
@@ -1097,3 +1112,5 @@ function getThemeColors() {
       : 'rgba(128, 128, 128, 0.6)',
   }
 }
+
+export type CanvasColors = ReturnType<typeof getThemeColors>

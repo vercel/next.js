@@ -201,7 +201,7 @@ export function runDevWarmupTests({
       // Static
       const STATIC_LINK_DATA = isInitialLoad
         ? 'Prerender'
-        : // If we're rendering an App Shell, static params are deferred until the runtime stage.
+        : // If we're rendering an App Shell, static params are deferred until the PrefetchRuntime stage.
           partialPrefetching || hasRuntimePrefetch
           ? 'Prefetch'
           : 'Prerender'

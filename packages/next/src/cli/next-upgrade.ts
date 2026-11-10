@@ -10,10 +10,16 @@ import { findDir } from '../lib/find-pages-dir'
 import { getProjectDir } from '../lib/get-project-dir'
 import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
+import {
+  getPkgManager,
+  type PackageManager,
+} from '../lib/helpers/get-pkg-manager'
 import { interopDefault } from '../lib/interop-default'
 import { dim } from '../lib/picocolors'
 import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
+import { getInstalledNextVersion } from '../lib/upgrade/prepare-upgrade'
 import { runChildProcess } from '../lib/upgrade/run-child-process'
+import { resolveCanaryVersion } from '../lib/upgrade/resolve-canary-version'
 import { getAgentName } from '../telemetry/agent-name'
 import {
   eventAgentUpgradeAgentResult,
@@ -144,31 +150,6 @@ async function loadAgentUpgradeConfig(directory: string) {
   return normalizeConfig(PHASE_PRODUCTION_BUILD, interopDefault(rawConfig))
 }
 
-async function resolveCanaryVersion(): Promise<string> {
-  try {
-    const response = await fetch('https://registry.npmjs.org/next/canary', {
-      signal: AbortSignal.timeout(10_000),
-      cache: 'no-store',
-      redirect: 'error',
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
-    }
-
-    const { version } = await response.json()
-    if (typeof version !== 'string' || valid(version) !== version) {
-      throw new Error('Invalid canary version')
-    }
-
-    return version
-  } catch (error) {
-    throw new Error('Could not fetch the latest Next.js canary from npm.', {
-      cause: error,
-    })
-  }
-}
-
 export async function spawnNextUpgrade(
   directory: string | undefined,
   options: NextUpgradeOptions,
@@ -182,12 +163,32 @@ export async function spawnNextUpgrade(
     let distDir = '.next'
     let configuredPolicy: unknown = null
     let configError: unknown = null
+    let fromVersion: string | null = null
+    let packageManager: PackageManager | null = null
+    let packageManagerVersion: string | null = null
     try {
       baseDir = getProjectDir(directory, false)
       warnMissingReactDependencies(baseDir)
+
       const config = await loadAgentUpgradeConfig(baseDir)
       distDir = config.distDir || '.next'
       configuredPolicy = config.experimental?.agentUpgrade
+
+      // Capture the app and runtime before delegation or an agent changes dependencies.
+      packageManager = getPkgManager(baseDir)
+      const [manager, version] =
+        process.env.npm_config_user_agent?.split(' ')[0].split('/') ?? []
+      if (manager === packageManager && version) {
+        packageManagerVersion = valid(version)
+      }
+      try {
+        fromVersion = await getInstalledNextVersion(baseDir)
+      } catch (error) {
+        Log.warn(
+          'Could not determine the app version for upgrade telemetry:',
+          error instanceof Error ? error.message : error
+        )
+      }
     } catch (error) {
       configError = error
     }
@@ -211,6 +212,7 @@ export async function spawnNextUpgrade(
       inheritedRunId && !invalidRunId ? inheritedRunId : randomUUID()
 
     let resolvedPolicy: AgentUpgradePolicy | null = null
+    let targetVersion: string | null = null
     let failureStage: 'cli' | 'metadata' | 'guide' | 'handoff' = 'cli'
     let cliResultRecorded = false
 
@@ -231,6 +233,8 @@ export async function spawnNextUpgrade(
           resolvedPolicy,
           handoffMethod,
           selectedAgentProduct,
+          fromVersion,
+          targetVersion,
         })
       )
     }
@@ -260,6 +264,10 @@ export async function spawnNextUpgrade(
               options.agent === 'experimental-future'
                 ? options.agent
                 : null,
+            fromVersion,
+            nodeVersion: process.version,
+            packageManager,
+            packageManagerVersion,
           })
         )
       }
@@ -288,7 +296,10 @@ export async function spawnNextUpgrade(
       } else {
         Log.info(dim('Preparing upgrade...'))
         failureStage = 'metadata'
-        const canaryVersion = await resolveCanaryVersion()
+        const canaryVersion = await resolveCanaryVersion({
+          directory: baseDir,
+          packageManager: packageManager ?? getPkgManager(baseDir),
+        })
         failureStage = 'cli'
         if (process.env.__NEXT_VERSION !== canaryVersion) {
           const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
@@ -382,6 +393,10 @@ export async function spawnNextUpgrade(
         recordCLIResult('no_update_needed', null, null)
         return
       }
+
+      // Record the approved target on guide and handoff failures as well as successful delivery.
+      fromVersion = result.installedVersion
+      targetVersion = result.targetVersion
 
       const needsVersionUpdate =
         result.installedVersion !== result.targetVersion
@@ -680,6 +695,20 @@ export async function reportAgentUpgradeAgentResult(
     distDir: join(process.cwd(), config.distDir || '.next'),
     skipNotify: true,
   })
-  await telemetry.record(eventAgentUpgradeAgentResult({ runId, result }))
+
+  // Read the upgraded app instead of the pinned reporting CLI; missing dependencies still report a result.
+  let resultVersion: string | null = null
+  try {
+    resultVersion = await getInstalledNextVersion(process.cwd())
+  } catch (error) {
+    Log.warn(
+      'Could not determine the app version for upgrade telemetry:',
+      error instanceof Error ? error.message : error
+    )
+  }
+
+  await telemetry.record(
+    eventAgentUpgradeAgentResult({ runId, result, resultVersion })
+  )
   await telemetry.flush()
 }

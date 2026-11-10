@@ -74,9 +74,9 @@ export function TopBar({
   historyLoading,
   historyError,
   latestSnapshot,
-  singleBuildId,
-  fromId,
-  toId,
+  singleBuildName,
+  fromName,
+  toName,
   onSingleBuildChange,
   onComparisonChange,
   routesBaseDir,
@@ -109,10 +109,10 @@ export function TopBar({
   historyLoading: boolean
   historyError: boolean
   latestSnapshot: SnapshotMetadata
-  singleBuildId: string | null
-  fromId: string | null
-  toId: string | null
-  onSingleBuildChange: (id: string | null) => void
+  singleBuildName: string | null
+  fromName: string | null | undefined
+  toName: string | null | undefined
+  onSingleBuildChange: (name: string | null) => void
   onComparisonChange: (from: string | null, to: string | null) => void
   routesBaseDir: string
   compareView: CompareView
@@ -142,9 +142,9 @@ export function TopBar({
             historyLoading={historyLoading}
             historyError={historyError}
             latestSnapshot={latestSnapshot}
-            singleBuildId={singleBuildId}
-            fromId={fromId}
-            toId={toId}
+            singleBuildName={singleBuildName}
+            fromName={fromName}
+            toName={toName}
             onSingleBuildChange={onSingleBuildChange}
             onComparisonChange={onComparisonChange}
           />
