@@ -191,14 +191,21 @@ fn create_read_semaphore() -> tokio::sync::Semaphore {
     tokio::sync::Semaphore::new(*TURBO_ENGINE_READ_CONCURRENCY)
 }
 
-/// Lower bound of the default write concurrency, also used when the available parallelism can't be
-/// determined.
-const MIN_DEFAULT_WRITE_CONCURRENCY: usize = 4;
-/// Upper bound of the default write concurrency.
-const MAX_DEFAULT_WRITE_CONCURRENCY: usize = 16;
+/// The default number of concurrent write operations (file writes, file removals and symlink
+/// creations) on platforms other than Linux. On Linux, it's the lower bound of the default, see
+/// `linux_default_write_concurrency`.
+///
+/// Limits on other platforms (e.g. open file limits on macOS, file system metadata contention on
+/// NTFS) differ from Linux, so they keep this conservative value until a higher one has been
+/// measured there.
+const DEFAULT_WRITE_CONCURRENCY: usize = 4;
+/// Upper bound of the default write concurrency on Linux.
+#[cfg(target_os = "linux")]
+const MAX_LINUX_DEFAULT_WRITE_CONCURRENCY: usize = 16;
 
-/// Computes the default number of concurrent write operations (file writes, file removals and
-/// symlink creations) from the available parallelism.
+/// Computes the default number of concurrent write operations on Linux from the available
+/// parallelism. Falls back to [`DEFAULT_WRITE_CONCURRENCY`] if the available parallelism can't be
+/// determined.
 ///
 /// Write operations run blocking on the calling tokio worker thread (see
 /// [`retry_blocking`]), so each permit can keep one worker thread (and one file handle) busy in a
@@ -206,27 +213,37 @@ const MAX_DEFAULT_WRITE_CONCURRENCY: usize = 16;
 /// small output files of a build in parallel, while staying at a small, fixed number of permits on
 /// smaller machines.
 ///
-/// The cap bounds the number of file handles and blocked worker threads that writes add, which
-/// helps with restrictive open file limits (e.g. the default soft limit of 256 on macOS) and
-/// metadata contention from many concurrent file creations (e.g. on NTFS). In benchmarks on a
-/// 32-thread Linux machine, raising the limit beyond 16 did not make builds faster.
-fn default_write_concurrency(available_parallelism: Option<usize>) -> usize {
-    available_parallelism.map_or(MIN_DEFAULT_WRITE_CONCURRENCY, |parallelism| {
-        parallelism.clamp(MIN_DEFAULT_WRITE_CONCURRENCY, MAX_DEFAULT_WRITE_CONCURRENCY)
+/// The cap bounds the number of file handles and blocked worker threads that writes add. In
+/// benchmarks on a 32-thread Linux machine, raising the limit beyond 16 did not make builds faster.
+#[cfg(target_os = "linux")]
+fn linux_default_write_concurrency(available_parallelism: Option<usize>) -> usize {
+    available_parallelism.map_or(DEFAULT_WRITE_CONCURRENCY, |parallelism| {
+        parallelism.clamp(
+            DEFAULT_WRITE_CONCURRENCY,
+            MAX_LINUX_DEFAULT_WRITE_CONCURRENCY,
+        )
     })
+}
+
+#[cfg(target_os = "linux")]
+fn default_write_concurrency() -> usize {
+    linux_default_write_concurrency(
+        turbo_tasks::parallel::available_parallelism()
+            .ok()
+            .map(|n| n.get()),
+    )
+}
+
+#[cfg(not(target_os = "linux"))]
+fn default_write_concurrency() -> usize {
+    DEFAULT_WRITE_CONCURRENCY
 }
 
 fn create_write_semaphore() -> tokio::sync::Semaphore {
     // the semaphore isn't serialized, and we assume the environment variables don't change during
     // runtime, so it's okay to access them in this untracked way.
     static TURBO_ENGINE_WRITE_CONCURRENCY: LazyLock<usize> = LazyLock::new(|| {
-        number_env_var("TURBO_ENGINE_WRITE_CONCURRENCY").unwrap_or_else(|| {
-            default_write_concurrency(
-                turbo_tasks::parallel::available_parallelism()
-                    .ok()
-                    .map(|n| n.get()),
-            )
-        })
+        number_env_var("TURBO_ENGINE_WRITE_CONCURRENCY").unwrap_or_else(default_write_concurrency)
     });
     tokio::sync::Semaphore::new(*TURBO_ENGINE_WRITE_CONCURRENCY)
 }
@@ -1823,31 +1840,41 @@ mod tests {
 
     use super::*;
 
+    #[cfg(target_os = "linux")]
     #[test]
-    fn default_write_concurrency_scales_with_parallelism_within_bounds() {
-        // Unknown parallelism falls back to the minimum
+    fn linux_default_write_concurrency_scales_with_parallelism_within_bounds() {
+        // Unknown parallelism falls back to the fixed default
         assert_eq!(
-            default_write_concurrency(None),
-            MIN_DEFAULT_WRITE_CONCURRENCY
+            linux_default_write_concurrency(None),
+            DEFAULT_WRITE_CONCURRENCY
         );
-        // Small machines never go below the minimum
+        // Small machines never go below the fixed default
         assert_eq!(
-            default_write_concurrency(Some(1)),
-            MIN_DEFAULT_WRITE_CONCURRENCY
+            linux_default_write_concurrency(Some(1)),
+            DEFAULT_WRITE_CONCURRENCY
         );
         // In between, it follows the available parallelism
-        for parallelism in MIN_DEFAULT_WRITE_CONCURRENCY..=MAX_DEFAULT_WRITE_CONCURRENCY {
-            assert_eq!(default_write_concurrency(Some(parallelism)), parallelism);
+        for parallelism in DEFAULT_WRITE_CONCURRENCY..=MAX_LINUX_DEFAULT_WRITE_CONCURRENCY {
+            assert_eq!(
+                linux_default_write_concurrency(Some(parallelism)),
+                parallelism
+            );
         }
         // Large machines are capped
         assert_eq!(
-            default_write_concurrency(Some(MAX_DEFAULT_WRITE_CONCURRENCY + 1)),
-            MAX_DEFAULT_WRITE_CONCURRENCY
+            linux_default_write_concurrency(Some(MAX_LINUX_DEFAULT_WRITE_CONCURRENCY + 1)),
+            MAX_LINUX_DEFAULT_WRITE_CONCURRENCY
         );
         assert_eq!(
-            default_write_concurrency(Some(256)),
-            MAX_DEFAULT_WRITE_CONCURRENCY
+            linux_default_write_concurrency(Some(256)),
+            MAX_LINUX_DEFAULT_WRITE_CONCURRENCY
         );
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    #[test]
+    fn default_write_concurrency_is_fixed_outside_linux() {
+        assert_eq!(default_write_concurrency(), DEFAULT_WRITE_CONCURRENCY);
     }
 
     #[turbo_tasks::function(operation, root)]
