@@ -1,4 +1,4 @@
-//! Compares `AutoSet` with `hashbrown::HashSet` and `AutoIndexSet` with
+//! Compares `AutoSet` with `hashbrown::HashSet` and `OrderedAutoSet` with
 //! `indexmap::IndexSet` across a wide range of item counts.
 //!
 //! The auto sets store up to `MAX_USEFUL_LINEAR_SCAN` (32) items in a linear list and switch to
@@ -16,7 +16,7 @@
 
 use std::{hash::BuildHasherDefault, hint::black_box, time::Duration};
 
-use auto_hash_map::{AutoIndexSet, AutoSet};
+use auto_hash_map::{AutoSet, OrderedAutoSet};
 use criterion::{
     BatchSize, BenchmarkGroup, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main,
     measurement::WallTime,
@@ -126,13 +126,13 @@ impl_bench_set!(
     ordered = false
 );
 impl_bench_set!(
-    AutoIndexSet<u64>,
-    "AutoIndexSet",
+    OrderedAutoSet<u64>,
+    "OrderedAutoSet",
     remove,
     swap_remove,
     ordered = true
 );
-// `AutoIndexSet` preserves the order on removal, so compare with the order-preserving removal.
+// `OrderedAutoSet` preserves the order on removal, so compare with the order-preserving removal.
 impl_bench_set!(
     indexmap::IndexSet<u64, FxBuildHasher>,
     "IndexSet",
@@ -359,7 +359,7 @@ fn bench_from_iter<S: BenchSet>(group: &mut Group<'_>, n: usize) {
 }
 
 /// Compares a set with an identical, separately built set (same items, same insertion order).
-/// `AutoIndexSet` compares order-sensitively, while `IndexSet`'s `PartialEq` ignores the order;
+/// `OrderedAutoSet` compares order-sensitively, while `IndexSet`'s `PartialEq` ignores the order;
 /// for identical sets both have to visit every item.
 fn bench_eq<S: BenchSet>(group: &mut Group<'_>, n: usize) {
     let a = build::<S>(n);
@@ -375,7 +375,7 @@ macro_rules! for_all_sets {
     ($bench:ident, $group:expr, $n:expr) => {
         $bench::<AutoSet<u64>>($group, $n);
         $bench::<hashbrown::HashSet<u64, FxBuildHasher>>($group, $n);
-        $bench::<AutoIndexSet<u64>>($group, $n);
+        $bench::<OrderedAutoSet<u64>>($group, $n);
         $bench::<indexmap::IndexSet<u64, FxBuildHasher>>($group, $n);
     };
 }

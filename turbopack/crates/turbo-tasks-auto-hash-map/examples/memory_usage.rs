@@ -1,4 +1,4 @@
-//! Prints the memory used by `AutoSet`, `hashbrown::HashSet`, `AutoIndexSet` and
+//! Prints the memory used by `AutoSet`, `hashbrown::HashSet`, `OrderedAutoSet` and
 //! `indexmap::IndexSet` after inserting `n` keys, for the sizes of the `auto_set` benchmark plus a
 //! few more small ones, with the same keys as the benchmark.
 //!
@@ -21,7 +21,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use auto_hash_map::{AutoIndexSet, AutoSet};
+use auto_hash_map::{AutoSet, OrderedAutoSet};
 use rustc_hash::FxHasher;
 
 type FxBuildHasher = BuildHasherDefault<FxHasher>;
@@ -129,7 +129,7 @@ macro_rules! impl_measured_set {
 
 impl_measured_set!(AutoSet<u64>, "AutoSet");
 impl_measured_set!(hashbrown::HashSet<u64, FxBuildHasher>, "HashSet");
-impl_measured_set!(AutoIndexSet<u64>, "AutoIndexSet");
+impl_measured_set!(OrderedAutoSet<u64>, "OrderedAutoSet");
 impl_measured_set!(indexmap::IndexSet<u64, FxBuildHasher>, "IndexSet");
 
 /// Returns the bytes used by a set of type `S` after inserting `n` keys, and after a following
@@ -159,7 +159,7 @@ fn main() {
     for n in SIZES {
         print::<AutoSet<u64>>(n);
         print::<hashbrown::HashSet<u64, FxBuildHasher>>(n);
-        print::<AutoIndexSet<u64>>(n);
+        print::<OrderedAutoSet<u64>>(n);
         print::<indexmap::IndexSet<u64, FxBuildHasher>>(n);
     }
 }
