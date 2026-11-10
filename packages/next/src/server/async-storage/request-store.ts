@@ -245,24 +245,13 @@ export function createRequestStoreForAPI(
 }
 
 /**
- * Build a `RequestStore` from a serializable, request-shaped input. Used
- * directly by the existing `createRequestStoreForRender` /
- * `createRequestStoreForAPI` wrappers, and by side-process consumers like the
+ * The `RequestStore` for a serializable, request-shaped input, created with
+ * `createRequestStore` by the `createRequestStoreForRender` /
+ * `createRequestStoreForAPI` wrappers and by side-process consumers like the
  * `'use cache'` deadlock probe worker that don't have a real `req`/`res` pair
- * but do have a forwarded snapshot of the outer request's headers etc.
- */
-/**
- * The request store is a class instance, with its lazy values behind getters
- * on the prototype, and not an object literal with getters.
- *
- * V8 allocates the accessor pair of a getter in an object literal in the old
- * generation, and it references the getter's closure. A store that is created
- * for every request as such a literal therefore keeps everything its getters
- * close over (the request headers, the cookies, the implicit tags) alive until
- * the next major GC, although the request is long finished: a scavenge treats
- * every pointer from the old generation as a root. With the state in fields
- * and the getters shared on the prototype, nothing is allocated in the old
- * generation per request.
+ * but do have a forwarded snapshot of the outer request's headers etc. It is a
+ * class with its lazy values behind getters on the prototype, so no getters
+ * are allocated per request.
  */
 class RequestStoreImpl implements RequestStore {
   public readonly type: 'request'
