@@ -1,32 +1,87 @@
 import { useRef, useState } from 'react'
 import { useUpdateAnimation } from './hooks/use-update-animation'
 import { useMeasureWidth } from './hooks/use-measure-width'
-import { useMinimumLoadingTimeMultiple } from './hooks/use-minimum-loading-time-multiple'
 import { Cross } from '../../icons/cross'
 import { Warning } from '../../icons/warning'
 import { css } from '../../utils/css'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { useRenderErrorContext } from '../../dev-overlay'
+import { useIndicatorDisplay } from '../../hooks/use-indicator-display'
 import {
   ACTION_ERROR_OVERLAY_CLOSE,
   ACTION_ERROR_OVERLAY_OPEN,
 } from '../../shared'
 import { usePanelRouterContext } from '../../menu/context'
+import { getIssueBucketState } from '../../menu/issue-bucket-state'
 import { BASE_LOGO_SIZE } from '../../utils/indicator-metrics'
+import { StatusIndicator, Status } from './status-indicator'
 
 const SHORT_DURATION_MS = 150
+
+function Plural({ count, animate }: { count: number; animate: boolean }) {
+  if (count <= 1) return null
+  return (
+    <span aria-hidden data-issues-count-plural data-animate={animate}>
+      s
+    </span>
+  )
+}
+
+function PillLabel({
+  normalCount,
+  instantCount,
+  normalCountAnimating,
+  instantCountAnimating,
+}: {
+  normalCount: number
+  instantCount: number
+  normalCountAnimating: boolean
+  instantCountAnimating: boolean
+}) {
+  const hasNormal = normalCount > 0
+  const hasInstant = instantCount > 0
+  return (
+    <>
+      {hasNormal && (
+        <>
+          Issue
+          <Plural
+            count={normalCount}
+            animate={normalCountAnimating && normalCount === 2}
+          />
+        </>
+      )}
+      {hasNormal && hasInstant && ' · '}
+      {hasInstant && (
+        <>
+          {hasNormal && <>{instantCount} </>}
+          Insight
+          <Plural
+            count={instantCount}
+            animate={instantCountAnimating && instantCount === 2}
+          />
+        </>
+      )}
+    </>
+  )
+}
 
 export function NextLogo({
   onTriggerClick,
   ...buttonProps
 }: { onTriggerClick: () => void } & React.ComponentProps<'button'>) {
   const { state, dispatch } = useDevOverlayContext()
-  const { totalErrorCount } = useRenderErrorContext()
+  const { totalErrorCount, normalErrorCount, instantErrorCount } =
+    useRenderErrorContext()
   const SIZE = BASE_LOGO_SIZE / state.scale
   const { panel, triggerRef, setPanel } = usePanelRouterContext()
   const isMenuOpen = panel === 'panel-selector'
 
   const hasError = totalErrorCount > 0
+  const { insightsOnly } = getIssueBucketState(
+    normalErrorCount,
+    instantErrorCount
+  )
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
   const [previousHasError, setPreviousHasError] = useState(hasError)
   if (previousHasError !== hasError) {
@@ -35,18 +90,42 @@ export function NextLogo({
     setIsErrorExpanded(hasError)
   }
   const [dismissed, setDismissed] = useState(false)
-  const newErrorDetected = useUpdateAnimation(
-    totalErrorCount,
+  const normalErrorAnimating = useUpdateAnimation(
+    normalErrorCount,
     SHORT_DURATION_MS
   )
+  const instantErrorAnimating = useUpdateAnimation(
+    instantErrorCount,
+    SHORT_DURATION_MS
+  )
+  const newErrorDetected = normalErrorAnimating || instantErrorAnimating
+  const leadingCount =
+    normalErrorCount > 0 ? normalErrorCount : instantErrorCount
+  const leadingCountAnimating =
+    normalErrorCount > 0 ? normalErrorAnimating : instantErrorAnimating
+
+  // The status pill and the persistent cache badge are owned by a single state
+  // machine that handles all the show/hide timing and the atomic handoff
+  // between the two (so the indicator never blanks to the bare logo between
+  // them). The two are mutually exclusive.
+  const { status: displayStatus, cacheBadge } = useIndicatorDisplay(
+    state.buildingIndicator,
+    state.renderingIndicator,
+    state.cacheIndicator
+  )
+  const showStatusIndicator = displayStatus !== Status.None
+  const statusReplacesIssues = showStatusIndicator && !state.disableDevIndicator
+  const showIssues =
+    !statusReplacesIssues && (isErrorExpanded || state.disableDevIndicator)
 
   const ref = useRef<HTMLDivElement | null>(null)
   const measuredWidth = useMeasureWidth(ref)
 
-  const isLoading = useMinimumLoadingTimeMultiple(
-    state.buildingIndicator || state.renderingIndicator
-  )
-  const isExpanded = isErrorExpanded || state.disableDevIndicator
+  const isExpanded =
+    isErrorExpanded ||
+    cacheBadge !== null ||
+    showStatusIndicator ||
+    state.disableDevIndicator
   const width = measuredWidth === 0 ? 'auto' : measuredWidth
 
   return (
@@ -149,6 +228,24 @@ export function NextLogo({
               }
             }
 
+            &[data-cache-badge]:not([data-error='true']) {
+              background: rgba(217, 119, 6, 0.95);
+              --color-inner-border: rgba(245, 158, 11, 0.9);
+
+              [data-issues-open] {
+                color: white;
+              }
+            }
+
+            &[data-insights-only='true']:not([data-error='true']) {
+              background: rgba(217, 119, 6, 0.95);
+              --color-inner-border: rgba(245, 158, 11, 0.9);
+
+              [data-issues-open] {
+                color: white;
+              }
+            }
+
             &[data-error-expanded='false'][data-error='true'] ~ [data-dot] {
               scale: 1;
             }
@@ -162,7 +259,7 @@ export function NextLogo({
             outline: var(--focus-ring);
           }
 
-          [data-issues]:has([data-issues-open]:focus-visible) {
+          [data-toast-pill]:has([data-issues-open]:focus-visible) {
             outline: var(--focus-ring);
             outline-offset: -1px;
           }
@@ -183,7 +280,10 @@ export function NextLogo({
             transition-delay: var(--duration-short);
           }
 
-          [data-issues] {
+          /* Shared pill layout for the errors toast and the cache badge. Keyed
+             on data-toast-pill rather than data-issues so it applies to both,
+             while data-issues stays exclusive to the errors toast. */
+          [data-toast-pill] {
             --padding-left: 8px;
             display: flex;
             gap: 2px;
@@ -201,10 +301,6 @@ export function NextLogo({
 
             &:has([data-issues-collapse]) {
               padding-right: calc(var(--padding-left) / 2);
-            }
-
-            [data-cross] {
-              translate: 0px -1px;
             }
           }
 
@@ -230,6 +326,9 @@ export function NextLogo({
           [data-issues-collapse] {
             width: var(--size-24);
             height: var(--size-24);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
 
@@ -300,15 +399,6 @@ export function NextLogo({
             }
           }
 
-          .path0 {
-            animation: draw0 1.5s ease-in-out infinite;
-          }
-
-          .path1 {
-            animation: draw1 1.5s ease-out infinite;
-            animation-delay: 0.3s;
-          }
-
           .paused {
             stroke-dashoffset: 0;
           }
@@ -339,44 +429,6 @@ export function NextLogo({
             }
           }
 
-          @keyframes draw0 {
-            0%,
-            25% {
-              stroke-dashoffset: -29.6;
-            }
-            25%,
-            50% {
-              stroke-dashoffset: 0;
-            }
-            50%,
-            75% {
-              stroke-dashoffset: 0;
-            }
-            75%,
-            100% {
-              stroke-dashoffset: 29.6;
-            }
-          }
-
-          @keyframes draw1 {
-            0%,
-            20% {
-              stroke-dashoffset: -11.6;
-            }
-            20%,
-            50% {
-              stroke-dashoffset: 0;
-            }
-            50%,
-            75% {
-              stroke-dashoffset: 0;
-            }
-            75%,
-            100% {
-              stroke-dashoffset: 11.6;
-            }
-          }
-
           @media (prefers-reduced-motion) {
             [data-issues-count-exit],
             [data-issues-count-enter],
@@ -388,8 +440,11 @@ export function NextLogo({
       </style>
       <div
         data-next-badge
-        data-error={hasError}
+        data-error={hasError && !insightsOnly}
+        data-insights-only={insightsOnly && !statusReplacesIssues}
         data-error-expanded={isExpanded}
+        data-status={displayStatus}
+        data-cache-badge={cacheBadge ?? undefined}
         data-animate={newErrorDetected}
         style={{ width }}
       >
@@ -400,7 +455,6 @@ export function NextLogo({
               id="next-logo"
               ref={triggerRef}
               data-next-mark
-              data-next-mark-loading={isLoading}
               onClick={onTriggerClick}
               disabled={state.disableDevIndicator}
               aria-haspopup="menu"
@@ -408,76 +462,97 @@ export function NextLogo({
               aria-controls="nextjs-dev-tools-menu"
               aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
               data-nextjs-dev-tools-button
+              style={{
+                display: showStatusIndicator ? 'none' : 'flex',
+              }}
               {...buttonProps}
             >
-              <NextMark
-                isLoading={isLoading}
-                isDevBuilding={state.buildingIndicator}
-              />
+              <NextMark />
             </button>
           )}
           {isExpanded && (
-            <div data-issues>
-              <button
-                data-issues-open
-                aria-label="Open issues overlay"
-                onClick={() => {
-                  if (state.isErrorOverlayOpen) {
-                    dispatch({
-                      type: ACTION_ERROR_OVERLAY_CLOSE,
-                    })
-                    return
-                  }
-                  dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
-                  setPanel(null)
-                }}
-              >
-                {state.disableDevIndicator && (
-                  <div data-disabled-icon>
-                    <Warning />
-                  </div>
-                )}
-                <AnimateCount
-                  // Used the key to force a re-render when the count changes.
-                  key={totalErrorCount}
-                  animate={newErrorDetected}
-                  data-issues-count-animation
-                >
-                  {totalErrorCount}
-                </AnimateCount>{' '}
-                <div>
-                  Issue
-                  {totalErrorCount > 1 && (
-                    <span
-                      aria-hidden
-                      data-issues-count-plural
-                      // This only needs to animate once the count changes from 1 -> 2,
-                      // otherwise it should stay static between re-renders.
-                      data-animate={newErrorDetected && totalErrorCount === 2}
+            <>
+              {/* Error badge has priority over cache indicator */}
+              {showIssues && (
+                <div data-issues data-toast-pill>
+                  <button
+                    data-issues-open
+                    aria-label="Open issues overlay"
+                    onClick={() => {
+                      if (state.isErrorOverlayOpen) {
+                        dispatch({
+                          type: ACTION_ERROR_OVERLAY_CLOSE,
+                        })
+                        return
+                      }
+                      dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
+                      // Keep the instant navigation panel mounted so its capture
+                      // survives and it stays behind the error overlay backdrop.
+                      // Other panels still close when the overlay opens.
+                      if (panel !== 'instant-navs') {
+                        setPanel(null)
+                      }
+                    }}
+                  >
+                    {state.disableDevIndicator && (
+                      <div data-disabled-icon>
+                        <Warning />
+                      </div>
+                    )}
+                    <AnimateCount
+                      // Used the key to force a re-render when the count changes.
+                      key={leadingCount}
+                      animate={leadingCountAnimating}
+                      data-issues-count-animation
                     >
-                      s
-                    </span>
+                      {leadingCount}
+                    </AnimateCount>{' '}
+                    <div>
+                      <PillLabel
+                        normalCount={normalErrorCount}
+                        instantCount={instantErrorCount}
+                        normalCountAnimating={normalErrorAnimating}
+                        instantCountAnimating={instantErrorAnimating}
+                      />
+                    </div>
+                  </button>
+                  {!state.buildError && (
+                    <button
+                      data-issues-collapse
+                      aria-label="Collapse issues badge"
+                      onClick={() => {
+                        if (state.disableDevIndicator) {
+                          setDismissed(true)
+                        } else {
+                          setIsErrorExpanded(false)
+                        }
+                        // Move focus to the trigger to prevent having it stuck on this element
+                        triggerRef.current?.focus()
+                      }}
+                    >
+                      <Cross data-cross />
+                    </button>
                   )}
                 </div>
-              </button>
-              {!state.buildError && (
-                <button
-                  data-issues-collapse
-                  aria-label="Collapse issues badge"
-                  onClick={() => {
-                    if (state.disableDevIndicator) {
-                      setDismissed(true)
-                    } else {
-                      setIsErrorExpanded(false)
-                    }
-                    // Move focus to the trigger to prevent having it stuck on this element
-                    triggerRef.current?.focus()
-                  }}
-                >
-                  <Cross data-cross />
-                </button>
               )}
-            </div>
+              {/* Persistent cache badge shown when a load bypassed caches or
+                  rendered with a cold cache and nothing is actively rendering */}
+              {cacheBadge && !hasError && !state.disableDevIndicator && (
+                <CacheStatusBadge
+                  kind={cacheBadge}
+                  onTriggerClick={onTriggerClick}
+                  triggerRef={triggerRef}
+                />
+              )}
+              {/* Status indicator shown while rendering or compiling */}
+              {showStatusIndicator && !state.disableDevIndicator && (
+                <StatusIndicator
+                  status={displayStatus}
+                  isError={hasError && !insightsOnly}
+                  onClick={onTriggerClick}
+                />
+              )}
+            </>
           )}
         </div>
       </div>
@@ -506,25 +581,63 @@ function AnimateCount({
   )
 }
 
-function NextMark({
-  isLoading,
-  isDevBuilding,
+function CacheStatusBadge({
+  kind,
+  onTriggerClick,
+  triggerRef,
 }: {
-  isLoading?: boolean
-  isDevBuilding?: boolean
+  kind: 'cold' | 'bypass'
+  onTriggerClick: () => void
+  triggerRef: React.RefObject<HTMLButtonElement | null>
 }) {
-  const strokeColor = isDevBuilding ? 'rgba(255,255,255,0.7)' : 'white'
+  const [dismissed, setDismissed] = useState(false)
+
+  if (dismissed) {
+    return null
+  }
+
+  const label = kind === 'bypass' ? 'Cache disabled' : 'Cold cache'
+
   return (
-    <svg
-      width="40"
-      height="40"
-      viewBox="0 0 40 40"
-      fill="none"
-      data-next-mark-loading={isLoading}
+    // Reuses the errors toast pill styling (data-toast-pill) but is
+    // deliberately not data-issues: that attribute marks the errors toast,
+    // which test utilities click to open the redbox. A cold or cache-disabled
+    // load can also surface a validation error, so a shared data-issues would
+    // let those helpers grab this badge instead of the real toast.
+    <div
+      data-toast-pill
+      data-cache-bypass-badge={kind === 'bypass' ? true : undefined}
+      data-cold-cache-badge={kind === 'cold' ? true : undefined}
     >
+      <button
+        data-issues-open
+        data-nextjs-dev-tools-button
+        aria-label="Open Next.js Dev Tools"
+        onClick={onTriggerClick}
+      >
+        {label}
+      </button>
+      <button
+        data-issues-collapse
+        aria-label={`Collapse ${label} badge`}
+        onClick={() => {
+          setDismissed(true)
+          // Move focus to the trigger to prevent having it stuck on this element
+          triggerRef.current?.focus()
+        }}
+      >
+        <Cross data-cross />
+      </button>
+    </div>
+  )
+}
+
+function NextMark() {
+  return (
+    <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
       <g transform="translate(8.5, 13)">
         <path
-          className={isLoading ? 'path0' : 'paused'}
+          className="paused"
           d="M13.3 15.2 L2.34 1 V12.6"
           fill="none"
           stroke="url(#next_logo_paint0_linear_1357_10853)"
@@ -534,7 +647,7 @@ function NextMark({
           strokeDashoffset="29.6"
         />
         <path
-          className={isLoading ? 'path1' : 'paused'}
+          className="paused"
           d="M11.825 1.5 V13.1"
           strokeWidth="1.86"
           stroke="url(#next_logo_paint1_linear_1357_10853)"
@@ -551,9 +664,9 @@ function NextMark({
           y2="17.9671"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stopColor={strokeColor} />
-          <stop offset="0.604072" stopColor={strokeColor} stopOpacity="0" />
-          <stop offset="1" stopColor={strokeColor} stopOpacity="0" />
+          <stop stopColor="white" />
+          <stop offset="0.604072" stopColor="white" stopOpacity="0" />
+          <stop offset="1" stopColor="white" stopOpacity="0" />
         </linearGradient>
         <linearGradient
           id="next_logo_paint1_linear_1357_10853"
@@ -563,8 +676,8 @@ function NextMark({
           y2="9.62542"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stopColor={strokeColor} />
-          <stop offset="1" stopColor={strokeColor} stopOpacity="0" />
+          <stop stopColor="white" />
+          <stop offset="1" stopColor="white" stopOpacity="0" />
         </linearGradient>
         <mask id="next_logo_mask0">
           <rect width="100%" height="100%" fill="white" />

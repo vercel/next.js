@@ -1,22 +1,21 @@
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 
 use crate::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
     ident::AssetIdent,
     introspect::{Introspectable, IntrospectableChildren},
-    output::OutputAsset,
-    source_map::{GenerateSourceMap, SourceMap},
+    output::{OutputAsset, OutputAssetsReference},
+    source_map::{GenerateSourceMap, SourceMap, SourceMapType},
 };
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, NonLocalValue, TraceRawVcs, ValueDebugFormat)]
+#[derive(PartialEq, Eq, NonLocalValue, ValueDebugFormat, Encode, Decode)]
 enum PathType {
     Fixed {
         path: FileSystemPath,
@@ -24,46 +23,56 @@ enum PathType {
     FromIdent {
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         ident_for_path: ResolvedVc<AssetIdent>,
+        extension: RcStr,
     },
 }
 
-/// Represents the source map of an ecmascript asset.
+/// Represents the source map of an output asset.
 #[turbo_tasks::value]
 pub struct SourceMapAsset {
     path_ty: PathType,
+    source_map_ty: Option<SourceMapType>,
     generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
 }
 
 #[turbo_tasks::value_impl]
 impl SourceMapAsset {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         ident_for_path: ResolvedVc<AssetIdent>,
         generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
-    ) -> Vc<Self> {
-        SourceMapAsset {
+        extension: RcStr,
+    ) -> Result<Vc<Self>> {
+        Ok(SourceMapAsset {
             path_ty: PathType::FromIdent {
                 chunking_context,
                 ident_for_path,
+                extension,
             },
+            source_map_ty: *chunking_context.emitted_source_map_type().await?,
             generate_source_map,
         }
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]
     pub fn new_fixed(
         path: FileSystemPath,
+        source_map_ty: SourceMapType,
         generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
     ) -> Vc<Self> {
         SourceMapAsset {
             path_ty: PathType::Fixed { path },
+            source_map_ty: Some(source_map_ty),
             generate_source_map,
         }
         .cell()
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for SourceMapAsset {}
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for SourceMapAsset {
@@ -76,12 +85,13 @@ impl OutputAsset for SourceMapAsset {
             PathType::FromIdent {
                 chunking_context,
                 ident_for_path,
+                extension,
             } => chunking_context
                 .chunk_path(
                     Some(Vc::upcast(self)),
                     **ident_for_path,
                     None,
-                    rcstr!(".js"),
+                    extension.clone(),
                 )
                 .await?
                 .append(".map")?
@@ -95,11 +105,15 @@ impl OutputAsset for SourceMapAsset {
 impl Asset for SourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        if let Some(sm) = &*self.generate_source_map.generate_source_map().await? {
-            Ok(AssetContent::file(File::from(sm.clone()).into()))
+        let ty = self
+            .source_map_ty
+            .context("Cannot emit a source map asset when source maps are disabled")?;
+        let content = self.generate_source_map.generate_source_map(ty);
+        if content.await?.is_content() {
+            Ok(AssetContent::file(content))
         } else {
             Ok(AssetContent::file(
-                File::from(SourceMap::empty_rope()).into(),
+                FileContent::Content(File::from(SourceMap::empty_rope())).cell(),
             ))
         }
     }

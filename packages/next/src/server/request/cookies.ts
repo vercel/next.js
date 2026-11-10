@@ -15,21 +15,23 @@ import {
   type RequestStore,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  delayUntilRuntimeStage,
-  postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
   makeDevtoolsIOAwarePromise,
-  makeHangingPromise,
+  makeSessionDataHangingPromise,
+  RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
-import { isRequestAPICallableInsideAfter } from './utils'
+import { isRequestApiAllowedInCurrentPhase } from './utils'
+import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
-import { RenderStage } from '../app-render/staged-rendering'
+import {
+  createCookiesInUseCacheError,
+  createCookiesInUnstableCacheError,
+} from '../use-cache/use-cache-messages'
 
 export function cookies(): Promise<ReadonlyRequestCookies> {
   const callingExpression = 'cookies'
@@ -37,14 +39,9 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore) {
-    if (
-      workUnitStore &&
-      workUnitStore.phase === 'after' &&
-      !isRequestAPICallableInsideAfter()
-    ) {
+    if (workUnitStore && !isRequestApiAllowedInCurrentPhase(workUnitStore)) {
       throw new Error(
-        // TODO(after): clarify that this only applies to pages?
-        `Route ${workStore.route} used \`cookies()\` inside \`after()\`. This is not supported. If you need this data inside an \`after()\` callback, use \`cookies()\` outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/after`
+        `Route ${workStore.route} used \`cookies()\` inside \`after()\` while rendering. This is not supported. If you need this data inside an \`after()\` callback, use \`cookies()\` outside of the callback. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
       )
     }
 
@@ -64,30 +61,24 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
     if (workUnitStore) {
       switch (workUnitStore.type) {
         case 'cache':
-          const error = new Error(
-            `Route ${workStore.route} used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-          )
+          const error = createCookiesInUseCacheError(workStore.route)
           Error.captureStackTrace(error, cookies)
+          applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
           throw error
         case 'unstable-cache':
+          throw createCookiesInUnstableCacheError(workStore.route)
+        case 'build-time-generator':
           throw new Error(
-            `Route ${workStore.route} used \`cookies()\` inside a function cached with \`unstable_cache()\`. Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+            `Route ${workStore.route} used \`cookies()\` inside \`${workUnitStore.functionName}\`. This is not supported because \`${workUnitStore.functionName}\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
           )
         case 'prerender':
           return makeHangingCookies(workStore, workUnitStore)
         case 'prerender-client':
+        case 'validation-client':
           const exportName = '`cookies`'
           throw new InvariantError(
             `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
-          )
-        case 'prerender-ppr':
-          // We need track dynamic access here eagerly to keep continuity with
-          // how cookies has worked in PPR without cacheComponents.
-          return postponeWithTracking(
-            workStore.route,
-            callingExpression,
-            workUnitStore.dynamicTracking
           )
         case 'prerender-legacy':
           // We track dynamic access here so we don't need to wrap the cookies
@@ -97,11 +88,18 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             workStore,
             workUnitStore
           )
-        case 'prerender-runtime':
-          return delayUntilRuntimeStage(
-            workUnitStore,
-            makeUntrackedCookies(workUnitStore.cookies)
-          )
+        case 'prerender-runtime': {
+          const { stagedRendering } = workUnitStore
+          if (stagedRendering) {
+            return stagedRendering.delayUntilStage(
+              RENDER_STAGES_BY_DATA_KIND.sessionData,
+              'cookies',
+              workUnitStore.cookies
+            )
+          } else {
+            return makeUntrackedCookies(workUnitStore.cookies)
+          }
+        }
         case 'private-cache':
           // Private caches are delayed until the runtime stage in use-cache-wrapper,
           // so we don't need an additional delay here.
@@ -129,6 +127,12 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
               underlyingCookies,
               workStore?.route
             )
+          } else if (workUnitStore.asyncApiPromises) {
+            if (underlyingCookies === workUnitStore.mutableCookies) {
+              return workUnitStore.asyncApiPromises.mutableCookies
+            } else {
+              return workUnitStore.asyncApiPromises.cookies
+            }
           } else {
             return makeUntrackedCookies(underlyingCookies)
           }
@@ -161,10 +165,11 @@ function makeHangingCookies(
     return cachedPromise
   }
 
-  const promise = makeHangingPromise<ReadonlyRequestCookies>(
+  const promise = makeSessionDataHangingPromise<ReadonlyRequestCookies>(
     prerenderStore.renderSignal,
     workStore.route,
-    '`cookies()`'
+    '`cookies()`',
+    prerenderStore
   )
   CachedCookies.set(prerenderStore, promise)
 
@@ -190,6 +195,20 @@ function makeUntrackedCookiesWithDevWarnings(
   underlyingCookies: ReadonlyRequestCookies,
   route?: string
 ): Promise<ReadonlyRequestCookies> {
+  if (requestStore.asyncApiPromises) {
+    let promise: Promise<ReadonlyRequestCookies>
+    if (underlyingCookies === requestStore.mutableCookies) {
+      promise = requestStore.asyncApiPromises.mutableCookies
+    } else if (underlyingCookies === requestStore.cookies) {
+      promise = requestStore.asyncApiPromises.cookies
+    } else {
+      throw new InvariantError(
+        'Received an underlying cookies object that does not match either `cookies` or `mutableCookies`'
+      )
+    }
+    return instrumentCookiesPromiseWithDevWarnings(promise, route)
+  }
+
   const cachedCookies = CachedCookies.get(underlyingCookies)
   if (cachedCookies) {
     return cachedCookies
@@ -198,35 +217,10 @@ function makeUntrackedCookiesWithDevWarnings(
   const promise = makeDevtoolsIOAwarePromise(
     underlyingCookies,
     requestStore,
-    RenderStage.Runtime
+    RENDER_STAGES_BY_DATA_KIND.sessionData
   )
 
-  const proxiedPromise = new Proxy(promise, {
-    get(target, prop, receiver) {
-      switch (prop) {
-        case Symbol.iterator: {
-          warnForSyncAccess(route, '`...cookies()` or similar iteration')
-          break
-        }
-        case 'size':
-        case 'get':
-        case 'getAll':
-        case 'has':
-        case 'set':
-        case 'delete':
-        case 'clear':
-        case 'toString': {
-          warnForSyncAccess(route, `\`cookies().${prop}\``)
-          break
-        }
-        default: {
-          // We only warn for well-defined properties of the cookies object.
-        }
-      }
-
-      return ReflectAdapter.get(target, prop, receiver)
-    },
-  })
+  const proxiedPromise = instrumentCookiesPromiseWithDevWarnings(promise, route)
 
   CachedCookies.set(underlyingCookies, proxiedPromise)
 
@@ -236,6 +230,71 @@ function makeUntrackedCookiesWithDevWarnings(
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
   createCookiesAccessError
 )
+
+function instrumentCookiesPromiseWithDevWarnings(
+  promise: Promise<ReadonlyRequestCookies>,
+  route: string | undefined
+) {
+  Object.defineProperties(promise, {
+    [Symbol.iterator]: replaceableWarningDescriptorForSymbolIterator(
+      promise,
+      route
+    ),
+    size: replaceableWarningDescriptor(promise, 'size', route),
+    get: replaceableWarningDescriptor(promise, 'get', route),
+    getAll: replaceableWarningDescriptor(promise, 'getAll', route),
+    has: replaceableWarningDescriptor(promise, 'has', route),
+    set: replaceableWarningDescriptor(promise, 'set', route),
+    delete: replaceableWarningDescriptor(promise, 'delete', route),
+    clear: replaceableWarningDescriptor(promise, 'clear', route),
+    toString: replaceableWarningDescriptor(promise, 'toString', route),
+  })
+  return promise
+}
+
+function replaceableWarningDescriptor(
+  target: unknown,
+  prop: string,
+  route: string | undefined
+) {
+  return {
+    enumerable: false,
+    get() {
+      warnForSyncAccess(route, `\`cookies().${prop}\``)
+      return undefined
+    },
+    set(value: unknown) {
+      Object.defineProperty(target, prop, {
+        value,
+        writable: true,
+        configurable: true,
+      })
+    },
+    configurable: true,
+  }
+}
+
+function replaceableWarningDescriptorForSymbolIterator(
+  target: unknown,
+  route: string | undefined
+) {
+  return {
+    enumerable: false,
+    get() {
+      warnForSyncAccess(route, '`...cookies()` or similar iteration')
+      return undefined
+    },
+    set(value: unknown) {
+      Object.defineProperty(target, Symbol.iterator, {
+        value,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      })
+    },
+    configurable: true,
+  }
+}
 
 function createCookiesAccessError(
   route: string | undefined,

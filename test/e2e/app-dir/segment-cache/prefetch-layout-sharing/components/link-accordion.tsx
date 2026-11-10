@@ -54,8 +54,6 @@ function getPrefetchKind(prefetch: LinkProps['prefetch']) {
     case 'auto':
       return 'auto'
     case true:
-      return 'runtime'
-    case 'unstable_forceStale':
       return 'full'
     default:
       prefetch satisfies never

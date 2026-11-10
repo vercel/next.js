@@ -42,7 +42,7 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
-      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+      ...(process.env.__NEXT_CACHE_COMPONENTS === 'true'
         ? {
             'next-router-segment-prefetch': '/_tree',
           }
@@ -78,7 +78,7 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
-      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+      ...(process.env.__NEXT_CACHE_COMPONENTS === 'true'
         ? {
             'next-router-segment-prefetch': '/_tree',
           }
@@ -114,7 +114,7 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
-      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+      ...(process.env.__NEXT_CACHE_COMPONENTS === 'true'
         ? {
             'next-router-segment-prefetch': '/_tree',
           }
@@ -151,7 +151,7 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
-      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+      ...(process.env.__NEXT_CACHE_COMPONENTS === 'true'
         ? {
             'next-router-segment-prefetch': '/_tree',
           }
@@ -187,7 +187,7 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
-      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+      ...(process.env.__NEXT_CACHE_COMPONENTS === 'true'
         ? {
             'next-router-segment-prefetch': '/_tree',
           }
@@ -223,7 +223,7 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
-      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+      ...(process.env.__NEXT_CACHE_COMPONENTS === 'true'
         ? {
             'next-router-segment-prefetch': '/_tree',
           }
@@ -259,7 +259,7 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
-      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+      ...(process.env.__NEXT_CACHE_COMPONENTS === 'true'
         ? {
             'next-router-segment-prefetch': '/_tree',
           }
@@ -295,7 +295,7 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
-      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+      ...(process.env.__NEXT_CACHE_COMPONENTS === 'true'
         ? {
             'next-router-segment-prefetch': '/_tree',
           }
@@ -339,7 +339,7 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
-      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+      ...(process.env.__NEXT_CACHE_COMPONENTS === 'true'
         ? {
             'next-router-segment-prefetch': '/_tree',
           }
@@ -411,6 +411,11 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
+      ...(process.env.__NEXT_CACHE_COMPONENTS === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': '/other',
@@ -442,7 +447,7 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
-      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+      ...(process.env.__NEXT_CACHE_COMPONENTS === 'true'
         ? {
             'next-router-segment-prefetch': '/_tree',
           }
@@ -455,12 +460,13 @@ const cases: {
   },
 ]
 
+// TODO: re-enable once changes in infrastructure are merged
+// @force-gate !deploy
 describe('rewrite-headers', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
-    // TODO: re-enable once changes in infrastructure are merged
-    skipDeployment: true,
   })
+  if (skipped) return
 
   describe.each(cases)(
     '$name ($pathname)',
@@ -471,7 +477,7 @@ describe('rewrite-headers', () => {
 
         // Add cache busting param for RSC requests
         if (headers.rsc === '1') {
-          const cacheBustingParam = computeCacheBustingSearchParam(
+          const cacheBustingParam = await computeCacheBustingSearchParam(
             headers['next-router-prefetch'],
             headers['next-router-segment-prefetch'],
             undefined,

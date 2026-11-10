@@ -3,15 +3,20 @@ import type { BaseNextRequest } from '../base-http'
 import type { NextRequest } from '../web/exports'
 import { ACTION_HEADER } from '../../client/components/app-router-headers'
 
+export type ServerActionRequestMetadata = {
+  readonly actionId: string | null
+  readonly isURLEncodedAction: boolean
+  readonly isMultipartAction: boolean
+  readonly isFetchAction: boolean
+  readonly isPossibleServerAction: boolean
+}
+
 export function getServerActionRequestMetadata(
-  req: IncomingMessage | BaseNextRequest | NextRequest
-): {
-  actionId: string | null
-  isURLEncodedAction: boolean
-  isMultipartAction: boolean
-  isFetchAction: boolean
-  isPossibleServerAction: boolean
-} {
+  req: Pick<
+    IncomingMessage | BaseNextRequest | NextRequest,
+    'headers' | 'method'
+  >
+): ServerActionRequestMetadata {
   let actionId: string | null
   let contentType: string | null
 
@@ -23,6 +28,9 @@ export function getServerActionRequestMetadata(
     contentType = req.headers['content-type'] ?? null
   }
 
+  // We don't actually support URL encoded actions, and the action handler will bail out if it sees one.
+  // But we still want it to flow through to the action handler, to prevent changes in behavior when a regular
+  // page component tries to handle a POST.
   const isURLEncodedAction = Boolean(
     req.method === 'POST' && contentType === 'application/x-www-form-urlencoded'
   )

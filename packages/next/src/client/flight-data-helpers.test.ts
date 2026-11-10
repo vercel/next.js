@@ -1,6 +1,6 @@
 import { prepareFlightRouterStateForRequest } from './flight-data-helpers'
 import {
-  HasLoadingBoundary,
+  PrefetchHint,
   type FlightRouterState,
 } from '../shared/lib/app-router-types'
 
@@ -8,12 +8,12 @@ describe('prepareFlightRouterStateForRequest', () => {
   describe('HMR refresh handling', () => {
     it('should preserve complete state for HMR refresh requests', () => {
       const flightRouterState: FlightRouterState = [
-        '__PAGE__?{"sensitive":"data"}',
+        '__PAGE__',
         {},
-        '/some/url',
-        'refresh',
-        true,
-        1,
+        ['/some/url', ''],
+        'refetch',
+        PrefetchHint.IsRootLayoutOrAbove | 1,
+        '?sensitive=data',
       ]
 
       const result = prepareFlightRouterStateForRequest(flightRouterState, true)
@@ -23,19 +23,28 @@ describe('prepareFlightRouterStateForRequest', () => {
     })
   })
 
-  describe('__PAGE__ segment handling', () => {
-    it('should strip search params from __PAGE__ segments', () => {
+  describe('page search handling', () => {
+    it('should strip the page search (index 5)', () => {
       const flightRouterState: FlightRouterState = [
-        '__PAGE__?{"param":"value","foo":"bar"}',
+        '__PAGE__',
         {},
+        ['/some/url', ''],
+        'refetch',
+        PrefetchHint.IsRootLayoutOrAbove | 1,
+        '?sensitive=data',
       ]
 
-      const result = prepareFlightRouterStateForRequest(flightRouterState)
+      const result = prepareFlightRouterStateForRequest(
+        flightRouterState,
+        false
+      )
       const decoded = JSON.parse(decodeURIComponent(result))
 
-      expect(decoded[0]).toBe('__PAGE__')
+      expect(decoded[5]).toBeUndefined()
     })
+  })
 
+  describe('__PAGE__ segment handling', () => {
     it('should preserve non-page segments', () => {
       const flightRouterState: FlightRouterState = ['regular-segment', {}]
 
@@ -46,7 +55,12 @@ describe('prepareFlightRouterStateForRequest', () => {
     })
 
     it('should preserve dynamic segments', () => {
-      const dynamicSegment: [string, string, 'd'] = ['slug', 'test-value', 'd']
+      const dynamicSegment: [string, string, 'd', null] = [
+        'slug',
+        'test-value',
+        'd',
+        null,
+      ]
       const flightRouterState: FlightRouterState = [dynamicSegment, {}]
 
       const result = prepareFlightRouterStateForRequest(flightRouterState)
@@ -61,14 +75,13 @@ describe('prepareFlightRouterStateForRequest', () => {
       const flightRouterState: FlightRouterState = [
         'segment',
         {},
-        '/sensitive/url/path',
-        null,
+        ['/sensitive/url/path', ''],
       ]
 
       const result = prepareFlightRouterStateForRequest(flightRouterState)
       const decoded = JSON.parse(decodeURIComponent(result))
 
-      expect(decoded[2]).toBeNull()
+      expect(decoded[2]).toBeUndefined()
     })
   })
 
@@ -77,7 +90,7 @@ describe('prepareFlightRouterStateForRequest', () => {
       const flightRouterState: FlightRouterState = [
         'segment',
         {},
-        '/url',
+        ['/url', ''],
         'refetch',
       ]
 
@@ -91,7 +104,7 @@ describe('prepareFlightRouterStateForRequest', () => {
       const flightRouterState: FlightRouterState = [
         'segment',
         {},
-        '/url',
+        ['/url', ''],
         'inside-shared-layout',
       ]
 
@@ -101,75 +114,59 @@ describe('prepareFlightRouterStateForRequest', () => {
       expect(decoded[3]).toBe('inside-shared-layout')
     })
 
-    it('should strip "refresh" marker (client-only)', () => {
+    it('should strip "refresh" state (client-only)', () => {
+      const flightRouterState: FlightRouterState = ['segment', {}, ['/url', '']]
+
+      const result = prepareFlightRouterStateForRequest(flightRouterState)
+      const decoded = JSON.parse(decodeURIComponent(result))
+
+      expect(decoded[2]).toBeUndefined()
+    })
+
+    it('should strip null refresh marker', () => {
       const flightRouterState: FlightRouterState = [
         'segment',
         {},
-        '/url',
-        'refresh',
+        ['/url', ''],
+        null,
       ]
 
       const result = prepareFlightRouterStateForRequest(flightRouterState)
       const decoded = JSON.parse(decodeURIComponent(result))
 
-      expect(decoded[3]).toBeNull()
-    })
-
-    it('should strip null refresh marker', () => {
-      const flightRouterState: FlightRouterState = ['segment', {}, '/url', null]
-
-      const result = prepareFlightRouterStateForRequest(flightRouterState)
-      const decoded = JSON.parse(decodeURIComponent(result))
-
-      expect(decoded[3]).toBeNull()
+      expect(decoded[3]).toBeUndefined()
     })
   })
 
   describe('optional fields preservation', () => {
-    it('should preserve isRootLayout when true', () => {
+    it('should preserve prefetchHints with IsRootLayoutOrAbove', () => {
       const flightRouterState: FlightRouterState = [
         'segment',
         {},
         null,
         null,
-        true,
+        PrefetchHint.IsRootLayoutOrAbove,
       ]
 
       const result = prepareFlightRouterStateForRequest(flightRouterState)
       const decoded = JSON.parse(decodeURIComponent(result))
 
-      expect(decoded[4]).toBe(true)
+      expect(decoded[4]).toBe(PrefetchHint.IsRootLayoutOrAbove)
     })
 
-    it('should preserve isRootLayout when false', () => {
+    it('should preserve prefetchHints with SegmentHasLoadingBoundary', () => {
       const flightRouterState: FlightRouterState = [
         'segment',
         {},
         null,
         null,
-        false,
+        PrefetchHint.SegmentHasLoadingBoundary,
       ]
 
       const result = prepareFlightRouterStateForRequest(flightRouterState)
       const decoded = JSON.parse(decodeURIComponent(result))
 
-      expect(decoded[4]).toBe(false)
-    })
-
-    it('should preserve hasLoadingBoundary', () => {
-      const flightRouterState: FlightRouterState = [
-        'segment',
-        {},
-        null,
-        null,
-        undefined,
-        1, // HasLoadingBoundary value
-      ]
-
-      const result = prepareFlightRouterStateForRequest(flightRouterState)
-      const decoded = JSON.parse(decodeURIComponent(result))
-
-      expect(decoded[5]).toBe(1)
+      expect(decoded[4]).toBe(PrefetchHint.SegmentHasLoadingBoundary)
     })
 
     it('should handle minimal FlightRouterState (only segment and parallelRoutes)', () => {
@@ -178,12 +175,7 @@ describe('prepareFlightRouterStateForRequest', () => {
       const result = prepareFlightRouterStateForRequest(flightRouterState)
       const decoded = JSON.parse(decodeURIComponent(result))
 
-      expect(decoded).toEqual([
-        'segment',
-        {},
-        null, // URL
-        null, // refresh marker
-      ])
+      expect(decoded).toEqual(['segment', {}])
     })
   })
 
@@ -192,15 +184,10 @@ describe('prepareFlightRouterStateForRequest', () => {
       const flightRouterState: FlightRouterState = [
         'parent',
         {
-          children: [
-            '__PAGE__?{"nested":"param"}',
-            {},
-            '/nested/url',
-            'refresh',
-          ],
-          modal: ['modal-segment', {}, '/modal/url', 'refetch'],
+          children: ['__PAGE__', {}, ['/nested/url', '']],
+          modal: ['modal-segment', {}, ['/modal/url', ''], 'refetch'],
         },
-        '/parent/url',
+        ['/parent/url', ''],
         'inside-shared-layout',
       ]
 
@@ -211,10 +198,10 @@ describe('prepareFlightRouterStateForRequest', () => {
         'parent',
         {
           children: [
-            '__PAGE__', // search params stripped
+            '__PAGE__',
             {},
-            null, // URL stripped
-            null, // 'refresh' marker stripped
+            // URL stripped
+            // 'refresh' marker stripped
           ],
           modal: [
             'modal-segment',
@@ -235,12 +222,7 @@ describe('prepareFlightRouterStateForRequest', () => {
           children: [
             'level1',
             {
-              children: [
-                '__PAGE__?{"deep":"nesting"}',
-                {},
-                '/deep/url',
-                'refetch',
-              ],
+              children: ['__PAGE__', {}, ['/deep/url', ''], 'refetch'],
             },
           ],
         },
@@ -258,62 +240,70 @@ describe('prepareFlightRouterStateForRequest', () => {
   describe('real-world scenarios', () => {
     it('should handle complex FlightRouterState with all features', () => {
       const complexState: FlightRouterState = [
-        '__PAGE__?{"userId":"123"}',
+        '__PAGE__',
         {
           children: [
             'dashboard',
             {
               modal: [
-                '__PAGE__?{"modalParam":"data"}',
+                '__PAGE__',
                 {},
-                '/modal/path',
-                'refresh',
-                false,
-                HasLoadingBoundary.SegmentHasLoadingBoundary,
+                ['/modal/path', ''],
+                null,
+                PrefetchHint.SegmentHasLoadingBoundary,
               ],
             },
-            '/dashboard/url',
+            ['/dashboard/url', ''],
             'refetch',
-            true,
-            1,
+            PrefetchHint.IsRootLayoutOrAbove |
+              PrefetchHint.SegmentHasLoadingBoundary,
           ],
-          sidebar: [['slug', 'user-123', 'd'], {}, '/sidebar/url', null],
+          sidebar: [
+            ['slug', 'user-123', 'd', null],
+            {},
+            ['/sidebar/url', ''],
+            null,
+          ],
         },
-        '/main/url',
+        ['/main/url', ''],
         'inside-shared-layout',
-        true,
-        1,
+        PrefetchHint.IsRootLayoutOrAbove |
+          PrefetchHint.SegmentHasLoadingBoundary,
       ]
 
       const result = prepareFlightRouterStateForRequest(complexState)
       const decoded = JSON.parse(decodeURIComponent(result))
 
       // Root level checks
-      expect(decoded[0]).toBe('__PAGE__') // search params stripped
+      expect(decoded[0]).toBe('__PAGE__')
       expect(decoded[2]).toBeNull() // URL stripped
       expect(decoded[3]).toBe('inside-shared-layout') // server marker preserved
-      expect(decoded[4]).toBe(true) // isRootLayout preserved
-      expect(decoded[5]).toBe(1) // hasLoadingBoundary preserved
+      expect(decoded[4]).toBe(
+        PrefetchHint.IsRootLayoutOrAbove |
+          PrefetchHint.SegmentHasLoadingBoundary
+      ) // prefetchHints preserved
 
       // Children route checks
       const childrenRoute = decoded[1].children
       expect(childrenRoute[2]).toBeNull() // URL stripped
       expect(childrenRoute[3]).toBe('refetch') // server marker preserved
-      expect(childrenRoute[4]).toBe(true) // isRootLayout preserved
+      expect(childrenRoute[4]).toBe(
+        PrefetchHint.IsRootLayoutOrAbove |
+          PrefetchHint.SegmentHasLoadingBoundary
+      ) // prefetchHints preserved
 
       // Modal route checks
       const modalRoute = childrenRoute[1].modal
-      expect(modalRoute[0]).toBe('__PAGE__') // search params stripped
+      expect(modalRoute[0]).toBe('__PAGE__')
       expect(modalRoute[2]).toBeNull() // URL stripped
       expect(modalRoute[3]).toBeNull() // 'refresh' marker stripped
-      expect(modalRoute[4]).toBe(false) // isRootLayout preserved
-      expect(modalRoute[5]).toBe(HasLoadingBoundary.SegmentHasLoadingBoundary) // hasLoadingBoundary preserved
+      expect(modalRoute[4]).toBe(PrefetchHint.SegmentHasLoadingBoundary) // prefetchHints preserved
 
       // Sidebar route (dynamic segment) checks
       const sidebarRoute = decoded[1].sidebar
-      expect(sidebarRoute[0]).toEqual(['slug', 'user-123', 'd']) // dynamic segment preserved
-      expect(sidebarRoute[2]).toBeNull() // URL stripped
-      expect(sidebarRoute[3]).toBeNull() // null marker remains null
+      expect(sidebarRoute[0]).toEqual(['slug', 'user-123', 'd', null]) // dynamic segment preserved
+      expect(sidebarRoute[2]).toBeUndefined() // URL stripped
+      expect(sidebarRoute[3]).toBeUndefined() // null marker stripped
     })
   })
 })

@@ -1,12 +1,11 @@
-use std::{env, path::PathBuf};
+use std::{env, path::PathBuf, sync::LazyLock};
 
-use anyhow::{Context, Result, bail};
-use once_cell::sync::Lazy;
+use anyhow::{Result, bail};
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use similar::TextDiff;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, File, FileContent, FileSystemEntryType, FileSystemPath,
 };
@@ -19,9 +18,17 @@ use turbopack_core::{
 
 // Updates the existing snapshot outputs with the actual outputs of this run.
 // e.g. `UPDATE=1 cargo test -p turbopack-tests -- test_my_pattern`
-pub static UPDATE: Lazy<bool> = Lazy::new(|| env::var("UPDATE").unwrap_or_default() == "1");
+pub static UPDATE: LazyLock<bool> = LazyLock::new(|| env::var("UPDATE").unwrap_or_default() == "1");
 
-static ANSI_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\x1b\[\d+m").unwrap());
+/// Matches an ANSI CSI escape sequence (ECMA-48): `ESC [`, parameter bytes (e.g. `92;4`, possibly
+/// empty), intermediate bytes, and a final byte (`m` for colors/styles).
+static ANSI_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\x1b\[[0-?]*[ -/]*[@-~]").unwrap());
+
+/// Removes ANSI escape sequences (colors, styles) so snapshots contain only the visible text.
+fn strip_ansi(s: &str) -> std::borrow::Cow<'_, str> {
+    ANSI_REGEX.replace_all(s, "")
+}
 
 pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
     captured_issues: I,
@@ -33,11 +40,14 @@ pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
     for plain_issue in captured_issues.into_iter() {
         let title = styled_string_to_file_safe_string(&plain_issue.title)
             .replace('/', "__")
-            // We replace "*", "?", and '"' because they're not allowed in filenames on Windows.
+            // We replace these characters because they're not allowed in filenames on Windows.
             .replace('*', "__star__")
             .replace('"', "__quo__")
             .replace('?', "__q__")
-            .replace(':', "__c__");
+            .replace(':', "__c__")
+            .replace('<', "__lt__")
+            .replace('>', "__gt__")
+            .replace('|', "__pipe__");
         let title = if title.len() > 50 {
             &title[0..50]
         } else {
@@ -65,15 +75,13 @@ pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
         // Annoyingly, the PlainIssue.source -> PlainIssueSource.asset ->
         // PlainSource.path -> Vc<FileSystemPath>.fs -> DiskFileSystem.root changes
         // for everyone.
-        let content: RcStr = formatted
-            .as_str()
-            .replace(workspace_root, "WORKSPACE_ROOT")
-            .replace(&*ANSI_REGEX, "")
+        let content = formatted.as_str().replace(workspace_root, "WORKSPACE_ROOT");
+        let content: RcStr = strip_ansi(&content)
             // Normalize syspaths from Windows. These appear in stack traces.
             .replace("\\\\", "/")
             .into();
 
-        let asset = AssetContent::file(File::from(content).into());
+        let asset = AssetContent::file(FileContent::Content(File::from(content)).cell());
 
         diff(path, asset).await?;
     }
@@ -121,13 +129,13 @@ pub async fn diff(path: FileSystemPath, actual: Vc<AssetContent>) -> Result<()> 
     let path_str = &path.path;
     let expected = AssetContent::file(path.read());
 
-    let actual = get_contents(actual, path.clone()).await?;
-    let expected = get_contents(expected, path.clone()).await?;
+    let actual = get_contents(actual).await?;
+    let expected = get_contents(expected).await?;
 
     if actual != expected {
         if let Some(actual) = actual {
             if *UPDATE {
-                let content = File::from(RcStr::from(actual)).into();
+                let content = FileContent::Content(File::from(RcStr::from(actual))).cell();
                 path.write(content).await?;
                 println!("updated contents of {path_str}");
             } else {
@@ -154,34 +162,24 @@ pub async fn diff(path: FileSystemPath, actual: Vc<AssetContent>) -> Result<()> 
     Ok(())
 }
 
-async fn get_contents(file: Vc<AssetContent>, path: FileSystemPath) -> Result<Option<String>> {
-    Ok(
-        match &*file.await.context(format!(
-            "Unable to read AssetContent of {}",
-            path.value_to_string().await?
-        ))? {
-            AssetContent::File(file) => match &*file.await.context(format!(
-                "Unable to read FileContent of {}",
-                path.value_to_string().await?
-            ))? {
-                FileContent::NotFound => None,
-                FileContent::Content(expected) => {
-                    let rope = expected.content();
-                    let str = rope.to_str();
-                    match str {
-                        Ok(str) => Some(str.trim().to_string()),
-                        Err(_) => {
-                            let hash = hash_xxh3_hash64(rope);
-                            Some(format!("Binary content {hash:016x}"))
-                        }
+async fn get_contents(file: Vc<AssetContent>) -> Result<Option<String>> {
+    Ok(match &*file.await? {
+        AssetContent::File(file) => match &*file.await? {
+            FileContent::NotFound => None,
+            FileContent::Content(expected) => {
+                let rope = expected.content();
+                let str = rope.to_str();
+                match str {
+                    Ok(str) => Some(str.trim().to_string()),
+                    Err(_) => {
+                        let hash = hash_xxh3_hash64(rope);
+                        Some(format!("Binary content {hash:016x}"))
                     }
                 }
-            },
-            AssetContent::Redirect { target, link_type } => Some(format!(
-                "Redirect {{ target: {target}, link_type: {link_type:?} }}"
-            )),
+            }
         },
-    )
+        AssetContent::Redirect(content) => Some(format!("Redirect {content:?}")),
+    })
 }
 
 async fn remove_file(path: FileSystemPath) -> Result<()> {
@@ -198,11 +196,7 @@ async fn diff_paths(
 ) -> Result<FxHashSet<FileSystemPath>> {
     let mut map = left
         .iter()
-        .map(|p| async move { Ok((p.path.clone(), p.clone())) })
-        .try_join()
-        .await?
-        .iter()
-        .cloned()
+        .map(|p| (p.path.clone(), p.clone()))
         .collect::<FxHashMap<_, _>>();
     for p in right {
         map.remove(&p.path);
@@ -234,5 +228,18 @@ fn styled_string_to_file_safe_string(styled_string: &StyledString) -> String {
         StyledString::Text(string) => string.to_string(),
         StyledString::Code(string) => format!("__c_{string}__"),
         StyledString::Strong(string) => format!("__{string}__"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::strip_ansi;
+
+    #[test]
+    fn strips_sgr_escape_sequences() {
+        assert_eq!(
+            strip_ansi("\x1b[92;4msuggestion\x1b[0m - \x1b[1mtitle\x1b[m [project]/a.js array[0]"),
+            "suggestion - title [project]/a.js array[0]"
+        );
     }
 }

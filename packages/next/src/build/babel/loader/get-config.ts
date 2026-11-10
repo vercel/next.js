@@ -17,6 +17,7 @@ import {
 } from './util'
 import * as Log from '../../output/log'
 import { isReactCompilerRequired } from '../../swc'
+import { installBindings } from '../../swc/install-bindings'
 
 /**
  * An internal (non-exported) type used by babel.
@@ -311,17 +312,20 @@ function checkCustomBabelConfigDeprecation(
             `\t- '@emotion/babel-plugin' can be enabled via 'compiler.emotion' in 'next.config.js'`
           )
           break
+        case 'relay':
         case 'babel-plugin-relay':
           pluginReasons.push(
-            `\t- 'babel-plugin-relay' can be enabled via 'compiler.relay' in 'next.config.js'`
+            `\t- 'relay' can be enabled via 'compiler.relay' in 'next.config.js'`
           )
           break
         case 'react-remove-properties':
+        case 'babel-plugin-react-remove-properties':
           pluginReasons.push(
             `\t- 'react-remove-properties' can be enabled via 'compiler.reactRemoveProperties' in 'next.config.js'`
           )
           break
         case 'transform-remove-console':
+        case 'babel-plugin-transform-remove-console':
           pluginReasons.push(
             `\t- 'transform-remove-console' can be enabled via 'compiler.removeConsole' in 'next.config.js'`
           )
@@ -570,6 +574,10 @@ export default async function getConfig(
     inputSourceMap?: SourceMap | undefined
   }
 ): Promise<ResolvedBabelConfig | null> {
+  // Install bindings early so they are definitely available to the loader.
+  // When run by webpack in next this is already done with correct configuration so this is a no-op.
+  // In turbopack loaders are run in a subprocess so it may or may not be done.
+  await installBindings()
   const cacheCharacteristics = await getCacheCharacteristics(
     loaderOptions,
     source,

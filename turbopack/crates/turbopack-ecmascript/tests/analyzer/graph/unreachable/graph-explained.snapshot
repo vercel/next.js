@@ -20,6 +20,8 @@ g (const after eval) = (...) => undefined
 
 h (const after eval) = (...) => undefined
 
+i (const after eval) = (...) => undefined
+
 x#10 = ???*0*
 - *0* for-in variable currently not analyzed
 

@@ -1,0 +1,4 @@
+.themed {
+  color: light-dark(black, white);
+  background-color: light-dark(white, black);
+}

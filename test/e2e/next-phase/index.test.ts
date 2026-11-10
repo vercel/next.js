@@ -1,10 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// This test is skipped when deployed because it asserts against runtime
+// logs that cannot be queried in a deployed environment.
+// @force-gate !deploy
 describe('next-phase', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
-    // This test is skipped when deployed because it asserts against runtime
-    // logs that cannot be queried in a deployed environment.
-    skipDeployment: true,
+  const { next, isNextDev } = nextTestSetup({
     files: {
       'app/layout.js': `export default function Layout({ children }) {
         return <html><body>{children}</body></html>
@@ -20,9 +21,10 @@ describe('next-phase', () => {
     },
   })
 
-  if (skipped) return
-
   it('should render page with next phase correctly', async () => {
+    await next.fetch('/')
+    await next.fetch('/foo')
+
     const phases = {
       dev: 'phase-development-server',
       build: 'phase-production-build',
@@ -33,9 +35,6 @@ describe('next-phase', () => {
 
     expect(next.cliOutput).toContain(currentPhase)
     expect(next.cliOutput).not.toContain(nonExistedPhase)
-
-    await next.fetch('/')
-    await next.fetch('/foo')
 
     if (isNextDev) {
       expect(next.cliOutput).not.toContain(phases.start)

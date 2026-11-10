@@ -1,3 +1,5 @@
+// Import cpu-profile to start profiling early if enabled
+import '../server/lib/cpu-profile'
 import { Span } from '../trace'
 import type { NextConfigComplete } from '../server/config-shared'
 
@@ -8,6 +10,7 @@ import {
 } from './webpack/plugins/next-trace-entrypoints-plugin'
 
 import path from 'path'
+import { resolveCacheHandlerPathToFilesystem } from '../lib/format-dynamic-import-path'
 import fs from 'fs/promises'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../server/ci-info'
@@ -22,6 +25,22 @@ import type { NodeFileTraceReasons } from '@vercel/nft'
 import type { RoutesUsingEdgeRuntime } from './utils'
 
 const debug = debugOriginal('next:build:build-traces')
+
+export const makeIgnoreFn = (root: string, ignores: string[]) => {
+  // pre compile the ignore globs
+  const isMatch = picomatch(ignores, {
+    contains: true,
+    dot: true,
+  })
+
+  return (pathname: string) => {
+    if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
+      return true
+    }
+
+    return isMatch(pathname)
+  }
+}
 
 function shouldIgnore(
   file: string,
@@ -114,6 +133,24 @@ export async function collectBuildTraces({
         'next-minimal-server.js.nft.json'
       )
       const root = outputFileTracingRoot
+      let hasNativeRoutes = false
+      if (config.experimental.goRoutes) {
+        try {
+          // One read per tracing worker, only after opting in. The emitted manifest
+          // also distinguishes an enabled experiment with no native routes.
+          const appPaths: Record<string, string> = JSON.parse(
+            await fs.readFile(
+              path.join(distDir, 'server', 'app-paths-manifest.json'),
+              'utf8'
+            )
+          )
+          hasNativeRoutes = Object.values(appPaths).some((entry) =>
+            entry.endsWith('.native.json')
+          )
+        } catch (error) {
+          if (!isError(error) || error.code !== 'ENOENT') throw error
+        }
+      }
 
       // Under standalone mode, we need to trace the extra IPC server and
       // worker files.
@@ -124,17 +161,17 @@ export async function collectBuildTraces({
         })
       )
 
-      const { cacheHandler } = config
-      const { cacheHandlers } = config.experimental
+      const { cacheHandler, cacheHandlers } = config
 
       // ensure we trace any dependencies needed for custom
       // incremental cache handler
       if (cacheHandler) {
+        const resolvedPath = resolveCacheHandlerPathToFilesystem(cacheHandler)
         sharedEntriesSet.push(
           require.resolve(
-            path.isAbsolute(cacheHandler)
-              ? cacheHandler
-              : path.join(dir, cacheHandler)
+            path.isAbsolute(resolvedPath)
+              ? resolvedPath
+              : path.join(dir, resolvedPath)
           )
         )
       }
@@ -161,11 +198,13 @@ export async function collectBuildTraces({
       if (cacheHandlers) {
         for (const handlerPath of Object.values(cacheHandlers)) {
           if (handlerPath) {
+            const resolvedPath =
+              resolveCacheHandlerPathToFilesystem(handlerPath)
             sharedEntriesSet.push(
               require.resolve(
-                path.isAbsolute(handlerPath)
-                  ? handlerPath
-                  : path.join(dir, handlerPath)
+                path.isAbsolute(resolvedPath)
+                  ? resolvedPath
+                  : path.join(dir, resolvedPath)
               )
             )
           }
@@ -199,28 +238,24 @@ export async function collectBuildTraces({
         }
       }
 
-      const makeIgnoreFn = (ignores: string[]) => {
-        // pre compile the ignore globs
-        const isMatch = picomatch(ignores, {
-          contains: true,
-          dot: true,
-        })
-
-        return (pathname: string) => {
-          if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
-            return true
-          }
-
-          return isMatch(pathname)
-        }
-      }
-
       const sharedIgnores = [
         '**/next/dist/compiled/next-server/**/*.dev.js',
         ...(isStandalone ? [] : ['**/next/dist/compiled/jest-worker/**/*']),
         '**/next/dist/compiled/webpack/*',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
+        ...(hasNativeRoutes
+          ? []
+          : ['**/next/dist/server/lib/native-route*.js']),
+        // Upgrade workflows are CLI-only and are not needed by production servers.
+        '**/next/dist/lib/upgrade/**/*',
+        // The testmode interceptors bundle reads its HTTP parser WASM with a
+        // dynamic path, making nft trace the bundle's whole directory. Test
+        // proxying is not supported in standalone output, so keep the parser
+        // asset (and the license file picked up by the directory glob) out of
+        // production traces.
+        '**/next/dist/compiled/@mswjs/interceptors/ClientRequest/LICENSE',
+        '**/next/dist/compiled/@mswjs/interceptors/ClientRequest/llhttp/**/*',
         'next/dist/compiled/semver/semver/**/*.js',
 
         ...(ciEnvironment.hasNextSupport
@@ -228,6 +263,7 @@ export async function collectBuildTraces({
               // only ignore image-optimizer code when
               // this is being handled outside of next-server
               '**/next/dist/server/image-optimizer.js',
+              '**/next/dist/server/image-optimizer/**/*',
             ]
           : []),
 
@@ -235,7 +271,7 @@ export async function collectBuildTraces({
         ...additionalIgnores,
       ]
 
-      const sharedIgnoresFn = makeIgnoreFn(sharedIgnores)
+      const sharedIgnoresFn = makeIgnoreFn(root, sharedIgnores)
 
       const serverIgnores = [
         ...sharedIgnores,
@@ -247,7 +283,7 @@ export async function collectBuildTraces({
           ? ['**/node_modules/sharp/**/*', '**/@img/sharp-libvips*/**/*']
           : []),
       ].filter(nonNullable)
-      const serverIgnoreFn = makeIgnoreFn(serverIgnores)
+      const serverIgnoreFn = makeIgnoreFn(root, serverIgnores)
 
       const minimalServerIgnores = [
         ...serverIgnores,
@@ -255,7 +291,7 @@ export async function collectBuildTraces({
         '**/next/dist/server/web/sandbox/**/*',
         '**/next/dist/server/post-process.js',
       ]
-      const minimalServerIgnoreFn = makeIgnoreFn(minimalServerIgnores)
+      const minimalServerIgnoreFn = makeIgnoreFn(root, minimalServerIgnores)
 
       const routesIgnores = [
         ...sharedIgnores,
@@ -266,7 +302,7 @@ export async function collectBuildTraces({
         '**/next/dist/server/post-process.js',
       ].filter(nonNullable)
 
-      const routeIgnoreFn = makeIgnoreFn(routesIgnores)
+      const routeIgnoreFn = makeIgnoreFn(root, routesIgnores)
 
       const serverTracedFiles = new Set<string>()
       const minimalServerTracedFiles = new Set<string>()
@@ -300,6 +336,7 @@ export async function collectBuildTraces({
           base: outputFileTracingRoot,
           processCwd: dir,
           mixedModules: true,
+          moduleSyncCatchall: true,
           async readFile(p) {
             try {
               return await fs.readFile(p, 'utf8')
@@ -309,21 +346,6 @@ export async function collectBuildTraces({
                 // files might be removed from that step so tolerate ENOENT
                 // errors gracefully
                 return ''
-              }
-              throw e
-            }
-          },
-          async readlink(p) {
-            try {
-              return await fs.readlink(p)
-            } catch (e) {
-              if (
-                isError(e) &&
-                (e.code === 'EINVAL' ||
-                  e.code === 'ENOENT' ||
-                  e.code === 'UNKNOWN')
-              ) {
-                return null
               }
               throw e
             }

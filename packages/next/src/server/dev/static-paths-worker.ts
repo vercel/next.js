@@ -1,4 +1,12 @@
 import type { NextConfigComplete } from '../config-shared'
+import type {
+  AppPageModule,
+  AppPageRouteModule,
+} from '../route-modules/app-page/module'
+import type {
+  AppRouteModule,
+  AppRouteRouteModule,
+} from '../route-modules/app-route/module.compiled'
 
 import '../require-hook'
 import '../node-environment'
@@ -9,22 +17,17 @@ import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import { isAppPageRouteModule } from '../route-modules/checks'
-import {
-  checkIsRoutePPREnabled,
-  type ExperimentalPPRConfig,
-} from '../lib/experimental/ppr'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { collectRootParamKeys } from '../../build/segment-config/app/collect-root-param-keys'
 import { buildAppStaticPaths } from '../../build/static-paths/app'
 import { buildPagesStaticPaths } from '../../build/static-paths/pages'
 import { createIncrementalCache } from '../../export/helpers/create-incremental-cache'
-import type { AppPageRouteModule } from '../route-modules/app-page/module'
-import type { AppRouteRouteModule } from '../route-modules/app-route/module'
+import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 
 type RuntimeConfig = {
-  pprConfig: ExperimentalPPRConfig | undefined
   configFileName: string
   cacheComponents: boolean
+  partialPrefetching: boolean
 }
 
 // we call getStaticPaths in a separate process to ensure
@@ -42,14 +45,18 @@ export async function loadStaticPaths({
   page,
   isrFlushToDisk,
   fetchCacheKeyPrefix,
-  maxMemoryCacheSize,
+  cacheMaxMemorySize,
   requestHeaders,
   cacheHandler,
   cacheHandlers,
   cacheLifeProfiles,
   nextConfigOutput,
   buildId,
+  deploymentId,
   authInterrupts,
+  useCacheTimeout,
+  durableUseCacheEntries,
+  staticPageGenerationTimeout,
   sriEnabled,
 }: {
   dir: string
@@ -63,16 +70,18 @@ export async function loadStaticPaths({
   page: string
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
-  maxMemoryCacheSize?: number
+  cacheMaxMemorySize: number
   requestHeaders: IncrementalCache['requestHeaders']
   cacheHandler?: string
-  cacheHandlers?: NextConfigComplete['experimental']['cacheHandlers']
-  cacheLifeProfiles?: {
-    [profile: string]: import('../../server/use-cache/cache-life').CacheLife
-  }
+  cacheHandlers?: NextConfigComplete['cacheHandlers']
+  cacheLifeProfiles: import('../config-shared').ResolvedCacheLifeProfiles
   nextConfigOutput: 'standalone' | 'export' | undefined
   buildId: string
+  deploymentId: string
   authInterrupts: boolean
+  useCacheTimeout: number
+  durableUseCacheEntries: boolean
+  staticPageGenerationTimeout: number
   sriEnabled: boolean
 }): Promise<StaticPathsResult> {
   // this needs to be initialized before loadComponents otherwise
@@ -85,7 +94,7 @@ export async function loadStaticPaths({
     requestHeaders,
     fetchCacheKeyPrefix,
     flushToDisk: isrFlushToDisk,
-    cacheMaxMemorySize: maxMemoryCacheSize,
+    cacheMaxMemorySize,
   })
 
   // update work memory runtime-config
@@ -93,7 +102,7 @@ export async function loadStaticPaths({
     httpAgentOptions,
   })
 
-  const components = await loadComponents({
+  const components = await loadComponents<AppPageModule | AppRouteModule>({
     distDir,
     // In `pages/`, the page is the same as the pathname.
     page: page || pathname,
@@ -105,35 +114,57 @@ export async function loadStaticPaths({
 
   if (isAppPath) {
     const routeModule = components.routeModule
-    const segments = await collectSegments(
+    const { segments, segmentTree } = await collectSegments(
       // We know this is an app page or app route module because we checked
       // above that the page type is 'app'.
-      routeModule as AppPageRouteModule | AppRouteRouteModule
+      routeModule as AppPageRouteModule | AppRouteRouteModule,
+      {
+        cacheComponents: config.cacheComponents,
+        partialPrefetching: config.partialPrefetching,
+      }
     )
 
+    const route = parseNormalizedAppRoute(pathname)
+    if (route.dynamicSegments.length === 0) {
+      throw new InvariantError(
+        `Expected a dynamic route, but got a static route: ${pathname}`
+      )
+    }
+
     const isRoutePPREnabled =
-      isAppPageRouteModule(routeModule) &&
-      checkIsRoutePPREnabled(config.pprConfig)
+      isAppPageRouteModule(routeModule) && config.cacheComponents
+
+    const isEnsureStaticPage =
+      config.cacheComponents &&
+      isRoutePPREnabled &&
+      segments.some((segment) => segment.config?.ensureStatic === 'navigation')
 
     const rootParamKeys = collectRootParamKeys(routeModule)
 
     return buildAppStaticPaths({
       dir,
       page: pathname,
+      route,
       cacheComponents: config.cacheComponents,
       segments,
+      segmentTree,
       distDir,
       requestHeaders,
       cacheHandler,
       cacheLifeProfiles,
       isrFlushToDisk,
       fetchCacheKeyPrefix,
-      maxMemoryCacheSize,
+      cacheMaxMemorySize,
       ComponentMod: components.ComponentMod,
       nextConfigOutput,
       isRoutePPREnabled,
+      isEnsureStaticPage,
       buildId,
+      deploymentId,
       authInterrupts,
+      useCacheTimeout,
+      durableUseCacheEntries,
+      staticPageGenerationTimeout,
       rootParamKeys,
     })
   } else if (!components.getStaticPaths) {

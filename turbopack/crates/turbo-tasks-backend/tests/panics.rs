@@ -39,9 +39,18 @@ async fn test_panic_hook() {
         Box::new(move |_| hook_was_called.store(true, Ordering::SeqCst))
     });
 
-    let result =
-        run_once_without_cache_check(&REGISTRATION, async move { anyhow::Ok(*double(3).await?) })
-            .await;
+    let result = run_once_without_cache_check(&REGISTRATION, async move {
+        #[turbo_tasks::function(operation, root)]
+        fn operation() -> Vc<u64> {
+            double(3)
+        }
+
+        operation()
+            .read_strongly_consistent()
+            .await
+            .map(|value| *value)
+    })
+    .await;
 
     assert!(hook_was_called.load(Ordering::SeqCst));
 

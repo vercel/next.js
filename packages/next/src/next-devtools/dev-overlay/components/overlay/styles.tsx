@@ -15,6 +15,8 @@ const styles = css`
     align-items: center;
     flex-direction: column;
     padding: 10vh 15px 0;
+    /* color schemes we handle. Every other scheme the UA would need to overwrite */
+    color-scheme: dark light;
   }
 
   @media (max-height: 812px) {

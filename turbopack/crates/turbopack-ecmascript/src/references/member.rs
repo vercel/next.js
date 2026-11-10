@@ -1,5 +1,5 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     atoms::atom,
     base::SwcComments,
@@ -11,29 +11,30 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat};
 use turbopack_core::chunk::ChunkingContext;
 
-use super::AstPath;
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
 };
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct MemberReplacement {
     key: RcStr,
     value: RcStr,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl MemberReplacement {
-    pub fn new(key: RcStr, value: RcStr, path: AstPath) -> Self {
+    pub fn new(key: RcStr, value: RcStr, path: AstPathId) -> Self {
         MemberReplacement { key, value, path }
     }
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let comments = SwcComments::default();
@@ -42,7 +43,7 @@ impl MemberReplacement {
         let value = self.value.clone();
 
         let comments_clone = comments.clone();
-        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             let span = Span::dummy_with_cmt();
 
             comments_clone.add_leading(

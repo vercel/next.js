@@ -1,19 +1,14 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   getRedboxDescription,
 } from 'next-test-utils'
 
 describe('app dir - unauthorized with default unauthorized boundary', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   // TODO: error unauthorized usage in root layout
   it.skip('should error on client unauthorized from root layout in browser', async () => {
@@ -22,7 +17,7 @@ describe('app dir - unauthorized with default unauthorized boundary', () => {
     await browser.elementByCss('#trigger-unauthorized').click()
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       expect(await getRedboxDescription(browser)).toMatch(
         /unauthorized\(\) is not allowed to use in root layout/
       )
@@ -34,7 +29,7 @@ describe('app dir - unauthorized with default unauthorized boundary', () => {
     const browser = await next.browser('/?root-unauthorized=1')
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       expect(await getRedboxDescription(browser)).toBe(
         'Error: unauthorized() is not allowed to use in root layout'
       )
@@ -72,7 +67,7 @@ describe('app dir - unauthorized with default unauthorized boundary', () => {
     )
 
     await browser.loadPage(next.url + '/group-dynamic/401')
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     await browser.waitForElementByCss('.group-root-layout')
     expect(await browser.elementByCss('.next-error-h1').text()).toBe('401')
   })

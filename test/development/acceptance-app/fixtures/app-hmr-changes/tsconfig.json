@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es2017",
     "module": "esnext",
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -14,13 +14,21 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "incremental": true,
-    "baseUrl": ".",
+    "paths": {
+      "#/*": ["./*"]
+    },
     "plugins": [
       {
         "name": "next"
       }
     ]
   },
-  "exclude": ["node_modules"],
-  "include": ["**/*.ts", "**/*.tsx", "next-env.d.ts", ".next/types/**/*.ts"]
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.test.tsx"],
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ]
 }

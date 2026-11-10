@@ -2,9 +2,12 @@ import { isMetadataPage } from './is-metadata-route'
 import path from '../../shared/lib/isomorphic/path'
 import { interpolateDynamicPath } from '../../server/server-utils'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
+import { PARAMETER_PATTERN } from '../../shared/lib/router/utils/get-dynamic-param'
 import { djb2Hash } from '../../shared/lib/hash'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { isDynamicRoute } from '../../shared/lib/router/utils'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
+import { isMetadataRouteFile } from './is-metadata-route'
 import {
   isGroupSegment,
   isParallelRouteSegment,
@@ -48,29 +51,112 @@ function getMetadataRouteSuffix(page: string) {
   return suffix
 }
 
-/**
- * Fill the dynamic segment in the metadata route
- *
- * Example:
- * fillMetadataSegment('/a/[slug]', { params: { slug: 'b' } }, 'open-graph') -> '/a/b/open-graph'
- *
- */
-export function fillMetadataSegment(
-  segment: string,
-  params: any,
-  lastSegment: string
-) {
-  const pathname = normalizeAppPath(segment)
-  const routeRegex = getNamedRouteRegex(pathname, {
-    prefixRouteKeys: false,
-  })
-  const route = interpolateDynamicPath(pathname, params, routeRegex)
+function getMetadataRouteFilename(segment: string, lastSegment: string) {
   const { name, ext } = path.parse(lastSegment)
   const pagePath = path.posix.join(segment, name)
   const suffix = getMetadataRouteSuffix(pagePath)
   const routeSuffix = suffix ? `-${suffix}` : ''
 
-  return normalizePathSep(path.join(route, `${name}${routeSuffix}${ext}`))
+  return `${name}${routeSuffix}${ext}`
+}
+
+function normalizeStaticMetadataRouteSegment(segment: string) {
+  let normalizedSegment = segment
+  let match = normalizedSegment.match(PARAMETER_PATTERN)
+
+  while (match) {
+    normalizedSegment = `${match[1]}-${match[3]}`
+    match = normalizedSegment.match(PARAMETER_PATTERN)
+  }
+
+  return normalizedSegment
+}
+
+function getStaticMetadataRoute(segment: string) {
+  const pathname = normalizeAppPath(segment)
+
+  return normalizePathSep(
+    path.join(
+      '/',
+      ...pathname
+        .split('/')
+        .filter(Boolean)
+        .map((pathnameSegment) =>
+          normalizeStaticMetadataRouteSegment(pathnameSegment)
+        )
+    )
+  )
+}
+
+export function fillStaticMetadataSegment(
+  segment: string,
+  lastSegment: string
+) {
+  return normalizePathSep(
+    path.join(
+      getStaticMetadataRoute(segment),
+      getMetadataRouteFilename(segment, lastSegment)
+    )
+  )
+}
+
+/**
+ * Returns the pathname used when prerendering static metadata files. Dynamic
+ * segments are replaced with "-" placeholders so the file is exported once.
+ */
+export function getStaticMetadataPrerenderPathname(
+  pathname: string
+): string | null {
+  const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`
+  if (!isMetadataRouteFile(normalized, [], true)) {
+    return null
+  }
+
+  if (!isDynamicRoute(normalized)) {
+    return normalized
+  }
+
+  const lastSlash = normalized.lastIndexOf('/')
+  if (lastSlash === -1) {
+    return normalized
+  }
+
+  const segment = normalized.slice(0, lastSlash) || '/'
+  const lastSegment = normalized.slice(lastSlash + 1)
+  return fillStaticMetadataSegment(segment, lastSegment)
+}
+
+/**
+ * Fill the dynamic segment in the metadata route
+ *
+ * Example:
+ * fillMetadataSegment('/a/[slug]', { params: { slug: 'b' } }, 'open-graph', false) -> '/a/b/open-graph'
+ *
+ * When isStatic is true, all dynamic segments are filled with "-" placeholder
+ * since static metadata files have consistent responses regardless of params.
+ * Example:
+ * fillMetadataSegment('/a/[slug]', {}, 'icon.png', true) -> '/a/-/icon.png'
+ *
+ */
+export function fillMetadataSegment(
+  segment: string,
+  params: any,
+  lastSegment: string,
+  isStatic: boolean
+) {
+  if (isStatic) {
+    return fillStaticMetadataSegment(segment, lastSegment)
+  }
+
+  const pathname = normalizeAppPath(segment)
+  const routeRegex = getNamedRouteRegex(pathname, {
+    prefixRouteKeys: false,
+  })
+  const route = interpolateDynamicPath(pathname, params, routeRegex)
+
+  return normalizePathSep(
+    path.join(route, getMetadataRouteFilename(segment, lastSegment))
+  )
 }
 
 /**

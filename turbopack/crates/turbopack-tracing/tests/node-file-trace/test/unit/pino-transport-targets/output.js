@@ -1,0 +1,10 @@
+;[
+  'package.json',
+  'test/unit/pino-transport-targets/input.js',
+  'test/unit/pino-transport-targets/node_modules/pino/index.js',
+  'test/unit/pino-transport-targets/node_modules/pino/package.json',
+  'test/unit/pino-transport-targets/node_modules/transport-a/index.js',
+  'test/unit/pino-transport-targets/node_modules/transport-a/package.json',
+  'test/unit/pino-transport-targets/node_modules/transport-b/index.js',
+  'test/unit/pino-transport-targets/node_modules/transport-b/package.json',
+]

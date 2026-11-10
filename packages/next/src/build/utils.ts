@@ -1,14 +1,16 @@
-import type { NextConfigComplete } from '../server/config-shared'
-import type { ExperimentalPPRConfig } from '../server/lib/experimental/ppr'
-import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
+import type {
+  NextConfigComplete,
+  NextConfigRuntime,
+} from '../server/config-shared'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
 import type { ServerRuntime } from '../types'
 import type { BuildManifest } from '../server/get-page-files'
-import type {
-  CustomRoutes,
-  Header,
-  Redirect,
-  Rewrite,
+import {
+  normalizeRouteRegex,
+  type CustomRoutes,
+  type Header,
+  type Redirect,
+  type Rewrite,
 } from '../lib/load-custom-routes'
 import type {
   EdgeFunctionDefinition,
@@ -40,9 +42,7 @@ import path from 'path'
 import { promises as fs } from 'fs'
 import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import browserslist from 'next/dist/compiled/browserslist'
 import {
-  MODERN_BROWSERSLIST_TARGET,
   UNDERSCORE_GLOBAL_ERROR_ROUTE,
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
@@ -52,31 +52,107 @@ import { findPageFile } from '../server/lib/find-page-file'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import * as Log from './output/log'
 import type { LoadComponentsReturnType } from '../server/load-components'
-import { loadComponents } from '../server/load-components'
 import { trace } from '../trace'
-import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { getRuntimeContext } from '../server/web/sandbox'
 import { RouteKind } from '../server/route-kind'
 import type { PageExtensions } from './page-extensions-type'
 import type { FallbackMode } from '../lib/fallback'
 import type { OutgoingHttpHeaders } from 'http'
 import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
-import type { AppSegment } from './segment-config/app/app-segments'
-import { collectSegments } from './segment-config/app/app-segments'
-import { createIncrementalCache } from '../export/helpers/create-incremental-cache'
+import type {
+  AppSegment,
+  ParamMatching,
+} from './segment-config/app/app-segments'
+import type { collectSegments } from './segment-config/app/app-segments'
 import { collectRootParamKeys } from './segment-config/app/collect-root-param-keys'
-import { buildAppStaticPaths } from './static-paths/app'
-import { buildPagesStaticPaths } from './static-paths/pages'
-import type { PrerenderedRoute } from './static-paths/types'
+import type {
+  PrerenderRouteMatcher,
+  PrerenderedRoute,
+} from './static-paths/types'
 import type { CacheControl } from '../server/lib/cache-control'
 import { formatExpire, formatRevalidate } from './output/format'
-import type { AppRouteRouteModule } from '../server/route-modules/app-route/module'
-import { formatIssue, isRelevantWarning } from '../shared/lib/turbopack/utils'
-import type { TurbopackResult } from './swc/types'
+import type {
+  AppRouteModule,
+  AppRouteRouteModule,
+} from '../server/route-modules/app-route/module'
+import type {
+  FunctionsConfigManifest,
+  ManifestRoute,
+  PrerenderManifest,
+} from './index'
+import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
+import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata-route'
+import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { mapNftFileEntries, type NftJson, resolveNftOutputPath } from './nft'
+
+// Modules only needed when collecting page data / static paths (which runs in
+// build workers) are required lazily, so the main `next build` process doesn't
+// pay for evaluating them (and their dependency graphs) at startup.
+function loadComponents(
+  ...args: Parameters<typeof import('../server/load-components').loadComponents>
+) {
+  return (
+    require('../server/load-components') as typeof import('../server/load-components')
+  ).loadComponents(...args)
+}
+
+/**
+ * Get the display path for build output. For static metadata files under
+ * dynamic routes, this normalizes the path to use "-" placeholder.
+ * e.g., /dynamic/[id]/icon.png -> /dynamic/-/icon.png
+ */
+function getTreeViewDisplayPath(pagePath: string): string {
+  const prerenderPathname = getStaticMetadataPrerenderPathname(
+    pagePath.startsWith('/') ? pagePath : `/${pagePath}`
+  )
+  return prerenderPathname ?? pagePath
+}
+
+function buildStaticMetadataStaticPaths(page: string): {
+  fallbackMode: FallbackMode | undefined
+  prerenderedRoutes: PrerenderedRoute[]
+} {
+  let pathname = normalizeAppPath(page)
+  if (pathname.endsWith('/route')) {
+    pathname = pathname.slice(0, -'/route'.length)
+  }
+
+  const prerenderPathname = getStaticMetadataPrerenderPathname(pathname)
+  if (!prerenderPathname) {
+    throw new Error(
+      `Invariant: expected static metadata route to have a prerender pathname (${page})`
+    )
+  }
+
+  return {
+    fallbackMode: undefined,
+    prerenderedRoutes: [
+      {
+        params: {},
+        pathname: prerenderPathname,
+        encodedPathname: prerenderPathname,
+        fallbackRouteParams: undefined,
+        fallbackMode: undefined,
+        fallbackRootParams: undefined,
+        throwOnEmptyStaticShell: undefined,
+      },
+    ],
+  }
+}
 
 export type ROUTER_TYPE = 'pages' | 'app'
+
+export type DynamicManifestRoute = ManifestRoute & {
+  /**
+   * The source page that this route is based on. This is used to determine the
+   * source page for the route and is only relevant for app pages where PPR is
+   * enabled and the page differs from the source page.
+   */
+  sourcePage: string | undefined
+}
 
 // Use `print()` for expected console output
 const print = console.log
@@ -112,7 +188,7 @@ export function isInstrumentationHookFilename(file?: string | null) {
   )
 }
 
-const filterAndSortList = (
+export const filterAndSortList = (
   list: ReadonlyArray<string>,
   routeType: ROUTER_TYPE,
   hasCustomApp: boolean
@@ -150,6 +226,7 @@ export interface PageInfo {
    * If true, it means that the route has partial prerendering enabled.
    */
   isRoutePPREnabled: boolean
+  isEnsureStaticPage: boolean
   ssgPageRoutes: string[] | null
   initialCacheControl: CacheControl | undefined
   pageDuration: number | undefined
@@ -161,6 +238,48 @@ export interface PageInfo {
 }
 
 export type PageInfos = Map<string, PageInfo>
+
+function getTreeViewSymbol(
+  item: string,
+  pageInfo: PageInfo | undefined
+): string {
+  if (item === '/_app' || item === '/_app.server') {
+    return ' '
+  }
+
+  if (isEdgeRuntime(pageInfo?.runtime)) {
+    return 'ƒ'
+  }
+
+  if (pageInfo?.isRoutePPREnabled) {
+    if (
+      // If the page has an empty static shell, then it's equivalent to a
+      // dynamic page
+      pageInfo?.hasEmptyStaticShell ||
+      // ensure we don't mark dynamic paths that postponed as being dynamic
+      // since in this case we're able to partially prerender it
+      (pageInfo.isDynamicAppRoute && !pageInfo.hasPostponed)
+    ) {
+      return 'ƒ'
+    }
+
+    if (!pageInfo?.hasPostponed) {
+      return '○'
+    }
+
+    return '◐'
+  }
+
+  if (pageInfo?.isStatic) {
+    return '○'
+  }
+
+  if (pageInfo?.isSSG) {
+    return '●'
+  }
+
+  return 'ƒ'
+}
 
 export interface RoutesUsingEdgeRuntime {
   [route: string]: 0
@@ -179,71 +298,6 @@ export function collectRoutesUsingEdgeRuntime(
   return routesUsingEdgeRuntime
 }
 
-/**
- * Processes and categorizes build issues, then logs them as warnings, errors, or fatal errors.
- * Stops execution if fatal issues are encountered.
- *
- * @param entrypoints - The result object containing build issues to process.
- * @param isDev - A flag indicating if the build is running in development mode.
- * @return This function does not return a value but logs or throws errors based on the issues.
- * @throws {Error} If a fatal issue is encountered, this function throws an error. In development mode, we only throw on
- *                 'fatal' and 'bug' issues. In production mode, we also throw on 'error' issues.
- */
-export function printBuildErrors(
-  entrypoints: TurbopackResult,
-  isDev: boolean
-): void {
-  // Issues that we want to stop the server from executing
-  const topLevelFatalIssues = []
-  // Issues that are true errors, but we believe we can keep running and allow the user to address the issue
-  const topLevelErrors = []
-  // Issues that are warnings but should not affect the running of the build
-  const topLevelWarnings = []
-
-  for (const issue of entrypoints.issues) {
-    // We only want to completely shut down the server
-    if (issue.severity === 'fatal' || issue.severity === 'bug') {
-      topLevelFatalIssues.push(formatIssue(issue))
-    } else if (isRelevantWarning(issue)) {
-      topLevelWarnings.push(formatIssue(issue))
-    } else if (issue.severity === 'error') {
-      if (isDev) {
-        // We want to treat errors as recoverable in development
-        // so that we can show the errors in the site and allow users
-        // to respond to the errors when necessary. In production builds
-        // though we want to error out and stop the build process.
-        topLevelErrors.push(formatIssue(issue))
-      } else {
-        topLevelFatalIssues.push(formatIssue(issue))
-      }
-    }
-  }
-  // TODO: print in order by source location so issues from the same file are displayed together and then add a summary at the end about the number of warnings/errors
-  if (topLevelWarnings.length > 0) {
-    console.warn(
-      `Turbopack build encountered ${
-        topLevelWarnings.length
-      } warnings:\n${topLevelWarnings.join('\n')}`
-    )
-  }
-
-  if (topLevelErrors.length > 0) {
-    console.error(
-      `Turbopack build encountered ${
-        topLevelErrors.length
-      } errors:\n${topLevelErrors.join('\n')}`
-    )
-  }
-
-  if (topLevelFatalIssues.length > 0) {
-    throw new Error(
-      `Turbopack build failed with ${
-        topLevelFatalIssues.length
-      } errors:\n${topLevelFatalIssues.join('\n')}`
-    )
-  }
-}
-
 export async function printTreeView(
   lists: {
     pages: ReadonlyArray<string>
@@ -254,6 +308,7 @@ export async function printTreeView(
     pagesDir,
     pageExtensions,
     middlewareManifest,
+    functionsConfigManifest,
     useStaticPages404,
     hasGSPAndRevalidateZero,
   }: {
@@ -261,6 +316,7 @@ export async function printTreeView(
     pageExtensions: PageExtensions
     buildManifest: BuildManifest
     middlewareManifest: MiddlewareManifest
+    functionsConfigManifest: FunctionsConfigManifest
     useStaticPages404: boolean
     hasGSPAndRevalidateZero: Set<string>
   }
@@ -346,39 +402,15 @@ export async function printTreeView(
         (pageInfo?.pageDuration || 0) +
         (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
 
-      let symbol: string
+      const symbol = getTreeViewSymbol(item, pageInfo)
+      const hasChildRoutes = Boolean(pageInfo?.ssgPageRoutes?.length)
 
-      if (item === '/_app' || item === '/_app.server') {
-        symbol = ' '
-      } else if (isEdgeRuntime(pageInfo?.runtime)) {
-        symbol = 'ƒ'
-      } else if (pageInfo?.isRoutePPREnabled) {
-        if (
-          // If the page has an empty static shell, then it's equivalent to a
-          // dynamic page
-          pageInfo?.hasEmptyStaticShell ||
-          // ensure we don't mark dynamic paths that postponed as being dynamic
-          // since in this case we're able to partially prerender it
-          (pageInfo.isDynamicAppRoute && !pageInfo.hasPostponed)
-        ) {
-          symbol = 'ƒ'
-        } else if (!pageInfo?.hasPostponed) {
-          symbol = '○'
-        } else {
-          symbol = '◐'
-        }
-      } else if (pageInfo?.isStatic) {
-        symbol = '○'
-      } else if (pageInfo?.isSSG) {
-        symbol = '●'
-      } else {
-        symbol = 'ƒ'
-      }
+      const displayPath = getTreeViewDisplayPath(item)
 
       if (hasGSPAndRevalidateZero.has(item)) {
         usedSymbols.add('ƒ')
         messages.push([
-          `${border} ƒ ${item}${
+          `${border} ƒ ${displayPath}${
             totalDuration > MIN_DURATION
               ? ` (${getPrettyDuration(totalDuration)})`
               : ''
@@ -392,10 +424,14 @@ export async function printTreeView(
         ])
       }
 
-      usedSymbols.add(symbol)
+      // Grouped rows act as headers for the generated outputs below them. The
+      // child rows carry the concrete route symbols instead.
+      if (!hasChildRoutes) {
+        usedSymbols.add(symbol)
+      }
 
       messages.push([
-        `${border} ${symbol} ${item}${
+        `${border} ${hasChildRoutes ? ' ' : symbol} ${displayPath}${
           totalDuration > MIN_DURATION
             ? ` (${getPrettyDuration(totalDuration)})`
             : ''
@@ -409,77 +445,122 @@ export async function printTreeView(
       ])
 
       if (pageInfo?.ssgPageRoutes?.length) {
-        const totalRoutes = pageInfo.ssgPageRoutes.length
-        const contSymbol = i === arr.length - 1 ? ' ' : '├'
+        const ssgPageRoutes = pageInfo.ssgPageRoutes
+        const totalRoutes = ssgPageRoutes.length
+        const contSymbol = i === arr.length - 1 ? ' ' : '│'
+        const routeDurations = pageInfo.ssgPageDurations
+        let hasDuration = false
 
-        // HERE
-
-        let routes: { route: string; duration: number; avgDuration?: number }[]
-        if (pageInfo.ssgPageDurations?.some((d) => d > MIN_DURATION)) {
-          const previewPages = totalRoutes === 8 ? 8 : Math.min(totalRoutes, 7)
-          const routesWithDuration = pageInfo.ssgPageRoutes
-            .map((route, idx) => ({
-              route,
-              duration: pageInfo.ssgPageDurations![idx] || 0,
-            }))
-            .sort(({ duration: a }, { duration: b }) =>
-              // Sort by duration
-              // keep too small durations in original order at the end
-              a <= MIN_DURATION && b <= MIN_DURATION ? 0 : b - a
-            )
-          routes = routesWithDuration.slice(0, previewPages)
-          const remainingRoutes = routesWithDuration.slice(previewPages)
-          if (remainingRoutes.length) {
-            const remaining = remainingRoutes.length
-            const avgDuration = Math.round(
-              remainingRoutes.reduce(
-                (total, { duration }) => total + duration,
-                0
-              ) / remainingRoutes.length
-            )
-            routes.push({
-              route: `[+${remaining} more paths]`,
-              duration: 0,
-              avgDuration,
-            })
-          }
-        } else {
-          const previewPages = totalRoutes === 4 ? 4 : Math.min(totalRoutes, 3)
-          routes = pageInfo.ssgPageRoutes
-            .slice(0, previewPages)
-            .map((route) => ({ route, duration: 0 }))
-          if (totalRoutes > previewPages) {
-            const remaining = totalRoutes - previewPages
-            routes.push({ route: `[+${remaining} more paths]`, duration: 0 })
+        if (routeDurations) {
+          for (let index = 0; index < routeDurations.length; index++) {
+            if (routeDurations[index] > MIN_DURATION) {
+              hasDuration = true
+              break
+            }
           }
         }
 
-        routes.forEach(
-          ({ route, duration, avgDuration }, index, { length }) => {
-            const innerSymbol = index === length - 1 ? '└' : '├'
+        const maxPreviewPages = hasDuration ? 7 : 3
+        const previewPages =
+          totalRoutes === maxPreviewPages + 1
+            ? totalRoutes
+            : Math.min(totalRoutes, maxPreviewPages)
+        let routeIndexes: number[] | undefined
 
-            const initialCacheControl =
-              pageInfos.get(route)?.initialCacheControl
-
-            messages.push([
-              `${contSymbol}   ${innerSymbol} ${route}${
-                duration > MIN_DURATION
-                  ? ` (${getPrettyDuration(duration)})`
-                  : ''
-              }${
-                avgDuration && avgDuration > MIN_DURATION
-                  ? ` (avg ${getPrettyDuration(avgDuration)})`
-                  : ''
-              }`,
-              showRevalidate && initialCacheControl
-                ? formatRevalidate(initialCacheControl)
-                : '',
-              showExpire && initialCacheControl
-                ? formatExpire(initialCacheControl)
-                : '',
-            ])
+        if (hasDuration) {
+          // Keep the source arrays immutable. Sorting only their indexes avoids
+          // allocating a route object for every generated path.
+          routeIndexes = []
+          for (let index = 0; index < totalRoutes; index++) {
+            routeIndexes.push(index)
           }
-        )
+
+          routeIndexes.sort((indexA, indexB) => {
+            const durationA = routeDurations![indexA] || 0
+            const durationB = routeDurations![indexB] || 0
+
+            // Keep too small durations in their original order at the end.
+            return durationA <= MIN_DURATION && durationB <= MIN_DURATION
+              ? 0
+              : durationB - durationA
+          })
+        }
+
+        const hasSummary = totalRoutes > previewPages
+        let summarySymbol: string | undefined
+        let avgDuration: number | undefined
+
+        if (hasSummary) {
+          const firstHiddenIndex = routeIndexes?.[previewPages] ?? previewPages
+          const firstHiddenRoute = ssgPageRoutes[firstHiddenIndex]
+          summarySymbol = getTreeViewSymbol(
+            firstHiddenRoute,
+            pageInfos.get(firstHiddenRoute) ?? pageInfo
+          )
+
+          let hiddenTotalDuration = 0
+          for (let index = previewPages; index < totalRoutes; index++) {
+            const routeIndex = routeIndexes?.[index] ?? index
+            const route = ssgPageRoutes[routeIndex]
+
+            if (
+              index > previewPages &&
+              summarySymbol !== undefined &&
+              getTreeViewSymbol(route, pageInfos.get(route) ?? pageInfo) !==
+                summarySymbol
+            ) {
+              summarySymbol = undefined
+            }
+
+            if (hasDuration) {
+              hiddenTotalDuration += routeDurations![routeIndex] || 0
+            }
+          }
+
+          if (hasDuration) {
+            avgDuration = Math.round(
+              hiddenTotalDuration / (totalRoutes - previewPages)
+            )
+          }
+        }
+
+        // Emit the preview and optional summary directly into the table instead
+        // of allocating intermediate route arrays.
+        const displayedRoutes = previewPages + (hasSummary ? 1 : 0)
+        for (let index = 0; index < displayedRoutes; index++) {
+          const isSummary = index === previewPages
+          const routeIndex = routeIndexes?.[index] ?? index
+          const route = isSummary
+            ? `[+${totalRoutes - previewPages} more paths]`
+            : ssgPageRoutes[routeIndex]
+          const duration = isSummary
+            ? 0
+            : hasDuration
+              ? routeDurations![routeIndex] || 0
+              : 0
+          const routeSymbol =
+            (isSummary ? summarySymbol : undefined) ??
+            getTreeViewSymbol(route, pageInfos.get(route) ?? pageInfo)
+          const innerSymbol = index === displayedRoutes - 1 ? '└' : '├'
+          const initialCacheControl = pageInfos.get(route)?.initialCacheControl
+
+          usedSymbols.add(routeSymbol)
+          messages.push([
+            `${contSymbol} ${innerSymbol} ${routeSymbol} ${route}${
+              duration > MIN_DURATION ? ` (${getPrettyDuration(duration)})` : ''
+            }${
+              isSummary && avgDuration && avgDuration > MIN_DURATION
+                ? ` (avg ${getPrettyDuration(avgDuration)})`
+                : ''
+            }`,
+            showRevalidate && initialCacheControl
+              ? formatRevalidate(initialCacheControl)
+              : '',
+            showExpire && initialCacheControl
+              ? formatExpire(initialCacheControl)
+              : '',
+          ])
+        }
       }
     })
   }
@@ -513,8 +594,12 @@ export async function printTreeView(
     list: lists.pages,
   })
 
-  const middlewareInfo = middlewareManifest.middleware?.['/']
-  if (middlewareInfo?.files.length > 0) {
+  if (
+    middlewareManifest.middleware?.['/']?.files.length > 0 ||
+    // 'nodejs' runtime middleware or proxy is set to
+    // functions-config-manifest instead of middleware-manifest.
+    functionsConfigManifest.functions?.['/_middleware']
+  ) {
     messages.push([])
     messages.push(['ƒ Proxy (Middleware)'])
   }
@@ -560,17 +645,105 @@ export async function printTreeView(
   print()
 }
 
+type PrerenderMatcherDigestEntry = {
+  behavior: 'not-found' | 'blocking' | 'fallback' | 'prerender'
+  pathname: string
+}
+
+function countDynamicSegments(pathname: string): number {
+  return pathname.match(/\[[^/]+\]/g)?.length ?? 0
+}
+
+/** Prints the concrete request matchers emitted for the experimental API. */
+export function printPrerenderMatchers(
+  prerenderManifest: Pick<PrerenderManifest, 'routes' | 'dynamicRoutes'>,
+  emittedDynamicRoutes: ReadonlyArray<DynamicManifestRoute>
+): void {
+  const sourceRoutes = new Set<string>()
+  for (const route of Object.values(prerenderManifest.dynamicRoutes)) {
+    if (route.fallbackSourceRoute) {
+      sourceRoutes.add(route.fallbackSourceRoute)
+    }
+  }
+  for (const route of Object.values(prerenderManifest.routes)) {
+    if (route.srcRoute) {
+      sourceRoutes.add(route.srcRoute)
+    }
+  }
+
+  if (sourceRoutes.size === 0) return
+
+  print(underline('Experimental parameter matching'))
+  print('More-specific rows override broader rows for the same request.')
+  print()
+
+  for (const sourceRoute of [...sourceRoutes].sort()) {
+    const matchers = Object.entries(prerenderManifest.dynamicRoutes)
+      .filter(
+        ([pathname, route]) =>
+          pathname === sourceRoute || route.fallbackSourceRoute === sourceRoute
+      )
+      .map<PrerenderMatcherDigestEntry>(([pathname, route]) => ({
+        behavior:
+          route.fallback === false
+            ? 'not-found'
+            : route.fallback === null
+              ? 'blocking'
+              : 'fallback',
+        pathname,
+      }))
+      .sort(
+        (a, b) =>
+          countDynamicSegments(b.pathname) - countDynamicSegments(a.pathname) ||
+          a.pathname.localeCompare(b.pathname)
+      )
+
+    const prerenders = Object.entries(prerenderManifest.routes)
+      .filter(([, route]) => route.srcRoute === sourceRoute)
+      .map<PrerenderMatcherDigestEntry>(([pathname]) => ({
+        behavior: 'prerender',
+        pathname,
+      }))
+      .sort((a, b) => a.pathname.localeCompare(b.pathname))
+
+    const entries = [...matchers, ...prerenders]
+    const width = Math.max(...entries.map(({ behavior }) => behavior.length))
+    print(sourceRoute)
+    entries.forEach(({ behavior, pathname }, index) => {
+      print(
+        `  ${index === entries.length - 1 ? '└' : '├'} ${behavior.padEnd(width)}  ${pathname}`
+      )
+    })
+    print()
+  }
+
+  print(underline('Emitted dynamic route patterns'))
+  print('These are the patterns available to deployment routing metadata.')
+  print()
+  for (const sourceRoute of [...sourceRoutes].sort()) {
+    const patterns = emittedDynamicRoutes.filter(
+      (route) => route.page === sourceRoute || route.sourcePage === sourceRoute
+    )
+    print(`${sourceRoute} (${patterns.length})`)
+    patterns.forEach((route, index) => {
+      print(`  ${index === patterns.length - 1 ? '└' : '├'} ${route.page}`)
+    })
+    print()
+  }
+}
+
 export function printCustomRoutes({
   redirects,
   rewrites,
   headers,
+  onMatchHeaders,
 }: CustomRoutes) {
   const printRoutes = (
     routes: Redirect[] | Rewrite[] | Header[],
-    type: 'Redirects' | 'Rewrites' | 'Headers'
+    type: 'Redirects' | 'Rewrites' | 'Headers' | 'On Match Headers'
   ) => {
     const isRedirects = type === 'Redirects'
-    const isHeaders = type === 'Headers'
+    const isHeaders = type === 'Headers' || type === 'On Match Headers'
     print(underline(type))
 
     /*
@@ -623,6 +796,9 @@ export function printCustomRoutes({
   if (headers.length) {
     printRoutes(headers, 'Headers')
   }
+  if (onMatchHeaders.length) {
+    printRoutes(onMatchHeaders, 'On Match Headers')
+  }
 
   const combinedRewrites = [
     ...rewrites.beforeFiles,
@@ -640,6 +816,8 @@ type PageIsStaticResult = {
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderedRoutes: PrerenderedRoute[] | undefined
+  prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
+  paramMatching: ParamMatching | undefined
   prerenderFallbackMode: FallbackMode | undefined
   rootParamKeys: readonly string[] | undefined
   isNextImageImported?: boolean
@@ -661,23 +839,33 @@ export async function isPageStatic({
   edgeInfo,
   pageType,
   cacheComponents,
+  partialPrefetching,
   authInterrupts,
+  useCacheTimeout,
+  durableUseCacheEntries,
+  staticPageGenerationTimeout,
   originalAppPath,
   isrFlushToDisk,
-  maxMemoryCacheSize,
+  cacheMaxMemorySize,
   nextConfigOutput,
   cacheHandler,
   cacheHandlers,
   cacheLifeProfiles,
-  pprConfig,
   buildId,
+  deploymentId,
+  clientAssetToken,
   sriEnabled,
+  isNativeRoute = false,
 }: {
   dir: string
   page: string
   distDir: string
   cacheComponents: boolean
+  partialPrefetching: boolean
   authInterrupts: boolean
+  useCacheTimeout: number
+  durableUseCacheEntries: boolean
+  staticPageGenerationTimeout: number
   configFileName: string
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   locales?: readonly string[]
@@ -688,16 +876,16 @@ export async function isPageStatic({
   pageRuntime?: ServerRuntime
   originalAppPath?: string
   isrFlushToDisk?: boolean
-  maxMemoryCacheSize?: number
+  cacheMaxMemorySize: number
   cacheHandler?: string
   cacheHandlers?: Record<string, string | undefined>
-  cacheLifeProfiles?: {
-    [profile: string]: import('../server/use-cache/cache-life').CacheLife
-  }
+  cacheLifeProfiles: import('../server/config-shared').ResolvedCacheLifeProfiles
   nextConfigOutput: 'standalone' | 'export' | undefined
-  pprConfig: ExperimentalPPRConfig | undefined
   buildId: string
+  deploymentId: string
+  clientAssetToken: string
   sriEnabled: boolean
+  isNativeRoute?: boolean
 }): Promise<PageIsStaticResult> {
   // Skip page data collection for synthetic _global-error routes
   if (page === UNDERSCORE_GLOBAL_ERROR_ROUTE) {
@@ -706,6 +894,8 @@ export async function isPageStatic({
       isRoutePPREnabled: false,
       prerenderFallbackMode: undefined,
       prerenderedRoutes: undefined,
+      prerenderRouteMatchers: undefined,
+      paramMatching: undefined,
       rootParamKeys: undefined,
       hasStaticProps: false,
       hasServerProps: false,
@@ -714,30 +904,50 @@ export async function isPageStatic({
     }
   }
 
+  const { createIncrementalCache } =
+    require('../export/helpers/create-incremental-cache') as typeof import('../export/helpers/create-incremental-cache')
   await createIncrementalCache({
     cacheHandler,
     cacheHandlers,
     distDir,
     dir,
     flushToDisk: isrFlushToDisk,
-    cacheMaxMemorySize: maxMemoryCacheSize,
+    cacheMaxMemorySize,
   })
 
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
     .traceAsyncFn(async (): Promise<PageIsStaticResult> => {
+      const { setHttpClientAndAgentOptions } =
+        require('../server/setup-http-agent-env') as typeof import('../server/setup-http-agent-env')
       setHttpClientAndAgentOptions({
         httpAgentOptions,
       })
 
+      if (isNativeRoute) {
+        return {
+          isStatic: false,
+          isRoutePPREnabled: false,
+          prerenderedRoutes: undefined,
+          prerenderRouteMatchers: undefined,
+          paramMatching: undefined,
+          prerenderFallbackMode: undefined,
+          rootParamKeys: undefined,
+          appConfig: { dynamic: 'force-dynamic', revalidate: 0 },
+        }
+      }
       let componentsResult: LoadComponentsReturnType
       let prerenderedRoutes: PrerenderedRoute[] | undefined
+      let prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
+      let paramMatching: ParamMatching | undefined
       let prerenderFallbackMode: FallbackMode | undefined
       let appConfig: AppSegmentConfig = {}
       let rootParamKeys: readonly string[] | undefined
       const pathIsEdgeRuntime = isEdgeRuntime(pageRuntime)
 
       if (pathIsEdgeRuntime) {
+        const { getRuntimeContext } =
+          require('../server/web/sandbox') as typeof import('../server/web/sandbox')
         const runtime = await getRuntimeContext({
           paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
           edgeFunctionEntry: {
@@ -750,6 +960,7 @@ export async function isPageStatic({
           name: edgeInfo.name,
           useCache: true,
           distDir,
+          clientAssetToken,
         })
         const mod = (
           await runtime.context._ENTRIES[`middleware_${edgeInfo.name}`]
@@ -790,20 +1001,26 @@ export async function isPageStatic({
       let isRoutePPREnabled: boolean = false
 
       if (pageType === 'app') {
-        const ComponentMod: AppPageModule = componentsResult.ComponentMod
+        // @ts-expect-error pageType is app, so we can assume AppPageModule | AppRouteModule
+        const ComponentMod: AppPageModule | AppRouteModule =
+          componentsResult.ComponentMod
 
-        let segments: AppSegment[]
+        let collectedSegments: Awaited<ReturnType<typeof collectSegments>>
         try {
-          segments = await collectSegments(
+          const { collectSegments: collectAppSegments } =
+            require('./segment-config/app/app-segments') as typeof import('./segment-config/app/app-segments')
+          collectedSegments = await collectAppSegments(
             // We know this is an app page or app route module because we
             // checked above that the page type is 'app'.
-            routeModule as AppPageRouteModule | AppRouteRouteModule
+            routeModule as AppPageRouteModule | AppRouteRouteModule,
+            { cacheComponents, partialPrefetching }
           )
         } catch (err) {
           throw new Error(`Failed to collect configuration for ${page}`, {
             cause: err,
           })
         }
+        const { segments, segmentTree } = collectedSegments
 
         appConfig =
           originalAppPath === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
@@ -818,12 +1035,15 @@ export async function isPageStatic({
 
         rootParamKeys = collectRootParamKeys(routeModule)
 
-        // A page supports partial prerendering if it is an app page and either
-        // the whole app has PPR enabled or this page has PPR enabled when we're
-        // in incremental mode.
+        // A page supports partial prerendering when it is an app page and
+        // Cache Components is enabled.
         isRoutePPREnabled =
-          routeModule.definition.kind === RouteKind.APP_PAGE &&
-          checkIsRoutePPREnabled(pprConfig)
+          routeModule.definition.kind === RouteKind.APP_PAGE && cacheComponents
+
+        const isEnsureStaticPage =
+          cacheComponents &&
+          isRoutePPREnabled &&
+          appConfig.ensureStatic === 'navigation'
 
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
@@ -832,29 +1052,57 @@ export async function isPageStatic({
           appConfig.revalidate = 0
         }
 
+        const route = parseNormalizedAppRoute(page)
+
         // If the page is dynamic and we're not in edge runtime, then we need to
         // build the static paths. The edge runtime doesn't support static
         // paths.
-        if (isDynamicRoute(page) && !pathIsEdgeRuntime) {
-          ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
-            await buildAppStaticPaths({
+        if (route.dynamicSegments.length > 0 && !pathIsEdgeRuntime) {
+          let pathname = normalizeAppPath(page)
+          if (pathname.endsWith('/route')) {
+            pathname = pathname.slice(0, -'/route'.length)
+          }
+
+          if (
+            routeModule.definition.kind === RouteKind.APP_ROUTE &&
+            isStaticMetadataFile(pathname)
+          ) {
+            ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
+              buildStaticMetadataStaticPaths(page))
+          } else {
+            ;({
+              prerenderedRoutes,
+              prerenderRouteMatchers,
+              paramMatching,
+              fallbackMode: prerenderFallbackMode,
+            } = await (
+              require('./static-paths/app') as typeof import('./static-paths/app')
+            ).buildAppStaticPaths({
               dir,
               page,
+              route,
               cacheComponents,
               authInterrupts,
+              useCacheTimeout,
+              durableUseCacheEntries,
+              staticPageGenerationTimeout,
               segments,
+              segmentTree,
               distDir,
               requestHeaders: {},
               isrFlushToDisk,
-              maxMemoryCacheSize,
+              cacheMaxMemorySize,
               cacheHandler,
               cacheLifeProfiles,
               ComponentMod,
               nextConfigOutput,
               isRoutePPREnabled,
+              isEnsureStaticPage,
               buildId,
+              deploymentId,
               rootParamKeys,
             }))
+          }
         }
       } else {
         if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
@@ -898,14 +1146,15 @@ export async function isPageStatic({
       }
 
       if (hasStaticProps && hasStaticPaths) {
-        ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
-          await buildPagesStaticPaths({
-            page,
-            locales,
-            defaultLocale,
-            configFileName,
-            getStaticPaths: componentsResult.getStaticPaths!,
-          }))
+        ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } = await (
+          require('./static-paths/pages') as typeof import('./static-paths/pages')
+        ).buildPagesStaticPaths({
+          page,
+          locales,
+          defaultLocale,
+          configFileName,
+          getStaticPaths: componentsResult.getStaticPaths!,
+        }))
       }
 
       const isNextImageImported = (globalThis as any).__NEXT_IMAGE_IMPORTED
@@ -926,6 +1175,8 @@ export async function isPageStatic({
         isRoutePPREnabled,
         prerenderFallbackMode,
         prerenderedRoutes,
+        prerenderRouteMatchers,
+        paramMatching,
         rootParamKeys,
         hasStaticProps,
         hasServerProps,
@@ -950,6 +1201,8 @@ type ReducedAppConfig = Pick<
   | 'preferredRegion'
   | 'runtime'
   | 'maxDuration'
+  | 'prefetch'
+  | 'ensureStatic'
 >
 
 /**
@@ -972,6 +1225,8 @@ export function reduceAppConfig(
       revalidate,
       runtime,
       maxDuration,
+      prefetch,
+      ensureStatic,
     } = segment.config || {}
 
     // TODO: should conflicting configs here throw an error
@@ -1009,6 +1264,15 @@ export function reduceAppConfig(
     if (typeof maxDuration !== 'undefined') {
       config.maxDuration = maxDuration
     }
+
+    // These two should be set uniformly across all segments
+    // in `collectAppPageSegments`, but we need to forward them here.
+    if (typeof prefetch !== 'undefined') {
+      config.prefetch = prefetch
+    }
+    if (typeof ensureStatic !== 'undefined') {
+      config.ensureStatic = ensureStatic
+    }
   }
 
   return config
@@ -1036,11 +1300,14 @@ export async function hasCustomGetInitialProps({
   let mod = ComponentMod
 
   if (checkingApp) {
+    // @ts-expect-error very dynamic code
     mod = (await mod._app) || mod.default || mod
   } else {
+    // @ts-expect-error very dynamic code
     mod = mod.default || mod
   }
   mod = await mod
+  // @ts-expect-error very dynamic code
   return mod.getInitialProps !== mod.origGetInitialProps
 }
 
@@ -1063,7 +1330,7 @@ export async function getDefinedNamedExports({
   })
 
   return Object.keys(ComponentMod).filter((key) => {
-    return typeof ComponentMod[key] !== 'undefined'
+    return typeof ComponentMod[key as keyof typeof ComponentMod] !== 'undefined'
   })
 }
 
@@ -1161,7 +1428,7 @@ export async function copyTracedFiles(
   pageKeys: readonly string[],
   appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
-  serverConfig: NextConfigComplete,
+  serverConfig: NextConfigRuntime,
   middlewareManifest: MiddlewareManifest,
   hasNodeMiddleware: boolean,
   hasInstrumentationHook: boolean,
@@ -1179,7 +1446,10 @@ export async function copyTracedFiles(
   }
   try {
     const packageJsonPath = path.join(distDir, '../package.json')
-    const packageJsonContent = await fs.readFile(packageJsonPath, 'utf8')
+    const packageJsonContent = await fs.readFile(
+      /* turbopackIgnore: true */ packageJsonPath,
+      'utf8'
+    )
     const packageJson = JSON.parse(packageJsonContent)
     moduleType = packageJson.type === 'module'
 
@@ -1194,37 +1464,102 @@ export async function copyTracedFiles(
     await fs.writeFile(packageJsonOutputPath, packageJsonContent)
   } catch {}
   const copiedFiles = new Set()
+  const skippedTraceFiles = new Set<string>()
+
+  async function createTracedSymlink(
+    target: string,
+    linkPath: string,
+    sourcePath: string
+  ) {
+    let isDirectory = false
+    if (process.platform === 'win32') {
+      // Windows requires the target type when creating a symlink. Files are
+      // copied in an arbitrary order, so the target might not exist in the
+      // output yet. Inspect the original target through the source symlink
+      // instead.
+      try {
+        isDirectory = (await fs.stat(sourcePath)).isDirectory()
+      } catch (err: any) {
+        if (err.code !== 'ENOENT' && err.code !== 'ELOOP') {
+          throw err
+        }
+      }
+    }
+
+    try {
+      // the target type argument is ignored on non-windows platforms
+      await fs.symlink(target, linkPath, isDirectory ? 'dir' : 'file')
+    } catch (err: any) {
+      // Windows doesn't support creating symlinks without elevated privileges,
+      // unless "Developer Mode" is turned on. If we failed to create a symlink
+      // due to EPERM, try creating a junction point instead.
+      //
+      // Ideally we'd just preserve the input file type (junction point or
+      // symlink), but there's no API in node.js to differentiate between a
+      // junction point and a symlink, so we just try making a symlink first.
+      // Symlinks are preferred because they support relative paths and
+      // non-directory (file) targets.
+      //
+      // Note: Junction targets are stored as absolute paths, so this fallback
+      // is not relocatable even when the preferred symlink above is relative,
+      // but it's the best we can do.
+      if (process.platform === 'win32' && err.code === 'EPERM' && isDirectory) {
+        try {
+          await fs.symlink(
+            path.resolve(path.dirname(linkPath), target),
+            linkPath,
+            'junction'
+          )
+        } catch (junctionErr: any) {
+          if (junctionErr.code !== 'EEXIST') {
+            throw junctionErr
+          }
+        }
+      } else if (err.code !== 'EEXIST') {
+        throw err
+      }
+    }
+  }
 
   async function handleTraceFiles(traceFilePath: string) {
-    const traceData = JSON.parse(await fs.readFile(traceFilePath, 'utf8')) as {
-      files: string[]
-    }
-    const copySema = new Sema(10, { capacity: traceData.files.length })
-    const traceFileDir = path.dirname(traceFilePath)
+    const traceData = JSON.parse(
+      await fs.readFile(/* turbopackIgnore: true */ traceFilePath, 'utf8')
+    ) as NftJson
+    const entries = mapNftFileEntries(traceData, traceFilePath, tracingRoot, {
+      skipBaseRootEscapes: true,
+      onBaseRootEscape: (source) => skippedTraceFiles.add(source),
+    })
+    const copySema = new Sema(10, { capacity: entries.length })
 
     await Promise.all(
-      traceData.files.map(async (relativeFile) => {
+      entries.map(async (entry) => {
         await copySema.acquire()
 
-        const tracedFilePath = path.join(traceFileDir, relativeFile)
-        const fileOutputPath = path.join(
+        const tracedFilePath = entry.source
+        const fileOutputPath = resolveNftOutputPath(
           outputPath,
-          path.relative(tracingRoot, tracedFilePath)
+          entry.destination
         )
 
         if (!copiedFiles.has(fileOutputPath)) {
           copiedFiles.add(fileOutputPath)
 
           await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
-          const symlink = await fs.readlink(tracedFilePath).catch(() => null)
-
-          if (symlink) {
-            try {
-              await fs.symlink(symlink, fileOutputPath)
-            } catch (e: any) {
-              if (e.code !== 'EEXIST') {
-                throw e
-              }
+          if (entry.symlinkTarget !== undefined) {
+            const targetOutputPath = resolveNftOutputPath(
+              outputPath,
+              entry.symlinkTarget
+            )
+            const target =
+              path.relative(path.dirname(fileOutputPath), targetOutputPath) ||
+              '.'
+            await createTracedSymlink(target, fileOutputPath, tracedFilePath)
+          } else if (traceData.symlinks === undefined) {
+            const target = await fs.readlink(tracedFilePath).catch(() => null)
+            if (target) {
+              await createTracedSymlink(target, fileOutputPath, tracedFilePath)
+            } else {
+              await fs.copyFile(tracedFilePath, fileOutputPath)
             }
           } else {
             await fs.copyFile(tracedFilePath, fileOutputPath)
@@ -1376,6 +1711,23 @@ startServer({
   process.exit(1);
 });`
   )
+
+  if (skippedTraceFiles.size > 0) {
+    const count = skippedTraceFiles.size
+    const skippedFilesOutput = [...skippedTraceFiles]
+      .slice(0, 100)
+      .map((file) => `  - ${path.relative(tracingRoot, file)}`)
+      .join('\n')
+    const warning = [
+      `${count} traced files were not included in the standalone output`,
+      'because their paths are outside of `outputFileTracingRoot`.',
+      'First 100 skipped files:',
+      skippedFilesOutput,
+      'Set `outputFileTracingRoot` to a common parent directory',
+      'to include these files.',
+    ].join('\n')
+    Log.warn(warning)
+  }
 }
 
 export function isReservedPage(page: string) {
@@ -1399,6 +1751,10 @@ export function isMiddlewareFile(file: string) {
     file === `/${PROXY_FILENAME}` ||
     file === `/src/${PROXY_FILENAME}`
   )
+}
+
+export function isProxyFile(file: string) {
+  return file === `/${PROXY_FILENAME}` || file === `/src/${PROXY_FILENAME}`
 }
 
 export function isInstrumentationHookFile(file: string) {
@@ -1452,30 +1808,7 @@ export class NestedMiddlewareError extends Error {
   }
 }
 
-export function getSupportedBrowsers(
-  dir: string,
-  isDevelopment: boolean
-): string[] {
-  let browsers: any
-  try {
-    const browsersListConfig = browserslist.loadConfig({
-      path: dir,
-      env: isDevelopment ? 'development' : 'production',
-    })
-    // Running `browserslist` resolves `extends` and other config features into a list of browsers
-    if (browsersListConfig && browsersListConfig.length > 0) {
-      browsers = browserslist(browsersListConfig)
-    }
-  } catch {}
-
-  // When user has browserslist use that target
-  if (browsers && browsers.length > 0) {
-    return browsers
-  }
-
-  // Uses modern browsers as the default.
-  return MODERN_BROWSERSLIST_TARGET
-}
+export { getSupportedBrowsers } from './get-supported-browsers'
 
 export function shouldUseReactServerCondition(
   layer: WebpackLayerName | null | undefined
@@ -1568,3 +1901,39 @@ export function collectMeta({
 export const RSPACK_DEFAULT_LAYERS_REGEX = new RegExp(
   `^(|${[WEBPACK_LAYERS.pagesDirBrowser, WEBPACK_LAYERS.pagesDirEdge, WEBPACK_LAYERS.pagesDirNode].join('|')})$`
 )
+
+/**
+ * Converts a page to a manifest route.
+ *
+ * @param page The page to convert to a route.
+ * @returns A route object.
+ */
+export function pageToRoute(page: string): ManifestRoute
+/**
+ * Converts a page to a dynamic manifest route.
+ *
+ * @param page The page to convert to a route.
+ * @param sourcePage The source page that this route is based on. This is used
+ * to determine the source page for the route and is only relevant for app
+ * pages when PPR is enabled on them.
+ * @returns A route object.
+ */
+export function pageToRoute(
+  page: string,
+  sourcePage: string | undefined
+): DynamicManifestRoute
+export function pageToRoute(
+  page: string,
+  sourcePage?: string
+): DynamicManifestRoute | ManifestRoute {
+  const routeRegex = getNamedRouteRegex(page, {
+    prefixRouteKeys: true,
+  })
+  return {
+    sourcePage,
+    page,
+    regex: normalizeRouteRegex(routeRegex.re.source),
+    routeKeys: routeRegex.routeKeys,
+    namedRegex: routeRegex.namedRegex,
+  }
+}

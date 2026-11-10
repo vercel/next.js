@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('unstable-cache-foreground-revalidate', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   if (isNextDev) {
@@ -70,5 +69,43 @@ describe('unstable-cache-foreground-revalidate', () => {
     // Without foreground revalidation:
     // - ISR uses stale data, so timestamps will be far apart (> 10000ms)
     expect(timeDiff).toBeLessThan(1000)
+  })
+
+  it('should propagate foreground revalidation through nested unstable_cache scopes', async () => {
+    await next.render('/isr-10-nested')
+
+    const initialLogLength = next.cliOutput.length
+
+    await new Promise((resolve) => setTimeout(resolve, 11000))
+
+    await next.render('/isr-10-nested')
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+
+    const logs = next.cliOutput.substring(initialLogLength)
+    const cacheExecutions = [
+      ...logs.matchAll(
+        /\[NESTED TEST\] unstable_cache callback executed at: (\d+)/g
+      ),
+    ]
+    const completions = [
+      ...logs.matchAll(
+        /\[NESTED TEST\] Page render completed with cache data from: (\d+)/g
+      ),
+    ]
+
+    const lastCacheExecution = cacheExecutions.at(-1)
+    const lastCompletion = completions.at(-1)
+
+    if (!lastCacheExecution || !lastCompletion) {
+      throw new Error(
+        `Expected nested cache execution and page completion during ISR revalidation. ` +
+          `Cache executions: ${cacheExecutions.length}, Page completions: ${completions.length}`
+      )
+    }
+
+    const cacheExecutedAt = parseInt(lastCacheExecution[1])
+    const cacheDataFrom = parseInt(lastCompletion[1])
+
+    expect(Math.abs(cacheExecutedAt - cacheDataFrom)).toBeLessThan(1000)
   })
 })

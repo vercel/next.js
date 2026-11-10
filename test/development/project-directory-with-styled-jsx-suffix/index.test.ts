@@ -1,23 +1,17 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 
 describe('project directory with styled-jsx suffix', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/index.js': `
-          export default function Page() { 
-            return <p>hello world</p>
-          } 
-        `,
-      },
-      subDir: 'test-styled-jsx',
-    })
+  const { next } = nextTestSetup({
+    files: {
+      'pages/index.js': `
+        export default function Page() { 
+          return <p>hello world</p>
+        } 
+      `,
+    },
+    subDir: 'test-styled-jsx',
   })
-  afterAll(() => next.destroy())
 
   it('should work', async () => {
     const html = await renderViaHTTP(next.url, '/')

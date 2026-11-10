@@ -1,33 +1,35 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::quote;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat};
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingContext, ChunkingTypeOption, ModuleChunkItemIdExt},
+    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     reference::ModuleReference,
     resolve::ModuleResolveResult,
 };
 
-use super::{EsmAssetReference, base::ReferencedAsset};
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::AstPath,
+    references::esm::{EsmAssetReference, base::ReferencedAsset},
     utils::module_id_to_lit,
 };
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("module id of {inner}")]
 pub struct EsmModuleIdAssetReference {
     inner: ResolvedVc<EsmAssetReference>,
+    chunking_type: Option<ChunkingType>,
 }
 
 impl EsmModuleIdAssetReference {
-    pub fn new(inner: ResolvedVc<EsmAssetReference>) -> Self {
-        EsmModuleIdAssetReference { inner }
+    pub fn new(inner: ResolvedVc<EsmAssetReference>, chunking_type: Option<ChunkingType>) -> Self {
+        EsmModuleIdAssetReference {
+            inner,
+            chunking_type,
+        }
     }
 }
 
@@ -37,30 +39,21 @@ impl ModuleReference for EsmModuleIdAssetReference {
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         self.inner.resolve_reference()
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for EsmModuleIdAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("module id of {}", self.inner.to_string().await?,).into(),
-        ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EsmModuleIdAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        self.inner.chunking_type()
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        self.chunking_type.clone()
     }
 }
 
 impl IntoCodeGenReference for EsmModuleIdAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
         (
@@ -73,25 +66,27 @@ impl IntoCodeGenReference for EsmModuleIdAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct EsmModuleIdAssetReferenceCodeGen {
-    path: AstPath,
+    path: AstPathId,
     reference: ResolvedVc<EsmModuleIdAssetReference>,
 }
 
 impl EsmModuleIdAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
 
         if let ReferencedAsset::Some(asset) =
-            &*self.reference.await?.inner.get_referenced_asset().await?
+            self.reference.await?.inner.get_referenced_asset().await?
         {
             let id = asset.chunk_item_id(chunking_context).await?;
             let id = module_id_to_lit(&id);
             visitors.push(create_visitor!(
+                trie,
                 self.path,
                 visit_mut_expr,
                 |expr: &mut Expr| {
@@ -103,6 +98,7 @@ impl EsmModuleIdAssetReferenceCodeGen {
             // This can happen if the referenced asset is an external, or doesn't resolve
             // to anything.
             visitors.push(create_visitor!(
+                trie,
                 self.path,
                 visit_mut_expr,
                 |expr: &mut Expr| {

@@ -1,35 +1,41 @@
 /* eslint-env jest */
 import { createSandbox } from 'development-sandbox'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, type Playwright } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
-import { Playwright } from 'next-webdriver'
 
-function getStaleness(browser: Playwright) {
-  return browser
-    .waitForElementByCss('.nextjs-container-build-error-version-status')
-    .text()
-}
+const bundlerName = process.env.IS_TURBOPACK_TEST
+  ? 'Turbopack'
+  : process.env.NEXT_RSPACK
+    ? 'Rspack'
+    : 'Webpack'
 
 describe('Error Overlay version staleness', () => {
+  // The fixture's next.config.js mocks the package registry with a newer major
+  // version, so the installed version is always reported as outdated.
   const { next } = nextTestSetup({
-    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    files: new FileRef(path.join(__dirname, 'fixtures', 'version-staleness')),
     skipStart: true,
   })
 
-  it('should show version staleness in runtime error', async () => {
-    // Set next to outdated version
-    const nextPackageJson = JSON.parse(
+  async function expectOutdatedStaleness(browser: Playwright) {
+    const { version } = JSON.parse(
       await next.readFile('node_modules/next/package.json')
     )
-    nextPackageJson.version = '1.0.0'
+    // The registry lookup is not awaited before the overlay is shown, so the
+    // staleness can arrive after the installed version is already displayed.
+    await retry(async () => {
+      expect(
+        await browser
+          .waitForElementByCss('.nextjs-container-build-error-version-status')
+          .text()
+      ).toBe(`Next.js ${version} (outdated)\n${bundlerName}`)
+    })
+  }
 
-    await using sandbox = await createSandbox(
-      next,
-      new Map([
-        ['node_modules/next/package.json', JSON.stringify(nextPackageJson)],
-      ])
-    )
+  it('should show version staleness in runtime error', async () => {
+    await using sandbox = await createSandbox(next)
     const { session, browser } = sandbox
     await session.patch(
       'app/page.js',
@@ -47,37 +53,11 @@ describe('Error Overlay version staleness', () => {
 
     await session.openRedbox()
 
-    if (process.env.IS_TURBOPACK_TEST) {
-      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
-         "Next.js 1.0.0 (outdated)
-         Turbopack"
-        `)
-    } else if (process.env.NEXT_RSPACK) {
-      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
-         "Next.js 1.0.0 (outdated)
-         Rspack"
-        `)
-    } else {
-      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
-         "Next.js 1.0.0 (outdated)
-         Webpack"
-        `)
-    }
+    await expectOutdatedStaleness(browser)
   })
 
   it('should show version staleness in render error', async () => {
-    // Set next to outdated version
-    const nextPackageJson = JSON.parse(
-      await next.readFile('node_modules/next/package.json')
-    )
-    nextPackageJson.version = '2.0.0'
-
-    await using sandbox = await createSandbox(
-      next,
-      new Map([
-        ['node_modules/next/package.json', JSON.stringify(nextPackageJson)],
-      ])
-    )
+    await using sandbox = await createSandbox(next)
     const { session, browser } = sandbox
     await session.patch(
       'app/page.js',
@@ -89,37 +69,11 @@ describe('Error Overlay version staleness', () => {
       `
     )
 
-    if (process.env.IS_TURBOPACK_TEST) {
-      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
-         "Next.js 2.0.0 (outdated)
-         Turbopack"
-        `)
-    } else if (process.env.NEXT_RSPACK) {
-      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
-         "Next.js 2.0.0 (outdated)
-         Rspack"
-        `)
-    } else {
-      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
-         "Next.js 2.0.0 (outdated)
-         Webpack"
-        `)
-    }
+    await expectOutdatedStaleness(browser)
   })
 
   it('should show version staleness in build error', async () => {
-    // Set next to outdated version
-    const nextPackageJson = JSON.parse(
-      await next.readFile('node_modules/next/package.json')
-    )
-    nextPackageJson.version = '3.0.0'
-
-    await using sandbox = await createSandbox(
-      next,
-      new Map([
-        ['node_modules/next/package.json', JSON.stringify(nextPackageJson)],
-      ])
-    )
+    await using sandbox = await createSandbox(next)
     const { session, browser } = sandbox
     await session.patch(
       'app/page.js',
@@ -128,21 +82,6 @@ describe('Error Overlay version staleness', () => {
       `
     )
 
-    if (process.env.IS_TURBOPACK_TEST) {
-      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
-         "Next.js 3.0.0 (outdated)
-         Turbopack"
-        `)
-    } else if (process.env.NEXT_RSPACK) {
-      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
-         "Next.js 3.0.0 (outdated)
-         Rspack"
-        `)
-    } else {
-      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
-         "Next.js 3.0.0 (outdated)
-         Webpack"
-        `)
-    }
+    await expectOutdatedStaleness(browser)
   })
 })

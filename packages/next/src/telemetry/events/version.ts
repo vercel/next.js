@@ -32,6 +32,7 @@ type EventCliSessionStarted = {
   reactStrictMode: boolean
   webpackVersion: number | null
   turboFlag: boolean
+  useTurbopackWorkerAssetPrefix: boolean
   isRspack: boolean
   appDir: boolean | null
   pagesDir: boolean | null
@@ -40,7 +41,7 @@ type EventCliSessionStarted = {
   reactCompiler: boolean
   reactCompilerCompilationMode: string | null
   reactCompilerPanicThreshold: string | null
-  mcpServer: boolean | null
+  adapterPath: boolean
 }
 
 export function eventCliSession(
@@ -75,8 +76,9 @@ export function eventCliSession(
     | 'reactCompiler'
     | 'reactCompilerCompilationMode'
     | 'reactCompilerPanicThreshold'
-    | 'mcpServer'
     | 'isRspack'
+    | 'adapterPath'
+    | 'useTurbopackWorkerAssetPrefix'
   >
 ): { eventName: string; payload: EventCliSessionStarted }[] {
   // This should be an invariant, if it fails our build tooling is broken.
@@ -120,6 +122,8 @@ export function eventCliSession(
     reactStrictMode: !!nextConfig?.reactStrictMode,
     webpackVersion: event.webpackVersion || null,
     turboFlag: event.turboFlag || false,
+    useTurbopackWorkerAssetPrefix:
+      nextConfig?.experimental?.turbopackWorkerAssetPrefix !== undefined,
     isRspack: process.env.NEXT_RSPACK !== undefined,
     appDir: event.appDir,
     pagesDir: event.pagesDir,
@@ -134,10 +138,7 @@ export function eventCliSession(
       typeof nextConfig.reactCompiler !== 'boolean'
         ? (nextConfig.reactCompiler?.panicThreshold ?? null)
         : null,
-    mcpServer:
-      typeof nextConfig.experimental.mcpServer === 'boolean'
-        ? nextConfig.experimental.mcpServer
-        : null,
+    adapterPath: !!nextConfig?.adapterPath,
   }
   return [{ eventName: EVENT_VERSION, payload }]
 }

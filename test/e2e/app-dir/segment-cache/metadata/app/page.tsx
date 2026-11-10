@@ -5,19 +5,16 @@ export default function Page() {
     <>
       <ul>
         <li>
-          <LinkAccordion
-            prefetch="unstable_forceStale"
-            href="/page-with-dynamic-head"
-          >
-            Page with dynamic head (prefetch=unstable_forceStale)
+          <LinkAccordion prefetch={true} href="/page-with-dynamic-head">
+            Page with dynamic head (prefetch=true)
           </LinkAccordion>
         </li>
         <li>
           <LinkAccordion
-            prefetch="unstable_forceStale"
+            prefetch={true}
             href="/rewrite-to-page-with-dynamic-head"
           >
-            Rewrite to page with dynamic head (prefetch=unstable_forceStale)
+            Rewrite to page with dynamic head (prefetch=true)
           </LinkAccordion>
         </li>
       </ul>
@@ -25,7 +22,7 @@ export default function Page() {
       <ul>
         <li>
           <LinkAccordion
-            prefetch="unstable_forceStale"
+            prefetch={true}
             href="/page-with-runtime-prefetchable-head"
           >
             Page with runtime-prefetchable head (prefetch=true)
@@ -33,10 +30,26 @@ export default function Page() {
         </li>
         <li>
           <LinkAccordion
-            prefetch="unstable_forceStale"
+            prefetch={true}
             href="/rewrite-to-page-with-runtime-prefetchable-head"
           >
             Rewrite to page with runtime-prefetchable head (prefetch=true)
+          </LinkAccordion>
+        </li>
+      </ul>
+      <hr />
+      <ul>
+        <li>
+          <LinkAccordion href="/page-with-per-tenant-head/en/acme">
+            Page with per-tenant head (en/acme)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            prefetch={false}
+            href="/page-with-per-tenant-head/en/initech"
+          >
+            Page with per-tenant head (en/initech, prefetch=false)
           </LinkAccordion>
         </li>
       </ul>

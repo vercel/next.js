@@ -1,16 +1,18 @@
+use std::{io::Read, iter};
+
 use anyhow::{Result, anyhow};
 use auto_hash_map::AutoSet;
-use futures::{StreamExt, TryStreamExt};
+use flate2::{Compression, bufread::GzEncoder};
+use futures::{StreamExt, TryStreamExt, stream};
 use hyper::{
     Request, Response,
     header::{CONTENT_ENCODING, CONTENT_LENGTH, HeaderName},
     http::HeaderValue,
 };
 use mime::Mime;
-use tokio_util::io::{ReaderStream, StreamReader};
 use turbo_tasks::{
-    CollectiblesSource, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc, apply_effects,
-    util::SharedError,
+    CollectiblesSource, Effects, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc,
+    read_strongly_consistent_and_apply_effects, take_effects, util::SharedError,
 };
 use turbo_tasks_bytes::Bytes;
 use turbo_tasks_fs::FileContent;
@@ -26,7 +28,7 @@ use crate::source::{
     resolve::{ResolveSourceRequestResult, resolve_source_request},
 };
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 enum GetFromSourceResult {
     Static {
         content: ReadRef<FileContent>,
@@ -40,7 +42,7 @@ enum GetFromSourceResult {
 
 /// Resolves a [SourceRequest] within a [super::ContentSource], returning the
 /// corresponding content as a
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_from_source_operation(
     source: OperationVc<Box<dyn ContentSource>>,
     request: TransientInstance<SourceRequest>,
@@ -69,8 +71,29 @@ async fn get_from_source_operation(
     )
 }
 
-/// Processes an HTTP request within a given content source and returns the
-/// response.
+#[turbo_tasks::value(serialization = "skip")]
+struct GetFromSourceResultWithCollectibles {
+    result: ReadRef<GetFromSourceResult>,
+    effects: Effects,
+    content_source_side_effects: AutoSet<ResolvedVc<Box<dyn ContentSourceSideEffect>>>,
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn get_from_source_with_collectibles_operation(
+    source_op: OperationVc<Box<dyn ContentSource>>,
+    request: TransientInstance<SourceRequest>,
+) -> Result<Vc<GetFromSourceResultWithCollectibles>> {
+    let op = get_from_source_operation(source_op, request);
+    let result = op.read_strongly_consistent().await?;
+    Ok(GetFromSourceResultWithCollectibles {
+        result,
+        effects: take_effects(op).await?,
+        content_source_side_effects: op.peek_collectibles(),
+    }
+    .cell())
+}
+
+/// Processes an HTTP request within a given content source and returns the response.
 pub async fn process_request_with_content_source(
     source: OperationVc<Box<dyn ContentSource>>,
     request: Request<hyper::Body>,
@@ -81,20 +104,23 @@ pub async fn process_request_with_content_source(
 )> {
     let original_path = request.uri().path().to_string();
     let request = http_request_to_source_request(request).await?;
-    let result_op = get_from_source_operation(source, TransientInstance::new(request));
-    let resolved_result = result_op.resolve_strongly_consistent().await?;
-    apply_effects(result_op).await?;
-    let side_effects: AutoSet<ResolvedVc<Box<dyn ContentSourceSideEffect>>> =
-        result_op.peek_collectibles();
+    let wrapper_op =
+        get_from_source_with_collectibles_operation(source, TransientInstance::new(request));
+    let read = read_strongly_consistent_and_apply_effects(wrapper_op, |v| &v.effects).await?;
+    let GetFromSourceResultWithCollectibles {
+        result,
+        content_source_side_effects,
+        ..
+    } = &*read;
     handle_issues(
-        result_op,
+        wrapper_op,
         issue_reporter,
         IssueSeverity::Fatal,
         Some(&original_path),
         Some("get_from_source_operation"),
     )
     .await?;
-    match &*resolved_result.await? {
+    match &**result {
         GetFromSourceResult::Static {
             content,
             status_code,
@@ -175,25 +201,33 @@ pub async fn process_request_with_content_source(
                 let response = if should_compress {
                     header_map.insert(CONTENT_ENCODING, HeaderValue::from_static("gzip"));
 
-                    // Grab ropereader stream, coerce anyhow::Error to std::io::Error
-                    let stream_ext = content.read().into_stream().map_err(std::io::Error::other);
-
-                    let gzipped_stream =
-                        ReaderStream::new(async_compression::tokio::bufread::GzipEncoder::new(
-                            StreamReader::new(stream_ext),
-                        ));
-
-                    response.body(hyper::Body::wrap_stream(gzipped_stream))?
+                    // Hyper requires an owned reader... We could do this with streaming by cloning
+                    // each `Bytes` and implementing `BufRead` for `Iterator<bytes::Bytes>`, but
+                    // it's not really worth it, just compressing the whole thing up-front is fine.
+                    //
+                    // Use fast compression, since we're likely just tranferring data over
+                    // localhost.
+                    let mut gz_bytes = Vec::new();
+                    GzEncoder::new(content.read(), Compression::fast())
+                        .read_to_end(&mut gz_bytes)
+                        .expect("read of Rope should never fail");
+                    response.body(hyper::Body::wrap_stream(stream::iter(iter::once(
+                        hyper::Result::Ok(gz_bytes),
+                    ))))?
                 } else {
+                    // hyper requires an owned stream, so we must clone the iterator items
+                    // this is relatively cheap: each chunk is a `Bytes`, so `Clone` updates a
+                    // refcount
+                    let owned_chunks: Vec<_> =
+                        content.read().cloned().map(hyper::Result::Ok).collect();
                     header_map.insert(
                         CONTENT_LENGTH,
                         hyper::header::HeaderValue::try_from(content.len().to_string())?,
                     );
-
-                    response.body(hyper::Body::wrap_stream(content.read()))?
+                    response.body(hyper::Body::wrap_stream(stream::iter(owned_chunks)))?
                 };
 
-                return Ok((response, side_effects));
+                return Ok((response, content_source_side_effects.clone()));
             }
         }
         GetFromSourceResult::HttpProxy(proxy_result) => {
@@ -209,7 +243,7 @@ pub async fn process_request_with_content_source(
 
             return Ok((
                 response.body(hyper::Body::wrap_stream(proxy_result.body.read()))?,
-                side_effects,
+                content_source_side_effects.clone(),
             ));
         }
         GetFromSourceResult::NotFound => {}
@@ -217,7 +251,7 @@ pub async fn process_request_with_content_source(
 
     Ok((
         Response::builder().status(404).body(hyper::Body::empty())?,
-        side_effects,
+        content_source_side_effects.clone(),
     ))
 }
 

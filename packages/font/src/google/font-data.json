@@ -207,6 +207,12 @@
     "styles": ["normal"],
     "axes": [
       {
+        "tag": "CTRS",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      },
+      {
         "tag": "wght",
         "min": 300,
         "max": 700,
@@ -214,6 +220,38 @@
       }
     ],
     "subsets": ["devanagari", "latin", "latin-ext"]
+  },
+  "Akt": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": [
+      "cyrillic",
+      "cyrillic-ext",
+      "greek",
+      "greek-ext",
+      "latin",
+      "latin-ext",
+      "vietnamese"
+    ]
   },
   "Aladin": {
     "weights": ["400"],
@@ -231,7 +269,7 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["latin", "latin-ext"]
+    "subsets": ["arabic", "latin", "latin-ext"]
   },
   "Alata": {
     "weights": ["400"],
@@ -400,6 +438,11 @@
     "styles": ["normal"],
     "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
   },
+  "Alien Block": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Alike": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -447,6 +490,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "Allkin": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
   },
   "Allura": {
     "weights": ["400"],
@@ -536,6 +584,19 @@
     ],
     "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
   },
+  "Alyamama": {
+    "weights": ["300", "400", "500", "600", "700", "800", "900", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["arabic", "greek", "latin", "latin-ext"]
+  },
   "Amarante": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -545,6 +606,19 @@
     "weights": ["400", "700"],
     "styles": ["normal", "italic"],
     "subsets": ["latin"]
+  },
+  "Amarna": {
+    "weights": ["100", "200", "300", "400", "500", "600", "700", "variable"],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
   },
   "Amatic SC": {
     "weights": ["400", "700"],
@@ -1242,6 +1316,36 @@
     "styles": ["normal", "italic"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
   },
+  "Asap Sharp": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
   "Asar": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -1418,17 +1522,17 @@
     "styles": ["normal", "italic"],
     "subsets": ["latin"]
   },
-  "BBH Sans Bartle": {
+  "BBH Bartle": {
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin"]
   },
-  "BBH Sans Bogle": {
+  "BBH Bogle": {
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin"]
   },
-  "BBH Sans Hegarty": {
+  "BBH Hegarty": {
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin"]
@@ -1452,6 +1556,11 @@
     "weights": ["400", "700"],
     "styles": ["normal"],
     "subsets": ["cyrillic", "greek-ext", "latin", "latin-ext"]
+  },
+  "BJCree": {
+    "weights": ["400", "500", "600", "700"],
+    "styles": ["normal"],
+    "subsets": ["canadian-aboriginal", "latin"]
   },
   "Babylonica": {
     "weights": ["400"],
@@ -1826,6 +1935,26 @@
         "defaultValue": 400
       }
     ],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Betania Patmos": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Betania Patmos GDL": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Betania Patmos In": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Betania Patmos In GDL": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
   "Beth Ellen": {
@@ -2947,6 +3076,21 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Bpmf Huninn": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Bpmf Iansui": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Bpmf Zihi Kai Std": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Braah One": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -3091,6 +3235,11 @@
     "subsets": ["latin", "latin-ext"]
   },
   "Bytesized": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Caacupe One": {
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
@@ -3365,8 +3514,16 @@
     ]
   },
   "Castoro": {
-    "weights": ["400"],
+    "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
     "subsets": ["latin", "latin-ext"]
   },
   "Castoro Titling": {
@@ -3409,6 +3566,30 @@
       "runic",
       "vietnamese"
     ]
+  },
+  "Cause": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
   },
   "Caveat": {
     "weights": ["400", "500", "600", "700", "variable"],
@@ -3708,6 +3889,30 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Clarity City": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Clicker Script": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -3724,7 +3929,7 @@
         "defaultValue": 1979
       }
     ],
-    "subsets": ["latin", "latin-ext"]
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
   },
   "Coda": {
     "weights": ["400", "800"],
@@ -4005,7 +4210,7 @@
   "Coustard": {
     "weights": ["400", "900"],
     "styles": ["normal"],
-    "subsets": ["latin"]
+    "subsets": ["latin", "latin-ext"]
   },
   "Covered By Your Grace": {
     "weights": ["400"],
@@ -4196,6 +4401,36 @@
   "Darumadrop One": {
     "weights": ["400"],
     "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Datatype": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 50,
+        "max": 150,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
     "subsets": ["latin", "latin-ext"]
   },
   "David Libre": {
@@ -4695,6 +4930,30 @@
     "styles": ["normal"],
     "subsets": ["latin"]
   },
+  "Elms Sans": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
   "Elsie": {
     "weights": ["400", "900"],
     "styles": ["normal"],
@@ -4874,6 +5133,30 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
+  },
+  "Estedad": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["arabic", "latin", "latin-ext", "vietnamese"]
   },
   "Estonia": {
     "weights": ["400"],
@@ -5080,18 +5363,53 @@
     "styles": ["normal"],
     "subsets": ["latin"]
   },
-  "Finlandica": {
-    "weights": ["400", "500", "600", "700", "variable"],
+  "Finlandica Headline": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
     "styles": ["normal", "italic"],
     "axes": [
       {
         "tag": "wght",
-        "min": 400,
-        "max": 700,
+        "min": 100,
+        "max": 900,
         "defaultValue": 400
       }
     ],
-    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
+  },
+  "Finlandica Text": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
   },
   "Fira Code": {
     "weights": ["300", "400", "500", "600", "700", "variable"],
@@ -5533,7 +5851,7 @@
       "900",
       "variable"
     ],
-    "styles": ["normal"],
+    "styles": ["normal", "italic"],
     "axes": [
       {
         "tag": "wght",
@@ -5542,7 +5860,7 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["cyrillic", "latin", "latin-ext"]
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
   },
   "Geist Mono": {
     "weights": [
@@ -5557,7 +5875,7 @@
       "900",
       "variable"
     ],
-    "styles": ["normal"],
+    "styles": ["normal", "italic"],
     "axes": [
       {
         "tag": "wght",
@@ -5566,7 +5884,27 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["cyrillic", "latin", "latin-ext"]
+    "subsets": [
+      "cyrillic",
+      "cyrillic-ext",
+      "latin",
+      "latin-ext",
+      "symbols2",
+      "vietnamese"
+    ]
+  },
+  "Geist Pixel": {
+    "weights": ["400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "ELSH",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
   },
   "Gelasio": {
     "weights": ["400", "500", "600", "700", "variable"],
@@ -5697,6 +6035,32 @@
       "latin-ext",
       "vietnamese"
     ]
+  },
+  "Geom": {
+    "weights": ["300", "400", "500", "600", "700", "800", "900", "variable"],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["greek", "latin", "latin-ext"]
+  },
+  "Geomini": {
+    "weights": ["200", "300", "400", "500", "600", "700", "800", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
   },
   "Georama": {
     "weights": [
@@ -5874,10 +6238,69 @@
     ],
     "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
   },
+  "Google Sans": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "GRAD",
+        "min": -50,
+        "max": 200,
+        "defaultValue": 0
+      },
+      {
+        "tag": "opsz",
+        "min": 17,
+        "max": 18,
+        "defaultValue": 18
+      },
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": [
+      "arabic",
+      "armenian",
+      "bengali",
+      "canadian-aboriginal",
+      "cyrillic",
+      "cyrillic-ext",
+      "devanagari",
+      "ethiopic",
+      "georgian",
+      "greek",
+      "greek-ext",
+      "gujarati",
+      "gurmukhi",
+      "hebrew",
+      "kannada",
+      "khmer",
+      "lao",
+      "latin",
+      "latin-ext",
+      "malayalam",
+      "oriya",
+      "sinhala",
+      "symbols",
+      "tamil",
+      "telugu",
+      "thai",
+      "vietnamese"
+    ]
+  },
   "Google Sans Code": {
     "weights": ["300", "400", "500", "600", "700", "800", "variable"],
     "styles": ["normal", "italic"],
     "axes": [
+      {
+        "tag": "MONO",
+        "min": 0,
+        "max": 1,
+        "defaultValue": 1
+      },
       {
         "tag": "wght",
         "min": 300,
@@ -5896,6 +6319,67 @@
       "symbols",
       "symbols2",
       "syriac",
+      "vietnamese"
+    ]
+  },
+  "Google Sans Flex": {
+    "weights": [
+      "1",
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "1000",
+      "variable"
+    ],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "ROND",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      },
+      {
+        "tag": "opsz",
+        "min": 1,
+        "max": 144,
+        "defaultValue": 18
+      },
+      {
+        "tag": "slnt",
+        "min": -10,
+        "max": 0,
+        "defaultValue": 0
+      },
+      {
+        "tag": "wdth",
+        "min": 25,
+        "max": 151,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 1,
+        "max": 1000,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": [
+      "canadian-aboriginal",
+      "cherokee",
+      "latin",
+      "latin-ext",
+      "math",
+      "nushu",
+      "symbols",
+      "syriac",
+      "tifinagh",
       "vietnamese"
     ]
   },
@@ -6004,8 +6488,27 @@
     "subsets": ["latin", "latin-ext", "vietnamese"]
   },
   "Grenze": {
-    "weights": ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
     "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
     "subsets": ["latin", "latin-ext", "vietnamese"]
   },
   "Grenze Gotisch": {
@@ -6070,7 +6573,12 @@
   "Gurajada": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["latin", "latin-ext", "telugu"]
+    "subsets": ["latin", "telugu"]
+  },
+  "Gveret Levin": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["hebrew", "latin"]
   },
   "Gwendolyn": {
     "weights": ["400", "700"],
@@ -6326,6 +6834,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin"]
+  },
+  "Hibur Mono": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["ethiopic", "latin", "latin-ext"]
   },
   "Hina Mincho": {
     "weights": ["400"],
@@ -6607,6 +7120,11 @@
     "styles": ["normal"],
     "subsets": ["latin"]
   },
+  "Idiqlat": {
+    "weights": ["200", "300", "400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "syriac"]
+  },
   "Imbue": {
     "weights": [
       "100",
@@ -6836,6 +7354,42 @@
       "vietnamese"
     ]
   },
+  "Iosevka Charon": {
+    "weights": ["300", "400", "500", "700"],
+    "styles": ["normal", "italic"],
+    "subsets": [
+      "armenian",
+      "braille",
+      "cyrillic",
+      "cyrillic-ext",
+      "greek",
+      "greek-ext",
+      "latin",
+      "latin-ext",
+      "math",
+      "symbols",
+      "symbols2",
+      "vietnamese"
+    ]
+  },
+  "Iosevka Charon Mono": {
+    "weights": ["300", "400", "500", "700"],
+    "styles": ["normal", "italic"],
+    "subsets": [
+      "armenian",
+      "braille",
+      "cyrillic",
+      "cyrillic-ext",
+      "greek",
+      "greek-ext",
+      "latin",
+      "latin-ext",
+      "math",
+      "symbols",
+      "symbols2",
+      "vietnamese"
+    ]
+  },
   "Irish Grover": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -6845,6 +7399,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "Isometra": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
   },
   "Istok Web": {
     "weights": ["400", "700"],
@@ -7027,7 +7586,7 @@
   "Jomhuria": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["latin", "latin-ext"]
+    "subsets": ["arabic", "latin", "latin-ext"]
   },
   "Jomolhari": {
     "weights": ["400"],
@@ -7356,6 +7915,11 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Kedebideri": {
+    "weights": ["400", "500", "600", "700", "800", "900"],
+    "styles": ["normal"],
+    "subsets": ["beria-erfe", "latin"]
+  },
   "Kelly Slab": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -7426,6 +7990,18 @@
     "styles": ["normal"],
     "axes": [
       {
+        "tag": "ROND",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      },
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
         "tag": "wght",
         "min": 400,
         "max": 700,
@@ -7486,6 +8062,30 @@
       }
     ],
     "subsets": ["latin", "latin-ext"]
+  },
+  "Kripa": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["devanagari", "latin", "latin-ext", "vietnamese"]
   },
   "Kristi": {
     "weights": ["400"],
@@ -7564,6 +8164,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["cyrillic", "cyrillic-ext", "devanagari", "latin", "latin-ext"]
+  },
+  "LINE Seed JP": {
+    "weights": ["100", "400", "700", "800"],
+    "styles": ["normal"],
+    "subsets": ["cyrillic", "greek-ext", "latin", "latin-ext"]
   },
   "LXGW Marker Gothic": {
     "weights": ["400"],
@@ -7955,16 +8560,7 @@
   "Libertinus Math": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": [
-      "cyrillic",
-      "cyrillic-ext",
-      "greek",
-      "greek-ext",
-      "latin",
-      "latin-ext",
-      "math",
-      "vietnamese"
-    ]
+    "subsets": []
   },
   "Libertinus Mono": {
     "weights": ["400"],
@@ -8047,8 +8643,16 @@
     "subsets": ["latin"]
   },
   "Libre Baskerville": {
-    "weights": ["400", "700"],
+    "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
     "subsets": ["latin", "latin-ext"]
   },
   "Libre Bodoni": {
@@ -8063,6 +8667,19 @@
       }
     ],
     "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "Libre Caslon Condensed": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
   },
   "Libre Caslon Display": {
     "weights": ["400"],
@@ -8107,6 +8724,27 @@
     "weights": ["400", "700", "800"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
+  },
+  "Lilex": {
+    "weights": ["100", "200", "300", "400", "500", "600", "700", "variable"],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": [
+      "cyrillic",
+      "cyrillic-ext",
+      "greek",
+      "latin",
+      "latin-ext",
+      "symbols2",
+      "vietnamese"
+    ]
   },
   "Lilita One": {
     "weights": ["400"],
@@ -8448,6 +9086,30 @@
       "latin-ext",
       "vietnamese"
     ]
+  },
+  "M PLUS U": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "symbols2", "vietnamese"]
   },
   "Ma Shan Zheng": {
     "weights": ["400"],
@@ -8900,6 +9562,19 @@
     "styles": ["normal"],
     "subsets": ["latin"]
   },
+  "Miranda Sans": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Miriam Libre": {
     "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal"],
@@ -8993,6 +9668,29 @@
     "weights": ["400"],
     "styles": ["italic"],
     "subsets": ["latin", "latin-ext"]
+  },
+  "Momo Signature": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "Momo Trust Display": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "Momo Trust Sans": {
+    "weights": ["200", "300", "400", "500", "600", "700", "800", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
   },
   "Mona Sans": {
     "weights": [
@@ -9089,6 +9787,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "Montenegrin Gothic One": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
   },
   "Montez": {
     "weights": ["400"],
@@ -10703,7 +11406,7 @@
   "Noto Sans Math": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["cyrillic", "latin", "math"]
+    "subsets": []
   },
   "Noto Sans Mayan Numerals": {
     "weights": ["400"],
@@ -10827,9 +11530,34 @@
     "subsets": ["latin", "latin-ext", "multani"]
   },
   "Noto Sans Myanmar": {
-    "weights": ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
     "styles": ["normal"],
-    "subsets": ["myanmar"]
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 62.5,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "myanmar"]
   },
   "Noto Sans NKo": {
     "weights": ["400"],
@@ -11224,6 +11952,30 @@
     "subsets": ["latin", "latin-ext", "syriac"]
   },
   "Noto Sans Syriac Eastern": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "syriac"]
+  },
+  "Noto Sans Syriac Western": {
     "weights": [
       "100",
       "200",
@@ -12574,7 +13326,15 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
+    "subsets": [
+      "cyrillic",
+      "cyrillic-ext",
+      "latin",
+      "latin-ext",
+      "math",
+      "symbols",
+      "vietnamese"
+    ]
   },
   "Oooh Baby": {
     "weights": ["400"],
@@ -12852,7 +13612,7 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["latin", "latin-ext", "vietnamese"]
+    "subsets": ["arabic", "latin", "latin-ext", "vietnamese"]
   },
   "Parisienne": {
     "weights": ["400"],
@@ -14031,6 +14791,24 @@
     ],
     "subsets": []
   },
+  "Playwrite NZ Basic": {
+    "weights": ["100", "200", "300", "400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 400,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": []
+  },
+  "Playwrite NZ Basic Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite NZ Guides": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -14215,6 +14993,43 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": []
+  },
+  "Pliant": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 100,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": [
+      "cyrillic",
+      "cyrillic-ext",
+      "greek",
+      "greek-ext",
+      "latin",
+      "latin-ext"
+    ]
   },
   "Plus Jakarta Sans": {
     "weights": ["200", "300", "400", "500", "600", "700", "800", "variable"],
@@ -14635,6 +15450,11 @@
     "styles": ["normal"],
     "subsets": ["cyrillic", "latin", "latin-ext"]
   },
+  "Ramsina": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "syriac"]
+  },
   "Ranchers": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -14799,6 +15619,41 @@
   "Redacted Script": {
     "weights": ["300", "400", "700"],
     "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Redaction": {
+    "weights": ["400", "700"],
+    "styles": ["normal", "italic"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Redaction 10": {
+    "weights": ["400", "700"],
+    "styles": ["normal", "italic"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Redaction 100": {
+    "weights": ["400", "700"],
+    "styles": ["normal", "italic"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Redaction 20": {
+    "weights": ["400", "700"],
+    "styles": ["normal", "italic"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Redaction 35": {
+    "weights": ["400", "700"],
+    "styles": ["normal", "italic"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Redaction 50": {
+    "weights": ["400", "700"],
+    "styles": ["normal", "italic"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Redaction 70": {
+    "weights": ["400", "700"],
+    "styles": ["normal", "italic"],
     "subsets": ["latin", "latin-ext"]
   },
   "Reddit Mono": {
@@ -15590,6 +16445,34 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "SN Pro": {
+    "weights": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
+  },
+  "STIX Two Math": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "STIX Two Text": {
     "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal", "italic"],
@@ -15717,9 +16600,34 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
   },
-  "Saira Stencil One": {
-    "weights": ["400"],
-    "styles": ["normal"],
+  "Saira Stencil": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 50,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
     "subsets": ["latin", "latin-ext", "vietnamese"]
   },
   "Salsa": {
@@ -15856,10 +16764,65 @@
     "styles": ["normal"],
     "subsets": ["latin"]
   },
+  "Science Gothic": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "CTRS",
+        "min": 0,
+        "max": 85,
+        "defaultValue": 0
+      },
+      {
+        "tag": "slnt",
+        "min": -10,
+        "max": 0,
+        "defaultValue": 0
+      },
+      {
+        "tag": "wdth",
+        "min": 50,
+        "max": 200,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
+  },
   "Scope One": {
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
+  },
+  "Scoutie Sans": {
+    "weights": ["200", "300", "400", "500", "600", "700", "800", "variable"],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
   },
   "Seaweed Script": {
     "weights": ["400"],
@@ -15890,6 +16853,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "Sekuya": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
   },
   "Sen": {
     "weights": ["400", "500", "600", "700", "800", "variable"],
@@ -16090,7 +17058,7 @@
   "Single Day": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": []
+    "subsets": ["latin"]
   },
   "Sintony": {
     "weights": ["400", "700"],
@@ -16381,7 +17349,7 @@
   "Song Myung": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": []
+    "subsets": ["latin"]
   },
   "Sono": {
     "weights": ["200", "300", "400", "500", "600", "700", "800", "variable"],
@@ -16701,6 +17669,45 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Stack Sans Headline": {
+    "weights": ["200", "300", "400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Stack Sans Notch": {
+    "weights": ["200", "300", "400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Stack Sans Text": {
+    "weights": ["200", "300", "400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Stalemate": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -16759,6 +17766,25 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Strichpunkt Sans": {
+    "weights": ["400", "500", "600", "700", "800", "900", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 100,
+        "max": 200,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Style Script": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -16767,7 +17793,7 @@
   "Stylish": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": []
+    "subsets": ["latin"]
   },
   "Sue Ellen Francisco": {
     "weights": ["400"],
@@ -16792,7 +17818,7 @@
   "Sunflower": {
     "weights": ["300", "500", "700"],
     "styles": ["normal"],
-    "subsets": []
+    "subsets": ["latin"]
   },
   "Sunshiney": {
     "weights": ["400"],
@@ -17170,9 +18196,118 @@
     ]
   },
   "Tiny5": {
-    "weights": ["400"],
-    "styles": ["normal"],
-    "subsets": ["cyrillic", "cyrillic-ext", "greek", "latin", "latin-ext"]
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "BLED",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      },
+      {
+        "tag": "JITT",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      },
+      {
+        "tag": "ROND",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      },
+      {
+        "tag": "wdth",
+        "min": 50,
+        "max": 200,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": [
+      "armenian",
+      "cyrillic",
+      "cyrillic-ext",
+      "greek",
+      "greek-ext",
+      "latin",
+      "latin-ext",
+      "vietnamese"
+    ]
+  },
+  "Tiny5 Duo": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "BLED",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      },
+      {
+        "tag": "JITT",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      },
+      {
+        "tag": "ROND",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      },
+      {
+        "tag": "wdth",
+        "min": 50,
+        "max": 200,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": [
+      "armenian",
+      "cyrillic",
+      "cyrillic-ext",
+      "greek",
+      "greek-ext",
+      "latin",
+      "latin-ext",
+      "vietnamese"
+    ]
   },
   "Tiro Bangla": {
     "weights": ["400"],
@@ -17601,6 +18736,30 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
   },
+  "Valley Sans": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Vampiro One": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -17991,6 +19150,30 @@
     "styles": ["normal", "italic"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
   },
+  "Xmind": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "cyrillic-ext", "greek", "latin", "latin-ext"]
+  },
   "Yaldevi": {
     "weights": ["200", "300", "400", "500", "600", "700", "variable"],
     "styles": ["normal"],
@@ -18268,6 +19451,16 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Yuyu": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Yuyu Short": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
   "ZCOOL KuaiLe": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -18315,7 +19508,7 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["latin", "latin-ext"]
+    "subsets": ["latin", "latin-ext", "vietnamese"]
   },
   "Zalando Sans Expanded": {
     "weights": [
@@ -18338,7 +19531,7 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["latin", "latin-ext"]
+    "subsets": ["latin", "latin-ext", "vietnamese"]
   },
   "Zalando Sans SemiExpanded": {
     "weights": [
@@ -18361,7 +19554,7 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["latin", "latin-ext"]
+    "subsets": ["latin", "latin-ext", "vietnamese"]
   },
   "Zen Antique": {
     "weights": ["400"],

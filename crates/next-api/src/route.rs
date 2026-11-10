@@ -1,32 +1,27 @@
+use std::{fmt::Display, future::Future};
+
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
+use itertools::Itertools;
+use next_core::app_structure::FileSystemPathVec;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, OperationVc, ResolvedVc, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
+    Completion, FxIndexMap, FxIndexSet, JoinIterExt, NonLocalValue, OperationVc, ResolvedVc,
+    TryJoinIterExt, Vc, debug::ValueDebugFormat,
 };
 use turbopack_core::{
+    module::Module,
     module_graph::{GraphEntries, ModuleGraph},
     output::OutputAssets,
 };
 
-use crate::{operation::OptionEndpoint, paths::ServerPath, project::Project};
+use crate::{operation::OptionEndpoint, paths::AssetPath, project::Project};
 
-#[derive(
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    Clone,
-    Debug,
-    NonLocalValue,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub struct AppPageRoute {
     pub original_name: RcStr,
     pub html_endpoint: ResolvedVc<Box<dyn Endpoint>>,
-    pub rsc_endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    pub rsc_hmr_endpoint: ResolvedVc<Box<dyn Endpoint>>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -40,12 +35,54 @@ pub enum Route {
         endpoint: ResolvedVc<Box<dyn Endpoint>>,
     },
     AppPage(Vec<AppPageRoute>),
-    AppRoute {
+    AppGoRoute {
         original_name: RcStr,
         endpoint: ResolvedVc<Box<dyn Endpoint>>,
     },
+    AppRoute {
+        original_name: RcStr,
+        endpoint: ResolvedVc<Box<dyn Endpoint>>,
+        has_action_manifest: bool,
+    },
     Conflict,
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct ModuleGraphs(Vec<ResolvedVc<ModuleGraph>>);
+
+/// Client-side modules associated with an endpoint.
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug, Default)]
+pub struct AnalyzeClientEntries {
+    /// Server entry modules established by this endpoint's build graph.
+    pub server_modules: Vec<ResolvedVc<Box<dyn Module>>>,
+    /// Client entry modules used to bootstrap this endpoint, not observed requests.
+    pub bootstrap_modules: Vec<ResolvedVc<Box<dyn Module>>>,
+    /// Client references discovered from the endpoint's server graph.
+    pub references: Vec<AnalyzeClientReference>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+pub struct AnalyzeClientReference {
+    /// The referenced client module, with its bundler identity and variants intact.
+    pub module: ResolvedVc<Box<dyn Module>>,
+    /// Producer reference category (for example ECMAScript or CSS), not a load trigger.
+    pub kind: RcStr,
+}
+
+/// Direct emitted assets of a build-time chunk group. Groups may overlap: an
+/// App layout group can include chunks shared with other client references.
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+pub struct AnalyzeChunkGroup {
+    pub kind: RcStr,
+    pub trigger: Option<ResolvedVc<Box<dyn Module>>>,
+    pub assets: ResolvedVc<OutputAssets>,
+    /// Only Pages HTML endpoints inherit the shared _app client group.
+    pub pages_html: bool,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct AnalyzeChunkGroups(Vec<AnalyzeChunkGroup>);
 
 #[turbo_tasks::value_trait]
 pub trait Endpoint {
@@ -59,13 +96,166 @@ pub trait Endpoint {
     /// The entry modules for the modules graph.
     #[turbo_tasks::function]
     fn entries(self: Vc<Self>) -> Vc<GraphEntries>;
+    /// Build-time client bootstrap and client-reference modules for analysis.
+    #[turbo_tasks::function]
+    fn analyze_client_entries(self: Vc<Self>) -> Vc<AnalyzeClientEntries> {
+        AnalyzeClientEntries::default().cell()
+    }
+    /// Build-time client chunk groups, not observed browser requests.
+    #[turbo_tasks::function]
+    fn analyze_chunk_groups(self: Vc<Self>) -> Vc<AnalyzeChunkGroups> {
+        Vc::cell(vec![])
+    }
     /// Additional entry modules for the module graph.
     /// This may read the module graph and return additional modules.
     #[turbo_tasks::function]
     fn additional_entries(self: Vc<Self>, _graph: Vc<ModuleGraph>) -> Vc<GraphEntries> {
         GraphEntries::empty()
     }
+    #[turbo_tasks::function]
+    fn module_graphs(self: Vc<Self>) -> Vc<ModuleGraphs>;
+    /// The project this endpoint belongs to.
+    #[turbo_tasks::function]
+    fn project(self: Vc<Self>) -> Vc<Project>;
+
+    /// The traced files included by this endpoint. This is only used for analysis purposes.
+    /// Usually, `output()` includes the NFT file and everything else is handled outside of
+    /// Turbopack.
+    #[turbo_tasks::function]
+    fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec>;
 }
+
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
+pub enum EndpointGroupKey {
+    Instrumentation,
+    InstrumentationEdge,
+    Middleware,
+    PagesError,
+    PagesApp,
+    PagesDocument,
+    Route(RcStr),
+}
+
+impl EndpointGroupKey {
+    pub fn as_str(&self) -> &str {
+        match self {
+            EndpointGroupKey::Instrumentation => "instrumentation",
+            EndpointGroupKey::InstrumentationEdge => "instrumentation-edge",
+            EndpointGroupKey::Middleware => "middleware",
+            EndpointGroupKey::PagesError => "_error",
+            EndpointGroupKey::PagesApp => "_app",
+            EndpointGroupKey::PagesDocument => "_document",
+            EndpointGroupKey::Route(route) => route,
+        }
+    }
+}
+
+impl Display for EndpointGroupKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EndpointGroupKey::Instrumentation => write!(f, "instrumentation"),
+            EndpointGroupKey::InstrumentationEdge => write!(f, "instrumentation-edge"),
+            EndpointGroupKey::Middleware => write!(f, "middleware"),
+            EndpointGroupKey::PagesError => write!(f, "_error"),
+            EndpointGroupKey::PagesApp => write!(f, "_app"),
+            EndpointGroupKey::PagesDocument => write!(f, "_document"),
+            EndpointGroupKey::Route(route) => write!(f, "{}", route),
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
+pub struct EndpointGroupEntry {
+    pub endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    pub sub_name: Option<RcStr>,
+}
+
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
+pub struct EndpointGroup {
+    pub primary: Vec<EndpointGroupEntry>,
+    pub additional: Vec<EndpointGroupEntry>,
+}
+
+impl EndpointGroup {
+    pub fn from(endpoint: ResolvedVc<Box<dyn Endpoint>>) -> Self {
+        Self {
+            primary: vec![EndpointGroupEntry {
+                endpoint,
+                sub_name: None,
+            }],
+            additional: vec![],
+        }
+    }
+
+    pub fn output_assets(&self) -> Vc<OutputAssets> {
+        output_of_endpoints(
+            self.primary
+                .iter()
+                .map(|endpoint| *endpoint.endpoint)
+                .collect(),
+        )
+    }
+
+    pub fn module_graphs(&self) -> Vc<ModuleGraphs> {
+        module_graphs_of_endpoints(
+            self.primary
+                .iter()
+                .map(|endpoint| *endpoint.endpoint)
+                .collect(),
+        )
+    }
+
+    pub fn traced_files(&self) -> Vc<FileSystemPathVec> {
+        traced_files_of_endpoints(
+            self.primary
+                .iter()
+                .map(|endpoint| *endpoint.endpoint)
+                .collect(),
+        )
+    }
+}
+
+#[turbo_tasks::function]
+async fn output_of_endpoints(endpoints: Vec<Vc<Box<dyn Endpoint>>>) -> Result<Vc<OutputAssets>> {
+    let assets = endpoints
+        .iter()
+        .map(async |endpoint| Ok(*endpoint.output().await?.output_assets))
+        .try_join()
+        .await?;
+    Ok(OutputAssets::concat(assets))
+}
+
+#[turbo_tasks::function]
+async fn module_graphs_of_endpoints(
+    endpoints: Vec<Vc<Box<dyn Endpoint>>>,
+) -> Result<Vc<ModuleGraphs>> {
+    // Deduplicate while preserving first-seen order, then hand back a `Vec`.
+    let module_graphs = endpoints
+        .iter()
+        .map(async |endpoint| anyhow::Ok(endpoint.module_graphs().await?.into_iter()))
+        .join()
+        .await
+        .into_iter()
+        .flatten_ok()
+        .collect::<Result<FxIndexSet<_>>>()?
+        .into_iter()
+        .collect::<Vec<_>>();
+    Ok(Vc::cell(module_graphs))
+}
+
+#[turbo_tasks::function]
+async fn traced_files_of_endpoints(
+    endpoints: Vec<Vc<Box<dyn Endpoint>>>,
+) -> Result<Vc<FileSystemPathVec>> {
+    let mut modules: FxIndexSet<_> = FxIndexSet::default();
+    for endpoint in endpoints {
+        modules.extend(endpoint.traced_files().await?.iter().cloned());
+    }
+    Ok(Vc::cell(modules.into_iter().collect()))
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct EndpointGroups(Vec<(EndpointGroupKey, EndpointGroup)>);
 
 #[turbo_tasks::value(transparent)]
 pub struct Endpoints(Vec<ResolvedVc<Box<dyn Endpoint>>>);
@@ -101,7 +291,7 @@ async fn endpoint_output_assets_operation(
     Ok(*output.connect().await?.output_assets)
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub async fn endpoint_write_to_disk_operation(
     endpoint: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<EndpointOutputPaths>> {
@@ -112,7 +302,7 @@ pub async fn endpoint_write_to_disk_operation(
     })
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub async fn endpoint_server_changed_operation(
     endpoint: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<Completion>> {
@@ -123,7 +313,7 @@ pub async fn endpoint_server_changed_operation(
     })
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub async fn endpoint_client_changed_operation(
     endpoint: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<Completion>> {
@@ -145,20 +335,44 @@ pub struct EndpointOutput {
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone)]
 pub enum EndpointOutputPaths {
+    Native {
+        executable_path: RcStr,
+        build: turbopack_go::GoBundleResult,
+    },
     NodeJs {
         /// Relative to the root_path
         server_entry_path: RcStr,
-        server_paths: Vec<ServerPath>,
+        server_hmr_entry_paths: Vec<RcStr>,
+        server_paths: Vec<AssetPath>,
         client_paths: Vec<RcStr>,
     },
     Edge {
-        server_paths: Vec<ServerPath>,
+        server_paths: Vec<AssetPath>,
         client_paths: Vec<RcStr>,
     },
     NotFound,
+    /// Keep failed inputs available to request-side validation, without publishing an executable.
+    /// Configuration failures have no compiler inputs to validate.
+    NativeFailed {
+        build: Option<turbopack_go::GoBundleResult>,
+    },
 }
 
 /// The routes as map from pathname to route. (pathname includes the leading
 /// slash)
 #[turbo_tasks::value(transparent)]
-pub struct Routes(FxIndexMap<RcStr, Route>);
+pub struct Routes(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, Route>);
+
+/// Accept endpoint output using the native compiler's live-input validation contract.
+/// JavaScript and edge output require no additional validation.
+pub async fn read_with_validated_endpoint<T, F: Future<Output = Result<T>>>(
+    read: impl FnMut() -> F,
+    get_output: impl Fn(&T) -> Option<&EndpointOutputPaths>,
+) -> Result<T> {
+    turbopack_go::read_with_validated_inputs(read, |value| match get_output(value) {
+        Some(EndpointOutputPaths::Native { build, .. }) => Some(build),
+        Some(EndpointOutputPaths::NativeFailed { build }) => build.as_ref(),
+        _ => None,
+    })
+    .await
+}

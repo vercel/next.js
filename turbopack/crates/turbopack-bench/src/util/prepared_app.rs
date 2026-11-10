@@ -5,7 +5,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, bail};
 use chromiumoxide::{
     Browser, Page,
     cdp::{
@@ -163,7 +163,7 @@ impl<'a> PreparedApp<'a> {
                         break;
                     }
                 }
-                None => return Err(anyhow!("event stream ended too early")),
+                None => bail!("event stream ended too early"),
             }
         }
 

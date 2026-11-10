@@ -54,13 +54,22 @@ describe('FileLogger', () => {
 
     expect(lines).toHaveLength(2)
 
-    // Check format: [timestamp] source level message
-    expect(lines[0]).toMatch(
-      /^\[\d{2}:\d{2}:\d{2}\.\d{3}\] Browser LOG {5}Test message$/
-    )
-    expect(lines[1]).toMatch(
-      /^\[\d{2}:\d{2}:\d{2}\.\d{3}\] Server {2}ERROR {3}Server error$/
-    )
+    // Check format: JSON objects with timestamp, source, level, message
+    const log1 = JSON.parse(lines[0])
+    expect(log1).toMatchObject({
+      timestamp: expect.stringMatching(/^\d{2}:\d{2}:\d{2}\.\d{3}$/),
+      source: 'Browser',
+      level: 'LOG',
+      message: 'Test message',
+    })
+
+    const log2 = JSON.parse(lines[1])
+    expect(log2).toMatchObject({
+      timestamp: expect.stringMatching(/^\d{2}:\d{2}:\d{2}\.\d{3}$/),
+      source: 'Server',
+      level: 'ERROR',
+      message: 'Server error',
+    })
   })
 
   it('should append multiple log entries', () => {
@@ -95,11 +104,11 @@ describe('FileLogger', () => {
     const logFilePath = path.join(logsDir, 'next-development.log')
 
     const logContent = fs.readFileSync(logFilePath, 'utf-8')
-    expect(logContent).toContain('Message with "quotes" and')
-    expect(logContent).toContain('newlines')
+    const log = JSON.parse(logContent.trim())
+    expect(log.message).toBe('Message with "quotes" and \n newlines')
   })
 
-  it('should pad log levels correctly', () => {
+  it('should format different log levels correctly', () => {
     fileLogger.logBrowser('LOG', 'Short level')
     fileLogger.logBrowser('WARN', 'Medium level')
     fileLogger.logBrowser('ERROR', 'Long level')
@@ -114,10 +123,24 @@ describe('FileLogger', () => {
     const logContent = fs.readFileSync(logFilePath, 'utf-8')
     const lines = logContent.trim().split('\n')
 
-    // All levels should be padded to 7 characters
-    expect(lines[0]).toMatch(/Browser LOG {5}Short level/)
-    expect(lines[1]).toMatch(/Browser WARN {4}Medium level/)
-    expect(lines[2]).toMatch(/Browser ERROR {3}Long level/)
+    // All levels should be in JSON format
+    const log1 = JSON.parse(lines[0])
+    expect(log1).toMatchObject({
+      level: 'LOG',
+      message: 'Short level',
+    })
+
+    const log2 = JSON.parse(lines[1])
+    expect(log2).toMatchObject({
+      level: 'WARN',
+      message: 'Medium level',
+    })
+
+    const log3 = JSON.parse(lines[2])
+    expect(log3).toMatchObject({
+      level: 'ERROR',
+      message: 'Long level',
+    })
   })
 
   it('should not create log file when mcpServer is disabled', () => {

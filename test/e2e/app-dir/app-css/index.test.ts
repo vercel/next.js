@@ -1,20 +1,18 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely mutates files in the isolated local fixture after setup.
+// @force-gate !deploy
 describe('app dir - css', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: {
       '@picocss/pico': '1.5.7',
       sass: 'latest',
-      '@next/mdx': 'canary',
+      '@next/mdx': 'workspace:*',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   describe('css support', () => {
     describe('server layouts', () => {
@@ -304,7 +302,7 @@ describe('app dir - css', () => {
 
         const stylesheets = [
           ...html.matchAll(
-            /<link rel="stylesheet" href="[^<]+\.css(\?v=\d+)?"/g
+            /<link rel="stylesheet" href="[^<]+\.css(\?[^"]+)?"/g
           ),
         ].length
         expect(stylesheets).toBe(3)
@@ -324,6 +322,54 @@ describe('app dir - css', () => {
             `window.getComputedStyle(document.querySelector('h2')).color`
           )
         ).toBe('rgb(255, 0, 0)')
+      })
+    })
+
+    describe('css import URLs', () => {
+      it('should not mangle external layers', async () => {
+        const browser = await next.browser('/externalLayer')
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).margin`
+          )
+        ).toBe('5px')
+      })
+
+      it('should not mangle relative layers', async () => {
+        const browser = await next.browser('/relativeLayer')
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h2')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+      })
+
+      // Broken in webpack, see https://github.com/vercel/next.js/issues/89602
+      if (process.env.IS_TURBOPACK_TEST) {
+        it('should allow the supports attribute', async () => {
+          const browser = await next.browser('/urlSupports')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+      }
+
+      it('should work with the media attribute', async () => {
+        const browser = await next.browser('/urlMedia')
+        await browser.setDimensions({ width: 1000, height: 1000 })
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).color`
+          )
+        ).toBe('rgb(255, 255, 255)')
+        await browser.setDimensions({ width: 300, height: 300 })
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).color`
+          )
+        ).toBe('rgb(0, 0, 0)')
       })
     })
 

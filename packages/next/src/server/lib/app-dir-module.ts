@@ -8,6 +8,24 @@ export type LoaderTree = [
   segment: string,
   parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
   modules: AppDirModules,
+  /**
+   * At build time, for each dynamic segment, we compute the list of static
+   * sibling segments that exist at the same URL path level. This is used by
+   * the client router to determine if a prefetch can be reused.
+   *
+   * For example, given the following file structure:
+   *   /app/(group1)/products/sale/page.tsx -> /products/sale
+   *   /app/(group2)/products/[id]/page.tsx -> /products/[id]
+   *
+   * The [id] segment would have staticSiblings: ['sale']
+   *
+   * This accounts for route groups, which may place sibling routes in
+   * different parts of the file system tree but at the same URL level.
+   *
+   * A value of `null` means the static siblings are unknown (e.g., in webpack
+   * dev mode where routes are compiled on-demand).
+   */
+  staticSiblings: readonly string[] | null,
 ]
 
 export async function getLayoutOrPageModule(loaderTree: LoaderTree) {

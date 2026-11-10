@@ -2,9 +2,9 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  cacheComponents: true,
   experimental: {
-    cacheComponents: true,
-    clientSegmentCache: true,
+    prefetchInlining: false,
   },
 }
 

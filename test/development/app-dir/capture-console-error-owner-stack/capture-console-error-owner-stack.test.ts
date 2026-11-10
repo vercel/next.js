@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox, assertNoConsoleErrors } from 'next-test-utils'
+import { waitForNoRedbox, assertNoConsoleErrors } from 'next-test-utils'
 
 describe('app-dir - capture-console-error-owner-stack', () => {
   const { next } = nextTestSetup({
@@ -122,7 +122,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
     const browser = await next.browser('/browser/error-event')
     await browser.elementByCss('button').click()
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     await assertNoConsoleErrors(browser)
   })
 })

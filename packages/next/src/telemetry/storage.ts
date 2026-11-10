@@ -9,7 +9,6 @@ import { getAnonymousMeta } from './anonymous-meta'
 import * as ciEnvironment from '../server/ci-info'
 import { postNextTelemetryPayload } from './post-telemetry-payload'
 import { getRawProjectId } from './project-id'
-import { AbortController } from 'next/dist/compiled/@edge-runtime/ponyfill'
 import fs from 'fs'
 
 // This is the key that stores whether or not telemetry is enabled or disabled.
@@ -59,7 +58,13 @@ export class Telemetry {
 
   private queue: Set<Promise<RecordObject>>
 
-  constructor({ distDir }: { distDir: string }) {
+  constructor({
+    distDir,
+    skipNotify = false,
+  }: {
+    distDir: string
+    skipNotify?: boolean
+  }) {
     // Read in the constructor so that .env can be loaded before reading
     const { NEXT_TELEMETRY_DISABLED, NEXT_TELEMETRY_DEBUG } = process.env
     this.NEXT_TELEMETRY_DISABLED = NEXT_TELEMETRY_DISABLED
@@ -78,7 +83,9 @@ export class Telemetry {
     this.sessionId = randomBytes(32).toString('hex')
     this.queue = new Set()
 
-    this.notify()
+    if (!skipNotify) {
+      this.notify()
+    }
   }
 
   private notify = () => {
@@ -216,25 +223,50 @@ export class Telemetry {
     return prom
   }
 
-  flush = async () => Promise.all(this.queue).catch(() => null)
+  flush = async () => {
+    return Promise.all(this.queue).catch(() => null)
+  }
 
   // writes current events to disk and spawns separate
   // detached process to submit the records without blocking
   // the main process from exiting
-  flushDetached = (mode: 'dev', dir: string) => {
-    const allEvents: TelemetryEvent[] = []
+  flushDetached = ({
+    mode,
+    dir,
+    distDir,
+    events,
+  }: {
+    mode: 'dev'
+    dir: string
+    distDir: string | null
+    events: TelemetryEvent[] | null
+  }) => {
+    // Nudges detach only their own events; shutdown flushes the full queue.
+    const allEvents: TelemetryEvent[] = events ?? []
 
-    this.queue.forEach((item: any) => {
-      try {
-        item._controller?.abort()
-        allEvents.push(...item._events)
-      } catch (_) {
-        // if we fail to abort ignore this event
-      }
-    })
-    fs.mkdirSync(this.distDir, { recursive: true })
+    if (events === null) {
+      this.queue.forEach((item: any) => {
+        try {
+          item._controller?.abort()
+          allEvents.push(...item._events)
+        } catch (_) {
+          // if we fail to abort ignore this event
+        }
+      })
+    }
+
+    if (allEvents.length === 0) {
+      // No events to flush
+      return
+    }
+
+    // Builds preserve cache while cleaning distDir, so detached batches survive cleanup.
+    const eventsDirectory = path.join(this.distDir, 'cache')
+    fs.mkdirSync(eventsDirectory, { recursive: true })
+    // Each flush owns its file so a later shutdown flush cannot replace a nudge batch.
+    const eventsFile = `_events_${process.pid}_${randomBytes(8).toString('hex')}.json`
     fs.writeFileSync(
-      path.join(this.distDir, '_events.json'),
+      path.join(eventsDirectory, eventsFile),
       JSON.stringify(allEvents)
     )
 
@@ -249,16 +281,26 @@ export class Telemetry {
       ? child_process.spawnSync
       : child_process.spawn
 
-    spawn(process.execPath, [require.resolve('./detached-flush'), mode, dir], {
-      detached: !this.NEXT_TELEMETRY_DEBUG,
-      windowsHide: true,
-      shell: false,
-      ...(this.NEXT_TELEMETRY_DEBUG
-        ? {
-            stdio: 'inherit',
-          }
-        : {}),
-    })
+    spawn(
+      process.execPath,
+      [
+        require.resolve('./detached-flush'),
+        mode,
+        dir,
+        eventsFile,
+        ...(distDir ? [distDir] : []),
+      ],
+      {
+        detached: !this.NEXT_TELEMETRY_DEBUG,
+        windowsHide: true,
+        shell: false,
+        ...(this.NEXT_TELEMETRY_DEBUG
+          ? {
+              stdio: 'inherit',
+            }
+          : {}),
+      }
+    )
   }
 
   private submitRecord = async (
@@ -276,15 +318,23 @@ export class Telemetry {
     }
 
     if (this.NEXT_TELEMETRY_DEBUG) {
-      // Print to standard error to simplify selecting the output
-      events.forEach(({ eventName, payload }) =>
-        console.error(
-          `[telemetry] ` + JSON.stringify({ eventName, payload }, null, 2)
-        )
-      )
-      // Do not send the telemetry data if debugging. Users may use this feature
-      // to preview what data would be sent.
-      return Promise.resolve()
+      // Resolve the anonymous meta so the debug output mirrors the payload that
+      // would be sent (including `agentName`, `ciName`, etc.).
+      const meta = await getAnonymousMeta()
+      // Return a promise that resolves after logging to ensure the output
+      // is captured before the process exits (e.g., during flushDetached)
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          // Print to standard error to simplify selecting the output
+          events.forEach(({ eventName, payload }) =>
+            console.error(
+              `[telemetry] ` +
+                JSON.stringify({ eventName, payload, meta }, null, 2)
+            )
+          )
+          resolve(undefined)
+        }, 100)
+      })
     }
 
     // Skip recording telemetry if the feature is disabled
@@ -300,7 +350,7 @@ export class Telemetry {
           projectId: await this.getProjectId(),
           sessionId: this.sessionId,
         },
-        meta: getAnonymousMeta(),
+        meta: await getAnonymousMeta(),
         events: events.map(({ eventName, payload }) => ({
           eventName,
           fields: payload,
@@ -308,7 +358,9 @@ export class Telemetry {
       },
       postController.signal
     )
+    // Bound delivery even when callers await record/flush; retries share this deadline.
+    const timeout = setTimeout(() => postController.abort(), 5000)
     res._controller = postController
-    return res
+    return res.finally(() => clearTimeout(timeout))
   }
 }

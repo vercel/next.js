@@ -1,26 +1,38 @@
-import type { AdapterOptions } from '../../server/web/adapter'
-
+import type { AdapterOptions, EdgeHandler } from '../../server/web/adapter'
+import '../adapter/setup-node-env.external'
 import '../../server/web/globals'
 
 import { adapter } from '../../server/web/adapter'
+import { IncrementalCache } from '../../server/lib/incremental-cache'
+declare const incrementalCacheHandler: any
+// OPTIONAL_IMPORT:incrementalCacheHandler
 
 // Import the userland code.
 import * as _mod from 'VAR_USERLAND'
 import { edgeInstrumentationOnRequestError } from '../../server/web/globals'
 import { isNextRouterError } from '../../client/components/is-next-router-error'
+import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
+import type { RequestMeta } from '../../server/request-meta'
 
 const mod = { ..._mod }
 
-const page = 'VAR_DEFINITION_PAGE'
-// Turbopack does not add a `./` prefix to the relative file path, but Webpack does.
-const relativeFilePath = 'VAR_MODULE_RELATIVE_PATH'
-// @ts-expect-error `page` will be replaced during build
+const page: string = 'VAR_DEFINITION_PAGE'
 const isProxy = page === '/proxy' || page === '/src/proxy'
-const handler = (isProxy ? mod.proxy : mod.middleware) || mod.default
+const handlerUserland = (isProxy ? mod.proxy : mod.middleware) || mod.default
 
-if (typeof handler !== 'function') {
-  throw new Error(
-    `The ${isProxy ? 'Proxy' : 'Middleware'} file "${relativeFilePath.startsWith('.') ? relativeFilePath : `./${relativeFilePath}`}" must export a function named \`${isProxy ? 'proxy' : 'middleware'}\` or a default function.`
+class ProxyMissingExportError extends Error {
+  constructor(message: string) {
+    super(message)
+    // Stack isn't useful here, remove it considering it spams logs during development.
+    this.stack = ''
+  }
+}
+
+// TODO: This spams logs during development. Find a better way to handle this.
+// Removing this will spam "fn is not a function" logs which is worse.
+if (typeof handlerUserland !== 'function') {
+  throw new ProxyMissingExportError(
+    `The ${isProxy ? 'Proxy' : 'Middleware'} file "${page}" must export a function named \`${isProxy ? 'proxy' : 'middleware'}\` or a default function.`
   )
 }
 
@@ -62,12 +74,101 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
   }
 }
 
-export default function nHandler(
-  opts: Omit<AdapterOptions, 'IncrementalCache' | 'page' | 'handler'>
-) {
-  return adapter({
-    ...opts,
-    page,
-    handler: errorHandledHandler(handler),
-  })
+const internalHandler: EdgeHandler = async (opts) => {
+  let emitInstrumentationSpans: (() => void) | undefined
+  let requestStartTime: number | undefined
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    // This mirrors what `RouteModule#prepare` does for routes
+    // edge runtime handles loading instrumentation at the edge adapter level
+    requestStartTime = performance.timeOrigin + performance.now()
+    const { join, relative } =
+      require('node:path') as typeof import('node:path')
+    const { ensureInstrumentationRegisteredWithDeferredSpans } =
+      require('../../server/lib/router-utils/instrumentation-globals.external') as typeof import('../../server/lib/router-utils/instrumentation-globals.external')
+    const absoluteProjectDir = join(
+      /* turbopackIgnore: true */
+      process.cwd(),
+      opts.request.requestMeta?.relativeProjectDir || ''
+    )
+    const absoluteDistDir = opts.request.requestMeta?.distDir
+    const distDir = absoluteDistDir
+      ? relative(absoluteProjectDir, absoluteDistDir)
+      : '.next'
+
+    // When this request registers `instrumentation.ts`, the adapter emits its
+    // lifecycle spans inside the middleware span.
+    emitInstrumentationSpans =
+      await ensureInstrumentationRegisteredWithDeferredSpans(
+        absoluteProjectDir,
+        distDir
+      )
+  }
+
+  try {
+    return await adapter({
+      ...opts,
+      IncrementalCache,
+      incrementalCacheHandler,
+      page,
+      handler: errorHandledHandler(handlerUserland),
+      emitInstrumentationSpans,
+      requestStartTime,
+    })
+  } catch (err) {
+    // The adapter can throw before it runs the middleware and emits the
+    // lifecycle spans (e.g. when the configured cache handler throws). Later
+    // requests won't emit them, so emit them here instead (a no-op if they were
+    // emitted). Tracing must not replace the adapter's error.
+    try {
+      emitInstrumentationSpans?.()
+    } catch {}
+    throw err
+  }
 }
+
+export async function handler(
+  request: Request,
+  ctx: {
+    waitUntil?: (prom: Promise<void>) => void
+    signal?: AbortSignal
+    requestMeta?: RequestMeta
+  }
+): Promise<Response> {
+  const result = await internalHandler({
+    request: {
+      url: request.url,
+      method: request.method,
+      headers: toNodeOutgoingHttpHeaders(request.headers),
+      nextConfig: {
+        basePath: process.env.__NEXT_BASE_PATH,
+        i18n: process.env.__NEXT_I18N_CONFIG as any,
+        trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
+        experimental: {
+          cacheLife: process.env.__NEXT_CACHE_LIFE as any,
+          authInterrupts: Boolean(
+            process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS
+          ),
+          clientParamParsingOrigins: process.env
+            .__NEXT_CLIENT_PARAM_PARSING_ORIGINS as any,
+        },
+      },
+      page: {
+        name: page,
+      },
+      body:
+        request.method !== 'GET' && request.method !== 'HEAD'
+          ? (request.body ?? undefined)
+          : undefined,
+      waitUntil: ctx.waitUntil,
+      requestMeta: ctx.requestMeta,
+      signal: ctx.signal || new AbortController().signal,
+    },
+  })
+
+  ctx.waitUntil?.(result.waitUntil)
+
+  return result.response
+}
+
+// backwards compat for non-adapter setups
+export default internalHandler

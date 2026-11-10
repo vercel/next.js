@@ -9,21 +9,33 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 // this process should be started with following arg order
 // 1. mode e.g. dev, export, start
 // 2. project dir
+// 3. events filename (optional, defaults to _events.json)
+// 4. resolved dist directory (optional, avoids reloading phase-specific config)
 ;(async () => {
-  const args = [...process.argv]
-  let dir = args.pop()
-  const mode = args.pop()
+  const [mode, inputDir, eventsFile, suppliedDistDir] = process.argv.slice(2)
+  let dir = inputDir
 
   if (!dir || mode !== 'dev') {
     throw new Error(
-      `Invalid flags should be run as node detached-flush dev ./path-to/project`
+      `Invalid flags should be run as node detached-flush dev ./path-to/project [eventsFile] [distDir]`
     )
   }
   dir = getProjectDir(dir)
 
-  const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
-  const distDir = path.join(dir, config.distDir || '.next')
-  const eventsPath = path.join(distDir, '_events.json')
+  // Build nudges pass their resolved output directory to avoid loading dev config again.
+  const distDir = suppliedDistDir
+    ? path.resolve(suppliedDistDir)
+    : path.join(
+        dir,
+        (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)).distDir || '.next'
+      )
+
+  // Named batches live in cache so build cleanup cannot remove them before submission.
+  // Retain the legacy root path for callers without an events filename.
+  const eventsPath =
+    eventsFile && !eventsFile.includes('/')
+      ? path.join(distDir, 'cache', eventsFile)
+      : path.join(distDir, '_events.json')
 
   let events: TelemetryEvent[]
   try {
@@ -40,7 +52,8 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
   await telemetry.record(events)
   await telemetry.flush()
 
-  // finished flushing events clean-up/exit
+  // finished flushing events clean-up
   fs.unlinkSync(eventsPath)
-  process.exit(0)
+  // Don't call process.exit() here - let Node.js exit naturally after
+  // all pending work completes (e.g., setTimeout in debug telemetry)
 })()

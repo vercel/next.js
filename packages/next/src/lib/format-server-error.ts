@@ -1,6 +1,7 @@
 const invalidServerComponentReactHooks = [
   'useDeferredValue',
   'useEffect',
+  'useEffectEvent',
   'useImperativeHandle',
   'useInsertionEffect',
   'useLayoutEffect',

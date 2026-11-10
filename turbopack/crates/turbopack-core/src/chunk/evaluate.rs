@@ -1,9 +1,8 @@
-use anyhow::{Result, bail};
-use turbo_tasks::{ResolvedVc, Upcast, ValueToString, Vc};
+use anyhow::Result;
+use turbo_tasks::{ResolvedVc, Upcast, Vc, turbobail};
 
 use super::ChunkableModule;
 use crate::{
-    asset::Asset,
     context::AssetContext,
     module::Module,
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -15,7 +14,7 @@ use crate::{
 /// The chunking context implementation will resolve the dynamic entry to a
 /// well-known value or trait object.
 #[turbo_tasks::value_trait]
-pub trait EvaluatableAsset: Asset + Module + ChunkableModule {}
+pub trait EvaluatableAsset: Module + ChunkableModule {}
 
 pub trait EvaluatableAssetExt {
     fn to_evaluatable(
@@ -42,15 +41,17 @@ async fn to_evaluatable(
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
     let module = asset_context
-        .process(asset, ReferenceType::Entry(EntryReferenceSubType::Runtime))
-        .module();
-    let Some(entry) = Vc::try_resolve_downcast::<Box<dyn EvaluatableAsset>>(module).await? else {
-        bail!(
-            "{} is not a valid evaluated entry",
-            module.ident().to_string().await?
+        .process(
+            asset,
+            ReferenceType::Entry(EntryReferenceSubType::default()),
         )
+        .module();
+    let Some(entry) =
+        ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(module.to_resolved().await?)
+    else {
+        turbobail!("{} is not a valid evaluated entry", module.ident());
     };
-    Ok(entry)
+    Ok(*entry)
 }
 
 #[turbo_tasks::value(transparent)]

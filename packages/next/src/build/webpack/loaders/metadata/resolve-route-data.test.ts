@@ -73,6 +73,72 @@ describe('resolveRouteData', () => {
         "
       `)
     })
+
+    it('should resolve non-standard per-user-agent directives via `other`', () => {
+      const data: MetadataRoute.Robots = {
+        rules: [
+          {
+            userAgent: '*',
+            allow: '/',
+          },
+          {
+            userAgent: 'SeznamBot',
+            allow: '/',
+            other: {
+              // https://o-seznam.cz/napoveda/vyhledavani/en/crawling-control/
+              'Request-Rate': '10/1m',
+            },
+          },
+          {
+            userAgent: 'Yandex',
+            allow: '/',
+            other: {
+              'Clean-param': ['ref /articles/', 'utm_source /'],
+            },
+          },
+        ],
+      }
+
+      expect(resolveRobots(data)).toMatchInlineSnapshot(`
+        "User-Agent: *
+        Allow: /
+
+        User-Agent: SeznamBot
+        Allow: /
+        Request-Rate: 10/1m
+
+        User-Agent: Yandex
+        Allow: /
+        Clean-param: ref /articles/
+        Clean-param: utm_source /
+
+        "
+      `)
+    })
+
+    it('should skip null/undefined entries in `other`', () => {
+      const data: MetadataRoute.Robots = {
+        rules: {
+          userAgent: 'SeznamBot',
+          allow: '/',
+          other: {
+            'Request-Rate': '10/1m',
+            // @ts-expect-error intentionally testing null handling
+            'Visit-time': null,
+            // @ts-expect-error intentionally testing undefined handling
+            'Clean-param': undefined,
+          },
+        },
+      }
+
+      expect(resolveRobots(data)).toMatchInlineSnapshot(`
+        "User-Agent: SeznamBot
+        Allow: /
+        Request-Rate: 10/1m
+
+        "
+      `)
+    })
   })
 
   describe('resolveSitemap', () => {

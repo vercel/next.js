@@ -1,0 +1,588 @@
+---
+title: cacheHandlers
+description: Configure custom cache handlers for use cache directives in Next.js.
+related:
+  title: Related
+  description: View related API references.
+  links:
+    - app/api-reference/directives/use-cache
+    - app/api-reference/directives/use-cache-remote
+    - app/api-reference/directives/use-cache-private
+    - app/api-reference/config/next-config-js/cacheLife
+---
+
+The `cacheHandlers` configuration allows you to define custom cache storage implementations for [`'use cache'`](/docs/app/api-reference/directives/use-cache) and [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote). This enables you to store cached components and functions in external services or customize the caching behavior. [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) is not configurable.
+
+## When to use custom cache handlers
+
+**Most applications don't need custom cache handlers.** The default in-memory cache works well in the typical use case.
+
+Custom cache handlers are for advanced scenarios where you need to either share cache across multiple instances or change where the cache is stored. For example, you can configure a custom `remote` handler for external storage (like a key-value store), then use `'use cache'` in your code for in-memory caching and `'use cache: remote'` for the external storage, allowing different caching strategies within the same application.
+
+**Sharing cache across instances**
+
+The default in-memory cache is isolated to each Next.js process. If you're running multiple servers or containers, each instance will have its own cache that isn't shared with others and is lost on restart.
+
+Custom handlers let you integrate with shared storage systems (like Redis, Memcached, or DynamoDB) that all your Next.js instances can access.
+
+**Changing storage type**
+
+You might want to store cache differently than the default in-memory approach. You can implement a custom handler to store cache on disk, in a database, or in an external caching service. Reasons include: persistence across restarts, reducing memory usage, or integrating with existing infrastructure.
+
+## Usage
+
+To configure custom cache handlers:
+
+1. Define your cache handler in a separate file, see [examples](#examples) for implementation details.
+2. Reference the file path in your Next config file
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheHandlers: {
+    default: require.resolve('./cache-handlers/default-handler.js'),
+    remote: require.resolve('./cache-handlers/remote-handler.js'),
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+module.exports = {
+  cacheHandlers: {
+    default: require.resolve('./cache-handlers/default-handler.js'),
+    remote: require.resolve('./cache-handlers/remote-handler.js'),
+  },
+}
+```
+
+### Handler types
+
+- **`default`**: Used by the `'use cache'` directive
+- **`remote`**: Used by the `'use cache: remote'` directive
+
+If you don't configure `cacheHandlers`, Next.js uses an in-memory LRU (Least Recently Used) cache for both `default` and `remote`. You can view the [default implementation](https://github.com/vercel/next.js/blob/canary/packages/next/src/server/lib/cache-handlers/default.ts) as a reference.
+
+You can also define additional named handlers (e.g., `sessions`, `analytics`) and reference them with `'use cache: <name>'`.
+
+Note that `'use cache: private'` does not use cache handlers and cannot be customized.
+
+## CacheEntry Type
+
+A cache handler stores and returns `CacheEntry` objects. Both this type and `CacheHandler` are exported from `next/cache`:
+
+```ts
+import type { CacheHandler, CacheEntry } from 'next/cache'
+```
+
+An entry has the following structure:
+
+```ts
+interface CacheEntry {
+  value: ReadableStream<Uint8Array>
+  tags: string[]
+  stale: number
+  timestamp: number
+  expire: number
+  revalidate: number
+}
+```
+
+| Property     | Type                         | Description                                                  |
+| ------------ | ---------------------------- | ------------------------------------------------------------ |
+| `value`      | `ReadableStream<Uint8Array>` | The cached data as a single-use stream.                      |
+| `tags`       | `string[]`                   | Cache tags (excluding soft tags).                            |
+| `stale`      | `number`                     | Duration in seconds for client-side staleness.               |
+| `timestamp`  | `number`                     | When the entry was created (timestamp in milliseconds).      |
+| `expire`     | `number`                     | How long the entry is allowed to be used (in seconds).       |
+| `revalidate` | `number`                     | How long until the entry should be revalidated (in seconds). |
+
+## The entry value stream
+
+Every handler writes entries through [`set()`](#set) and serves them through [`get()`](#get). Both methods work with the entry's serialized value, which arrives as a [`ReadableStream<Uint8Array>`](https://developer.mozilla.org/docs/Web/API/ReadableStream). Two properties of that stream constrain every implementation:
+
+- **It can be read only once.** Consume it in [`set()`](#set), and build a new stream over your stored data in every [`get()`](#get). A stream that was already read cannot serve a second reader: it delivers no data, or throws if the first reader still holds its lock.
+- **It belongs to the request that produced the entry.** Do not keep it once `set()` resolves. The stream holds a reference to that request, so keeping it holds the request's memory until your entry is evicted. The same applies to the `pendingEntry` promise. Next.js keeps its own copy of the value for the render, so your handler is free to consume the stream it receives.
+
+How you persist the data is up to you. Buffering the stream and piping it to your store as chunks arrive are both fine, as long as you consume it exactly once. Large entries are worth piping: a page can serialize to a lot of bytes, and an S3-like backend can accept them without your handler holding a second copy.
+
+Two more cases to plan for:
+
+- **Fan-out.** If a single entry has to reach two destinations, such as a local store and a remote one, use [`.tee()`](https://developer.mozilla.org/docs/Web/API/ReadableStream/tee) and consume both branches before `set()` resolves. Teeing is not a way to keep the value around. A stored branch does serve the next read, but it holds the source stream, its buffered chunks, and the request that produced them, and none of that appears in the size your store accounts for.
+- **Interrupted values.** The stream can error partway through rendering, which leaves you holding an incomplete value. Decide whether to keep it or discard it. Discarding is safer, because an incomplete value produces an incomplete page. This is separate from a partially written storage entry, which [Error Handling](#error-handling) covers.
+
+## API Reference
+
+A cache handler must implement the `CacheHandler` interface with the following five methods.
+
+### `set()`
+
+Store a cache entry for the given cache key.
+
+```ts
+set(cacheKey: string, pendingEntry: Promise<CacheEntry>): Promise<void>
+```
+
+| Parameter      | Type                  | Description                                 |
+| -------------- | --------------------- | ------------------------------------------- |
+| `cacheKey`     | `string`              | The unique key to store the entry under.    |
+| `pendingEntry` | `Promise<CacheEntry>` | A promise that resolves to the cache entry. |
+
+Returns `Promise<void>`.
+
+The entry may still be generating when `set()` is called, so await `pendingEntry` first. Then consume the value stream and persist what it delivers, as described in [The entry value stream](#the-entry-value-stream).
+
+The example below buffers, which is the simpler option and the right one for an in-memory store. A remote handler can pipe `entry.value` into an upload instead.
+
+```js
+const cacheHandler = {
+  async set(cacheKey, pendingEntry) {
+    // Wait for the entry to be ready
+    const entry = await pendingEntry
+
+    // Consume the stream, then keep the data rather than the stream
+    const value = new Uint8Array(await new Response(entry.value).arrayBuffer())
+
+    // Store in your cache system
+    cache.set(cacheKey, { ...entry, value })
+  },
+}
+```
+
+### `get()`
+
+Retrieve a cache entry for the given cache key.
+
+```ts
+get(cacheKey: string, softTags: string[]): Promise<CacheEntry | undefined>
+```
+
+| Parameter  | Type       | Description                                                                                 |
+| ---------- | ---------- | ------------------------------------------------------------------------------------------- |
+| `cacheKey` | `string`   | The unique key for the cache entry.                                                         |
+| `softTags` | `string[]` | Implicit tags derived from the route path. See [Soft Tags](#soft-tags) for how to use them. |
+
+Returns a `CacheEntry` object if one is stored, or `undefined` if not.
+
+Your `get` method should retrieve the cache entry from storage and return `undefined` when there is nothing stored.
+
+You do not need to check how old the entry is. Next.js compares `timestamp` against the entry's own `expire` on every read and treats a too-old entry as a miss. It applies the same check to `revalidate` when the result is about to be written into another server cache, and it keeps entries a little longer on the dev server so reloads stay fast. Your own age check only duplicates the first of those.
+
+What the two timings mean for you is what Next.js does with the entry you return:
+
+- Past **`expire`**, the entry is discarded and the value is regenerated.
+- Past **`revalidate`** but within `expire`, the entry is served and a fresh one is generated in the background.
+
+Dropping entries earlier is a policy choice rather than a requirement. The [built-in handler](https://github.com/vercel/next.js/blob/canary/packages/next/src/server/lib/cache-handlers/default.ts) drops at `revalidate` because warming a replacement is wasted work when an in-memory entry is likely to be evicted before anything reads it. A shared store has no such problem and can serve until `expire`.
+
+Eviction is yours, though. Next.js never deletes from your store, so use a mechanism that reclaims entries nobody reads again: a TTL derived from `expire`, or a size-bounded LRU like the one in the built-in handler. Checking the age of an entry as you serve it is not eviction, because it only ever reaches the keys that are still being read.
+
+Invalidation is separate from both timings. When a tag tells you an entry is out of date, you have two options:
+
+- Return `undefined`. The entry counts as missing, and Next.js regenerates it now.
+- Return the entry with `revalidate: -1`. Next.js serves it and regenerates in the background, because a negative `revalidate` always lies in the past.
+
+See [Soft Tags](#soft-tags) and [Distributed Tag Coordination](#distributed-tag-coordination) for where those invalidations come from.
+
+Wrap your stored data in a new stream on every hit, never the stream you received in `set()`.
+
+```js
+const cacheHandler = {
+  async get(cacheKey, softTags) {
+    const entry = cache.get(cacheKey)
+    if (!entry) return undefined
+
+    // No age check: Next.js compares `timestamp` against `expire` itself.
+    // `entry.value` holds the stored bytes, so wrap them in a fresh stream
+    return {
+      ...entry,
+      value: new ReadableStream({
+        start(controller) {
+          controller.enqueue(entry.value)
+          controller.close()
+        },
+      }),
+    }
+  },
+}
+```
+
+### `refreshTags()`
+
+Called once per request, before the first cache read for this handler's kind, so the handler can sync tag state from an external service.
+
+```ts
+refreshTags(): Promise<void>
+```
+
+Returns `Promise<void>`.
+
+For in-memory caches, this can be a no-op. For distributed caches, use it to read tag state from an external service or database, so this instance learns about invalidations made by the others before it serves anything from its own store. A request that reads nothing from this handler never calls it.
+
+```js
+const cacheHandler = {
+  async refreshTags() {
+    // For in-memory cache, no action needed
+    // For distributed cache, sync tag state from external service
+  },
+}
+```
+
+### `getExpiration()`
+
+Get the maximum revalidation timestamp for a set of tags.
+
+```ts
+getExpiration(tags: string[]): Promise<number>
+```
+
+| Parameter | Type       | Description                            |
+| --------- | ---------- | -------------------------------------- |
+| `tags`    | `string[]` | Array of tags to check expiration for. |
+
+Returns:
+
+- `0` if none of the tags were ever revalidated
+- A timestamp (in milliseconds) representing the most recent revalidation
+- `Infinity` to indicate soft tags should be checked in the `get` method instead
+
+If you're not tracking tag revalidation timestamps, return `0`. Otherwise, find the most recent revalidation timestamp across all the provided tags. Return `Infinity` if you prefer to handle soft tag checking in the `get` method.
+
+```js
+const cacheHandler = {
+  async getExpiration(tags) {
+    // Return 0 if not tracking tag revalidation
+    return 0
+
+    // Or return the most recent revalidation timestamp
+    // return Math.max(...tags.map(tag => tagTimestamps.get(tag) || 0));
+  },
+}
+```
+
+### `updateTags()`
+
+Called when tags are revalidated or expired.
+
+```ts
+updateTags(tags: string[], durations?: { expire?: number }): Promise<void>
+```
+
+| Parameter   | Type                  | Description                                                                     |
+| ----------- | --------------------- | ------------------------------------------------------------------------------- |
+| `tags`      | `string[]`            | Array of tags to update.                                                        |
+| `durations` | `{ expire?: number }` | Present for profile-based revalidation; carries the profile's `expire` seconds. |
+
+Your handler should update its internal state to mark these tags as invalidated.
+
+Whether `durations` is present tells you which kind of invalidation this is:
+
+- **Absent**: invalidate immediately. Entries carrying these tags should not be served again. `updateTag()` and a single-argument `revalidateTag()` take this path, and the caller expects its own next read to miss.
+- **Present**: the tags go stale now, but entries carrying them may still be served while they refresh in the background, until `durations.expire` seconds have passed. `revalidateTag(tag, 'max')` takes this path.
+
+Returns `Promise<void>`.
+
+Your handler should record when each tag was invalidated. [`get()`](#get) compares those times against an entry's `timestamp`, and [`getExpiration()`](#getexpiration) does the same for [soft tags](#soft-tags). Soft tags are not stored in an entry's `tags`, so deleting the entries that carry a tag does not cover [`revalidatePath()`](/docs/app/api-reference/functions/revalidatePath).
+
+```js
+const cacheHandler = {
+  async updateTags(tags, durations) {
+    const now = Date.now()
+    for (const tag of tags) {
+      const timestamps = tagTimestamps.get(tag) ?? {}
+      if (durations) {
+        // Serve while refreshing, and expire after `durations.expire` seconds
+        timestamps.stale = now
+        if (durations.expire !== undefined) {
+          timestamps.expired = now + durations.expire * 1000
+        }
+      } else {
+        // Expire immediately
+        timestamps.expired = now
+      }
+      tagTimestamps.set(tag, timestamps)
+    }
+  },
+}
+```
+
+## Soft Tags
+
+Soft tags are implicit tags that Next.js automatically generates based on the route path. Every segment in the path gets a layout tag, plus the leaf route itself. For example, the route `/blog/hello` generates soft tags for `/layout`, `/blog/layout`, `/blog/hello/layout`, and `/blog/hello`. These tags are prefixed internally with `_N_T_`.
+
+Soft tags enable [`revalidatePath()`](/docs/app/api-reference/functions/revalidatePath) to work through the same tag-based cache system. When `revalidatePath('/blog/hello')` is called, it invalidates all cache entries associated with that path's soft tags.
+
+In the cache handler API, soft tags are passed to the [`get()`](#get) method as the `softTags` parameter. Your handler should check whether any soft tag has been invalidated (via `getExpiration()` or direct timestamp comparison) after the cache entry's `timestamp`.
+
+If an invalidation is more recent than the entry, report the entry as out of date using either option described in [`get()`](#get). The built-in handler uses both: it returns `undefined` for an expired tag, and `revalidate: -1` for a stale one.
+
+## Distributed Tag Coordination
+
+When running multiple Next.js instances, tag invalidation must be coordinated across instances. The default in-memory handler only tracks tags locally, so calling `revalidateTag()` on one instance does not affect others.
+
+To coordinate tags across instances:
+
+1. **`updateTags()`** is called when `revalidateTag()` is invoked. Your handler should write the invalidation timestamp to shared storage.
+2. **`refreshTags()`** runs once per request, before the first read from this handler. Your handler should read recent invalidation events from shared storage and update its local tag state.
+3. **`getExpiration()`** returns the most recent revalidation timestamp across all provided tags. The default implementation returns `Math.max(...timestamps, 0)`.
+
+Here's an example using Redis for distributed tag coordination:
+
+```js filename="cache-handlers/distributed-tags.js"
+const { createClient } = require('redis')
+
+const client = createClient({ url: process.env.REDIS_URL })
+client.connect()
+
+// Local cache of tag timestamps, synced via refreshTags
+const localTagTimestamps = new Map()
+
+module.exports = {
+  // ... get() and set() methods ...
+
+  async refreshTags() {
+    // Sync tag invalidation timestamps from Redis
+    // Using a dedicated set to track tag keys avoids scanning the keyspace
+    const tagKeys = await client.sMembers('revalidated-tags')
+    if (tagKeys.length > 0) {
+      const values = await client.mGet(tagKeys.map((k) => `tag:${k}`))
+      for (let i = 0; i < tagKeys.length; i++) {
+        localTagTimestamps.set(tagKeys[i], Number(values[i]))
+      }
+    }
+  },
+
+  async getExpiration(tags) {
+    const timestamps = tags.map((tag) => localTagTimestamps.get(tag) || 0)
+    return Math.max(...timestamps, 0)
+  },
+
+  async updateTags(tags, durations) {
+    const now = Date.now()
+    const pipeline = client.multi()
+    for (const tag of tags) {
+      pipeline.set(`tag:${tag}`, String(now))
+      pipeline.sAdd('revalidated-tags', tag)
+      localTagTimestamps.set(tag, now)
+    }
+    await pipeline.exec()
+  },
+}
+```
+
+For a full explanation of the tag architecture (including soft tags and multi-instance considerations), see [How Revalidation Works](/docs/app/guides/how-revalidation-works).
+
+## Error Handling
+
+Cache operations should be implemented defensively:
+
+- **`set()` failure**: the response is still served to the user because `set()` is called asynchronously after the response stream is already flowing. The cache entry is lost, and the next request triggers a fresh render. Catch your own errors even so: a rejected `set()` joins the request's pending revalidation work, where it surfaces as a failed background task instead of a render error.
+- **`get()` failure**: your handler should catch internal errors and return `undefined` (the "cache miss" signal). The framework does not wrap `get()` in a try/catch, so an unhandled exception from `get()` will propagate as a render error.
+- **Partial writes**: if a cache entry is partially written and then read, the behavior is undefined. Use atomic writes or a write-then-rename pattern to avoid serving partial entries.
+
+## Examples
+
+The examples below show how a handler meets the API contract. They leave out the eviction, error handling, and multi-instance coordination that a production handler must add. The [`cache-handler-redis` example](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis) is a fuller Redis implementation of both cache APIs, and its README lists community handlers that cover more cases.
+
+### In-memory handler for learning and debugging
+
+This handler keeps entries in a `Map`, which makes it a place to log or inspect what Next.js stores and how tags invalidate it. It runs per process and has no eviction. The [built-in handler](https://github.com/vercel/next.js/blob/canary/packages/next/src/server/lib/cache-handlers/default.ts) is also in memory, and adds a size-bounded LRU and error handling.
+
+```js filename="cache-handlers/memory-handler.js"
+// Entries hold the serialized bytes, never the stream they arrived on
+const cache = new Map()
+const pendingSets = new Map()
+// Tag invalidation times in milliseconds: { stale, expired }
+const tagTimestamps = new Map()
+
+function streamFromBytes(bytes) {
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(bytes)
+      controller.close()
+    },
+  })
+}
+
+module.exports = {
+  async get(cacheKey, softTags) {
+    // Wait for any pending set operation to complete
+    const pendingPromise = pendingSets.get(cacheKey)
+    if (pendingPromise) {
+      await pendingPromise
+    }
+
+    const entry = cache.get(cacheKey)
+    if (!entry) {
+      return undefined
+    }
+
+    // No age check: Next.js compares `timestamp` against `expire` itself.
+    // Soft tags are checked by Next.js through `getExpiration()`.
+    // This `Map` also has no eviction, which a real handler needs.
+    let revalidate = entry.revalidate
+    for (const tag of entry.tags) {
+      const { stale = 0, expired = 0 } = tagTimestamps.get(tag) ?? {}
+      if (expired > entry.timestamp && expired <= Date.now()) {
+        return undefined
+      }
+      if (stale > entry.timestamp) {
+        revalidate = -1
+      }
+    }
+
+    // Every hit gets its own stream over the stored bytes
+    return { ...entry, revalidate, value: streamFromBytes(entry.value) }
+  },
+
+  async set(cacheKey, pendingEntry) {
+    // Create a promise to track this set operation
+    let resolvePending
+    const pendingPromise = new Promise((resolve) => {
+      resolvePending = resolve
+    })
+    pendingSets.set(cacheKey, pendingPromise)
+
+    try {
+      // Wait for the entry to be ready
+      const entry = await pendingEntry
+
+      // An in-memory store buffers the stream. Storing the stream itself, or
+      // a branch of it, keeps the request that produced the entry alive.
+      const value = new Uint8Array(
+        await new Response(entry.value).arrayBuffer()
+      )
+
+      cache.set(cacheKey, { ...entry, value })
+    } finally {
+      resolvePending()
+      pendingSets.delete(cacheKey)
+    }
+  },
+
+  async refreshTags() {
+    // Tag state lives in this process, so there is nothing to sync
+  },
+
+  async getExpiration(tags) {
+    return Math.max(
+      ...tags.map((tag) => tagTimestamps.get(tag)?.expired ?? 0),
+      0
+    )
+  },
+
+  async updateTags(tags, durations) {
+    const now = Date.now()
+    for (const tag of tags) {
+      const timestamps = tagTimestamps.get(tag) ?? {}
+      if (durations) {
+        // Serve while refreshing, and expire after `durations.expire` seconds
+        timestamps.stale = now
+        if (durations.expire !== undefined) {
+          timestamps.expired = now + durations.expire * 1000
+        }
+      } else {
+        // Expire immediately
+        timestamps.expired = now
+      }
+      tagTimestamps.set(tag, timestamps)
+    }
+  },
+}
+```
+
+### External storage pattern
+
+A handler backed by Redis or a database must serialize each entry. Drain the stream in `set()`, and rebuild one from the stored bytes in `get()`:
+
+```js filename="cache-handlers/redis-handler.js"
+const { createClient } = require('redis')
+
+const client = createClient({ url: process.env.REDIS_URL })
+client.connect()
+
+module.exports = {
+  async get(cacheKey, softTags) {
+    // Retrieve from Redis
+    const stored = await client.get(cacheKey)
+    if (!stored) return undefined
+
+    // Deserialize the entry
+    const data = JSON.parse(stored)
+
+    // Reconstruct the ReadableStream from stored data
+    return {
+      value: new ReadableStream({
+        start(controller) {
+          controller.enqueue(Buffer.from(data.value, 'base64'))
+          controller.close()
+        },
+      }),
+      tags: data.tags,
+      stale: data.stale,
+      timestamp: data.timestamp,
+      expire: data.expire,
+      revalidate: data.revalidate,
+    }
+  },
+
+  async set(cacheKey, pendingEntry) {
+    const entry = await pendingEntry
+
+    // Read the stream to get the data
+    const reader = entry.value.getReader()
+    const chunks = []
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        chunks.push(value)
+      }
+    } finally {
+      reader.releaseLock()
+    }
+
+    // Combine chunks and serialize for Redis storage
+    const data = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)))
+
+    await client.set(
+      cacheKey,
+      JSON.stringify({
+        value: data.toString('base64'),
+        tags: entry.tags,
+        stale: entry.stale,
+        timestamp: entry.timestamp,
+        expire: entry.expire,
+        revalidate: entry.revalidate,
+      }),
+      // `EX` needs a positive integer.
+      // By definition `expire: Infinity` ("never expire")
+      // maps to no TTL at all, so omit `EX` and let Redis persist the key.
+      Number.isFinite(entry.expire)
+        ? { EX: Math.max(1, Math.ceil(entry.expire)) }
+        : {}
+    )
+  },
+
+  // refreshTags(), getExpiration(), and updateTags() also need shared state.
+  // See Distributed Tag Coordination for that half of the handler.
+}
+```
+
+## Platform Support
+
+| Deployment Option                                                   | Supported         |
+| ------------------------------------------------------------------- | ----------------- |
+| [Node.js server](/docs/app/getting-started/deploying#nodejs-server) | Yes               |
+| [Docker container](/docs/app/getting-started/deploying#docker)      | Yes               |
+| [Static export](/docs/app/getting-started/deploying#static-export)  | No                |
+| [Adapters](/docs/app/getting-started/deploying#adapters)            | Platform-specific |
+
+## Version History
+
+| Version   | Changes                                                                                                         |
+| --------- | --------------------------------------------------------------------------------------------------------------- |
+| `v16.0.0` | `cacheHandlers` stabilized and moved from `experimental.cacheHandlers` to the top-level `cacheHandlers` option. |

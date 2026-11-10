@@ -1,3 +1,4 @@
+import { outdent } from 'outdent'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
@@ -14,8 +15,9 @@ describe('typed-env', () => {
       expect(envDTS).not.toContain('FROM_ENV_PROD')
       expect(envDTS).not.toContain('FROM_ENV_PROD_LOCAL')
 
-      expect(envDTS).toMatchInlineSnapshot(`
-        "// Type definitions for Next.js environment variables
+      expect(envDTS).toEqual(
+        outdent`
+        // Type definitions for Next.js environment variables
         declare global {
           namespace NodeJS {
             interface ProcessEnv {
@@ -32,8 +34,9 @@ describe('typed-env', () => {
             }
           }
         }
-        export {}"
-      `)
+        export {}
+      `.trim()
+      )
     })
   })
 
@@ -51,8 +54,9 @@ describe('typed-env', () => {
     // but have MODIFIED_ENV?: string
     await retry(async () => {
       const content = await next.readFile(`${next.distDir}/types/env.d.ts`)
-      expect(content).toMatchInlineSnapshot(`
-        "// Type definitions for Next.js environment variables
+      expect(content).toEqual(
+        outdent`
+        // Type definitions for Next.js environment variables
         declare global {
           namespace NodeJS {
             interface ProcessEnv {
@@ -69,8 +73,9 @@ describe('typed-env', () => {
             }
           }
         }
-        export {}"
-      `)
+        export {}
+      `.trim()
+      )
     })
   })
 

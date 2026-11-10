@@ -1,6 +1,6 @@
 import * as path from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox, retry } from 'next-test-utils'
+import { waitForNoRedbox, retry } from 'next-test-utils'
 
 describe('async imports in cacheComponents', () => {
   const { next, isNextStart, isNextDev } = nextTestSetup({
@@ -62,7 +62,7 @@ describe('async imports in cacheComponents', () => {
     if (isNextDev) {
       await retry(async () => {
         // we shouldn't get any errors from `spawnDynamicValidationInDev`
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
       })
     }
   }
@@ -158,18 +158,19 @@ describe('async imports in cacheComponents', () => {
   })
 })
 
+// This block intentionally exercises a failed build, so there is no deployment to test.
+// @force-gate !deploy
 describe('async imports in cacheComponents - external packages', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: path.join(__dirname, 'external'),
-    skipDeployment: true,
     skipStart: true,
   })
-  if (skipped) return
 
   // This is currently expected to fail because we can only track `import()` in bundled code,
   // and packages marked as external aren't bundled.
   it('does not instrument import() in external packages', async () => {
-    const expectedError = `Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it.`
+    const expectedError =
+      'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
     if (isNextStart) {
       // in prod, we fail during the build
       await expect(() => next.start()).rejects.toThrow()

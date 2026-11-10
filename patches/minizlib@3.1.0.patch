@@ -1,0 +1,26 @@
+diff --git a/dist/commonjs/index.d.ts b/dist/commonjs/index.d.ts
+index 8044bd061aac745cb532182ce714778303323530..144e36da4a4b84e4279cd47f84c1aebe67645ea5 100644
+--- a/dist/commonjs/index.d.ts
++++ b/dist/commonjs/index.d.ts
+@@ -18,7 +18,7 @@ export type ZlibBaseOptions = Minipass.Options<Minipass.ContiguousData> & {
+     finishFlush?: number;
+     fullFlushFlag?: number;
+ };
+-export type ZlibHandle = realZlib.Gzip | realZlib.Gunzip | realZlib.Deflate | realZlib.Inflate | realZlib.DeflateRaw | realZlib.InflateRaw | realZlib.BrotliCompress | realZlib.BrotliDecompress | realZlib.ZstdCompress | realZlib.ZstdDecompress;
++export type ZlibHandle = realZlib.Gzip | realZlib.Gunzip | realZlib.Deflate | realZlib.Inflate | realZlib.DeflateRaw | realZlib.InflateRaw | realZlib.BrotliCompress | realZlib.BrotliDecompress;
+ export type ZlibMode = 'Gzip' | 'Gunzip' | 'Deflate' | 'Inflate' | 'DeflateRaw' | 'InflateRaw' | 'Unzip';
+ export type BrotliMode = 'BrotliCompress' | 'BrotliDecompress';
+ export type ZstdMode = 'ZstdCompress' | 'ZstdDecompress';
+diff --git a/dist/esm/index.d.ts b/dist/esm/index.d.ts
+index 8044bd061aac745cb532182ce714778303323530..144e36da4a4b84e4279cd47f84c1aebe67645ea5 100644
+--- a/dist/esm/index.d.ts
++++ b/dist/esm/index.d.ts
+@@ -18,7 +18,7 @@ export type ZlibBaseOptions = Minipass.Options<Minipass.ContiguousData> & {
+     finishFlush?: number;
+     fullFlushFlag?: number;
+ };
+-export type ZlibHandle = realZlib.Gzip | realZlib.Gunzip | realZlib.Deflate | realZlib.Inflate | realZlib.DeflateRaw | realZlib.InflateRaw | realZlib.BrotliCompress | realZlib.BrotliDecompress | realZlib.ZstdCompress | realZlib.ZstdDecompress;
++export type ZlibHandle = realZlib.Gzip | realZlib.Gunzip | realZlib.Deflate | realZlib.Inflate | realZlib.DeflateRaw | realZlib.InflateRaw | realZlib.BrotliCompress | realZlib.BrotliDecompress;
+ export type ZlibMode = 'Gzip' | 'Gunzip' | 'Deflate' | 'Inflate' | 'DeflateRaw' | 'InflateRaw' | 'Unzip';
+ export type BrotliMode = 'BrotliCompress' | 'BrotliDecompress';
+ export type ZstdMode = 'ZstdCompress' | 'ZstdDecompress';

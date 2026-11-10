@@ -4,11 +4,10 @@ import { outdent } from 'outdent'
 import path from 'path'
 
 describe('ReactRefreshLogBox', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { isTurbopack, next, isRspack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
-  const isRspack = !!process.env.NEXT_RSPACK
 
   // Module trace is only available with webpack 5
   test('Node.js builtins', async () => {
@@ -52,7 +51,7 @@ describe('ReactRefreshLogBox', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./node_modules/my-package/index.js (1:13)
-       Module not found: Can't resolve 'dns'
+       Error: Module not found: Can't resolve 'dns'
        > 1 | const dns = require('dns')
            |             ^^^^^^^^^^^^^^",
          "stack": [],
@@ -119,7 +118,7 @@ describe('ReactRefreshLogBox', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (1:1)
-       Module not found: Can't resolve 'b'
+       Error: Module not found: Can't resolve 'b'
        > 1 | import Comp from 'b'
            | ^^^^^^^^^^^^^^^^^^^^",
          "stack": [],
@@ -133,10 +132,10 @@ describe('ReactRefreshLogBox', () => {
          "label": "Build Error",
          "source": "./index.js
          × Module not found: Can't resolve 'b' in '<FIXME-project-root>'
-          ╭─[2:17]
+          ╭─[2:0]
         1 │ import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
         2 │ import Comp from 'b';
-          ·                  ───
+          · ─────────────────────
         3 │ export default function Oops() {
         4 │     return /*#__PURE__*/ _jsxDEV("div", {
           ╰────
@@ -188,7 +187,7 @@ describe('ReactRefreshLogBox', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./pages/index.js (1:1)
-       Module not found: Can't resolve 'b'
+       Error: Module not found: Can't resolve 'b'
        > 1 | import Comp from 'b'
            | ^^^^^^^^^^^^^^^^^^^^",
          "stack": [],
@@ -202,10 +201,10 @@ describe('ReactRefreshLogBox', () => {
          "label": "Build Error",
          "source": "./pages/index.js
          × Module not found: Can't resolve 'b' in '<FIXME-project-root>/pages'
-          ╭─[2:17]
+          ╭─[2:0]
         1 │ import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
         2 │ import Comp from 'b';
-          ·                  ───
+          · ─────────────────────
         3 │ export default function Oops() {
         4 │     return /*#__PURE__*/ _jsxDEV("div", {
           ╰────
@@ -263,7 +262,7 @@ describe('ReactRefreshLogBox', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./pages/_app.js (1:1)
-       Module not found: Can't resolve './non-existent.css'
+       Error: Module not found: Can't resolve './non-existent.css'
        > 1 | import './non-existent.css'
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^",
          "stack": [],
@@ -277,10 +276,10 @@ describe('ReactRefreshLogBox', () => {
          "label": "Build Error",
          "source": "./pages/_app.js
          × Module not found: Can't resolve './non-existent.css' in '<FIXME-project-root>/pages'
-          ╭─[2:7]
+          ╭─[2:0]
         1 │ import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
         2 │ import './non-existent.css';
-          ·        ────────────────────
+          · ────────────────────────────
         3 │ export default function App({ Component, pageProps }) {
         4 │     return /*#__PURE__*/ _jsxDEV(Component, {
           ╰────",
@@ -310,7 +309,7 @@ describe('ReactRefreshLogBox', () => {
         }
       `
     )
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(() => document.documentElement.innerHTML)
     ).toContain('index page')

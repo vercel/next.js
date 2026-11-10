@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 function Tab0() {
-  return 'Intentionally empty'
+  return <p id="tab-0-content">Intentionally empty</p>
 }
 
 function Tab1() {
@@ -12,8 +12,13 @@ function Tab1() {
 }
 
 function Tab2() {
+  // Link order is significant: viewport prefetches are prioritized by document
+  // order (links nearest the top are prefetched first). Generate the links in
+  // descending order so that, combined with that prioritization, the prefetch
+  // scheduling order this test's LRU-eviction assertions depend on is
+  // preserved.
   const links = []
-  for (let i = 1; i < 60; i++) {
+  for (let i = 59; i >= 1; i--) {
     links.push(<Link href={'/memory-pressure/' + i}>Link {i}</Link>)
   }
   return links
@@ -111,7 +116,7 @@ export default function MemoryPressure() {
           Tab 2
         </label>
       </div>
-      <div>{tab}</div>
+      <div id="tab-content">{tab}</div>
     </form>
   )
 }

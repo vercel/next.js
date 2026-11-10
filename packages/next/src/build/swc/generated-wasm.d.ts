@@ -3,14 +3,7 @@
 
 /* tslint:disable */
 /* eslint-disable */
-export function mdxCompileSync(value: string, opts: any): any
-export function mdxCompile(value: string, opts: any): Promise<any>
-export function minifySync(s: string, opts: any): any
-export function minify(s: string, opts: any): Promise<any>
-export function transformSync(s: any, opts: any): any
 export function transform(s: any, opts: any): Promise<any>
-export function parseSync(s: string, opts: any): any
-export function parse(s: string, opts: any): Promise<any>
 export function expandNextJsTemplate(
   content: Uint8Array,
   template_path: string,
@@ -19,3 +12,15 @@ export function expandNextJsTemplate(
   injections: any,
   imports: any
 ): string
+export function codeFrameColumns(
+  source: Uint8Array,
+  location: any,
+  options: any
+): string | undefined
+export function minifySync(s: string, opts: any): any
+export function parseSync(s: string, opts: any): any
+export function transformSync(s: any, opts: any): any
+export function parse(s: string, opts: any): Promise<any>
+export function minify(s: string, opts: any): Promise<any>
+export function mdxCompile(value: string, opts: any): Promise<any>
+export function mdxCompileSync(value: string, opts: any): any

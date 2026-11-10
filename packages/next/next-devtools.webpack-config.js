@@ -58,11 +58,28 @@ module.exports = ({ dev, ...rest }) => {
     resolve: {
       alias: {
         // TODO: Get dedicated React version for NDT to uncouple development.
-        react: `next/dist/compiled/react${bundledReactChannel}`,
-        'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
-        'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
-        'react-is$': `next/dist/compiled/react-is${bundledReactChannel}`,
-        scheduler$: `next/dist/compiled/scheduler${bundledReactChannel}`,
+        // Absolute paths keep dependencies from resolving a hoisted npm copy
+        // of Next and bundling a second React instance.
+        react: path.join(
+          __dirname,
+          `dist/compiled/react${bundledReactChannel}`
+        ),
+        'react-dom$': path.join(
+          __dirname,
+          `dist/compiled/react-dom${bundledReactChannel}`
+        ),
+        'react-dom/client$': path.join(
+          __dirname,
+          `dist/compiled/react-dom${bundledReactChannel}/client`
+        ),
+        'react-is$': path.join(
+          __dirname,
+          `dist/compiled/react-is${bundledReactChannel}`
+        ),
+        scheduler$: path.join(
+          __dirname,
+          `dist/compiled/scheduler${bundledReactChannel}`
+        ),
       },
       extensions: ['.ts', '.tsx', '.js', '.json'],
     },
@@ -73,7 +90,11 @@ module.exports = ({ dev, ...rest }) => {
           test: /\.(ts|tsx)$/,
           exclude: [/node_modules/],
           loader: 'builtin:swc-loader',
+          /** @type {import('@rspack/core').SwcLoaderOptions} */
           options: {
+            env: {
+              targets: MODERN_BROWSERSLIST_TARGET,
+            },
             jsc: {
               parser: {
                 syntax: 'typescript',
@@ -102,7 +123,11 @@ module.exports = ({ dev, ...rest }) => {
                 /**
                  * @type {import('babel-plugin-react-compiler').PluginOptions}
                  */
-                ({}),
+                ({
+                  environment: {
+                    enableNameAnonymousFunctions: dev,
+                  },
+                }),
               ],
               ['@babel/plugin-syntax-typescript', { isTSX: true }],
             ],

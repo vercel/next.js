@@ -4,6 +4,7 @@ use turbo_tasks::Vc;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
+    chunk::ChunkingContext,
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
@@ -11,13 +12,14 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::Layer,
     resolve::options::{ImportMap, ImportMapping},
+    source_map::SourceMapGenerationOptions,
 };
-use turbopack_ecmascript::TreeShakingMode;
+use turbopack_ecmascript::references::esm::UrlRewriteBehavior;
 use turbopack_node::execution_context::ExecutionContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
-    ModuleAssetContext,
+    ModuleAssetContext, externals_tracing_module_context,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
     transition::TransitionOptions,
 };
@@ -27,6 +29,14 @@ pub fn node_build_environment() -> Vc<Environment> {
     Environment::new(ExecutionEnvironment::NodeJsBuildTime(
         NodeJsEnvironment::default().resolved_cell(),
     ))
+}
+
+async fn node_env_value(env: Vc<Box<dyn ProcessEnv>>) -> Result<RcStr> {
+    if let Some(node_env) = &*env.read(rcstr!("NODE_ENV")).await? {
+        Ok(node_env.clone())
+    } else {
+        Ok(rcstr!("development"))
+    }
 }
 
 #[turbo_tasks::function]
@@ -51,12 +61,7 @@ pub async fn node_evaluate_asset_context(
         .resolved_cell(),
     );
     let import_map = import_map.resolved_cell();
-    let node_env: RcStr =
-        if let Some(node_env) = &*execution_context.env().read(rcstr!("NODE_ENV")).await? {
-            node_env.clone()
-        } else {
-            rcstr!("development")
-        };
+    let node_env = node_env_value(execution_context.env()).await?;
 
     // base context used for node_modules (and context for app code will be derived
     // from this)
@@ -79,7 +84,7 @@ pub async fn node_evaluate_asset_context(
         enable_typescript: true,
         import_map: Some(import_map),
         rules: vec![(
-            ContextCondition::InDirectory("node_modules".to_string()),
+            ContextCondition::InNodeModules,
             resolve_options_context.clone().resolved_cell(),
         )],
         ..resolve_options_context
@@ -93,19 +98,28 @@ pub async fn node_evaluate_asset_context(
                 compile_time_defines!(
                     process.turbopack = true,
                     process.env.NODE_ENV = node_env.into_owned(),
-                    process.env.TURBOPACK = true
+                    process.env.TURBOPACK = "1"
                 )
                 .resolved_cell(),
             )
             .cell()
             .await?,
         ModuleOptionsContext {
-            tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+            follow_reexports: true,
+            module_fragments_enabled: false,
             ecmascript: EcmascriptOptionsContext {
+                esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
                 enable_typescript_transform: Some(
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
                 ignore_dynamic_requests,
+                source_map_generation_options: SourceMapGenerationOptions::from_emitted(
+                    *execution_context
+                        .await?
+                        .chunking_context
+                        .emitted_source_map_type()
+                        .await?,
+                ),
                 ..Default::default()
             },
             ..Default::default()
@@ -113,5 +127,30 @@ pub async fn node_evaluate_asset_context(
         .cell(),
         resolve_options_context,
         layer,
+    )))
+}
+
+#[turbo_tasks::function]
+pub async fn config_tracing_module_context(
+    execution_context: Vc<ExecutionContext>,
+) -> Result<Vc<Box<dyn AssetContext>>> {
+    let node_env = node_env_value(execution_context.env()).await?;
+
+    Ok(Vc::upcast(externals_tracing_module_context(
+        CompileTimeInfo::builder(node_build_environment().to_resolved().await?)
+            .defines(
+                compile_time_defines!(
+                    process.turbopack = true,
+                    process.env.NODE_ENV = node_env.into_owned(),
+                    process.env.TURBOPACK = "1"
+                )
+                .resolved_cell(),
+            )
+            .cell()
+            .await?,
+        /* resolve_typescript */ true,
+        /* prune */ None,
+        // Don't trace fs.readFile in configs and webpack loaders. This can cause infinite loops
+        false,
     )))
 }

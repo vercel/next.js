@@ -4,6 +4,12 @@ export interface ServerReferenceInfo {
   hasRestArgs: boolean
 }
 
+export const SERVER_REFERENCE_ID_LENGTH = 42
+
+export function mightBeServerReferenceId(id: string): boolean {
+  return id.length === SERVER_REFERENCE_ID_LENGTH
+}
+
 /**
  * Extracts info about the server reference for the given server reference ID by
  * parsing the first byte of the hex-encoded ID.
@@ -62,6 +68,7 @@ export function omitUnusedArgs(
   info: ServerReferenceInfo
 ): unknown[] {
   const filteredArgs = new Array(args.length)
+  let length = 0
 
   for (let index = 0; index < args.length; index++) {
     if (
@@ -71,8 +78,12 @@ export function omitUnusedArgs(
       (index >= 6 && info.hasRestArgs)
     ) {
       filteredArgs[index] = args[index]
+      length = index + 1
     }
   }
+
+  // Trim trailing unused args from the array.
+  filteredArgs.length = length
 
   return filteredArgs
 }

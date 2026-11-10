@@ -8,15 +8,15 @@ use std::{
 };
 
 use anyhow::Result;
-use crossterm::style::{StyledContent, Stylize};
+use async_trait::async_trait;
 use owo_colors::{OwoColorize as _, Style};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{RawVc, TransientInstance, TransientValue, Vc};
+use turbo_tasks::{RawVc, ReadRef, TransientInstance, Vc};
 use turbo_tasks_fs::{FileLinesContent, source_context::get_source_context};
 use turbopack_core::issue::{
-    CollectibleIssuesExt, IssueReporter, IssueSeverity, PlainIssue, PlainIssueSource,
-    PlainTraceItem, StyledString,
+    IssueReporter, IssueSeverity, PlainIssue, PlainIssueSource, PlainIssues, PlainTraceItem,
+    StyledString,
 };
 
 use crate::source_context::format_source_context_lines;
@@ -59,14 +59,14 @@ pub fn format_issue(
 
     let severity = plain_issue.severity;
     // TODO CLICKABLE PATHS
-    let context_path = plain_issue
-        .file_path
-        .replace("[project]", &current_dir.to_string_lossy())
-        .replace("/./", "/")
-        .replace("\\\\?\\", "");
+    let format_path = |path: &str| {
+        path.replace("[project]", &current_dir.to_string_lossy())
+            .replace("/./", "/")
+            .replace("\\\\?\\", "")
+    };
     let stage = plain_issue.stage.to_string();
 
-    let mut styled_issue = style_issue_source(plain_issue, &context_path);
+    let mut styled_issue = style_issue_source(plain_issue, format_path);
     let description = &plain_issue.description;
     if let Some(description) = description {
         writeln!(
@@ -93,6 +93,30 @@ pub fn format_issue(
             writeln!(styled_issue, "{path}").unwrap();
         }
     }
+
+    // Render additional sources (e.g., generated code from a loader)
+    for additional in &plain_issue.additional_sources {
+        let desc = &additional.description;
+        let source = &additional.source;
+        match source.range {
+            Some((start, _)) => {
+                writeln!(
+                    styled_issue,
+                    "\n{}:\n{}:{}:{}",
+                    desc,
+                    source.asset.ident,
+                    start.line + 1,
+                    start.column + 1
+                )
+                .unwrap();
+            }
+            None => {
+                writeln!(styled_issue, "\n{}:\n{}", desc, source.asset.ident).unwrap();
+            }
+        }
+        format_source_content(source, &mut styled_issue);
+    }
+
     let traces = &*plain_issue.import_traces;
     if !traces.is_empty() {
         /// Returns the leaf layer name, which is the first present layer name in the trace
@@ -325,12 +349,11 @@ impl SeenIssues {
 ///
 /// The ConsoleUi can be shared and capture issues from multiple sources, with deduplication
 /// operating across all issues.
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "skip", evict = "never", eq = "manual")]
 #[derive(Clone)]
 pub struct ConsoleUi {
     options: LogOptions,
-
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     seen: Arc<Mutex<SeenIssues>>,
 }
 
@@ -342,7 +365,7 @@ impl PartialEq for ConsoleUi {
 
 #[turbo_tasks::value_impl]
 impl ConsoleUi {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     pub fn new(options: TransientInstance<LogOptions>) -> Vc<Self> {
         ConsoleUi {
             options: (*options).clone(),
@@ -352,15 +375,15 @@ impl ConsoleUi {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl IssueReporter for ConsoleUi {
-    #[turbo_tasks::function]
     async fn report_issues(
         &self,
-        source: TransientValue<RawVc>,
+        issues: ReadRef<PlainIssues>,
+        source: RawVc,
         min_failing_severity: IssueSeverity,
-    ) -> Result<Vc<bool>> {
-        let issues = source.peek_issues();
+    ) -> Result<bool> {
         let LogOptions {
             ref current_dir,
             ref project_dir,
@@ -371,7 +394,7 @@ impl IssueReporter for ConsoleUi {
         } = self.options;
         let mut grouped_issues: GroupedIssues = FxHashMap::default();
 
-        let plain_issues = issues.get_plain_issues().await?;
+        let plain_issues = &issues.0;
         let issues = plain_issues
             .iter()
             .map(|plain_issue| {
@@ -381,11 +404,7 @@ impl IssueReporter for ConsoleUi {
             .collect::<Vec<_>>();
 
         let issue_ids = issues.iter().map(|(_, id)| *id).collect::<FxHashSet<_>>();
-        let mut new_ids = self
-            .seen
-            .lock()
-            .unwrap()
-            .new_ids(source.into_value(), issue_ids);
+        let mut new_ids = self.seen.lock().unwrap().new_ids(source, issue_ids);
 
         let mut has_fatal = false;
         for (plain_issue, id) in issues {
@@ -405,7 +424,9 @@ impl IssueReporter for ConsoleUi {
             let category_map = severity_map.entry(stage.clone()).or_default();
             let issues = category_map.entry(context_path.to_string()).or_default();
 
-            let mut styled_issue = style_issue_source(plain_issue, &context_path);
+            let mut styled_issue = style_issue_source(plain_issue, |path| {
+                make_relative_to_cwd(path, project_dir, current_dir)
+            });
             let description = &plain_issue.description;
             if let Some(description) = description {
                 writeln!(
@@ -515,7 +536,7 @@ impl IssueReporter for ConsoleUi {
             }
         }
 
-        Ok(Vc::cell(has_fatal))
+        Ok(has_fatal)
     }
 }
 
@@ -537,15 +558,11 @@ fn make_relative_to_cwd<'a>(path: &'a str, project_dir: &Path, cwd: &Path) -> Co
     }
 }
 
-fn show_all_message(label: &str, size: usize) -> StyledContent<String> {
+fn show_all_message(label: &str, size: usize) -> String {
     show_all_message_with_shown_count(label, size, DEFAULT_SHOW_COUNT)
 }
 
-fn show_all_message_with_shown_count(
-    label: &str,
-    size: usize,
-    shown: usize,
-) -> StyledContent<String> {
+fn show_all_message_with_shown_count(label: &str, size: usize, shown: usize) -> String {
     if shown == 0 {
         format!(
             "... [{} {label}] are hidden, run with {} to show them",
@@ -553,6 +570,7 @@ fn show_all_message_with_shown_count(
             "--show-all".bright_green()
         )
         .bold()
+        .to_string()
     } else {
         format!(
             "... [{} more {label}] are hidden, run with {} to show all",
@@ -560,6 +578,7 @@ fn show_all_message_with_shown_count(
             "--show-all".bright_green()
         )
         .bold()
+        .to_string()
     }
 }
 
@@ -587,7 +606,16 @@ fn render_styled_string_to_ansi(styled_string: &StyledString) -> String {
     }
 }
 
-fn style_issue_source(plain_issue: &PlainIssue, context_path: &str) -> String {
+/// Formats the header line (`<path>[:<line>:<column>]  <title>`) and the code snippet of an issue.
+///
+/// When the issue has a source, the header names the source's file: the source location has
+/// already been mapped through source maps (see `IssueSource::into_plain`), so the source file
+/// can differ from `PlainIssue::file_path` (e.g. when the issue was reported for generated code).
+/// The line and column are 1-based.
+fn style_issue_source<'a, P: AsRef<str>>(
+    plain_issue: &'a PlainIssue,
+    format_path: impl Fn(&'a str) -> P,
+) -> String {
     let title = &plain_issue.title;
     let formatted_title = match title {
         StyledString::Text(text) => text.bold().to_string(),
@@ -595,20 +623,163 @@ fn style_issue_source(plain_issue: &PlainIssue, context_path: &str) -> String {
     };
 
     if let Some(source) = &plain_issue.source {
+        let source_path = format_path(&source.asset.file_path);
+        let source_path = source_path.as_ref();
         let mut styled_issue = match source.range {
             Some((start, _)) => format!(
                 "{}:{}:{}  {}",
-                context_path,
+                source_path,
                 start.line + 1,
-                start.column,
+                start.column + 1,
                 formatted_title
             ),
-            None => format!("{context_path}  {formatted_title}"),
+            None => format!("{source_path}  {formatted_title}"),
         };
         styled_issue.push('\n');
         format_source_content(source, &mut styled_issue);
         styled_issue
     } else {
-        format!("{context_path}  {formatted_title}\n")
+        let context_path = format_path(&plain_issue.file_path);
+        format!("{}  {formatted_title}\n", context_path.as_ref())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use turbo_rcstr::rcstr;
+    use turbo_tasks::ReadRef;
+    use turbo_tasks_fs::{File, FileContent};
+    use turbopack_core::{
+        issue::{
+            IssueSeverity, IssueStage, PlainIssue, PlainIssueSource, PlainSource, StyledString,
+        },
+        source_pos::SourcePos,
+    };
+
+    use super::{LogOptions, format_issue};
+
+    fn strip_ansi(s: &str) -> String {
+        let mut out = String::with_capacity(s.len());
+        let mut chars = s.chars();
+        while let Some(c) = chars.next() {
+            if c == '\x1b' {
+                // Skip a CSI sequence: ESC '[' ... final byte in '@'..='~'
+                for c in chars.by_ref() {
+                    if ('@'..='~').contains(&c) && c != '[' {
+                        break;
+                    }
+                }
+            } else {
+                out.push(c);
+            }
+        }
+        out
+    }
+
+    fn source(file_path: &str, range: Option<(SourcePos, SourcePos)>) -> PlainIssueSource {
+        PlainIssueSource {
+            asset: ReadRef::new_owned(PlainSource {
+                ident: file_path.into(),
+                file_path: file_path.into(),
+                content: ReadRef::new_owned(FileContent::Content(File::from(
+                    "const a = 1\nconst texts = import.meta.glob('./*.txt')\n",
+                ))),
+            }),
+            range,
+        }
+    }
+
+    fn issue(file_path: &str, source: Option<PlainIssueSource>) -> PlainIssue {
+        PlainIssue {
+            severity: IssueSeverity::Error,
+            stage: IssueStage::ProcessModule,
+            title: StyledString::Text(rcstr!("Something went wrong")),
+            file_path: file_path.into(),
+            description: None,
+            detail: None,
+            documentation_link: rcstr!(""),
+            source,
+            additional_sources: vec![],
+            import_traces: vec![],
+        }
+    }
+
+    fn format(issue: &PlainIssue) -> String {
+        strip_ansi(&format_issue(
+            issue,
+            None,
+            &LogOptions {
+                current_dir: PathBuf::from("/root"),
+                project_dir: PathBuf::from("/root"),
+                show_all: true,
+                log_detail: false,
+                log_level: IssueSeverity::Info,
+            },
+        ))
+    }
+
+    fn header(output: &str) -> &str {
+        output.lines().next().unwrap()
+    }
+
+    const RANGE: (SourcePos, SourcePos) = (
+        SourcePos {
+            line: 1,
+            column: 14,
+        },
+        SourcePos {
+            line: 1,
+            column: 20,
+        },
+    );
+
+    #[test]
+    fn header_uses_one_based_line_and_column() {
+        let output = format(&issue(
+            "[project]/input/index.js",
+            Some(source("[project]/input/index.js", Some(RANGE))),
+        ));
+        assert_eq!(
+            header(&output),
+            "error - [process module] /root/input/index.js:2:15  Something went wrong"
+        );
+        assert!(output.contains("import.meta.glob"), "{output}");
+    }
+
+    #[test]
+    fn header_uses_source_mapped_file_path() {
+        let output = format(&issue(
+            "[project]/input/index.js.import-meta-glob.mjs",
+            Some(source("[project]/input/index.js", Some(RANGE))),
+        ));
+        assert_eq!(
+            header(&output),
+            "error - [process module] /root/input/index.js:2:15  Something went wrong"
+        );
+        assert!(!output.contains("import-meta-glob.mjs"), "{output}");
+    }
+
+    #[test]
+    fn header_uses_source_file_path_without_range() {
+        let output = format(&issue(
+            "[project]/input/index.js.import-meta-glob.mjs",
+            Some(source("[project]/input/index.js", None)),
+        ));
+        assert_eq!(
+            header(&output),
+            "error - [process module] /root/input/index.js  Something went wrong"
+        );
+        assert!(!output.contains("import-meta-glob.mjs"), "{output}");
+    }
+
+    #[test]
+    fn header_uses_issue_file_path_without_source() {
+        let output = format(&issue("[project]/input/index.js", None));
+        assert_eq!(
+            header(&output),
+            "error - [process module] /root/input/index.js  Something went wrong"
+        );
     }
 }

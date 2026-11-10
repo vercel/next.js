@@ -1,17 +1,17 @@
 use std::io::Write;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use indoc::writedoc;
-use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{File, FileSystem, FileSystemPath};
+use turbo_rcstr::rcstr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbobail};
+use turbo_tasks_fs::{File, FileContent, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
-    output::{OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
+    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapType},
 };
 use turbopack_ecmascript::utils::StringifyJs;
 use turbopack_ecmascript_runtime::RuntimeType;
@@ -20,74 +20,116 @@ use crate::NodeJsChunkingContext;
 
 /// An Ecmascript chunk that contains the Node.js runtime code.
 #[turbo_tasks::value(shared)]
-pub(crate) struct EcmascriptBuildNodeRuntimeChunk {
+#[derive(ValueToString)]
+#[value_to_string("Ecmascript Build Node Runtime Chunk")]
+pub struct EcmascriptBuildNodeRuntimeChunk {
     chunking_context: ResolvedVc<NodeJsChunkingContext>,
+    include_async_module_runtime: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeRuntimeChunk {
     /// Creates a new [`Vc<EcmascriptBuildNodeRuntimeChunk>`].
     #[turbo_tasks::function]
-    pub fn new(chunking_context: ResolvedVc<NodeJsChunkingContext>) -> Vc<Self> {
-        EcmascriptBuildNodeRuntimeChunk { chunking_context }.cell()
+    pub fn new(
+        chunking_context: ResolvedVc<NodeJsChunkingContext>,
+        include_async_module_runtime: bool,
+    ) -> Vc<Self> {
+        EcmascriptBuildNodeRuntimeChunk {
+            chunking_context,
+            include_async_module_runtime,
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
+        let source_map_generation_options = *this
+            .chunking_context
+            .source_map_generation_options()
+            .await?;
 
         let output_root_to_root_path = this.chunking_context.output_root_to_root_path().await?;
         let output_root = this.chunking_context.output_root().await?;
-        let generate_source_map = *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?;
         let runtime_path = self.path().await?;
         let runtime_public_path = if let Some(path) = output_root.get_path_to(&runtime_path) {
             path
         } else {
-            bail!(
-                "runtime path {} is not in output root {}",
-                runtime_path.to_string(),
-                output_root.to_string()
-            );
+            turbobail!("runtime path {runtime_path} is not in output root {output_root}");
         };
 
-        let mut code = CodeBuilder::default();
+        let mut code = CodeBuilder::new(false, source_map_generation_options);
         let asset_prefix = this.chunking_context.asset_prefix().await?;
         let asset_prefix = asset_prefix.as_deref().unwrap_or("/");
+
+        // Get the list of global variable names to forward to workers
+        let worker_config = Vc::upcast::<Box<dyn ChunkingContext>>(*this.chunking_context)
+            .worker_configuration_options()
+            .await?;
 
         writedoc!(
             code,
             r#"
-                const RUNTIME_PUBLIC_PATH = {};
-                const RELATIVE_ROOT_PATH = {};
-                const ASSET_PREFIX = {};
+                var RUNTIME_PUBLIC_PATH = {};
+                var RELATIVE_ROOT_PATH = {};
+                var ASSET_PREFIX = {};
             "#,
             StringifyJs(runtime_public_path),
             StringifyJs(output_root_to_root_path.as_str()),
             StringifyJs(asset_prefix),
         )?;
 
+        // Add preamble to read forwarded globals from workerData (for worker_threads)
+        if !worker_config.forwarded_globals.is_empty() {
+            writedoc!(
+                code,
+                r#"
+                    // Apply forwarded globals from workerData if running in a worker thread
+                    if (typeof require !== 'undefined') {{
+                        try {{
+                            var {{ workerData }} = require('worker_threads');
+                            if (workerData?.__turbopack_globals__) {{
+                                Object.assign(globalThis, workerData.__turbopack_globals__);
+                                // Remove internal data so it's not visible to user code
+                                delete workerData.__turbopack_globals__;
+                            }}
+                        }} catch (_) {{
+                            // Not in a worker thread context, ignore
+                        }}
+                    }}
+                "#,
+            )?;
+        }
+
+        let asset_context = turbopack::get_runtime_asset_context(
+            this.chunking_context.environment(),
+            source_map_generation_options,
+        );
+
         match *this.chunking_context.runtime_type().await? {
             RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
-                    this.chunking_context.environment(),
-                    generate_source_map,
+                    asset_context,
+                    source_map_generation_options,
+                    RuntimeType::Development,
+                    this.include_async_module_runtime,
                 );
-                code.push_code(&*runtime_code.await?);
+                code.push_code(&*runtime_code.await?)?;
             }
             RuntimeType::Production => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
-                    this.chunking_context.environment(),
-                    generate_source_map,
+                    asset_context,
+                    source_map_generation_options,
+                    RuntimeType::Production,
+                    this.include_async_module_runtime,
                 );
-                code.push_code(&*runtime_code.await?);
+                code.push_code(&*runtime_code.await?)?;
             }
             #[cfg(feature = "test")]
             RuntimeType::Dummy => {
                 let runtime_code = turbopack_ecmascript_runtime::get_dummy_runtime_code();
-                code.push_code(&runtime_code);
+                code.push_code(&runtime_code)?;
             }
         }
 
@@ -101,7 +143,8 @@ impl EcmascriptBuildNodeRuntimeChunk {
                 .root()
                 .await?
                 .join("runtime.js")?,
-        ))
+        )
+        .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -111,15 +154,29 @@ impl EcmascriptBuildNodeRuntimeChunk {
             Vc::upcast(*this.chunking_context),
             self.ident_for_path(),
             Vc::upcast(self),
+            rcstr!(".js"),
         ))
     }
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptBuildNodeRuntimeChunk {
+impl OutputAssetsReference for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("Ecmascript Build Node Runtime Chunk"))
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let this = self.await?;
+        let mut references = vec![];
+
+        if *this
+            .chunking_context
+            .reference_chunk_source_maps(Vc::upcast(self))
+            .await?
+        {
+            references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?))
+        }
+
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
+            references,
+        )))
     }
 }
 
@@ -134,22 +191,6 @@ impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
             .chunking_context
             .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
     }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-        let mut references = vec![];
-
-        if *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?
-        {
-            references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?))
-        }
-
-        Ok(Vc::cell(references))
-    }
 }
 
 #[turbo_tasks::value_impl]
@@ -157,12 +198,19 @@ impl Asset for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         Ok(AssetContent::file(
-            File::from(
+            FileContent::Content(File::from(
                 self.code()
-                    .to_rope_with_magic_comments(|| self.source_map())
+                    .to_rope_with_magic_comments(
+                        *self
+                            .await?
+                            .chunking_context
+                            .emitted_source_map_type()
+                            .await?,
+                        || self.source_map(),
+                    )
                     .await?,
-            )
-            .into(),
+            ))
+            .cell(),
         ))
     }
 }
@@ -170,7 +218,7 @@ impl Asset for EcmascriptBuildNodeRuntimeChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
-        self.code().generate_source_map()
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
+        self.code().generate_source_map(ty)
     }
 }

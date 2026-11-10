@@ -20,6 +20,8 @@ g = (...) => undefined
 
 h = (...) => undefined
 
+i = (...) => undefined
+
 x#10 = ???*0*
 - *0* for-in variable currently not analyzed
 

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { NextLogo } from './next-logo'
-import { withShadowPortal } from '../../storybook/with-shadow-portal'
-import { withDevOverlayContexts } from '../../storybook/with-dev-overlay-contexts'
+import { withShadowPortal } from '../../../../../.storybook/decorators/with-shadow-portal'
+import { withDevOverlayContexts } from '../../../../../.storybook/decorators/with-dev-overlay-contexts'
 
 const meta: Meta<typeof NextLogo> = {
   component: NextLogo,
@@ -10,80 +10,42 @@ const meta: Meta<typeof NextLogo> = {
   },
   args: {
     'aria-label': 'Open Next.js DevTools',
+    onTriggerClick: () => console.log('Logo clicked'),
   },
-  decorators: [withShadowPortal],
+  decorators: [
+    (Story) => (
+      <div style={{ padding: '2rem' }}>
+        <Story />
+      </div>
+    ),
+    withShadowPortal,
+  ],
 }
 
 export default meta
 type Story = StoryObj<typeof NextLogo>
 
-export const NoIssues: Story = {
+export const Idle: Story = {
   decorators: [
     withDevOverlayContexts({
       totalErrorCount: 0,
       state: {
         buildingIndicator: false,
         renderingIndicator: false,
+        cacheIndicator: 'ready',
       },
     }),
   ],
 }
 
-export const SingleIssue: Story = {
-  decorators: [
-    withDevOverlayContexts({
-      totalErrorCount: 1,
-      state: {
-        buildingIndicator: false,
-        renderingIndicator: false,
-      },
-    }),
-  ],
-}
-
-export const MultipleIssues: Story = {
-  decorators: [
-    withDevOverlayContexts({
-      totalErrorCount: 5,
-      state: {
-        buildingIndicator: false,
-        renderingIndicator: false,
-      },
-    }),
-  ],
-}
-
-export const ManyIssues: Story = {
-  decorators: [
-    withDevOverlayContexts({
-      totalErrorCount: 99,
-      state: {
-        buildingIndicator: false,
-        renderingIndicator: false,
-      },
-    }),
-  ],
-}
-
-export const Building: Story = {
+export const Compiling: Story = {
   decorators: [
     withDevOverlayContexts({
       totalErrorCount: 0,
       state: {
         buildingIndicator: true,
         renderingIndicator: false,
-      },
-    }),
-  ],
-}
-
-export const BuildingWithError: Story = {
-  decorators: [
-    withDevOverlayContexts({
-      totalErrorCount: 1,
-      state: {
-        buildingIndicator: true,
-        renderingIndicator: false,
+        cacheIndicator: 'ready',
       },
     }),
   ],
@@ -96,18 +58,85 @@ export const Rendering: Story = {
       state: {
         buildingIndicator: false,
         renderingIndicator: true,
+        cacheIndicator: 'ready',
       },
     }),
   ],
 }
 
-export const RenderingWithError: Story = {
+export const ColdCache: Story = {
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 0,
+      state: {
+        buildingIndicator: false,
+        renderingIndicator: false,
+        cacheIndicator: 'cold',
+      },
+    }),
+  ],
+}
+
+export const RenderingColdCache: Story = {
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 0,
+      state: {
+        buildingIndicator: false,
+        renderingIndicator: true,
+        cacheIndicator: 'cold',
+      },
+    }),
+  ],
+}
+
+export const CacheDisabled: Story = {
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 0,
+      state: {
+        buildingIndicator: false,
+        renderingIndicator: false,
+        cacheIndicator: 'bypass',
+      },
+    }),
+  ],
+}
+
+export const WithSingleError: Story = {
   decorators: [
     withDevOverlayContexts({
       totalErrorCount: 1,
       state: {
         buildingIndicator: false,
-        renderingIndicator: true,
+        renderingIndicator: false,
+        cacheIndicator: 'ready',
+      },
+    }),
+  ],
+}
+
+export const WithMultipleErrors: Story = {
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 5,
+      state: {
+        buildingIndicator: false,
+        renderingIndicator: false,
+        cacheIndicator: 'ready',
+      },
+    }),
+  ],
+}
+
+export const CompilingWithError: Story = {
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 1,
+      state: {
+        buildingIndicator: true,
+        renderingIndicator: false,
+        cacheIndicator: 'ready',
       },
     }),
   ],

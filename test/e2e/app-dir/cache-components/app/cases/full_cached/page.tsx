@@ -5,7 +5,7 @@ import { getSentinelValue } from '../../getSentinelValue'
 export default async function Page({
   searchParams: _unused,
 }: {
-  searchParams: Promise<{ n: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   return (
     <>

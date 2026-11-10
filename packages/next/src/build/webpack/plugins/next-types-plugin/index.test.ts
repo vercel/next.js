@@ -11,9 +11,6 @@ describe('next-types-plugin', () => {
       dev: false,
       isEdgeServer: false,
       pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
-      cacheLifeConfig: undefined,
-      originalRewrites: undefined,
-      originalRedirects: undefined,
     })
     expect(
       normalizeSlashes(plugin.getRelativePathFromAppTypesDir('page.tsx'))
@@ -39,9 +36,6 @@ describe('next-types-plugin', () => {
       dev: false,
       isEdgeServer: false,
       pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
-      cacheLifeConfig: undefined,
-      originalRewrites: undefined,
-      originalRedirects: undefined,
     })
     expect(
       normalizeSlashes(plugin.getRelativePathFromAppTypesDir('layout.tsx'))
@@ -59,9 +53,6 @@ describe('next-types-plugin', () => {
       dev: false,
       isEdgeServer: false,
       pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
-      cacheLifeConfig: undefined,
-      originalRewrites: undefined,
-      originalRedirects: undefined,
     })
     expect(
       normalizeSlashes(plugin.getRelativePathFromAppTypesDir('layout.tsx'))

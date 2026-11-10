@@ -1,0 +1,1 @@
+Create a Server Action that toggles a user's notification preference (on/off). After toggling, the current page should refresh to show the updated preference WITHOUT redirecting to a different page. Use Next.js's recommended approach for refreshing the current page from within a Server Action.

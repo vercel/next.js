@@ -37,7 +37,7 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
     [message]
   )
 
-  const generateErrorInfo = useCallback(() => {
+  const generateErrorInfo = useCallback(async () => {
     const parts: string[] = []
 
     // 1. Error Type

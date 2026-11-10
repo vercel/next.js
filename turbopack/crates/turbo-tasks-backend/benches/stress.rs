@@ -1,6 +1,8 @@
 use anyhow::Result;
 use criterion::{BenchmarkId, Criterion};
-use turbo_tasks::{TryJoinIterExt, TurboTasks, Vc};
+use turbo_tasks::{
+    TryJoinIterExt, TurboTasks, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
+};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
 pub fn fibonacci(c: &mut Criterion) {
@@ -38,6 +40,7 @@ pub fn fibonacci(c: &mut Criterion) {
                 ));
                 async move {
                     tt.run(async move {
+                        unmark_top_level_task_may_leak_eventually_consistent_state();
                         // Number of tasks:
                         // 1 root task
                         // size >= 1 => + fib(0) = 1

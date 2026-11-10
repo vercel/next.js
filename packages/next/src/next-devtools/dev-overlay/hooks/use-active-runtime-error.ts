@@ -3,16 +3,22 @@ import type { HydrationErrorState } from '../../shared/hydration-error'
 
 import { useMemo, useState } from 'react'
 import { getErrorTypeLabel, useErrorDetails } from '../container/errors'
-import { extractNextErrorCode } from '../../../lib/error-telemetry-utils'
 
 export function useActiveRuntimeError({
   runtimeErrors,
   getSquashedHydrationErrorDetails,
+  activeIdx: controlledActiveIdx,
+  setActiveIndex: controlledSetActiveIndex,
 }: {
   runtimeErrors: ReadyRuntimeError[]
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
+  activeIdx?: number
+  setActiveIndex?: (index: number) => void
 }) {
-  const [activeIdx, setActiveIndex] = useState<number>(0)
+  const [uncontrolledActiveIdx, setUncontrolledActiveIndex] =
+    useState<number>(0)
+  const activeIdx = controlledActiveIdx ?? uncontrolledActiveIdx
+  const setActiveIndex = controlledSetActiveIndex ?? setUncontrolledActiveIndex
 
   const isLoading = useMemo<boolean>(() => {
     return runtimeErrors.length === 0
@@ -35,21 +41,12 @@ export function useActiveRuntimeError({
       setActiveIndex,
       activeError: null,
       errorDetails: null,
-      errorCode: null,
       errorType: null,
-      notes: null,
-      hydrationWarning: null,
     }
   }
 
   const error = activeError.error
-  const errorCode = extractNextErrorCode(error)
-  const errorType = getErrorTypeLabel(error, activeError.type)
-
-  // TODO(GH#78140): May be better to always treat everything past the first blank line as notes
-  // We're currently only special casing hydration error messages.
-  const notes = errorDetails.notes
-  const hydrationWarning = errorDetails.hydrationWarning
+  const errorType = getErrorTypeLabel(error, activeError.type, errorDetails)
 
   return {
     isLoading,
@@ -57,9 +54,6 @@ export function useActiveRuntimeError({
     setActiveIndex,
     activeError,
     errorDetails,
-    errorCode,
     errorType,
-    notes,
-    hydrationWarning,
   }
 }

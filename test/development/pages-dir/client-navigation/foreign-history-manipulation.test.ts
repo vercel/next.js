@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { assertNoRedbox, waitFor } from 'next-test-utils'
+import { waitForNoRedbox, waitFor } from 'next-test-utils'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
@@ -22,7 +22,7 @@ describe('Client navigation with foreign history manipulation', () => {
     await browser.waitForElementByCss('.nav-about')
     await browser.back()
     await waitFor(1000)
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 
   it('should ignore history state with an invalid url', async () => {
@@ -35,7 +35,7 @@ describe('Client navigation with foreign history manipulation', () => {
     await browser.waitForElementByCss('.nav-about')
     await browser.back()
     await waitFor(1000)
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 
   it('should ignore foreign history state with missing properties', async () => {
@@ -46,6 +46,6 @@ describe('Client navigation with foreign history manipulation', () => {
     await browser.waitForElementByCss('.nav-about')
     await browser.back()
     await waitFor(1000)
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 })

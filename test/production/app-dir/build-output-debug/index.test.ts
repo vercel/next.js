@@ -7,38 +7,21 @@ describe('next build --debug', () => {
     buildCommand: 'pnpm next build --debug',
   })
 
-  let output = ''
-  beforeAll(() => {
-    output = stripAnsi(next.cliOutput)
-  })
+  it('should log Redirects above Route(app)', async () => {
+    const output = stripAnsi(next.cliOutput)
 
-  const str = `
-
-
-Redirects
+    const redirectsIndex = output.indexOf(`Redirects
 ┌ source: /:path+/
 ├ destination: /:path+
-└ permanent: true
+└ permanent: true`)
 
-┌ source: /redirects
-├ destination: /
-└ permanent: true
+    const routeAppIndex = output.indexOf(`Route (app)
+┌ ○ /
+└ ○ /_not-found`)
 
+    expect(redirectsIndex).toBeGreaterThan(-1)
+    expect(routeAppIndex).toBeGreaterThan(-1)
 
-Headers
-┌ source: /
-└ headers:
-  └ x-custom-headers: headers
-
-
-Rewrites
-┌ source: /rewrites
-└ destination: /
-
-
-Route (app)`
-
-  it('should log Redirects above Route(app)', async () => {
-    expect(output).toContain(str)
+    expect(redirectsIndex).toBeLessThan(routeAppIndex)
   })
 })

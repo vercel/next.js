@@ -72,24 +72,27 @@ export function groupCodeFrameLines(formattedFrame: string) {
   return lines
 }
 
+// `>` marker or whitespace padding that sits before the line-number token.
+function isLineNumberPrefixToken(content: string | undefined): boolean {
+  return (
+    content !== undefined && /^[\s>]+$/.test(content) && !content.includes('|')
+  )
+}
+
 export function parseLineNumberFromCodeFrameLine(
   line: AnserJsonEntry[],
   stackFrame: StackFrame
 ) {
-  let lineNumberToken: AnserJsonEntry | undefined
-  let line1: string | undefined
-  // parse line number from line first 2 tokens
-  // e.g. ` > 1 | const foo = 'bar'` => `1`, first token is `1 |`
-  // e.g. `  2 | const foo = 'bar'` => `2`. first 2 tokens are ' ' and ' 2 |'
-  if (line[0]?.content === '>' || line[0]?.content === ' ') {
-    lineNumberToken = line[1]
-    line1 = lineNumberToken?.content?.replace('|', '')?.trim()
+  let i = 0
+  while (i < line.length && isLineNumberPrefixToken(line[i]?.content)) {
+    i++
   }
+  const trimmed = line[i]?.content?.replace('|', '').trim()
+  const line1 = trimmed && /^\d+$/.test(trimmed) ? trimmed : undefined
 
-  // When the line number is possibly undefined, it can be just the non-source code line
-  // e.g. the ^ sign can also take a line, we skip rendering line number for it
   return {
     lineNumber: line1,
-    isErroredLine: line1 === stackFrame.line1?.toString(),
+    isErroredLine:
+      line1 !== undefined && line1 === stackFrame.line1?.toString(),
   }
 }

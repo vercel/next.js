@@ -1,25 +1,18 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 
 describe('link-with-api-rewrite', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'app/pages')),
-        'next.config.js': new FileRef(join(__dirname, 'app/next.config.js')),
-      },
-      dependencies: {},
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'app/pages')),
+      'next.config.js': new FileRef(join(__dirname, 'app/next.config.js')),
+    },
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   it('should perform hard navigation for rewritten urls', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
 
     try {
       // Click the link on the page, we expect that there will be a hard
@@ -27,8 +20,8 @@ describe('link-with-api-rewrite', () => {
       // unset).
       await browser.eval('window.beforeNav = "hi"')
       await browser.elementById('rewrite').click()
-      await check(() => browser.eval('window.beforeNav'), {
-        test: (content) => content !== 'hi',
+      await retry(async () => {
+        expect(await browser.eval('window.beforeNav')).not.toEqual('hi')
       })
 
       // Check to see that we were in fact navigated to the correct page.
@@ -46,7 +39,7 @@ describe('link-with-api-rewrite', () => {
   })
 
   it('should perform hard navigation for direct urls', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
 
     try {
       // Click the link on the page, we expect that there will be a hard
@@ -54,8 +47,8 @@ describe('link-with-api-rewrite', () => {
       // unset).
       await browser.eval('window.beforeNav = "hi"')
       await browser.elementById('direct').click()
-      await check(() => browser.eval('window.beforeNav'), {
-        test: (content) => content !== 'hi',
+      await retry(async () => {
+        expect(await browser.eval('window.beforeNav')).not.toEqual('hi')
       })
 
       // Check to see that we were in fact navigated to the correct page.

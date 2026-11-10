@@ -66,6 +66,15 @@ declare module 'react-server-dom-webpack/client' {
     options?: Options
   ): Promise<T>
 
+  export function createFromNodeStream<T>(
+    stream: import('node:stream').Readable,
+    serverConsumerManifest: Options['serverConsumerManifest'],
+    options?: Omit<Options, 'serverConsumerManifest' | 'debugChannel'> & {
+      // For the Node.js client we only support a single-direction debug channel.
+      debugChannel?: import('node:stream').Readable
+    }
+  ): Promise<T>
+
   export function createServerReference(
     id: string,
     callServer: CallServerCallback,
@@ -106,6 +115,9 @@ declare module 'react-server-dom-webpack/client.browser' {
     replayConsoleLogs?: boolean
     temporaryReferences?: TemporaryReferenceSet
     debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
+    startTime?: number
+    endTime?: number
+    unstable_allowPartialStream?: boolean
   }
 
   export function createFromFetch<T>(
@@ -156,9 +168,9 @@ declare module 'react-server-dom-webpack/server.edge' {
           ) => boolean)
         | undefined
       onError?: (error: unknown) => void
-      onPostpone?: (reason: string) => void
       signal?: AbortSignal
       debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
+      startTime?: number
     }
   ): ReadableStream<Uint8Array>
 
@@ -194,7 +206,7 @@ declare module 'react-server-dom-webpack/server.edge' {
     reference: T,
     id: string,
     exportName: string | null
-  ): unknown
+  ): T
 
   export function createClientModuleProxy(moduleId: string): unknown
 }
@@ -213,12 +225,40 @@ declare module 'react-server-dom-webpack/server.node' {
     renderToReadableStream,
   } from 'react-server-dom-webpack/server.edge'
 
+  export function renderToPipeableStream(
+    model: any,
+    webpackMap: import('react-server-dom-webpack/server.edge').ClientManifest,
+    options?: {
+      temporaryReferences?: import('react-server-dom-webpack/server.edge').TemporaryReferenceSet
+      environmentName?: string | (() => string)
+      filterStackFrame:
+        | ((
+            url: string,
+            functionName: string,
+            lineNumber: number,
+            columnNumber: number
+          ) => boolean)
+        | undefined
+      onError?: (error: unknown) => void
+      // React's Node API expects debugChannel to be a Node.js Writable
+      // (has .write()), Duplex (has .read()), or WebSocket (has .send()).
+      // This differs from the web API which expects { readable?, writable? }.
+      debugChannel?: import('node:stream').Writable
+      startTime?: number
+    }
+  ): {
+    pipe<Writable extends NodeJS.WritableStream>(
+      destination: Writable
+    ): Writable
+    abort(reason?: unknown): void
+  }
+
   export type TemporaryReferenceSet = WeakMap<any, string>
 
   export type ImportManifestEntry = {
-    id: string
+    id: string | number
     // chunks is a double indexed array of chunkId / chunkFilename pairs
-    chunks: Array<string>
+    chunks: ReadonlyArray<string>
     name: string
     async?: boolean
   }
@@ -238,17 +278,17 @@ declare module 'react-server-dom-webpack/server.node' {
     ...args: unknown[]
   ): TemporaryReferenceSet
 
-  export function decodeReplyFromBusboy(
+  export function decodeReplyFromBusboy<T>(
     busboyStream: Busboy,
     webpackMap: ServerManifest,
     options?: { temporaryReferences?: TemporaryReferenceSet }
-  ): Promise<unknown[]>
+  ): Promise<T>
 
   export function decodeReply<T>(
     body: string | FormData,
     webpackMap: ServerManifest,
     options?: { temporaryReferences?: TemporaryReferenceSet }
-  ): Promise<T[]>
+  ): Promise<T>
 
   export function decodeAction(
     body: FormData,
@@ -269,7 +309,7 @@ declare module 'react-server-dom-webpack/static' {
     webpackMap: {
       readonly [id: string]: {
         readonly id: string | number
-        readonly chunks: readonly string[]
+        readonly chunks: ReadonlyArray<string>
         readonly name: string
         readonly async?: boolean
       }
@@ -291,10 +331,38 @@ declare module 'react-server-dom-webpack/static' {
       signal?: AbortSignal
       temporaryReferences?: TemporaryReferenceSet
       onError?: (error: unknown) => void
-      onPostpone?: (reason: string) => void
     }
   ): Promise<{
     prelude: ReadableStream<Uint8Array>
+  }>
+
+  export function prerenderToNodeStream(
+    children: any,
+    webpackMap: {
+      readonly [id: string]: {
+        readonly id: string | number
+        readonly chunks: ReadonlyArray<string>
+        readonly name: string
+        readonly async?: boolean
+      }
+    },
+    options?: {
+      environmentName?: string | (() => string)
+      filterStackFrame:
+        | ((
+            url: string,
+            functionName: string,
+            lineNumber: number,
+            columnNumber: number
+          ) => boolean)
+        | undefined
+      identifierPrefix?: string
+      signal?: AbortSignal
+      temporaryReferences?: TemporaryReferenceSet
+      onError?: (error: unknown) => void
+    }
+  ): Promise<{
+    prelude: import('node:stream').Readable
   }>
 }
 declare module 'react-server-dom-webpack/client.edge' {
@@ -309,6 +377,8 @@ declare module 'react-server-dom-webpack/client.edge' {
     replayConsoleLogs?: boolean
     environmentName?: string
     debugChannel?: { readable?: ReadableStream }
+    startTime?: number
+    endTime?: number
   }
 
   export type EncodeFormActionCallback = <A>(
@@ -414,9 +484,7 @@ declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWe
 }
 
 declare module 'next/dist/compiled/commander' {
-  import commander from 'commander'
   export * from 'commander'
-  export default commander
 }
 
 declare module 'next/dist/compiled/node-html-parser' {
@@ -500,11 +568,6 @@ declare module 'next/dist/compiled/@hapi/accept' {
   export = m
 }
 
-declare module 'next/dist/compiled/acorn' {
-  import m from 'acorn'
-  export = m
-}
-
 declare module 'next/dist/compiled/superstruct' {
   import * as m from 'superstruct'
   export = m
@@ -513,10 +576,6 @@ declare module 'next/dist/compiled/async-retry'
 declare module 'next/dist/compiled/async-sema' {
   import m from 'async-sema'
   export = m
-}
-
-declare module 'next/dist/compiled/babel/code-frame' {
-  export * from '@babel/code-frame'
 }
 
 declare module 'next/dist/compiled/@next/font/dist/google' {
@@ -623,8 +682,8 @@ declare module 'next/dist/compiled/gzip-size' {
   import m from 'gzip-size'
   export = m
 }
-declare module 'next/dist/compiled/http-proxy' {
-  import m from 'http-proxy'
+declare module 'next/dist/compiled/httpxy' {
+  import * as m from 'httpxy'
   export = m
 }
 declare module 'next/dist/compiled/is-docker' {
@@ -639,8 +698,8 @@ declare module 'next/dist/compiled/json5' {
   import m from 'json5'
   export = m
 }
-declare module 'next/dist/compiled/jsonwebtoken' {
-  import m from 'jsonwebtoken'
+declare module 'next/dist/compiled/fast-jwt' {
+  import * as m from 'fast-jwt'
   export = m
 }
 declare module 'next/dist/compiled/lodash.curry' {
@@ -683,6 +742,10 @@ declare module 'next/dist/compiled/string-hash' {
   import m from 'string-hash'
   export = m
 }
+declare module 'next/dist/compiled/hash.js/sha256' {
+  import { sha256 } from 'hash.js'
+  export = sha256
+}
 declare module 'next/dist/compiled/ua-parser-js' {
   import m from 'ua-parser-js'
   export = m
@@ -691,14 +754,16 @@ declare module 'next/dist/compiled/strip-ansi' {
   import m from 'strip-ansi'
   export = m
 }
+declare module 'next/dist/compiled/@vercel/blob' {
+  export * from '@vercel/blob'
+}
 declare module 'next/dist/compiled/@vercel/nft' {
   import m from '@vercel/nft'
   export = m
 }
 
 declare module 'next/dist/compiled/tar' {
-  import m from 'tar'
-  export = m
+  export * from 'tar'
 }
 
 declare module 'next/dist/compiled/terser' {
@@ -736,9 +801,27 @@ declare module 'next/dist/compiled/web-vitals' {
 }
 declare module 'next/dist/compiled/web-vitals-attribution' {}
 
+declare module 'next/dist/compiled/write-file-atomic' {
+  function writeFileAtomicSync(
+    filename: string,
+    data: string | Buffer,
+    options?: { mode?: number; chown?: { uid: number; gid: number } }
+  ): void
+  export const sync: typeof writeFileAtomicSync
+  export default writeFileAtomicSync
+}
+
 declare module 'next/dist/compiled/ws' {
   import m from 'ws'
   export = m
+}
+declare module 'next/dist/compiled/@vercel/routing-utils' {
+  import m from '@vercel/routing-utils/dist/superstatic'
+  export = m
+}
+
+declare module 'next/dist/compiled/@vercel/detect-agent' {
+  export * from '@vercel/detect-agent'
 }
 
 declare module 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp' {
@@ -856,8 +939,9 @@ declare module 'next/dist/compiled/is-animated' {
   export default function isAnimated(buffer: Buffer): boolean
 }
 
-declare module 'next/dist/compiled/is-local-address' {
-  export default function isLocalAddress(ip: string): boolean
+declare module 'next/dist/compiled/ipaddr.js' {
+  import * as m from 'ipaddr.js'
+  export = m
 }
 
 declare module 'next/dist/compiled/@opentelemetry/api' {

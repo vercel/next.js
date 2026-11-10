@@ -1,10 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox } from 'next-test-utils'
+import { waitForNoRedbox } from 'next-test-utils'
 
+// @force-gate !deploy
 describe('app dir - not found with default 404 page', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   if (skipped) {
@@ -92,7 +92,7 @@ describe('app dir - not found with default 404 page', () => {
     )
 
     await browser.loadPage(next.url + '/group-dynamic/404')
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     await browser.waitForElementByCss('.group-root-layout')
     expect(await browser.elementByCss('.next-error-h1').text()).toBe('404')
   })

@@ -1,13 +1,12 @@
-#![feature(str_split_remainder)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-#![feature(iter_intersperse)]
 
 mod app_page_loader_tree;
 pub mod app_structure;
 mod base_loader_tree;
 mod bootstrap;
+mod browser_variant_modules;
 mod embed_js;
 mod emit;
 pub mod hmr_entry;
@@ -27,7 +26,6 @@ mod next_import_map;
 pub mod next_manifests;
 pub mod next_pages;
 mod next_root_params;
-mod next_route_matcher;
 pub mod next_server;
 pub mod next_server_component;
 pub mod next_server_utility;
@@ -42,12 +40,13 @@ mod transform_options;
 pub mod url_node;
 pub mod util;
 
-pub use emit::{all_assets_from_entries, emit_all_assets, emit_assets};
+pub use emit::{emit_all_assets, emit_assets};
 pub use next_edge::context::{
     get_edge_chunking_context, get_edge_chunking_context_with_client_assets,
     get_edge_compile_time_info, get_edge_resolve_options_context,
 };
 pub use next_import_map::get_next_package;
+pub use next_root_params::root_param_getters_path;
 pub use page_loader::{PageLoaderAsset, create_page_loader_entry_module};
 pub use segment_config::{parse_segment_config_from_loader_tree, parse_segment_config_from_source};
 pub use util::{PathType, get_asset_path_from_pathname, pathname_for_path};

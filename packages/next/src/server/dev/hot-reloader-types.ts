@@ -8,8 +8,17 @@ import type { Project, Update as TurbopackUpdate } from '../../build/swc/types'
 import type { VersionInfo } from './parse-version-info'
 import type { DebugInfo } from '../../next-devtools/shared/types'
 import type { DevIndicatorServerState } from './dev-indicator-server-state'
+import type {
+  CacheIndicatorState,
+  ServerCacheStatus,
+} from '../../next-devtools/dev-overlay/cache-indicator'
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
+import type {
+  RequestInsightDelta,
+  RequestInsightsSnapshot,
+} from '../../shared/lib/request-insights'
 import type { ReactDebugChannelForBrowser } from './debug-channel'
+import type { AnyStream } from '../app-render/stream-ops'
 
 export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   // JSON messages:
@@ -17,6 +26,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   REMOVED_PAGE = 'removedPage',
   RELOAD_PAGE = 'reloadPage',
   SERVER_COMPONENT_CHANGES = 'serverComponentChanges',
+  STATIC_PARAMS_CHANGED = 'staticParamsChanged',
   MIDDLEWARE_CHANGES = 'middlewareChanges',
   CLIENT_CHANGES = 'clientChanges',
   SERVER_ONLY_CHANGES = 'serverOnlyChanges',
@@ -28,18 +38,25 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   SERVER_ERROR = 'serverError',
   TURBOPACK_CONNECTED = 'turbopack-connected',
   ISR_MANIFEST = 'isrManifest',
+  CACHE_INDICATOR = 'cacheIndicator',
   DEV_INDICATOR = 'devIndicator',
   DEVTOOLS_CONFIG = 'devtoolsConfig',
+  VULNERABILITY_INSIGHT = 'vulnerabilityInsight',
+  VERSION_INFO = 'versionInfo',
   REQUEST_CURRENT_ERROR_STATE = 'requestCurrentErrorState',
+  RUNTIME_ERRORS = 'runtimeErrors',
   REQUEST_PAGE_METADATA = 'requestPageMetadata',
+  REQUEST_INSIGHTS_UPDATE = 'requestInsightsUpdate',
 
   // Binary messages:
   REACT_DEBUG_CHUNK = 0,
+  ERRORS_TO_SHOW_IN_BROWSER = 1,
 }
 
 export const enum HMR_MESSAGE_SENT_TO_SERVER {
   // JSON messages:
   MCP_ERROR_STATE_RESPONSE = 'mcp-error-state-response',
+  RUNTIME_ERRORS = 'runtimeErrors',
   MCP_PAGE_METADATA_RESPONSE = 'mcp-page-metadata-response',
   PING = 'ping',
 }
@@ -52,6 +69,7 @@ export interface ServerErrorMessage {
 export interface TurbopackMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE
   data: TurbopackUpdate | TurbopackUpdate[]
+  hmrVersion: string
 }
 
 export interface BuildingMessage {
@@ -72,10 +90,12 @@ export interface SyncMessage {
   errors: ReadonlyArray<CompilationError>
   warnings: ReadonlyArray<CompilationError>
   versionInfo: VersionInfo
+  hasVulnerabilityInsight: boolean
   updatedModules?: ReadonlyArray<string>
   debug?: DebugInfo
   devIndicator: DevIndicatorServerState
   devToolsConfig?: DevToolsConfig
+  requestInsights?: RequestInsightsSnapshot
 }
 
 export interface BuiltMessage {
@@ -103,7 +123,15 @@ export interface ReloadPageMessage {
 
 export interface ServerComponentChangesMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
-  hash: string
+  hmrVersion?: string
+}
+
+/**
+ * Sent in dev when a route's set of statically-known params changed, e.g.
+ * because `generateStaticParams` was added, removed, or edited.
+ */
+export interface StaticParamsChangedMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.STATIC_PARAMS_CHANGED
 }
 
 export interface MiddlewareChangesMessage {
@@ -130,7 +158,7 @@ export interface DevPagesManifestUpdateMessage {
 
 export interface TurbopackConnectedMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED
-  data: { sessionId: number }
+  data: { sessionId: number; hmrVersion: string }
 }
 
 export interface AppIsrManifestMessage {
@@ -152,14 +180,107 @@ export interface ReactDebugChunkMessage {
   chunk: Uint8Array | null
 }
 
+export interface ErrorsToShowInBrowserMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER
+  serializedErrors: Uint8Array
+}
+
 export interface RequestCurrentErrorStateMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE
   requestId: string
 }
 
+export type RuntimeErrorBoundary = {
+  kind: 'default-global' | 'custom-global' | 'custom'
+  name?: string
+}
+
+export interface RuntimeErrorMetadata {
+  fatal: boolean
+  boundary?: RuntimeErrorBoundary
+}
+
+export interface FormattedRuntimeError {
+  type: string
+  errorName: string
+  message: string
+  /** A React root failure or a Next.js unrecoverable rendering path. */
+  fatal: boolean
+  boundary?: RuntimeErrorBoundary
+  stack: Array<{
+    file: string
+    methodName: string
+    line: number | null
+    column: number | null
+  }>
+}
+
+export interface RuntimeErrorStateError {
+  id: number
+  error: {
+    name?: string
+    message?: string
+    stack?: string
+    source: 'server' | 'edge-server' | null
+  } | null
+  frames: readonly {
+    file: string | null
+    methodName: string
+    line1: number | null
+    column1: number | null
+  }[]
+  type: 'runtime' | 'recoverable' | 'console'
+  fatal: boolean
+  boundary?: RuntimeErrorBoundary
+}
+
+export interface RuntimeErrorStateUpdate {
+  event: HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERRORS
+  pathname: string
+  errorState: {
+    errors: readonly RuntimeErrorStateError[]
+    routerType: 'app' | 'pages'
+  }
+}
+
+export interface RuntimeErrorStateMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS
+  clientId: string
+  /** The producer document's existing HMR request ID, when available. */
+  htmlRequestId?: string | null
+  pathname: string
+  errors: FormattedRuntimeError[]
+}
+
 export interface RequestPageMetadataMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_PAGE_METADATA
   requestId: string
+}
+
+export interface CacheIndicatorMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR
+  state: CacheIndicatorState
+}
+
+export interface RequestInsightsUpdateMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE
+  insight: RequestInsightDelta
+}
+
+export interface VulnerabilityInsightMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.VULNERABILITY_INSIGHT
+  hasVulnerabilityInsight: boolean
+}
+
+/**
+ * Sent when the version staleness info resolves after the client already
+ * received a placeholder in the `sync` message. The registry request
+ * behind it is never awaited before `sync`, so a slow registry cannot delay
+ * the dev overlay.
+ */
+export interface VersionInfoMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.VERSION_INFO
+  versionInfo: VersionInfo
 }
 
 export type HmrMessageSentToBrowser =
@@ -172,6 +293,7 @@ export type HmrMessageSentToBrowser =
   | RemovedPageMessage
   | ReloadPageMessage
   | ServerComponentChangesMessage
+  | StaticParamsChangedMessage
   | ClientChangesMessage
   | MiddlewareChangesMessage
   | ServerOnlyChangesMessage
@@ -179,9 +301,15 @@ export type HmrMessageSentToBrowser =
   | ServerErrorMessage
   | AppIsrManifestMessage
   | DevToolsConfigMessage
+  | ErrorsToShowInBrowserMessage
   | ReactDebugChunkMessage
   | RequestCurrentErrorStateMessage
+  | RuntimeErrorStateMessage
   | RequestPageMetadataMessage
+  | CacheIndicatorMessage
+  | RequestInsightsUpdateMessage
+  | VulnerabilityInsightMessage
+  | VersionInfoMessage
 
 export type BinaryHmrMessageSentToBrowser = Extract<
   HmrMessageSentToBrowser,
@@ -192,10 +320,15 @@ export type TurbopackMessageSentToBrowser =
   | {
       type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE
       data: any
+      hmrVersion: string
     }
   | {
       type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED
-      data: { sessionId: number }
+      data: { sessionId: number; hmrVersion: string }
+    }
+  | {
+      type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
+      hmrVersion?: string
     }
 
 export interface NextJsHotReloaderInterface {
@@ -218,11 +351,28 @@ export interface NextJsHotReloaderInterface {
    * and App Router clients that don't have Cache Components enabled.
    */
   sendToLegacyClients(action: HmrMessageSentToBrowser): void
+  /**
+   * Identifies the current generation of the compiled server components. It is
+   * included in `"use cache"` cache keys so that cached entries are revalidated
+   * after an edit, for every client, regardless of whether it runs the HMR
+   * client. It is present from the first request on, so that entries created
+   * before the first edit are keyed by it too, and it differs between dev
+   * server runs, so that a cache handler that persists entries doesn't serve
+   * them for code that changed while the server was down.
+   */
+  getServerComponentsHmrRefreshHash(): string
+  /** The client HMR baseline, available only with Turbopack HMR. */
+  getClientHmrVersion?(): string
+  onNativeRoutesChanged?(
+    listener: (pages: ReadonlySet<string>) => void
+  ): () => void
+  setCacheStatus(status: ServerCacheStatus, htmlRequestId: string): void
   setReactDebugChannel(
     debugChannel: ReactDebugChannelForBrowser,
     htmlRequestId: string,
     requestId: string
   ): void
+  sendErrorsToBrowser(errorsRscStream: AnyStream, htmlRequestId: string): void
   getCompilationErrors(page: string): Promise<any[]>
   onHMR(
     req: IncomingMessage,
@@ -233,6 +383,13 @@ export interface NextJsHotReloaderInterface {
       context: { isLegacyClient: boolean }
     ) => void
   ): void
+  /**
+   * Rebuilds so that a changed configuration reaches the bundles. Pass
+   * `reloadAfterInvalidation` only when the change can also affect what a
+   * render produces: it makes connected clients refetch server components, and
+   * advances `getServerComponentsHmrRefreshHash`, discarding `"use cache"`
+   * entries.
+   */
   invalidate({
     reloadAfterInvalidation,
   }: {
@@ -246,13 +403,23 @@ export interface NextJsHotReloaderInterface {
     definition,
     isApp,
     url,
+    subscribeToChanges,
   }: {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     isApp?: boolean
-    definition: RouteDefinition | undefined
+    definition?: RouteDefinition
     url?: string
+    /**
+     * Whether to wire HMR change subscriptions for the compiled entry.
+     * Defaults to true (the dev server uses these to push updates to
+     * connected browsers). Pass false for one-shot compilations (e.g.
+     * the `compile_route` MCP tool) where there is no client to receive
+     * HMR updates — without this, repeated calls leak subscriptions that
+     * keep firing on every file change for the life of the dev server.
+     */
+    subscribeToChanges?: boolean
   }): Promise<void>
   close(): void
 }

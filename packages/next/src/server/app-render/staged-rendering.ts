@@ -2,82 +2,305 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 
 export enum RenderStage {
-  Static = 1,
-  Runtime = 2,
-  Dynamic = 3,
+  Before = 1,
+  //
+  ShellStatic = 10,
+  /** Discrimination-only stage: `prefetch()` in validation renders (static) */
+  PrefetchStatic_prefetchApi = 11,
+  PrefetchStatic = 12,
+  NavigationStatic = 13,
+  //
+  ShellRuntime = 20,
+  /** Discrimination-only stage: `prefetch()` in validation renders (runtime) */
+  PrefetchRuntime_prefetchApi = 21,
+  PrefetchRuntime = 22,
+  NavigationRuntime = 23,
+  //
+  Dynamic = 30,
+  Abandoned = 40,
 }
 
-export type NonStaticRenderStage = RenderStage.Runtime | RenderStage.Dynamic
+export type AdvanceableRenderStage = Exclude<
+  RenderStage,
+  RenderStage.Before | RenderStage.Abandoned
+>
+
+export const RENDER_STAGE_ADVANCE_ORDER: AdvanceableRenderStage[] = [
+  RenderStage.ShellStatic,
+  RenderStage.PrefetchStatic_prefetchApi,
+  RenderStage.PrefetchStatic,
+  RenderStage.NavigationStatic,
+  //
+  RenderStage.ShellRuntime,
+  RenderStage.PrefetchRuntime_prefetchApi,
+  RenderStage.PrefetchRuntime,
+  RenderStage.NavigationRuntime,
+  //
+  RenderStage.Dynamic,
+]
+
+export function getNextStage(
+  stage: Exclude<AdvanceableRenderStage, RenderStage.Dynamic>
+) {
+  return RENDER_STAGE_ADVANCE_ORDER[
+    RENDER_STAGE_ADVANCE_ORDER.indexOf(stage) + 1
+  ]
+}
+
+export function isAdvanceableRenderStage(
+  stage: RenderStage
+): stage is AdvanceableRenderStage {
+  return RenderStage.Before < stage && stage <= RenderStage.Dynamic
+}
+
+export enum SyncIOMode {
+  /** Sync IO does not error in any stage. */
+  Untracked = 1,
+  /** Before `partialPrefetching`: Sync IO errors in static stages, and is allowed otherwise. */
+  AllowedInRuntimeOrDynamic = 2,
+  /** After `partialPrefetching`: Sync IO errors in all stages other than dynamic. */
+  AllowedInDynamic = 3,
+}
 
 export class StagedRenderingController {
-  currentStage: RenderStage = RenderStage.Static
+  private abortSignal: AbortSignal | null
+  private abandonController: AbortController | null
+  private syncIOMode: SyncIOMode
+  public readonly finalStage: AdvanceableRenderStage | null
 
-  private runtimeStagePromise = createPromiseWithResolvers<void>()
-  private dynamicStagePromise = createPromiseWithResolvers<void>()
+  currentStage: RenderStage = RenderStage.Before
 
-  constructor(private abortSignal: AbortSignal | null = null) {
+  syncInterruptReason: Error | null = null
+
+  triggers: Record<AdvanceableRenderStage, StageTrigger> =
+    createAdvanceableStageTriggers()
+
+  constructor({
+    abortSignal,
+    abandonController,
+    syncIO,
+    finalStage,
+  }: {
+    abortSignal: AbortSignal | null
+    abandonController: AbortController | null
+    syncIO: SyncIOMode
+    finalStage: AdvanceableRenderStage | null
+  }) {
+    this.abortSignal = abortSignal
+    this.abandonController = abandonController
+    this.syncIOMode = syncIO
+    this.finalStage = finalStage
+
     if (abortSignal) {
       abortSignal.addEventListener(
         'abort',
         () => {
+          // Reject all stage promises that haven't already been resolved.
+          // `cancelStageTrigger` is a noop if the trigger already resolved.
           const { reason } = abortSignal
-          if (this.currentStage < RenderStage.Runtime) {
-            this.runtimeStagePromise.promise.catch(ignoreReject) // avoid unhandled rejections
-            this.runtimeStagePromise.reject(reason)
+          for (const trigger of Object.values(this.triggers)) {
+            cancelStageTrigger(trigger, reason)
           }
-          if (this.currentStage < RenderStage.Dynamic) {
-            this.dynamicStagePromise.promise.catch(ignoreReject) // avoid unhandled rejections
-            this.dynamicStagePromise.reject(reason)
-          }
+        },
+        { once: true }
+      )
+    }
+
+    if (abandonController) {
+      abandonController.signal.addEventListener(
+        'abort',
+        () => {
+          this.abandonRender()
         },
         { once: true }
       )
     }
   }
 
-  advanceStage(stage: NonStaticRenderStage) {
-    // If we're already at the target stage or beyond, do nothing.
-    // (this can happen e.g. if sync IO advanced us to the dynamic stage)
-    if (this.currentStage >= stage) {
-      return
-    }
-    this.currentStage = stage
-    // Note that we might be going directly from Static to Dynamic,
-    // so we need to resolve the runtime stage as well.
-    if (stage >= RenderStage.Runtime) {
-      this.runtimeStagePromise.resolve()
-    }
-    if (stage >= RenderStage.Dynamic) {
-      this.dynamicStagePromise.resolve()
+  /**
+   * Schedules a callback that will execute synchronously when the controller is advanced
+   * to `stage` or past it, before any promises for that stage are resolved.
+   * If the controller is already past `stage`, the callback is executed immediately.
+   * If the controller is already aborted, the listener won't run.
+   *
+   * @returns Whether or not the listener was added.
+   * */
+  onStage(stage: AdvanceableRenderStage, callback: () => void): boolean {
+    return addSyncTriggerListener(this.triggers[stage], callback)
+  }
+
+  shouldTrackSyncInterrupt(): boolean {
+    const { syncIOMode, currentStage } = this
+    switch (syncIOMode) {
+      case SyncIOMode.Untracked: {
+        return false
+      }
+      case SyncIOMode.AllowedInRuntimeOrDynamic: {
+        // Legacy: track Sync IO only in static stages.
+        // Do not track it before the render, or in runtime/dynamic stages.
+        return (
+          currentStage > RenderStage.Before &&
+          currentStage <= RenderStage.NavigationStatic
+        )
+      }
+      case SyncIOMode.AllowedInDynamic: {
+        // Track sync IO in all cacheable stages.
+        // This means all stages except:
+        // - before the render
+        // - in the dynamic stage
+        return (
+          currentStage > RenderStage.Before &&
+          currentStage < RenderStage.Dynamic
+        )
+      }
     }
   }
 
-  delayUntilStage<T>(stage: NonStaticRenderStage, resolvedValue: T) {
-    let stagePromise: Promise<void>
-    switch (stage) {
-      case RenderStage.Runtime: {
-        stagePromise = this.runtimeStagePromise.promise
-        break
-      }
-      case RenderStage.Dynamic: {
-        stagePromise = this.dynamicStagePromise.promise
-        break
-      }
-      default: {
-        stage satisfies never
-        throw new InvariantError(`Invalid render stage: ${stage}`)
-      }
+  /** Note: only call this if `shouldTrackSyncInterrupt()` returned true */
+  syncInterruptCurrentStageWithReason(reason: Error) {
+    const { currentStage } = this
+    if (
+      currentStage === RenderStage.Before ||
+      currentStage === RenderStage.Dynamic ||
+      currentStage === RenderStage.Abandoned
+    ) {
+      // Not interruptible. Defensive noop.
+      return
     }
 
-    // FIXME: this seems to be the only form that leads to correct API names
-    // being displayed in React Devtools (in the "suspended by" section).
-    // If we use `promise.then(() => resolvedValue)`, the names are lost.
-    // It's a bit strange that only one of those works right.
-    const promise = new Promise<T>((resolve, reject) => {
-      stagePromise.then(resolve.bind(null, resolvedValue), reject)
-    })
+    // If Sync IO occurs during an abandonable render, we trigger the abandon.
+    // The abandon listener will call abandonRender which advances through
+    // stages to let caches fill before marking as Abandoned.
+    if (this.abandonController) {
+      this.abandonController.abort()
+      return
+    }
 
-    // Analogously to `makeHangingPromise`, we might reject this promise if the signal is invoked.
+    if (this.abortSignal) {
+      // If this is an abortable render, we capture the interruption reason and stop advancing.
+      // We don't release any more promises.
+      // The caller is expected to abort the signal.
+      this.syncInterruptReason = reason
+      this.currentStage = RenderStage.Abandoned
+      return
+    }
+
+    // If we're in a non-abandonable & non-abortable render,
+    // we need to advance to the Dynamic stage and capture the interruption reason.
+    // (in dev, this will be the restarted render)
+    this.syncInterruptReason = reason
+    this.advanceStage(RenderStage.Dynamic)
+  }
+
+  getSyncInterruptReason() {
+    return this.syncInterruptReason
+  }
+
+  getStageEndTime(stage: Exclude<AdvanceableRenderStage, RenderStage.Dynamic>) {
+    return this.triggers[getNextStage(stage)].triggeredAt ?? Infinity
+  }
+
+  private abandonRender() {
+    // In staged rendering, only the initial render is abandonable.
+    // We can abandon the initial render if
+    //   1. We notice a cache miss, and need to wait for caches to fill
+    //   2. A sync IO error occurs, and the render should be interrupted
+    //      (this might be a lazy intitialization of a module,
+    //       so we still want to restart in this case and see if it still occurs)
+    // In either case, we'll be doing another render after this one,
+    // so we only want to unblock the next stage, not Dynamic, because
+    // unblocking the dynamic stage would likely lead to wasted (uncached) IO.
+
+    const { currentStage } = this
+
+    if (currentStage === RenderStage.Before) {
+      throw new InvariantError(
+        "A render that hasn't started yet cannot be abandoned"
+      )
+    }
+    if (
+      currentStage === RenderStage.Dynamic ||
+      currentStage === RenderStage.Abandoned
+    ) {
+      // We shouldn't ever trigger an abandon in these. Defensive noop.
+      return
+    }
+
+    // Resolve all stages after the current one, up to runtime (excluding dynamic)
+    const nextStageIx = RENDER_STAGE_ADVANCE_ORDER.indexOf(currentStage) + 1
+    const dynamicStageIx = RENDER_STAGE_ADVANCE_ORDER.indexOf(
+      RenderStage.Dynamic
+    )
+    for (let i = nextStageIx; i < dynamicStageIx; i++) {
+      this.resolveStage(RENDER_STAGE_ADVANCE_ORDER[i])
+    }
+
+    this.currentStage = RenderStage.Abandoned
+  }
+
+  advanceStage(targetStage: AdvanceableRenderStage) {
+    if (this.finalStage !== null && targetStage > this.finalStage) {
+      throw new InvariantError(
+        `Attempted to advance to stage ${RenderStage[targetStage]} but the render is limited to ${RenderStage[this.finalStage]}`
+      )
+    }
+    const { currentStage } = this
+
+    if (
+      currentStage === RenderStage.Dynamic ||
+      currentStage === RenderStage.Abandoned
+    ) {
+      // Terminal stages, nowhere left to advance.
+      return
+    }
+
+    // If we're already at the target stage or beyond, do nothing.
+    if (targetStage <= currentStage) {
+      return
+    }
+
+    this.currentStage = targetStage
+
+    // Resolve all stages between the current stage and the target.
+    const nextStageIx =
+      currentStage === RenderStage.Before
+        ? 0
+        : RENDER_STAGE_ADVANCE_ORDER.indexOf(currentStage) + 1
+    const targetStageIx = RENDER_STAGE_ADVANCE_ORDER.indexOf(targetStage)
+    for (let i = nextStageIx; i <= targetStageIx; i++) {
+      this.resolveStage(RENDER_STAGE_ADVANCE_ORDER[i])
+    }
+  }
+
+  private resolveStage(stage: AdvanceableRenderStage) {
+    fireStageTrigger(this.triggers[stage])
+  }
+
+  private getStagePromise(stage: AdvanceableRenderStage): Promise<void> {
+    return this.triggers[stage].promise
+  }
+
+  waitForStage(stage: AdvanceableRenderStage) {
+    return this.getStagePromise(stage)
+  }
+
+  delayUntilStage<T>(
+    stage: AdvanceableRenderStage,
+    displayName: string | undefined,
+    resolvedValue: T
+  ): Promise<T> {
+    const stagePromise = this.getStagePromise(stage)
+
+    const promise =
+      process.env.NODE_ENV === 'development'
+        ? makeDevtoolsIOPromiseFromIOTrigger(
+            stagePromise,
+            displayName,
+            resolvedValue
+          )
+        : stagePromise.then(() => resolvedValue)
+
+    // Analogously to `makeDynamicHangingPromise`, we might reject this promise if the signal is invoked.
     // (e.g. in the case where we don't want want the render to proceed to the dynamic stage and abort it).
     // We shouldn't consider this an unhandled rejection, so we attach a noop catch handler here to suppress this warning.
     if (this.abortSignal) {
@@ -87,4 +310,116 @@ export class StagedRenderingController {
   }
 }
 
+function createAdvanceableStageTriggers(): Record<
+  AdvanceableRenderStage,
+  StageTrigger
+> {
+  const triggers: Partial<Record<AdvanceableRenderStage, StageTrigger>> = {}
+  for (const stage of RENDER_STAGE_ADVANCE_ORDER) {
+    triggers[stage] = createStageTrigger()
+  }
+  return triggers as Record<AdvanceableRenderStage, StageTrigger>
+}
+
 function ignoreReject() {}
+
+// TODO(restart-on-cache-miss): the layering of `delayUntilStage`,
+// `makeDevtoolsIOPromiseFromIOTrigger` and and `makeDevtoolsIOAwarePromise`
+// is confusing, we should clean it up.
+function makeDevtoolsIOPromiseFromIOTrigger<T>(
+  ioTrigger: Promise<any>,
+  displayName: string | undefined,
+  resolvedValue: T
+): Promise<T> {
+  // If we create a `new Promise` and give it a displayName
+  // (with no userspace code above us in the stack)
+  // React Devtools will use it as the IO cause when determining "suspended by".
+  // In particular, it should shadow any inner IO that resolved/rejected the promise
+  // (in case of staged rendering, this will be the `setTimeout` that triggers the relevant stage)
+  const promise = new Promise<T>((resolve, reject) => {
+    ioTrigger.then(resolve.bind(null, resolvedValue), reject)
+  })
+  if (displayName !== undefined) {
+    // @ts-expect-error
+    promise.displayName = displayName
+  }
+  return promise
+}
+
+type StageTrigger = {
+  state: 'pending' | 'triggered' | 'cancelled'
+  triggeredAt: number | null
+  promise: Promise<void>
+  _listeners: Array<() => void>
+  _resolvePromise: () => void
+  _rejectPromise: (reason: unknown) => void
+}
+
+/**
+ * @returns Whether or not the listener was added (if the trigger is cancelled, we skip adding it)
+ * */
+function addSyncTriggerListener(
+  trigger: StageTrigger,
+  listener: () => void
+): boolean {
+  switch (trigger.state) {
+    case 'pending': {
+      // Queue the listener until the trigger fires.
+      trigger._listeners.push(listener)
+      return true
+    }
+    case 'triggered': {
+      // Trigger already fired, run listener immediately.
+      listener()
+      return true
+    }
+    case 'cancelled': {
+      // The trigger was cancelled and will never fire, so we ignore the listener.
+      return false
+    }
+  }
+}
+
+function createStageTrigger(): StageTrigger {
+  const { promise, resolve, reject } = createPromiseWithResolvers<void>()
+  return {
+    state: 'pending',
+    triggeredAt: null,
+    promise,
+    _listeners: [],
+    _resolvePromise: resolve,
+    _rejectPromise: reject,
+  }
+}
+
+function fireStageTrigger(trigger: StageTrigger) {
+  if (trigger.state !== 'pending') {
+    return
+  }
+  trigger.state = 'triggered'
+  trigger.triggeredAt = performance.now() + performance.timeOrigin
+  try {
+    const { _listeners: listeners } = trigger
+    for (let i = 0; i < listeners.length; i++) {
+      listeners[i]()
+    }
+    listeners.length = 0
+  } finally {
+    trigger._resolvePromise()
+  }
+}
+
+function cancelStageTrigger(trigger: StageTrigger, reason: unknown) {
+  if (trigger.state !== 'pending') {
+    return
+  }
+  trigger.state = 'cancelled'
+  // we didn't trigger, so don't save `triggeredAt`.
+
+  // We're not gonna fire the listeners, we may as well free them.
+  trigger._listeners.length = 0
+
+  // Suppress unhandled rejection warnings for promises that no one is awaiting.
+  trigger.promise.catch(ignoreReject)
+  trigger._rejectPromise(reason)
+}

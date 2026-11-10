@@ -1,13 +1,9 @@
-import {
-  workUnitAsyncStorage,
-  type RequestStore,
-} from '../../../app-render/work-unit-async-storage.external'
+import type { RequestStore } from '../../../app-render/work-unit-async-storage.external'
 import { RequestCookies, ResponseCookies } from '../cookies'
 import {
   ReadonlyRequestCookiesError,
   RequestCookiesAdapter,
   MutableRequestCookiesAdapter,
-  createCookiesWithMutableAccessCheck,
 } from './request-cookies'
 
 describe('RequestCookiesAdapter', () => {
@@ -22,12 +18,8 @@ describe('RequestCookiesAdapter', () => {
     expect(sealed.get('bar')).toEqual({ name: 'bar', value: 'foo' })
 
     // These methods are not available on the sealed instance
-    expect(() => (sealed as any).set('foo', 'bar2')).toThrow(
-      ReadonlyRequestCookiesError
-    )
-    expect(() => (sealed as any).delete('foo')).toThrow(
-      ReadonlyRequestCookiesError
-    )
+    expect(() => sealed.set('foo', 'bar2')).toThrow(ReadonlyRequestCookiesError)
+    expect(() => sealed.delete('foo')).toThrow(ReadonlyRequestCookiesError)
     expect(() => (sealed as any).clear()).toThrow(ReadonlyRequestCookiesError)
 
     // Ensure nothing was actually changed.
@@ -45,12 +37,8 @@ describe('RequestCookiesAdapter', () => {
     expect(sealed.get('bar')).toEqual(undefined)
 
     // These methods are not available on the sealed instance
-    expect(() => (sealed as any).set('foo', 'bar2')).toThrow(
-      ReadonlyRequestCookiesError
-    )
-    expect(() => (sealed as any).delete('foo')).toThrow(
-      ReadonlyRequestCookiesError
-    )
+    expect(() => sealed.set('foo', 'bar2')).toThrow(ReadonlyRequestCookiesError)
+    expect(() => sealed.delete('foo')).toThrow(ReadonlyRequestCookiesError)
     expect(() => (sealed as any).clear()).toThrow(ReadonlyRequestCookiesError)
 
     // Ensure nothing was actually changed.
@@ -107,6 +95,22 @@ describe('MutableRequestCookiesAdapter', () => {
 })
 
 describe('wrapWithMutableAccessCheck', () => {
+  let workUnitAsyncStorage: typeof import('../../../app-render/work-unit-async-storage.external').workUnitAsyncStorage
+  let createCookiesWithMutableAccessCheck: typeof import('./request-cookies').createCookiesWithMutableAccessCheck
+
+  beforeAll(() => {
+    ;(globalThis as any).AsyncLocalStorage ??= (
+      require('node:async_hooks') as typeof import('node:async_hooks')
+    ).AsyncLocalStorage
+    jest.resetModules()
+    workUnitAsyncStorage = (
+      require('../../../app-render/work-unit-async-storage.external') as typeof import('../../../app-render/work-unit-async-storage.external')
+    ).workUnitAsyncStorage
+    createCookiesWithMutableAccessCheck = (
+      require('./request-cookies') as typeof import('./request-cookies')
+    ).createCookiesWithMutableAccessCheck
+  })
+
   const createMockRequestStore = (phase: RequestStore['phase']) => {
     const headers = new Headers({})
     const underlyingCookies = new ResponseCookies(headers)

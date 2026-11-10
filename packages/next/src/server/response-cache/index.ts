@@ -1,12 +1,19 @@
+import type { ResponseCacheOwner } from '../lib/route-cache-key'
 import type {
-  ResponseCacheEntry,
+  ResponseCacheResult,
   ResponseGenerator,
   ResponseCacheBase,
   IncrementalResponseCacheEntry,
   IncrementalResponseCache,
+  GetIncrementalResponseCacheContext,
+  GetIncrementalImageCacheContext,
 } from './types'
+import { IncrementalCacheKind } from './types'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 import { Batcher } from '../../lib/batcher'
+import { LRUCache } from '../lib/lru-cache'
+import { warnOnce } from '../../build/output/log'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import {
   fromResponseCacheEntry,
@@ -14,13 +21,107 @@ import {
   toResponseCacheEntry,
 } from './utils'
 import type { RouteKind } from '../route-kind'
+import type { PrerenderFailure } from '../render-result'
+
+type IncrementalResponseCacheResult =
+  | IncrementalResponseCacheEntry
+  | PrerenderFailure
+  | null
+
+/**
+ * Parses an environment variable as a positive integer, returning the fallback
+ * if the value is missing, not a number, or not positive.
+ */
+function parsePositiveInt(
+  envValue: string | undefined,
+  fallback: number
+): number {
+  if (!envValue) return fallback
+  const parsed = parseInt(envValue, 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
+/**
+ * Default TTL (in milliseconds) for minimal mode response cache entries.
+ * Used for cache hit validation as a fallback for providers that don't
+ * send the x-invocation-id header yet.
+ *
+ * 10 seconds chosen because:
+ * - Long enough to dedupe rapid successive requests (e.g., page + data)
+ * - Short enough to not serve stale data across unrelated requests
+ *
+ * Can be configured via `NEXT_PRIVATE_RESPONSE_CACHE_TTL` environment variable.
+ */
+const DEFAULT_TTL_MS = parsePositiveInt(
+  process.env.NEXT_PRIVATE_RESPONSE_CACHE_TTL,
+  10_000
+)
+
+/**
+ * Default maximum number of entries in the response cache.
+ * Can be configured via `NEXT_PRIVATE_RESPONSE_CACHE_MAX_SIZE` environment variable.
+ */
+const DEFAULT_MAX_SIZE = parsePositiveInt(
+  process.env.NEXT_PRIVATE_RESPONSE_CACHE_MAX_SIZE,
+  150
+)
+
+/**
+ * Separator used in compound cache keys to join pathname and invocationID.
+ * Using null byte (\0) since it cannot appear in valid URL paths or UUIDs.
+ */
+const KEY_SEPARATOR = '\0'
+
+/**
+ * Sentinel value used for TTL-based cache entries (when invocationID is undefined).
+ * Chosen to be a clearly reserved marker for internal cache keys.
+ */
+const TTL_SENTINEL = '__ttl_sentinel__'
+
+/**
+ * Entry stored in the LRU cache.
+ */
+type CacheEntry = {
+  entry: IncrementalResponseCacheResult
+  /**
+   * TTL expiration timestamp in milliseconds. Used as a fallback for
+   * cache hit validation when providers don't send x-invocation-id.
+   * Memory pressure is managed by LRU eviction rather than timers.
+   */
+  expiresAt: number
+}
+
+/**
+ * Creates a compound cache key from pathname and invocationID.
+ */
+function createCacheKey(
+  pathname: string,
+  invocationID: string | undefined
+): string {
+  return `${pathname}${KEY_SEPARATOR}${invocationID ?? TTL_SENTINEL}`
+}
+
+/**
+ * Extracts the invocationID from a compound cache key.
+ * Returns undefined if the key used TTL_SENTINEL.
+ */
+function extractInvocationID(compoundKey: string): string | undefined {
+  const separatorIndex = compoundKey.lastIndexOf(KEY_SEPARATOR)
+  if (separatorIndex === -1) return undefined
+
+  const invocationID = compoundKey.slice(separatorIndex + 1)
+  return invocationID === TTL_SENTINEL ? undefined : invocationID
+}
 
 export * from './types'
 
 export default class ResponseCache implements ResponseCacheBase {
+  // The get and revalidate batchers share pending renders across invocation
+  // IDs, including failures. Invocation IDs scope reuse of completed results in
+  // the LRU below.
   private readonly getBatcher = Batcher.create<
     { key: string; isOnDemandRevalidate: boolean },
-    IncrementalResponseCacheEntry | null,
+    IncrementalResponseCacheResult,
     string
   >({
     // Ensure on-demand revalidate doesn't block normal requests, it should be
@@ -35,7 +136,7 @@ export default class ResponseCache implements ResponseCacheBase {
 
   private readonly revalidateBatcher = Batcher.create<
     string,
-    IncrementalResponseCacheEntry | null
+    IncrementalResponseCacheResult
   >({
     // We wait to do any async work until after we've added our promise to
     // `pendingResponses` to ensure that any any other calls will reuse the
@@ -43,19 +144,75 @@ export default class ResponseCache implements ResponseCacheBase {
     schedulerFn: scheduleOnNextTick,
   })
 
-  private previousCacheItem?: {
-    key: string
-    entry: IncrementalResponseCacheEntry | null
-    expiresAt: number
-  }
+  /**
+   * LRU cache for minimal mode using compound keys (pathname + invocationID).
+   * This allows multiple invocations to cache the same pathname without
+   * overwriting each other's entries.
+   */
+  private readonly cache: LRUCache<CacheEntry>
+
+  /**
+   * Set of invocation IDs that have had cache entries evicted.
+   * Used to detect when the cache size may be too small.
+   * Bounded to prevent memory growth.
+   */
+  private readonly evictedInvocationIDs: Set<string> = new Set()
+
+  /**
+   * The configured max size, stored for logging.
+   */
+  private readonly maxSize: number
+
+  /**
+   * The configured TTL for cache entries in milliseconds.
+   */
+  private readonly ttl: number
 
   // we don't use minimal_mode name here as this.minimal_mode is
   // statically replace for server runtimes but we need it to
   // be dynamic here
   private minimal_mode?: boolean
 
-  constructor(minimal_mode: boolean) {
-    this.minimal_mode = minimal_mode
+  private readonly route: ResponseCacheOwner | 'image'
+
+  constructor({
+    minimalMode,
+    route,
+    maxSize = DEFAULT_MAX_SIZE,
+    ttl = DEFAULT_TTL_MS,
+  }: {
+    minimalMode: boolean
+    route: ResponseCacheOwner | 'image'
+    maxSize?: number
+    ttl?: number
+  }) {
+    if (!route) {
+      throw new InvariantError('Response cache requires a source route')
+    }
+    this.route = route
+    this.minimal_mode = minimalMode
+    this.maxSize = maxSize
+    this.ttl = ttl
+
+    // Create the LRU cache with eviction tracking
+    this.cache = new LRUCache(maxSize, undefined, (compoundKey) => {
+      const invocationID = extractInvocationID(compoundKey)
+      if (invocationID) {
+        // Bound to 100 entries to prevent unbounded memory growth.
+        // FIFO eviction is acceptable here because:
+        // 1. Invocations are short-lived (single request lifecycle), so older
+        //    invocations are unlikely to still be active after 100 newer ones
+        // 2. This warning mechanism is best-effort for developer guidance—
+        //    missing occasional eviction warnings doesn't affect correctness
+        // 3. If a long-running invocation is somehow evicted and then has
+        //    another cache entry evicted, it will simply be re-added
+        if (this.evictedInvocationIDs.size >= 100) {
+          const first = this.evictedInvocationIDs.values().next().value
+          if (first) this.evictedInvocationIDs.delete(first)
+        }
+        this.evictedInvocationIDs.add(invocationID)
+      }
+    })
   }
 
   /**
@@ -77,8 +234,15 @@ export default class ResponseCache implements ResponseCacheBase {
       isRoutePPREnabled?: boolean
       isFallback?: boolean
       waitUntil?: (prom: Promise<any>) => void
+
+      /**
+       * The invocation ID from the infrastructure. Used to scope the in-memory
+       * cache to a single revalidation request in minimal mode. Concurrent
+       * invocations can still share a pending render through the batchers.
+       */
+      invocationID?: string
     }
-  ): Promise<ResponseCacheEntry | null> {
+  ): Promise<ResponseCacheResult> {
     // If there is no key for the cache, we can't possibly look this up in the
     // cache so just return the result of the response generator.
     if (!key) {
@@ -88,13 +252,44 @@ export default class ResponseCache implements ResponseCacheBase {
       })
     }
 
-    // Check minimal mode cache before doing any other work
-    if (
-      this.minimal_mode &&
-      this.previousCacheItem?.key === key &&
-      this.previousCacheItem.expiresAt > Date.now()
-    ) {
-      return toResponseCacheEntry(this.previousCacheItem.entry)
+    // Check minimal mode cache before doing any other work.
+    if (this.minimal_mode) {
+      const cacheKey = createCacheKey(key, context.invocationID)
+      const cachedItem = this.cache.get(cacheKey)
+
+      if (cachedItem) {
+        // With invocationID: exact match found - always a hit
+        // With TTL mode: must check expiration
+        if (context.invocationID !== undefined) {
+          return cachedItem.entry !== null && 'error' in cachedItem.entry
+            ? cachedItem.entry
+            : toResponseCacheEntry(cachedItem.entry)
+        }
+
+        // TTL entries can be reused by unrelated requests. Exclude failures so
+        // those requests can retry instead of receiving a cached error.
+        const now = Date.now()
+        if (
+          (cachedItem.entry === null || !('error' in cachedItem.entry)) &&
+          cachedItem.expiresAt > now
+        ) {
+          return toResponseCacheEntry(cachedItem.entry)
+        }
+
+        // TTL expired - clean up
+        this.cache.remove(cacheKey)
+      }
+
+      // Warn if this invocation had entries evicted - indicates cache may be too small.
+      if (
+        context.invocationID &&
+        this.evictedInvocationIDs.has(context.invocationID)
+      ) {
+        warnOnce(
+          `Response cache entry was evicted for invocation ${context.invocationID}. ` +
+            `Consider increasing NEXT_PRIVATE_RESPONSE_CACHE_MAX_SIZE (current: ${this.maxSize}).`
+        )
+      }
     }
 
     const {
@@ -104,7 +299,7 @@ export default class ResponseCache implements ResponseCacheBase {
       isRoutePPREnabled = false,
       isPrefetch = false,
       waitUntil,
-      routeKind,
+      invocationID,
     } = context
 
     const response = await this.getBatcher.batch(
@@ -119,7 +314,7 @@ export default class ResponseCache implements ResponseCacheBase {
             isFallback,
             isRoutePPREnabled,
             isPrefetch,
-            routeKind,
+            invocationID,
           },
           resolve
         )
@@ -131,7 +326,24 @@ export default class ResponseCache implements ResponseCacheBase {
       }
     )
 
-    return toResponseCacheEntry(response)
+    // In minimal mode, each caller with an invocation ID stores the shared
+    // failure under its own ID for reuse by related requests. Callers without
+    // an invocation ID receive the failure but do not store it in the LRU.
+    if (
+      this.minimal_mode &&
+      response &&
+      ('error' in response ? invocationID !== undefined : response.cacheControl)
+    ) {
+      const cacheKey = createCacheKey(key, invocationID)
+      this.cache.set(cacheKey, {
+        entry: response,
+        expiresAt: Date.now() + this.ttl,
+      })
+    }
+
+    return response !== null && 'error' in response
+      ? response
+      : toResponseCacheEntry(response)
   }
 
   /**
@@ -152,10 +364,10 @@ export default class ResponseCache implements ResponseCacheBase {
       isFallback: boolean
       isRoutePPREnabled: boolean
       isPrefetch: boolean
-      routeKind: RouteKind
+      invocationID: string | undefined
     },
-    resolve: (value: IncrementalResponseCacheEntry | null) => void
-  ): Promise<IncrementalResponseCacheEntry | null> {
+    resolve: (value: IncrementalResponseCacheResult) => void
+  ): Promise<IncrementalResponseCacheResult> {
     let previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null =
       null
     let resolved = false
@@ -163,14 +375,22 @@ export default class ResponseCache implements ResponseCacheBase {
     try {
       // Get the previous cache entry if not in minimal mode
       previousIncrementalCacheEntry = !this.minimal_mode
-        ? await context.incrementalCache.get(key, {
-            kind: routeKindToIncrementalCacheKind(context.routeKind),
-            isRoutePPREnabled: context.isRoutePPREnabled,
-            isFallback: context.isFallback,
-          })
+        ? await context.incrementalCache.get(
+            key,
+            this.getCacheContext(context.isRoutePPREnabled, context.isFallback)
+          )
         : null
 
-      if (previousIncrementalCacheEntry && !context.isOnDemandRevalidate) {
+      // `isStale === -1` signals that the entry is past its `expire` (either
+      // via an expired tag or, with `cacheLife({ expire })`, past the route's
+      // expire time in the prerender manifest). In that case we must NOT
+      // early-resolve with the stale value — instead we fall through to a
+      // blocking revalidation so the response returned to the user is fresh.
+      if (
+        previousIncrementalCacheEntry &&
+        !context.isOnDemandRevalidate &&
+        previousIncrementalCacheEntry.isStale !== -1
+      ) {
         resolve(previousIncrementalCacheEntry)
         resolved = true
 
@@ -180,21 +400,56 @@ export default class ResponseCache implements ResponseCacheBase {
         }
       }
 
-      // Revalidate the cache entry
-      const incrementalResponseCacheEntry = await this.revalidate(
-        key,
-        context.incrementalCache,
-        context.isRoutePPREnabled,
-        context.isFallback,
-        responseGenerator,
-        previousIncrementalCacheEntry,
-        previousIncrementalCacheEntry !== null && !context.isOnDemandRevalidate
-      )
+      // Revalidate the cache entry.
+      //
+      // A prefetch request that missed must run its own response generator
+      // rather than joining an in-flight revalidation through the batcher. A
+      // background revalidation may be regenerating the concrete (non-fallback)
+      // entry for this route — e.g. an ISR fallback-shell upgrade scheduled by
+      // an earlier prefetch sub-request. Joining it would serve that concrete
+      // result to the prefetch instead of the fallback shell, and which segment
+      // wins would depend purely on request timing. Running the generator
+      // directly lets every prefetch segment take the same fallback-shell path,
+      // independent of any concurrent background upgrade.
+      const incrementalResponseCacheEntry =
+        context.isPrefetch && previousIncrementalCacheEntry === null
+          ? await this.handleRevalidate(
+              key,
+              context.incrementalCache,
+              context.isRoutePPREnabled,
+              context.isFallback,
+              responseGenerator,
+              previousIncrementalCacheEntry,
+              resolved
+            )
+          : await this.revalidate(
+              key,
+              context.incrementalCache,
+              context.isRoutePPREnabled,
+              context.isFallback,
+              responseGenerator,
+              previousIncrementalCacheEntry,
+              resolved
+            )
+
+      if (
+        incrementalResponseCacheEntry !== null &&
+        'error' in incrementalResponseCacheEntry &&
+        resolved
+      ) {
+        // The caller already received the stale entry. Report the background
+        // failure here, as the catch below does for a thrown error.
+        console.error(incrementalResponseCacheEntry.error)
+        return null
+      }
 
       // Handle null response
       if (!incrementalResponseCacheEntry) {
-        // Unset the previous cache item if it was set so we don't use it again.
-        if (this.minimal_mode) this.previousCacheItem = undefined
+        // Remove the cache item if it was set so we don't use it again.
+        if (this.minimal_mode) {
+          const cacheKey = createCacheKey(key, context.invocationID)
+          this.cache.remove(cacheKey)
+        }
         return null
       }
 
@@ -226,6 +481,8 @@ export default class ResponseCache implements ResponseCacheBase {
    * @param responseGenerator - The response generator to use to generate the response cache entry.
    * @param previousIncrementalCacheEntry - The previous cache entry to use to revalidate the cache entry.
    * @param hasResolved - Whether the response has been resolved.
+   * @param waitUntil - Optional function to register background work.
+   * @param invocationID - The invocation ID for cache key scoping.
    * @returns The revalidated cache entry.
    */
   public async revalidate(
@@ -264,7 +521,8 @@ export default class ResponseCache implements ResponseCacheBase {
     responseGenerator: ResponseGenerator,
     previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null,
     hasResolved: boolean
-  ) {
+  ): Promise<IncrementalResponseCacheResult> {
+    let failure: PrerenderFailure
     try {
       // Generate the response cache entry using the response generator.
       const responseCacheEntry = await responseGenerator({
@@ -276,59 +534,88 @@ export default class ResponseCache implements ResponseCacheBase {
         return null
       }
 
-      // Convert the response cache entry to an incremental response cache entry.
-      const incrementalResponseCacheEntry = await fromResponseCacheEntry({
-        ...responseCacheEntry,
-        isMiss: !previousIncrementalCacheEntry,
-      })
+      if ('error' in responseCacheEntry) {
+        failure = responseCacheEntry
+      } else {
+        // Convert the response cache entry to an incremental response cache entry.
+        const incrementalResponseCacheEntry = await fromResponseCacheEntry({
+          ...responseCacheEntry,
+          isMiss: !previousIncrementalCacheEntry,
+        })
 
-      // We want to persist the result only if it has a cache control value
-      // defined.
-      if (incrementalResponseCacheEntry.cacheControl) {
-        if (this.minimal_mode) {
-          this.previousCacheItem = {
-            key,
-            entry: incrementalResponseCacheEntry,
-            expiresAt: Date.now() + 1000,
-          }
-        } else {
+        // We want to persist the result only if it has a cache control value
+        // defined. The minimal mode LRU write is handled in get() so that every
+        // caller, including batched invocations, populates the cache.
+        if (incrementalResponseCacheEntry.cacheControl && !this.minimal_mode) {
           await incrementalCache.set(key, incrementalResponseCacheEntry.value, {
+            ...this.getCacheContext(isRoutePPREnabled, isFallback),
             cacheControl: incrementalResponseCacheEntry.cacheControl,
-            isRoutePPREnabled,
-            isFallback,
           })
         }
-      }
 
-      return incrementalResponseCacheEntry
+        return incrementalResponseCacheEntry
+      }
     } catch (err) {
-      // When a path is erroring we automatically re-set the existing cache
-      // with new revalidate and expire times to prevent non-stop retrying.
-      if (previousIncrementalCacheEntry?.cacheControl) {
-        const revalidate = Math.min(
-          Math.max(
-            previousIncrementalCacheEntry.cacheControl.revalidate || 3,
-            3
-          ),
-          30
-        )
-        const expire =
-          previousIncrementalCacheEntry.cacheControl.expire === undefined
-            ? undefined
-            : Math.max(
-                revalidate + 3,
-                previousIncrementalCacheEntry.cacheControl.expire
-              )
-
-        await incrementalCache.set(key, previousIncrementalCacheEntry.value, {
-          cacheControl: { revalidate: revalidate, expire: expire },
-          isRoutePPREnabled,
-          isFallback,
-        })
-      }
-
-      // We haven't resolved yet, so let's throw to indicate an error.
+      await this.retainPreviousCacheEntry(
+        key,
+        incrementalCache,
+        isRoutePPREnabled,
+        isFallback,
+        previousIncrementalCacheEntry
+      )
       throw err
     }
+
+    await this.retainPreviousCacheEntry(
+      key,
+      incrementalCache,
+      isRoutePPREnabled,
+      isFallback,
+      previousIncrementalCacheEntry
+    )
+    return failure
+  }
+
+  // Retain the previous successful value and delay retries after revalidation
+  // fails.
+  private async retainPreviousCacheEntry(
+    key: string,
+    incrementalCache: IncrementalResponseCache,
+    isRoutePPREnabled: boolean,
+    isFallback: boolean,
+    previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null
+  ): Promise<void> {
+    if (previousIncrementalCacheEntry?.cacheControl) {
+      const revalidate = Math.min(
+        Math.max(previousIncrementalCacheEntry.cacheControl.revalidate || 3, 3),
+        30
+      )
+      const expire =
+        previousIncrementalCacheEntry.cacheControl.expire === undefined
+          ? undefined
+          : Math.max(
+              revalidate + 3,
+              previousIncrementalCacheEntry.cacheControl.expire
+            )
+
+      await incrementalCache.set(key, previousIncrementalCacheEntry.value, {
+        ...this.getCacheContext(isRoutePPREnabled, isFallback),
+        cacheControl: { revalidate: revalidate, expire: expire },
+      })
+    }
+  }
+
+  private getCacheContext(
+    isRoutePPREnabled: boolean,
+    isFallback: boolean
+  ): GetIncrementalResponseCacheContext | GetIncrementalImageCacheContext {
+    if (this.route === 'image') {
+      return { kind: IncrementalCacheKind.IMAGE, isFallback: false }
+    }
+    const kind = routeKindToIncrementalCacheKind(this.route.kind)
+    if (kind === IncrementalCacheKind.IMAGE) {
+      throw new InvariantError('Images must use the image response cache')
+    }
+    return { route: this.route, kind, isRoutePPREnabled, isFallback }
   }
 }

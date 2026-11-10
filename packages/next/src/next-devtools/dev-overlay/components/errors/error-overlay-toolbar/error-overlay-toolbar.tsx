@@ -6,24 +6,21 @@ import { DocsLinkButton } from './docs-link-button'
 type ErrorOverlayToolbarProps = {
   error: Error
   debugInfo: DebugInfo | undefined
-  feedbackButton?: React.ReactNode
-  generateErrorInfo: () => string
+  generateErrorInfo: () => Promise<string>
 }
 
 export function ErrorOverlayToolbar({
   error,
   debugInfo,
-  feedbackButton,
   generateErrorInfo,
 }: ErrorOverlayToolbarProps) {
   return (
     <span className="error-overlay-toolbar">
-      {/* TODO: Move the button inside and remove the feedback on the footer of the error overlay.  */}
-      {feedbackButton}
       <CopyErrorButton error={error} generateErrorInfo={generateErrorInfo} />
       <DocsLinkButton errorMessage={error.message} />
       <NodejsInspectorButton
-        devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
+        key={debugInfo?.devtoolsFrontendUrl}
+        defaultDevtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
       />
     </span>
   )
@@ -35,6 +32,12 @@ export const styles = `
     gap: 6px;
   }
 
+  @media (max-width: 575px) {
+    .error-overlay-toolbar {
+      gap: 4px;
+    }
+  }
+
   .nodejs-inspector-button,
   .copy-error-button,
   .docs-link-button {
@@ -42,12 +45,10 @@ export const styles = `
     justify-content: center;
     align-items: center;
 
-    width: var(--size-28);
-    height: var(--size-28);
-    background: var(--color-background-100);
-    background-clip: padding-box;
-    border: 1px solid var(--color-gray-alpha-400);
-    box-shadow: var(--shadow-small);
+    width: var(--size-24);
+    height: var(--size-24);
+    background: none;
+    border: none;
     border-radius: var(--rounded-full);
 
     svg {
@@ -68,9 +69,13 @@ export const styles = `
     }
 
     &:disabled {
-      background-color: var(--color-gray-100);
+      opacity: 0.5;
       cursor: not-allowed;
     }
+  }
+
+  .nodejs-inspector-button[data-pending='true'] {
+    cursor: wait;
   }
 
   .error-overlay-toolbar-button-icon {

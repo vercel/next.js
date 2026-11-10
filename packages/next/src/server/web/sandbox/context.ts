@@ -118,12 +118,11 @@ async function loadWasm(
 function buildEnvironmentVariablesFrom(
   injectedEnvironments: Record<string, string>
 ): Record<string, string | undefined> {
-  const pairs = Object.keys(process.env).map((key) => [key, process.env[key]])
-  const env = Object.fromEntries(pairs)
-  for (const key of Object.keys(injectedEnvironments)) {
-    env[key] = injectedEnvironments[key]
-  }
-  env.NEXT_RUNTIME = 'edge'
+  let env = Object.fromEntries([
+    ...Object.entries(process.env),
+    ...Object.entries(injectedEnvironments),
+    ['NEXT_RUNTIME', 'edge'],
+  ])
   return env
 }
 
@@ -437,7 +436,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
       // @ts-ignore the timeouts have weird types in the edge runtime
       context.setInterval = (...args: Parameters<typeof setInterval>) =>
-        intervalsManager.add(args)
+        intervalsManager.add([context, ...args])
 
       // @ts-ignore the timeouts have weird types in the edge runtime
       context.clearInterval = (interval: number) =>
@@ -445,7 +444,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
       // @ts-ignore the timeouts have weird types in the edge runtime
       context.setTimeout = (...args: Parameters<typeof setTimeout>) =>
-        timeoutsManager.add(args)
+        timeoutsManager.add([context, ...args])
 
       // @ts-ignore the timeouts have weird types in the edge runtime
       context.clearTimeout = (timeout: number) =>

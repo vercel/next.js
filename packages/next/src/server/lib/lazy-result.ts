@@ -2,19 +2,19 @@ export type LazyResult<TValue> = PromiseLike<TValue> & { value?: TValue }
 export type ResolvedLazyResult<TValue> = PromiseLike<TValue> & { value: TValue }
 
 /**
- * Calls the given async function only when the returned promise-like object is
+ * Calls the given function only when the returned promise-like object is
  * awaited. Afterwards, it provides the resolved value synchronously as `value`
  * property.
  */
 export function createLazyResult<TValue>(
-  fn: () => Promise<TValue>
+  fn: () => Promise<TValue> | TValue
 ): LazyResult<TValue> {
   let pendingResult: Promise<TValue> | undefined
 
   const result: LazyResult<TValue> = {
     then(onfulfilled, onrejected) {
       if (!pendingResult) {
-        pendingResult = fn()
+        pendingResult = Promise.resolve(fn())
       }
 
       pendingResult

@@ -4,18 +4,31 @@ nav_title: Backend for Frontend
 description: Learn how to use Next.js as a backend framework
 related:
   title: API Reference
-  description: Learn more about Route Handlers and Proxy
+  description: Learn more about Route Handlers, Proxy, and Rewrites
   links:
     - app/api-reference/file-conventions/route
     - app/api-reference/file-conventions/proxy
+    - app/api-reference/config/next-config-js/rewrites
 ---
 
 Next.js supports the "Backend for Frontend" pattern. This lets you create public endpoints to handle HTTP requests and return any content type—not just HTML. You can also access data sources and perform side effects like updating remote data.
 
-If you are starting a new project, using `create-next-app` with the `--api` flag automatically includes an example `route.ts` in your new project’s `app/` folder, demonstrating how to create an API endpoint.
+If you are starting a new project, using `create-next-app` with the `--api` flag automatically includes an example `route.ts` in your new project's `app/` folder, demonstrating how to create an API endpoint.
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm create next-app --api
+```
+
+```bash package="npm"
 npx create-next-app@latest --api
+```
+
+```bash package="yarn"
+yarn create next-app --api
+```
+
+```bash package="bun"
+bun create next-app --api
 ```
 
 > **Good to know**: Next.js backend capabilities are not a full backend replacement. They serve as an API layer that:
@@ -166,6 +179,105 @@ export async function GET(request) {
 
 Sanitize any input used to generate markup.
 
+### Content negotiation
+
+You can use [rewrites](/docs/app/api-reference/config/next-config-js/rewrites) with header matching to serve different content types from the same URL based on the request's `Accept` header. This is known as [content negotiation](https://developer.mozilla.org/en-US/docs/Web/HTTP/Content_negotiation).
+
+For example, a documentation site might serve HTML pages to browsers and raw Markdown to AI agents from the same `/docs/…` URLs.
+
+**1. Configure a rewrite that matches the `Accept` header:**
+
+```js filename="next.config.js"
+module.exports = {
+  async rewrites() {
+    return [
+      {
+        source: '/docs/:slug*',
+        destination: '/docs/md/:slug*',
+        has: [
+          {
+            type: 'header',
+            key: 'accept',
+            value: '(.*)text/markdown(.*)',
+          },
+        ],
+      },
+    ]
+  },
+}
+```
+
+When a request to `/docs/getting-started` includes `Accept: text/markdown`, the rewrite routes it to `/docs/md/getting-started`. A Route Handler at that path returns the Markdown response. Clients that do not send `text/markdown` in their `Accept` header continue to receive the normal HTML page.
+
+**2. Create a Route Handler for the Markdown response:**
+
+```ts filename="app/docs/md/[...slug]/route.ts" switcher
+import { getDocsMd, generateDocsStaticParams } from '@/lib/docs'
+
+export async function generateStaticParams() {
+  return generateDocsStaticParams()
+}
+
+export async function GET(_: Request, ctx: RouteContext<'/docs/md/[...slug]'>) {
+  const { slug } = await ctx.params
+  const mdDoc = await getDocsMd({ slug })
+
+  if (mdDoc == null) {
+    return new Response(null, { status: 404 })
+  }
+
+  return new Response(mdDoc, {
+    headers: {
+      'Content-Type': 'text/markdown; charset=utf-8',
+      Vary: 'Accept',
+    },
+  })
+}
+```
+
+```js filename="app/docs/md/[...slug]/route.js" switcher
+import { getDocsMd, generateDocsStaticParams } from '@/lib/docs'
+
+export async function generateStaticParams() {
+  return generateDocsStaticParams()
+}
+
+export async function GET(_, { params }) {
+  const { slug } = await params
+  const mdDoc = await getDocsMd({ slug })
+
+  if (mdDoc == null) {
+    return new Response(null, { status: 404 })
+  }
+
+  return new Response(mdDoc, {
+    headers: {
+      'Content-Type': 'text/markdown; charset=utf-8',
+      Vary: 'Accept',
+    },
+  })
+}
+```
+
+The [`Vary: Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Vary) response header tells caches that the response body depends on the `Accept` request header. Without it, a shared cache could serve a cached Markdown response to a browser (or vice versa). Most hosting providers already include the `Accept` header in their cache key, but setting `Vary` explicitly ensures correct behavior across all CDNs and proxy caches.
+
+`generateStaticParams` lets you pre-render the Markdown variants at build time so they can be served from the edge without hitting the origin server on every request.
+
+**3. Test it with `curl`:**
+
+```bash
+# Returns Markdown
+curl -H "Accept: text/markdown" https://example.com/docs/getting-started
+
+# Returns the normal HTML page
+curl https://example.com/docs/getting-started
+```
+
+> **Good to know:**
+>
+> - The `/docs/md/...` route is still directly accessible without the rewrite. If you want to restrict it to only serve via the rewrite, use [`proxy`](/docs/app/api-reference/file-conventions/proxy) to block direct requests that don't include the expected `Accept` header.
+> - For more advanced negotiation logic, you can use [`proxy`](/docs/app/api-reference/file-conventions/proxy) instead of rewrites for more flexibility.
+
 ### Consuming request payloads
 
 Use Request [instance methods](https://developer.mozilla.org/en-US/docs/Web/API/Request#instance_methods) like `.json()`, `.formData()`, or `.text()` to access the request body.
@@ -239,9 +351,9 @@ export async function POST(request: Request) {
   try {
     const clonedRequest = request.clone()
 
-    await request.body()
-    await clonedRequest.body()
-    await request.body() // Throws error
+    await request.text()
+    await clonedRequest.text()
+    await request.text() // Throws error
 
     return new Response(null, { status: 204 })
   } catch {
@@ -255,9 +367,9 @@ export async function POST(request) {
   try {
     const clonedRequest = request.clone()
 
-    await request.body()
-    await clonedRequest.body()
-    await request.body() // Throws error
+    await request.text()
+    await clonedRequest.text()
+    await request.text() // Throws error
 
     return new Response(null, { status: 204 })
   } catch {
@@ -330,31 +442,59 @@ export async function POST(request) {
 
 ## Proxying to a backend
 
-You can use a Route Handler as a `proxy` to another backend. Add validation logic before forwarding the request.
+To forward requests to another backend, use [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites) in `next.config.js` or a [`proxy` rewrite](#proxy). When you need to validate requests, authenticate with the backend, or transform its response, use a Route Handler.
+
+Send the backend only the headers and credentials it needs. Copying every incoming header also forwards the user's `Cookie` and `Authorization` values. If you attach a credential, make sure the request cannot reach another server.
+
+This Route Handler exposes a fixed set of backend endpoints, validates the incoming JSON request, calls the backend with a server-side token, and transforms the response before returning it. Because the upstream path comes from the `ENDPOINTS` map rather than from the request URL, a caller cannot point the request, or its token, at another destination.
 
 ```ts filename="/app/api/[...slug]/route.ts" switcher
 import { isValidRequest } from '@/lib/utils'
 
+const BACKEND_ORIGIN = 'https://api.example.com'
+
+const ENDPOINTS = new Map([
+  ['checkout', '/v1/checkout'],
+  ['orders/preview', '/v1/orders/preview'],
+])
+
 export async function POST(request: Request, { params }) {
-  const clonedRequest = request.clone()
-  const isValid = await isValidRequest(clonedRequest)
+  const { slug } = await params
+  const path = ENDPOINTS.get(slug.join('/'))
+
+  if (!path) {
+    return new Response(null, { status: 404, statusText: 'Not Found' })
+  }
+
+  const isValid = await isValidRequest(request.clone())
 
   if (!isValid) {
     return new Response(null, { status: 400, statusText: 'Bad Request' })
   }
 
-  const { slug } = await params
-  const pathname = slug.join('/')
-  const proxyURL = new URL(pathname, 'https://nextjs.org')
-  const proxyRequest = new Request(proxyURL, request)
-
   try {
-    return fetch(proxyRequest)
-  } catch (reason) {
-    const message =
-      reason instanceof Error ? reason.message : 'Unexpected exception'
+    const upstream = await fetch(new URL(path, BACKEND_ORIGIN), {
+      method: 'POST',
+      redirect: 'error',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.API_TOKEN}`,
+      },
+      body: await request.text(),
+    })
 
-    return new Response(message, { status: 500 })
+    if (!upstream.ok) {
+      return Response.json(
+        { error: 'Upstream request failed' },
+        { status: 502 }
+      )
+    }
+
+    const data = await upstream.json()
+
+    return Response.json({ ...data, source: 'proxied-through-nextjs' })
+  } catch {
+    return Response.json({ error: 'Bad Gateway' }, { status: 502 })
   }
 }
 ```
@@ -362,34 +502,55 @@ export async function POST(request: Request, { params }) {
 ```js filename="/app/api/[...slug]/route.js" switcher
 import { isValidRequest } from '@/lib/utils'
 
+const BACKEND_ORIGIN = 'https://api.example.com'
+
+const ENDPOINTS = new Map([
+  ['checkout', '/v1/checkout'],
+  ['orders/preview', '/v1/orders/preview'],
+])
+
 export async function POST(request, { params }) {
-  const clonedRequest = request.clone()
-  const isValid = await isValidRequest(clonedRequest)
+  const { slug } = await params
+  const path = ENDPOINTS.get(slug.join('/'))
+
+  if (!path) {
+    return new Response(null, { status: 404, statusText: 'Not Found' })
+  }
+
+  const isValid = await isValidRequest(request.clone())
 
   if (!isValid) {
     return new Response(null, { status: 400, statusText: 'Bad Request' })
   }
 
-  const { slug } = await params
-  const pathname = slug.join('/')
-  const proxyURL = new URL(pathname, 'https://nextjs.org')
-  const proxyRequest = new Request(proxyURL, request)
-
   try {
-    return fetch(proxyRequest)
-  } catch (reason) {
-    const message =
-      reason instanceof Error ? reason.message : 'Unexpected exception'
+    const upstream = await fetch(new URL(path, BACKEND_ORIGIN), {
+      method: 'POST',
+      redirect: 'error',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.API_TOKEN}`,
+      },
+      body: await request.text(),
+    })
 
-    return new Response(message, { status: 500 })
+    if (!upstream.ok) {
+      return Response.json(
+        { error: 'Upstream request failed' },
+        { status: 502 }
+      )
+    }
+
+    const data = await upstream.json()
+
+    return Response.json({ ...data, source: 'proxied-through-nextjs' })
+  } catch {
+    return Response.json({ error: 'Bad Gateway' }, { status: 502 })
   }
 }
 ```
 
-Or use:
-
-- `proxy` [rewrites](#proxy)
-- [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites) in `next.config.js`.
+> **Good to know**: This example reads the entire request and upstream response into memory. For large payloads or streaming responses, use rewrites instead.
 
 ## NextRequest and NextResponse
 
@@ -463,7 +624,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false }, { status: 400 })
   }
 
-  revalidateTag(tag)
+  revalidateTag(tag, 'max')
 
   return NextResponse.json({ success: true })
 }
@@ -485,7 +646,7 @@ export async function GET(request) {
     return NextResponse.json({ success: false }, { status: 400 })
   }
 
-  revalidateTag(tag)
+  revalidateTag(tag, 'max')
 
   return NextResponse.json({ success: true })
 }
@@ -500,7 +661,13 @@ export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get('session_token')
   const redirectUrl = request.nextUrl.searchParams.get('redirect_url')
 
-  const response = NextResponse.redirect(new URL(redirectUrl, request.url))
+  const destination = new URL(redirectUrl ?? '/', request.url)
+  // Prevent open redirects: only allow same-origin destinations
+  if (destination.origin !== request.nextUrl.origin) {
+    return new Response('Invalid redirect', { status: 400 })
+  }
+
+  const response = NextResponse.redirect(destination)
 
   response.cookies.set({
     value: token,
@@ -522,7 +689,13 @@ export async function GET(request) {
   const token = request.nextUrl.searchParams.get('session_token')
   const redirectUrl = request.nextUrl.searchParams.get('redirect_url')
 
-  const response = NextResponse.redirect(new URL(redirectUrl, request.url))
+  const destination = new URL(redirectUrl ?? '/', request.url)
+  // Prevent open redirects: only allow same-origin destinations
+  if (destination.origin !== request.nextUrl.origin) {
+    return new Response('Invalid redirect', { status: 400 })
+  }
+
+  const response = NextResponse.redirect(destination)
 
   response.cookies.set({
     value: token,
@@ -597,12 +770,12 @@ export function proxy(request) {
 }
 ```
 
-You can also proxy requests using `proxy`:
+You can also proxy requests using `proxy`. This example reads `request.nextUrl`, so `request` is typed as [`NextRequest`](#nextrequest-and-nextresponse):
 
 ```ts filename="proxy.ts" switcher
-import { NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
-export function proxy(request: Request) {
+export function proxy(request: NextRequest) {
   if (request.nextUrl.pathname === '/proxy-this-path') {
     const rewriteUrl = new URL('https://nextjs.org')
     return NextResponse.rewrite(rewriteUrl)
@@ -624,9 +797,9 @@ export function proxy(request) {
 Another type of response `proxy` can produce are redirects:
 
 ```ts filename="proxy.ts" switcher
-import { NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
-export function proxy(request: Request) {
+export function proxy(request: NextRequest) {
   if (request.nextUrl.pathname === '/v1/docs') {
     request.nextUrl.pathname = '/v2/docs'
     return NextResponse.redirect(request.nextUrl)
@@ -690,6 +863,8 @@ export async function POST(request) {
 }
 ```
 
+A rate limiter that keeps its counts in memory tracks each server instance separately, and the counts reset when an instance restarts. When your app runs on more than one instance, keep the counts in a shared data store or use your host's rate limiting.
+
 ### Verify payloads
 
 Never trust incoming request data. Validate content type and size, and sanitize against XSS before use.
@@ -701,6 +876,8 @@ Store user-generated static assets in dedicated services. When possible, upload 
 ### Access to protected resources
 
 Always verify credentials before granting access. Do not rely on proxy alone for authentication and authorization.
+
+Checks in a Route Handler run only when the handler runs. When a response sets `Cache-Control: public` with a `max-age` or `s-maxage`, a CDN can store it and serve later requests for the same URL without calling the handler. Which headers a CDN reads, and what it includes in the cache key, depends on your host. Credential checks and rate limits do not apply to requests served from the cache, so cache only responses that are safe to serve to anyone with the URL.
 
 Remove sensitive or unnecessary data from responses and backend logs.
 
@@ -754,7 +931,7 @@ These examples include, working with [Cookies](/docs/app/api-reference/file-conv
 
 Fetch data in Server Components directly from its source, not via Route Handlers.
 
-For Server Components pre-rendered at build time, using Route Handlers will fail the build step. This is because, while building there is no server listening for these requests.
+For Server Components prerendered at build time, using Route Handlers will fail the build step. This is because, while building there is no server listening for these requests.
 
 For Server Components rendered on demand, fetching from Route Handlers is slower due to the extra HTTP round trip between the handler and the render process.
 
@@ -773,7 +950,7 @@ For these, use community libraries like [`swr`](https://swr.vercel.app/) or [`re
 
 ### Server Actions
 
-Server Actions let you run server-side code from the client. Their primary purpose is to mutate data from your frontend client.
+[Server Actions](/docs/app/guides/server-actions) let you run server-side code from the client. Their primary purpose is to mutate data from your frontend client.
 
 Server Actions are queued. Using them for data fetching introduces sequential execution.
 
@@ -781,7 +958,7 @@ Server Actions are queued. Using them for data fetching introduces sequential ex
 
 `export` mode outputs a static site without a runtime server. Features that require the Next.js runtime are [not supported](/docs/app/guides/static-exports#unsupported-features), because this mode produces a static site, and no runtime server.
 
-In `export mode`, only `GET` Route Handlers are supported, in combination with the [`dynamic`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) route segment config, set to `'force-static'`.
+In `export mode`, only `GET` Route Handlers are supported, in combination with the [`dynamic`](/docs/app/guides/caching-without-cache-components#dynamic) route segment config, set to `'force-static'`.
 
 This can be used to generate static HTML, JSON, TXT, or other files.
 

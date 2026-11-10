@@ -2,41 +2,49 @@ use std::{
     borrow::Cow,
     fmt::Write,
     path::{MAIN_SEPARATOR, Path},
+    sync::LazyLock,
 };
 
 use anyhow::Result;
 use const_format::concatcp;
-use once_cell::sync::Lazy;
 use regex::Regex;
-pub use trace::{StackFrame, TraceResult, trace_source_map};
-use tracing::{Level, instrument};
+use serde::Deserialize;
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::{
     FileLinesContent, FileSystemPath, source_context::get_source_context, to_sys_path,
 };
 use turbopack_cli_utils::source_context::format_source_context_lines;
 use turbopack_core::{
-    PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
-    output::OutputAsset,
+    PROJECT_FILESYSTEM_NAME_STR, SOURCE_URL_PROTOCOL_STR,
     source_map::{GenerateSourceMap, SourceMap},
 };
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
-use crate::{AssetsForSourceMapping, internal_assets_for_source_mapping, pool::FormattingMode};
+pub(crate) use crate::source_map::trace::StackFrame;
+use crate::{
+    AssetsForSourceMapping,
+    format::FormattingMode,
+    source_map::trace::{TraceResult, trace_source_map},
+};
 
-pub mod trace;
+mod trace;
 
 const MAX_CODE_FRAMES: usize = 3;
 
-pub async fn apply_source_mapping(
+// Only the child-process pool maps stack traces in process output.
+#[cfg_attr(
+    not(all(feature = "process_pool", not(target_family = "wasm"))),
+    allow(dead_code)
+)]
+pub(crate) async fn apply_source_mapping(
     text: &'_ str,
     assets_for_source_mapping: Vc<AssetsForSourceMapping>,
     root: FileSystemPath,
     project_dir: FileSystemPath,
     formatting_mode: FormattingMode,
 ) -> Result<Cow<'_, str>> {
-    static STACK_TRACE_LINE: Lazy<Regex> =
-        Lazy::new(|| Regex::new("\n    at (?:(.+) \\()?(.+):(\\d+):(\\d+)\\)?").unwrap());
+    static STACK_TRACE_LINE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new("\n    at (?:(.+) \\()?(.+):(\\d+):(\\d+)\\)?").unwrap());
 
     let mut it = STACK_TRACE_LINE.captures_iter(text).peekable();
     if it.peek().is_none() {
@@ -225,10 +233,10 @@ async fn resolve_source_mapping(
         file
     };
     let map = assets_for_source_mapping.await?;
-    let Some(generate_source_map) = map.get(file.as_ref()) else {
+    let Some((generate_source_map, ty)) = map.get(file.as_ref()) else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let sm = generate_source_map.generate_source_map();
+    let sm = generate_source_map.generate_source_map(*ty);
     let Some(sm) = &*SourceMap::new_from_rope_cached(sm).await? else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
@@ -237,9 +245,9 @@ async fn resolve_source_mapping(
         TraceResult::Found(frame) => {
             let lib_code = frame.file.contains("/node_modules/");
             if let Some(project_path) = frame.file.strip_prefix(concatcp!(
-                SOURCE_URL_PROTOCOL,
+                SOURCE_URL_PROTOCOL_STR,
                 "///[",
-                PROJECT_FILESYSTEM_NAME,
+                PROJECT_FILESYSTEM_NAME_STR,
                 "]/"
             )) {
                 let fs_path = project_dir.join(project_path)?;
@@ -266,17 +274,30 @@ async fn resolve_source_mapping(
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug)]
-pub struct StructuredError {
-    pub name: String,
-    pub message: String,
-    #[turbo_tasks(trace_ignore)]
+#[derive(Clone, Debug, Deserialize)]
+pub(crate) struct StructuredError {
+    name: String,
+    message: String,
+    #[turbo_tasks(unsafe_ignore)]
     stack: Vec<StackFrame<'static>>,
     cause: Option<Box<StructuredError>>,
 }
 
 impl StructuredError {
-    pub async fn print(
+    /// Construct a [`StructuredError`] from a free-form message with no stack
+    /// frames or cause. Used when synthesizing an error from contexts that do
+    /// not have a real JavaScript stack trace, such as a Node.js subprocess
+    /// crash before any response was received.
+    pub(crate) fn from_message(name: String, message: String) -> Self {
+        Self {
+            name,
+            message,
+            stack: Vec::new(),
+            cause: None,
+        }
+    }
+
+    pub(crate) async fn print(
         &self,
         assets_for_source_mapping: Vc<AssetsForSourceMapping>,
         root: FileSystemPath,
@@ -331,39 +352,4 @@ impl StructuredError {
 
         Ok(message)
     }
-}
-
-pub async fn trace_stack(
-    error: StructuredError,
-    root_asset: Vc<Box<dyn OutputAsset>>,
-    output_path: FileSystemPath,
-    project_dir: FileSystemPath,
-) -> Result<String> {
-    let assets_for_source_mapping =
-        internal_assets_for_source_mapping(root_asset, output_path.clone());
-
-    trace_stack_with_source_mapping_assets(
-        error,
-        assets_for_source_mapping,
-        output_path,
-        project_dir,
-    )
-    .await
-}
-
-#[instrument(level = Level::TRACE, skip_all)]
-pub async fn trace_stack_with_source_mapping_assets(
-    error: StructuredError,
-    assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    output_path: FileSystemPath,
-    project_dir: FileSystemPath,
-) -> Result<String> {
-    error
-        .print(
-            assets_for_source_mapping,
-            output_path,
-            project_dir,
-            FormattingMode::Plain,
-        )
-        .await
 }

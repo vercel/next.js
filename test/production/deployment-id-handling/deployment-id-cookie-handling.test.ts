@@ -10,6 +10,7 @@ describe('deployment-id-handling disabled', () => {
       COOKIE_SKEW: '1',
       NEXT_DEPLOYMENT_ID: 'thankyounext',
     },
+    disableAutoSkewProtection: true,
   })
 
   it('should set set-cookie header correctly', async () => {
@@ -45,11 +46,7 @@ describe('deployment-id-handling disabled', () => {
 
       for (const link of links) {
         if (link.attribs.href) {
-          if (link.attribs.as === 'font') {
-            expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
-          } else {
-            expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
-          }
+          expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
         }
       }
 

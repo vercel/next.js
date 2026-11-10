@@ -1,27 +1,23 @@
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, retry } from 'next-test-utils'
+import { waitForRedbox, retry } from 'next-test-utils'
 
 describe('parallel-routes-leaf-segments-build-error', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'build-error'),
     skipStart: true,
-    skipDeployment: true,
   })
 
-  if (skipped) {
-    it.skip('skip test', () => {})
-    return
-  }
+  let buildError: unknown
 
   if (isNextDev) {
     beforeAll(() => next.start())
   } else {
     beforeAll(async () => {
       try {
-        await next.build()
-      } catch {
-        // Expect build error
+        await next.start()
+      } catch (error) {
+        buildError = error
       }
     })
   }
@@ -30,7 +26,7 @@ describe('parallel-routes-leaf-segments-build-error', () => {
     it('should throw MissingDefaultParallelRouteError for @header slot', async () => {
       if (isNextDev) {
         const browser = await next.browser('/with-children/child')
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
 
         await retry(async () => {
           const logs = await browser.log()
@@ -45,6 +41,7 @@ describe('parallel-routes-leaf-segments-build-error', () => {
           )
         })
       } else {
+        expect(buildError).toBeDefined()
         await retry(() => {
           expect(next.cliOutput).toContain('/with-children/@header/default.js')
         })
@@ -56,7 +53,7 @@ describe('parallel-routes-leaf-segments-build-error', () => {
     it('should throw MissingDefaultParallelRouteError for parallel slots', async () => {
       if (isNextDev) {
         const browser = await next.browser('/with-groups-and-children/nested')
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
 
         await retry(async () => {
           const logs = await browser.log()
@@ -71,6 +68,7 @@ describe('parallel-routes-leaf-segments-build-error', () => {
           )
         })
       } else {
+        expect(buildError).toBeDefined()
         await retry(() => {
           expect(next.cliOutput).toContain(
             '/with-groups-and-children/(dashboard)/(overview)/@metrics/default.js'

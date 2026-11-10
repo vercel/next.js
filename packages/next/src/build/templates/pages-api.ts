@@ -10,9 +10,18 @@ import { hoist } from './helpers'
 
 // Import the userland code.
 import * as userland from 'VAR_USERLAND'
-import { getTracer, SpanKind } from '../../server/lib/trace/tracer'
+import {
+  getTracer,
+  recordSpanError,
+  SpanStatusCode,
+} from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import type { InstrumentationOnRequestError } from '../../server/instrumentation/types'
+import {
+  addRequestMeta,
+  setRequestMeta,
+  type RequestMeta,
+} from '../../server/request-meta'
 
 // Re-export the handler (should be the default export).
 export default hoist(userland, 'default')
@@ -40,8 +49,15 @@ export async function handler(
   res: ServerResponse,
   ctx: {
     waitUntil?: (prom: Promise<void>) => void
+    requestMeta?: RequestMeta
   }
-): Promise<void> {
+) {
+  if (ctx.requestMeta) {
+    setRequestMeta(req, ctx.requestMeta)
+  }
+  if (routeModule.isDev) {
+    addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
+  }
   let srcPage = 'VAR_DEFINITION_PAGE'
 
   // turbopack doesn't normalize `/index` in the page name
@@ -51,6 +67,38 @@ export async function handler(
     srcPage = srcPage.replace(/\/index$/, '') || '/'
   }
 
+  // Registering `instrumentation.ts` usually installs the tracer provider, so
+  // do it before starting the request span. The span is started before
+  // `prepare`, so route module preparation is part of the request's trace.
+  // When this request triggers registration, the lifecycle spans of
+  // `instrumentation.ts` are emitted inside the request span.
+  const { instrumentation } = await routeModule.ensureInstrumentation(req, {
+    deferSpans: true,
+  })
+  return routeModule.traceRequest(
+    req,
+    {
+      tracer: getTracer(),
+      spanName: `${req.method || 'GET'} ${srcPage}`,
+      httpTarget: req.url,
+      instrumentation,
+    },
+    (requestSpan, requestRootSpan) =>
+      handleRequest(req, res, ctx, srcPage, requestSpan, requestRootSpan)
+  )
+}
+
+async function handleRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  ctx: {
+    waitUntil?: (prom: Promise<void>) => void
+    requestMeta?: RequestMeta
+  },
+  srcPage: string,
+  requestSpan: Span | undefined,
+  requestRootSpan: Span | undefined
+) {
   const prepareResult = await routeModule.prepare(req, res, { srcPage })
 
   if (!prepareResult) {
@@ -60,14 +108,15 @@ export async function handler(
     return
   }
 
-  const { query, params, prerenderManifest, routerServerContext } =
-    prepareResult
+  const { query, params, previewProps, routerServerContext } = prepareResult
 
   try {
     const method = req.method || 'GET'
     const tracer = getTracer()
 
-    const activeSpan = tracer.getActiveScopeSpan()
+    const isWrappedByNextServer = Boolean(
+      routerServerContext?.isWrappedByNextServer
+    )
     const onRequestError =
       routeModule.instrumentationOnRequestError.bind(routeModule)
 
@@ -86,7 +135,7 @@ export async function handler(
             .__NEXT_TRUST_HOST_HEADER as any as boolean,
           // TODO: get this from from runtime env so manifest
           // doesn't need to load
-          previewProps: prerenderManifest.preview,
+          previewProps,
           propagateError: false,
           dev: routeModule.isDev,
           page: 'VAR_DEFINITION_PAGE',
@@ -103,6 +152,16 @@ export async function handler(
             'http.status_code': res.statusCode,
             'next.rsc': false,
           })
+
+          if (res.statusCode && res.statusCode >= 500) {
+            // For 5xx status codes: SHOULD be set to 'Error' span status.
+            // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+            span.setStatus({
+              code: SpanStatusCode.ERROR,
+            })
+            // For span status 'Error', SHOULD set 'error.type' attribute.
+            span.setAttribute('error.type', res.statusCode.toString())
+          }
 
           const rootSpanAttributes = tracer.getRootSpanAttributes()
           // We were unable to get attributes, probably OTEL is not enabled
@@ -122,40 +181,41 @@ export async function handler(
             return
           }
 
-          const route = rootSpanAttributes.get('next.route')
-          if (route) {
-            const name = `${method} ${route}`
+          const route = rootSpanAttributes.get('next.route') || srcPage
+          const name = `${method} ${route}`
 
-            span.setAttributes({
-              'next.route': route,
-              'http.route': route,
-              'next.span_name': name,
-            })
-            span.updateName(name)
-          } else {
-            span.updateName(`${method} ${srcPage}`)
+          span.setAttributes({
+            'next.route': route,
+            'http.route': route,
+            'next.span_name': name,
+          })
+          span.updateName(name)
+
+          // Propagate http.route to the request's root span if it isn't the
+          // request span (e.g. a platform-created HTTP span in adapter
+          // deployments).
+          if (requestRootSpan && requestRootSpan !== span) {
+            requestRootSpan.setAttribute('http.route', route)
+            requestRootSpan.updateName(name)
           }
         })
 
-    // TODO: activeSpan code path is for when wrapped by
-    // next-server can be removed when this is no longer used
-    if (activeSpan) {
-      await invokeRouteModule(activeSpan)
-    } else {
-      await tracer.withPropagatedContext(req.headers, () =>
-        tracer.trace(
-          BaseServerSpan.handleRequest,
-          {
-            spanName: `${method} ${srcPage}`,
-            kind: SpanKind.SERVER,
-            attributes: {
-              'http.method': method,
-              'http.target': req.url,
-            },
-          },
-          invokeRouteModule
-        )
-      )
+    // When invoked directly, the request span was started before `prepare`;
+    // record the request target as normalized by it. next-server's request
+    // span already has it.
+    if (!isWrappedByNextServer && req.url !== undefined) {
+      requestSpan?.setAttribute('http.target', req.url)
+    }
+    try {
+      await invokeRouteModule(requestSpan)
+    } catch (err) {
+      // A request span started for a direct invocation outlives the error
+      // handling below, which only rethrows in dev: record the error on the
+      // span here otherwise.
+      if (!isWrappedByNextServer && requestSpan && !routeModule.isDev) {
+        recordSpanError(requestSpan, err as Error)
+      }
+      throw err
     }
   } catch (err) {
     // we re-throw in dev to show the error overlay

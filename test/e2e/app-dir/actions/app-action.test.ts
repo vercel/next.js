@@ -1,19 +1,19 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   retry,
-  check,
   waitFor,
   getRedboxSource,
-  getDistDir,
+  listClientChunks,
 } from 'next-test-utils'
 import type { Request, Response } from 'playwright'
 import fs from 'node:fs/promises'
 import { join } from 'node:path'
 
 const GENERIC_RSC_ERROR =
-  'Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+  'Error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
 
+// increment to trigger deploy tests: v1
 describe('app-dir action handling', () => {
   const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } =
     nextTestSetup({
@@ -32,7 +32,7 @@ describe('app-dir action handling', () => {
   if (isNextStart) {
     it('should output exportName and filename info in manifest', async () => {
       const referenceManifest = await next.readJSON(
-        `${getDistDir()}/server/server-reference-manifest.json`
+        `${next.distDir}/server/server-reference-manifest.json`
       )
       let foundExportNames = []
 
@@ -191,6 +191,27 @@ describe('app-dir action handling', () => {
     expect(await error.text()).toBe(
       'An unexpected response was received from the server.'
     )
+  })
+
+  it('should error if server action arguments list is too long', async () => {
+    const browser = await next.browser('/too-many-args')
+    const cliOutputIndex = next.cliOutput.length
+    await browser.elementById('submit').click()
+    const expectedError =
+      'Error: Server Action arguments list is too long (1001). Maximum allowed is 1000.'
+
+    const error = await browser.waitForElementByCss('#error-text')
+    if (isNextDev) {
+      expect(await error.text()).toBe(expectedError)
+    } else {
+      expect(await error.text()).toBe(GENERIC_RSC_ERROR)
+    }
+
+    if (!isNextDeploy) {
+      const cliOutput = next.cliOutput.slice(cliOutputIndex)
+      expect(cliOutput).toInclude(expectedError)
+      expect(cliOutput).not.toInclude('Action was called')
+    }
   })
 
   it('should support headers and cookies', async () => {
@@ -503,22 +524,26 @@ describe('app-dir action handling', () => {
     })
   })
 
-  it('should support importing the same action module instance in both server and action layers', async () => {
-    const browser = await next.browser('/shared')
+  // Skip in deployment mode: there might be multiple function instances with their own
+  // app/shared/action.js and thus multiple instances of the counter.
+  if (!isNextDeploy) {
+    it('should support importing the same action module instance in both server and action layers', async () => {
+      const browser = await next.browser('/shared')
 
-    const v = await browser.elementByCss('#value').text()
-    expect(v).toBe('Value = 0')
+      const v = await browser.elementByCss('#value').text()
+      expect(v).toBe('Value = 0')
 
-    await browser.elementByCss('#server-inc').click()
-    await retry(async () => {
-      expect(await browser.elementByCss('#value').text()).toBe('Value = 1')
+      await browser.elementByCss('#server-inc').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#value').text()).toBe('Value = 1')
+      })
+
+      await browser.elementByCss('#client-inc').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#value').text()).toBe('Value = 2')
+      })
     })
-
-    await browser.elementByCss('#client-inc').click()
-    await retry(async () => {
-      expect(await browser.elementByCss('#value').text()).toBe('Value = 2')
-    })
-  })
+  }
 
   it('should not block navigation events while a server action is in flight', async () => {
     let browser = await next.browser('/client')
@@ -527,8 +552,14 @@ describe('app-dir action handling', () => {
 
     // navigate to server
     await browser.elementByCss('#navigate-server').click()
-    // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
-    await check(() => browser.url(), `${next.url}/server`, true, 2)
+    // intentionally bailing after 2s so we don't retry to the point where the async function resolves
+    await retry(
+      async () => {
+        expect(await browser.url()).toEqual(`${next.url}/server`)
+      },
+      2000,
+      1000
+    )
 
     browser = await next.browser('/server')
 
@@ -536,8 +567,14 @@ describe('app-dir action handling', () => {
 
     // navigate to client
     await browser.elementByCss('#navigate-client').click()
-    // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
-    await check(() => browser.url(), `${next.url}/client`, true, 2)
+    // intentionally bailing after 2s so we don't retry to the point where the async function resolves
+    await retry(
+      async () => {
+        expect(await browser.url()).toEqual(`${next.url}/client`)
+      },
+      2000,
+      1000
+    )
   })
 
   it('should not block router.back() while a server action is in flight', async () => {
@@ -549,8 +586,14 @@ describe('app-dir action handling', () => {
 
     await browser.back()
 
-    // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
-    await check(() => browser.url(), `${next.url}/`, true, 2)
+    // intentionally bailing after 2s so we don't retry to the point where the async function resolves
+    await retry(
+      async () => {
+        expect(await browser.url()).toEqual(`${next.url}/`)
+      },
+      2000,
+      1000
+    )
   })
 
   it('should trigger a refresh for a server action that also dispatches a navigation event', async () => {
@@ -935,22 +978,19 @@ describe('app-dir action handling', () => {
   if (isNextStart) {
     it('should not expose action content in sourcemaps', async () => {
       // We check all sourcemaps in the `static` folder for sensitive information given that chunking
-      const sourcemaps = await fs
-        .readdir(join(next.testDir, getDistDir(), 'static'), {
-          recursive: true,
-          encoding: 'utf8',
-        })
-        .then((files) =>
-          Promise.all(
-            files
-              .filter((f) => f.endsWith('.js.map'))
-              .map((f) =>
-                fs.readFile(join(next.testDir, getDistDir(), 'static', f), {
-                  encoding: 'utf8',
-                })
-              )
-          )
+      const sourcemaps = await listClientChunks(
+        join(next.testDir, next.distDir)
+      ).then((files) =>
+        Promise.all(
+          files
+            .filter((f) => f.endsWith('.js.map'))
+            .map((f) =>
+              fs.readFile(join(next.testDir, next.distDir, f), {
+                encoding: 'utf8',
+              })
+            )
         )
+      )
 
       expect(sourcemaps).not.toBeEmpty()
 
@@ -978,7 +1018,7 @@ describe('app-dir action handling', () => {
             origContent + '\n\nexport const foo = 1'
           )
 
-          await assertHasRedbox(browser)
+          await waitForRedbox(browser)
           expect(await getRedboxSource(browser)).toContain(
             'Only async functions are allowed to be exported in a "use server" file.'
           )
@@ -1011,9 +1051,12 @@ describe('app-dir action handling', () => {
 
           await retry(async () => {
             await browser.elementByCss('#inc').click()
+            await browser.waitForIdleNetwork()
             const val = Number(await browser.elementById('count').text())
-            expect(val).toBeGreaterThan(1000)
-          })
+            // An unrelated Fast Refresh can reload the page while the test is
+            // running, resetting the counter before the updated action runs.
+            expect(val).toBeGreaterThanOrEqual(1000)
+          }, 10_000)
         } finally {
           await next.patchFile(filePath, origContent)
         }
@@ -1023,14 +1066,14 @@ describe('app-dir action handling', () => {
     it('should bundle external libraries if they are on the action layer', async () => {
       await next.fetch('/client')
       const pageBundle = await fs.readFile(
-        join(next.testDir, getDistDir(), 'server', 'app', 'client', 'page.js'),
+        join(next.testDir, next.distDir, 'server', 'app', 'client', 'page.js'),
         { encoding: 'utf8' }
       )
       if (isTurbopack) {
         const chunkPaths = pageBundle.matchAll(/R\.c\("([^"]*)"\)/g)
         const reads = [...chunkPaths].map(async (match) => {
           const bundle = await fs.readFile(
-            join(next.testDir, getDistDir(), ...match[1].split(/[\\/]/g)),
+            join(next.testDir, next.distDir, ...match[1].split(/[\\/]/g)),
             { encoding: 'utf8' }
           )
           return bundle.includes('node_modules/nanoid/index.js')
@@ -1150,7 +1193,12 @@ describe('app-dir action handling', () => {
 
         expect(request.url()).toEqual(`${next.url}${initialPagePath}`)
         expect(request.method()).toEqual('POST')
-        expect(response.status()).toEqual(303)
+        expect(response.status()).toEqual(200)
+
+        const headers = await response.allHeaders()
+        expect(headers['x-action-redirect']).toBeDefined()
+        expect(headers.location).toBeUndefined()
+        expect(headers['content-type']).toContain('text/x-component')
       }
     )
 
@@ -1263,7 +1311,12 @@ describe('app-dir action handling', () => {
 
         expect(request.url()).toEqual(`${next.url}${initialPagePath}`)
         expect(request.method()).toEqual('POST')
-        expect(response.status()).toEqual(303)
+        expect(response.status()).toEqual(200)
+
+        const headers = await response.allHeaders()
+        expect(headers['x-action-redirect']).toBeDefined()
+        expect(headers.location).toBeUndefined()
+        expect(headers['content-type']).toContain('text/x-component')
       }
     )
 
@@ -1297,7 +1350,7 @@ describe('app-dir action handling', () => {
         )
         expect(await browser.url()).toBe(`${next.url}/pages-dir`)
         expect(mpaTriggered).toBe(true)
-      }, 5000)
+      }, 10_000)
     })
 
     it('should handle revalidatePath', async () => {
@@ -1572,7 +1625,7 @@ describe('app-dir action handling', () => {
       expect(await browser.elementById('modal-data').text()).toContain(
         'in "modal"'
       )
-    })
+    }, 10_000)
 
     // Submit the action
     await browser.elementById('submit-intercept-action').click()

@@ -3,25 +3,28 @@ use std::{
     mem::{replace, take},
 };
 
-use anyhow::{Result, bail};
+use anyhow::Result;
+use bincode::{Decode, Encode};
 use either::Either;
-use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use turbo_esregex::EsRegex;
-use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, primitives::Regex, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc};
 use turbo_tasks_fs::{FileContent, FileSystemPath, glob::Glob};
 use turbopack_core::{
-    asset::Asset, reference_type::ReferenceType, source::Source, virtual_source::VirtualSource,
+    asset::Asset,
+    reference_type::{ReferenceType, ReferenceTypeCondition},
+    source::Source,
+    virtual_source::VirtualSource,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
+#[derive(Debug, Clone, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum RuleCondition {
     All(Vec<RuleCondition>),
     Any(Vec<RuleCondition>),
     Not(Box<RuleCondition>),
     True,
     False,
-    ReferenceType(ReferenceType),
+    ReferenceType(ReferenceTypeCondition),
     ResourceIsVirtualSource,
     ResourcePathEquals(FileSystemPath),
     ResourcePathHasNoExtension,
@@ -30,9 +33,8 @@ pub enum RuleCondition {
     ResourcePathInExactDirectory(FileSystemPath),
     ContentTypeStartsWith(String),
     ContentTypeEmpty,
-    ResourcePathRegex(#[turbo_tasks(trace_ignore)] Regex),
-    ResourcePathEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
-    ResourceContentEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
+    ResourcePathEsRegex(ReadRef<EsRegex>),
+    ResourceContentEsRegex(ReadRef<EsRegex>),
     /// For paths that are within the same filesystem as the `base`, it need to
     /// match the relative path from base to resource. This includes `./` or
     /// `../` prefix. For paths in a different filesystem, it need to match
@@ -41,11 +43,14 @@ pub enum RuleCondition {
     /// project. Globs starting with `**` can match any path.
     ResourcePathGlob {
         base: FileSystemPath,
-        #[turbo_tasks(trace_ignore)]
         glob: ReadRef<Glob>,
     },
-    ResourceBasePathGlob(#[turbo_tasks(trace_ignore)] ReadRef<Glob>),
+    ResourceBasePathGlob(ReadRef<Glob>),
     ResourceQueryContains(String),
+    ResourceQueryEquals(String),
+    ResourceQueryEsRegex(ReadRef<EsRegex>),
+    ContentTypeGlob(ReadRef<Glob>),
+    ContentTypeEsRegex(ReadRef<EsRegex>),
 }
 
 impl RuleCondition {
@@ -255,7 +260,7 @@ impl RuleCondition {
                         return Ok(source.ident().await?.content_type.is_none());
                     }
                     RuleCondition::ResourcePathGlob { glob, base } => {
-                        return Ok(if let Some(rel_path) = base.get_relative_path_to(path) {
+                        return Ok(if let Some(rel_path) = base.get_relative_request_to(path) {
                             glob.matches(&rel_path)
                         } else {
                             glob.matches(&path.path)
@@ -267,9 +272,6 @@ impl RuleCondition {
                             .rsplit_once('/')
                             .map_or(path.path.as_str(), |(_, b)| b);
                         return Ok(glob.matches(basename));
-                    }
-                    RuleCondition::ResourcePathRegex(_) => {
-                        bail!("ResourcePathRegex not implemented yet");
                     }
                     RuleCondition::ResourcePathEsRegex(regex) => {
                         return Ok(regex.is_match(&path.path));
@@ -286,6 +288,28 @@ impl RuleCondition {
                     RuleCondition::ResourceQueryContains(query) => {
                         let ident = source.ident().await?;
                         return Ok(ident.query.contains(query));
+                    }
+                    RuleCondition::ResourceQueryEquals(query) => {
+                        let ident = source.ident().await?;
+                        return Ok(ident.query == *query);
+                    }
+                    RuleCondition::ResourceQueryEsRegex(regex) => {
+                        let ident = source.ident().await?;
+                        return Ok(regex.is_match(&ident.query));
+                    }
+                    RuleCondition::ContentTypeGlob(glob) => {
+                        let ident = source.ident().await?;
+                        return Ok(ident
+                            .content_type
+                            .as_ref()
+                            .is_some_and(|ct| glob.matches(ct)));
+                    }
+                    RuleCondition::ContentTypeEsRegex(regex) => {
+                        let ident = source.ident().await?;
+                        return Ok(ident
+                            .content_type
+                            .as_ref()
+                            .is_some_and(|ct| regex.is_match(ct)));
                     }
                 }
             }
@@ -455,13 +479,13 @@ pub mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        tt.run_once(async { run_leaves_test().await })
+        tt.run_once(async { run_leaves_test_operation().read_strongly_consistent().await })
             .await
             .unwrap();
     }
 
-    #[turbo_tasks::function]
-    pub async fn run_leaves_test() -> Result<()> {
+    #[turbo_tasks::function(operation, root)]
+    pub async fn run_leaves_test_operation() -> Result<()> {
         let fs = VirtualFileSystem::new();
         let virtual_path = fs.root().await?.join("foo.js")?;
         let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
@@ -478,7 +502,7 @@ pub mod tests {
                 .await?;
 
         {
-            let condition = RuleCondition::ReferenceType(ReferenceType::Runtime);
+            let condition = RuleCondition::ReferenceType(ReferenceTypeCondition::Runtime);
             assert!(
                 condition
                     .matches(virtual_source, &virtual_path, &ReferenceType::Runtime)
@@ -588,13 +612,17 @@ pub mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        tt.run_once(async { run_rule_condition_tree_test().await })
-            .await
-            .unwrap();
+        tt.run_once(async {
+            run_rule_condition_tree_test_operation()
+                .read_strongly_consistent()
+                .await
+        })
+        .await
+        .unwrap();
     }
 
-    #[turbo_tasks::function]
-    pub async fn run_rule_condition_tree_test() -> Result<()> {
+    #[turbo_tasks::function(operation, root)]
+    pub async fn run_rule_condition_tree_test_operation() -> Result<()> {
         let fs = VirtualFileSystem::new();
         let virtual_path = fs.root().await?.join("foo.js")?;
         let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(

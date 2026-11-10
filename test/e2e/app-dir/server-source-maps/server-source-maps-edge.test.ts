@@ -7,15 +7,14 @@ function normalizeCliOutput(output: string) {
   return stripAnsi(output)
 }
 
+// Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
+// Deploy tests don't have access to runtime logs.
+// Manually verify that the runtime logs match.
+// @force-gate !deploy
 describe('app-dir - server source maps edge runtime', () => {
-  const { skipped, next, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/edge'),
-    // Deploy tests don't have access to runtime logs.
-    // Manually verify that the runtime logs match.
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('logged errors have a sourcemapped stack with a codeframe', async () => {
     const outputIndex = next.cliOutput.length
@@ -28,7 +27,7 @@ describe('app-dir - server source maps edge runtime', () => {
         )
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
-        '\nError: rsc-error-log' +
+        'Error: rsc-error-log' +
           '\n    at logError (app/rsc-error-log/page.js:2:17)' +
           '\n    at Page (app/rsc-error-log/page.js:6:3)' +
           '\n  1 | function logError() {' +
@@ -57,7 +56,7 @@ describe('app-dir - server source maps edge runtime', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
       expect(cliOutput).toContain(
-        '\n ⨯ Error: ssr-throw' +
+        '⨯ Error: ssr-throw' +
           '\n    at throwError (app/ssr-throw/page.js:4:9)' +
           '\n    at Page (app/ssr-throw/page.js:8:3)' +
           '\n  2 |' +
@@ -87,7 +86,7 @@ describe('app-dir - server source maps edge runtime', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
       expect(cliOutput).toContain(
-        '\n ⨯ Error: rsc-throw' +
+        '⨯ Error: rsc-throw' +
           '\n    at throwError (app/rsc-throw/page.js:2:9)' +
           '\n    at Page (app/rsc-throw/page.js:6:3)' +
           '\n  1 | function throwError() {' +

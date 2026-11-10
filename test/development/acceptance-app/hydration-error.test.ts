@@ -3,13 +3,11 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 import {
-  assertNoRedbox,
+  waitForNoRedbox,
   getRedboxErrorLink,
   getToastErrorCount,
   retry,
 } from 'next-test-utils'
-
-const pprEnabled = process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
 
 describe('Error overlay for hydration errors in App router', () => {
   const { next, isTurbopack } = nextTestSetup({
@@ -40,27 +38,11 @@ describe('Error overlay for hydration errors in App router', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/text-mism..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
-                               <Mismatch params={Promise} searchParams={Promise}>
-                                 <div className="parent">
-                                   <main className="child">
-     +                               client
-     -                               server
-                           ...
-                         ...
-               ...",
+       "componentStack": "<Mismatch params={Promise} searchParams={Promise}>
+       <div className="parent">
+         <main className="child">
+     +     client
+     -     server",
        "description": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -91,7 +73,7 @@ describe('Error overlay for hydration errors in App router', () => {
       }
     `,
       async () => {
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
         expect(await browser.elementByCss('.child').text()).toBe('Value')
       }
     )
@@ -102,25 +84,9 @@ describe('Error overlay for hydration errors in App router', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/extra-ele..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
-                               <Mismatch params={Promise} searchParams={Promise}>
-                                 <div className="parent">
-     +                             <main className="only">
-                           ...
-                         ...
-               ...",
+       "componentStack": "<Mismatch params={Promise} searchParams={Promise}>
+       <div className="parent">
+     +   <main className="only">",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -141,72 +107,38 @@ describe('Error overlay for hydration errors in App router', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "componentStack": "...
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                       <HTTPAccessFallbackErrorBoundary pathname="/extra-att..." notFound={<SegmentViewNode>} ...>
-                         <RedirectBoundary>
-                           <RedirectErrorBoundary router={{...}}>
-                             <InnerLayoutRouter url="/extra-att..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                               <SegmentViewNode type="layout" pagePath="(extra-att...">
-                                 <SegmentTrieNode>
-                                 <script>
-                                 <script>
-                                 <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
-                                   <Root params={Promise}>
-                                     <html
-       -                               className="server-html"
-                                     >
-                             ...
-                 ...",
+         "componentStack": "<RootLayout params={Promise}>
+         <html
+       -   className="server-html"
+         >",
          "description": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Console Error",
-         "source": "app/(extra-attributes)/layout.tsx (9:5) @ Root
+         "source": "app/(extra-attributes)/layout.tsx (9:5) @ RootLayout
        >  9 |     <html {...(isServer ? { className: 'server-html' } : undefined)}>
             |     ^",
          "stack": [
            "html <anonymous>",
-           "Root app/(extra-attributes)/layout.tsx (9:5)",
+           "RootLayout app/(extra-attributes)/layout.tsx (9:5)",
          ],
        }
       `)
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "componentStack": "...
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                       <HTTPAccessFallbackErrorBoundary pathname="/extra-att..." notFound={<SegmentViewNode>} ...>
-                         <RedirectBoundary>
-                           <RedirectErrorBoundary router={{...}}>
-                             <InnerLayoutRouter url="/extra-att..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                               <SegmentViewNode type="layout" pagePath="(extra-att...">
-                                 <SegmentTrieNode>
-                                 <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
-                                   <Root params={Promise}>
-                                     <html
-       -                               className="server-html"
-                                     >
-                             ...
-                 ...",
+         "componentStack": "<RootLayout params={Promise}>
+         <html
+       -   className="server-html"
+         >",
          "description": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Console Error",
-         "source": "app/(extra-attributes)/layout.tsx (9:5) @ Root
+         "source": "app/(extra-attributes)/layout.tsx (9:5) @ RootLayout
        >  9 |     <html {...(isServer ? { className: 'server-html' } : undefined)}>
             |     ^",
          "stack": [
            "html <anonymous>",
-           "Root app/(extra-attributes)/layout.tsx (9:5)",
+           "RootLayout app/(extra-attributes)/layout.tsx (9:5)",
          ],
        }
       `)
@@ -218,28 +150,11 @@ describe('Error overlay for hydration errors in App router', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/extra-tex..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
-                               <Mismatch params={Promise} searchParams={Promise}>
-                                 <div className="parent">
-                                   <header>
-     +                             second
-     -                             <footer className="3">
-                                   ...
-                           ...
-                         ...
-               ...",
+       "componentStack": "<Mismatch params={Promise} searchParams={Promise}>
+       <div className="parent">
+         <header>
+     +   second
+     -   <footer className="3">",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -259,25 +174,9 @@ describe('Error overlay for hydration errors in App router', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/extra-ele..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
-                               <Mismatch params={Promise} searchParams={Promise}>
-                                 <div className="parent">
-     -                             <main className="only">
-                           ...
-                         ...
-               ...",
+       "componentStack": "<Mismatch params={Promise} searchParams={Promise}>
+       <div className="parent">
+     -   <main className="only">",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -297,25 +196,9 @@ describe('Error overlay for hydration errors in App router', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/extra-tex..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
-                               <Mismatch params={Promise} searchParams={Promise}>
-                                 <div className="parent">
-     -                             only
-                           ...
-                         ...
-               ...",
+       "componentStack": "<Mismatch params={Promise} searchParams={Promise}>
+       <div className="parent">
+     -   only",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -340,26 +223,8 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
-         "componentStack": "...
-         <ScrollAndFocusHandler segmentPath={[...]}>
-           <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-             <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-               <LoadingBoundary loading={null}>
-                 <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                   <RedirectBoundary>
-                     <RedirectErrorBoundary router={{...}}>
-                       <InnerLayoutRouter url="/extra-tex..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                         <SegmentViewNode type="page" pagePath="(default)/...">
-                           <SegmentTrieNode>
-                           <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                             <Page params={Promise} searchParams={Promise}>
-                               <table>
-                                 <tbody>
-                                   <tr>
-     >                               test
-                         ...
-                       ...
-             ...",
+         "componentStack": "<tr>
+     > test",
          "description": "In HTML, text nodes cannot be a child of <tr>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -373,25 +238,9 @@ describe('Error overlay for hydration errors in App router', () => {
          ],
        },
        {
-         "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/extra-tex..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                               <Page params={Promise} searchParams={Promise}>
-     +                           <table>
-     -                           test
-                           ...
-                         ...
-               ...",
+         "componentStack": "<Page params={Promise} searchParams={Promise}>
+     + <table>
+     - test",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -412,26 +261,9 @@ describe('Error overlay for hydration errors in App router', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/extra-whi..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                               <Page params={Promise} searchParams={Promise}>
-     >                           <table>
-     >                             {" "}
-                                   ...
-                           ...
-                         ...
-               ...",
+       "componentStack": "<Page params={Promise} searchParams={Promise}>
+     > <table>
+     >   {" "}",
        "description": "In HTML, whitespace text nodes cannot be a child of <table>. Make sure you don't have any extra whitespace between tags on each line of your source code.
      This will cause a hydration error.",
        "environmentLabel": null,
@@ -452,27 +284,10 @@ describe('Error overlay for hydration errors in App router', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "componentStack": "...
-         <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-           <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-             <LoadingBoundary loading={null}>
-               <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                 <RedirectBoundary>
-                   <RedirectErrorBoundary router={{...}}>
-                     <InnerLayoutRouter url="/extra-nod..." tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                       <SegmentViewNode type="page" pagePath="(default)/...">
-                         <SegmentTrieNode>
-                         <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
-                           <Mismatch params={Promise} searchParams={Promise}>
-                             <div className="parent">
-                               <Suspense fallback={<p>}>
-                                 <header>
-     +                           <main className="second">
-     -                           <footer className="3">
-                                 ...
-                       ...
-                     ...
-           ...",
+       "componentStack": "<Suspense fallback={<p>}>
+       <header>
+     + <main className="second">
+     - <footer className="3">",
        "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
        "environmentLabel": null,
        "label": "Recoverable Error",
@@ -507,25 +322,9 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
-         "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/p-under-p" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                               <Page params={Promise} searchParams={Promise}>
-     >                           <p>
-     >                             <p>
-                           ...
-                         ...
-               ...",
+         "componentStack": "<Page params={Promise} searchParams={Promise}>
+     > <p>
+     >   <p>",
          "description": "In HTML, <p> cannot be a descendant of <p>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -564,26 +363,9 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
-         "componentStack": "...
-         <ScrollAndFocusHandler segmentPath={[...]}>
-           <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-             <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-               <LoadingBoundary loading={null}>
-                 <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                   <RedirectBoundary>
-                     <RedirectErrorBoundary router={{...}}>
-                       <InnerLayoutRouter url="/div-under-p" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                         <SegmentViewNode type="page" pagePath="(default)/...">
-                           <SegmentTrieNode>
-                           <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                             <Page params={Promise} searchParams={Promise}>
-                               <div>
-                                 <div>
-     >                             <p>
-     >                               <div>
-                         ...
-                       ...
-             ...",
+         "componentStack": "<div>
+     > <p>
+     >   <div>",
          "description": "In HTML, <div> cannot be a descendant of <p>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -622,25 +404,9 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
-         "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/tr-under-div" tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                               <Page params={Promise} searchParams={Promise}>
-     >                           <div>
-     >                             <tr>
-                           ...
-                         ...
-               ...",
+         "componentStack": "<Page params={Promise} searchParams={Promise}>
+     > <div>
+     >   <tr>",
          "description": "In HTML, <tr> cannot be a child of <div>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -679,29 +445,9 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
-         "componentStack": "...
-         <RenderFromTemplateContext>
-           <ScrollAndFocusHandler segmentPath={[...]}>
-             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/bad-nesting" tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                           <SegmentViewNode type="page" pagePath="(default)/...">
-                             <SegmentTrieNode>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                               <Page params={Promise} searchParams={Promise}>
-     >                           <p>
-                                   <span>
-                                     <span>
-                                       <span>
-                                         <span>
-     >                                     <p>
-                           ...
-                         ...
-               ...",
+         "componentStack": "<Page params={Promise} searchParams={Promise}>
+     > <p>
+     >           <p>",
          "description": "In HTML, <p> cannot be a descendant of <p>.
      This will cause a hydration error.",
          "environmentLabel": null,
@@ -753,266 +499,96 @@ describe('Error overlay for hydration errors in App router', () => {
       )
     })
 
-    if (pprEnabled) {
-      if (isTurbopack) {
-        await expect(browser).toDisplayCollapsedRedbox(`
-         [
-           {
-             "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
-         >  8 |       <Script
-              |       ^",
-             "stack": [
-               "Root app/(script-under-html)/layout.tsx (8:7)",
-             ],
-           },
-           {
-             "componentStack": "...
-             <RenderFromTemplateContext>
-               <ScrollAndFocusHandler segmentPath={[...]}>
-                 <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                   <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                     <LoadingBoundary loading={null}>
-                       <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                         <HTTPAccessFallbackErrorBoundary pathname="/script-un..." notFound={<SegmentViewNode>} ...>
-                           <RedirectBoundary>
-                             <RedirectErrorBoundary router={{...}}>
-                               <InnerLayoutRouter url="/script-un..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                                 <SegmentViewNode type="layout" pagePath="(script-un...">
-                                   <SegmentTrieNode>
-                                   <script>
-                                   <script>
-                                   <Root>
-         >                           <html>
-                                       <body>
-                                       <Script src="https://ex..." strategy="beforeInte...">
-         >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
-                               ...
-                   ...
-             ...",
-             "description": "In HTML, <script> cannot be a child of <html>.
-         This will cause a hydration error.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
-         >  8 |       <Script
-              |       ^",
-             "stack": [
-               "script <anonymous>",
-               "Root app/(script-under-html)/layout.tsx (8:7)",
-             ],
-           },
-           {
-             "description": "<html> cannot contain a nested <script>.
-         See this log for the ancestor stack trace.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/(script-under-html)/layout.tsx (6:5) @ Root
-         > 6 |     <html>
-             |     ^",
-             "stack": [
-               "html <anonymous>",
-               "Root app/(script-under-html)/layout.tsx (6:5)",
-             ],
-           },
-         ]
-        `)
-      } else {
-        await expect(browser).toDisplayCollapsedRedbox(`
-         [
-           {
-             "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
-         >  8 |       <Script
-              |       ^",
-             "stack": [
-               "Root app/(script-under-html)/layout.tsx (8:7)",
-             ],
-           },
-           {
-             "componentStack": "...
-             <RenderFromTemplateContext>
-               <ScrollAndFocusHandler segmentPath={[...]}>
-                 <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                   <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                     <LoadingBoundary loading={null}>
-                       <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                         <HTTPAccessFallbackErrorBoundary pathname="/script-un..." notFound={<SegmentViewNode>} ...>
-                           <RedirectBoundary>
-                             <RedirectErrorBoundary router={{...}}>
-                               <InnerLayoutRouter url="/script-un..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                                 <SegmentViewNode type="layout" pagePath="(script-un...">
-                                   <SegmentTrieNode>
-                                   <Root>
-         >                           <html>
-                                       <body>
-                                       <Script src="https://ex..." strategy="beforeInte...">
-         >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
-                               ...
-                   ...
-             ...",
-             "description": "In HTML, <script> cannot be a child of <html>.
-         This will cause a hydration error.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
-         >  8 |       <Script
-              |       ^",
-             "stack": [
-               "script <anonymous>",
-               "Root app/(script-under-html)/layout.tsx (8:7)",
-             ],
-           },
-           {
-             "description": "<html> cannot contain a nested <script>.
-         See this log for the ancestor stack trace.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/(script-under-html)/layout.tsx (6:5) @ Root
-         > 6 |     <html>
-             |     ^",
-             "stack": [
-               "html <anonymous>",
-               "Root app/(script-under-html)/layout.tsx (6:5)",
-             ],
-           },
-         ]
-        `)
-      }
+    if (isTurbopack) {
+      await expect(browser).toDisplayCollapsedRedbox(`
+       [
+         {
+           "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/(script-under-html)/layout.tsx (8:7) @ RootLayout
+       >  8 |       <Script
+            |       ^",
+           "stack": [
+             "RootLayout app/(script-under-html)/layout.tsx (8:7)",
+           ],
+         },
+         {
+           "componentStack": "<RootLayout>
+       > <html>
+       >     <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>",
+           "description": "In HTML, <script> cannot be a child of <html>.
+       This will cause a hydration error.",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/(script-under-html)/layout.tsx (8:7) @ RootLayout
+       >  8 |       <Script
+            |       ^",
+           "stack": [
+             "script <anonymous>",
+             "RootLayout app/(script-under-html)/layout.tsx (8:7)",
+           ],
+         },
+         {
+           "description": "<html> cannot contain a nested <script>.
+       See this log for the ancestor stack trace.",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/(script-under-html)/layout.tsx (6:5) @ RootLayout
+       > 6 |     <html>
+           |     ^",
+           "stack": [
+             "html <anonymous>",
+             "RootLayout app/(script-under-html)/layout.tsx (6:5)",
+           ],
+         },
+       ]
+      `)
     } else {
-      if (isTurbopack) {
-        await expect(browser).toDisplayCollapsedRedbox(`
-         [
-           {
-             "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
-         >  8 |       <Script
-              |       ^",
-             "stack": [
-               "Root app/(script-under-html)/layout.tsx (8:7)",
-             ],
-           },
-           {
-             "componentStack": "...
-             <RenderFromTemplateContext>
-               <ScrollAndFocusHandler segmentPath={[...]}>
-                 <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                   <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                     <LoadingBoundary loading={null}>
-                       <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                         <HTTPAccessFallbackErrorBoundary pathname="/script-un..." notFound={<SegmentViewNode>} ...>
-                           <RedirectBoundary>
-                             <RedirectErrorBoundary router={{...}}>
-                               <InnerLayoutRouter url="/script-un..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                                 <SegmentViewNode type="layout" pagePath="(script-un...">
-                                   <SegmentTrieNode>
-                                   <script>
-                                   <script>
-                                   <Root>
-         >                           <html>
-                                       <body>
-                                       <Script src="https://ex..." strategy="beforeInte...">
-         >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
-                               ...
-                   ...
-             ...",
-             "description": "In HTML, <script> cannot be a child of <html>.
-         This will cause a hydration error.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
-         >  8 |       <Script
-              |       ^",
-             "stack": [
-               "script <anonymous>",
-               "Root app/(script-under-html)/layout.tsx (8:7)",
-             ],
-           },
-           {
-             "description": "<html> cannot contain a nested <script>.
-         See this log for the ancestor stack trace.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/(script-under-html)/layout.tsx (6:5) @ Root
-         > 6 |     <html>
-             |     ^",
-             "stack": [
-               "html <anonymous>",
-               "Root app/(script-under-html)/layout.tsx (6:5)",
-             ],
-           },
-         ]
-        `)
-      } else {
-        await expect(browser).toDisplayCollapsedRedbox(`
-         [
-           {
-             "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
-         >  8 |       <Script
-              |       ^",
-             "stack": [
-               "Root app/(script-under-html)/layout.tsx (8:7)",
-             ],
-           },
-           {
-             "componentStack": "...
-             <RenderFromTemplateContext>
-               <ScrollAndFocusHandler segmentPath={[...]}>
-                 <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                   <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                     <LoadingBoundary loading={null}>
-                       <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                         <HTTPAccessFallbackErrorBoundary pathname="/script-un..." notFound={<SegmentViewNode>} ...>
-                           <RedirectBoundary>
-                             <RedirectErrorBoundary router={{...}}>
-                               <InnerLayoutRouter url="/script-un..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                                 <SegmentViewNode type="layout" pagePath="(script-un...">
-                                   <SegmentTrieNode>
-                                   <Root>
-         >                           <html>
-                                       <body>
-                                       <Script src="https://ex..." strategy="beforeInte...">
-         >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
-                               ...
-                   ...
-             ...",
-             "description": "In HTML, <script> cannot be a child of <html>.
-         This will cause a hydration error.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
-         >  8 |       <Script
-              |       ^",
-             "stack": [
-               "script <anonymous>",
-               "Root app/(script-under-html)/layout.tsx (8:7)",
-             ],
-           },
-           {
-             "description": "<html> cannot contain a nested <script>.
-         See this log for the ancestor stack trace.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/(script-under-html)/layout.tsx (6:5) @ Root
-         > 6 |     <html>
-             |     ^",
-             "stack": [
-               "html <anonymous>",
-               "Root app/(script-under-html)/layout.tsx (6:5)",
-             ],
-           },
-         ]
-        `)
-      }
+      await expect(browser).toDisplayCollapsedRedbox(`
+       [
+         {
+           "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/(script-under-html)/layout.tsx (8:7) @ RootLayout
+       >  8 |       <Script
+            |       ^",
+           "stack": [
+             "RootLayout app/(script-under-html)/layout.tsx (8:7)",
+           ],
+         },
+         {
+           "componentStack": "<RootLayout>
+       > <html>
+       >     <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>",
+           "description": "In HTML, <script> cannot be a child of <html>.
+       This will cause a hydration error.",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/(script-under-html)/layout.tsx (8:7) @ RootLayout
+       >  8 |       <Script
+            |       ^",
+           "stack": [
+             "script <anonymous>",
+             "RootLayout app/(script-under-html)/layout.tsx (8:7)",
+           ],
+         },
+         {
+           "description": "<html> cannot contain a nested <script>.
+       See this log for the ancestor stack trace.",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/(script-under-html)/layout.tsx (6:5) @ RootLayout
+       > 6 |     <html>
+           |     ^",
+           "stack": [
+             "html <anonymous>",
+             "RootLayout app/(script-under-html)/layout.tsx (6:5)",
+           ],
+         },
+       ]
+      `)
     }
   })
 })

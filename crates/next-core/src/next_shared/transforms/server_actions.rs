@@ -1,18 +1,22 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use async_trait::async_trait;
+use bincode::{Decode, Encode};
 use next_custom_transforms::transforms::server_actions::{
-    Config, ServerActionsMode, server_actions,
+    Config, LazyGet, LazyValue, ServerActionsMode, server_actions,
 };
 use swc_core::{common::FileName, ecma::ast::Program};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
-use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
-use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
+use turbo_tasks::{LazyReadRef, ResolvedVc, Vc, VcRead, VcValueType};
+use turbopack::module_options::ModuleRule;
+use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin};
 
-use super::module_rule_match_js_no_url;
+use super::{EcmascriptTransformStage, get_ecma_transform_rule};
 use crate::{mode::NextMode, next_config::CacheKinds};
 
-#[derive(Debug)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum ActionsTransform {
     /// Browser and SSR
     Client,
@@ -29,27 +33,55 @@ pub async fn get_server_actions_transform_rule(
     use_cache_enabled: bool,
     cache_kinds: ResolvedVc<CacheKinds>,
 ) -> Result<ModuleRule> {
-    let transformer =
-        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextServerActions {
-            mode: *mode.await?,
-            transform,
-            encryption_key,
-            use_cache_enabled,
-            cache_kinds,
-        }) as _));
-    Ok(ModuleRule::new(
-        module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            preprocess: ResolvedVc::cell(vec![transformer]),
-            main: ResolvedVc::cell(vec![]),
-            postprocess: ResolvedVc::cell(vec![]),
-        }],
+    let transformer = next_server_actions_transform_plugin(
+        mode,
+        transform,
+        *encryption_key,
+        use_cache_enabled,
+        *cache_kinds,
+    )
+    .to_resolved()
+    .await?;
+    Ok(get_ecma_transform_rule(
+        transformer,
+        enable_mdx_rs,
+        EcmascriptTransformStage::Preprocess,
     ))
+}
+
+#[turbo_tasks::function]
+async fn next_server_actions_transform_plugin(
+    mode: Vc<NextMode>,
+    transform: ActionsTransform,
+    encryption_key: ResolvedVc<RcStr>,
+    use_cache_enabled: bool,
+    cache_kinds: ResolvedVc<CacheKinds>,
+) -> Result<Vc<TransformPlugin>> {
+    Ok(Vc::cell(Box::new(NextServerActions {
+        mode: *mode.await?,
+        is_react_server_layer: matches!(transform, ActionsTransform::Server),
+        encryption_key,
+        use_cache_enabled,
+        cache_kinds,
+    }) as Box<dyn CustomTransformer + Send + Sync>))
+}
+
+/// Provides a lazily read cell to the transform: the read is only kept when the transform accesses
+/// it.
+struct LazyRead<T: VcValueType>(LazyReadRef<T>);
+
+impl<T: VcValueType> LazyGet<<T::Read as VcRead<T>>::Target> for LazyRead<T>
+where
+    LazyReadRef<T>: Send + Sync,
+{
+    fn get(&self) -> &<T::Read as VcRead<T>>::Target {
+        self.0.get()
+    }
 }
 
 #[derive(Debug)]
 struct NextServerActions {
-    transform: ActionsTransform,
+    is_react_server_layer: bool,
     encryption_key: ResolvedVc<RcStr>,
     use_cache_enabled: bool,
     cache_kinds: ResolvedVc<CacheKinds>,
@@ -60,17 +92,23 @@ struct NextServerActions {
 impl CustomTransformer for NextServerActions {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "server_actions", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        // The hash salt (the encryption key) is only needed for modules with server functions,
+        // and the cache kinds only for `"use cache: <kind>"` directives. `lazy_reader` allows us
+        // to drop these dependencies in the common case.
+        let encryption_key = self.encryption_key.lazy_reader().await?;
+        let cache_kinds = self.cache_kinds.lazy_reader().await?;
         let actions = server_actions(
             &FileName::Real(ctx.file_path_str.into()),
             Some(ctx.query_str.clone()),
             Config {
-                is_react_server_layer: matches!(self.transform, ActionsTransform::Server),
+                is_react_server_layer: self.is_react_server_layer,
                 is_development: self.mode.is_development(),
                 use_cache_enabled: self.use_cache_enabled,
-                hash_salt: self.encryption_key.await?.to_string(),
-                cache_kinds: self.cache_kinds.owned().await?,
+                hash_salt: LazyValue::lazy(Arc::new(LazyRead(encryption_key))),
+                cache_kinds: LazyValue::lazy(Arc::new(LazyRead(cache_kinds))),
             },
             ctx.comments.clone(),
+            ctx.unresolved_mark,
             ctx.source_map.clone(),
             Default::default(),
             ServerActionsMode::Turbopack,

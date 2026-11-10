@@ -1,24 +1,20 @@
 /* eslint-env jest */
 
-import { isNextStart, nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
+import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 
 describe('CSS Import from node_modules', () => {
-  const { next, skipped, isTurbopack, isRspack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
-    skipStart: isNextStart,
-    skipDeployment: true,
+    skipStart: !isNextDev,
     dependencies: { sass: '1.54.0' },
   })
 
-  if (skipped) {
-    return
-  }
-
-  if (isNextStart) {
+  if (!isNextDev) {
     it('should fail the build', async () => {
-      const { exitCode, cliOutput } = await next.build()
-      expect(exitCode).not.toBe(0)
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
+
       if (isRspack) {
         expect(cliOutput).toMatch(
           /RspackResolver\(NotFound\(\\?"nprogress\/nprogress.css\\?"\)\)/
@@ -27,18 +23,18 @@ describe('CSS Import from node_modules', () => {
         expect(cliOutput).toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
       }
       expect(cliOutput).toMatch(/Build failed|Build error occurred/)
-    })
+    }, 240_000)
   } else {
     it('should show a build error', async () => {
       const browser = await next.browser('/')
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       const errorSource = await getRedboxSource(browser)
 
       if (isTurbopack) {
         expect(errorSource).toMatchInlineSnapshot(`
-         "./styles/global.scss.css (1:9)
-         Module not found: Can't resolve 'nprogress/nprogress.css'
+         "./styles/global.scss (1:9)
+         Error: Module not found: Can't resolve 'nprogress/nprogress.css'
          > 1 | @import 'nprogress/nprogress.css';
              |         ^
            2 |
@@ -52,8 +48,7 @@ describe('CSS Import from node_modules', () => {
         `)
       } else if (isRspack) {
         expect(errorSource).toMatchInlineSnapshot(`
-         "./node_modules/.pnpm/next@file+..+next-repo-9363c99f3d71d8f039ab2f44b0982247ca3f251f6a3cb48f6f97e14bd6290b68_3cf165911481a65b93532bfb8e2c9025/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[8].oneOf[14].use[1]!./node_modules/.pnpm/next@file+..+next-repo-9363c99f3d71d8f039ab2f44b0982247ca3f251f6a3cb48f6f97e14bd6290b68_3cf165911481a65b93532bfb8e2c9025/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[8].oneOf[14].use[2]!./node_modules/.pnpm/next@file+..+next-repo-9363c99f3d71d8f039ab2f44b0982247ca3f251f6a3cb48f6f97e14bd6290b68_3cf165911481a65b93532bfb8e2c9025/node_modules/next/dist/build/webpack/loaders/resolve-url-loader/index.js??ruleSet[1].rules[8].oneOf[14].use[3]!./node_modules/.pnpm/next@file+..+next-repo-9363c99f3d71d8f039ab2f44b0982247ca3f251f6a3cb48f6f97e14bd6290b68_3cf165911481a65b93532bfb8e2c9025/node_modules/next/dist/compiled/sass-loader/cjs.js??ruleSet[1].rules[8].oneOf[14].use[4]!./styles/global.scss
-           × Module build failed:
+         "./node_modules/.pnpm/next@file+..+next-repo-8fa5cfcca6029b56fbac0f566cc3851341e4c064ae33fb2a225547c1fab39f23+packa_apujtevk23v6mt6lxsvypt6azu/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[9].oneOf[14].use[1]!./node_modules/.pnpm/next@file+..+next-repo-8fa5cfcca6029b56fbac0f566cc3851341e4c064ae33fb2a225547c1fab39f23+packa_apujtevk23v6mt6lxsvypt6azu/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[9].oneOf[14].use[2]!./node_modules/.pnpm/next@file+..+next-repo-8fa5cfcca6029b56fbac0f566cc3851341e4c064ae33fb2a225547c1fab39f23+packa_apujtevk23v6mt6lxsvypt6azu/node_modules/next/dist/build/webpack/loaders/resolve-url-loader/index.js??ruleSet[1].rules[9].oneOf[14].use[3]!./node_modules/.pnpm/next@file+..+next-repo-8fa5cfcca6029b56fbac0f566cc3851341e4c064ae33fb2a225547c1fab39f23+packa_apujtevk23v6mt6lxsvypt6azu/node_modules/next/dist/compiled/sass-loader/cjs.js??ruleSet[1].rules[9].oneOf[14].use[4]!./styles/global.scss
            ╰─▶   × Error: RspackResolver(NotFound("nprogress/nprogress.css"))"
         `)
       } else {

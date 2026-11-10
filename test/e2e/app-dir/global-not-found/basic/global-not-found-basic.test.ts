@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox } from 'next-test-utils'
+import { waitForNoRedbox } from 'next-test-utils'
 
 describe('global-not-found - basic', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -9,7 +9,7 @@ describe('global-not-found - basic', () => {
   it('should render global-not-found for 404', async () => {
     const browser = await next.browser('/does-not-exist')
     if (isNextDev) {
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     }
 
     const errorTitle = await browser.elementByCss('#global-error-title').text()
@@ -26,6 +26,18 @@ describe('global-not-found - basic', () => {
     expect(errorTitle).toBe('global-not-found')
     const notFoundHtmlProp = $('html').attr('data-global-not-found')
     expect(notFoundHtmlProp).toBe('true')
+  })
+
+  it('should navigate from global-not-found to the app root layout', async () => {
+    const browser = await next.browser('/does-not-exist')
+
+    await browser.elementByCss('a[href="/"]').click()
+
+    expect(await browser.elementByCss('p').text()).toBe('hello world')
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
+    expect(
+      await browser.elementByCss('html').getAttribute('data-global-not-found')
+    ).toBeNull()
   })
 
   it('should render not-found boundary when calling notFound() in a page', async () => {

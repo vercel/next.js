@@ -6,10 +6,11 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { tryToParsePath } from './try-to-parse-path'
 import { allowedStatusCodes } from './redirect-status'
 import { isFullStringUrl } from './url'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from './constants'
 
 export type RouteHas =
   | {
-      type: string
+      type: 'header' | 'cookie' | 'query'
       key: string
       value?: string
     }
@@ -488,12 +489,14 @@ export function checkCustomRoutes(
 
 export interface CustomRoutes {
   headers: Header[]
+  onMatchHeaders: Header[]
   rewrites: {
     fallback: Rewrite[]
     afterFiles: Rewrite[]
     beforeFiles: Rewrite[]
   }
   redirects: Redirect[]
+  originalRedirects?: Redirect[]
 }
 
 function processRoutes<T>(
@@ -501,7 +504,7 @@ function processRoutes<T>(
   config: NextConfig,
   type: 'redirect' | 'rewrite' | 'header'
 ): T {
-  const _routes = routes as any as Array<{
+  const _routes = routes as Array<{
     source: string
     locale?: false
     basePath?: false
@@ -577,12 +580,15 @@ function processRoutes<T>(
     }
     newRoutes.push(r)
   }
-  return newRoutes as any as T
+  return newRoutes as T
 }
 
-async function loadRedirects(config: NextConfig) {
+async function loadRedirects(config: NextConfig): Promise<{
+  redirects: Redirect[]
+  originalRedirects: Redirect[] | undefined
+}> {
   if (typeof config.redirects !== 'function') {
-    return []
+    return { redirects: [], originalRedirects: undefined }
   }
   let redirects = await config.redirects()
   // check before we process the routes and after to ensure
@@ -590,12 +596,10 @@ async function loadRedirects(config: NextConfig) {
   checkCustomRoutes(redirects, 'redirect')
 
   // save original redirects before transforms
-  if (Array.isArray(redirects)) {
-    config._originalRedirects = redirects.map((r) => ({ ...r }))
-  }
+  const originalRedirects = redirects.map((r) => ({ ...r }))
   redirects = processRoutes(redirects, config, 'redirect')
   checkCustomRoutes(redirects, 'redirect')
-  return redirects
+  return { redirects, originalRedirects }
 }
 
 async function loadRewrites(config: NextConfig) {
@@ -659,13 +663,6 @@ async function loadRewrites(config: NextConfig) {
   checkCustomRoutes(afterFiles, 'rewrite')
   checkCustomRoutes(fallback, 'rewrite')
 
-  // save original rewrites before transforms
-  config._originalRewrites = {
-    beforeFiles: beforeFiles.map((r) => ({ ...r })),
-    afterFiles: afterFiles.map((r) => ({ ...r })),
-    fallback: fallback.map((r) => ({ ...r })),
-  }
-
   beforeFiles = [
     ...maybeAssetPrefixRewrite,
     ...processRoutes(beforeFiles, config, 'rewrite'),
@@ -701,11 +698,14 @@ async function loadHeaders(config: NextConfig) {
 export default async function loadCustomRoutes(
   config: NextConfig
 ): Promise<CustomRoutes> {
-  const [headers, rewrites, redirects] = await Promise.all([
+  const [headers, rewrites, loadedRedirects] = await Promise.all([
     loadHeaders(config),
     loadRewrites(config),
     loadRedirects(config),
   ])
+  const { redirects, originalRedirects } = loadedRedirects
+
+  const onMatchHeaders: Header[] = []
 
   const totalRewrites =
     rewrites.beforeFiles.length +
@@ -725,16 +725,67 @@ export default async function loadCustomRoutes(
     )
   }
 
-  if (config.experimental?.useSkewCookie && config.deploymentId) {
-    headers.unshift({
-      source: '/:path*',
-      headers: [
-        {
-          key: 'Set-Cookie',
-          value: `__vdpl=${config.deploymentId}; Path=/; HttpOnly`,
-        },
-      ],
-    })
+  const cacheControlSources: string[] = []
+  for (const headerRoute of headers) {
+    if (!headerRoute.source.startsWith('/_next/')) {
+      continue
+    }
+    for (const header of headerRoute.headers) {
+      if (header.key.toLowerCase() === 'cache-control') {
+        cacheControlSources.push(headerRoute.source)
+        break
+      }
+    }
+  }
+  if (cacheControlSources.length > 0) {
+    console.warn(
+      bold(yellow(`Warning: `)) +
+        `Custom Cache-Control headers detected for the following routes:\n` +
+        cacheControlSources.map((source) => `  - ${source}`).join('\n') +
+        `\n\nSetting a custom Cache-Control header can break Next.js development behavior.`
+    )
+  }
+
+  if (config.deploymentId) {
+    if (config.experimental?.useSkewCookie) {
+      headers.unshift({
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Set-Cookie',
+            value: `__vdpl=${config.deploymentId}; Path=/; HttpOnly`,
+          },
+        ],
+      })
+    }
+
+    onMatchHeaders.push(
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'header',
+            key: 'rsc',
+            value: '1',
+          },
+        ],
+        headers: [
+          {
+            key: NEXT_NAV_DEPLOYMENT_ID_HEADER,
+            value: config.deploymentId,
+          },
+        ],
+      },
+      {
+        source: '/_next/data/(.*)',
+        headers: [
+          {
+            key: NEXT_NAV_DEPLOYMENT_ID_HEADER,
+            value: config.deploymentId,
+          },
+        ],
+      }
+    )
   }
 
   if (!config.skipTrailingSlashRedirect) {
@@ -800,7 +851,9 @@ export default async function loadCustomRoutes(
 
   return {
     headers,
+    onMatchHeaders,
     rewrites,
     redirects,
+    originalRedirects,
   }
 }

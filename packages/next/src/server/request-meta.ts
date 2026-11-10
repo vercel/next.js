@@ -1,4 +1,4 @@
-import type { IncomingMessage } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest } from './base-http'
@@ -12,11 +12,18 @@ import type {
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
 import type { OpaqueFallbackRouteParams } from './request/fallback-params'
 import type { IncrementalCache } from './lib/incremental-cache'
+import type { RevalidateFn } from './lib/router-utils/router-server-context'
+import type { NextRequest } from './web/exports'
+import type { RequestInsightsIdentity } from './lib/trace/request-insights-identity'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
 
-export type NextIncomingMessage = (BaseNextRequest | IncomingMessage) & {
+export type NextIncomingMessage = (
+  | BaseNextRequest
+  | IncomingMessage
+  | NextRequest
+) & {
   [NEXT_REQUEST_META]?: RequestMeta
 }
 
@@ -43,6 +50,8 @@ export type OnCacheEntryHandler = (
 ) => Promise<boolean | void> | boolean | void
 
 export interface RequestMeta {
+  /** Server-owned identity for the development Request Insights timeline. */
+  requestInsightsIdentity?: RequestInsightsIdentity
   /**
    * The query that was used to make the request.
    */
@@ -65,6 +74,12 @@ export interface RequestMeta {
   clonableBody?: CloneableBody
 
   /**
+   * Exact byte length of the buffered body replacing the original request.
+   * Unlike Content-Length, this accounts for the proxy body buffering limit.
+   */
+  replayBodySize?: number
+
+  /**
    * True when the request matched a locale domain that was configured in the
    * next.config.js file.
    */
@@ -77,9 +92,10 @@ export interface RequestMeta {
   didStripLocale?: boolean
 
   /**
-   * If the request had it's URL rewritten, this is the URL it was rewritten to.
+   * If the request had its URL rewritten, this is the pathname it was rewritten
+   * to (not a full URL, just the pathname).
    */
-  rewroteURL?: string
+  rewrittenPathname?: string
 
   /**
    * The cookies that were added by middleware and were added to the response.
@@ -100,6 +116,17 @@ export interface RequestMeta {
    * The server components HMR cache, only for dev.
    */
   serverComponentsHmrCache?: ServerComponentsHmrCache
+
+  /**
+   * The hash of the most recent server component change (dev only), set by the
+   * router-server from the hot-reloader. Included in `"use cache"` cache keys
+   * so that cached entries are revalidated after an edit, for every client,
+   * regardless of whether it runs the HMR client.
+   */
+  hmrRefreshHash?: string
+
+  /** Client HMR version captured before rendering dev-server HTML. */
+  initialHmrVersion?: string
 
   /**
    * Equals the segment path that was used for the prefetch RSC request.
@@ -134,12 +161,22 @@ export interface RequestMeta {
   isNextDataReq?: true
 
   /**
-   * Postponed state to use for resumption. If present it's assumed that the
-   * request is for a page that has postponed (there are no guarantees that the
-   * page actually has postponed though as it would incur an additional cache
-   * lookup).
+   * Postponed state to use for resumption. When absent, the request is not a
+   * resume request. A non-empty string contains the state to resume, while an
+   * empty string represents a resume request without postponed state and
+   * signals that the renderer should perform a full dynamic render.
+   *
+   * There are no guarantees that the page actually postponed, as verifying
+   * that would incur an additional cache lookup.
    */
   postponed?: string
+
+  /**
+   * The action body extracted from a server action request when the postponed
+   * state was prepended to the body by the proxy. This allows the action
+   * handler to read the action payload without re-reading the consumed stream.
+   */
+  actionBody?: Buffer
 
   /**
    * If provided, this will be called when a response cache entry was generated
@@ -171,6 +208,11 @@ export interface RequestMeta {
   invokePath?: string
 
   /**
+   * True when an App route matched the locale-prefixed invocation pathname.
+   */
+  didMatchLocalePrefixedPath?: boolean
+
+  /**
    * The specific page output we should be matching
    */
   invokeOutput?: string
@@ -196,9 +238,24 @@ export interface RequestMeta {
   middlewareInvoke?: boolean
 
   /**
+   * The W3C `traceparent` of the middleware invocation's `handleRequest` span,
+   * written onto the request headers so the middleware span and the render
+   * that follows are siblings under that span.
+   */
+  middlewareInvokeTraceparent?: string
+
+  /**
    * Whether the request should render the fallback shell or not.
    */
   renderFallbackShell?: boolean
+
+  /**
+   * Route param keys that were explicitly resolved from partial nxtP*
+   * query params during background revalidation. Used by app-page.ts to
+   * determine which fallback params should remain deferred vs resolved
+   * in intermediate PPR shells.
+   */
+  resolvedRouteParamKeys?: Set<string>
 
   /**
    * Whether the request is for the custom error page.
@@ -238,6 +295,27 @@ export interface RequestMeta {
   distDir?: string
 
   /**
+    Optional hostname used by route handlers when constructing absolute URLs.
+    hostname: '127.0.0.1',
+   */
+  hostname?: string
+
+  /**
+   Optional internal revalidate function to avoid revalidating over the network
+   */
+  revalidate?: RevalidateFn
+
+  /**
+   Optional function to render the 404 page for pages router `notFound: true`
+   */
+  render404?: (
+    req: IncomingMessage,
+    res: ServerResponse,
+    parsedUrl?: UrlWithParsedQuery,
+    setHeaders?: boolean
+  ) => Promise<void>
+
+  /**
    * The query after resolving routes
    */
   query?: ParsedUrlQuery
@@ -259,9 +337,46 @@ export interface RequestMeta {
   minimalMode?: boolean
 
   /**
-   * DEV only: The fallback params that should be used when validating prerenders during dev
+   * Dev passes the selected shell's staged params from base-server to the App
+   * Page handler here. The handler captures this input once and passes an
+   * explicit map to each render instead of updating this metadata.
+   *
+   * Staged renders defer these route params until after the static stage. They
+   * keep their concrete request values instead of replacing them with
+   * placeholders. Dev static-shell validation uses the same set for the
+   * selected shell.
+   *
+   * For `/t2/items/b2` with selected shell `/t2/items/[bottom]`, this map
+   * contains only `bottom`:
+   * - A layout's `params` containing only `top` can resolve statically.
+   * - A page's `params` containing `bottom` waits until after the static stage.
+   *
+   * A mask recorded in postponed state overrides the supplied map on a resume,
+   * including an explicitly empty set or null.
    */
-  devValidatingFallbackParams?: OpaqueFallbackRouteParams
+  stagedFallbackParams?: OpaqueFallbackRouteParams | null
+
+  /**
+   * Dev static-shell debug renders use these params to prerender the matched
+   * source shell. The Instant Navigation Testing API uses this path too. The
+   * prerender substitutes opaque placeholders for these params rather than
+   * using their request values.
+   *
+   * Suppose `generateStaticParams` returns `[{ top: 't1' }]` for
+   * `/[top]/items/[bottom]`. A request for `/t2/items/b2` has:
+   * - Source `/[top]/items/[bottom]`: `top` and `bottom` are unresolved.
+   * - Completed shell `/t2/items/[bottom]`: only `bottom` is unresolved.
+   *
+   * This map contains the source's `top` and `bottom`. A debug render of that
+   * source also uses this map as `stagedFallbackParams`.
+   */
+  fallbackRouteParams?: OpaqueFallbackRouteParams | null
+
+  /** DEV only: parameter matching rejected this request as not found. */
+  devParamMatchingRejected?: boolean
+
+  /** DEV only: closed parameters, including for successful allowed values. */
+  devNotFoundParams?: readonly string[]
 
   /**
    * DEV only: Request timings in process.hrtime.bigint()
@@ -270,6 +385,21 @@ export interface RequestMeta {
   devRequestTimingMiddlewareStart?: bigint
   devRequestTimingMiddlewareEnd?: bigint
   devRequestTimingInternalsEnd?: bigint
+
+  /**
+   * DEV only: The duration of getStaticPaths/generateStaticParams in process.hrtime.bigint()
+   */
+  devGenerateStaticParamsDuration?: bigint
+
+  /**
+   * DEV only: Server action log info to be logged after the request log
+   */
+  devServerActionLog?: {
+    functionName: string
+    args: unknown[]
+    location: string
+    duration: number
+  }
 }
 
 /**
@@ -352,6 +482,26 @@ type NextQueryMetadata = {
 
 export type NextParsedUrlQuery = ParsedUrlQuery & NextQueryMetadata
 
-export interface NextUrlWithParsedQuery extends UrlWithParsedQuery {
+/**
+ * subset of `url.parse` return value
+ */
+interface LegacyUrl {
+  auth?: string | null
+  hash: string | null
+  hostname: string | null
+  href: string
+  pathname: string | null
+  protocol: string | null
+  search: string | null
+  slashes: boolean | null
+  port: string | null
+  query: string | null | ParsedUrlQuery
+}
+interface LegacyUrlWithParsedQuery extends LegacyUrl {
+  query: ParsedUrlQuery
+}
+
+// TODO: Remove in favor of WHATWG URLs
+export interface NextUrlWithParsedQuery extends LegacyUrlWithParsedQuery {
   query: NextParsedUrlQuery
 }

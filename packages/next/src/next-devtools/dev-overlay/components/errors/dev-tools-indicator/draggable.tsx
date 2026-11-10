@@ -145,14 +145,9 @@ export function Draggable({
   return (
     <div
       {...props}
-      ref={ref}
       {...drag}
-      style={{
-        touchAction: 'none',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        ...props.style,
-      }}
+      ref={ref}
+      style={{ touchAction: 'none', ...props.style }}
     >
       {children}
     </div>
@@ -192,7 +187,14 @@ function useDrag(options: UseDragOptions) {
 
   const cancel = useCallback(() => {
     if (machine.current.state === 'drag') {
-      ref.current?.releasePointerCapture(machine.current.pointerId)
+      // The user agent implicitly releases pointer capture when a gesture ends
+      // or is cancelled, so the pointer may already be inactive by the time we
+      // get here. Releasing an inactive pointer throws NotFoundError, so only
+      // release capture we still hold.
+      const { pointerId } = machine.current
+      if (ref.current?.hasPointerCapture(pointerId)) {
+        ref.current.releasePointerCapture(pointerId)
+      }
     }
 
     machine.current =
@@ -208,6 +210,7 @@ function useDrag(options: UseDragOptions) {
     velocities.current = []
 
     ref.current?.classList.remove('dev-tools-grabbing')
+    ref.current?.style.removeProperty('-webkit-user-select')
     document.body.style.removeProperty('user-select')
     document.body.style.removeProperty('-webkit-user-select')
   }, [])
@@ -286,7 +289,11 @@ function useDrag(options: UseDragOptions) {
     origin.current = { x: e.clientX, y: e.clientY }
     machine.current = { state: 'press' }
     window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', onPointerUp)
+    // A gesture ends in either pointerup or pointercancel, and a cancelled one
+    // never fires pointerup. Listening for only the former strands the machine
+    // in 'drag' with these listeners still attached.
+    window.addEventListener('pointerup', onPointerEnd)
+    window.addEventListener('pointercancel', onPointerEnd)
 
     if (cleanup.current !== null) {
       cleanup.current()
@@ -294,7 +301,8 @@ function useDrag(options: UseDragOptions) {
     }
     cleanup.current = () => {
       window.removeEventListener('pointermove', onPointerMove)
-      window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('pointerup', onPointerEnd)
+      window.removeEventListener('pointercancel', onPointerEnd)
     }
 
     ref.current?.addEventListener('click', onClick)
@@ -310,6 +318,7 @@ function useDrag(options: UseDragOptions) {
         machine.current = { state: 'drag', pointerId: e.pointerId }
         ref.current?.setPointerCapture(e.pointerId)
         ref.current?.classList.add('dev-tools-grabbing')
+        ref.current?.style.setProperty('-webkit-user-select', 'none')
         document.body.style.userSelect = 'none'
         document.body.style.webkitUserSelect = 'none'
         options.onDragStart?.()
@@ -346,7 +355,8 @@ function useDrag(options: UseDragOptions) {
     options.onDrag?.(translation.current)
   }
 
-  function onPointerUp() {
+  /** Ends the gesture, whether it was released (pointerup) or cancelled. */
+  function onPointerEnd() {
     const velocity = calculateVelocity(velocities.current)
 
     cancel()

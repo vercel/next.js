@@ -1,11 +1,11 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc,
-    TaskInput, Vc, debug::ValueDebugFormat, get_effects, trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc, Vc,
+    debug::ValueDebugFormat, take_effects,
 };
-use turbopack_core::{diagnostics::Diagnostic, issue::CollectibleIssuesExt};
+use turbopack_core::issue::CollectibleIssuesExt;
 
 use crate::{
     entrypoints::Entrypoints,
@@ -22,6 +22,7 @@ use crate::{
 /// This is needed to call `write_to_disk` which expects an `OperationVc<Endpoint>`.
 #[turbo_tasks::value(shared)]
 pub struct EntrypointsOperation {
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub routes: FxIndexMap<RcStr, RouteOperation>,
     pub middleware: Option<MiddlewareOperation>,
     pub instrumentation: Option<InstrumentationOperation>,
@@ -30,22 +31,34 @@ pub struct EntrypointsOperation {
     pub pages_error_endpoint: OperationVc<OptionEndpoint>,
 }
 
-/// Removes diagnostics, issues, and effects from the top-level `entrypoints` operation so that
-/// they're not duplicated across many different individual entrypoints or routes.
-#[turbo_tasks::function(operation)]
+/// Removes issues and effects from the top-level `entrypoints` operation so that they're not
+/// duplicated across many different individual entrypoints or routes.
+#[turbo_tasks::function(operation, root)]
 async fn entrypoints_without_collectibles_operation(
     entrypoints: OperationVc<Entrypoints>,
 ) -> Result<Vc<Entrypoints>> {
-    let _ = entrypoints.resolve_strongly_consistent().await?;
-    entrypoints.drop_collectibles::<Box<dyn Diagnostic>>();
-    entrypoints.drop_issues();
-    let _ = get_effects(entrypoints).await?;
-    Ok(entrypoints.connect())
+    // Dropping and taking the collectibles leaves the task that does it with a negative count for
+    // each of them. Many `pick_*` root operations connect to this operation, so doing it in this
+    // task would copy all of those collectibles into each of them. Doing it in an inner operation
+    // isolates the dropped collectibles, so this task has no (or very few) collectibles.
+    //
+    // The inner operation keeps its long name so it is easy to identify in traces.
+    #[turbo_tasks::function(operation, root)]
+    async fn inner_entrypoints_without_collectibles_operation(
+        entrypoints: OperationVc<Entrypoints>,
+    ) -> Result<Vc<Entrypoints>> {
+        let _ = entrypoints.resolve().strongly_consistent().await?;
+        entrypoints.drop_issues();
+        let _ = take_effects(entrypoints).await?;
+        Ok(entrypoints.connect())
+    }
+
+    Ok(inner_entrypoints_without_collectibles_operation(entrypoints).connect())
 }
 
 #[turbo_tasks::value_impl]
 impl EntrypointsOperation {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     pub async fn new(entrypoints: OperationVc<Entrypoints>) -> Result<Vc<Self>> {
         let e = entrypoints.connect().await?;
         let entrypoints = entrypoints_without_collectibles_operation(entrypoints);
@@ -93,41 +106,38 @@ fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) 
                         entrypoints,
                         EndpointSelector::RouteAppPageHtml(key.clone(), i),
                     ),
-                    rsc_endpoint: pick_endpoint(
+                    rsc_hmr_endpoint: pick_endpoint(
                         entrypoints,
-                        EndpointSelector::RouteAppPageRsc(key.clone(), i),
+                        EndpointSelector::RouteAppPageRscHmr(key.clone(), i),
                     ),
                 })
                 .collect(),
         ),
-        Route::AppRoute { original_name, .. } => RouteOperation::AppRoute {
+        Route::AppGoRoute { original_name, .. } => RouteOperation::AppGoRoute {
             original_name: original_name.clone(),
             endpoint: pick_endpoint(entrypoints, EndpointSelector::RouteAppRoute(key)),
+        },
+        Route::AppRoute {
+            original_name,
+            has_action_manifest,
+            ..
+        } => RouteOperation::AppRoute {
+            original_name: original_name.clone(),
+            endpoint: pick_endpoint(entrypoints, EndpointSelector::RouteAppRoute(key)),
+            has_action_manifest: *has_action_manifest,
         },
         Route::Conflict => RouteOperation::Conflict,
     }
 }
 
-#[derive(
-    Debug,
-    Clone,
-    TaskInput,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    PartialEq,
-    Eq,
-    Hash,
-    ValueDebugFormat,
-    NonLocalValue,
-    OperationValue,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, ValueDebugFormat, OperationValue, Encode, Decode)]
 enum EndpointSelector {
     RoutePageHtml(RcStr),
     RoutePageData(RcStr),
     RoutePageApi(RcStr),
     RouteAppPageHtml(RcStr, usize),
-    RouteAppPageRsc(RcStr, usize),
+    RouteAppPageRscHmr(RcStr, usize),
     RouteAppRoute(RcStr),
     InstrumentationNodeJs,
     InstrumentationEdge,
@@ -143,12 +153,12 @@ pub struct OptionEndpoint(Option<ResolvedVc<Box<dyn Endpoint>>>);
 /// Given a selector and the `Entrypoints` operation that it comes from, connect the operation and
 /// return an `OperationVc` containing the selected value. The returned operation will keep the
 /// entire `Entrypoints` operation alive.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn pick_endpoint(
     op: OperationVc<Entrypoints>,
     selector: EndpointSelector,
 ) -> Result<Vc<OptionEndpoint>> {
-    let endpoints = op.connect().strongly_consistent().await?;
+    let endpoints = op.read_strongly_consistent().await?;
     let endpoint = match selector {
         EndpointSelector::InstrumentationNodeJs => {
             endpoints.instrumentation.as_ref().map(|i| i.node_js)
@@ -186,15 +196,17 @@ async fn pick_endpoint(
                 None
             }
         }
-        EndpointSelector::RouteAppPageRsc(name, i) => {
+        EndpointSelector::RouteAppPageRscHmr(name, i) => {
             if let Some(Route::AppPage(pages)) = endpoints.routes.get(&name) {
-                pages.get(i).as_ref().map(|p| p.rsc_endpoint)
+                pages.get(i).as_ref().map(|p| p.rsc_hmr_endpoint)
             } else {
                 None
             }
         }
         EndpointSelector::RouteAppRoute(name) => {
-            if let Some(Route::AppRoute { endpoint, .. }) = endpoints.routes.get(&name) {
+            if let Some(Route::AppRoute { endpoint, .. } | Route::AppGoRoute { endpoint, .. }) =
+                endpoints.routes.get(&name)
+            {
                 Some(*endpoint)
             } else {
                 None
@@ -204,13 +216,13 @@ async fn pick_endpoint(
     Ok(Vc::cell(endpoint))
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct InstrumentationOperation {
     pub node_js: OperationVc<OptionEndpoint>,
     pub edge: OperationVc<OptionEndpoint>,
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct MiddlewareOperation {
     pub endpoint: OperationVc<OptionEndpoint>,
     pub is_proxy: bool,
@@ -227,26 +239,21 @@ pub enum RouteOperation {
         endpoint: OperationVc<OptionEndpoint>,
     },
     AppPage(Vec<AppPageRouteOperation>),
+    AppGoRoute {
+        original_name: RcStr,
+        endpoint: OperationVc<OptionEndpoint>,
+    },
     AppRoute {
         original_name: RcStr,
         endpoint: OperationVc<OptionEndpoint>,
+        has_action_manifest: bool,
     },
     Conflict,
 }
 
-#[derive(
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    Clone,
-    Debug,
-    NonLocalValue,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub struct AppPageRouteOperation {
     pub original_name: RcStr,
     pub html_endpoint: OperationVc<OptionEndpoint>,
-    pub rsc_endpoint: OperationVc<OptionEndpoint>,
+    pub rsc_hmr_endpoint: OperationVc<OptionEndpoint>,
 }

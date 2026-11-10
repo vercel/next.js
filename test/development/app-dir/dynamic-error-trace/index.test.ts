@@ -1,11 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app dir - dynamic error trace', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   it('should show the error trace', async () => {
     const browser = await next.browser('/')

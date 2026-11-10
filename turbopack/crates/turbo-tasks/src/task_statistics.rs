@@ -46,17 +46,6 @@ impl TaskStatistics {
         self.with_task_type_statistics(native_fn, |stats| stats.cache_miss += 1)
     }
 
-    pub fn increment_execution_duration(
-        &self,
-        native_fn: &'static NativeFunction,
-        duration: std::time::Duration,
-    ) {
-        self.with_task_type_statistics(native_fn, |stats| {
-            stats.executions += 1;
-            stats.duration += duration
-        })
-    }
-
     fn with_task_type_statistics(
         &self,
         native_fn: &'static NativeFunction,
@@ -75,10 +64,6 @@ impl TaskStatistics {
 pub struct TaskFunctionStatistics {
     pub cache_hit: u32,
     pub cache_miss: u32,
-    // Generally executions == cache_miss, however they can diverge when there are invalidations.
-    // The caller gets one cache miss but we might execute multiple times.
-    pub executions: u32,
-    pub duration: std::time::Duration,
 }
 
 impl Serialize for TaskStatistics {
@@ -86,9 +71,19 @@ impl Serialize for TaskStatistics {
     where
         S: Serializer,
     {
-        let mut map = serializer.serialize_map(Some(self.inner.len()))?;
-        for entry in &self.inner {
-            map.serialize_entry(entry.key().global_name, entry.value())?;
+        // Sort by `global_name` so the emitted JSON is deterministic — the
+        // underlying `FxDashMap` has unspecified iteration order. The map is
+        // small (~1500 entries in practice), so the sort cost is negligible
+        // and not worth optimizing.
+        let mut entries: Vec<_> = self
+            .inner
+            .iter()
+            .map(|e| (e.key().ty.global_name, e.value().clone()))
+            .collect();
+        entries.sort_unstable_by_key(|(name, _)| *name);
+        let mut map = serializer.serialize_map(Some(entries.len()))?;
+        for (name, stats) in &entries {
+            map.serialize_entry(name, stats)?;
         }
         map.end()
     }

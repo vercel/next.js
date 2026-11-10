@@ -12,9 +12,9 @@ It supports having multiple key families, which are stored in separate files, bu
 
 ## On disk format
 
-There is a single `CURRENT` file which stores the latest committed sequence number.
+There is a single `CURRENT` file, a small JSON object holding the latest committed sequence number (`max_sequence_number`) and when that commit happened (`commit_time`). The commit time is stored in the file rather than taken from its mtime so that it survives the directory being copied or restored. External tools read this file, so its field names are a stable contract.
 
-All other files have a sequence number as file name, e. g. `0000123.sst`. All files are immutable once there sequence number is <= the committed sequence number. But they might be deleted when they are superseeded by other committed files.
+All other files have a sequence number as file name, e. g. `0000123.sst`. All files are immutable once their sequence number is <= the committed sequence number. But they might be deleted when they are superseded by other committed files.
 
 There are four different file types:
 
@@ -23,13 +23,31 @@ There are four different file types:
 - Delete files (`*.del`): These files contain a list of sequence numbers of files that should be considered as deleted.
 - Meta files (`*.meta`): These files contain metadata about the SST files. They contains the hash range and a AMQF for quick filtering.
 
-Therefore there are there value types:
+Therefore there are these value types:
 
-- INLINE: Small values that are stored directly in the `*.sst` files.
-- BLOB: Large values that are stored in `*.blob` files.
-- DELETED: Values that are deleted. (Tombstone)
+- INLINE: Values ≤ 8 bytes stored directly in key blocks within `*.sst` files.
+- SMALL: Values 9–4096 bytes packed into shared value blocks within `*.sst` files.
+- MEDIUM: Values 4097 bytes – 64 MB stored in dedicated value blocks within `*.sst` files.
+- BLOB: Values > 64 MB stored in separate `*.blob` files.
+- KEY DELETED: Every value for the key is deleted. (Key tombstone)
+- KEY-VALUE DELETED: Only one named key → value pair is deleted, leaving other values for the same
+  key intact. (Key-value tombstone) Only meaningful for `MultiValue` families; see
+  [Key-value tombstones](#key-value-tombstones).
 - Future:
   - MERGE: An application specific update operation that is applied on the old value.
+
+### Value type trade-offs
+
+|                       | Inline            | Small                                           | Medium                                | Blob                                      |
+| --------------------- | ----------------- | ----------------------------------------------- | ------------------------------------- | ----------------------------------------- |
+| Size                  | ≤ 8 B             | 9 B .. 4 kB                                     | 4 kB .. 64 MB                         | > 64 MB                                   |
+| Compression unit      | key block         | shared value block (≥ 8 kB)                     | dedicated value block                 | separate file                             |
+| Compression unit size | ≤ 16 kB           | 8 kB .. 12 kB                                   | 4 kB .. 64 MB                         | > 64 MB                                   |
+| Access cost           | no extra overhead | decompress shared block (~8 kB)                 | decompress value size                 | open separate file, decompress value size |
+| Storage overhead      | 0                 | 8 B in key block + 8 B per ~8 kB in block table | 2 B in key block + 8 B in block table | 4 B in key block + 8 B in blob header     |
+| Compaction            | re-compressed     | re-compressed                                   | copied compressed                     | pointer copied                            |
+
+Small value blocks are emitted once they accumulate at least `MIN_SMALL_VALUE_BLOCK_SIZE` (8 kB) of data. This means actual block sizes range from 8 kB up to 8 kB + `MAX_SMALL_VALUE_SIZE` (4 kB) = 12 kB. This provides a good balance between compression efficiency (blocks ≥ 4 kB compress well with LZ4) and access cost (only ~8–12 kB needs to be decompressed per lookup).
 
 ### Meta file
 
@@ -38,31 +56,53 @@ A meta file can contain metadata about multiple SST files. The metadata is store
 - Header
   - 4 bytes magic number (0xFE4ADA4A)
   - 4 bytes key family
+  - 1 byte compression algorithm, which must match the configuration used to open the database
+  - 1 byte shard bits: the family had `2^bits` shards when the SST files were split
   - 4 bytes count of obsolete SST files
   - foreach obsolete SST file
     - 4 bytes sequence number of the obsolete SST file
   - 4 bytes count of described SST files
   - foreach described SST file
     - 4 bytes sequence number of the SST file
-    - 2 bytes key Compression Dictionary length
     - 2 bytes block count
     - 8 bytes min hash
     - 8 bytes max hash
     - 8 bytes SST file size
+    - 4 bytes flags
+      - bit 0: cold (compacted and not recently accessed)
+      - bit 1: fresh (not yet compacted)
+      - bit 2: bottom (part of the bottom run of its shard, written by merging all SST files of the shard; without the cold bit it holds the recently read keys)
+    - 4 bytes entry count
+    - 4 bytes tombstone count (entries that delete a key or a key-value pair), used by compaction to estimate reclaimable bytes
     - 4 bytes end of AMQF offset relative to start of all AMQF data
+  - 4 bytes end of AMQF offset relative to start of all AMQF data of the "used key hashes" AMQF
 - foreach described SST file
   - serialized AMQF
+- serialized "used key hashes" AMQF: the keys read since the previous commit (only in meta files written by a commit)
 
 ### SST file
 
 The SST file contains only data without any header.
 
-- serialized key Compression Dictionary
 - foreach block
-  - 4 bytes uncompressed block length
-  - compressed data
+  - 4 bytes block header (uncompressed length or sentinel)
+  - 4 bytes checksum (CRC32 of uncompressed block data)
+  - block data (compressed or uncompressed)
 - foreach block
   - 4 bytes end of block offset relative to start of all blocks
+
+#### Block Compression
+
+Blocks can be stored compressed or uncompressed. The compression algorithm is specified in the meta file.
+
+The 4-byte header distinguishes compressed from uncompressed storage:
+
+- **Header > 0**: Block is compressed with the family's configured algorithm. Header value is the uncompressed length.
+- **Header = 0**: Block is stored uncompressed. Actual length is derived from block offsets.
+
+#### Block Checksum
+
+Each block stores a 4-byte CRC32 checksum (big-endian) computed on the **on-disk** block data (i.e. after compression). On read, the checksum is verified **before** decompression so that on-disk damage is caught before passing data to LZ4. A checksum mismatch returns an error indicating that the cached data is damaged.
 
 #### Index Block
 
@@ -72,40 +112,50 @@ The SST file contains only data without any header.
   - 8 bytes hash
   - 2 bytes block index
 
-An Index block contains `n` 8 bytes hashes, which specify `n - 1` hash ranges (eq hash goes into the prev range, except for the first key). Between these `n` hashes there are `n - 1` 2 byte block indicies that point to the block that contains the hash range.
+An Index block contains `n` 8 bytes hashes, which specify `n - 1` hash ranges (eq hash goes into the prev range, except for the first key). Between these `n` hashes there are `n - 1` 2 byte block indices that point to the block that contains the hash range.
 
 The hashes are sorted.
 
 `n` is `(block size + 1) / 10`
 
-#### Key Block
+#### Key Block (variable-size)
 
-- 1 byte block type (1: key block)
+- 1 byte block type (1: key block with hash, 2: key block without hash)
 - 3 bytes entry count
-- foreach entry
+- offset table: foreach entry
+  - 8 bytes key hash (block type 1 only)
   - 1 byte type
   - 3 bytes position in block after header
-- Max block size: 16 MB
+- Max block size: 16 KB
 
 A Key block contains n keys, which specify n key value pairs.
+
+The block type determines whether the key hash is stored, and with it the order the entries are
+stored in:
+
+- Block type 1 (with hash): Full 8-byte hash per entry, stored in the offset table. Entries are
+  sorted by `(key hash, key)`.
+- Block type 2 (no hash): No hash stored (for keys ≤ 32 bytes). Entries are sorted by **key**.
+
+See [Entry ordering](#entry-ordering) for why the two differ.
+
+The hash lives in the offset table rather than beside its key so that a lookup's binary search reads
+only that dense array. Fixed-size key blocks apply the same idea; see
+[Two regions, not interleaved](#two-regions-not-interleaved).
 
 Depending on the `type` field entry has a different format:
 
 - 0: normal key (small value)
-  - 8 bytes key hash
   - key data
   - 2 byte block index
   - 2 bytes size
   - 4 bytes position in block
 - 1: blob reference
-  - 8 bytes key hash
   - key data
   - 4 bytes sequence number
-- 2: deleted key / tombstone (no data)
-  - 8 bytes key hash
+- 2: deleted key / key tombstone (no data)
   - key data
 - 3: normal key (medium sized value)
-  - 8 bytes key hash
   - key data
   - 2 byte block index
 - 7: merge key (future)
@@ -113,14 +163,82 @@ Depending on the `type` field entry has a different format:
   - 2 byte block index
   - 3 bytes size
   - 4 bytes position in block
-- 8..255: inlined key (future)
-  - 8 bytes key hash
+- 8..=16: inlined value, size = type - 8 (the format supports up to 247, but `MAX_INLINE_VALUE_SIZE`
+  currently caps it at 8)
   - key data
-  - type - 8 bytes value data
+  - (type - 8) bytes value data (inline, no separate value block)
+- 17..=25: key-value tombstone, deleted value size = type - 17 (mirrors the inline range and shifts
+  with `MAX_INLINE_VALUE_SIZE`)
+  - key data
+  - (type - 17) bytes of the deleted value, stored inline
 
-The entries are sorted by key hash and key.
+Both ranged kinds are open-ended, so a decoder must test the key-value tombstone range **before**
+the inline range.
 
-TODO: 8 bytes key hash is a bit inefficient for small keys.
+##### Entry ordering
+
+Logically keys are ordered by hash (this is how we chose file and block assignments). However, within a key block, the order may be different
+
+- **With hash (types 1 and 3):** sorted by `(key hash, key)`.
+- **No hash (types 2 and 4):** sorted by **key** alone.
+
+##### Key-value tombstones
+
+A key-value tombstone names the exact pair to remove, so it must carry a copy of the deleted
+value's bytes. Since the value lives inline in the key block and its length is encoded in the type
+byte, only inline-sized values can be deleted this way — hence `MAX_INLINE_VALUE_SIZE` bounds
+`delete_value`.
+
+The size limit is a consequence of that encoding, not of the comparison logic: matching is a plain
+byte comparison and does not care how a value is stored. Supporting larger deleted values is
+therefore possible but unmotivated — the tombstone stores a second copy of the value, so the cost
+of deleting approaches the cost of the value itself, and reclaiming space is the whole point.
+
+If it is ever needed, the natural encoding is a dedicated is-tombstone bit (e.g. the top bit) on the
+entry type, making "deleted" orthogonal to storage class rather than a parallel type range. That
+would also collapse the current duplication where the tombstone representation mirrors the inline
+one at every layer. Note that blob-backed values need a separate design: comparing against a blob
+means reading it, which would put unbounded I/O in the compaction path, and blob liveness
+accounting would have to handle a tombstone holding a blob reference.
+
+#### Key Block (fixed-size)
+
+Used when all entries in a block have the same key size, and either the same value type or at least
+the same value size. Eliminates the per-entry offset table, enabling direct arithmetic indexing
+during binary search.
+
+- 1 byte block type (3: fixed-size with hash, 4: fixed-size without hash)
+- 3 bytes entry count
+- 1 byte key size (uniform across all entries)
+- 1 byte value type (shared by all entries, same encoding as variable-size type field), or
+  `FIXED_KEY_BLOCK_MIXED_VALUE_TYPE` (4) when entries share a value size but not a value type
+- 1 byte value size — only present when the value type is `FIXED_KEY_BLOCK_MIXED_VALUE_TYPE`
+- search region, foreach entry at stride `search_stride`:
+  - 8 bytes key hash (block type 3), or key data (block type 4, `key_size` bytes)
+- tail region, foreach entry at stride `tail_stride`:
+  - key data (block type 3 only, `key_size` bytes)
+  - 1 byte value type — only present when the block is mixed-type
+  - value data (size determined by the block's or the entry's value type)
+
+The mixed-type form exists so that same-sized inline values and key-value tombstones can share a
+fixed-size block: they have equal value sizes but different type bytes. Tag 4 is available as the
+mixed marker because it is not itself a valid entry type.
+
+##### Two regions, not interleaved
+
+Rather than one interleaved record per entry, entries are split into a **search region** and a
+**tail region**, indexed by the same entry number. The search region holds only the bytes binary
+search compares first — the hash for block type `3`, the key for block type `4` (see
+[Entry ordering](#entry-ordering)) — so a probe searches the dense prefix region. The _values_ are then found by index in the **tail**
+after the search succeeds.
+
+Entry positions for index `i` are `header_size + i * search_stride` and
+`header_size + entry_count * search_stride + i * tail_stride`, both with no indirection.
+
+The search region must be in ascending order for that binary search to be valid. This is inherited
+from the `(key hash, key)` order the writer requires of its input, not established per block, so
+reordering entries within a block is a format violation rather than a free choice — see
+[Entry ordering](#entry-ordering).
 
 #### Value Block
 
@@ -129,23 +247,67 @@ TODO: 8 bytes key hash is a bit inefficient for small keys.
 
 ### Blob file
 
-The plain value compressed with dynamic compression.
+The plain value compressed with dynamic compression. Each blob file has an 8-byte header:
+
+- 4 bytes: uncompressed length (u32 big-endian)
+- 4 bytes: CRC32 checksum of the compressed data (u32 big-endian)
+- remaining bytes: value data compressed with the blob's key-family configuration
+
+The checksum is verified on the compressed data **before** decompression when the blob is read.
 
 ## Reading
 
-Reading start from the current sequence number and goes downwards.
+Opened meta files are stored in per-family shards. A lookup scans only the requested family's meta
+files, from newest to oldest; there is no ordering dependency between families.
 
-- We have all SST files memory mapped
-- for i = CURRENT sequence number .. 0
-  - Check AMQF from SST file for key existance -> if not continue
+SST files are opened lazily. Opening the database only loads the meta files (see
+[Opening](#opening)). An SST file is opened the first time a lookup gets past its meta file
+checks (hash range and AMQF), and stays open, cached on its meta file entry. How it is opened
+depends on the access mode:
+
+- `AccessMode::Mmap`: the SST file is memory mapped, and key and value blocks are read from the
+  mapping.
+- `AccessMode::File`: the SST file is not memory mapped. Key and value blocks are read on demand
+  with positioned reads (`pread`).
+
+In both modes, opening an SST file reads only its block offset table and index block, and keeps
+them in memory (see [Opening](#opening)). Key and value blocks are read when a lookup needs them.
+So per-open memory cost scales with the meta files (their AMQFs), while SST files cost memory only
+once they are actually touched.
+
+- for each meta file of the queried key family, newest first
+  - Check the hash range of the SST file -> if the key hash is outside, continue
+  - Check AMQF from the meta file for key existence -> if not continue
+  - Open the SST file if it is not open yet
   - let block = 0
   - loop
-    - Index Block: find key range that contains the key by binary search
+    - Index Block: find key range that contains the key by binary search using the **hash** of the key
       - found -> set block, continue
       - not found -> break
-    - Key Block: find key by binary search
+    - Key Block: find key by binary search, comparing `(hash, key)` in blocks that store a hash and
+      the key alone in blocks that do not (see [Entry ordering](#entry-ordering))
       - found -> lookup value from value block, return
+        - read value as inline, or by using the block index in the key to find the value elsewhere in the file.
       - not found -> break
+
+### Memory map advice
+
+Lookups usually touch only some blocks of an SST file, and a block is read in full the first time it
+is used (checksum verification and decompression). On Unix, the lookup mapping therefore uses:
+
+- `MADV_RANDOM` for the whole file, so a fault doesn't read around into neighboring blocks.
+- A best-effort `MADV_WILLNEED` for a block that spans more than one page, before any of its bytes is
+  read: on its first full read in this open, and on every read of a medium value block (those bypass
+  the block cache). Without the hint, `MADV_RANDOM` would fault such a block in one page at a time.
+  Blocks within a single page, and blocks whose checksum was already verified, get no hint.
+
+If the system page size can't be determined, block hints are skipped, so `MADV_RANDOM` isn't applied
+either and the mapping keeps the default advice.
+
+Compaction reads SST files through separate `MADV_SEQUENTIAL` mappings.
+
+The block offset table and the index block aren't read through either mapping: see
+[Opening](#opening).
 
 ## Writing
 
@@ -165,11 +327,11 @@ For compaction we compute the "coverage" of the SST files. The coverage is the a
 
 For a single SST file we can compute `(max_hash - min_hash) / u64::MAX` as the coverage of the SST file. We sum up all these coverages to get the total coverage.
 
-Compaction chooses a few SST files and runs the merge step of merge sort on tham to create a few new SST files with sorted ranges.
+Compaction chooses a few SST files and runs the merge step of merge sort on them to create a few new SST files with sorted ranges.
 
 Example:
 
-```
+```text
 key hash range: | 0    ...    u64::MAX |
 SST 1:             |----------------|
 SST 2:                |----------------|
@@ -178,7 +340,7 @@ SST 3:            |-----|
 
 can be compacted into:
 
-```
+```text
 key hash range: | 0    ...    u64::MAX |
 SST 1':           |-------|
 SST 2':                   |------|
@@ -187,7 +349,7 @@ SST 3':                          |-----|
 
 The merge operation decreases the total coverage since the new SST files will have a coverage of < 1.
 
-But we need to be careful to insert the SST files in the correct location again, since items in these SST files might be overriden in later SST file and we don't want to change that.
+But we need to be careful to insert the SST files in the correct location again, since items in these SST files might be overridden in later SST file and we don't want to change that.
 
 Since SST files that are smaller than the current sequence number are immutable we can't change the files and we can't insert new files at this sequence numbers.
 Instead we need to insert the new SST after the current sequence number and copy all SST files after the original SST files after them. (Actually we only need to copy SST files with overlapping key hash ranges. And we can hardlink them instead). Later we will write the current sequence number and delete them original and all copied SST files.
@@ -202,11 +364,15 @@ Since the process might exit unexpectedly, to avoid "forgetting" to delete the S
 
 We limit the number of SST files that are merged at once to avoid long compactions.
 
+Compaction keeps meta files incremental: a new meta file only describes SST files that were merged
+or moved. Metadata for untouched SST files stays in its existing meta file. When every active entry
+in an old meta file is superseded, that meta file is retired in the same compaction commit.
+
 Full example:
 
 Example:
 
-```
+```text
 key hash range: | 0    ...    u64::MAX | Family
 SST 1:             |-|                   1
 SST 2:             |----------------|    1
@@ -234,7 +400,7 @@ Then we delete SST files 2, 3, 6 and 4, 5, 8 and 7, 9. The
 
 SST files 1 stays unchanged.
 
-```
+```text
 key hash range: | 0    ...    u64::MAX | Family
 SST 1:             |-|                   1
 SST 10:            |-----|               1
@@ -248,19 +414,37 @@ DEL 17:  (2, 3, 4, 5, 6, 7, 8, 9)
 CURRENT: 17
 ```
 
-Configuration options for compations are:
+### Choosing merge jobs
 
-- max number of SST files that are merged at once
-- coverage when compaction is triggered (otherwise calling compact is a noop)
+The key space of each family is split into a power-of-two number of shards by the leading bits of the key hash (starting at `FamilyConfig::initial_shard_bits`, then following the size of the family so that a shard holds about `DbConfig::target_shard_size` after compaction). The shard count doubles once a shard's bottom run exceeds 1.5 times the target and halves once it falls below half of it, so it doesn't flip back and forth. The size is estimated from the shards that have a bottom run, and the count is kept until one exists; the current count is recorded in each meta file. Commits and merges split SST files at shard boundaries, so each shard is compacted on its own. A shard has a bottom run (SST files flagged `bottom`, written by merging all files of the shard) and the files written since, above it.
+
+- A bottom merge merges all files of a shard into a new bottom run, dropping superseded entries and tombstones. It runs when the files above the bottom run exceed `max_space_amplification_percent` of the bottom run, counting each tombstone as an average bottom entry since it deletes one. This bounds the space amplification.
+- An intermediate merge merges files above the bottom run when there are more than `max_files_above_bottom`, to bound the number of files a lookup consults. Like RocksDB's universal compaction, it takes the newest file and then each next older one that is at most `size_ratio_percent` larger than the files taken so far (but at least the two newest), so small files from small commits are merged with each other without rewriting larger files written before them.
+
+A bottom merge writes the entries of recently read keys (the union of the "used key hashes" AMQFs of all meta files) into separate hot SST files, and the rest into cold ones. Processes tend to read the same keys again, so this packs them into fewer blocks, which matters on storage where reads are expensive. Since a bottom merge always includes the whole shard, hot and cold files are merged together and every version of a key meets. The used keys are never copied into the meta files written by compaction, so they expire once all SST files of the commit that recorded them are merged.
+
+Bottom merges are paced by the fresh (not yet compacted) files of the family: they are scheduled until they rewrote `rewrite_per_fresh_byte` times the size of those files (the last one may go past it, and the first one always runs), so compaction cost follows the amount of new data. Since keys are hashes, shards grow at the same rate; the rewrite quota spreads their bottom merges over multiple compactions. A skipped compaction leaves the fresh files in place, which increases the next quota. The default is 3: a bottom merge at the 50% trigger rewrites 1.5 times the bytes above the bottom run for each 0.5 of them, so in steady state a written byte is copied about 3 times. A shard over twice the trigger, or with over twice `max_files_above_bottom` files above its bottom run, is bottom merged even when the quota is reached, which bounds how far a shard can fall behind (e.g. after a GC purge, whose small tombstone files give a small quota).
 
 ## Opening
 
 - Read the `CURRENT` file
 - Delete all files with a higher sequence number than the one in the `CURRENT` file.
 - Read all `*.del` files and delete the files that are listed in there.
-- Read all `*.sst` files and memory map them.
+- Open all remaining `*.meta` files (memory mapped with `AccessMode::Mmap`, read onto the heap with
+  `AccessMode::File`), parse their AMQFs and drop entries for SST files that are obsolete.
+- SST and blob files are not opened here. An SST file is opened lazily, the first time a lookup
+  needs it (see [Reading](#reading)): memory mapped in mmap access mode, or read with positional
+  reads in file access mode. Either way, its block-offset table (4 bytes per block) is read with one
+  positional read (`pread`) and decoded in place. It is validated once (every block holds at least
+  its header and ends before the table) and kept in memory, so locating a block neither reads the
+  file nor re-checks the offsets. The index block is read the same way, verified, and kept in memory
+  for every lookup. Blob files are read when a value references them.
 
 ## Closing
 
 - fsync!
 - (this also deleted enqueued files)
+
+## Compatibility
+
+Currently, the database does not support cross version compatibility. Therefore all updates should be considered breaking changes and the only approach is to rewrite the databases.

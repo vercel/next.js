@@ -1,6 +1,6 @@
 'use client'
 
-import { type FormEvent, useContext, forwardRef } from 'react'
+import { type SubmitEvent, useContext, forwardRef } from 'react'
 import { addBasePath } from './add-base-path'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 import type { NextRouter } from './router'
@@ -88,7 +88,7 @@ const Form = forwardRef<HTMLFormElement, FormProps>(function FormComponent(
 export default Form
 
 function onFormSubmit(
-  event: FormEvent<HTMLFormElement>,
+  event: SubmitEvent<HTMLFormElement>,
   {
     actionHref,
     onSubmit,
@@ -120,7 +120,7 @@ function onFormSubmit(
   }
 
   const formElement = event.currentTarget
-  const submitter = (event.nativeEvent as SubmitEvent).submitter
+  const submitter = event.nativeEvent.submitter
 
   let action = actionHref
 

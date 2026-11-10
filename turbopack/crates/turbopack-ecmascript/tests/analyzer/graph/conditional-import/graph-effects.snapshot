@@ -7,99 +7,17 @@
             then: EffectsBlock {
                 effects: [],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                0,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Args(
-                                0,
-                            ),
-                        ),
-                        ExprOrSpread(
-                            Expr,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        12,
+                    ),
                 ),
             },
             else: EffectsBlock {
                 effects: [],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                0,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Args(
-                                0,
-                            ),
-                        ),
-                        ExprOrSpread(
-                            Expr,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Alt,
-                        ),
-                    ],
+                    AstPathId(
+                        13,
+                    ),
                 ),
             },
         },
@@ -149,10 +67,7 @@
         ],
         span: 18..34,
     },
-    Call {
-        func: FreeVar(
-            "import",
-        ),
+    DynamicImport {
         args: [
             Value(
                 Constant(
@@ -196,7 +111,7 @@
         ],
         span: 11..35,
         in_try: false,
-        new: false,
+        export_usage: All,
     },
     Member {
         obj: Member(
@@ -219,6 +134,152 @@
                 ),
             ),
         ),
+        base_effects: [
+            Member {
+                obj: FreeVar(
+                    "process",
+                ),
+                prop: Constant(
+                    Str(
+                        Atom(
+                            "env",
+                        ),
+                    ),
+                ),
+                base_effects: [
+                    FreeVar {
+                        var: "process",
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    1,
+                                ),
+                            ),
+                            ModuleItem(
+                                Stmt,
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    0,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Cond,
+                            ),
+                            CondExpr(
+                                Test,
+                            ),
+                            Expr(
+                                Bin,
+                            ),
+                            BinExpr(
+                                Left,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                            MemberExpr(
+                                Obj,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                            MemberExpr(
+                                Obj,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 57..64,
+                    },
+                ],
+                ast_path: [
+                    Program(
+                        Module,
+                    ),
+                    Module(
+                        Body(
+                            1,
+                        ),
+                    ),
+                    ModuleItem(
+                        Stmt,
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Args(
+                            0,
+                        ),
+                    ),
+                    ExprOrSpread(
+                        Expr,
+                    ),
+                    Expr(
+                        Cond,
+                    ),
+                    CondExpr(
+                        Test,
+                    ),
+                    Expr(
+                        Bin,
+                    ),
+                    BinExpr(
+                        Left,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                ],
+                span: 57..68,
+                in_truthiness_context: false,
+            },
+        ],
         ast_path: [
             Program(
                 Module,
@@ -273,147 +334,7 @@
             ),
         ],
         span: 57..81,
-    },
-    Member {
-        obj: FreeVar(
-            "process",
-        ),
-        prop: Constant(
-            Str(
-                Atom(
-                    "env",
-                ),
-            ),
-        ),
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    1,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Cond,
-            ),
-            CondExpr(
-                Test,
-            ),
-            Expr(
-                Bin,
-            ),
-            BinExpr(
-                Left,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 57..68,
-    },
-    FreeVar {
-        var: "process",
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    1,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Cond,
-            ),
-            CondExpr(
-                Test,
-            ),
-            Expr(
-                Bin,
-            ),
-            BinExpr(
-                Left,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 57..64,
+        in_truthiness_context: false,
     },
     Conditional {
         condition: Binary(
@@ -454,99 +375,17 @@
             then: EffectsBlock {
                 effects: [],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                1,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Args(
-                                0,
-                            ),
-                        ),
-                        ExprOrSpread(
-                            Expr,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        24,
+                    ),
                 ),
             },
             else: EffectsBlock {
                 effects: [],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                1,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Args(
-                                0,
-                            ),
-                        ),
-                        ExprOrSpread(
-                            Expr,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Alt,
-                        ),
-                    ],
+                    AstPathId(
+                        25,
+                    ),
                 ),
             },
         },
@@ -596,10 +435,7 @@
         ],
         span: 57..196,
     },
-    Call {
-        func: FreeVar(
-            "import",
-        ),
+    DynamicImport {
         args: [
             Value(
                 Tenary(
@@ -687,7 +523,7 @@
         ],
         span: 47..198,
         in_try: false,
-        new: false,
+        export_usage: All,
     },
     Conditional {
         condition: Constant(
@@ -696,10 +532,7 @@
         kind: IfElse {
             then: EffectsBlock {
                 effects: [
-                    Call {
-                        func: FreeVar(
-                            "import",
-                        ),
+                    DynamicImport {
                         args: [
                             Value(
                                 Constant(
@@ -755,37 +588,18 @@
                         ],
                         span: 226..237,
                         in_try: false,
-                        new: false,
+                        export_usage: All,
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                3,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        29,
+                    ),
                 ),
             },
             else: EffectsBlock {
                 effects: [
-                    Call {
-                        func: FreeVar(
-                            "import",
-                        ),
+                    DynamicImport {
                         args: [
                             Value(
                                 Constant(
@@ -841,29 +655,13 @@
                         ],
                         span: 254..265,
                         in_try: false,
-                        new: false,
+                        export_usage: All,
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                3,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Alt,
-                        ),
-                    ],
+                    AstPathId(
+                        30,
+                    ),
                 ),
             },
         },
@@ -900,6 +698,7 @@
                         export: Some(
                             "x",
                         ),
+                        member: None,
                         ast_path: [
                             Program(
                                 Module,
@@ -940,25 +739,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                7,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        43,
+                    ),
                 ),
             },
             else: EffectsBlock {
@@ -968,6 +751,7 @@
                         export: Some(
                             "y",
                         ),
+                        member: None,
                         ast_path: [
                             Program(
                                 Module,
@@ -1008,25 +792,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                7,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Alt,
-                        ),
-                    ],
+                    AstPathId(
+                        44,
+                    ),
                 ),
             },
         },
@@ -1083,7 +851,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -1109,80 +877,17 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                8,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        BlockStmt(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        53,
+                    ),
                 ),
             },
             else: EffectsBlock {
                 effects: [],
                 range: StartAfter(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                8,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        BlockStmt(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                    ],
+                    AstPathId(
+                        52,
+                    ),
                 ),
             },
         },
@@ -1210,7 +915,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -1224,10 +929,7 @@
         ],
         span: 399..434,
     },
-    Call {
-        func: FreeVar(
-            "import",
-        ),
+    DynamicImport {
         args: [
             Value(
                 Constant(
@@ -1263,7 +965,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -1280,13 +982,14 @@
         ],
         span: 438..449,
         in_try: false,
-        new: false,
+        export_usage: All,
     },
     ImportedBinding {
-        esm_reference_index: 4,
+        esm_reference_index: 5,
         export: Some(
             "z",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -1311,7 +1014,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),

@@ -1,4 +1,4 @@
-  x Unknown cache kind "x". Please configure a cache handler for this kind in the `experimental.cacheHandlers` object in your Next.js config.
+  x Unknown cache kind "x". Please configure a cache handler for this kind in the `cacheHandlers` object in your Next.js config.
   | 
    ,-[input.js:2:1]
  1 | export async function foo() {

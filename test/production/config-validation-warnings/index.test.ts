@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('config validation - warnings only', () => {
   const { next } = nextTestSetup({
     skipStart: true,
-    skipDeployment: true,
     files: __dirname,
   })
 

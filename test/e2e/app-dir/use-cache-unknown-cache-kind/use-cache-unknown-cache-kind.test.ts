@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   getRedboxDescription,
   getRedboxSource,
   retry,
@@ -9,51 +9,45 @@ import {
 import stripAnsi from 'strip-ansi'
 import { createSandbox } from 'development-sandbox'
 
-const isRspack = !!process.env.NEXT_RSPACK
-
 describe('use-cache-unknown-cache-kind', () => {
-  const { next, isNextStart, isTurbopack, skipped } = nextTestSetup({
-    files: __dirname,
-    skipStart: process.env.NEXT_TEST_MODE !== 'dev',
-    skipDeployment: true,
-  })
-
-  if (skipped) {
-    return
-  }
-
-  if (isNextStart) {
-    beforeAll(async () => {
-      await next.build()
+  const { next, isNextDev, isNextDeploy, isTurbopack, isRspack } =
+    nextTestSetup({
+      files: __dirname,
+      skipStart: process.env.NEXT_TEST_MODE !== 'dev',
     })
 
+  if (!isNextDev) {
     it('should fail the build with an error', async () => {
+      await expect(next.start()).rejects.toThrow()
       const buildOutput = getBuildOutput(next.cliOutput)
 
-      if (isTurbopack) {
+      if (isNextDeploy) {
+        expect(next.cliOutput).toContain(
+          'Unknown cache kind "custom". Please configure a cache handler for this kind in the `cacheHandlers` object in your Next.js config.'
+        )
+        expect(next.cliOutput).toContain('./app/page.tsx')
+        expect(next.cliOutput).toContain("'use cache: custom'")
+      } else if (isTurbopack) {
         expect(buildOutput).toMatchInlineSnapshot(`
-         "Error: Turbopack build failed with 1 errors:
+         "Error: Turbopack build failed with 1 error:
          ./app/page.tsx:1:1
-         Ecmascript file had an error
+         Error: Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
          > 1 | 'use cache: custom'
              | ^^^^^^^^^^^^^^^^^^^
            2 |
            3 | export default async function Page() {
            4 |   return <p>hello world</p>
 
-         Unknown cache kind "custom". Please configure a cache handler for this kind in the \`experimental.cacheHandlers\` object in your Next.js config.
+         Ecmascript file had an error
 
 
-
-             at <unknown> (./app/page.tsx:1:1)
-         "
+             at printBuildErrors (<next-internal>)"
         `)
       } else if (isRspack) {
         expect(buildOutput).toMatchInlineSnapshot(`
          "
          ./app/page.tsx
-           × Module build failed:
-           ╰─▶   × Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`experimental.cacheHandlers\` object in your Next.js config.
+           ╰─▶   × Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
                  │
                  │    ,-[1:1]
                  │  1 | 'use cache: custom'
@@ -75,7 +69,7 @@ describe('use-cache-unknown-cache-kind', () => {
         expect(buildOutput).toMatchInlineSnapshot(`
          "
          ./app/page.tsx
-         Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`experimental.cacheHandlers\` object in your Next.js config.
+         Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
 
             ,-[1:1]
           1 | 'use cache: custom'
@@ -93,7 +87,7 @@ describe('use-cache-unknown-cache-kind', () => {
          "
         `)
       }
-    })
+    }, 240_000)
 
     it('should not fail the build for default cache kinds', async () => {
       expect(next.cliOutput).not.toInclude('Unknown cache kind "remote"')
@@ -102,50 +96,49 @@ describe('use-cache-unknown-cache-kind', () => {
     it('should not show an error for default cache kinds', async () => {
       await using sandbox = await createSandbox(next, undefined, '/remote')
       const { browser } = sandbox
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     })
 
     it('should show a build error', async () => {
       await using sandbox = await createSandbox(next, undefined, '/')
       const { browser } = sandbox
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
 
       const errorDescription = await getRedboxDescription(browser)
       const errorSource = await getRedboxSource(browser)
 
       if (isTurbopack) {
         expect(errorDescription).toMatchInlineSnapshot(
-          `"Ecmascript file had an error"`
+          `"Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config."`
         )
       } else if (isRspack) {
         expect(errorDescription).toMatchInlineSnapshot(
-          `"  × Module build failed:"`
+          `"  ╰─▶   × Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config."`
         )
       } else {
         expect(errorDescription).toMatchInlineSnapshot(
-          `"  x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`experimental.cacheHandlers\` object in your Next.js config."`
+          `"  x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config."`
         )
       }
 
       if (isTurbopack) {
         expect(errorSource).toMatchInlineSnapshot(`
          "./app/page.tsx (1:1)
-         Ecmascript file had an error
+         Error: Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
          > 1 | 'use cache: custom'
              | ^^^^^^^^^^^^^^^^^^^
            2 |
            3 | export default async function Page() {
            4 |   return <p>hello world</p>
 
-         Unknown cache kind "custom". Please configure a cache handler for this kind in the \`experimental.cacheHandlers\` object in your Next.js config."
+         Ecmascript file had an error"
         `)
       } else if (isRspack) {
         expect(errorSource).toMatchInlineSnapshot(`
          "./app/page.tsx
-           × Module build failed:
-           ╰─▶   × Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`experimental.cacheHandlers\` object in your Next.js config.
-                 │   |
+           ╰─▶   × Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
+                 │
                  │    ,-[1:1]
                  │  1 | 'use cache: custom'
                  │    : ^^^^^^^^^^^^^^^^^^^
@@ -158,7 +151,7 @@ describe('use-cache-unknown-cache-kind', () => {
       } else {
         expect(errorSource).toMatchInlineSnapshot(`
          "./app/page.tsx
-         Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`experimental.cacheHandlers\` object in your Next.js config.
+         Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
 
             ,-[1:1]
           1 | 'use cache: custom'
@@ -175,25 +168,23 @@ describe('use-cache-unknown-cache-kind', () => {
       await using sandbox = await createSandbox(next, undefined, '/')
       const { browser, session } = sandbox
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
 
       await session.patch(
         'next.config.js',
         `module.exports = {
-          experimental: {
-            cacheComponents: true,
-            cacheHandlers: {
-              custom: require.resolve(
-                'next/dist/server/lib/cache-handlers/default.external'
-              ),
-            },
+          cacheComponents: true,
+          cacheHandlers: {
+            custom: require.resolve(
+              'next/dist/server/lib/cache-handlers/default.external'
+            ),
           },
         }`
       )
 
       await retry(async () => {
         expect(await browser.elementByCss('p').text()).toBe('hello world')
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
       })
     })
   }
@@ -209,7 +200,15 @@ function getBuildOutput(cliOutput: string): string {
         break
       }
 
-      lines.push(stripAnsi(line))
+      lines.push(
+        // Framework frames are intentionally printed unsourcemapped (the build
+        // process has no source maps); their install-specific paths are not
+        // stable.
+        stripAnsi(line).replace(
+          /(at (?:async )?[\w$.]+) \([^)]*node_modules\/next\/dist[^)]*\)/,
+          '$1 (<next-internal>)'
+        )
+      )
     } else if (
       line.includes('Build error occurred') ||
       line.includes('Failed to compile')

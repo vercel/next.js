@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 
+import { unstable_cache } from 'next/cache'
 import { headers as nextHeaders, draftMode } from 'next/headers'
+
+const getCachedValue = unstable_cache(
+  async () => Math.random().toString(),
+  ['middleware-cache-probe']
+)
 
 /**
  * @param {import('next/server').NextRequest} request
@@ -44,7 +50,10 @@ export async function middleware(request) {
     return NextResponse.rewrite(request.nextUrl)
   }
 
-  if (request.nextUrl.pathname === '/rsc-cookies') {
+  if (
+    request.nextUrl.pathname === '/rsc-cookies' ||
+    request.nextUrl.pathname === '/rsc-cookies-edge'
+  ) {
     const res = NextResponse.next()
     res.cookies.set('rsc-cookie-value-1', `${Math.random()}`)
     res.cookies.set('rsc-cookie-value-2', `${Math.random()}`)
@@ -76,6 +85,11 @@ export async function middleware(request) {
       },
     })
     return res
+  }
+
+  if (request.nextUrl.pathname === '/unstable-cache') {
+    const value = await getCachedValue()
+    return NextResponse.json({ value })
   }
 
   if (request.nextUrl.pathname === '/test-location-header') {

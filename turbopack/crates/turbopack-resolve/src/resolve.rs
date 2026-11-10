@@ -1,8 +1,8 @@
 use anyhow::Result;
 use next_taskless::{BUN_EXTERNALS, EDGE_NODE_EXTERNALS, NODE_EXTERNALS};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{FileSystem, FileSystemPath};
+use turbo_tasks::Vc;
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::resolve::{
     AliasMap, AliasPattern, ExternalTraced, ExternalType, FindContextFileResult, find_context_file,
     options::{
@@ -12,18 +12,16 @@ use turbopack_core::resolve::{
 };
 
 use crate::{
-    resolve_options_context::ResolveOptionsContext,
+    resolve_options_context::{ResolveOptionsContext, TsConfigHandling},
     typescript::{apply_tsconfig_resolve_options, tsconfig, tsconfig_resolve_options},
 };
 
 #[turbo_tasks::function]
 async fn base_resolve_options(
-    fs: ResolvedVc<Box<dyn FileSystem>>,
     options_context: Vc<ResolveOptionsContext>,
 ) -> Result<Vc<ResolveOptions>> {
     let opt = options_context.await?;
     let emulating = opt.emulate_environment;
-    let root = fs.root().owned().await?;
     let mut direct_mappings = AliasMap::new();
     let node_externals = if let Some(environment) = emulating {
         environment.node_externals().owned().await?
@@ -88,6 +86,9 @@ async fn base_resolve_options(
         if opt.module {
             conditions.insert(rcstr!("module"), ConditionValue::Set);
         }
+        if opt.module_sync != ConditionValue::Unset {
+            conditions.insert(rcstr!("module-sync"), opt.module_sync);
+        }
         if let Some(environment) = emulating {
             for condition in environment.resolve_conditions().await?.iter() {
                 conditions.insert(condition.clone(), ConditionValue::Set);
@@ -151,20 +152,14 @@ async fn base_resolve_options(
         extensions,
         modules: if let Some(environment) = emulating {
             if *environment.resolve_node_modules().await? {
-                vec![ResolveModules::Nested(
-                    root.clone(),
-                    vec![rcstr!("node_modules")],
-                )]
+                vec![ResolveModules::Nested(vec![rcstr!("node_modules")])]
             } else {
                 Vec::new()
             }
         } else {
             let mut mods = Vec::new();
-            if let Some(dir) = &opt.enable_node_modules {
-                mods.push(ResolveModules::Nested(
-                    dir.clone(),
-                    vec![rcstr!("node_modules")],
-                ));
+            if opt.enable_node_modules.is_some() {
+                mods.push(ResolveModules::Nested(vec![rcstr!("node_modules")]));
             }
             mods
         },
@@ -205,9 +200,10 @@ async fn base_resolve_options(
         before_resolve_plugins: opt.before_resolve_plugins.clone(),
         loose_errors: opt.loose_errors,
         collect_affecting_sources: opt.collect_affecting_sources,
+        server_relative_root: opt.server_relative_root.clone(),
         ..Default::default()
     }
-    .into())
+    .cell())
 }
 
 #[turbo_tasks::function]
@@ -224,7 +220,7 @@ pub async fn resolve_options(
         }
     }
 
-    let resolve_options = base_resolve_options(*resolve_path.fs, options_context);
+    let resolve_options = base_resolve_options(options_context);
 
     let resolve_options = if options_context_value.enable_typescript {
         let find_tsconfig = async || {
@@ -246,22 +242,24 @@ pub async fn resolve_options(
 
         // Use a specified tsconfig path if provided. In Next.js, this is always provided by the
         // default config, at the very least.
-        if let Some(tsconfig_path) = &options_context_value.tsconfig_path {
-            let meta = tsconfig_path.metadata().await;
-            if meta.is_ok() {
-                // If the file exists, use it.
-                apply_tsconfig_resolve_options(
-                    resolve_options,
-                    tsconfig_resolve_options(tsconfig_path.clone()),
-                )
-            } else {
-                // Otherwise, try and find one.
-                // TODO: If the user provides a tsconfig.json explicitly, this should fail
-                // explicitly. Currently implemented this way for parity with webpack.
-                find_tsconfig().await?
+        match &options_context_value.tsconfig_path {
+            TsConfigHandling::Disabled => resolve_options,
+            TsConfigHandling::ContextFile => find_tsconfig().await?,
+            TsConfigHandling::Fixed(tsconfig_path) => {
+                let meta = tsconfig_path.metadata().await;
+                if meta.is_ok() {
+                    // If the file exists, use it.
+                    apply_tsconfig_resolve_options(
+                        resolve_options,
+                        tsconfig_resolve_options(tsconfig_path.clone()),
+                    )
+                } else {
+                    // Otherwise, try and find one.
+                    // TODO: If the user provides a tsconfig.json explicitly, this should fail
+                    // explicitly. Currently implemented this way for parity with webpack.
+                    find_tsconfig().await?
+                }
             }
-        } else {
-            find_tsconfig().await?
         }
     } else {
         resolve_options

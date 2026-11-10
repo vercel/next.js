@@ -11,8 +11,32 @@ export function printAndExit(message: string, code = 1) {
   return process.exit(code)
 }
 
-const parseNodeArgs = (args: string[]) => {
-  const { values, tokens } = parseArgs({ args, strict: false, tokens: true })
+export type NodeOptions = Record<
+  string,
+  string | string[] | boolean | undefined
+>
+
+/**
+ * Node.js CLI flags that can be repeated. Node runs every occurrence of these
+ * flags, so they need to be preserved individually rather than collapsed into
+ * a single value keyed by option name.
+ * https://nodejs.org/api/cli.html#--requiremodule
+ * https://nodejs.org/api/cli.html#--importmodule
+ */
+const REPEATABLE_OPTIONS: Record<string, { type: 'string'; multiple: true }> = {
+  require: { type: 'string', multiple: true },
+  import: { type: 'string', multiple: true },
+}
+
+const parseNodeArgs = (args: string[]): NodeOptions => {
+  const parsed = parseArgs({
+    args,
+    strict: false,
+    tokens: true,
+    options: REPEATABLE_OPTIONS,
+  })
+  const values: NodeOptions = parsed.values
+  const tokens = parsed.tokens
 
   // For the `NODE_OPTIONS`, we support arguments with values without the `=`
   // sign. We need to parse them manually.
@@ -44,12 +68,27 @@ const parseNodeArgs = (args: string[]) => {
       continue
     }
 
+    const name = orphan.name
+
+    // If the option is repeatable, accumulate each occurrence instead of
+    // collapsing them into a single value.
+    if (name in REPEATABLE_OPTIONS) {
+      if (Array.isArray(values[name])) {
+        values[name].push(token.value)
+      } else if (typeof values[name] === 'string') {
+        values[name] = [values[name], token.value]
+      } else {
+        values[name] = token.value
+      }
+      continue
+    }
+
     // If the token is a positional one, and it has a value, so add it to the
     // values object. If it already exists, append it with a space.
-    if (orphan.name in values && typeof values[orphan.name] === 'string') {
-      values[orphan.name] += ` ${token.value}`
+    if (name in values && typeof values[name] === 'string') {
+      values[name] += ` ${token.value}`
     } else {
-      values[orphan.name] = token.value
+      values[name] = token.value
     }
   }
 
@@ -127,7 +166,7 @@ export const getNodeOptionsArgs = () => {
 /**
  * The debug address is in the form of `[host:]port`. The host is optional.
  */
-type DebugAddress = {
+export interface DebugAddress {
   host: string | undefined
   port: number
 }
@@ -147,17 +186,9 @@ export const formatDebugAddress = ({ host, port }: DebugAddress): string => {
  *
  * @returns An object with the host and port of the debug address.
  */
-export const getParsedDebugAddress = (): DebugAddress => {
-  const args = getNodeOptionsArgs()
-  if (args.length === 0) return { host: undefined, port: 9229 }
-
-  const parsed = parseNodeArgs(args)
-
-  // We expect to find the debug port in one of these options. The first one
-  // found will be used.
-  const address =
-    parsed.inspect ?? parsed['inspect-brk'] ?? parsed['inspect_brk']
-
+export const getParsedDebugAddress = (
+  address: string | string[] | boolean | undefined
+): DebugAddress => {
   if (!address || typeof address !== 'string') {
     return { host: undefined, port: 9229 }
   }
@@ -172,44 +203,87 @@ export const getParsedDebugAddress = (): DebugAddress => {
 }
 
 /**
- * Get the debug address from the `NODE_OPTIONS` environment variable and format
- * it into a string.
+ * Node.js CLI flags that are not allowed in NODE_OPTIONS and must be
+ * passed as direct CLI arguments via execArgv.
+ * This set is the difference between all Node.js CLI flags and the ones **not**
+ * allowed in NODE_OPTIONS, as listed in the Node.js documentation:
+ * https://nodejs.org/api/cli.html#node_optionsoptions
  *
- * @returns A string with the formatted debug address.
+ * It is not exhaustive since not all options make sense for Next.js (e.g. --test)
  */
-export const getFormattedDebugAddress = () =>
-  formatDebugAddress(getParsedDebugAddress())
+const EXEC_ARGV_ONLY_OPTIONS = new Set([
+  'experimental-network-inspection',
+  'experimental-storage-inspection',
+  'experimental-worker-inspection',
+  'experimental-inspector-network-resource',
+])
+
+function formatArg(
+  key: string,
+  value: string | string[] | boolean | undefined
+): string | null {
+  if (value === true) {
+    return `--${key}`
+  }
+
+  if (Array.isArray(value)) {
+    const formatted: string[] = []
+    for (const item of value) {
+      const formattedItem = formatArg(key, item)
+      if (formattedItem !== null) {
+        formatted.push(formattedItem)
+      }
+    }
+    return formatted.length > 0 ? formatted.join(' ') : null
+  }
+
+  if (value) {
+    return `--${key}=${
+      // Values with spaces need to be quoted. We use JSON.stringify to
+      // also escape any nested quotes.
+      value.includes(' ') && !value.startsWith('"')
+        ? JSON.stringify(value)
+        : value
+    }`
+  }
+
+  return null
+}
 
 /**
  * Stringify the arguments to be used in a command line. It will ignore any
- * argument that has a value of `undefined`.
+ * argument that has a value of `undefined`. Options that are not allowed in
+ * NODE_OPTIONS are returned separately as execArgv.
  *
  * @param args The arguments to be stringified.
- * @returns A string with the arguments.
+ * @returns An object with `nodeOptions` string and `execArgv` array.
  */
-export function formatNodeOptions(
-  args: Record<string, string | boolean | undefined>
-): string {
-  return Object.entries(args)
-    .map(([key, value]) => {
-      if (value === true) {
-        return `--${key}`
-      }
+export function formatNodeOptions(args: NodeOptions): {
+  nodeOptions: string
+  execArgv: string[]
+} {
+  const nodeOptionsParts: string[] = []
+  const execArgv: string[] = []
 
-      if (value) {
-        return `--${key}=${
-          // Values with spaces need to be quoted. We use JSON.stringify to
-          // also escape any nested quotes.
-          value.includes(' ') && !value.startsWith('"')
-            ? JSON.stringify(value)
-            : value
-        }`
-      }
+  for (const [key, value] of Object.entries(args)) {
+    const formatted = formatArg(key, value)
+    if (formatted === null) continue
 
-      return null
-    })
-    .filter((arg) => arg !== null)
-    .join(' ')
+    if (EXEC_ARGV_ONLY_OPTIONS.has(key)) {
+      execArgv.push(formatted)
+    } else {
+      nodeOptionsParts.push(formatted)
+    }
+  }
+
+  return { nodeOptions: nodeOptionsParts.join(' '), execArgv }
+}
+
+export function getParsedNodeOptions(): NodeOptions {
+  const args = [...process.execArgv, ...getNodeOptionsArgs()]
+  if (args.length === 0) return {}
+
+  return parseNodeArgs(args)
 }
 
 /**
@@ -242,7 +316,7 @@ export function getFormattedNodeOptionsWithoutInspect() {
   const args = getParsedNodeOptionsWithoutInspect()
   if (Object.keys(args).length === 0) return ''
 
-  return formatNodeOptions(args)
+  return formatNodeOptions(args).nodeOptions
 }
 
 /**
@@ -261,19 +335,43 @@ export function parseValidPositiveInteger(value: string): number {
 
 export const RESTART_EXIT_CODE = 77
 
+type HeapStatistics = {
+  used_heap_size: number
+  heap_size_limit: number
+}
+
+/**
+ * @internal
+ */
+export function getMemoryRestartStats<T extends HeapStatistics>(
+  isDev: boolean,
+  devMemoryThresholdRestart: boolean,
+  getHeapStatistics: () => T
+): T | undefined {
+  if (!isDev || !devMemoryThresholdRestart) {
+    return undefined
+  }
+
+  const heapStatistics = getHeapStatistics()
+  if (heapStatistics.used_heap_size > 0.8 * heapStatistics.heap_size_limit) {
+    return heapStatistics
+  }
+
+  return undefined
+}
+
 export type NodeInspectType = 'inspect' | 'inspect-brk' | undefined
 
 /**
  * Get the debug type from the `NODE_OPTIONS` environment variable.
  */
-export function getNodeDebugType(): NodeInspectType {
-  const args = [...process.execArgv, ...getNodeOptionsArgs()]
-  if (args.length === 0) return
-
-  const parsed = parseNodeArgs(args)
-
-  if (parsed.inspect) return 'inspect'
-  if (parsed['inspect-brk'] || parsed['inspect_brk']) return 'inspect-brk'
+export function getNodeDebugType(nodeOptions: NodeOptions): NodeInspectType {
+  if (nodeOptions.inspect) {
+    return 'inspect'
+  }
+  if (nodeOptions['inspect-brk'] || nodeOptions['inspect_brk']) {
+    return 'inspect-brk'
+  }
 }
 
 /**
@@ -292,4 +390,13 @@ export function getMaxOldSpaceSize() {
   if (!size || typeof size !== 'string') return
 
   return parseInt(size, 10)
+}
+
+// For a child whose output is piped to its parent. Without this,
+// process.exit() can drop the last lines written to the pipe. Node already
+// does this for terminals.
+export function blockOnOutputWrites() {
+  for (const stream of [process.stdout, process.stderr]) {
+    stream._handle?.setBlocking?.(true)
+  }
 }

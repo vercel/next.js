@@ -5,6 +5,7 @@ related:
   links:
     - app/api-reference/components/link
     - app/api-reference/file-conventions/loading
+    - app/guides/optimizing-prefetching
     - app/guides/prefetching
 ---
 
@@ -27,7 +28,7 @@ In Next.js, [Layouts and Pages](/docs/app/getting-started/layouts-and-pages) are
 
 There are two types of server rendering, based on _when_ it happens:
 
-- **Static Rendering (or Prerendering)** happens at build time or during [revalidation](/docs/app/getting-started/caching-and-revalidating) and the result is cached.
+- **Prerendering** happens at build time or during [revalidation](/docs/app/getting-started/revalidating) and the result is cached.
 - **Dynamic Rendering** happens at request time in response to a client request.
 
 The trade-off of server rendering is that the client must wait for the server to respond before the new route can be shown. Next.js addresses this delay by [prefetching](#prefetching) routes the user is likely to visit and performing [client-side transitions](#client-side-transitions).
@@ -63,7 +64,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 ```jsx filename="app/layout.js" switcher
 import Link from 'next/link'
 
-export default function Layout() {
+export default function Layout({ children }) {
   return (
     <html>
       <body>
@@ -95,11 +96,13 @@ By skipping or partially prefetching dynamic routes, Next.js avoids unnecessary 
   height="748"
 />
 
+> **Good to know:** See the [Prefetching guide](/docs/app/guides/prefetching) for the full behavior, including how to control prefetching per link and how it changes when you adopt [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching). To include URL-dependent content in a link's prefetch, see [Optimizing prefetching](/docs/app/guides/optimizing-prefetching).
+
 To improve the navigation experience to dynamic routes, you can use [streaming](#streaming).
 
 ### Streaming
 
-Streaming allows the server to send parts of a dynamic route to the client as soon as they're ready, rather than waiting for the entire route to be rendered. This means users see something sooner, even if parts of the page are still loading.
+Streaming allows the server to send parts of a dynamic route to the client as soon as they're ready, rather than waiting for the entire route to be rendered. This means users see something sooner, even if parts of the page are still loading. See the [Streaming guide](/docs/app/guides/streaming) for a deep dive into how streaming works in Next.js.
 
 For dynamic routes, it means they can be **partially prefetched**. That is, shared layouts and loading skeletons can be requested ahead of time.
 
@@ -156,7 +159,9 @@ Next.js avoids this with client-side transitions using the `<Link>` component. I
 - Keeping any shared layouts and UI.
 - Replacing the current page with the prefetched loading state or a new page if available.
 
-Client-side transitions are what makes a server-rendered apps _feel_ like client-rendered apps. And when paired with [prefetching](#prefetching) and [streaming](#streaming), it enables fast transitions, even for dynamic routes.
+Client-side transitions make server-rendered apps _feel_ like client-rendered apps. And when paired with [prefetching](#prefetching) and [streaming](#streaming), they enable fast transitions, even for dynamic routes.
+
+Next.js also handles [scrolling to the top of the page](/docs/app/api-reference/components/link#scroll) during client-side transitions. If content scrolls behind a sticky or fixed header after navigation, you can fix this with CSS [`scroll-padding-top`](/docs/app/api-reference/components/link#scroll-offset-with-sticky-headers).
 
 ## What can make transitions slow?
 
@@ -214,6 +219,7 @@ export async function generateStaticParams() {
   return posts.map((post) => ({
     slug: post.slug,
   }))
+}
 
 export default async function Page({ params }) {
   const { slug } = await params
@@ -254,6 +260,8 @@ export default function LoadingIndicator() {
 ```
 
 You can "debounce" the hint by adding an initial animation delay (e.g. 100ms) and starting as invisible (e.g. `opacity: 0`). This means the loading indicator will only be shown if the navigation takes longer than the specified delay. See the [`useLinkStatus` reference](/docs/app/api-reference/functions/use-link-status#gracefully-handling-fast-navigation) for a CSS example.
+
+> **Good to know**: An **experimental** [`useOffline`](/docs/app/api-reference/config/next-config-js/useOffline) hook can keep prefetched routes navigable during connectivity drops. See the [offline support guide](/docs/app/guides/offline-support).
 
 > **Good to know**: You can use other visual feedback patterns like a progress bar. View an example [here](https://github.com/vercel/react-transition-progress).
 
@@ -328,7 +336,7 @@ function HoverPrefetchLink({ href, children }) {
 
 React mitigates this with Selective Hydration and you can further improve this by:
 
-- Using the [`@next/bundle-analyzer`](/docs/app/guides/package-bundling#analyzing-javascript-bundles) plugin to identify and reduce bundle size by removing large dependencies.
+- Using the [`@next/bundle-analyzer`](/docs/app/guides/package-bundling#nextbundle-analyzer-for-webpack) plugin to identify and reduce bundle size by removing large dependencies.
 - Moving logic from the client to the server where possible. See the [Server and Client Components](/docs/app/getting-started/server-and-client-components) docs for guidance.
 
 ## Examples
@@ -337,7 +345,7 @@ React mitigates this with Selective Hydration and you can further improve this b
 
 Next.js allows you to use the native [`window.history.pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History/pushState) and [`window.history.replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState) methods to update the browser's history stack without reloading the page.
 
-`pushState` and `replaceState` calls integrate into the Next.js Router, allowing you to sync with [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params).
+Next.js integrates `pushState` and `replaceState` calls into the router, so components that render with [`usePathname`](/docs/app/api-reference/functions/use-pathname) or [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) update when the URL changes. When an event handler is the only place a component needs the URL, read `window.location` in the handler instead of calling `usePathname` or `useSearchParams`. Both hooks affect [prerendering](/docs/app/api-reference/functions/use-search-params#prerendering).
 
 #### `window.history.pushState`
 
@@ -346,13 +354,9 @@ Use it to add a new entry to the browser's history stack. The user can navigate 
 ```tsx fileName="app/ui/sort-products.tsx" switcher
 'use client'
 
-import { useSearchParams } from 'next/navigation'
-
 export default function SortProducts() {
-  const searchParams = useSearchParams()
-
   function updateSorting(sortOrder: string) {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(window.location.search)
     params.set('sort', sortOrder)
     window.history.pushState(null, '', `?${params.toString()}`)
   }
@@ -369,13 +373,9 @@ export default function SortProducts() {
 ```jsx fileName="app/ui/sort-products.js" switcher
 'use client'
 
-import { useSearchParams } from 'next/navigation'
-
 export default function SortProducts() {
-  const searchParams = useSearchParams()
-
   function updateSorting(sortOrder) {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(window.location.search)
     params.set('sort', sortOrder)
     window.history.pushState(null, '', `?${params.toString()}`)
   }
@@ -396,14 +396,10 @@ Use it to replace the current entry on the browser's history stack. The user is 
 ```tsx fileName="app/ui/locale-switcher.tsx" switcher
 'use client'
 
-import { usePathname } from 'next/navigation'
-
 export function LocaleSwitcher() {
-  const pathname = usePathname()
-
   function switchLocale(locale: string) {
     // e.g. '/en/about' or '/fr/contact'
-    const newPath = `/${locale}${pathname}`
+    const newPath = `/${locale}${window.location.pathname}`
     window.history.replaceState(null, '', newPath)
   }
 
@@ -419,14 +415,10 @@ export function LocaleSwitcher() {
 ```jsx fileName="app/ui/locale-switcher.js" switcher
 'use client'
 
-import { usePathname } from 'next/navigation'
-
 export function LocaleSwitcher() {
-  const pathname = usePathname()
-
   function switchLocale(locale) {
     // e.g. '/en/about' or '/fr/contact'
-    const newPath = `/${locale}${pathname}`
+    const newPath = `/${locale}${window.location.pathname}`
     window.history.replaceState(null, '', newPath)
   }
 

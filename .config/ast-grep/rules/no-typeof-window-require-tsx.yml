@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ast-grep/ast-grep/main/schemas/rule.json
+
+# Tsx counterpart of no-typeof-window-require.yml (ast-grep rules are
+# single-language; keep the two `rule` bodies in sync).
+id: no-typeof-window-require-tsx
+message: Don't gate a `require()` on `typeof window`.
+note: |
+  Gating a `require()` on `typeof window` bundles the server branch into the
+  browser bundle. Split the module into `<name>.tsx` (the default, used on the
+  server and any unbundled runtime) and `<name>.browser.tsx` (the browser
+  variant). The browser bundle is aliased to the `.browser` sibling
+  automatically — see scripts/generate-browser-variant-aliases.mjs.
+severity: error
+language: Tsx
+files:
+  - packages/next/src/**
+rule:
+  pattern: require($$$ARGS)
+  inside:
+    stopBy: end
+    any:
+      - kind: ternary_expression
+        has:
+          field: condition
+          has:
+            stopBy: end
+            pattern: typeof window
+      - kind: if_statement
+        has:
+          field: condition
+          has:
+            stopBy: end
+            pattern: typeof window

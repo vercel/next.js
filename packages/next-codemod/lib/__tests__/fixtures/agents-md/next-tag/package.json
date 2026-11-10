@@ -1,0 +1,6 @@
+{
+  "name": "next-tag",
+  "dependencies": {
+    "next": "latest"
+  }
+}

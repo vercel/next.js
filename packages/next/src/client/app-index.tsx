@@ -1,9 +1,12 @@
 import './app-globals'
 import ReactDOMClient from 'react-dom/client'
-import React, { use } from 'react'
+import React from 'react'
 // TODO: Explicitly import from client.browser
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { createFromReadableStream as createFromReadableStreamBrowser } from 'react-server-dom-webpack/client'
+import {
+  createFromReadableStream as createFromReadableStreamBrowser,
+  createFromFetch as createFromFetchBrowser,
+} from 'react-server-dom-webpack/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { onRecoverableError } from './react-client-callbacks/on-recoverable-error'
 import {
@@ -20,15 +23,29 @@ import AppRouter from './components/app-router'
 import type { InitialRSCPayload } from '../shared/lib/app-router-types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
-import { setAppBuildId } from './app-build-id'
 import type { StaticIndicatorState } from './dev/hot-reloader/app/hot-reloader-app'
+import { createInitialRSCPayloadFromFallbackPrerender } from './flight-data-helpers'
+import { getDeploymentId } from '../shared/lib/deployment-id'
+import { setNavigationBuildId } from './navigation-build-id'
+import type { ClientInstrumentationModules } from './router-transition-types'
+import { initializeRouterTransitionModules } from './components/router-transition'
 
 /// <reference types="react-dom/experimental" />
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
+const createFromFetch =
+  createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
 
 const appElement: HTMLElement | Document = document
+
+// Instant Navigation Testing API: captured once at module init. When truthy,
+// this is the fetch promise for the static RSC payload (set by an injected
+// <script> tag in the static shell HTML).
+const instantTestStaticFetch: Promise<Response> | undefined =
+  self.__next_instant_test
+    ? (self.__next_instant_test as unknown as Promise<Response>)
+    : undefined
 
 const encoder = new TextEncoder()
 
@@ -37,6 +54,21 @@ let initialServerDataWriter: ReadableStreamDefaultController | undefined =
   undefined
 let initialServerDataLoaded = false
 let initialServerDataFlushed = false
+
+// With Cached Navigations, we keep the initial Flight stream's bytes as we
+// hand them to React, so hydration can cut a shell from them. We only do this
+// when hydration decodes this stream, not a fetched payload. We record chunks
+// until the stream is flushed, and hydration keeps its own reference. Each
+// lets go of the chunks when it's done.
+let initialServerDataChunks: Array<Uint8Array> | null =
+  process.env.__NEXT_CACHE_COMPONENTS &&
+  process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS &&
+  !instantTestStaticFetch &&
+  // @ts-expect-error
+  !window.__NEXT_CLIENT_RESUME
+    ? []
+    : null
+let initialServerDataChunksForHydration = initialServerDataChunks
 
 let initialFormStateData: null | any = null
 
@@ -68,10 +100,14 @@ function nextServerDataCallback(seg: FlightSegment): void {
     if (!initialServerDataBuffer)
       throw new Error('Unexpected server data: missing bootstrap script.')
 
+    const chunk = encoder.encode(seg[1])
+    if (initialServerDataChunks !== null) {
+      initialServerDataChunks.push(chunk)
+    }
     if (initialServerDataWriter) {
-      initialServerDataWriter.enqueue(encoder.encode(seg[1]))
+      initialServerDataWriter.enqueue(chunk)
     } else {
-      initialServerDataBuffer.push(seg[1])
+      initialServerDataBuffer.push(chunk)
     }
   } else if (seg[0] === 2) {
     initialFormStateData = seg[1]
@@ -84,6 +120,9 @@ function nextServerDataCallback(seg: FlightSegment): void {
     const decodedChunk = new Uint8Array(binaryString.length)
     for (var i = 0; i < binaryString.length; i++) {
       decodedChunk[i] = binaryString.charCodeAt(i)
+    }
+    if (initialServerDataChunks !== null) {
+      initialServerDataChunks.push(decodedChunk)
     }
 
     if (initialServerDataWriter) {
@@ -113,31 +152,116 @@ function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
       ctr.enqueue(typeof val === 'string' ? encoder.encode(val) : val)
     })
     if (initialServerDataLoaded && !initialServerDataFlushed) {
+      // Instant Navigation Testing API: don't close or error the inline
+      // Flight stream. The static shell has no inline Flight data, so the
+      // stream is empty. Closing it would cause React to log an error about
+      // missing data. Leaving it open lets React treat any holes as
+      // "still suspended." Hydration uses the separately fetched RSC payload
+      // (self.__next_instant_test), not this stream.
       if (isStreamErrorOrUnfinished(ctr)) {
-        ctr.error(
-          new Error(
-            'The connection to the page was unexpectedly closed, possibly due to the stop button being clicked, loss of Wi-Fi, or an unstable internet connection.'
+        if (!instantTestStaticFetch) {
+          ctr.error(
+            new Error(
+              'The connection to the page was unexpectedly closed, possibly due to the stop button being clicked, loss of Wi-Fi, or an unstable internet connection.'
+            )
           )
-        )
+        }
       } else {
         ctr.close()
       }
       initialServerDataFlushed = true
       initialServerDataBuffer = undefined
+      initialServerDataChunks = null
     }
   }
 
   initialServerDataWriter = ctr
 }
 
+let stopFlightTemplateCollector: (() => void) | null = null
+
 // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
 const DOMContentLoaded = function () {
+  // Must run before the writer is closed, otherwise a payload the observer has
+  // not delivered yet would be dropped.
+  if (stopFlightTemplateCollector !== null) {
+    stopFlightTemplateCollector()
+    stopFlightTemplateCollector = null
+  }
   if (initialServerDataWriter && !initialServerDataFlushed) {
     initialServerDataWriter.close()
     initialServerDataFlushed = true
     initialServerDataBuffer = undefined
+    initialServerDataChunks = null
   }
   initialServerDataLoaded = true
+}
+
+// Kept in sync with `FLIGHT_DATA_ATTRIBUTE` in
+// packages/next/src/server/app-render/use-flight-response.tsx
+const FLIGHT_TEMPLATE_SELECTOR = 'template[data-next-flight]'
+
+/**
+ * With `experimental.externalBrowserRuntime` the server writes each Flight
+ * payload as an inert `<template>` instead of an inline `<script>`, so that a
+ * Content-Security-Policy does not need `unsafe-inline`. Nothing executes those
+ * templates, so we collect them here: once for whatever the parser has already
+ * produced, then continuously as the rest of the document streams in.
+ *
+ * This deliberately lives in the client bundle rather than in the shared browser
+ * runtime asset. This module is the only consumer of the payload queue and it
+ * closes the stream on `DOMContentLoaded`, which `async` scripts do not block —
+ * collecting from a separate async script would race that close and drop data.
+ *
+ * Returns a function that performs a final sweep and stops observing.
+ */
+function createFlightTemplateCollector(): () => void {
+  const handled = new WeakSet<Element>()
+
+  function handle(element: Element) {
+    if (handled.has(element)) {
+      return
+    }
+    handled.add(element)
+
+    const payload = element.getAttribute('data-next-flight')
+    if (payload === null) {
+      return
+    }
+    nextServerDataCallback(JSON.parse(payload) as FlightSegment)
+  }
+
+  // `querySelectorAll` yields document order, which is the order the server
+  // wrote the payloads in. The bootstrap payload is written first, so it is
+  // always handled before any data payload.
+  function collect(root: ParentNode) {
+    root.querySelectorAll(FLIGHT_TEMPLATE_SELECTOR).forEach(handle)
+  }
+
+  collect(document)
+
+  const observer = new MutationObserver((records) => {
+    for (const record of records) {
+      record.addedNodes.forEach((node) => {
+        if (node.nodeType !== Node.ELEMENT_NODE) {
+          return
+        }
+        const element = node as Element
+        if (element.matches(FLIGHT_TEMPLATE_SELECTOR)) {
+          handle(element)
+        } else {
+          // The parser can append a subtree that contains the template.
+          collect(element)
+        }
+      })
+    }
+  })
+  observer.observe(document.documentElement, { childList: true, subtree: true })
+
+  return function stop() {
+    collect(document)
+    observer.disconnect()
+  }
 }
 
 // It's possible that the DOM is already loaded.
@@ -149,47 +273,110 @@ if (document.readyState === 'loading') {
 }
 
 const nextServerDataLoadingGlobal = (self.__next_f = self.__next_f || [])
+
+// Consume all buffered chunks and clear the global data array right after to release memory.
+// Otherwise it will be retained indefinitely.
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
+nextServerDataLoadingGlobal.length = 0
+
+// Patch its push method so subsequent chunks are handled (but not actually pushed to the array).
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
-const readable = new ReadableStream({
+if (process.env.__NEXT_EXTERNAL_BROWSER_RUNTIME) {
+  stopFlightTemplateCollector = createFlightTemplateCollector()
+}
+
+const readable: ReadableStream<Uint8Array> = new ReadableStream({
   start(controller) {
     nextServerDataRegisterWriter(controller)
   },
 })
+if (process.env.NODE_ENV !== 'production') {
+  // @ts-expect-error
+  readable.name = 'hydration'
+}
 
 let debugChannel:
   | { readable?: ReadableStream; writable?: WritableStream }
   | undefined
 
 if (
-  process.env.NODE_ENV !== 'production' &&
+  process.env.__NEXT_DEV_SERVER &&
   process.env.__NEXT_REACT_DEBUG_CHANNEL &&
   typeof window !== 'undefined'
 ) {
   const { createDebugChannel } =
+    // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
+    // ast-grep-ignore: no-typeof-window-require-tsx
     require('./dev/debug-channel') as typeof import('./dev/debug-channel')
 
   debugChannel = createDebugChannel(undefined)
 }
 
-const initialServerResponse = createFromReadableStream<InitialRSCPayload>(
-  readable,
-  { callServer, findSourceMapURL, debugChannel }
-)
+let initialServerResponse: Promise<InitialRSCPayload>
+if (instantTestStaticFetch) {
+  // Instant Navigation Testing API: hydrate from the static RSC payload
+  // fetch kicked off by an injected <script> tag, instead of the inline
+  // Flight data (which is not present in the static shell).
+  initialServerResponse = Promise.resolve(
+    createFromFetch<InitialRSCPayload>(instantTestStaticFetch, {
+      callServer,
+      findSourceMapURL,
+      debugChannel,
+      // The static fetch response is a partial stream (static-only Flight
+      // data with no dynamic content). Allow it to close without error so
+      // React treats dynamic holes as still-suspended rather than
+      // triggering error recovery.
+      unstable_allowPartialStream: true,
+    })
+  ).then(async (initialRSCPayload) => {
+    return createInitialRSCPayloadFromFallbackPrerender(
+      await instantTestStaticFetch,
+      initialRSCPayload
+    )
+  })
+} else if (
+  // @ts-expect-error
+  window.__NEXT_CLIENT_RESUME
+) {
+  const clientResumeFetch: Promise<Response> =
+    // @ts-expect-error
+    window.__NEXT_CLIENT_RESUME
+  initialServerResponse = Promise.resolve(
+    createFromFetch<InitialRSCPayload>(clientResumeFetch, {
+      callServer,
+      findSourceMapURL,
+      debugChannel,
+    })
+  ).then(async (fallbackInitialRSCPayload) =>
+    createInitialRSCPayloadFromFallbackPrerender(
+      await clientResumeFetch,
+      fallbackInitialRSCPayload
+    )
+  )
+} else {
+  initialServerResponse = createFromReadableStream<InitialRSCPayload>(
+    readable,
+    {
+      callServer,
+      findSourceMapURL,
+      debugChannel,
+      startTime: 0,
+    }
+  )
+}
 
 function ServerRoot({
-  pendingActionQueue,
+  initialRSCPayload,
+  actionQueue,
   webSocket,
   staticIndicatorState,
 }: {
-  pendingActionQueue: Promise<AppRouterActionQueue>
+  initialRSCPayload: InitialRSCPayload
+  actionQueue: AppRouterActionQueue
   webSocket: WebSocket | undefined
   staticIndicatorState: StaticIndicatorState | undefined
 }): React.ReactNode {
-  const initialRSCPayload = use(initialServerResponse)
-  const actionQueue = use<AppRouterActionQueue>(pendingActionQueue)
-
   const router = (
     <AppRouter
       actionQueue={actionQueue}
@@ -229,72 +416,63 @@ function Root({ children }: React.PropsWithChildren<{}>) {
   return children
 }
 
-function onDefaultTransitionIndicator() {
-  // TODO: Compose default with user-configureable (e.g. nprogress)
-  // TODO: Use React's default once we figure out hanging indicators: https://codesandbox.io/p/sandbox/charming-moon-hktkp6?file=%2Fsrc%2Findex.js%3A106%2C30
+const enableTransitionIndicator = process.env.__NEXT_TRANSITION_INDICATOR
+
+function noDefaultTransitionIndicator() {
   return () => {}
 }
 
 const reactRootOptions: ReactDOMClient.RootOptions = {
-  onDefaultTransitionIndicator: onDefaultTransitionIndicator,
+  onDefaultTransitionIndicator: enableTransitionIndicator
+    ? // TODO: Compose default with user-configureable (e.g. nprogress)
+      undefined
+    : noDefaultTransitionIndicator,
   onRecoverableError,
   onCaughtError,
   onUncaughtError,
 }
 
-export type ClientInstrumentationHooks = {
-  onRouterTransitionStart?: (
-    url: string,
-    navigationType: 'push' | 'replace' | 'traverse'
-  ) => void
-}
-
-export function hydrate(
-  instrumentationHooks: ClientInstrumentationHooks | null,
-  assetPrefix: string
+export async function hydrate(
+  instrumentationModules: ClientInstrumentationModules
 ) {
   let staticIndicatorState: StaticIndicatorState | undefined
   let webSocket: WebSocket | undefined
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_DEV_SERVER) {
     const { createWebSocket } =
       require('./dev/hot-reloader/app/web-socket') as typeof import('./dev/hot-reloader/app/web-socket')
 
     staticIndicatorState = { pathname: null, appIsrManifest: null }
-    webSocket = createWebSocket(assetPrefix, staticIndicatorState)
+    webSocket = createWebSocket(staticIndicatorState)
+  }
+  const initialRSCPayload = await initialServerResponse
+
+  // Initialize the offline module to register browser event listeners
+  // (offline/online) before any components hydrate.
+  if (process.env.__NEXT_USE_OFFLINE) {
+    require('./components/offline') as typeof import('./components/offline')
   }
 
-  // React overrides `.then` and doesn't return a new promise chain,
-  // so we wrap the action queue in a promise to ensure that its value
-  // is defined when the promise resolves.
-  // https://github.com/facebook/react/blob/163365a07872337e04826c4f501565d43dbd2fd4/packages/react-client/src/ReactFlightClient.js#L189-L190
-  const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
-    (resolve, reject) => {
-      initialServerResponse.then(
-        (initialRSCPayload) => {
-          // setAppBuildId should be called only once, during JS initialization
-          // and before any components have hydrated.
-          setAppBuildId(initialRSCPayload.b)
+  // setNavigationBuildId should be called only once, during JS initialization
+  // and before any components have hydrated.
+  if (initialRSCPayload.b) {
+    setNavigationBuildId(initialRSCPayload.b!)
+  } else {
+    setNavigationBuildId(getDeploymentId()!)
+  }
 
-          const initialTimestamp = Date.now()
+  initializeRouterTransitionModules(instrumentationModules)
 
-          resolve(
-            createMutableActionQueue(
-              createInitialRouterState({
-                navigatedAt: initialTimestamp,
-                initialFlightData: initialRSCPayload.f,
-                initialCanonicalUrlParts: initialRSCPayload.c,
-                initialRenderedSearch: initialRSCPayload.q,
-                initialParallelRoutes: new Map(),
-                location: window.location,
-              }),
-              instrumentationHooks
-            )
-          )
-        },
-        (err: Error) => reject(err)
-      )
-    }
+  const initialTimestamp = Date.now()
+  const initialRSCPayloadChunks = initialServerDataChunksForHydration
+  initialServerDataChunksForHydration = null
+  const actionQueue: AppRouterActionQueue = createMutableActionQueue(
+    createInitialRouterState({
+      navigatedAt: initialTimestamp,
+      initialRSCPayload,
+      initialRSCPayloadChunks,
+      location: window.location,
+    })
   )
 
   const reactEl = (
@@ -302,7 +480,8 @@ export function hydrate(
       <HeadManagerContext.Provider value={{ appDir: true }}>
         <Root>
           <ServerRoot
-            pendingActionQueue={pendingActionQueue}
+            initialRSCPayload={initialRSCPayload}
+            actionQueue={actionQueue}
             webSocket={webSocket}
             staticIndicatorState={staticIndicatorState}
           />
@@ -335,7 +514,7 @@ export function hydrate(
   }
 
   // TODO-APP: Remove this logic when Float has GC built-in in development.
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_DEV_SERVER) {
     const { linkGc } =
       require('./app-link-gc') as typeof import('./app-link-gc')
     linkGc()

@@ -77,4 +77,13 @@ describe('isCsrfOriginAllowed', () => {
     expect(isCsrfOriginAllowed('vercel.com', ['*'])).toBe(false)
     expect(isCsrfOriginAllowed('vercel.com', ['**'])).toBe(false)
   })
+
+  it('should match case-insensitively (RFC 1035)', () => {
+    // DNS names are case-insensitive per RFC 1035
+    expect(isCsrfOriginAllowed('sub.VERCEL.com', ['*.vercel.com'])).toBe(true)
+    expect(isCsrfOriginAllowed('SUB.vercel.COM', ['*.vercel.com'])).toBe(true)
+    expect(isCsrfOriginAllowed('VERCEL.COM', ['vercel.com'])).toBe(true)
+    expect(isCsrfOriginAllowed('vercel.com', ['VERCEL.COM'])).toBe(true)
+    expect(isCsrfOriginAllowed('Sub.Vercel.Com', ['**.vercel.com'])).toBe(true)
+  })
 })

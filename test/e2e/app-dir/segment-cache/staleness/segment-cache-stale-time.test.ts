@@ -3,10 +3,10 @@ import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
 describe('segment cache (staleness)', () => {
-  const { next, isNextDev, isNextDeploy } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
-  if (isNextDev || isNextDeploy) {
+  if (isNextDev) {
     test('disabled in development / deployment', () => {})
     return
   }
@@ -23,57 +23,57 @@ describe('segment cache (staleness)', () => {
     await page.clock.install()
 
     // Reveal the link to trigger a prefetch
-    const toggle5MinutesLink = await browser.elementByCss(
-      'input[data-link-accordion="/stale-5-minutes"]'
+    const toggle2MinutesLink = await browser.elementByCss(
+      'input[data-link-accordion="/stale-2-minutes"]'
     )
-    const toggle10MinutesLink = await browser.elementByCss(
-      'input[data-link-accordion="/stale-10-minutes"]'
+    const toggle4MinutesLink = await browser.elementByCss(
+      'input[data-link-accordion="/stale-4-minutes"]'
     )
     await act(
       async () => {
-        await toggle5MinutesLink.click()
-        await browser.elementByCss('a[href="/stale-5-minutes"]')
+        await toggle2MinutesLink.click()
+        await browser.elementByCss('a[href="/stale-2-minutes"]')
       },
       {
-        includes: 'Content with stale time of 5 minutes',
+        includes: 'Content with stale time of 2 minutes',
       }
     )
     await act(
       async () => {
-        await toggle10MinutesLink.click()
-        await browser.elementByCss('a[href="/stale-10-minutes"]')
+        await toggle4MinutesLink.click()
+        await browser.elementByCss('a[href="/stale-4-minutes"]')
       },
       {
-        includes: 'Content with stale time of 10 minutes',
+        includes: 'Content with stale time of 4 minutes',
       }
     )
 
     // Hide the links
-    await toggle5MinutesLink.click()
-    await toggle10MinutesLink.click()
+    await toggle2MinutesLink.click()
+    await toggle4MinutesLink.click()
 
-    // Fast forward 5 minutes and 1 millisecond
-    await page.clock.fastForward(5 * 60 * 1000 + 1)
+    // Fast forward 2 minutes and 1 millisecond
+    await page.clock.fastForward(2 * 60 * 1000 + 1)
 
     // Reveal the links again to trigger new prefetch tasks
     await act(
       async () => {
-        await toggle5MinutesLink.click()
-        await browser.elementByCss('a[href="/stale-5-minutes"]')
+        await toggle2MinutesLink.click()
+        await browser.elementByCss('a[href="/stale-2-minutes"]')
       },
-      // The page with a stale time of 5 minutes is requested again
+      // The page with a stale time of 2 minutes is requested again
       // because its stale time elapsed.
       {
-        includes: 'Content with stale time of 5 minutes',
+        includes: 'Content with stale time of 2 minutes',
       }
     )
 
     await act(
       async () => {
-        await toggle10MinutesLink.click()
-        await browser.elementByCss('a[href="/stale-10-minutes"]')
+        await toggle4MinutesLink.click()
+        await browser.elementByCss('a[href="/stale-4-minutes"]')
       },
-      // The page with a stale time of 10 minutes is *not* requested again
+      // The page with a stale time of 4 minutes is *not* requested again
       // because it's still fresh.
       'no-requests'
     )
@@ -91,59 +91,103 @@ describe('segment cache (staleness)', () => {
     await page.clock.install()
 
     // Reveal the links to trigger a runtime prefetch
-    const toggle5MinutesLink = await browser.elementByCss(
-      'input[data-link-accordion="/runtime-stale-5-minutes"]'
+    const toggle2MinutesLink = await browser.elementByCss(
+      'input[data-link-accordion="/runtime-stale-2-minutes"]'
     )
-    const toggle10MinutesLink = await browser.elementByCss(
-      'input[data-link-accordion="/runtime-stale-10-minutes"]'
+    const toggle4MinutesLink = await browser.elementByCss(
+      'input[data-link-accordion="/runtime-stale-4-minutes"]'
     )
     await act(
       async () => {
-        await toggle5MinutesLink.click()
-        await browser.elementByCss('a[href="/runtime-stale-5-minutes"]')
+        await toggle2MinutesLink.click()
+        await browser.elementByCss('a[href="/runtime-stale-2-minutes"]')
       },
       {
-        includes: 'Content with stale time of 5 minutes',
+        includes: 'Content with stale time of 2 minutes',
       }
     )
     await act(
       async () => {
-        await toggle10MinutesLink.click()
-        await browser.elementByCss('a[href="/runtime-stale-10-minutes"]')
+        await toggle4MinutesLink.click()
+        await browser.elementByCss('a[href="/runtime-stale-4-minutes"]')
       },
       {
-        includes: 'Content with stale time of 10 minutes',
+        includes: 'Content with stale time of 4 minutes',
       }
     )
 
     // Hide the links
-    await toggle5MinutesLink.click()
-    await toggle10MinutesLink.click()
+    await toggle2MinutesLink.click()
+    await toggle4MinutesLink.click()
 
-    // Fast forward 5 minutes and 1 millisecond
-    await page.clock.fastForward(5 * 60 * 1000 + 1)
+    // Fast forward 2 minutes and 1 millisecond
+    await page.clock.fastForward(2 * 60 * 1000 + 1)
 
     // Reveal the links again to trigger new prefetch tasks
     await act(
       async () => {
-        await toggle5MinutesLink.click()
-        await browser.elementByCss('a[href="/runtime-stale-5-minutes"]')
+        await toggle2MinutesLink.click()
+        await browser.elementByCss('a[href="/runtime-stale-2-minutes"]')
       },
-      // The page with a stale time of 5 minutes is requested again
+      // The page with a stale time of 2 minutes is requested again
       // because its stale time elapsed.
       {
-        includes: 'Content with stale time of 5 minutes',
+        includes: 'Content with stale time of 2 minutes',
       }
     )
 
     await act(
       async () => {
-        await toggle10MinutesLink.click()
-        await browser.elementByCss('a[href="/runtime-stale-10-minutes"]')
+        await toggle4MinutesLink.click()
+        await browser.elementByCss('a[href="/runtime-stale-4-minutes"]')
       },
-      // The page with a stale time of 10 minutes is *not* requested again
+      // The page with a stale time of 4 minutes is *not* requested again
       // because it's still fresh.
       'no-requests'
+    )
+  })
+
+  it('entry expires when its stale time has elapsed (for a cache with a hanging input)', async () => {
+    let page: Playwright.Page
+    const startDate = Date.now()
+
+    const browser = await next.browser('/', {
+      async beforePageLoad(p: Playwright.Page) {
+        page = p
+        await page.clock.install()
+        await page.clock.setFixedTime(startDate)
+      },
+    })
+    const act = createRouterAct(page)
+
+    // Reveal the link to trigger a prefetch
+    const linkAccordion = await browser.elementByCss(
+      'input[data-link-accordion="/hanging-input-stale-4-minutes"]'
+    )
+    await act(
+      async () => {
+        await linkAccordion.click()
+      },
+      {
+        includes: 'Content with stale time of 4 minutes',
+      }
+    )
+
+    // Hide the link
+    await linkAccordion.click()
+
+    // Fast forward to <start> + 4 minutes and 1 millisecond
+    await page.clock.setFixedTime(startDate + 4 * 60 * 1000 + 1)
+
+    // Reveal the link again to trigger a new prefetch task
+    await act(
+      async () => {
+        await linkAccordion.click()
+      },
+      // The page with a stale time of 4 minutes is requested again
+      {
+        includes: 'Content with stale time of 4 minutes',
+      }
     )
   })
 
@@ -187,10 +231,6 @@ describe('segment cache (staleness)', () => {
     await page.clock.setFixedTime(startDate + 29 * 1000)
 
     await act(async () => {
-      const toggle = await browser.elementByCss(
-        'input[data-link-accordion="/dynamic"]'
-      )
-      await toggle.click()
       const link = await browser.elementByCss('a[href="/dynamic"]')
       await link.click()
       // The next page is immediately rendered
@@ -207,10 +247,6 @@ describe('segment cache (staleness)', () => {
 
     await act(
       async () => {
-        const toggle = await browser.elementByCss(
-          'input[data-link-accordion="/dynamic"]'
-        )
-        await toggle.click()
         const link = await browser.elementByCss('a[href="/dynamic"]')
         await link.click()
       },

@@ -10,12 +10,14 @@ import type {
 import { existsSync, promises as fs } from 'fs'
 import path from 'path'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
-import { getImageSize } from '../../../server/image-optimizer'
+import { getImageSize } from '../../../server/image-optimizer/get-image-size'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
+import { fillStaticMetadataSegment } from '../../../lib/metadata/get-metadata-route'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import type { PageExtensions } from '../../page-extensions-type'
 import { getLoaderModuleNamedExports } from './utils'
+import { installBindings } from '../../swc/install-bindings'
 
 interface Options {
   segment: string
@@ -30,6 +32,10 @@ async function nextMetadataImageLoader(
   this: webpack.LoaderContext<Options>,
   content: Buffer
 ) {
+  // Install bindings early so they are definitely available to the loader.
+  // When run by webpack in next this is already done with correct configuration so this is a no-op.
+  // In turbopack loaders are run in a subprocess so it may or may not be done.
+  await installBindings()
   const options: Options = this.getOptions()
   const { type, segment, pageExtensions, basePath } = options
   const { resourcePath, rootContext: context } = this
@@ -86,7 +92,7 @@ async function nextMetadataImageLoader(
     function getImageMetadata(imageMetadata, idParam, resolvedParams) {
       const imageUrl = fillMetadataSegment(${JSON.stringify(
         pathnamePrefix
-      )}, resolvedParams, ${JSON.stringify(pageSegment)})
+      )}, resolvedParams, ${JSON.stringify(pageSegment)}, false)
       const data = {
         alt: imageMetadata.alt,
         type: imageMetadata.contentType || 'image/png',
@@ -163,18 +169,15 @@ async function nextMetadataImageLoader(
     }
   }
 
-  return `\
-  import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'
+  const imageUrl = fillStaticMetadataSegment(pathnamePrefix, pageSegment)
 
-  export default async (props) => {
+  return `\
+  export default function () {
     const imageData = ${JSON.stringify(imageData)}
-    const imageUrl = fillMetadataSegment(${JSON.stringify(
-      pathnamePrefix
-    )}, await props.params, ${JSON.stringify(pageSegment)})
 
     return [{
       ...imageData,
-      url: imageUrl + ${JSON.stringify(hashQuery)},
+      url: ${JSON.stringify(imageUrl + hashQuery)},
     }]
   }`
 }

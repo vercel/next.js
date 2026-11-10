@@ -1,49 +1,89 @@
 import { loadEnvConfig } from '@next/env'
+import * as inspector from 'inspector'
 import * as Log from '../../build/output/log'
 import { bold, purple, strikethrough } from '../../lib/picocolors'
-import {
-  PHASE_DEVELOPMENT_SERVER,
-  PHASE_PRODUCTION_BUILD,
-} from '../../shared/lib/constants'
-import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
+import type { ConfiguredExperimentalFeature } from '../config'
 import { experimentalSchema } from '../config-schema'
+import { getAgentName } from '../../telemetry/agent-name'
+import { bundlerName, getBundlerFromEnv } from '../../lib/bundler'
+import {
+  hasCurrentAgentUpgrade,
+  removeAgentUpgradeFiles,
+  writeAgentUpgradeFiles,
+  hasCurrentAgentFeedback,
+  hasCurrentAgentRules,
+  removeAgentFeedbackFiles,
+  removeAgentRulesFiles,
+  writeAgentFeedbackFiles,
+  writeAgentFiles,
+  type AgentFilesResult,
+} from './generate-agent-files'
 
+// Re-export the type for consumers
+export type { ConfiguredExperimentalFeature }
+
+/**
+ * Logs basic startup info that doesn't require config.
+ * Called before "Ready in X" to show immediate feedback.
+ */
 export function logStartInfo({
   networkUrl,
   appUrl,
   envInfo,
-  experimentalFeatures,
   logBundler,
 }: {
   networkUrl: string | null
   appUrl: string | null
   envInfo?: string[]
-  experimentalFeatures?: ConfiguredExperimentalFeature[]
   logBundler: boolean
 }) {
-  let bundlerSuffix = ''
-  if (logBundler) {
-    if (process.env.TURBOPACK) {
-      bundlerSuffix = ' (Turbopack)'
-    } else if (process.env.NEXT_RSPACK) {
-      bundlerSuffix = ' (Rspack)'
-    } else {
-      bundlerSuffix = ' (webpack)'
-    }
-  }
+  const versionSuffix = logBundler
+    ? ` (${bundlerName(getBundlerFromEnv())})`
+    : ''
 
   Log.bootstrap(
     `${bold(
       purple(`${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}`)
-    )}${bundlerSuffix}`
+    )}${versionSuffix}`
   )
   if (appUrl) {
-    Log.bootstrap(`- Local:        ${appUrl}`)
+    Log.bootstrap(`- Local:         ${appUrl}`)
   }
   if (networkUrl) {
-    Log.bootstrap(`- Network:      ${networkUrl}`)
+    Log.bootstrap(`- Network:       ${networkUrl}`)
+  }
+  const inspectorUrl = inspector.url()
+  if (inspectorUrl) {
+    // Could also parse this port from the inspector URL.
+    // process.debugPort will always be defined even if the process is not being inspected.
+    // The full URL seems noisy as far as I can tell.
+    // Node.js will print the full URL anyway.
+    const debugPort = process.debugPort
+    Log.bootstrap(`- Debugger port: ${debugPort}`)
   }
   if (envInfo?.length) Log.bootstrap(`- Environments: ${envInfo.join(', ')}`)
+}
+
+/**
+ * Logs experimental features and config-dependent info.
+ * Called after getRequestHandlers completes.
+ */
+export function logExperimentalInfo({
+  experimentalFeatures,
+  cacheComponents,
+  partialPrefetching,
+}: {
+  experimentalFeatures?: ConfiguredExperimentalFeature[]
+  cacheComponents?: boolean
+  partialPrefetching?: boolean
+}) {
+  if (cacheComponents) {
+    Log.bootstrap(`- Cache Components enabled`)
+  }
+
+  if (partialPrefetching) {
+    Log.bootstrap(`- Partial Prefetching enabled`)
+  }
 
   if (experimentalFeatures?.length) {
     Log.bootstrap(`- Experiments (use with caution):`)
@@ -80,44 +120,60 @@ export function logStartInfo({
   Log.info('')
 }
 
-export async function getStartServerInfo({
-  dir,
-  dev,
-  debugPrerender,
-}: {
-  dir: string
-  dev: boolean
-  debugPrerender?: boolean
-}): Promise<{
-  envInfo?: string[]
-  experimentalFeatures?: ConfiguredExperimentalFeature[]
-}> {
-  let experimentalFeatures: ConfiguredExperimentalFeature[] = []
-  await loadConfig(
-    dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
-    dir,
-    {
-      reportExperimentalFeatures(features) {
-        experimentalFeatures = features.sort(({ key: a }, { key: b }) =>
-          a.localeCompare(b)
-        )
-      },
-      debugPrerender,
-      silent: false,
-    }
-  )
+/**
+ * Keep the agent-rules block in sync with next.config. Enabling it still
+ * requires a detected agent; disabling it removes only that managed block,
+ * even when no agent is currently detected.
+ */
+export async function syncAgentRulesForDev(
+  dir: string,
+  enabled: boolean
+): Promise<AgentFilesResult | null> {
+  if (!enabled) return removeAgentRulesFiles(dir)
+  if ((await getAgentName()) === null) return null
+  if (hasCurrentAgentRules(dir)) return null
 
-  // we need to reset env if we are going to create
-  // the worker process with the esm loader so that the
-  // initial env state is correct
-  let envInfo: string[] = []
+  return writeAgentFiles(dir)
+}
+
+/**
+ * Keep the opt-in agent-feedback block in sync with next.config. Enabling it
+ * still requires a detected agent; disabling it removes only that managed
+ * block, even when no agent is currently detected.
+ */
+export async function syncAgentFeedbackForDev(
+  dir: string,
+  enabled: boolean
+): Promise<AgentFilesResult | null> {
+  if (!enabled) return removeAgentFeedbackFiles(dir)
+  if ((await getAgentName()) === null) return null
+  if (hasCurrentAgentFeedback(dir)) return null
+
+  return writeAgentFeedbackFiles(dir)
+}
+
+/**
+ * Sync upgrade delegation using the reminder policy independently of agentRules.
+ * Disabling reminders removes the block even without a detected agent.
+ */
+export async function syncAgentUpgradeForDev(
+  dir: string,
+  enabled: boolean
+): Promise<AgentFilesResult | null> {
+  if (!enabled) {
+    return removeAgentUpgradeFiles(dir)
+  }
+  if ((await getAgentName()) === null || hasCurrentAgentUpgrade(dir)) {
+    return null
+  }
+
+  return writeAgentUpgradeFiles(dir)
+}
+
+/**
+ * Gets environment info for logging. Fast operation that doesn't require config.
+ */
+export function getEnvInfo(dir: string): string[] {
   const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
-  if (loadedEnvFiles.length > 0) {
-    envInfo = loadedEnvFiles.map((f) => f.path)
-  }
-
-  return {
-    envInfo,
-    experimentalFeatures,
-  }
+  return loadedEnvFiles.map((f) => f.path)
 }

@@ -1,0 +1,33 @@
+---
+title: '`deploymentId` must be a string'
+---
+
+## Why This Error Occurred
+
+The `deploymentId` option in your `next.config.js` must be a string value.
+
+## Possible Ways to Fix It
+
+Ensure your `deploymentId` is a string:
+
+```js
+// ✅ Correct
+module.exports = {
+  deploymentId: 'my-deployment-123',
+}
+
+// ✅ Using environment variables
+module.exports = {
+  deploymentId: process.env.GIT_HASH || 'default-id',
+}
+
+// ❌ Incorrect
+module.exports = {
+  deploymentId: 12345, // Must be a string, not a number
+}
+```
+
+The `deploymentId` can be:
+
+- A string: `deploymentId: 'my-deployment-123'`
+- `undefined` (will use `NEXT_DEPLOYMENT_ID` environment variable if set)

@@ -1,24 +1,29 @@
 import type { NextConfig } from '../../server/config-shared'
 import type { RouteHas } from '../../lib/load-custom-routes'
 
-import { promises as fs } from 'fs'
-import { basename } from 'path'
+import { readFileSync } from 'fs'
+import { relative } from 'path'
 import { LRUCache } from '../../server/lib/lru-cache'
-import {
-  extractExportedConstValue,
-  UnsupportedValueError,
-} from './extract-const-value'
+import { extractExportedConstValue } from './extract-const-value'
 import { parseModule } from './parse-module'
 import * as Log from '../output/log'
 import {
   SERVER_RUNTIME,
   MIDDLEWARE_FILENAME,
   PROXY_FILENAME,
+  RSC_SUFFIX,
+  RSC_SEGMENT_SUFFIX,
+  RSC_SEGMENTS_DIR_SUFFIX,
 } from '../../lib/constants'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { isEdgeRuntime } from '../../lib/is-edge-runtime'
+import {
+  warnAboutEdgeRuntime,
+  warnAboutPreferredRegion,
+} from '../warn-about-edge-runtime'
 import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
+import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import type { RSCMeta } from '../webpack/loaders/get-module-build-info'
 import { PAGE_TYPES } from '../../lib/page-types'
 import {
@@ -40,9 +45,10 @@ import {
 } from '../segment-config/middleware/middleware-config'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
+import { isProxyFile } from '../utils'
 
 const PARSE_PATTERN =
-  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
+  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|unstable_paramMatching|unstable_generateParamMatching|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
 
 export type ProxyMatcher = {
   regexp: string
@@ -71,31 +77,25 @@ export type ProxyConfig = {
   unstable_allowDynamic?: string[]
 }
 
-export interface AppPageStaticInfo {
-  type: PAGE_TYPES.APP
-  ssg?: boolean
-  ssr?: boolean
-  rsc?: RSCModuleType
-  generateStaticParams?: boolean
+export interface SharedPageStaticInfo {
   generateSitemaps?: boolean
   generateImageMetadata?: boolean
   middleware?: ProxyConfig
-  config: Omit<AppSegmentConfig, 'runtime' | 'maxDuration'> | undefined
-  runtime: AppSegmentConfig['runtime'] | undefined
-  preferredRegion: AppSegmentConfig['preferredRegion'] | undefined
   maxDuration: number | undefined
   hadUnsupportedValue: boolean
 }
 
-export interface PagesPageStaticInfo {
+export interface AppPageStaticInfo extends SharedPageStaticInfo {
+  type: PAGE_TYPES.APP
+  ssg?: boolean
+  ssr?: boolean
+  config: Omit<AppSegmentConfig, 'runtime' | 'maxDuration'> | undefined
+  runtime: AppSegmentConfig['runtime'] | undefined
+  preferredRegion: AppSegmentConfig['preferredRegion'] | undefined
+}
+
+export interface PagesPageStaticInfo extends SharedPageStaticInfo {
   type: PAGE_TYPES.PAGES
-  getStaticProps?: boolean
-  getServerSideProps?: boolean
-  rsc?: RSCModuleType
-  generateStaticParams?: boolean
-  generateSitemaps?: boolean
-  generateImageMetadata?: boolean
-  middleware?: ProxyConfig
   config:
     | (Omit<PagesSegmentConfig, 'runtime' | 'config' | 'maxDuration'> & {
         config?: Omit<PagesSegmentConfigConfig, 'runtime' | 'maxDuration'>
@@ -103,17 +103,24 @@ export interface PagesPageStaticInfo {
     | undefined
   runtime: PagesSegmentConfig['runtime'] | undefined
   preferredRegion: PagesSegmentConfigConfig['regions'] | undefined
-  maxDuration: number | undefined
-  hadUnsupportedValue: boolean
 }
 
 export type PageStaticInfo = AppPageStaticInfo | PagesPageStaticInfo
 
+const APP_ROUTE_RSC_SUFFIX_MATCHER = escapeStringRegexp(RSC_SUFFIX)
+const APP_ROUTE_SEGMENT_PREFETCH_SUFFIX_MATCHER = `${escapeStringRegexp(RSC_SEGMENTS_DIR_SUFFIX)}/.+${escapeStringRegexp(RSC_SEGMENT_SUFFIX)}`
+const APP_ROUTE_TRANSPORT_SUFFIX_MATCHER = `${APP_ROUTE_RSC_SUFFIX_MATCHER}|${APP_ROUTE_SEGMENT_PREFETCH_SUFFIX_MATCHER}`
+const ROOT_APP_ROUTE_TRANSPORT_MATCHER = `/?index(?:${APP_ROUTE_TRANSPORT_SUFFIX_MATCHER})`
+const MIDDLEWARE_DATA_SUFFIX_MATCHER = `\\.json|${APP_ROUTE_TRANSPORT_SUFFIX_MATCHER}`
+const OPTIONAL_MIDDLEWARE_NEXT_DATA_PREFIX = '/:nextData(_next/data/[^/]{1,})?'
+
 const CLIENT_MODULE_LABEL =
   /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) (cjs|auto) \*\//
 
+// Match JSON object that may contain nested objects (for loc info)
+// The JSON ends right before the closing " */"
 const ACTION_MODULE_LABEL =
-  /\/\* __next_internal_action_entry_do_not_use__ (\{[^}]+\}) \*\//
+  /\/\* __next_internal_action_entry_do_not_use__ (\{.*\}) \*\//
 
 const CLIENT_DIRECTIVE = 'use client'
 const SERVER_ACTION_DIRECTIVE = 'use server'
@@ -124,8 +131,9 @@ export function getRSCModuleInformation(
   isReactServerLayer: boolean
 ): RSCMeta {
   const actionsJson = source.match(ACTION_MODULE_LABEL)
+  // Parse action metadata - supports both old format (string) and new format (object with loc)
   const parsedActionsMeta = actionsJson
-    ? (JSON.parse(actionsJson[1]) as Record<string, string>)
+    ? (JSON.parse(actionsJson[1]) as RSCMeta['actionIds'])
     : undefined
   const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
   const isClientRef = !!clientInfoMatch
@@ -171,6 +179,8 @@ function checkExports(
   getServerSideProps?: boolean
   generateImageMetadata?: boolean
   generateSitemaps?: boolean
+  paramMatching?: boolean
+  generateParamMatching?: boolean
   generateStaticParams?: boolean
   directives?: Set<string>
   exports?: Set<string>
@@ -180,6 +190,8 @@ function checkExports(
     'getServerSideProps',
     'generateImageMetadata',
     'generateSitemaps',
+    'unstable_paramMatching',
+    'unstable_generateParamMatching',
     'generateStaticParams',
   ])
   if (!Array.isArray(ast?.body)) {
@@ -191,6 +203,8 @@ function checkExports(
     let getServerSideProps: boolean = false
     let generateImageMetadata: boolean = false
     let generateSitemaps: boolean = false
+    let paramMatching = false
+    let generateParamMatching = false
     let generateStaticParams = false
     let exports = new Set<string>()
     let directives = new Set<string>()
@@ -235,6 +249,10 @@ function checkExports(
         getStaticProps = id === 'getStaticProps'
         generateImageMetadata = id === 'generateImageMetadata'
         generateSitemaps = id === 'generateSitemaps'
+        if (id === 'unstable_paramMatching') paramMatching = true
+        if (id === 'unstable_generateParamMatching') {
+          generateParamMatching = true
+        }
         generateStaticParams = id === 'generateStaticParams'
       }
 
@@ -248,6 +266,10 @@ function checkExports(
           getStaticProps = id === 'getStaticProps'
           generateImageMetadata = id === 'generateImageMetadata'
           generateSitemaps = id === 'generateSitemaps'
+          if (id === 'unstable_paramMatching') paramMatching = true
+          if (id === 'unstable_generateParamMatching') {
+            generateParamMatching = true
+          }
           generateStaticParams = id === 'generateStaticParams'
         }
       }
@@ -272,6 +294,15 @@ function checkExports(
             if (!generateSitemaps && value === 'generateSitemaps') {
               generateSitemaps = true
             }
+            if (!paramMatching && value === 'unstable_paramMatching') {
+              paramMatching = true
+            }
+            if (
+              !generateParamMatching &&
+              value === 'unstable_generateParamMatching'
+            ) {
+              generateParamMatching = true
+            }
             if (!generateStaticParams && value === 'generateStaticParams') {
               generateStaticParams = true
             }
@@ -292,6 +323,8 @@ function checkExports(
       getServerSideProps,
       generateImageMetadata,
       generateSitemaps,
+      paramMatching,
+      generateParamMatching,
       generateStaticParams,
       directives,
       exports,
@@ -305,16 +338,13 @@ function validateMiddlewareProxyExports({
   ast,
   page,
   pageFilePath,
+  isDev,
 }: {
   ast: any
   page: string
   pageFilePath: string
+  isDev: boolean
 }): void {
-  // Only validate in build. In development, it will error at runtime.
-  if (process.env.NODE_ENV !== 'production') {
-    return
-  }
-
   // Check if this is middleware/proxy
   const isMiddleware =
     page === `/${MIDDLEWARE_FILENAME}` || page === `/src/${MIDDLEWARE_FILENAME}`
@@ -329,7 +359,7 @@ function validateMiddlewareProxyExports({
     return
   }
 
-  const fileName = isProxy ? 'proxy' : 'middleware'
+  const fileName = isProxy ? PROXY_FILENAME : MIDDLEWARE_FILENAME
 
   // Parse AST to get export info (since checkExports doesn't return middleware/proxy info)
   let hasDefaultExport = false
@@ -396,16 +426,39 @@ function validateMiddlewareProxyExports({
     (isMiddleware && hasMiddlewareExport) ||
     (isProxy && hasProxyExport)
 
+  const relativePath = relative(process.cwd(), pageFilePath)
+  const resolvedPath = relativePath.startsWith('.')
+    ? relativePath
+    : `./${relativePath}`
+
   if (!hasValidExport) {
-    throw new Error(
-      `The ${fileName === 'proxy' ? 'Proxy' : 'Middleware'} file "./${basename(pageFilePath)}" must export a function named \`${fileName}\` or a default function.`
-    )
+    const message =
+      `The file "${resolvedPath}" must export a function, either as a default export or as a named "${fileName}" export.\n` +
+      `This function is what Next.js runs for every request handled by this ${fileName === 'proxy' ? 'proxy (previously called middleware)' : 'middleware'}.\n\n` +
+      `Why this happens:\n` +
+      (isProxy
+        ? "- You are migrating from `middleware` to `proxy`, but haven't updated the exported function.\n"
+        : '') +
+      `- The file exists but doesn't export a function.\n` +
+      `- The export is not a function (e.g., an object or constant).\n` +
+      `- There's a syntax error preventing the export from being recognized.\n\n` +
+      `To fix it:\n` +
+      `- Ensure this file has either a default or "${fileName}" function export.\n\n` +
+      `Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
+
+    if (isDev) {
+      // errorOnce as proxy/middleware runs per request including multiple
+      // internal _next/ routes and spams logs.
+      Log.errorOnce(message)
+    } else {
+      throw new Error(message)
+    }
   }
 }
 
-async function tryToReadFile(filePath: string, shouldThrow: boolean) {
+function tryToReadFile(filePath: string, shouldThrow: boolean) {
   try {
-    return await fs.readFile(filePath, {
+    return readFileSync(filePath, {
       encoding: 'utf8',
     })
   } catch (error: any) {
@@ -444,11 +497,17 @@ export function getMiddlewareMatchers(
       }`
     }
 
-    source = `/:nextData(_next/data/[^/]{1,})?${source}${
+    // Match transport-specific route forms that resolve to the same page.
+    // - Pages Router data routes: /_next/data/<build-id>/...
+    // - App Router transport routes: .rsc, ...segments/...segment.rsc
+    const sourceSuffix = `${
       isRoot
-        ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?`
-        : '{(\\.json)}?'
+        ? `(${
+            nextConfig.i18n ? '|\\.json|' : ''
+          }/?index|/?index\\.json|${ROOT_APP_ROUTE_TRANSPORT_MATCHER})?`
+        : `{(${MIDDLEWARE_DATA_SUFFIX_MATCHER})}?`
     }`
+    source = `${OPTIONAL_MIDDLEWARE_NEXT_DATA_PREFIX}${source}${sourceSuffix}`
 
     if (nextConfig.basePath) {
       source = `${nextConfig.basePath}${source}`
@@ -544,7 +603,7 @@ const warnedUnsupportedValueMap = new LRUCache<boolean>(250, () => 1)
 function warnAboutUnsupportedValue(
   pageFilePath: string,
   page: string | undefined,
-  error: UnsupportedValueError
+  result: { unsupported: string; path?: string }
 ) {
   hadUnsupportedValue = true
   const isProductionBuild = process.env.NODE_ENV === 'production'
@@ -563,8 +622,8 @@ function warnAboutUnsupportedValue(
     `Next.js can't recognize the exported \`config\` field in ` +
     (page ? `route "${page}"` : `"${pageFilePath}"`) +
     ':\n' +
-    error.message +
-    (error.path ? ` at "${error.path}"` : '') +
+    result.unsupported +
+    (result.path ? ` at "${result.path}"` : '') +
     '.\n' +
     'Read More - https://nextjs.org/docs/messages/invalid-page-config'
 
@@ -580,7 +639,7 @@ function warnAboutUnsupportedValue(
 type GetPageStaticInfoParams = {
   pageFilePath: string
   nextConfig: Partial<NextConfig>
-  isDev?: boolean
+  isDev: boolean
   page: string
   pageType: PAGE_TYPES
 }
@@ -591,7 +650,19 @@ export async function getAppPageStaticInfo({
   isDev,
   page,
 }: GetPageStaticInfoParams): Promise<AppPageStaticInfo> {
-  const content = await tryToReadFile(pageFilePath, !isDev)
+  if (/(?:^|[\\/])route\.go$/.test(pageFilePath)) {
+    if (!process.env.TURBOPACK)
+      throw new Error('route.go requires Turbopack; remove --webpack')
+    return {
+      type: PAGE_TYPES.APP,
+      config: { dynamic: 'force-dynamic' },
+      runtime: undefined,
+      preferredRegion: undefined,
+      maxDuration: undefined,
+      hadUnsupportedValue: false,
+    }
+  }
+  const content = tryToReadFile(pageFilePath, !isDev)
   if (!content || !PARSE_PATTERN.test(content)) {
     return {
       type: PAGE_TYPES.APP,
@@ -604,9 +675,16 @@ export async function getAppPageStaticInfo({
   }
 
   const ast = await parseModule(pageFilePath, content)
-  validateMiddlewareProxyExports({ ast, page, pageFilePath })
+  validateMiddlewareProxyExports({
+    ast,
+    page,
+    pageFilePath,
+    isDev,
+  })
 
   const {
+    paramMatching,
+    generateParamMatching,
     generateStaticParams,
     generateImageMetadata,
     generateSitemaps,
@@ -614,32 +692,53 @@ export async function getAppPageStaticInfo({
     directives,
   } = checkExports(ast, AppSegmentConfigSchemaKeys, page)
 
-  const { type: rsc } = getRSCModuleInformation(content, true)
-
   const exportedConfig: Record<string, unknown> = {}
   if (exports) {
     for (const property of exports) {
-      try {
-        exportedConfig[property] = extractExportedConstValue(ast, property)
-      } catch (e) {
-        if (e instanceof UnsupportedValueError) {
-          warnAboutUnsupportedValue(pageFilePath, page, e)
-        }
+      const result = extractExportedConstValue(ast, property)
+      if (result !== null && 'unsupported' in result) {
+        warnAboutUnsupportedValue(pageFilePath, page, result)
+      } else if (result !== null) {
+        exportedConfig[property] = result.value
       }
     }
   }
 
-  try {
-    exportedConfig.config = extractExportedConstValue(ast, 'config')
-  } catch (e) {
-    if (e instanceof UnsupportedValueError) {
-      warnAboutUnsupportedValue(pageFilePath, page, e)
-    }
-    // `export config` doesn't exist, or other unknown error thrown by swc, silence them
+  const configResult = extractExportedConstValue(ast, 'config')
+  if (configResult !== null && 'unsupported' in configResult) {
+    warnAboutUnsupportedValue(pageFilePath, page, configResult)
+  } else if (configResult !== null) {
+    exportedConfig.config = configResult.value
   }
 
   const route = normalizeAppPath(page)
   const config = parseAppSegmentConfig(exportedConfig, route)
+
+  const hasParamMatching = paramMatching || generateParamMatching
+
+  if (paramMatching && generateParamMatching) {
+    throw new Error(
+      `Page "${page}" cannot export both \`unstable_paramMatching\` and \`unstable_generateParamMatching\`.`
+    )
+  }
+
+  if (hasParamMatching && /\/route\.[^/]+$/.test(pageFilePath)) {
+    throw new Error(
+      `Route "${page}" cannot export parameter matching. It is only supported in layouts and pages.`
+    )
+  }
+
+  if (isEdgeRuntime(config.runtime) && hasParamMatching) {
+    throw new Error(
+      `Page "${page}" cannot use both \`export const runtime = 'edge'\` and parameter matching.`
+    )
+  }
+
+  if (directives?.has('client') && hasParamMatching) {
+    throw new Error(
+      `Page "${page}" cannot use both "use client" and a parameter matching export.`
+    )
+  }
 
   // Prevent edge runtime and generateStaticParams in the same file.
   if (isEdgeRuntime(config.runtime) && generateStaticParams) {
@@ -655,23 +754,51 @@ export async function getAppPageStaticInfo({
     )
   }
 
-  if (
-    'unstable_prefetch' in config &&
-    (!nextConfig.experimental?.cacheComponents ||
-      // don't allow in `clientSegmentCache: 'client-only'` mode
-      nextConfig.experimental?.clientSegmentCache !== true)
-  ) {
+  for (const exportName of ['instant', 'prefetch', 'ensureStatic'] as const) {
+    if (exportName in config) {
+      if (directives?.has('client')) {
+        throw new Error(
+          `"${exportName}" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
+        )
+      }
+
+      if (!nextConfig.cacheComponents) {
+        throw new Error(
+          `Route "${page}" cannot use \`export const ${exportName} = ...\` without enabling \`cacheComponents\`.`
+        )
+      }
+    }
+  }
+
+  // Prevent unstable_dynamicStaleTime in layouts.
+  if ('unstable_dynamicStaleTime' in config) {
+    const isLayout = /\/layout\.[^/]+$/.test(pageFilePath)
+    if (isLayout) {
+      throw new Error(
+        `"${page}" cannot use \`export const unstable_dynamicStaleTime\`. This config is only supported in page files, not layouts.`
+      )
+    }
+  }
+
+  // Prevent combining unstable_dynamicStaleTime and instant.
+  if ('unstable_dynamicStaleTime' in config && 'instant' in config) {
     throw new Error(
-      `Page "${page}" cannot use \`export const unstable_prefetch = ...\` without enabling \`experimental.cacheComponents\` and \`experimental.clientSegmentCache\`.`
+      `Page "${page}" cannot use both \`export const unstable_dynamicStaleTime\` and \`export const instant\`.`
     )
+  }
+
+  if (isEdgeRuntime(config.runtime)) {
+    warnAboutEdgeRuntime()
+  }
+
+  if (config.preferredRegion !== undefined) {
+    warnAboutPreferredRegion()
   }
 
   return {
     type: PAGE_TYPES.APP,
-    rsc,
     generateImageMetadata,
     generateSitemaps,
-    generateStaticParams,
     config,
     middleware: parseMiddlewareConfig(page, exportedConfig.config, nextConfig),
     runtime: config.runtime,
@@ -687,7 +814,7 @@ export async function getPagesPageStaticInfo({
   isDev,
   page,
 }: GetPageStaticInfoParams): Promise<PagesPageStaticInfo> {
-  const content = await tryToReadFile(pageFilePath, !isDev)
+  const content = tryToReadFile(pageFilePath, !isDev)
   if (!content || !PARSE_PATTERN.test(content)) {
     return {
       type: PAGE_TYPES.PAGES,
@@ -700,36 +827,32 @@ export async function getPagesPageStaticInfo({
   }
 
   const ast = await parseModule(pageFilePath, content)
-  validateMiddlewareProxyExports({ ast, page, pageFilePath })
-
-  const { getServerSideProps, getStaticProps, exports } = checkExports(
+  validateMiddlewareProxyExports({
     ast,
-    PagesSegmentConfigSchemaKeys,
-    page
-  )
+    page,
+    pageFilePath,
+    isDev,
+  })
 
-  const { type: rsc } = getRSCModuleInformation(content, true)
+  const { exports } = checkExports(ast, PagesSegmentConfigSchemaKeys, page)
 
   const exportedConfig: Record<string, unknown> = {}
   if (exports) {
     for (const property of exports) {
-      try {
-        exportedConfig[property] = extractExportedConstValue(ast, property)
-      } catch (e) {
-        if (e instanceof UnsupportedValueError) {
-          warnAboutUnsupportedValue(pageFilePath, page, e)
-        }
+      const result = extractExportedConstValue(ast, property)
+      if (result !== null && 'unsupported' in result) {
+        warnAboutUnsupportedValue(pageFilePath, page, result)
+      } else if (result !== null) {
+        exportedConfig[property] = result.value
       }
     }
   }
 
-  try {
-    exportedConfig.config = extractExportedConstValue(ast, 'config')
-  } catch (e) {
-    if (e instanceof UnsupportedValueError) {
-      warnAboutUnsupportedValue(pageFilePath, page, e)
-    }
-    // `export config` doesn't exist, or other unknown error thrown by swc, silence them
+  const configResult = extractExportedConstValue(ast, 'config')
+  if (configResult !== null && 'unsupported' in configResult) {
+    warnAboutUnsupportedValue(pageFilePath, page, configResult)
+  } else if (configResult !== null) {
+    exportedConfig.config = configResult.value
   }
 
   // Validate the config.
@@ -737,13 +860,35 @@ export async function getPagesPageStaticInfo({
   const config = parsePagesSegmentConfig(exportedConfig, route)
   const isAnAPIRoute = isAPIRoute(route)
 
-  const resolvedRuntime = config.runtime ?? config.config?.runtime
+  let resolvedRuntime = config.runtime ?? config.config?.runtime
+
+  if (isProxyFile(page) && resolvedRuntime) {
+    const relativePath = relative(process.cwd(), pageFilePath)
+    const resolvedPath = relativePath.startsWith('.')
+      ? relativePath
+      : `./${relativePath}`
+    const message = `Route segment config is not allowed in Proxy file at "${resolvedPath}". Proxy always runs on Node.js runtime. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
+
+    if (isDev) {
+      // errorOnce as proxy/middleware runs per request including multiple
+      // internal _next/ routes and spams logs.
+      Log.errorOnce(message)
+      resolvedRuntime = SERVER_RUNTIME.nodejs
+    } else {
+      throw new Error(message)
+    }
+  }
 
   if (resolvedRuntime === SERVER_RUNTIME.experimentalEdge) {
     warnAboutExperimentalEdge(isAnAPIRoute ? page! : null)
   }
 
-  if (resolvedRuntime === SERVER_RUNTIME.edge && page && !isAnAPIRoute) {
+  if (
+    !isProxyFile(page) &&
+    resolvedRuntime === SERVER_RUNTIME.edge &&
+    page &&
+    !isAnAPIRoute
+  ) {
     const message = `Page ${page} provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
     if (isDev) {
       Log.error(message)
@@ -752,11 +897,16 @@ export async function getPagesPageStaticInfo({
     }
   }
 
+  if (isEdgeRuntime(resolvedRuntime)) {
+    warnAboutEdgeRuntime()
+  }
+
+  if (config.config?.regions !== undefined) {
+    warnAboutPreferredRegion()
+  }
+
   return {
     type: PAGE_TYPES.PAGES,
-    getStaticProps,
-    getServerSideProps,
-    rsc,
     config,
     middleware: parseMiddlewareConfig(page, exportedConfig.config, nextConfig),
     runtime: resolvedRuntime,

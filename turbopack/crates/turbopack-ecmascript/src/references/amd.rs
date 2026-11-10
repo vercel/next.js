@@ -1,7 +1,7 @@
 use std::mem::take;
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     common::DUMMY_SP,
     ecma::{
@@ -10,37 +10,34 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingContext},
+    chunk::{ChunkingContext, ChunkingType},
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::CommonJsReferenceSubType,
-    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
+    resolve::{ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request},
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
-    references::{
-        AstPath,
-        pattern_mapping::{PatternMapping, ResolveType},
-    },
+    references::pattern_mapping::{PatternMapping, ResolveType},
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
 };
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("AMD define dependency {request}")]
 pub struct AmdDefineAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     request: ResolvedVc<Request>,
     issue_source: IssueSource,
-    in_try: bool,
+    error_mode: ResolveErrorMode,
 }
 
 #[turbo_tasks::value_impl]
@@ -50,13 +47,13 @@ impl AmdDefineAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
     ) -> Vc<Self> {
         Self::cell(AmdDefineAssetReference {
             origin,
             request,
             issue_source,
-            in_try,
+            error_mode,
         })
     }
 }
@@ -70,35 +67,23 @@ impl ModuleReference for AmdDefineAssetReference {
             *self.request,
             CommonJsReferenceSubType::Undefined,
             Some(self.issue_source),
-            self.in_try,
+            self.error_mode,
         )
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for AmdDefineAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("AMD define dependency {}", self.request.to_string().await?,).into(),
-        ))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        })
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for AmdDefineAssetReference {}
-
-#[derive(
-    ValueDebugFormat,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    Clone,
-    NonLocalValue,
-)]
+#[derive(ValueDebugFormat, Debug, PartialEq, Eq, Clone, NonLocalValue, Hash, Encode, Decode)]
 pub enum AmdDefineDependencyElement {
     Request {
         request: ResolvedVc<Request>,
@@ -110,16 +95,7 @@ pub enum AmdDefineDependencyElement {
 }
 
 #[derive(
-    ValueDebugFormat,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    Copy,
-    Clone,
-    NonLocalValue,
+    ValueDebugFormat, Debug, PartialEq, Eq, Copy, Clone, NonLocalValue, Hash, Encode, Decode,
 )]
 pub enum AmdDefineFactoryType {
     Unknown,
@@ -127,24 +103,24 @@ pub enum AmdDefineFactoryType {
     Value,
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<AmdDefineDependencyElement>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    path: AstPath,
+    path: AstPathId,
     factory_type: AmdDefineFactoryType,
     issue_source: IssueSource,
-    in_try: bool,
+    error_mode: ResolveErrorMode,
 }
 
 impl AmdDefineWithDependenciesCodeGen {
     pub fn new(
         dependencies_requests: Vec<AmdDefineDependencyElement>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        path: AstPath,
+        path: AstPathId,
         factory_type: AmdDefineFactoryType,
         issue_source: IssueSource,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
     ) -> Self {
         AmdDefineWithDependenciesCodeGen {
             dependencies_requests,
@@ -152,12 +128,13 @@ impl AmdDefineWithDependenciesCodeGen {
             path,
             factory_type,
             issue_source,
-            in_try,
+            error_mode,
         }
     }
 
     pub async fn code_generation(
         &self,
+        _trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
@@ -165,7 +142,7 @@ impl AmdDefineWithDependenciesCodeGen {
         let resolved_elements = self
             .dependencies_requests
             .iter()
-            .map(|element| async move {
+            .map(async |element| {
                 Ok(match element {
                     AmdDefineDependencyElement::Request {
                         request,
@@ -180,9 +157,10 @@ impl AmdDefineWithDependenciesCodeGen {
                                 **request,
                                 CommonJsReferenceSubType::Undefined,
                                 Some(self.issue_source),
-                                self.in_try,
+                                self.error_mode,
                             ),
                             ResolveType::ChunkItem,
+                            None,
                         )
                         .await?,
                         request_str: request_str.to_string(),
@@ -205,6 +183,7 @@ impl AmdDefineWithDependenciesCodeGen {
 
         visitors.push(create_visitor!(
             exact,
+            trie,
             self.path,
             visit_mut_call_expr,
             |call_expr: &mut CallExpr| {

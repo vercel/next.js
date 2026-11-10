@@ -1,0 +1,84 @@
+import { nextTestSetup } from 'e2e-utils'
+import { createGetInstantInsight } from 'e2e-utils/instant-validation'
+import { waitForNoErrorToast } from 'next-test-utils'
+import { join } from 'node:path'
+
+describe('instant validation - opting out of static shells', () => {
+  const { next, isNextDev } = nextTestSetup({
+    files: join(__dirname, 'fixtures', 'valid'),
+  })
+
+  // NOTE: if something's wrong in build, we'll fail before any tests run.
+  // Visiting the pages is mostly just a sanity check.
+
+  it('does not require a static shell if a root layouts is configured as blocking', async () => {
+    const browser = await next.browser('/blocking-root-layout')
+    await browser.elementByCss('main')
+    if (isNextDev) await waitForNoErrorToast(browser)
+  })
+  it('does not require a static shell if a layout is configured as blocking', async () => {
+    const browser = await next.browser('/blocking-layout')
+    await browser.elementByCss('main')
+    if (isNextDev) await waitForNoErrorToast(browser)
+  })
+  it('does not require a static shell if a page is configured as blocking', async () => {
+    const browser = await next.browser('/blocking-page')
+    await browser.elementByCss('main')
+    if (isNextDev) await waitForNoErrorToast(browser)
+  })
+})
+
+describe('instant validation', () => {
+  describe('requires a static shell if a below a static layout page is configured as blocking', () => {
+    const { next, isNextDev } = nextTestSetup({
+      files: join(__dirname, 'fixtures', 'invalid-blocking-page-below-static'),
+      skipStart: true,
+      env: {
+        NEXT_TEST_LOG_VALIDATION: '1',
+      },
+    })
+
+    let currentCliOutputIndex = 0
+    beforeEach(() => {
+      currentCliOutputIndex = next.cliOutput.length
+    })
+
+    function getCliOutputSinceMark(): string {
+      if (next.cliOutput.length < currentCliOutputIndex) {
+        currentCliOutputIndex = 0
+      }
+      return next.cliOutput.slice(currentCliOutputIndex)
+    }
+
+    const getInstantInsight = createGetInstantInsight(
+      getCliOutputSinceMark,
+      next
+    )
+
+    if (isNextDev) {
+      beforeAll(() => next.start())
+      it('errors in dev', async () => {
+        const browser = await next.browser('/blocking-page-below-static')
+        await browser.elementByCss('main')
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
+         {
+           "description": "Next.js encountered uncached data during prerendering.",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/blocking-page-below-static/page.tsx (6:19) @ Page
+         > 6 |   await connection()
+             |                   ^",
+           "stack": [
+             "Page app/blocking-page-below-static/page.tsx (6:19)",
+           ],
+         }
+        `)
+      })
+    } else {
+      it('errors during build', async () => {
+        await expect(next.start()).rejects.toThrow()
+        expect(next.cliOutput).toContain('during prerendering')
+      }, 240_000)
+    }
+  })
+})

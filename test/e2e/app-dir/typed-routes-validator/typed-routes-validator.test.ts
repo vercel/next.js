@@ -1,25 +1,78 @@
+import execa from 'execa'
 import { nextTestSetup } from 'e2e-utils'
-import { getDistDir } from 'next-test-utils'
+import { gate, getDistDir, retry } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('typed-routes-validator', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
+    skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should generate route validation correctly', async () => {
-    const dts = await next.readFile(`${getDistDir()}/types/validator.ts`)
-    // sanity check that dev generation is working
-    expect(dts).toContain('const handler = {} as typeof import(')
+    if (isNextDev) {
+      await next.start()
+      await next.fetch('/')
+    } else {
+      await next.build()
+    }
+
+    try {
+      const dts = await next.readFile(`${getDistDir()}/types/validator.ts`)
+      // sanity check that dev generation is working
+      expect(dts).toContain('const handler = {} as typeof import(')
+    } finally {
+      if (isNextDev) {
+        await next.stop()
+      }
+    }
   })
 
-  if (isNextStart) {
+  it('should have passing tsc after the server generated types', async () => {
+    if (isNextDev) {
+      await next.start()
+    } else {
+      await next.build()
+    }
+    try {
+      if (isNextDev) {
+        // In dev mode, route types are generated asynchronously after the server starts.
+        // Might take a few tries before all the relevant types exist.
+        await retry(async () => {
+          const { stdout, stderr } = await execa('pnpm', ['tsc', '--noEmit'], {
+            cwd: next.testDir,
+            reject: false,
+          })
+
+          expect({ stdout, stderr }).toEqual({
+            stdout: '',
+            stderr: '',
+          })
+        })
+      } else {
+        const { stdout, stderr } = await execa('pnpm', ['tsc', '--noEmit'], {
+          cwd: next.testDir,
+          reject: false,
+        })
+
+        expect({ stdout, stderr }).toEqual({
+          stdout: '',
+          stderr: '',
+        })
+      }
+    } finally {
+      if (isNextDev) {
+        await next.stop()
+      }
+    }
+  })
+
+  // Type validation here explicitly runs local production builds.
+  // @force-gate start
+  describe('production mode', () => {
     it('should pass type checking with valid page exports', async () => {
-      await next.stop()
       await next.patchFile(
         'app/test-page.tsx',
         `
@@ -37,7 +90,6 @@ describe('typed-routes-validator', () => {
     })
 
     it('should fail type checking with invalid page exports', async () => {
-      await next.stop()
       await next.patchFile(
         'app/invalid/page.tsx',
         `
@@ -51,13 +103,66 @@ describe('typed-routes-validator', () => {
       await next.deleteFile('app/invalid/page.tsx')
 
       expect(exitCode).toBe(1)
-      expect(cliOutput).toMatch(
-        /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'AppPageConfig</
+      if (await gate('strictRouteTypes')) {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'AppPageConfig</
+        )
+      } else {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'AppPageConfig</
+        )
+      }
+    })
+
+    it('should pass type checking with valid page props', async () => {
+      await next.patchFile(
+        'app/valid/[id]/page.tsx',
+        `
+    export default function ValidPage(props: { params: Promise<{ id: string }> }) {
+      return <div>Valid Page</div>
+    }
+            `
       )
+
+      const { exitCode } = await next.build()
+      // clean up before assertion just in case it fails
+      await next.deleteFile('app/valid/[id]/page.tsx')
+
+      expect(exitCode).toBe(0)
+    })
+
+    it('should fail type checking with invalid page props', async () => {
+      await next.patchFile(
+        'app/invalid/page.tsx',
+        `
+    export default function InvalidPage(props: { invalidProp: string }) {
+      return <div>Invalid Page</div>
+    }
+            `
+      )
+
+      const { exitCode, cliOutput } = await next.build()
+      // clean up before assertion just in case it fails
+      await next.deleteFile('app/invalid/page.tsx')
+
+      expect(exitCode).toBe(1)
+      if (await gate('strictRouteTypes')) {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'AppPageConfig</
+        )
+      } else {
+        // Non-strict AppPageConfig accepts any props. The per-page type check
+        // rejects invalid props instead.
+        expect(cliOutput.replace(/\\/g, '/')).toContain(
+          'Type error: Page "app/invalid/page.tsx" has an invalid "default" export:'
+        )
+        expect(cliOutput).toContain(
+          'Type "{ invalidProp: string; }" is not valid.'
+        )
+      }
     })
 
     it('should pass type checking with valid route handler exports', async () => {
-      await next.stop()
       await next.patchFile(
         'app/valid/route.ts',
         `
@@ -95,7 +200,6 @@ describe('typed-routes-validator', () => {
     })
 
     it('should fail type checking with invalid route handler return type', async () => {
-      await next.stop()
       await next.patchFile(
         'app/invalid/route.ts',
         `
@@ -111,13 +215,18 @@ describe('typed-routes-validator', () => {
       await next.deleteFile('app/invalid/route.ts')
 
       expect(exitCode).toBe(1)
-      expect(cliOutput).toMatch(
-        /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'RouteHandlerConfig</
-      )
+      if (await gate('strictRouteTypes')) {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'RouteHandlerConfig</
+        )
+      } else {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'RouteHandlerConfig</
+        )
+      }
     })
 
     it('should fail type checking with invalid route handler params', async () => {
-      await next.stop()
       await next.patchFile(
         'app/invalid-2/route.ts',
         `
@@ -133,13 +242,18 @@ describe('typed-routes-validator', () => {
       await next.deleteFile('app/invalid-2/route.ts')
 
       expect(exitCode).toBe(1)
-      expect(cliOutput).toMatch(
-        /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'RouteHandlerConfig</
-      )
+      if (await gate('strictRouteTypes')) {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'RouteHandlerConfig</
+        )
+      } else {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'RouteHandlerConfig</
+        )
+      }
     })
 
     it('should pass type checking with valid layout exports', async () => {
-      await next.stop()
       await next.patchFile(
         'app/test/layout.tsx',
         `
@@ -160,7 +274,6 @@ describe('typed-routes-validator', () => {
     })
 
     it('should fail type checking with invalid layout exports', async () => {
-      await next.stop()
       await next.patchFile(
         'app/invalid/layout.tsx',
         `
@@ -176,13 +289,18 @@ describe('typed-routes-validator', () => {
       await next.deleteFile('app/invalid/layout.tsx')
 
       expect(exitCode).toBe(1)
-      expect(cliOutput).toMatch(
-        /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'LayoutConfig</
-      )
+      if (await gate('strictRouteTypes')) {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'LayoutConfig</
+        )
+      } else {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'LayoutConfig</
+        )
+      }
     })
 
     it('should pass type checking with valid API route exports', async () => {
-      await next.stop()
       await next.patchFile(
         'pages/api/valid-api.ts',
         `
@@ -208,7 +326,6 @@ describe('typed-routes-validator', () => {
     })
 
     it('should fail type checking with invalid API route exports', async () => {
-      await next.stop()
       await next.patchFile(
         'pages/api/invalid-api.ts',
         `
@@ -222,9 +339,15 @@ describe('typed-routes-validator', () => {
       await next.deleteFile('pages/api/invalid-api.ts')
 
       expect(exitCode).toBe(1)
-      expect(cliOutput).toMatch(
-        /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'ApiRouteConfig'/
-      )
+      if (await gate('strictRouteTypes')) {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'ApiRouteConfig'/
+        )
+      } else {
+        expect(cliOutput).toMatch(
+          /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'ApiRouteConfig'/
+        )
+      }
     })
-  }
+  })
 })

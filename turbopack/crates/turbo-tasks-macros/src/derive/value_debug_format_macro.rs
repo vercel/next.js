@@ -2,9 +2,9 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{DeriveInput, Field, FieldsNamed, FieldsUnnamed, parse_macro_input};
-use turbo_tasks_macros_shared::{generate_destructuring, match_expansion};
 
 use super::FieldAttributes;
+use crate::expand::{generate_destructuring, match_expansion};
 
 fn filter_field(field: &Field) -> bool {
     !FieldAttributes::from(field.attrs.as_slice()).debug_ignore
@@ -20,6 +20,16 @@ pub fn derive_value_debug_format(input: TokenStream) -> TokenStream {
 
     let ident = &derive_input.ident;
 
+    // Save generics without extra bounds for the release (non-debug) impl.
+    let generics_release = derive_input.generics.clone();
+    let (impl_generics_release, ty_generics, where_clause) = generics_release.split_for_impl();
+    let release_impl = quote! {
+        #[cfg(not(debug_assertions))]
+        #[automatically_derived]
+        impl #impl_generics_release turbo_tasks::debug::ValueDebugFormat for #ident #ty_generics #where_clause {}
+    };
+
+    // Add debug-only bounds (ValueDebugFormat + Debug + Send + Sync) for the debug impl.
     for type_param in derive_input.generics.type_params_mut() {
         type_param
             .bounds
@@ -28,13 +38,20 @@ pub fn derive_value_debug_format(input: TokenStream) -> TokenStream {
         type_param.bounds.push(syn::parse_quote!(std::marker::Send));
         type_param.bounds.push(syn::parse_quote!(std::marker::Sync));
     }
-    let (impl_generics, ty_generics, where_clause) = derive_input.generics.split_for_impl();
+    let (impl_generics_debug, _, where_clause_debug) = derive_input.generics.split_for_impl();
 
-    let formatting_logic =
-        match_expansion(&derive_input, &format_named, &format_unnamed, &format_unit);
+    let formatting_logic = match_expansion(
+        ident,
+        &derive_input.data,
+        &format_named,
+        &format_unnamed,
+        &format_unit,
+    );
 
-    quote! {
-        impl #impl_generics turbo_tasks::debug::ValueDebugFormat for #ident #ty_generics #where_clause {
+    let debug_impl = quote! {
+        #[cfg(debug_assertions)]
+        #[automatically_derived]
+        impl #impl_generics_debug turbo_tasks::debug::ValueDebugFormat for #ident #ty_generics #where_clause_debug {
             fn value_debug_format<'a>(&'a self, depth: usize) -> turbo_tasks::debug::ValueDebugFormatString<'a> {
                 turbo_tasks::debug::ValueDebugFormatString::Async(
                     Box::pin(async move {
@@ -49,6 +66,11 @@ pub fn derive_value_debug_format(input: TokenStream) -> TokenStream {
                 )
             }
         }
+    };
+
+    quote! {
+        #debug_impl
+        #release_impl
     }
     .into()
 }

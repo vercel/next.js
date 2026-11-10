@@ -1,13 +1,15 @@
 import { nextTestSetup } from 'e2e-utils'
+import { waitFor } from 'next-test-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
+import { UNEXPECTED_CACHE_MISS_MESSAGE } from 'next/src/server/use-cache/use-cache-errors'
 
 describe('runtime prefetching', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
   if (isNextDev) {
-    it('disabled in development', () => {})
+    it('is skipped', () => {})
     return
   }
 
@@ -27,6 +29,15 @@ describe('runtime prefetching', () => {
   const resetCliOutput = () => {
     currentCliOutputIndex = next.cliOutput.length
   }
+
+  // We never expect to see this logged here.
+  afterEach(() => {
+    if (getCliOutput().includes(UNEXPECTED_CACHE_MISS_MESSAGE)) {
+      throw new Error(
+        `A test unexpectedly logged "${UNEXPECTED_CACHE_MISS_MESSAGE}"`
+      )
+    }
+  })
 
   describe.each([
     {
@@ -49,7 +60,7 @@ describe('runtime prefetching', () => {
           page = p
         },
       })
-      const act = createRouterAct(page)
+      const act = createRouterAct(page, { includeAppShellRequests: true })
 
       // Reveal the link to trigger a runtime prefetch for one value of the dynamic param
       await act(async () => {
@@ -61,6 +72,7 @@ describe('runtime prefetching', () => {
         // Should allow reading dynamic params
         {
           includes: 'Param: 123',
+          kind: 'runtime',
         },
         // Should not prefetch the dynamic content
         {
@@ -79,6 +91,7 @@ describe('runtime prefetching', () => {
         // Should allow reading dynamic params
         {
           includes: 'Param: 456',
+          kind: 'runtime',
         },
         // Should not prefetch the dynamic content
         {
@@ -116,14 +129,6 @@ describe('runtime prefetching', () => {
 
       await browser.back()
 
-      // Reveal the link to the second page again. It should not be prefetched again
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-link-accordion="/${prefix}/dynamic-params/456"]`
-        )
-        await linkToggle.click()
-      }, 'no-requests')
-
       // Navigate to the other page
       await act(async () => {
         await act(
@@ -159,7 +164,7 @@ describe('runtime prefetching', () => {
           page = p
         },
       })
-      const act = createRouterAct(page)
+      const act = createRouterAct(page, { includeAppShellRequests: true })
 
       // Reveal the link to trigger a runtime prefetch for one value of the root param
       await act(async () => {
@@ -169,8 +174,15 @@ describe('runtime prefetching', () => {
         await linkToggle.click()
       }, [
         // Should allow reading root params
+        // Shell
         {
           includes: 'Lang: en',
+          kind: 'runtime',
+        },
+        // Prefetch
+        {
+          includes: 'Lang (in prefetch): en',
+          kind: 'runtime',
         },
         // Should not prefetch the dynamic content
         {
@@ -189,8 +201,15 @@ describe('runtime prefetching', () => {
           await linkToggle.click()
         }, [
           // Should allow reading root params
+          // Shell
           {
             includes: 'Lang: de',
+            kind: 'runtime',
+          },
+          // Prefetch
+          {
+            includes: 'Lang (in prefetch): de',
+            kind: 'runtime',
           },
           // Should not prefetch the dynamic content
           {
@@ -233,14 +252,6 @@ describe('runtime prefetching', () => {
       if (!isNextDeploy) {
         await browser.back()
 
-        // Reveal the link to the second page again. It should not be prefetched again
-        await act(async () => {
-          const linkToggle = await browser.elementByCss(
-            `input[data-link-accordion="/with-root-param/de/${prefix}/root-params"]`
-          )
-          await linkToggle.click()
-        }, 'no-requests')
-
         // Navigate to the other page
         await act(async () => {
           await act(
@@ -279,7 +290,7 @@ describe('runtime prefetching', () => {
           page = p
         },
       })
-      const act = createRouterAct(page)
+      const act = createRouterAct(page, { includeAppShellRequests: true })
 
       // Reveal the link to trigger a runtime prefetch for one value of the search param
       await act(async () => {
@@ -289,8 +300,15 @@ describe('runtime prefetching', () => {
         await linkToggle.click()
       }, [
         // Should allow reading search params
+        // Shell
+        {
+          includes: 'This page uses search params',
+          kind: 'runtime',
+        },
+        // Prefetch
         {
           includes: 'Search param: 123',
+          kind: 'runtime',
         },
         // Should not prefetch the dynamic content
         {
@@ -309,6 +327,7 @@ describe('runtime prefetching', () => {
         // Should allow reading search params
         {
           includes: 'Search param: 456',
+          kind: 'runtime',
         },
         // Should not prefetch the dynamic content
         {
@@ -348,14 +367,6 @@ describe('runtime prefetching', () => {
 
       await browser.back()
 
-      // Reveal the link to the second page again. It should not be prefetched again
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-link-accordion="/${prefix}/search-params?searchParam=456"]`
-        )
-        await linkToggle.click()
-      }, 'no-requests')
-
       // Navigate to the other page
       await act(
         async () => {
@@ -383,7 +394,7 @@ describe('runtime prefetching', () => {
           page = p
         },
       })
-      const act = createRouterAct(page)
+      const act = createRouterAct(page, { includeAppShellRequests: true })
 
       // Reveal the link to trigger a runtime prefetch for one value of the search param
       await act(async () => {
@@ -393,8 +404,15 @@ describe('runtime prefetching', () => {
         await linkToggle.click()
       }, [
         // Should allow reading headers
+        // Shell
         {
           includes: 'Header: present',
+          kind: 'runtime',
+        },
+        // Prefetch
+        {
+          includes: 'Header: present',
+          kind: 'runtime',
         },
         // Should not prefetch the dynamic content
         {
@@ -439,7 +457,7 @@ describe('runtime prefetching', () => {
       // Clear cookies after the test. This currently doesn't happen automatically.
       await using _ = defer(() => browser.deleteCookies())
 
-      const act = createRouterAct(page)
+      const act = createRouterAct(page, { includeAppShellRequests: true })
 
       await browser.addCookie({ name: 'testCookie', value: 'initialValue' })
 
@@ -451,8 +469,15 @@ describe('runtime prefetching', () => {
         await linkToggle.click()
       }, [
         // Should allow reading cookies
+        // Shell
         {
           includes: 'Cookie: initialValue',
+          kind: 'runtime',
+        },
+        // Prefetch
+        {
+          includes: 'Cookie: initialValue',
+          kind: 'runtime',
         },
         // Should not prefetch the dynamic content
         {
@@ -495,23 +520,9 @@ describe('runtime prefetching', () => {
       // Go back to the previous page
       await browser.back()
 
-      // Reveal the link again to trigger a runtime prefetch for the new value of the cookie
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-link-accordion="/${prefix}/cookies"]`
-        )
-        await linkToggle.click()
-      }, [
-        // Should allow reading dynamic params
-        {
-          includes: 'Cookie: updatedValue',
-        },
-        // Should not prefetch the dynamic content
-        {
-          includes: 'Dynamic content',
-          block: 'reject',
-        },
-      ])
+      // wait a tick before navigating
+      // TODO: Why does this need to be so long when deployed? What other signal do we have that we can wait on?
+      await waitFor(2000)
 
       // Navigate to the page
       await act(async () => {
@@ -547,20 +558,24 @@ describe('runtime prefetching', () => {
       // Clear cookies after the test. This currently doesn't happen automatically.
       await using _ = defer(() => browser.deleteCookies())
 
-      const act = createRouterAct(page)
+      const act = createRouterAct(page, { includeAppShellRequests: true })
 
       await browser.addCookie({ name: 'testCookie', value: 'initialValue' })
 
-      // Reveal the link to trigger a runtime prefetch for the initial cookie value
+      // Reveal the link.
+      // We won't actually perform a runtime prefetch, because the request is
+      // satisfied by the app shell.
       await act(async () => {
         const linkToggle = await browser.elementByCss(
           `input[data-link-accordion="/${prefix}/cookies-only"]`
         )
         await linkToggle.click()
       }, [
-        // Should allow reading cookies
+        // Should allow reading cookies in the app shell
+        // Shell
         {
           includes: 'Cookie: initialValue',
+          kind: 'runtime',
         },
       ])
 
@@ -598,11 +613,14 @@ describe('runtime prefetching', () => {
         // Clear cookies after the test. This currently doesn't happen automatically.
         await using _ = defer(() => browser.deleteCookies())
 
-        const act = createRouterAct(page)
+        const act = createRouterAct(page, { includeAppShellRequests: true })
 
         await browser.addCookie({ name: 'testCookie', value: 'initialValue' })
 
-        // Reveal the link to trigger a runtime prefetch for the initial cookie value
+        // Reveal the link.
+        // We won't actually perform a runtime prefetch, because the request is
+        // satisfied by the app shell.
+
         await act(async () => {
           const linkToggle = await browser.elementByCss(
             `input[data-link-accordion="/${prefix}/cookies-only"]`
@@ -612,6 +630,7 @@ describe('runtime prefetching', () => {
           // Should allow reading cookies
           {
             includes: 'Cookie: initialValue',
+            kind: 'runtime',
           },
         ])
 
@@ -645,7 +664,7 @@ describe('runtime prefetching', () => {
       // Clear cookies after the test. This currently doesn't happen automatically.
       await using _ = defer(() => browser.deleteCookies())
 
-      const act = createRouterAct(page)
+      const act = createRouterAct(page, { includeAppShellRequests: true })
 
       // Reveal the link to trigger the first runtime prefetch
       await act(async () => {
@@ -655,8 +674,15 @@ describe('runtime prefetching', () => {
         await linkToggle.click()
       }, [
         // The timestamp value is in a private cache, so it should be included
+        // Shell
         {
           includes: 'Timestamp: ',
+          kind: 'runtime',
+        },
+        // Prefetch
+        {
+          includes: 'Timestamp (in prefetch): ',
+          kind: 'runtime',
         },
       ])
 
@@ -688,8 +714,15 @@ describe('runtime prefetching', () => {
         await linkToggle.click()
       }, [
         // The timestamp value is in a private cache, so it should be included
+        // Shell
         {
           includes: 'Timestamp: ',
+          kind: 'runtime',
+        },
+        // Prefetch
+        {
+          includes: 'Timestamp (in prefetch): ',
+          kind: 'runtime',
         },
       ])
 
@@ -722,7 +755,7 @@ describe('runtime prefetching', () => {
       },
     })
 
-    const act = createRouterAct(page)
+    const act = createRouterAct(page, { includeAppShellRequests: true })
 
     // Reveal the link to trigger a runtime prefetch for the page
     await act(async () => {
@@ -749,28 +782,35 @@ describe('runtime prefetching', () => {
     )
   })
 
-  describe('cache stale time handling', () => {
+  describe('excluded caches', () => {
     it.each([
       {
-        // If a cache has an expiration time under 5min (DYNAMIC_EXPIRE), we omit it from static prerenders.
-        // However, it should still be included in a runtime prefetch if its stale time is >=30s. (RUNTIME_PREFETCH_DYNAMIC_STALE)
+        // If a cache has an expiration time under 5min
+        // (MIN_PRERENDERABLE_EXPIRE), we omit it from static prerenders.
+        // However, it should still be included in a runtime prefetch if its
+        // stale time is >=30s. (MIN_PREFETCHABLE_STALE)
         description:
-          'includes short-lived public caches with a long enough staleTime',
+          'includes short-lived public caches with a prefetchable staleTime',
         staticContent: 'This page uses a short-lived public cache',
-        path: '/caches/public-short-expire-long-stale',
+        path: '/caches/public-short-expire-prefetchable-stale',
       },
       {
-        // If a cache has an expiration time under 5min (DYNAMIC_EXPIRE), we omit it from static prerenders.
-        // However, it should still be included in a runtime prefetch if its stale time is >=30s. (RUNTIME_PREFETCH_DYNAMIC_STALE)
-        // `cacheLife("seconds")` is deliberately set to have a stale time of 30s to stay above this treshold.
+        // If a cache has an expiration time under 5min
+        // (MIN_PRERENDERABLE_EXPIRE), we omit it from static prerenders.
+        // However, it should still be included in a runtime prefetch if its
+        // stale time is >=30s. (MIN_PREFETCHABLE_STALE) `cacheLife("seconds")`
+        // is deliberately set to have a stale time of 30s to stay above this
+        // treshold.
         description: 'includes public caches with cacheLife("seconds")',
         staticContent: 'This page uses a short-lived public cache',
         path: '/caches/public-seconds',
       },
       {
         // A Private cache will always be omitted from static prerenders.
-        // However, it should still be included in a runtime prefetch if its stale time is >=30s. (RUNTIME_PREFETCH_DYNAMIC_STALE)
-        // `cacheLife("seconds")` is deliberately set to have a stale time of 30s to stay above this treshold.
+        // However, it should still be included in a runtime prefetch if its
+        // stale time is >=30s. (MIN_PREFETCHABLE_STALE) `cacheLife("seconds")`
+        // is deliberately set to have a stale time of 30s to stay above this
+        // treshold.
         description: 'includes private caches with cacheLife("seconds")',
         staticContent: 'This page uses a short-lived private cache',
         path: '/caches/private-seconds',
@@ -782,38 +822,25 @@ describe('runtime prefetching', () => {
           page = p
         },
       })
-      const act = createRouterAct(page)
+      const act = createRouterAct(page, { includeAppShellRequests: true })
 
       const DYNAMICALLY_PREFETCHABLE_CONTENT = 'Short-lived cached content'
-
-      // Reveal the link to trigger a static prefetch
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="auto"][data-link-accordion="${path}"]`
-        )
-        await linkToggle.click()
-      }, [
-        // Should include the static shell
-        {
-          includes: staticContent,
-        },
-        // Should not include the short-lived cache
-        {
-          includes: DYNAMICALLY_PREFETCHABLE_CONTENT,
-          block: 'reject',
-        },
-      ])
 
       // Reveal the link to trigger a runtime prefetch
       await act(async () => {
         const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="runtime"][data-link-accordion="${path}"]`
+          `input[data-link-accordion="${path}"]`
         )
         await linkToggle.click()
       }, [
+        {
+          includes: staticContent,
+          kind: 'runtime',
+        },
         // Should include the short-lived cache
         {
           includes: DYNAMICALLY_PREFETCHABLE_CONTENT,
+          kind: 'runtime',
         },
       ])
 
@@ -828,8 +855,65 @@ describe('runtime prefetching', () => {
       )
     })
 
-    it('omits short-lived public caches with a short enough staleTime', async () => {
-      // If a cache has a stale time below 30s (RUNTIME_PREFETCH_DYNAMIC_STALE), we should omit it from runtime prefetches.
+    it.each([
+      {
+        description:
+          'includes public caches whose staleTime was too short to include in a shell',
+        staticContent: 'This page uses a public cache',
+        path: '/caches/public-non-shell-stale',
+      },
+      {
+        description:
+          'includes private caches whose staleTime was too short to include in a shell',
+        staticContent: 'This page uses a private cache',
+        path: '/caches/private-non-shell-stale',
+      },
+    ])('$description', async ({ path, staticContent }) => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+      // Reveal the link to trigger a runtime prefetch.
+      await act(async () => {
+        await browser
+          .elementByCss(`input[data-link-accordion="${path}"]`)
+          .click()
+      }, [
+        // Shell request
+        {
+          includes: staticContent,
+          kind: 'runtime',
+        },
+        // Prefetch request
+        // (the shell was not complete, because the cache was excluded from it)
+        {
+          includes: 'Non-shell cached content',
+          kind: 'runtime',
+        },
+      ])
+
+      // The cache should be displayed while navigating and after.
+      await act(
+        async () => {
+          await browser.elementByCss(`a[href="${path}"]`).click()
+          expect(await browser.elementById('cached-value').text()).toBe(
+            'Non-shell cached content'
+          )
+        },
+        // The prefetch was complete.
+        'no-requests'
+      )
+      expect(await browser.elementById('cached-value').text()).toBe(
+        'Non-shell cached content'
+      )
+    })
+
+    it('omits short-lived public caches with a non-prefetchable staleTime', async () => {
+      // If a cache has a stale time below 30s (MIN_PREFETCHABLE_STALE), we
+      // should omit it from runtime prefetches.
 
       let page: Playwright.Page
       const browser = await next.browser('/', {
@@ -837,43 +921,27 @@ describe('runtime prefetching', () => {
           page = p
         },
       })
-      const act = createRouterAct(page)
+      const act = createRouterAct(page, { includeAppShellRequests: true })
 
       const STATIC_CONTENT = 'This page uses a short-lived public cache'
       const DYNAMIC_CONTENT = 'Short-lived cached content'
 
-      // Reveal the link to trigger a static prefetch
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="auto"][data-link-accordion="/caches/public-short-expire-short-stale"]`
-        )
-        await linkToggle.click()
-      }, [
-        // Should include the static shell
-        {
-          includes: STATIC_CONTENT,
-        },
-        // Should not include the short-lived cache
-        // (We set the `expire` value to be under 5min, so it will be excluded from prerenders)
-        {
-          includes: DYNAMIC_CONTENT,
-          block: 'reject',
-        },
-      ])
-
       // Reveal the link to trigger a runtime prefetch.
-      // It'll essentially be the same as the static prefetch, because the only dynamic hole
-      // will be omitted from both.
-      // (NOTE: in the future, we might prevent scenarios like this via `generatePrefetch`)
       await act(async () => {
         const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="runtime"][data-link-accordion="/caches/public-short-expire-short-stale"]`
+          `input[data-link-accordion="/caches/public-short-expire-non-prefetchable-stale"]`
         )
         await linkToggle.click()
       }, [
-        // Should include the shell
+        // Shell
         {
           includes: STATIC_CONTENT,
+          kind: 'runtime',
+        },
+        // Prefetch
+        {
+          includes: STATIC_CONTENT,
+          kind: 'runtime',
         },
         // Should not include the short-lived cache
         // (We set the `stale` value to be under 30s, so it will be excluded from runtime prerenders)
@@ -888,7 +956,9 @@ describe('runtime prefetching', () => {
         await act(
           async () => {
             await browser
-              .elementByCss(`a[href="/caches/public-short-expire-short-stale"]`)
+              .elementByCss(
+                `a[href="/caches/public-short-expire-non-prefetchable-stale"]`
+              )
               .click()
           },
           {
@@ -910,8 +980,9 @@ describe('runtime prefetching', () => {
       expect(await browser.elementById('cached-value').text()).toMatch(/\d+/)
     })
 
-    it('omits private caches with a short enough staleTime', async () => {
-      // If a cache has a stale time below 30s (RUNTIME_PREFETCH_DYNAMIC_STALE), we should omit it from runtime prefetches.
+    it('omits private caches with a non-prefetchable staleTime', async () => {
+      // If a cache has a stale time below 30s (MIN_PREFETCHABLE_STALE), we
+      // should omit it from runtime prefetches.
 
       let page: Playwright.Page
       const browser = await next.browser('/', {
@@ -919,40 +990,27 @@ describe('runtime prefetching', () => {
           page = p
         },
       })
-      const act = createRouterAct(page)
+      const act = createRouterAct(page, { includeAppShellRequests: true })
 
       const STATIC_CONTENT = 'This page uses a short-lived private cache'
       const DYNAMIC_CONTENT = 'Short-lived cached content'
 
-      // Reveal the link to trigger a static prefetch
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="auto"][data-link-accordion="/caches/private-short-stale"]`
-        )
-        await linkToggle.click()
-      }, [
-        // Should include the static shell
-        {
-          includes: STATIC_CONTENT,
-        },
-        // Should not include the short-lived cache
-        // (We set the `expire` value to be under 5min, so it will be excluded from prerenders)
-        {
-          includes: DYNAMIC_CONTENT,
-          block: 'reject',
-        },
-      ])
-
       // Reveal the link to trigger a runtime prefetch
       await act(async () => {
         const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="runtime"][data-link-accordion="/caches/private-short-stale"]`
+          `input[data-link-accordion="/caches/private-non-prefetchable-stale"]`
         )
         await linkToggle.click()
       }, [
-        // Should include the shell
+        // Shell
         {
           includes: STATIC_CONTENT,
+          kind: 'runtime',
+        },
+        // Prefetch
+        {
+          includes: STATIC_CONTENT,
+          kind: 'runtime',
         },
         // Should not prefetch the short-lived cache
         // (We set the `stale` value to be under 30s, so it will be excluded from runtime prefetches)
@@ -967,7 +1025,7 @@ describe('runtime prefetching', () => {
         await act(
           async () => {
             await browser
-              .elementByCss(`a[href="/caches/private-short-stale"]`)
+              .elementByCss(`a[href="/caches/private-non-prefetchable-stale"]`)
               .click()
           },
           {
@@ -992,12 +1050,12 @@ describe('runtime prefetching', () => {
       // Try navigating again. The cache is private, so we should see a different timestamp
       await browser.back()
 
-      // Reveal the link again. The prefetch should be cached, so we shouldn't see any requests
+      // Hover the link again. The prefetch should be cached, so we shouldn't see any requests
       await act(async () => {
         const linkToggle = await browser.elementByCss(
-          `input[data-link-accordion="/caches/private-short-stale"]`
+          `input[data-link-accordion="/caches/private-non-prefetchable-stale"]`
         )
-        await linkToggle.click()
+        await linkToggle.hover()
       }, 'no-requests')
 
       // Navigate to the page again
@@ -1005,7 +1063,7 @@ describe('runtime prefetching', () => {
         await act(
           async () => {
             await browser
-              .elementByCss(`a[href="/caches/private-short-stale"]`)
+              .elementByCss(`a[href="/caches/private-non-prefetchable-stale"]`)
               .click()
           },
           {
@@ -1030,43 +1088,143 @@ describe('runtime prefetching', () => {
     })
   })
 
+  describe('cache values are consistent across HTML shell and runtime requests', () => {
+    const href = '/cache-from-rdc'
+    const htmlId = 'cached-data'
+
+    const getCacheValueFromInitialHTML = async (): Promise<string> => {
+      const $ = await next.render$(href)
+      const text = $(`#${htmlId}`).text()
+      if (!text) {
+        throw new Error('Cached value not found in HTML')
+      }
+      return text
+    }
+
+    it('runtime shell', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      const cacheValueFromHTMLShell = await getCacheValueFromInitialHTML()
+
+      // Reveal the link to trigger a runtime prefetch for the page
+      await act(async () => {
+        const linkToggle = await browser.elementByCss(
+          `input[data-prefetch="auto"][data-link-accordion="${href}"]`
+        )
+        await linkToggle.click()
+      }, [
+        {
+          includes: 'Cookie data',
+          kind: 'runtime',
+        },
+      ])
+
+      // Navigate to the page.
+      await act(async () => {
+        await browser.elementByCss(`a[href="${href}"]`).click()
+
+        // The runtime shell should contain the same cache value as the HTML.
+        expect(await browser.elementById(htmlId).text()).toBe(
+          cacheValueFromHTMLShell
+        )
+      }, [{ includes: 'Dynamic data' }])
+
+      // The navigation response should also contain the same cache value.
+      expect(await browser.elementById(htmlId).text()).toBe(
+        cacheValueFromHTMLShell
+      )
+    })
+
+    it('runtime prefetch', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      const cacheValueFromHTMLShell = await getCacheValueFromInitialHTML()
+
+      // Reveal the link to trigger a runtime prefetch for the page
+      await act(async () => {
+        const linkToggle = await browser.elementByCss(
+          `input[data-prefetch="true"][data-link-accordion="${href}"]`
+        )
+        await linkToggle.click()
+      }, [
+        // Shell
+        {
+          includes: 'Cookie data',
+          kind: 'runtime',
+        },
+        // Prefetch
+        {
+          includes: 'Search params data',
+          kind: 'runtime',
+        },
+      ])
+
+      // Navigate to the page.
+      await act(async () => {
+        await browser.elementByCss(`a[href="${href}"]`).click()
+
+        // The runtime prefetch should contain the same cache value as the HTML.
+        expect(await browser.elementById(htmlId).text()).toBe(
+          cacheValueFromHTMLShell
+        )
+      }, [{ includes: 'Dynamic data' }])
+
+      // The navigation response should also contain the same cache value.
+      expect(await browser.elementById(htmlId).text()).toBe(
+        cacheValueFromHTMLShell
+      )
+    })
+  })
+
   describe('errors', () => {
     it.each([
       {
         description: 'when sync IO is used after awaiting cookies()',
         path: '/errors/sync-io-after-runtime-api/cookies',
+        route: '/errors/sync-io-after-runtime-api/cookies',
       },
       {
         description: 'when sync IO is used after awaiting headers()',
         path: '/errors/sync-io-after-runtime-api/headers',
+        route: '/errors/sync-io-after-runtime-api/headers',
       },
-      // TODO(dynamic-ppr):
-      // A tree prefetch for "/dynamic-params/123" currently causes it to be prerendered on demand,
-      // meaning that we end up statically prerendering it with all the params included.
-      // Because of this, `await params` doesn't hang in the static prerender, so we hit the sync IO error behind it.
-      // This error somehow causes an infinite redirect loop between two different `?_rsc` URLs.
-      // Investigate this separately or wait until we start always using fallback params for route trees.
-      //
-      // {
-      //   description: 'when sync IO is used after awaiting dynamic params',
-      //   path: '/errors/sync-io-after-runtime-api/dynamic-params/123',
-      // },
+      {
+        description: 'when sync IO is used after awaiting dynamic params',
+        path: '/errors/sync-io-after-runtime-api/dynamic-params/123',
+        route: '/errors/sync-io-after-runtime-api/dynamic-params/[id]',
+      },
       {
         description: 'when sync IO is used after awaiting searchParams',
         path: '/errors/sync-io-after-runtime-api/search-params?foo=bar',
+        route: '/errors/sync-io-after-runtime-api/search-params',
       },
       {
         description: 'when sync IO is used after awaiting a private cache',
         path: '/errors/sync-io-after-runtime-api/private-cache',
+        route: '/errors/sync-io-after-runtime-api/private-cache',
       },
       {
         description:
           'when sync IO is used after awaiting a quickly-expiring public cache',
         path: '/errors/sync-io-after-runtime-api/quickly-expiring-public-cache',
+        route:
+          '/errors/sync-io-after-runtime-api/quickly-expiring-public-cache',
       },
     ])(
       'aborts the prerender without logging an error $description',
-      async ({ path }) => {
+      async ({ path, route }) => {
         // In a runtime prefetch, we might encounter sync IO usages that weren't caught during build,
         // because they were hidden behind e.g. a cookies() call.
         // We currently have no way to catch these statically.
@@ -1080,20 +1238,26 @@ describe('runtime prefetching', () => {
             page = p
           },
         })
-        const act = createRouterAct(page)
+        const act = createRouterAct(page, { includeAppShellRequests: true })
 
         const STATIC_CONTENT = 'This page performs sync IO after'
 
         // Reveal the link to trigger a runtime prefetch
         await act(async () => {
           const linkToggle = await browser.elementByCss(
-            `input[data-prefetch="runtime"][data-link-accordion="${path}"]`
+            `input[data-link-accordion="${path}"]`
           )
           await linkToggle.click()
         }, [
-          // Should include the shell
+          // App shell
           {
             includes: STATIC_CONTENT,
+            kind: 'runtime',
+          },
+          // Prefetch
+          {
+            includes: STATIC_CONTENT,
+            kind: 'runtime',
           },
           // Should abort the render when sync IO is encountered,
           // so this should never be included
@@ -1103,8 +1267,9 @@ describe('runtime prefetching', () => {
           },
         ])
 
+        const syncIOErrorText = `Route "${route}": Next.js encountered the unstable value \`Date.now()\` while prerendering`
         if (!isNextDeploy) {
-          expect(getCliOutput()).not.toMatch(`Date.now()`)
+          expect(getCliOutput()).toInclude(syncIOErrorText)
         }
 
         // Navigate to the page
@@ -1147,20 +1312,23 @@ describe('runtime prefetching', () => {
           page = p
         },
       })
-      const act = createRouterAct(page)
+      const act = createRouterAct(page, { includeAppShellRequests: true })
 
       const STATIC_CONTENT = 'This page errors after a cookies call'
 
-      // Reveal the link to trigger a runtime prefetch
+      // Reveal the link.
+      // We won't actually perform a runtime prefetch, because the request is
+      // satisfied by the app shell.
       await act(async () => {
         const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="runtime"][data-link-accordion="/errors/error-after-cookies"]`
+          `input[data-link-accordion="/errors/error-after-cookies"]`
         )
         await linkToggle.click()
       }, [
         // Should include the shell
         {
           includes: STATIC_CONTENT,
+          kind: 'runtime',
         },
       ])
 
@@ -1168,7 +1336,7 @@ describe('runtime prefetching', () => {
         expect(getCliOutput()).toContain('Error: Kaboom')
       }
 
-      // Navigate to the page. We already have the paged cached.
+      // Navigate to the page. We already have the page cached.
       // Even though the render errored, we shouldn't fetch it again.
       await act(async () => {
         await browser
@@ -1181,7 +1349,7 @@ describe('runtime prefetching', () => {
         STATIC_CONTENT
       )
       expect(await browser.elementById('error-boundary').text()).toInclude(
-        'Error boundary: An error occurred in the Server Components render'
+        'Error boundary: Minified React error #441;'
       )
     })
   })

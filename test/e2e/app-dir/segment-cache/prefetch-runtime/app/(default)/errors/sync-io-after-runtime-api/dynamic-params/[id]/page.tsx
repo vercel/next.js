@@ -1,12 +1,21 @@
 import { Suspense } from 'react'
 import { DebugRenderKind } from '../../../../../shared'
-import { workUnitAsyncStorage } from 'next/dist/server/app-render/work-unit-async-storage.external'
+import { ForceRuntimeShell } from '../../../../../../components/force-runtime-shell'
 
 type Params = { id: string }
+
+export const instant = {
+  // We're intentionally testing error behavior at runtime.
+  // Build-time validation catches it and prevents that.
+  unstable_disableValidation: true,
+  unstable_samples: [{ cookies: [] }],
+}
+export const prefetch = 'partial'
 
 export default async function Page({ params }: { params: Promise<Params> }) {
   return (
     <main>
+      <ForceRuntimeShell />
       <DebugRenderKind />
       <p id="intro">
         This page performs sync IO after awaiting params, so we should only see
@@ -20,11 +29,6 @@ export default async function Page({ params }: { params: Promise<Params> }) {
 }
 
 async function RuntimePrefetchable({ params }: { params: Promise<Params> }) {
-  const res = await params
-  console.log(
-    'RuntimePrefetchable :: awaited params',
-    res,
-    workUnitAsyncStorage.getStore()
-  )
+  await params
   return <div id="timestamp">Timestamp: {Date.now()}</div>
 }

@@ -96,7 +96,7 @@ Start by creating the `blog`-type
 
 ```bash
 curl --location --request POST 'https://api.enterspeed.com/ingest/v2/1' \
---header 'X-Api-Key: [YOUR DATA SOUCE API KEY]' \
+--header 'X-Api-Key: [YOUR DATA SOURCE API KEY]' \
 --header 'Content-Type: application/json' \
 --data-raw '{
   "type": "blog",
@@ -108,7 +108,7 @@ Next, ingest the actual blog post
 
 ```bash
 curl --location --request POST 'https://api.enterspeed.com/ingest/v2/2' \
---header 'X-Api-Key: [YOUR DATA SOUCE API KEY]' \
+--header 'X-Api-Key: [YOUR DATA SOURCE API KEY]' \
 --header 'Content-Type: application/json' \
 --data-raw '{
   "type": "blogPost",

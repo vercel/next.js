@@ -1,19 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, check, getRedboxSource } from 'next-test-utils'
+import { waitForRedbox, check, getRedboxSource } from 'next-test-utils'
 
 describe('app-dir root layout', () => {
-  const {
-    next,
-    isNextDev: isDev,
-    skipped,
-  } = nextTestSetup({
+  const { next, isNextDev: isDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isDev) {
     // TODO-APP: re-enable after reworking the error overlay.
@@ -23,7 +14,7 @@ describe('app-dir root layout', () => {
           waitHydration: false,
         })
 
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
         "Please make sure to include the following tags in your root layout: <html>, <body>.
 
@@ -37,7 +28,7 @@ describe('app-dir root layout', () => {
         })
         await browser.elementByCss('a').click()
 
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
         "Please make sure to include the following tags in your root layout: <html>, <body>.
 
@@ -50,7 +41,7 @@ describe('app-dir root layout', () => {
           waitHydration: false,
         })
 
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
         "Please make sure to include the following tags in your root layout: <html>, <body>.
 

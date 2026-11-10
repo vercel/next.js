@@ -10,7 +10,7 @@ use swc_core::common::{
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
+    issue::{IssueExt, IssueSeverity, IssueSource, analyze::AnalyzeIssue},
     source::Source,
 };
 
@@ -34,8 +34,8 @@ impl IssueCollector {
                     issue.severity
                 },
                 issue.source.ident(),
-                Vc::cell(issue.title),
-                issue.message.cell(),
+                issue.title,
+                issue.message,
                 issue.code,
                 issue.issue_source,
             )
@@ -52,8 +52,8 @@ impl IssueCollector {
             AnalyzeIssue::new(
                 issue.severity,
                 issue.source.ident(),
-                Vc::cell(issue.title.clone()),
-                issue.message.clone().cell(),
+                issue.title.clone(),
+                issue.message.clone(),
                 issue.code.clone(),
                 issue.issue_source,
             )
@@ -68,7 +68,7 @@ struct PlainAnalyzeIssue {
     severity: IssueSeverity,
     source: ResolvedVc<Box<dyn Source>>,
     title: RcStr,
-    message: StyledString,
+    message: RcStr,
     code: Option<RcStr>,
     issue_source: Option<IssueSource>,
 }
@@ -111,14 +111,15 @@ impl Emitter for IssueEmitter {
             .map(|s| s.0.as_ref())
             .collect::<Vec<_>>()
             .join("");
-        let code = db.code.as_ref().map(|d| match d {
-            DiagnosticId::Error(s) => format!("error {s}").into(),
-            DiagnosticId::Lint(s) => format!("lint {s}").into(),
-        });
         let is_lint = db
             .code
             .as_ref()
             .is_some_and(|d| matches!(d, DiagnosticId::Lint(_)));
+
+        let code = db.code.map(|d| match d {
+            DiagnosticId::Error(s) => s.into(),
+            DiagnosticId::Lint(s) => format!("lint {s}").into(),
+        });
 
         let severity = if is_lint {
             IssueSeverity::Suggestion
@@ -135,13 +136,19 @@ impl Emitter for IssueEmitter {
             }
         };
 
+        // When self.title is set (e.g. "Parsing ecmascript source code failed"),
+        // use the SWC diagnostic as the title for a more specific error message,
+        // and demote the generic title to the description.
+        // When self.title is not set, use the first line of the message as title
+        // and the rest as description.
         let title;
         if let Some(t) = self.title.as_ref() {
-            title = t.clone();
+            title = message.trim().into();
+            message = t.to_string();
         } else {
             let mut message_split = message.split('\n');
-            title = message_split.next().unwrap().to_string().into();
-            message = message_split.remainder().unwrap_or("").to_string();
+            title = message_split.next().unwrap().trim().to_string().into();
+            message = message_split.remainder().unwrap_or("").trim().to_string();
         }
 
         let source = db.span.primary_span().map(|span| {
@@ -155,7 +162,7 @@ impl Emitter for IssueEmitter {
             severity,
             source: self.source,
             title,
-            message: StyledString::Text(message.into()),
+            message: message.into(),
             code,
             issue_source: source,
         };

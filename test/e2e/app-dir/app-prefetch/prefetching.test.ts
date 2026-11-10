@@ -91,8 +91,9 @@ describe('app dir - prefetching', () => {
   })
 
   itHeaded('should not suppress prefetches after navigating back', async () => {
-    // Force headed mode, as bfcache is not available in headless mode.
-    const browser = await next.browser('/', { headless: false })
+    // Requires headed mode, as bfcache is not available in headless mode
+    // (`itHeaded` skips this test when the HEADLESS env var is set).
+    const browser = await next.browser('/')
 
     // Trigger a hard navigation.
     await browser.elementById('to-static-page-hard').click()
@@ -212,7 +213,7 @@ describe('app dir - prefetching', () => {
             'prefetch-auto',
             {
               children: [
-                ['slug', 'justputit', 'd'],
+                ['slug', 'justputit', 'd', null],
                 { children: ['__PAGE__', {}] },
               ],
             },
@@ -220,17 +221,27 @@ describe('app dir - prefetching', () => {
         },
         null,
         null,
-        true,
+        16, // PrefetchHint.IsRootLayout
       ])
     )
-    const response = await next.fetch(`/prefetch-auto/justputit?_rsc=dcqtr`, {
-      headers: {
-        rsc: '1',
-        'next-router-prefetch': '1',
-        'next-router-state-tree': stateTree,
-        'next-url': '/prefetch-auto/justputit',
-      },
-    })
+    const headers = {
+      rsc: '1',
+      'next-router-prefetch': '1',
+      'next-router-state-tree': stateTree,
+      'next-url': '/prefetch-auto/justputit',
+    } as const
+    const cacheBustingParam = await computeCacheBustingSearchParam(
+      headers['next-router-prefetch'],
+      undefined,
+      headers['next-router-state-tree'],
+      headers['next-url']
+    )
+    const response = await next.fetch(
+      `/prefetch-auto/justputit?_rsc=${cacheBustingParam}`,
+      {
+        headers,
+      }
+    )
 
     const prefetchResponse = await response.text()
     expect(prefetchResponse).not.toContain('Page Data!')
@@ -247,7 +258,7 @@ describe('app dir - prefetching', () => {
             'prefetch-auto',
             {
               children: [
-                ['slug', 'vercel', 'd'],
+                ['slug', 'vercel', 'd', null],
                 { children: ['__PAGE__', {}] },
               ],
             },
@@ -255,7 +266,7 @@ describe('app dir - prefetching', () => {
         },
         null,
         null,
-        true,
+        16, // PrefetchHint.IsRootLayout
       ])
     )
 
@@ -267,7 +278,7 @@ describe('app dir - prefetching', () => {
     }
 
     const url = new URL('/prefetch-auto/justputit', 'http://localhost')
-    const cacheBustingParam = computeCacheBustingSearchParam(
+    const cacheBustingParam = await computeCacheBustingSearchParam(
       headers['next-router-prefetch'] ? '1' : '0',
       undefined,
       headers['next-router-state-tree'],
@@ -314,25 +325,65 @@ describe('app dir - prefetching', () => {
       async () => {
         const reveal = await browser.elementByCss('#accordion-to-dynamic-page')
         await reveal.click()
-        await browser.waitForElementByCss('#to-dynamic-page')
-        return await browser.elementByCss('#to-dynamic-page')
+        return browser.elementByCss('#to-dynamic-page')
       },
       { includes: 'Loading Prefetch Auto' }
     )
 
     // Click the link to navigate - should trigger dynamic data fetch
-    await act(
+    const loadingText = await act(
       async () => {
         await link.click()
-        await browser.waitForElementByCss('#loading-text')
-        const loadingText = await browser.elementByCss('#loading-text').text()
-        expect(loadingText).toBe('Loading Prefetch Auto')
+        return browser.elementByCss('#loading-text').text()
       },
       { includes: 'prefetch-auto-page-data' }
     )
+    expect(loadingText).toBe('Loading Prefetch Auto')
 
     // Wait for final data to appear
     await browser.waitForElementByCss('#prefetch-auto-page-data')
+  })
+
+  it('treats a loading boundary prefetch as complete for the segments above the boundary', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // The route is dynamic, so it can't be prefetched per segment. The
+    // prefetch renders down to the loading boundary, so it includes the
+    // layouts but not the page.
+    await act(async () => {
+      const reveal = await browser.elementByCss(
+        '#accordion-to-loading-boundary-target'
+      )
+      await reveal.click()
+    }, [
+      { includes: '[lb-outer-layout]' },
+      { includes: '[lb-page]', block: 'reject' },
+    ])
+
+    // The navigation requests only the page below the boundary. The layouts
+    // above it are not requested again.
+    await act(async () => {
+      const link = await browser.elementByCss('#to-loading-boundary-target')
+      await link.click()
+    }, [
+      { includes: '[lb-page]' },
+      { includes: '[lb-outer-layout]', block: 'reject' },
+      { includes: '[lb-inner-layout]', block: 'reject' },
+    ])
+    expect(
+      await browser.elementByCss('#loading-boundary-outer-layout').text()
+    ).toBe('Outer layout [lb-outer-layout]')
+    expect(
+      await browser.elementByCss('#loading-boundary-inner-layout').text()
+    ).toBe('Inner layout [lb-inner-layout]')
+    expect(await browser.elementByCss('#loading-boundary-page').text()).toBe(
+      'Page content [lb-page]'
+    )
   })
 
   it('should not unintentionally modify the requested prefetch by escaping the uri encoded query params', async () => {
@@ -368,9 +419,11 @@ describe('app dir - prefetching', () => {
     await browser.elementById('prefetch-via-link').click()
 
     // Assert that we're on the homepage (check for accordion since links are hidden)
-    expect(
-      await browser.hasElementByCssSelector('#accordion-to-dashboard')
-    ).toBe(true)
+    await retry(async () => {
+      expect(await browser.hasElementByCss('#accordion-to-dashboard')).toBe(
+        true
+      )
+    })
 
     await browser.waitForIdleNetwork()
 
@@ -382,7 +435,8 @@ describe('app dir - prefetching', () => {
     })
   })
 
-  // These tests are skipped when deployed as they rely on runtime logs
+  // Deploy mode exclusion: This nested suite asserts runtime logs from the
+  // local Next.js process.
   if (!isNextDeploy) {
     describe('dynamic rendering', () => {
       describe.each(['/force-dynamic', '/revalidate-0'])('%s', (basePath) => {

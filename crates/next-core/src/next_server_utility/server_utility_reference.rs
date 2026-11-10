@@ -1,15 +1,15 @@
-use anyhow::Result;
-use once_cell::sync::Lazy;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
+    chunk::ChunkingType,
     module::Module,
     reference::ModuleReference,
-    resolve::ModuleResolveResult,
+    resolve::{BindingUsage, ExportUsage, ImportUsage, ModuleResolveResult},
 };
 
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string("Next.js server utility {}", self.asset.ident())]
 pub struct NextServerUtilityModuleReference {
     asset: ResolvedVc<Box<dyn Module>>,
 }
@@ -22,19 +22,7 @@ impl NextServerUtilityModuleReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for NextServerUtilityModuleReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!(
-                "Next.js server utility {}",
-                self.asset.ident().to_string().await?
-            )
-            .into(),
-        ))
-    }
-}
+pub const NEXT_SERVER_UTILITY_MERGE_TAG: RcStr = rcstr!("next-server-utility");
 
 #[turbo_tasks::value_impl]
 impl ModuleReference for NextServerUtilityModuleReference {
@@ -42,17 +30,20 @@ impl ModuleReference for NextServerUtilityModuleReference {
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         *ModuleResolveResult::module(self.asset)
     }
-}
 
-pub static NEXT_SERVER_UTILITY_MERGE_TAG: Lazy<RcStr> = Lazy::new(|| rcstr!("next-server-utility"));
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for NextServerUtilityModuleReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Shared {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Shared {
             inherit_async: true,
-            merge_tag: Some(NEXT_SERVER_UTILITY_MERGE_TAG.clone()),
-        }))
+            merge_tag: Some(NEXT_SERVER_UTILITY_MERGE_TAG),
+        })
+    }
+
+    fn binding_usage(&self) -> BindingUsage {
+        BindingUsage {
+            import: ImportUsage::TopLevel,
+            export: ExportUsage::Passthrough {
+                namespace_object_may_escape: true,
+            },
+        }
     }
 }

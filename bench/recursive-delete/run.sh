@@ -1,69 +1,63 @@
-# Uses https://github.com/divmain/fuzzponent
-mkdir fixtures-1
-cd fixtures-1
-fuzzponent -d 2 -s 20 > output.txt
-cd ..
-echo "rimraf 1"
-node rimraf.js 1
+#!/usr/bin/env bash
+set -euo pipefail
 
-mkdir fixtures-2
-cd fixtures-2
-fuzzponent -d 2 -s 20 > output.txt
-cd ..
-echo "rimraf 2"
-node rimraf.js 2
+ITERATIONS=5
 
-mkdir fixtures-3
-cd fixtures-3
-fuzzponent -d 2 -s 20 > output.txt
-cd ..
-echo "rimraf 3"
-node rimraf.js 3
+show_help() {
+  echo "Usage: $(basename "$0") [-i|--iterations N] [-h|--help]"
+  exit "${1:-0}"
+}
 
-mkdir fixtures-4
-cd fixtures-4
-fuzzponent -d 2 -s 20 > output.txt
-cd ..
-echo "rimraf 4"
-node rimraf.js 4
+if ! OPTS=$(getopt -o i:h --long iterations:,help -n "$(basename "$0")" -- "$@"); then
+  show_help 1
+fi
+eval set -- "$OPTS"
 
-mkdir fixtures-5
-cd fixtures-5
-fuzzponent -d 2 -s 20 > output.txt
-cd ..
-echo "rimraf 5"
-node rimraf.js 5
+while true; do
+  case "$1" in
+    -i|--iterations)
+      ITERATIONS="$2"
+      shift 2
+      ;;
+    -h|--help)
+      show_help
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
 
-echo "-----------"
+cleanup() {
+  for i in $(seq 1 "$ITERATIONS"); do
+    rm -rf "fixtures-$i"
+  done
+}
 
-cd fixtures-1
-fuzzponent -d 2 -s 20 > output.txt
-cd ..
-echo "recursive delete 1"
-node recursive-delete.js 1
+trap cleanup EXIT
+cleanup
 
-cd fixtures-2
-fuzzponent -d 2 -s 20 > output.txt
-cd ..
-echo "recursive delete 2"
-node recursive-delete.js 2
+run_benchmark() {
+  local name=$1
+  local script=$2
+  shift 2
 
-cd fixtures-3
-fuzzponent -d 2 -s 20 > output.txt
-cd ..
-echo "recursive delete 3"
-node recursive-delete.js 3
+  echo "-----------"
+  for i in $(seq 1 "$ITERATIONS"); do
+    local fixture="fixtures-$i"
+    mkdir "$fixture"
+    cd "fixtures-$i"
+    fuzzponent -d 2 -s 20
+    cd ..
+    echo "$name $i"
+    node "$script" "$fixture" "$@"
+    if [[ -d "$fixture" ]]; then rmdir "$fixture"; fi
+  done
+}
 
-cd fixtures-4
-fuzzponent -d 2 -s 20 > output.txt
-cd ..
-echo "recursive delete 4"
-node recursive-delete.js 4
-
-cd fixtures-5
-fuzzponent -d 2 -s 20 > output.txt
-cd ..
-echo "recursive delete 5"
-node recursive-delete.js 5
-
-rm -r fixtures-1 fixtures-2 fixtures-3 fixtures-4 fixtures-5
+run_benchmark "rimraf (async)" "rimraf.js" "async"
+run_benchmark "rimraf (sync)" "rimraf.js" "sync"
+run_benchmark "recursive delete" "recursive-delete.js"
+run_benchmark "nodejs rm (promises)" "nodejs-rm.js" "promises"
+run_benchmark "nodejs rm (callback)" "nodejs-rm.js" "callback"
+run_benchmark "nodejs rm (sync)" "nodejs-rm.js" "sync"

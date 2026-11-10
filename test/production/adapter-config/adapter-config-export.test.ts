@@ -1,4 +1,5 @@
 import fs from 'fs'
+import path from 'path'
 import type { NextAdapter } from 'next'
 import { nextTestSetup } from 'e2e-utils'
 import { version as nextVersion } from 'next/package.json'
@@ -16,13 +17,19 @@ describe('adapter-config export', () => {
       'app/node-app/page.tsx',
       'app/node-route/route.ts',
       'app/edge-route/route.ts',
+      'app/preferred-region/route.ts',
       'app/isr-route/route.ts',
       'app/isr-route/[slug]/route.ts',
+      'app/revalidating/sitemap.ts',
+      'app/tagged/sitemap.ts',
       'app/edge-app/page.tsx',
       'pages/api/edge-pages.ts',
       'pages/api/node-pages.ts',
       'pages/edge-pages/index.tsx',
       'pages/node-pages/index.tsx',
+      'app/node-app/[slug]/page.tsx',
+      'app/node-app/@dialog/default.tsx',
+      'app/node-app/@dialog/[slug]/page.tsx',
     ]
 
     for (const file of nonExportFiles) {
@@ -34,7 +41,7 @@ describe('adapter-config export', () => {
 
     const {
       outputs,
-      routes,
+      routing,
       config,
       ...ctx
     }: Parameters<NextAdapter['onBuildComplete']>[0] = await next.readJSON(
@@ -52,7 +59,11 @@ describe('adapter-config export', () => {
     }
 
     expect(ctx.nextVersion).toBe(nextVersion)
+    expect(ctx.projectDir).toBe(next.testDir)
     expect(config?.basePath).toBe('/docs')
+    expect(config?.distDir).toBe('custom-out')
+    expect(ctx.distDir).toBe(path.join(next.testDir, '.next'))
+    expect(fs.existsSync(path.join(next.testDir, 'custom-out'))).toBe(true)
 
     const combinedRouteOutputs = [
       ...outputs.appPages,
@@ -77,11 +88,16 @@ describe('adapter-config export', () => {
       expect(stats.isFile()).toBe(true)
     }
 
-    expect(routes).toEqual({
+    expect(routing).toEqual({
+      beforeMiddleware: expect.toBeArray(),
+      middlewareMatchers: expect.toBeArray(),
+      beforeFiles: expect.toBeArray(),
+      afterFiles: expect.toBeArray(),
       dynamicRoutes: expect.toBeArray(),
-      rewrites: expect.toBeObject(),
-      redirects: expect.toBeArray(),
-      headers: expect.toBeArray(),
+      onMatch: expect.toBeArray(),
+      fallback: expect.toBeArray(),
+      shouldNormalizeNextData: expect.toBeBoolean(),
+      rsc: expect.toBeObject(),
     })
   })
 })

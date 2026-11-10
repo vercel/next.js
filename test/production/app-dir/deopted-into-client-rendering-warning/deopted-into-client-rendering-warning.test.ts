@@ -1,12 +1,16 @@
-import { nextBuild } from 'next-test-utils'
+import { nextTestSetup } from 'e2e-utils'
 
-it('should not show deopted into client rendering warning', async () => {
-  const output = await nextBuild(__dirname, undefined, {
-    stdout: true,
-    stderr: true,
+describe('deopted-into-client-rendering-warning', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
   })
-  expect(output.code).toBe(0)
-  expect(output.stderr).not.toContain(
-    `Entire page / deopted into client-side rendering.`
-  )
+
+  it('should not show deopted into client rendering warning', async () => {
+    const { exitCode, cliOutput } = await next.build()
+    expect(exitCode).toBe(0)
+    expect(cliOutput).not.toContain(
+      `Entire page / deopted into client-side rendering.`
+    )
+  })
 })

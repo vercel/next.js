@@ -3,18 +3,16 @@ use std::fmt;
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{FileSystem, FileSystemPath};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     ModuleAssetContext,
-    ecmascript::TreeShakingMode,
     module_options::{
-        EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
+        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
         TypescriptTransformOptions,
     },
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
 use turbopack_core::{
-    chunk::SourceMapsType,
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo},
     condition::ContextCondition,
@@ -22,7 +20,8 @@ use turbopack_core::{
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     free_var_references,
     ident::Layer,
-    resolve::options::{ImportMap, ImportMapping},
+    resolve::options::ImportMap,
+    source_map::{SourceMapGenerationOptions, SourceMapType},
 };
 use turbopack_node::{
     execution_context::ExecutionContext, transforms::postcss::PostCssTransformOptions,
@@ -45,7 +44,7 @@ impl fmt::Display for NodeEnv {
 }
 
 fn foreign_code_context_condition() -> ContextCondition {
-    ContextCondition::InDirectory("node_modules".to_string())
+    ContextCondition::InNodeModules
 }
 
 #[turbo_tasks::function]
@@ -56,20 +55,6 @@ pub async fn get_client_import_map(project_path: FileSystemPath) -> Result<Vc<Im
     import_map.insert_singleton_alias(rcstr!("styled-jsx"), project_path.clone());
     import_map.insert_singleton_alias(rcstr!("react"), project_path.clone());
     import_map.insert_singleton_alias(rcstr!("react-dom"), project_path.clone());
-
-    import_map.insert_wildcard_alias(
-        rcstr!("@vercel/turbopack-ecmascript-runtime/"),
-        ImportMapping::PrimaryAlternative(
-            rcstr!("./*"),
-            Some(
-                turbopack_ecmascript_runtime::embed_fs()
-                    .root()
-                    .owned()
-                    .await?,
-            ),
-        )
-        .resolved_cell(),
-    );
 
     Ok(import_map.cell())
 }
@@ -108,13 +93,23 @@ async fn get_client_module_options_context(
     execution_context: ResolvedVc<ExecutionContext>,
     env: ResolvedVc<Environment>,
     node_env: Vc<NodeEnv>,
-    source_maps_type: SourceMapsType,
+    source_maps_type: Option<SourceMapType>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let is_dev = matches!(*node_env.await?, NodeEnv::Development);
+    let source_map_generation_options = SourceMapGenerationOptions::from_emitted(source_maps_type);
     let module_options_context = ModuleOptionsContext {
+        ecmascript: EcmascriptOptionsContext {
+            source_map_generation_options,
+            ..Default::default()
+        },
+        css: CssOptionsContext {
+            source_map_generation_options,
+            ..Default::default()
+        },
         environment: Some(env),
         execution_context: Some(execution_context),
-        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        follow_reexports: true,
+        module_fragments_enabled: false,
         keep_last_successful_parse: is_dev,
         ..Default::default()
     };
@@ -141,7 +136,6 @@ async fn get_client_module_options_context(
             enable_typescript_transform: Some(
                 TypescriptTransformOptions::default().resolved_cell(),
             ),
-            source_maps: source_maps_type,
             ..module_options_context.ecmascript.clone()
         },
         enable_postcss_transform: Some(PostCssTransformOptions::default().resolved_cell()),
@@ -162,7 +156,7 @@ pub fn get_client_asset_context(
     execution_context: Vc<ExecutionContext>,
     compile_time_info: Vc<CompileTimeInfo>,
     node_env: Vc<NodeEnv>,
-    source_maps_type: SourceMapsType,
+    source_maps_type: Option<SourceMapType>,
 ) -> Vc<Box<dyn AssetContext>> {
     let resolve_options_context =
         get_client_resolve_options_context(project_path.clone(), node_env);
@@ -188,7 +182,7 @@ pub fn get_client_asset_context(
 fn client_defines(node_env: &NodeEnv) -> CompileTimeDefines {
     compile_time_defines!(
         process.turbopack = true,
-        process.env.TURBOPACK = true,
+        process.env.TURBOPACK = "1",
         process.env.NODE_ENV = node_env.to_string()
     )
 }
@@ -197,6 +191,7 @@ fn client_defines(node_env: &NodeEnv) -> CompileTimeDefines {
 pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     node_env: Vc<NodeEnv>,
+    hot_module_replacement_enabled: bool,
 ) -> Result<Vc<CompileTimeInfo>> {
     let node_env = node_env.await?;
     CompileTimeInfo::builder(
@@ -216,6 +211,7 @@ pub async fn get_client_compile_time_info(
     .free_var_references(
         free_var_references!(..client_defines(&node_env).into_iter()).resolved_cell(),
     )
+    .hot_module_replacement_enabled(hot_module_replacement_enabled)
     .cell()
     .await
 }

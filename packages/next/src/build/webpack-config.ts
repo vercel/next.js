@@ -4,6 +4,7 @@ import { yellow, bold } from '../lib/picocolors'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
+import fs from 'fs'
 
 import { getDefineEnv } from './define-env'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
@@ -18,6 +19,8 @@ import {
 } from './utils'
 import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
+  CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME,
+  CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
@@ -31,6 +34,7 @@ import {
 import type { CompilerNameValues } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import type { NextConfigComplete } from '../server/config-shared'
+import { resolveCssChunkingMode } from '../server/config-shared'
 import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { buildConfiguration } from './webpack/config'
@@ -50,6 +54,7 @@ import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { ClientReferenceManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { FlightClientEntryPlugin as NextFlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
 import { RspackFlightClientEntryPlugin } from './webpack/plugins/rspack-flight-client-entry-plugin'
+import { DeferredEntriesPlugin } from './webpack/plugins/deferred-entries-plugin'
 import { NextTypesPlugin } from './webpack/plugins/next-types-plugin'
 import type {
   Feature,
@@ -61,10 +66,9 @@ import loadJsConfig, {
   type JsConfig,
   type ResolvedBaseUrl,
 } from './load-jsconfig'
-import { loadBindings } from './swc'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
-import { getSupportedBrowsers } from './utils'
+import { getSupportedBrowsers } from './get-supported-browsers'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
 import { getBabelConfigFile } from './get-babel-config-file'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
@@ -79,13 +83,14 @@ import {
   createNextApiEsmAliases,
   createAppRouterApiAliases,
 } from './create-compiler-aliases'
-import { hasCustomExportOutput } from '../export/utils'
+import { getBuildDistDir } from '../export/utils'
 import { CssChunkingPlugin } from './webpack/plugins/css-chunking-plugin'
 import {
   getBabelLoader,
   getReactCompilerLoader,
 } from './get-babel-loader-config'
 import {
+  INSTRUMENTATION_INJECT_STUB_PATH,
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
 } from './next-dir-paths'
@@ -96,14 +101,19 @@ import type { NextBuildContext } from './build-context'
 import type { RootParamsLoaderOpts } from './webpack/loaders/next-root-params-loader'
 import type { InvalidImportLoaderOpts } from './webpack/loaders/next-invalid-import-error-loader'
 import { defaultOverrides } from '../server/require-hook'
+import JSON5 from 'next/dist/compiled/json5'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
   [key: string]: string | string[]
 }
 
-const EXTERNAL_PACKAGES =
-  require('../lib/server-external-packages.json') as string[]
+const EXTERNAL_PACKAGES = JSON5.parse(
+  fs.readFileSync(
+    path.join(__dirname, '../lib/server-external-packages.jsonc'),
+    'utf8'
+  )
+) as string[]
 
 const DEFAULT_TRANSPILED_PACKAGES =
   require('../lib/default-transpiled-packages.json') as string[]
@@ -287,20 +297,35 @@ export function hasExternalOtelApiPackage(): boolean {
 
 const UNSAFE_CACHE_REGEX = /[\\/]pages[\\/][^\\/]+(?:$|\?|#)/
 
-export function getCacheDirectories(
-  configs: webpack.Configuration[]
-): Set<string> {
-  return new Set(
-    configs
-      .map((cfg) => {
-        if (typeof cfg.cache === 'object' && cfg.cache.type === 'filesystem') {
-          return cfg.cache.cacheDirectory
-        }
-        return null
-      })
-      .filter((dir) => dir != null)
-  )
-}
+export const getCacheDirectories = process.env.NEXT_RSPACK
+  ? (configs: webpack.Configuration[]) => {
+      return new Set(
+        configs
+          .map((cfg) => {
+            const cache = cfg.cache as any
+            if (typeof cache === 'object' && cache.type === 'persistent') {
+              return cache.storage.directory
+            }
+            return null
+          })
+          .filter((dir): dir is string => dir != null)
+      )
+    }
+  : (configs: webpack.Configuration[]) => {
+      return new Set(
+        configs
+          .map((cfg) => {
+            if (
+              typeof cfg.cache === 'object' &&
+              cfg.cache.type === 'filesystem'
+            ) {
+              return cfg.cache.cacheDirectory
+            }
+            return null
+          })
+          .filter((dir) => dir != null)
+      )
+    }
 
 export default async function getBaseWebpackConfig(
   dir: string,
@@ -311,12 +336,11 @@ export default async function getBaseWebpackConfig(
     compilerType,
     dev = false,
     entrypoints,
+    deferredEntrypoints,
+    deferredEntrySourceDirectories,
     isDevFallback = false,
     pagesDir,
-    reactProductionProfiling = false,
     rewrites,
-    originalRewrites,
-    originalRedirects,
     runWebpackSpan,
     appDir,
     middlewareMatchers,
@@ -338,12 +362,11 @@ export default async function getBaseWebpackConfig(
     compilerType: CompilerNameValues
     dev?: boolean
     entrypoints: webpack.EntryObject
+    deferredEntrypoints?: webpack.EntryObject
+    deferredEntrySourceDirectories?: string[]
     isDevFallback?: boolean
     pagesDir: string | undefined
-    reactProductionProfiling?: boolean
     rewrites: CustomRoutes['rewrites']
-    originalRewrites: CustomRoutes['rewrites'] | undefined
-    originalRedirects: CustomRoutes['redirects'] | undefined
     runWebpackSpan: Span
     appDir: string | undefined
     middlewareMatchers?: ProxyMatcher[]
@@ -369,6 +392,10 @@ export default async function getBaseWebpackConfig(
   const isNodeServer = compilerType === COMPILER_NAMES.server
 
   const isRspack = Boolean(process.env.NEXT_RSPACK)
+  const CompleteRuntimePlugin = isRspack
+    ? // @ts-ignore @next/rspack-core extends Rspack's core export with Next-only native plugins.
+      bundler.ForceCompleteRuntimePlugin
+    : ForceCompleteRuntimePlugin
 
   const FlightClientEntryPlugin =
     isRspack && process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN
@@ -389,12 +416,12 @@ export default async function getBaseWebpackConfig(
     ? '-experimental'
     : ''
 
+  const reactProductionProfiling = config.reactProductionProfiling ?? false
+
   const babelConfigFile = getBabelConfigFile(dir)
 
-  if (!dev && hasCustomExportOutput(config)) {
-    config.distDir = '.next'
-  }
-  const distDir = path.join(dir, config.distDir)
+  const buildDistDir = dev ? config.distDir : getBuildDistDir(config)
+  const distDir = path.join(dir, buildDistDir)
 
   let useSWCLoader = !babelConfigFile || config.experimental.forceSwcTransforms
   let SWCBinaryTarget: [Feature, boolean] | undefined = undefined
@@ -416,11 +443,6 @@ export default async function getBaseWebpackConfig(
       )}" https://nextjs.org/docs/messages/swc-disabled`
     )
     loggedSwcDisabled = true
-  }
-
-  // eagerly load swc bindings instead of waiting for transform calls
-  if (!babelConfigFile && isClient) {
-    await loadBindings(config.experimental.useWasmBinary)
   }
 
   // since `pages` doesn't always bundle by default we need to
@@ -523,12 +545,7 @@ export default async function getBaseWebpackConfig(
           hasReactRefresh: dev && isClient,
           transpilePackages: finalTranspilePackages,
           supportedBrowsers,
-          swcCacheDir: path.join(
-            dir,
-            config?.distDir ?? '.next',
-            'cache',
-            'swc'
-          ),
+          swcCacheDir: path.join(distDir, 'cache', 'swc'),
           serverReferenceHashSalt: encryptionKey,
 
           // rspack specific options
@@ -563,7 +580,7 @@ export default async function getBaseWebpackConfig(
         jsConfig,
         transpilePackages: finalTranspilePackages,
         supportedBrowsers,
-        swcCacheDir: path.join(dir, config?.distDir ?? '.next', 'cache', 'swc'),
+        swcCacheDir: path.join(distDir, 'cache', 'swc'),
         serverReferenceHashSalt: encryptionKey,
         ...extraOptions,
       } satisfies SWCLoaderOptions,
@@ -687,7 +704,6 @@ export default async function getBaseWebpackConfig(
     : distDir
 
   const conditionNames = [
-    ...(config.experimental?.cacheComponents === true ? ['next-js'] : []),
     ...(isEdgeServer ? [edgeConditionName] : []),
     // inherits Webpack's default conditions
     '...',
@@ -791,7 +807,7 @@ export default async function getBaseWebpackConfig(
     plugins: [
       isNodeServer ? new OptionalPeerDependencyResolverPlugin() : undefined,
     ].filter(Boolean) as webpack.ResolvePluginInstance[],
-    ...((isRspack && jsConfigPath
+    ...(isRspack && jsConfigPath
       ? {
           // Skip paths that are routed to a .d.ts file
           restrictions: [/^(?!.*\.d\.ts$).*$/],
@@ -799,7 +815,13 @@ export default async function getBaseWebpackConfig(
             configFile: jsConfigPath,
           },
         }
-      : {}) as any),
+      : {}),
+  }
+
+  // Resolve server-relative imports (e.g. `/styles/foo`) from the app
+  // directory. Webpack defaults this to `context`; Rspack needs it explicit.
+  if (isRspack) {
+    resolveConfig!.roots = [dir]
   }
 
   // Packages which will be split into the 'framework' chunk.
@@ -1229,7 +1251,7 @@ export default async function getBaseWebpackConfig(
         isRspack
           ? new (getRspackCore().SwcJsMinimizerRspackPlugin)({
               // JS minimizer configuration
-              // options should align with crates/napi/src/minify.rs#patch_opts
+              // options should align with crates/next-napi-bindings/src/minify.rs#patch_opts
               minimizerOptions: {
                 compress: {
                   inline: 2,
@@ -1315,8 +1337,10 @@ export default async function getBaseWebpackConfig(
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
             dev ? '' : '-[contenthash]'
           }.js`,
-      library: isClient || isEdgeServer ? '_N_E' : undefined,
-      libraryTarget: isClient || isEdgeServer ? 'assign' : 'commonjs2',
+      library:
+        isClient || isEdgeServer
+          ? { name: '_N_E', type: 'assign' }
+          : { type: 'commonjs2' },
       hotUpdateChunkFilename: 'static/webpack/[id].[fullhash].hot-update.js',
       hotUpdateMainFilename:
         'static/webpack/[fullhash].[runtime].hot-update.json',
@@ -1339,6 +1363,9 @@ export default async function getBaseWebpackConfig(
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
       hashFunction: 'xxhash64',
       hashDigestLength: 16,
+      // Webpack requires hashSalt to be a non-empty string; omit it entirely
+      // when no salt is configured.
+      ...(config.outputHashSalt ? { hashSalt: config.outputHashSalt } : {}),
     },
     performance: false,
     resolve: resolveConfig,
@@ -1348,6 +1375,8 @@ export default async function getBaseWebpackConfig(
         'error-loader',
         'next-swc-loader',
         'next-client-pages-loader',
+        'next-instrumentation-client-loader',
+        'next-instrumentation-inject-loader',
         'next-image-loader',
         'next-metadata-image-loader',
         'next-style-loader',
@@ -1389,6 +1418,17 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
+        {
+          issuerLayer: {
+            not: [WEBPACK_LAYERS.middleware, WEBPACK_LAYERS.instrument],
+          },
+          resolve: {
+            conditionNames: [
+              config.cacheComponents ? 'next-js' : '',
+              '...',
+            ].filter(Boolean) as string[],
+          },
+        },
         // Alias server-only and client-only to proper exports based on bundling layers
         {
           issuerLayer: {
@@ -1553,11 +1593,6 @@ export default async function getBaseWebpackConfig(
           : []),
 
         ...getNextRootParamsRules({
-          isRootParamsEnabled:
-            config.experimental.rootParams ??
-            // `experimental.cacheComponents` implies `experimental.rootParams`.
-            config.experimental.cacheComponents ??
-            false,
           isClient,
           appDir,
           pageExtensions,
@@ -1779,6 +1814,7 @@ export default async function getBaseWebpackConfig(
                   compilerType,
                   basePath: config.basePath,
                   assetPrefix: config.assetPrefix,
+                  outputHashSalt: config.outputHashSalt,
                 },
               },
             ]
@@ -1909,6 +1945,31 @@ export default async function getBaseWebpackConfig(
           test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]next-flight-loader[\\/]action-client-wrapper\.js/,
           sideEffects: false,
         },
+        // The placeholder file aliased from `private-next-instrumentation-client`.
+        // The loader replaces its contents with a synthetic module containing
+        // each `instrumentationClientInject` entry, followed by the user's
+        // `instrumentation-client.{pageExt}` module.
+        {
+          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]instrumentation-client-stub\.js$/,
+          use: {
+            loader: 'next-instrumentation-client-loader',
+            options: {
+              modules: config.instrumentationClientInject,
+            },
+          },
+        },
+        // The server instrumentation entry when `instrumentationInject` is set.
+        // The loader emits one module that runs every entry's hooks, then the
+        // project's own instrumentation file.
+        {
+          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]instrumentation-inject-stub\.js$/,
+          use: {
+            loader: 'next-instrumentation-inject-loader',
+            options: {
+              modules: config.instrumentationInject ?? [],
+            },
+          },
+        },
         {
           // This loader rule should be before other rules, as it can output code
           // that still contains `"use client"` or `"use server"` statements that
@@ -1928,12 +1989,7 @@ export default async function getBaseWebpackConfig(
                 loader: 'next-barrel-loader',
                 options: {
                   names,
-                  swcCacheDir: path.join(
-                    dir,
-                    config?.distDir ?? '.next',
-                    'cache',
-                    'swc'
-                  ),
+                  swcCacheDir: path.join(distDir, 'cache', 'swc'),
                 },
                 // This is part of the request value to serve as the module key.
                 // The barrel loader are no-op re-exported modules keyed by
@@ -1953,9 +2009,31 @@ export default async function getBaseWebpackConfig(
       ],
     },
     plugins: [
+      !isClient &&
+        config.instrumentationInject?.length &&
+        new bundler.NormalModuleReplacementPlugin(
+          new RegExp(
+            `^${escapeStringRegexp(INSTRUMENTATION_INJECT_STUB_PATH)}$`
+          ),
+          ({ createData }) => {
+            if (createData?.resource === INSTRUMENTATION_INJECT_STUB_PATH) {
+              createData.context = dir
+            }
+          }
+        ),
       // In prod Webpack will already have a runtime for all reachable chunks.
       // During dev, it will update the runtime as chunks come in which may be too late for Flight.
-      dev && new ForceCompleteRuntimePlugin(),
+      dev && new CompleteRuntimePlugin(),
+      // Handle deferred entries - must be added early to intercept entry processing
+      !isRspack &&
+        config.experimental.deferredEntries?.length &&
+        deferredEntrypoints &&
+        new DeferredEntriesPlugin({
+          dev,
+          config,
+          deferredEntrypoints,
+          deferredEntrySourceDirectories,
+        }),
       isNodeServer &&
         new bundler.NormalModuleReplacementPlugin(
           /\.\/(.+)\.shared-runtime$/,
@@ -2121,6 +2199,29 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
+      isClient &&
+        hasAppDir &&
+        config.experimental.externalBrowserRuntime === true &&
+        new CopyFilePlugin({
+          // React only publishes this standalone runtime on the experimental
+          // channel, which `experimental.externalBrowserRuntime` opts into via
+          // `needsExperimentalReact`. Keep it small and independent of the
+          // framework bundle so it can reveal streamed Suspense boundaries
+          // before the framework loads or hydration begins.
+          filePath: require.resolve(
+            '../compiled/react-dom-experimental/unstable_server-external-runtime'
+          ),
+          cacheKey: process.env.__NEXT_VERSION as string,
+          name: `static/chunks/${CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME}${
+            dev ? '' : '-[hash]'
+          }.js`,
+          minimize: false,
+          info: {
+            [CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME_SYMBOL]: 1,
+            // This file is already minified
+            minimized: true,
+          },
+        }),
       hasAppDir &&
         (isClient
           ? new ClientReferenceManifestPlugin({
@@ -2138,14 +2239,11 @@ export default async function getBaseWebpackConfig(
         !isClient &&
         new NextTypesPlugin({
           dir,
-          distDir: config.distDir,
+          distDir: buildDistDir,
           appDir,
           dev,
           isEdgeServer,
           pageExtensions: config.pageExtensions,
-          cacheLifeConfig: config.experimental.cacheLife,
-          originalRewrites,
-          originalRedirects,
         }),
       !dev &&
         isClient &&
@@ -2155,17 +2253,21 @@ export default async function getBaseWebpackConfig(
         new NextFontManifestPlugin({
           appDir,
         }),
+      // CSS chunking plugin. Graph mode is Turbopack-only and is rejected at config-validation
+      // time for webpack, so we only need to wire up `'loose'` (default) and `'strict'` here.
       !dev &&
         isClient &&
-        config.experimental.cssChunking &&
-        (isRspack
-          ? new (getRspackCore().experiments.CssChunkingPlugin)({
-              strict: config.experimental.cssChunking === 'strict',
-              nextjs: true,
-            })
-          : new CssChunkingPlugin(
-              config.experimental.cssChunking === 'strict'
-            )),
+        (() => {
+          const mode = resolveCssChunkingMode(config.experimental.cssChunking)
+          if (mode !== 'loose' && mode !== 'strict') return false
+          const strict = mode === 'strict'
+          return isRspack
+            ? new (getRspackCore().experiments.CssChunkingPlugin)({
+                strict,
+                nextjs: true,
+              })
+            : new CssChunkingPlugin(strict)
+        })(),
       telemetryPlugin,
       !dev &&
         isNodeServer &&
@@ -2246,11 +2348,16 @@ export default async function getBaseWebpackConfig(
   }
 
   if (isRspack) {
-    // @ts-ignore
-    // Disable Rspack's incremental buildChunkGraph due to Next.js compatibility issues
-    // TODO: Remove this workaround after Rspack 1.5.1 release
-    webpack5Config.experiments.incremental = {
-      buildChunkGraph: false,
+    // The layers experiment is now stable in Rspack
+    delete webpack5Config.experiments!.layers
+
+    if (!webpack5Config.node) {
+      webpack5Config.node = {}
+    }
+    // NOTE: Rspack's defaults differ from webpack.
+    if (isClient || isEdgeServer) {
+      webpack5Config.node.__dirname = 'mock'
+      webpack5Config.node.__filename = 'mock'
     }
   }
 
@@ -2310,6 +2417,8 @@ export default async function getBaseWebpackConfig(
     optimizePackageImports: config?.experimental?.optimizePackageImports,
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
+    instrumentationInject: config.instrumentationInject,
+    instrumentationClientInject: config.instrumentationClientInject,
     trailingSlash: config.trailingSlash,
     devIndicatorsPosition:
       config.devIndicators === false
@@ -2341,7 +2450,7 @@ export default async function getBaseWebpackConfig(
     serverReferenceHashSalt: encryptionKey,
   })
 
-  const cache: any = {
+  const cache: webpack.Configuration['cache'] = {
     type: 'filesystem',
     // Disable memory cache in development in favor of our own MemoryWithGcCachePlugin.
     maxMemoryGenerations: dev ? 0 : Infinity, // Infinity is default value for production in webpack currently.
@@ -2386,6 +2495,30 @@ export default async function getBaseWebpackConfig(
   })
 
   webpack5Config.cache = cache
+
+  if (isRspack) {
+    const buildDependencies: string[] = []
+    if (config.configFile) {
+      buildDependencies.push(config.configFile)
+    }
+    if (babelConfigFile) {
+      buildDependencies.push(babelConfigFile)
+    }
+    if (jsConfigPath) {
+      buildDependencies.push(jsConfigPath)
+    }
+
+    const rspackCacheKey = `${compilerType}${isDevFallback ? '-fallback' : ''}`
+    webpack5Config.cache = {
+      type: 'persistent',
+      buildDependencies,
+      storage: {
+        type: 'filesystem',
+        directory: path.join(distDir, 'cache', 'rspack', rspackCacheKey),
+      },
+      version: `${__dirname}|${process.env.__NEXT_VERSION}|${configVars}|${rspackCacheKey}`,
+    } as any
+  }
 
   if (process.env.NEXT_WEBPACK_LOGGING) {
     const infra = process.env.NEXT_WEBPACK_LOGGING.includes('infrastructure')
@@ -2468,14 +2601,17 @@ export default async function getBaseWebpackConfig(
     disableStaticImages: config.images.disableStaticImages,
     transpilePackages: config.transpilePackages,
     serverSourceMaps: config.experimental.serverSourceMaps,
+    deploymentId: config.deploymentId,
   })
 
-  // @ts-ignore Cache exists
-  webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${
-    isDevFallback ? '-fallback' : ''
-  }`
+  if (!isRspack) {
+    // @ts-ignore Cache exists
+    webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${
+      isDevFallback ? '-fallback' : ''
+    }`
+  }
 
-  if (dev) {
+  if (dev && !isRspack) {
     if (webpackConfig.module) {
       webpackConfig.module.unsafeCache = (module: any) =>
         !UNSAFE_CACHE_REGEX.test(module.resource)
@@ -2547,6 +2683,24 @@ export default async function getBaseWebpackConfig(
       )
     }
   }
+
+  if (isRspack && 'CI' in process.env) {
+    // Rspack enables stats colors by default in CI, which can leak ANSI reset
+    // codes into error messages. Keep explicit user stats.colors unchanged.
+    const { stats } = webpackConfig
+
+    if (stats === undefined) {
+      webpackConfig.stats = { colors: false }
+    } else if (
+      stats &&
+      typeof stats === 'object' &&
+      !Array.isArray(stats) &&
+      stats.colors === undefined
+    ) {
+      stats.colors = false
+    }
+  }
+
   const rules = webpackConfig.module?.rules || []
 
   const customSvgRule = rules.find(
@@ -2632,7 +2786,7 @@ export default async function getBaseWebpackConfig(
     }
 
     webpackConfig.module.rules = [
-      ...(topRules as any),
+      ...topRules,
       {
         oneOf: [...innerRules, fileLoader],
       },
@@ -2787,12 +2941,10 @@ export default async function getBaseWebpackConfig(
 }
 
 function getNextRootParamsRules({
-  isRootParamsEnabled,
   isClient,
   appDir,
   pageExtensions,
 }: {
-  isRootParamsEnabled: boolean
   isClient: boolean
   appDir: string | undefined
   pageExtensions: string[]
@@ -2808,15 +2960,6 @@ function getNextRootParamsRules({
         message,
       } satisfies InvalidImportLoaderOpts,
     } satisfies webpack.RuleSetRule
-  }
-
-  // Hard-error if the flag is not enabled, regardless of if we're on the server or on the client.
-  if (!isRootParamsEnabled) {
-    return [
-      createInvalidImportRule(
-        "'next/root-params' can only be imported when `experimental.rootParams` is enabled."
-      ),
-    ]
   }
 
   // If there's no app-dir (and thus no layouts), there's no sensible way to use 'next/root-params',

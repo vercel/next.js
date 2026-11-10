@@ -1,5 +1,4 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 import path from 'path'
 
@@ -34,15 +33,10 @@ const files = {
 }
 
 describe('Edge Runtime is addressable', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files,
-      dependencies: {},
-    })
+  const { next } = nextTestSetup({
+    files,
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   test('EdgeRuntime evaluates to a string', async () => {
     const resp = await fetchViaHTTP(next.url, '/')
@@ -72,18 +66,13 @@ describe('Edge Runtime is addressable', () => {
 })
 
 describe('Edge Runtime can be set to the production provider', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files,
-      dependencies: {},
-      env: {
-        NEXT_EDGE_RUNTIME_PROVIDER: 'vercel',
-      },
-    })
+  const { next } = nextTestSetup({
+    files,
+    dependencies: {},
+    env: {
+      NEXT_EDGE_RUNTIME_PROVIDER: 'vercel',
+    },
   })
-  afterAll(() => next.destroy())
 
   test('EdgeRuntime evaluates to a string', async () => {
     const resp = await fetchViaHTTP(next.url, '/')

@@ -1,15 +1,16 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
+  experimental: {
+    prefetchInlining: false,
+  },
   logging: {
     fetches: {},
   },
-  experimental: {
-    cacheLife: {
-      expireNow: {
-        stale: 0,
-        expire: 0,
-        revalidate: 0,
-      },
+  cacheLife: {
+    expireNow: {
+      stale: 0,
+      expire: 0,
+      revalidate: 0,
     },
   },
   cacheHandler: process.env.CUSTOM_CACHE_HANDLER

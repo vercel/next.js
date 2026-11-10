@@ -6,7 +6,7 @@
  * The extensions here never error nor alter the random generation itself and thus should be transparent to callers.
  */
 
-import { io } from './utils'
+import { io } from './io-utils'
 
 const expression = '`Math.random()`'
 try {
@@ -21,6 +21,6 @@ try {
   Object.defineProperty(Math.random, 'name', { value: 'random' })
 } catch {
   console.error(
-    `Failed to install ${expression} extension. When using \`experimental.cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
+    `Failed to install ${expression} extension. When using \`cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
   )
 }

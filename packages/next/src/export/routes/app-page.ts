@@ -1,26 +1,24 @@
-import type { OutgoingHttpHeaders } from 'node:http'
+import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'node:http'
 import type { ExportRouteResult } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
-import type { RouteMetadata } from './types'
+import type { RouteCacheMetadata, RouteMetadata } from './types'
 
-import type {
-  MockedRequest,
-  MockedResponse,
-} from '../../server/lib/mock-request'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import {
   NEXT_CACHE_TAGS_HEADER,
   NEXT_META_SUFFIX,
-  RSC_PREFETCH_SUFFIX,
   RSC_SUFFIX,
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SEGMENT_SUFFIX,
 } from '../../lib/constants'
 import { hasNextSupport } from '../../server/ci-info'
-import { lazyRenderAppPage } from '../../server/route-modules/app-page/module.render'
+import { lazyPrerenderAppPage } from '../../server/route-modules/app-page/module.render'
+import {
+  parseRequestHeaders,
+  type ParsedRequestHeaders,
+} from '../../server/route-modules/app-page/parse-request-headers'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
-import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
 import type { FetchMetrics } from '../../server/base-http'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
@@ -28,8 +26,13 @@ import type { OpaqueFallbackRouteParams } from '../../server/request/fallback-pa
 import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
 import type { AppSharedContext } from '../../server/app-render/app-render'
+import type { RouteMatch } from '../../server/route-modules/app-page/module'
+import { getServerActionRequestMetadata } from '../../server/lib/server-action-request-meta'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
-import { stringifyResumeDataCache } from '../../server/resume-data-cache/resume-data-cache'
+import {
+  deflateResumeDataCache,
+  stringifyResumeDataCache,
+} from '../../server/resume-data-cache/resume-data-cache'
 import {
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
@@ -39,8 +42,8 @@ import {
  * Renders & exports a page associated with the /app directory
  */
 export async function exportAppPage(
-  req: MockedRequest,
-  res: MockedResponse,
+  initialStatusCode: number,
+  requestUrl: string,
   page: string,
   path: string,
   pathname: string,
@@ -51,7 +54,9 @@ export async function exportAppPage(
   debugOutput: boolean,
   isDynamicError: boolean,
   fileWriter: MultiFileWriter,
-  sharedContext: AppSharedContext
+  sharedContext: AppSharedContext,
+  routeMatch: RouteMatch,
+  routeCache?: RouteCacheMetadata
 ): Promise<ExportRouteResult> {
   const afterRunner = new AfterRunner()
 
@@ -76,16 +81,30 @@ export async function exportAppPage(
   }
 
   try {
-    const result = await lazyRenderAppPage(
-      new NodeNextRequest(req),
-      new NodeNextResponse(res),
+    const requestHeaders: IncomingHttpHeaders = {}
+    const parsedRequestHeaders: ParsedRequestHeaders = parseRequestHeaders(
+      requestHeaders,
+      {
+        isRoutePPREnabled: renderOpts.experimental.isRoutePPREnabled === true,
+        previewModeId: renderOpts.previewProps?.previewModeId,
+      }
+    )
+    const result = await lazyPrerenderAppPage(
+      initialStatusCode,
+      requestUrl,
       pathname,
       query,
       fallbackRouteParams,
       renderOpts,
-      undefined,
-      sharedContext
+      sharedContext,
+      routeMatch,
+      parsedRequestHeaders,
+      getServerActionRequestMetadata({ headers: requestHeaders, method: 'GET' })
     )
+
+    if ('error' in result) {
+      throw result.error
+    }
 
     const html = result.toUnchunkedString()
 
@@ -101,7 +120,9 @@ export async function exportAppPage(
       fetchTags,
       fetchMetrics,
       segmentData,
+      prefetchHints,
       renderResumeDataCache,
+      hasPendingUi,
     } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
@@ -131,30 +152,29 @@ export async function exportAppPage(
     // If page data isn't available, it means that the page couldn't be rendered
     // properly so long as we don't have unknown route params. When a route doesn't
     // have unknown route params, there will not be any flight data.
+    let hasStaticRsc = false
+
     if (!flightData) {
       if (
         !fallbackRouteParams ||
         fallbackRouteParams.size === 0 ||
-        renderOpts.experimental.cacheComponents
+        renderOpts.cacheComponents
       ) {
         throw new Error(`Invariant: failed to get page data for ${path}`)
       }
     } else {
-      // If PPR is enabled, we want to emit a prefetch rsc file for the page
-      // instead of the standard rsc. This is because the standard rsc will
-      // contain the dynamic data. We do this if any routes have PPR enabled so
-      // that the cache read/write is the same.
-      if (renderOpts.experimental.isRoutePPREnabled) {
-        // If PPR is enabled, we should emit the flight data as the prefetch
-        // payload.
-        // TODO: This will eventually be replaced by the per-segment prefetch
-        // output below.
-        fileWriter.append(
-          htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
-          flightData
-        )
-      } else {
-        // Writing the RSC payload to a file if we don't have PPR enabled.
+      const hasFallbackParams =
+        fallbackRouteParams != null && fallbackRouteParams.size > 0
+      const shouldWriteRsc =
+        !renderOpts.experimental.isRoutePPREnabled ||
+        (!postponed && !hasFallbackParams)
+      hasStaticRsc = shouldWriteRsc
+
+      // With PPR enabled, we normally skip writing .rsc because it may contain
+      // dynamic data. However, for fully static outputs (no postponed state and
+      // no fallback params), we can safely emit the route .rsc to support
+      // static navigations.
+      if (shouldWriteRsc) {
         fileWriter.append(
           htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
           flightData
@@ -194,13 +214,13 @@ export async function exportAppPage(
     fileWriter.append(htmlFilepath, html)
 
     const isParallelRoute = /\/@\w+/.test(page)
-    const isNonSuccessfulStatusCode = res.statusCode > 300
+    const statusCode = metadata.statusCode ?? initialStatusCode
+    const isNonSuccessfulStatusCode = statusCode > 300
 
     // When PPR is enabled, we don't always send 200 for routes that have been
-    // pregenerated, so we should grab the status code from the mocked
-    // response.
+    // pregenerated, so use the status reported by the prerender.
     let status: number | undefined = renderOpts.experimental.isRoutePPREnabled
-      ? res.statusCode
+      ? statusCode
       : undefined
 
     if (isDefaultNotFound) {
@@ -210,8 +230,8 @@ export async function exportAppPage(
       // Override the default /_global-error page status code to 500
       status = 500
     } else if (isNonSuccessfulStatusCode && !isParallelRoute) {
-      // If it's parallel route the status from mock response is 404
-      status = res.statusCode
+      // Parallel route slots can report 404 without setting the page's status.
+      status = statusCode
     }
 
     // Writing the request metadata to a file.
@@ -220,6 +240,8 @@ export async function exportAppPage(
       headers,
       postponed,
       segmentPaths,
+      prefetchHints,
+      routeCache,
     }
 
     fileWriter.append(
@@ -227,23 +249,35 @@ export async function exportAppPage(
       JSON.stringify(meta, null, 2)
     )
 
+    let serializedRenderResumeDataCache: string | undefined
+    if (renderResumeDataCache) {
+      serializedRenderResumeDataCache = await stringifyResumeDataCache(
+        renderResumeDataCache,
+        renderOpts.cacheComponents
+      )
+      if (!renderOpts.experimental.disableResumeDataCacheCompression) {
+        serializedRenderResumeDataCache = deflateResumeDataCache(
+          serializedRenderResumeDataCache
+        )
+      }
+    }
+
     return {
       // Filter the metadata if the environment does not have next support.
       metadata: hasNextSupport
         ? meta
         : {
             segmentPaths: meta.segmentPaths,
+            prefetchHints: meta.prefetchHints,
           },
       hasEmptyStaticShell: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),
+      hasPendingUi: hasPendingUi ?? false,
+      htmlSize: Buffer.byteLength(html),
+      hasStaticRsc,
       cacheControl,
       fetchMetrics,
-      renderResumeDataCache: renderResumeDataCache
-        ? await stringifyResumeDataCache(
-            renderResumeDataCache,
-            renderOpts.experimental.cacheComponents
-          )
-        : undefined,
+      renderResumeDataCache: serializedRenderResumeDataCache,
     }
   } catch (err) {
     if (!isDynamicUsageError(err)) {

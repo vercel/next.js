@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox, retry } from 'next-test-utils'
+import { waitForNoRedbox, retry } from 'next-test-utils'
 
 // These stacks are not sourcemapped and therefore not ignore-listed.
 // Feel free to update internal frames in assertions.
@@ -86,7 +86,7 @@ describe('app-dir - owner-stack', () => {
   it('should log stitched error for browser caught errors', async () => {
     const browser = await next.browser('/browser/caught')
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
 
     const logs = await browser.log()
     const errorLog = logs.find((log) => {

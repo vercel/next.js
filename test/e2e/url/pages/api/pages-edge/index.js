@@ -4,7 +4,7 @@ const url = new URL('../../../public/vercel.png', import.meta.url)
 export default (req, res) => {
   return new Response(
     JSON.stringify({
-      imported,
+      imported: imported.src,
       url: url.toString(),
     })
   )

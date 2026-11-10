@@ -1,3 +1,5 @@
+import { getRouteCacheKey } from '../server/lib/route-cache-key'
+import type { RouteCacheMetadata } from './routes/types'
 import type {
   ExportPagesInput,
   ExportPageInput,
@@ -7,8 +9,15 @@ import type {
   ExportPagesResult,
   ExportPathEntry,
 } from './types'
+import type {
+  AppPageModule,
+  RouteMatch,
+} from '../server/route-modules/app-page/module'
+import type { PagesModule } from '../server/route-modules/pages/module.compiled'
 
 import '../server/node-environment'
+import { installBindings } from '../build/swc/install-bindings'
+import { installCodeFrameSupport } from '../server/lib/install-code-frame'
 
 process.env.NEXT_IS_EXPORT_WORKER = 'true'
 
@@ -22,6 +31,7 @@ import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import { addRequestMeta } from '../server/request-meta'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 
 import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
@@ -31,7 +41,6 @@ import { exportAppPage } from './routes/app-page'
 import { exportPagesPage } from './routes/pages'
 import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
-import { isPostpone } from '../server/lib/router-utils/is-postpone'
 import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
 import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
 import {
@@ -50,6 +59,7 @@ import type { PagesRenderContext, PagesSharedContext } from '../server/render'
 import type { AppSharedContext } from '../server/app-render/app-render'
 import { MultiFileWriter } from '../lib/multi-file-writer'
 import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
+import { getExportPathPageKey } from './utils'
 import { installGlobalBehaviors } from '../server/node-environment-extensions/global-behaviors'
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
@@ -82,7 +92,10 @@ async function exportPageImpl(
     renderOpts: commonRenderOpts,
     outDir: commonOutDir,
     buildId,
+    deploymentId,
+    clientAssetToken,
     renderResumeDataCache,
+    useScopedBuildArtifacts,
   } = input
 
   if (enableExperimentalReact) {
@@ -95,6 +108,8 @@ async function exportPageImpl(
 
     // The parameters that are currently unknown.
     _fallbackRouteParams = [],
+
+    _notFoundParams: notFoundParams,
 
     // Check if this is an `app/` page.
     _isAppDir: isAppDir = false,
@@ -109,6 +124,13 @@ async function exportPageImpl(
     // Configure the rendering of the page to allow that an empty static shell
     // is generated while rendering using PPR and Cache Components.
     _allowEmptyStaticShell: allowEmptyStaticShell = false,
+
+    // When true, attempt to run build-time instant validation for this export path.
+    _runInstantValidation: runInstantValidation = false,
+
+    // When true, a fallback shell for this path could later be upgraded to a
+    // concrete version (it has a `generateStaticParams` candidate param).
+    _isFallbackUpgradeable: isFallbackUpgradeable = false,
 
     // Pull the original query out.
     query: originalQuery = {},
@@ -127,7 +149,7 @@ async function exportPageImpl(
   let updatedPath = exportPath._ssgPath || path
   let locale = exportPath._locale || commonRenderOpts.locale
 
-  if (commonRenderOpts.locale) {
+  if (commonRenderOpts.locale && !isAppDir) {
     const localePathResult = normalizeLocalePath(path, commonRenderOpts.locales)
 
     if (localePathResult.detectedLocale) {
@@ -154,7 +176,7 @@ async function exportPageImpl(
     params = getParams(normalizedPage, updatedPath)
   }
 
-  const { req, res } = createRequestResponseMocks({ url: updatedPath })
+  let initialStatusCode = 200
 
   // If this is a status code page, then set the response code.
   for (const statusCode of [404, 500]) {
@@ -165,24 +187,36 @@ async function exportPageImpl(
         `/${statusCode}/index.html`,
       ].some((p) => p === updatedPath || `/${locale}${p}` === updatedPath)
     ) {
-      res.statusCode = statusCode
+      initialStatusCode = statusCode
     }
   }
 
   // Ensure that the URL has a trailing slash if it's configured.
-  if (trailingSlash && !req.url?.endsWith('/')) {
-    req.url += '/'
-  }
+  const requestUrl =
+    trailingSlash && !updatedPath.endsWith('/')
+      ? updatedPath + '/'
+      : updatedPath
 
-  if (
-    locale &&
-    buildExport &&
-    commonRenderOpts.domainLocales &&
-    commonRenderOpts.domainLocales.some(
-      (dl) => dl.defaultLocale === locale || dl.locales?.includes(locale || '')
-    )
-  ) {
-    addRequestMeta(req, 'isLocaleDomain', true)
+  // Resolve the pathname without a trailing slash for app page rendering.
+  const resolvedPathname = removeTrailingSlash(updatedPath)
+
+  // Pages and Route Handlers retain their HTTP adapters. App Page prerenders
+  // consume parsed inputs and output metadata without constructing transport.
+  const createTransportMocks = () => {
+    const { req, res } = createRequestResponseMocks({ url: requestUrl })
+    res.statusCode = initialStatusCode
+    if (
+      locale &&
+      buildExport &&
+      commonRenderOpts.domainLocales &&
+      commonRenderOpts.domainLocales.some(
+        (dl) =>
+          dl.defaultLocale === locale || dl.locales?.includes(locale || '')
+      )
+    ) {
+      addRequestMeta(req, 'isLocaleDomain', true)
+    }
+    return { req, res }
   }
 
   const getHtmlFilename = (p: string) =>
@@ -213,11 +247,6 @@ async function exportPageImpl(
     htmlFilename = 'index.html'
   }
 
-  const baseDir = join(outDir, dirname(htmlFilename))
-  let htmlFilepath = join(outDir, htmlFilename)
-
-  await fs.mkdir(baseDir, { recursive: true })
-
   const components = await loadComponents({
     distDir,
     page,
@@ -227,8 +256,34 @@ async function exportPageImpl(
     needsManifestsForLegacyReasons: true,
   })
 
+  const routeCache: RouteCacheMetadata | undefined =
+    buildExport &&
+    commonRenderOpts.nextConfigOutput !== 'export' &&
+    (isAppDir || components.getStaticProps)
+      ? {
+          key: getRouteCacheKey(path, components.routeModule.cacheOwner),
+          owner: components.routeModule.cacheOwner,
+          isFallback: isAppDir
+            ? fallbackRouteParams != null && fallbackRouteParams.size > 0
+            : (exportPath._pagesFallback ?? false),
+        }
+      : undefined
+  const htmlFilepath =
+    useScopedBuildArtifacts && routeCache
+      ? join(distDir, 'server', `${routeCache.key}.html`)
+      : join(outDir, htmlFilename)
+  const routePagesDataDir =
+    useScopedBuildArtifacts && routeCache
+      ? join(distDir, 'server')
+      : pagesDataDir
+  if (useScopedBuildArtifacts && routeCache) {
+    htmlFilename = `${routeCache.key}.html`
+  }
+  await fs.mkdir(dirname(htmlFilepath), { recursive: true })
+
   // Handle App Routes.
   if (isAppDir && isAppRouteRoute(page)) {
+    const { req, res } = createTransportMocks()
     return exportAppRoute(
       req,
       res,
@@ -239,8 +294,12 @@ async function exportPageImpl(
       commonRenderOpts.cacheLifeProfiles,
       htmlFilepath,
       fileWriter,
+      commonRenderOpts.cacheComponents,
+      commonRenderOpts.staticPageGenerationTimeout,
       commonRenderOpts.experimental,
-      buildId
+      buildId,
+      deploymentId,
+      routeCache
     )
   }
 
@@ -258,6 +317,9 @@ async function exportPageImpl(
     // If it's dynamic, then it can be handled when request hits the route.
     serveStreamingMetadata: true,
     allowEmptyStaticShell,
+    runInstantValidation,
+    isFallbackUpgradeable,
+    notFoundParams,
     experimental: {
       ...commonRenderOpts.experimental,
       isRoutePPREnabled,
@@ -267,61 +329,80 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
-    const sharedContext: AppSharedContext = { buildId }
+    const routeMatch: RouteMatch = {
+      resolvedPathname,
+      // Build prerenders currently have no Vary header to mark interception.
+      couldBeIntercepted: false,
+    }
+    const sharedContext: AppSharedContext = {
+      buildId,
+      deploymentId,
+      clientAssetToken,
+    }
 
     return exportAppPage(
-      req,
-      res,
+      initialStatusCode,
+      requestUrl,
       page,
       path,
       pathname,
       query,
       fallbackRouteParams,
-      renderOpts,
+      renderOpts as WorkerRenderOpts<AppPageModule>,
       htmlFilepath,
       debugOutput,
       isDynamicError,
       fileWriter,
-      sharedContext
+      sharedContext,
+      routeMatch,
+      routeCache
+    )
+  } else {
+    const sharedContext: PagesSharedContext = {
+      buildId,
+      deploymentId,
+      clientAssetToken,
+      customServer: undefined,
+    }
+
+    const renderContext: PagesRenderContext = {
+      isFallback: exportPath._pagesFallback ?? false,
+      isDraftMode: false,
+      developmentNotFoundSourcePage: undefined,
+    }
+
+    const { req, res } = createTransportMocks()
+    return exportPagesPage(
+      req,
+      res,
+      path,
+      page,
+      query,
+      params,
+      htmlFilepath,
+      htmlFilename,
+      routePagesDataDir,
+      buildExport,
+      isDynamic,
+      sharedContext,
+      renderContext,
+      hasOrigQueryValues,
+      renderOpts as WorkerRenderOpts<PagesModule>,
+      components,
+      fileWriter,
+      routeCache
     )
   }
-
-  const sharedContext: PagesSharedContext = {
-    buildId,
-    deploymentId: commonRenderOpts.deploymentId,
-    customServer: undefined,
-  }
-
-  const renderContext: PagesRenderContext = {
-    isFallback: exportPath._pagesFallback ?? false,
-    isDraftMode: false,
-    developmentNotFoundSourcePage: undefined,
-  }
-
-  return exportPagesPage(
-    req,
-    res,
-    path,
-    page,
-    query,
-    params,
-    htmlFilepath,
-    htmlFilename,
-    pagesDataDir,
-    buildExport,
-    isDynamic,
-    sharedContext,
-    renderContext,
-    hasOrigQueryValues,
-    renderOpts,
-    components,
-    fileWriter
-  )
 }
 
 export async function exportPages(
   input: ExportPagesInput
 ): Promise<ExportPagesResult> {
+  // Load native bindings in the worker process so that code frame rendering
+  // (which uses the native codeFrameColumns function) works during prerendering.
+  await installBindings()
+  installCodeFrameSupport()
+
   const {
     exportPaths,
     dir,
@@ -359,7 +440,7 @@ export async function exportPages(
     // skip writing to disk in minimal mode for now, pending some
     // changes to better support it
     flushToDisk: !hasNextSupport,
-    cacheHandlers: nextConfig.experimental.cacheHandlers,
+    cacheHandlers: nextConfig.cacheHandlers,
   })
 
   renderOpts.incrementalCache = incrementalCache
@@ -373,7 +454,7 @@ export async function exportPages(
     maxAttempts: number
   ) => {
     const { page, path } = exportPath
-    const pageKey = page !== path ? `${page}: ${path}` : path
+    const pageKey = getExportPathPageKey(exportPath)
     let attempt = 0
     let result
 
@@ -381,8 +462,12 @@ export async function exportPages(
       // Also tests for `inspect-brk`
       process.env.NODE_OPTIONS?.includes('--inspect')
 
-    const renderResumeDataCache = renderResumeDataCachesByPage[page]
-      ? createRenderResumeDataCache(renderResumeDataCachesByPage[page])
+    const renderResumeDataCache = renderResumeDataCachesByPage[pageKey]
+      ? createRenderResumeDataCache(
+          renderResumeDataCachesByPage[pageKey],
+          renderOpts.experimental.maxPostponedStateSizeBytes,
+          renderOpts.experimental.disableResumeDataCacheCompression
+        )
       : undefined
 
     while (attempt < maxAttempts) {
@@ -406,7 +491,13 @@ export async function exportPages(
             enableExperimentalReact: needsExperimentalReact(nextConfig),
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
+            deploymentId: input.deploymentId,
+            clientAssetToken: input.clientAssetToken,
             renderResumeDataCache,
+            useScopedBuildArtifacts:
+              Boolean(nextConfig.adapterPath) &&
+              nextConfig.output !== 'export' &&
+              options.buildExport,
           }),
           hasDebuggerAttached
             ? // With a debugger attached, exporting can take infinitely if we paused script execution.
@@ -582,12 +673,6 @@ async function exportPage(
 }
 
 process.on('unhandledRejection', (err: unknown) => {
-  // if it's a postpone error, it'll be handled later
-  // when the postponed promise is actually awaited.
-  if (isPostpone(err)) {
-    return
-  }
-
   // we don't want to log these errors
   if (isDynamicUsageError(err)) {
     return

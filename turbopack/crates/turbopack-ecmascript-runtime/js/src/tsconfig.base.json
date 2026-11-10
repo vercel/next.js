@@ -12,8 +12,10 @@
     "target": "ESNext",
 
     // modules
-    "baseUrl": ".",
     "module": "CommonJS",
+    // The runtime is written as global scripts that share declarations through
+    // `/// <reference>`, so files must not be implicitly treated as modules.
+    "moduleDetection": "auto",
     "types": [], // disable implicit types.
 
     // emit

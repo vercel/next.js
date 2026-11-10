@@ -10,7 +10,8 @@
   --button-secondary-border: #ebebeb;
 
   display: flex;
-  min-height: 100vh;
+  flex: 1;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   font-family: var(--font-geist-sans);
@@ -19,7 +20,7 @@
 
 .main {
   display: flex;
-  min-height: 100vh;
+  flex: 1;
   width: 100%;
   max-width: 800px;
   flex-direction: column;
@@ -138,4 +139,12 @@ a.secondary {
     --button-secondary-hover: #1a1a1a;
     --button-secondary-border: #1a1a1a;
   }
+}
+
+.code {
+  font-family: var(--font-geist-mono);
+  font-size: 0.9em;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  padding: 0.1em 0.4em;
+  border-radius: 6px;
 }

@@ -31,6 +31,7 @@
     "minimumCacheTTL": 60,
     "formats": ["image/avif", "image/webp"],
     "maximumRedirects": 3,
+    "maximumResponseBody": 300000000,
     "dangerouslyAllowLocalIP": false,
     "dangerouslyAllowSVG": false,
     "contentSecurityPolicy": "script-src 'none'; frame-src 'none'; sandbox;",
@@ -108,9 +109,6 @@
           "browser": "./turbopack/empty.js"
         },
         "https": {
-          "browser": "./turbopack/empty.js"
-        },
-        "node-fetch": {
           "browser": "./turbopack/empty.js"
         }
       }

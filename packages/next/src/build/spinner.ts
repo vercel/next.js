@@ -13,7 +13,7 @@ export default function createSpinner(
 ) {
   let spinner: undefined | (ora.Ora & { setText: (text: string) => void })
 
-  let prefixText = ` ${Log.prefixes.info} ${text} `
+  let prefixText = `${Log.prefixes.info} ${text} `
 
   if (process.stdout.isTTY) {
     spinner = ora({
@@ -60,7 +60,7 @@ export default function createSpinner(
     }
     spinner.setText = (newText) => {
       text = newText
-      prefixText = ` ${Log.prefixes.info} ${newText} `
+      prefixText = `${Log.prefixes.info} ${newText} `
       spinner!.prefixText = prefixText
       return spinner!
     }
@@ -71,7 +71,7 @@ export default function createSpinner(
     }
     spinner.stopAndPersist = () => {
       // Add \r at beginning to reset the current line of loading status text
-      const suffixText = `\r ${Log.prefixes.event} ${text} `
+      const suffixText = `\r${Log.prefixes.event} ${text} `
       if (spinner) {
         spinner.text = suffixText
       } else {
@@ -86,4 +86,20 @@ export default function createSpinner(
   }
 
   return spinner
+}
+
+// Ends a step with its finished line, e.g. "✓ Collecting page data in 1s".
+// Without a terminal there is no spinner to turn into that line, so it is
+// skipped. It is still printed when the CLI holds this process's output for
+// the upgrade menu, since that output ends up on a terminal.
+export function finishSpinner(
+  spinner: ReturnType<typeof createSpinner>,
+  text: string
+) {
+  if (spinner) {
+    spinner.setText(text)
+    spinner.stopAndPersist()
+  } else if (process.env.NEXT_PRIVATE_PROMPT_OUTPUT === '1') {
+    Log.event(text)
+  }
 }

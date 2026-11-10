@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::Result;
 use async_trait::async_trait;
+use bincode::{Decode, Encode};
 use indexmap::IndexMap;
 use rustc_hash::{FxBuildHasher, FxHasher};
 use serde::{Deserialize, Serialize};
@@ -19,11 +20,11 @@ use swc_core::{
 };
 use swc_emotion::ImportMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, OperationValue, ValueDefault, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, OperationValue, ValueDefault, Vc};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 #[derive(
-    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, OperationValue,
+    Clone, PartialEq, Eq, Debug, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum EmotionLabelKind {
@@ -32,9 +33,7 @@ pub enum EmotionLabelKind {
     Never,
 }
 
-#[derive(
-    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, OperationValue,
-)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, NonLocalValue, OperationValue)]
 #[serde(rename_all = "camelCase")]
 pub struct EmotionImportItemConfig {
     pub canonical_import: EmotionItemSpecifier,
@@ -50,9 +49,7 @@ impl From<&EmotionImportItemConfig> for swc_emotion::ImportItemConfig {
     }
 }
 
-#[derive(
-    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, OperationValue,
-)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, NonLocalValue, OperationValue)]
 pub struct EmotionItemSpecifier(pub RcStr, pub RcStr);
 
 impl From<&EmotionItemSpecifier> for swc_emotion::ItemSpecifier {
@@ -64,27 +61,14 @@ impl From<&EmotionItemSpecifier> for swc_emotion::ItemSpecifier {
 pub type EmotionImportMapValue = IndexMap<RcStr, EmotionImportItemConfig, FxBuildHasher>;
 
 #[turbo_tasks::value(shared, operation)]
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EmotionTransformConfig {
     pub sourcemap: Option<bool>,
     pub label_format: Option<String>,
     pub auto_label: Option<EmotionLabelKind>,
+    #[bincode(with_serde)]
     pub import_map: Option<IndexMap<RcStr, EmotionImportMapValue, FxBuildHasher>>,
-}
-
-#[turbo_tasks::value_impl]
-impl EmotionTransformConfig {
-    #[turbo_tasks::function]
-    pub fn default_private() -> Vc<Self> {
-        Self::cell(Default::default())
-    }
-}
-
-impl ValueDefault for EmotionTransformConfig {
-    fn value_default() -> Vc<Self> {
-        EmotionTransformConfig::default_private()
-    }
 }
 
 #[derive(Debug)]

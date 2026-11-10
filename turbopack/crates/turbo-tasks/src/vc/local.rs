@@ -1,4 +1,4 @@
-use crate::{OperationVc, ResolvedVc, marker_trait::impl_auto_marker_trait};
+use crate::{OperationVc, OrdResolvedVc, ResolvedVc, marker_trait::impl_auto_marker_trait};
 
 /// Marker trait indicating that a type does not contain any instances of [`Vc`] or references to
 /// [`Vc`]. It may contain [`ResolvedVc`] or [`OperationVc`].
@@ -35,17 +35,17 @@ pub unsafe trait NonLocalValue {}
 
 unsafe impl<T: NonLocalValue + ?Sized> NonLocalValue for OperationVc<T> {}
 unsafe impl<T: NonLocalValue + ?Sized> NonLocalValue for ResolvedVc<T> {}
+unsafe impl<T: NonLocalValue + ?Sized> NonLocalValue for OrdResolvedVc<T> {}
 
 impl_auto_marker_trait!(NonLocalValue);
 
 /// Implements [`NonLocalValue`] for a struct or enum by adding static (compile-time)
 /// assertions that every field implements [`NonLocalValue`].
 ///
-/// Fields that do not contain [`Vc`] can be excluded from assertions using [`TraceRawVcs`]'s
-/// `#[turbo_tasks(trace_ignore)]` annotation. This can be useful for third-party library types
-/// that cannot implement [`NonLocalValue`] due to the orphan rules.
+/// Fields that are known not to contain [`Vc`] can be excluded from assertions using the
+/// `#[turbo_tasks(unsafe_ignore)]` annotation. This can be useful for third-party library
+/// types that cannot implement [`NonLocalValue`] due to the orphan rules.
 ///
 /// [`NonLocalValue`]: trait@NonLocalValue
 /// [`Vc`]: crate::Vc
-/// [`TraceRawVcs`]: crate::trace::TraceRawVcs
 pub use turbo_tasks_macros::NonLocalValue;

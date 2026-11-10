@@ -26,6 +26,7 @@ import {
   DEFAULT_BROWSER_REQUEST_TIMEOUT_MS,
 } from './utils/browser-communication'
 import { NextInstanceErrorState } from './next-instance-error-state'
+import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
 
 export function registerGetErrorsTool(
   server: McpServer,
@@ -40,6 +41,9 @@ export function registerGetErrorsTool(
       inputSchema: {},
     },
     async (_request) => {
+      // Track telemetry
+      mcpTelemetryTracker.recordToolCall('mcp/get_errors')
+
       try {
         const connectionCount = getActiveConnectionCount()
         if (connectionCount === 0) {
@@ -47,7 +51,10 @@ export function registerGetErrorsTool(
             content: [
               {
                 type: 'text',
-                text: 'No browser sessions connected. Please open your application in a browser to retrieve error state.',
+                text: JSON.stringify({
+                  error:
+                    'No browser sessions connected. Please open your application in a browser to retrieve error state.',
+                }),
               },
             ],
           }
@@ -79,10 +86,10 @@ export function registerGetErrorsTool(
             content: [
               {
                 type: 'text',
-                text:
-                  responses.length === 0
-                    ? 'No browser sessions responded.'
-                    : `No errors detected in ${responses.length} browser session(s).`,
+                text: JSON.stringify({
+                  configErrors: [],
+                  sessionErrors: [],
+                }),
               },
             ],
           }
@@ -97,7 +104,7 @@ export function registerGetErrorsTool(
           content: [
             {
               type: 'text',
-              text: output,
+              text: JSON.stringify(output),
             },
           ],
         }
@@ -106,7 +113,9 @@ export function registerGetErrorsTool(
           content: [
             {
               type: 'text',
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+              text: JSON.stringify({
+                error: error instanceof Error ? error.message : String(error),
+              }),
             },
           ],
         }

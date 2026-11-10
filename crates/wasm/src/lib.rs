@@ -2,17 +2,18 @@ use std::{fmt::Debug, sync::Arc};
 
 use anyhow::Context;
 use js_sys::JsString;
-use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
+use next_custom_transforms::chain_transforms::{TransformOptions, custom_before_pass};
 use rustc_hash::FxHashMap;
 use swc_core::{
     base::{
+        Compiler,
         config::{JsMinifyOptions, ParseOptions},
-        try_with_handler, Compiler,
+        try_with_handler,
     },
     common::{
+        FileName, FilePathMapping, GLOBALS, Mark, SourceMap,
         comments::{Comments, SingleThreadedComments},
         errors::ColorConfig,
-        FileName, FilePathMapping, Mark, SourceMap, GLOBALS,
     },
     ecma::ast::noop_pass,
 };
@@ -223,4 +224,23 @@ pub fn expand_next_js_template(
             .map(|(k, v)| (&**k, v.as_deref())),
     )
     .map_err(convert_err)
+}
+
+#[wasm_bindgen(js_name = "codeFrameColumns")]
+pub fn code_frame_columns(
+    source: Box<[u8]>,
+    location: JsValue,
+    options: JsValue,
+) -> Result<Option<String>, JsError> {
+    console_error_panic_hook::set_once();
+
+    let location: next_code_frame::CodeFrameLocation = serde_wasm_bindgen::from_value(location)?;
+    let options: next_code_frame::CodeFrameOptions = serde_wasm_bindgen::from_value(options)?;
+    next_code_frame::render_code_frame(
+        str::from_utf8(&source)
+            .map_err(|e| JsError::new(&format!("Failed to render code frame: {e}")))?,
+        &location,
+        &options,
+    )
+    .map_err(|e| JsError::new(&format!("Failed to render code frame: {e}")))
 }

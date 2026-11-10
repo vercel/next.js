@@ -1,6 +1,5 @@
-import webdriver from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
-import { check, renderViaHTTP } from 'next-test-utils'
+import { check, renderViaHTTP, retry } from 'next-test-utils'
 
 describe('basePath', () => {
   const basePath = '/docs'
@@ -18,7 +17,7 @@ describe('basePath', () => {
 
   describe('client-side navigation', () => {
     it('should navigate to /404 correctly client-side', async () => {
-      const browser = await webdriver(next.url, `${basePath}/slug-1`)
+      const browser = await next.browser(`${basePath}/slug-1`)
       await check(
         () => browser.eval('document.documentElement.innerHTML'),
         /slug-1/
@@ -33,7 +32,7 @@ describe('basePath', () => {
     })
 
     it('should navigate to /_error correctly client-side', async () => {
-      const browser = await webdriver(next.url, `${basePath}/slug-1`)
+      const browser = await next.browser(`${basePath}/slug-1`)
       await check(
         () => browser.eval('document.documentElement.innerHTML'),
         /slug-1/
@@ -55,15 +54,11 @@ describe('basePath', () => {
   }
 
   it('should not update URL for a 404', async () => {
-    const browser = await webdriver(next.url, '/missing')
+    const browser = await next.browser('/missing')
 
-    if (isNextDeploy) {
-      // the custom 404 only shows inside of the basePath so this
-      // will be the Vercel default 404 page
-      expect(
-        await browser.eval('document.documentElement.innerHTML')
-      ).toContain('NOT_FOUND')
-    } else {
+    // the custom 404 only shows inside of the basePath so this
+    // could be a platform default 404 page on deploy
+    if (!isNextDeploy) {
       const pathname = await browser.eval(() => window.location.pathname)
       expect(await browser.eval(() => (window as any).next.router.asPath)).toBe(
         '/missing'
@@ -73,15 +68,11 @@ describe('basePath', () => {
   })
 
   it('should handle 404 urls that start with basePath', async () => {
-    const browser = await webdriver(next.url, `${basePath}hello`)
+    const browser = await next.browser(`${basePath}hello`)
 
-    if (isNextDeploy) {
-      // the custom 404 only shows inside of the basePath so this
-      // will be the Vercel default 404 page
-      expect(
-        await browser.eval('document.documentElement.innerHTML')
-      ).toContain('404: This page could not be found')
-    } else {
+    // the custom 404 only shows inside of the basePath so this
+    // could be a platform default 404 page on deploy
+    if (!isNextDeploy) {
       expect(await browser.eval(() => (window as any).next.router.asPath)).toBe(
         `${basePath}hello`
       )
@@ -95,7 +86,7 @@ describe('basePath', () => {
   // wasn't being awaited. We need to investigate if this test is
   // correct or not.
   it.skip('should navigate back to a non-basepath 404 that starts with basepath', async () => {
-    const browser = await webdriver(next.url, `${basePath}hello`)
+    const browser = await next.browser(`${basePath}hello`)
     await browser.eval(() => ((window as any).navigationMarker = true))
     await browser.eval(() => (window as any).next.router.push('/hello'))
     await browser.waitForElementByCss('#pathname')
@@ -114,17 +105,12 @@ describe('basePath', () => {
 
   describe('manually added basePath in application logic', () => {
     it('should 404 when manually adding basePath with <Link>', async () => {
-      const browser = await webdriver(
-        next.url,
-        `${basePath}/invalid-manual-basepath`
-      )
+      const browser = await next.browser(`${basePath}/invalid-manual-basepath`)
       await browser.eval('window.beforeNav = "hi"')
       await browser.elementByCss('#other-page-link').click()
 
-      await check(() => browser.eval('window.beforeNav'), {
-        test(content) {
-          return content !== 'hi'
-        },
+      await retry(async () => {
+        expect(await browser.eval('window.beforeNav')).not.toEqual('hi')
       })
 
       await check(
@@ -134,14 +120,12 @@ describe('basePath', () => {
     })
 
     it('should 404 when manually adding basePath with router.push', async () => {
-      const browser = await webdriver(next.url, `${basePath}/hello`)
+      const browser = await next.browser(`${basePath}/hello`)
       await browser.eval('window.beforeNav = "hi"')
       await browser.eval(`window.next.router.push("${basePath}/other-page")`)
 
-      await check(() => browser.eval('window.beforeNav'), {
-        test(content) {
-          return content !== 'hi'
-        },
+      await retry(async () => {
+        expect(await browser.eval('window.beforeNav')).not.toEqual('hi')
       })
 
       const html = await browser.eval('document.documentElement.innerHTML')
@@ -149,14 +133,12 @@ describe('basePath', () => {
     })
 
     it('should 404 when manually adding basePath with router.replace', async () => {
-      const browser = await webdriver(next.url, `${basePath}/hello`)
+      const browser = await next.browser(`${basePath}/hello`)
       await browser.eval('window.beforeNav = "hi"')
       await browser.eval(`window.next.router.replace("${basePath}/other-page")`)
 
-      await check(() => browser.eval('window.beforeNav'), {
-        test(content) {
-          return content !== 'hi'
-        },
+      await retry(async () => {
+        expect(await browser.eval('window.beforeNav')).not.toEqual('hi')
       })
 
       const html = await browser.eval('document.documentElement.innerHTML')
@@ -167,8 +149,10 @@ describe('basePath', () => {
   it('should show 404 for page not under the /docs prefix', async () => {
     const text = await renderViaHTTP(next.url, '/hello')
     expect(text).not.toContain('Hello World')
-    expect(text).toContain(
-      isNextDeploy ? 'NOT_FOUND' : 'This page could not be found'
-    )
+    // the custom 404 only shows inside of the basePath so this
+    // could be a platform default 404 page on deploy
+    if (!isNextDeploy) {
+      expect(text).toContain('This page could not be found')
+    }
   })
 })

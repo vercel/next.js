@@ -1,13 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
 
 // Skip as Turbopack doesn't support the `!=!` Webpack syntax
+// TODO(deploy-test-completion): Remove this suite from the deploy manifest.
+// It was excluded as a known deploy failure without a documented root cause.
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'app dir - rsc webpack loader',
   () => {
     const { next } = nextTestSetup({
       files: __dirname,
       dependencies: {
-        'styled-components': 'latest',
+        // TODO: Temporarily pinned due to https://github.com/styled-components/styled-components/issues/5667
+        // which is breaking deployment tests
+        'styled-components': '6.3.9',
         'server-only': 'latest',
       },
       resolutions: {

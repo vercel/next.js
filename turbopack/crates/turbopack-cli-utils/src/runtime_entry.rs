@@ -1,12 +1,12 @@
-use anyhow::{Result, bail};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use anyhow::Result;
+use turbo_tasks::{ResolvedVc, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
     context::AssetContext,
     module::Module,
     reference_type::CommonJsReferenceSubType,
-    resolve::{origin::PlainResolveOrigin, parse::Request},
+    resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request},
     source::Source,
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
@@ -38,9 +38,8 @@ impl RuntimeEntry {
             **request,
             CommonJsReferenceSubType::Undefined,
             None,
-            false,
+            ResolveErrorMode::Error,
         )
-        .resolve()
         .await?
         .primary_modules()
         .await?;
@@ -50,9 +49,9 @@ impl RuntimeEntry {
             if let Some(entry) = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module) {
                 runtime_entries.push(entry);
             } else {
-                bail!(
+                turbobail!(
                     "runtime reference resolved to an asset ({}) that cannot be evaluated",
-                    module.ident().to_string().await?
+                    module.ident()
                 );
             }
         }

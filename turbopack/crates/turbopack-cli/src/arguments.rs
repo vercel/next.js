@@ -5,9 +5,8 @@ use std::{
 };
 
 use anyhow::anyhow;
+use bincode::{Decode, Encode};
 use clap::{Args, Parser, ValueEnum};
-use serde::{Deserialize, Serialize};
-use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 use turbopack_core::issue::IssueSeverity;
 
 #[derive(Debug, Parser)]
@@ -35,20 +34,8 @@ impl Arguments {
     }
 }
 
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    ValueEnum,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    Hash,
-    TaskInput,
-    NonLocalValue,
-    TraceRawVcs,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, Debug, ValueEnum, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum Target {
     Browser,
     Node,
@@ -56,6 +43,9 @@ pub enum Target {
 
 #[derive(Debug, Args, Clone)]
 pub struct CommonArguments {
+    #[clap(flatten)]
+    pub go: GoBuildOptions,
+
     /// The entrypoints of the project. Resolved relative to the project's
     /// directory (`--dir`).
     #[clap(value_parser)]
@@ -95,6 +85,16 @@ pub struct CommonArguments {
     /// Number of worker threads to use for parallel processing
     #[clap(long)]
     pub worker_threads: Option<usize>,
+
+    /// Enable filesystem-backed persistent caching.
+    /// Cache is stored at `<cache-dir>/<git-version>`.
+    #[clap(long)]
+    pub persistent_caching: bool,
+
+    /// Directory to store the persistent cache.
+    /// Defaults to `.turbopack/cache` relative to the project directory.
+    #[clap(long)]
+    pub cache_dir: Option<PathBuf>,
     // Enable experimental garbage collection with the provided memory limit in
     // MB.
     // #[clap(long)]
@@ -142,6 +142,10 @@ pub struct BuildArguments {
     #[clap(flatten)]
     pub common: CommonArguments,
 
+    /// Rebuild all entrypoints when their dependencies change.
+    #[clap(long)]
+    pub watch: bool,
+
     /// Don't generate sourcemaps.
     #[clap(long)]
     pub no_sourcemap: bool,
@@ -163,20 +167,6 @@ pub struct BuildArguments {
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct IssueSeverityCliOption(pub IssueSeverity);
-
-impl serde::Serialize for IssueSeverityCliOption {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.0.to_string())
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for IssueSeverityCliOption {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        <IssueSeverityCliOption as std::str::FromStr>::from_str(&s)
-            .map_err(serde::de::Error::custom)
-    }
-}
 
 impl ValueEnum for IssueSeverityCliOption {
     fn value_variants<'a>() -> &'a [Self] {
@@ -203,5 +193,25 @@ impl FromStr for IssueSeverityCliOption {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         <IssueSeverityCliOption as clap::ValueEnum>::from_str(s, true).map_err(|s| anyhow!("{}", s))
+    }
+}
+
+/// Go toolchain options shared by build and dev.
+#[derive(Clone, Debug, Args)]
+pub struct GoBuildOptions {
+    /// Go binary from an installation that stays immutable throughout this session.
+    #[clap(long, default_value = "go")]
+    pub go: PathBuf,
+    /// Build tags for imported Go packages.
+    #[clap(long, default_value = "")]
+    pub tags: String,
+}
+
+impl Default for GoBuildOptions {
+    fn default() -> Self {
+        Self {
+            go: PathBuf::from("go"),
+            tags: String::new(),
+        }
     }
 }

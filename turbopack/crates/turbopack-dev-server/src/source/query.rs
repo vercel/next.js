@@ -1,15 +1,15 @@
 use std::{collections::BTreeMap, hash::Hash, ops::DerefMut};
 
-use serde::{Deserialize, Serialize};
-use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
+use bincode::{Decode, Encode};
+use serde::Deserialize;
+use turbo_tasks::{NonLocalValue, TaskInput};
 
-use super::ContentSourceDataFilter;
+use crate::source::ContentSourceDataFilter;
 
 /// A parsed query string from a http request
 #[derive(
-    Clone, Debug, PartialEq, Eq, Default, Hash, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+    Clone, Debug, PartialEq, Eq, Default, Hash, Deserialize, NonLocalValue, Encode, Decode,
 )]
-#[serde(transparent)]
 pub struct Query(BTreeMap<String, QueryValue>);
 
 // This type contains no VCs so the default implementation works.
@@ -44,7 +44,7 @@ impl DerefMut for Query {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Deserialize, NonLocalValue, Encode, Decode)]
 #[serde(untagged)]
 pub enum QueryValue {
     /// Simple string value, might be an empty string when there is no value

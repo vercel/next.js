@@ -1,8 +1,12 @@
 import type { __ApiPreviewProps } from './api-utils'
-import type { LoadComponentsReturnType } from './load-components'
+import type {
+  GenericComponentMod,
+  LoadComponentsReturnType,
+} from './load-components'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from './request/params'
-import type { NextConfig, NextConfigComplete } from './config-shared'
+import type { NextConfig, NextConfigRuntime } from './config-shared'
+import { parseMaxPostponedStateSize } from './config-shared'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
@@ -14,11 +18,7 @@ import type {
   RenderOptsPartial as AppRenderOptsPartial,
   ServerOnInstrumentationRequestError,
 } from './app-render/types'
-import type {
-  ServerComponentsHmrCache,
-  ResponseCacheBase,
-} from './response-cache'
-import type { UrlWithParsedQuery } from 'url'
+import type { ServerComponentsHmrCache } from './response-cache'
 import {
   NormalizeError,
   DecodeError,
@@ -31,10 +31,17 @@ import type {
   ManifestRewriteRoute,
   ManifestRoute,
   PrerenderManifest,
+  PreviewPropsManifest,
 } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
+import type { RouteMatch } from './route-matches/route-match'
+import type { RouteDefinition } from './route-definitions/route-definition'
+import type { AppPageRouteDefinition } from './route-definitions/app-page-route-definition'
+import type { AppRouteRouteDefinition } from './route-definitions/app-route-route-definition'
+import type { AppGoRouteRouteDefinition } from './route-definitions/app-go-route-route-definition'
+import type { LocaleRouteDefinition } from './route-definitions/locale-route-definition'
 import type {
   Server as HTTPServer,
   IncomingMessage,
@@ -46,25 +53,29 @@ import type { PathnameNormalizer } from './normalizers/request/pathname-normaliz
 import type { InstrumentationModule } from './instrumentation/types'
 
 import * as path from 'path'
-import { format as formatUrl, parse as parseUrl } from 'url'
+import { format as formatUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
+import { isRSCRequestHeader } from './lib/is-rsc-request'
+import { isNonHtmlSecFetchDest } from './lib/is-non-html-sec-fetch-dest'
 import {
-  APP_PATHS_MANIFEST,
   NEXT_BUILTIN_DOCUMENT,
-  PAGES_MANIFEST,
   STATIC_STATUS_PAGES,
   UNDERSCORE_NOT_FOUND_ROUTE,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../shared/lib/constants'
-import { isDynamicRoute } from '../shared/lib/router/utils'
+import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
+import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
 import { getServerUtils } from './server-utils'
+import { isAPIRoute } from '../lib/is-api-route'
+import { isAppPageRoute } from '../lib/is-app-page-route'
+import { isAppRouteRoute } from '../lib/is-app-route-route'
 import isError, { getProperError } from '../lib/is-error'
 import {
   addRequestMeta,
@@ -73,29 +84,36 @@ import {
   setRequestMeta,
 } from './request-meta'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  selectAppPageEntry,
+} from '../shared/lib/router/utils/app-paths'
 import { getHostname } from '../shared/lib/get-hostname'
-import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
+import {
+  parseUrl,
+  parseUrl as parseUrlUtil,
+} from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import {
   RSC_HEADER,
+  NEXT_HTML_REQUEST_ID_HEADER,
+  NEXT_REQUEST_ID_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_PREFETCH_STATIC,
+  NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH,
+  NEXT_ROUTER_PREFETCH_RUNTIME_SHELL,
+  NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
+  NEXT_INSTANT_TEST_COOKIE,
 } from '../client/components/app-router-headers'
-import type {
-  MatchOptions,
-  RouteMatcherManager,
-} from './route-matcher-managers/route-matcher-manager'
+import { nanoid } from 'next/dist/compiled/nanoid'
 import { LocaleRouteNormalizer } from './normalizers/locale-route-normalizer'
-import { DefaultRouteMatcherManager } from './route-matcher-managers/default-route-matcher-manager'
-import { AppPageRouteMatcherProvider } from './route-matcher-providers/app-page-route-matcher-provider'
-import { AppRouteRouteMatcherProvider } from './route-matcher-providers/app-route-route-matcher-provider'
-import { PagesAPIRouteMatcherProvider } from './route-matcher-providers/pages-api-route-matcher-provider'
-import { PagesRouteMatcherProvider } from './route-matcher-providers/pages-route-matcher-provider'
-import { ServerManifestLoader } from './route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
+import { isAppPageRouteDefinition } from './route-definitions/app-page-route-definition'
+import { PagesNormalizers } from './normalizers/built/pages'
+import { AppNormalizers } from './normalizers/built/app'
 import {
   getTracer,
   isBubbledError,
@@ -103,7 +121,13 @@ import {
   SpanStatusCode,
 } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
-import { I18NProvider } from './lib/i18n-provider'
+import {
+  resolveRequestInsightsIdentity,
+  runWithRequestInsightsIdentity,
+  type RequestInsightsIdentity,
+} from './lib/trace/request-insights-identity'
+import { isRequestInsightsEnabled } from './lib/trace/span-store'
+import { I18NProvider, type LocaleAnalysisResult } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
 import { normalizeNextQueryParam } from './web/utils'
 import {
@@ -115,13 +139,13 @@ import {
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
 import {
   isAppPageRouteModule,
   isAppRouteRouteModule,
 } from './route-modules/checks'
-import { PrefetchRSCPathnameNormalizer } from './normalizers/request/prefetch-rsc'
 import { NextDataPathnameNormalizer } from './normalizers/request/next-data'
 import { getIsPossibleServerAction } from './lib/server-action-request-meta'
 import { isInterceptionRouteAppPath } from '../shared/lib/router/utils/interception-routes'
@@ -129,28 +153,46 @@ import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
-import { checkIsAppPPREnabled } from './lib/experimental/ppr'
 import {
   getBuiltinRequestContext,
   type WaitUntil,
 } from './after/builtin-request-context'
 import { NextRequestHint } from './web/adapter'
 import type { RouteModule } from './route-modules/route-module'
-import { type FallbackMode, parseFallbackField } from '../lib/fallback'
+import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segment-prefix-rsc'
 import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
+import { decodePathParams } from './lib/router-utils/decode-path-params'
 import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
 import { fixMojibake } from './lib/fix-mojibake'
-import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache-busting-search-param'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
 import type { CacheControl } from './lib/cache-control'
-import type { PrerenderedRoute } from '../build/static-paths/types'
-import { createOpaqueFallbackRouteParams } from './request/fallback-params'
+import type {
+  PrerenderRouteMatcher,
+  PrerenderedRoute,
+  StaticPathsResult,
+} from '../build/static-paths/types'
+import {
+  createOpaqueFallbackRouteParams,
+  getStagedFallbackParams,
+} from './request/fallback-params'
 import { RouteKind } from './route-kind'
+import type { ErrorModule } from './load-default-error-components'
+import {
+  getMaxPostponedStateSize,
+  getPostponedStateExceededErrorMessage,
+  readBodyWithSizeLimit,
+} from './lib/postponed-request-body'
+import {
+  computeCacheBustingSearchParam,
+  computeLegacyCacheBustingSearchParam,
+} from '../shared/lib/router/utils/cache-busting-search-param'
 
-export type FindComponentsResult = {
-  components: LoadComponentsReturnType
+export type FindComponentsResult<
+  NextModule extends GenericComponentMod = GenericComponentMod,
+> = {
+  components: LoadComponentsReturnType<NextModule>
   query: NextParsedUrlQuery
 }
 
@@ -187,6 +229,11 @@ export interface Options {
    * Object containing the configuration next.config.js
    */
   conf: NextConfig
+  /**
+   * Present when the build manifest was read, even if its marker is undefined.
+   * @internal
+   */
+  compileMode?: { isExperimentalCompile: boolean | undefined }
   /**
    * Set to false when the server was created by Next.js
    */
@@ -232,9 +279,9 @@ export interface Options {
 
 export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
 
-export type LoadedRenderOpts = RenderOpts &
-  LoadComponentsReturnType &
-  RequestLifecycleOpts
+export type LoadedRenderOpts<
+  NextModule extends GenericComponentMod = GenericComponentMod,
+> = RenderOpts & LoadComponentsReturnType<NextModule> & RequestLifecycleOpts
 
 export type RequestLifecycleOpts = {
   waitUntil: ((promise: Promise<any>) => void) | undefined
@@ -309,13 +356,15 @@ export default abstract class Server<
   public readonly port?: number
   protected readonly dir: string
   protected readonly quiet: boolean
-  protected readonly nextConfig: NextConfigComplete
+  protected readonly nextConfig: NextConfigRuntime
   protected readonly distDir: string
   protected readonly publicDir: string
   protected readonly hasStaticDir: boolean
   protected readonly pagesManifest?: PagesManifest
   protected readonly appPathsManifest?: PagesManifest
   protected readonly buildId: string
+  protected readonly deploymentId: string
+  protected readonly dev: boolean
   protected readonly minimalMode: boolean
   protected readonly renderOpts: BaseRenderOpts
   protected readonly serverOptions: Readonly<ServerOptions>
@@ -324,7 +373,6 @@ export default abstract class Server<
   protected interceptionRoutePatterns: RegExp[]
   protected nextFontManifest?: DeepReadonly<NextFontManifest>
   protected instrumentation: InstrumentationModule | undefined
-  private readonly responseCache: ResponseCacheBase
 
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
@@ -352,6 +400,7 @@ export default abstract class Server<
     url?: string
   }): Promise<FindComponentsResult | null>
   protected abstract getPrerenderManifest(): DeepReadonly<PrerenderManifest>
+  protected abstract getPreviewProps(): DeepReadonly<PreviewPropsManifest>
   protected abstract getNextFontManifest():
     | DeepReadonly<NextFontManifest>
     | undefined
@@ -379,21 +428,9 @@ export default abstract class Server<
     match: PagesAPIRouteMatch
   ): Promise<boolean>
 
-  protected abstract renderHTML(
-    req: ServerRequest,
-    res: ServerResponse,
-    pathname: string,
-    query: NextParsedUrlQuery,
-    renderOpts: LoadedRenderOpts
-  ): Promise<RenderResult>
-
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
   }): Promise<import('./lib/incremental-cache').IncrementalCache>
-
-  protected abstract getResponseCache(options: {
-    dev: boolean
-  }): ResponseCacheBase
 
   protected getServerComponentsHmrCache():
     | ServerComponentsHmrCache
@@ -403,25 +440,37 @@ export default abstract class Server<
       : undefined
   }
 
+  /**
+   * The hash of the most recent server component change (dev only), used to
+   * revalidate `"use cache"` entries after an edit. Overridden by the dev
+   * server; returns `undefined` otherwise.
+   */
+  protected getServerComponentsHmrRefreshHash(): string | undefined {
+    return undefined
+  }
+
+  /** Available only on the dev server with Turbopack HMR. */
+  protected getClientHmrVersion(): string | undefined {
+    return undefined
+  }
+
   protected abstract loadEnvConfig(params: {
     dev: boolean
     forceReload: boolean
   }): void
 
-  // TODO-APP: (wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
-  public readonly matchers: RouteMatcherManager
   protected readonly i18nProvider?: I18NProvider
   protected readonly localeNormalizer?: LocaleRouteNormalizer
+  private readonly pagesNormalizers: PagesNormalizers
+  private readonly appNormalizers: AppNormalizers
 
   protected readonly normalizers: {
     readonly rsc: RSCPathnameNormalizer | undefined
-    readonly prefetchRSC: PrefetchRSCPathnameNormalizer | undefined
     readonly segmentPrefetchRSC: SegmentPrefixRSCPathnameNormalizer | undefined
     readonly data: NextDataPathnameNormalizer | undefined
   }
 
   private readonly isAppPPREnabled: boolean
-  private readonly isAppSegmentPrefetchEnabled: boolean
 
   /**
    * This is used to persist cache scopes across
@@ -441,6 +490,7 @@ export default abstract class Server<
       experimentalTestProxy,
     } = options
 
+    this.dev = dev
     this.experimentalTestProxy = experimentalTestProxy
     this.serverOptions = options
 
@@ -451,7 +501,34 @@ export default abstract class Server<
 
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
-    this.nextConfig = conf as NextConfigComplete
+    this.nextConfig = conf as NextConfigRuntime
+    if (
+      (dev || process.env.__NEXT_DEV_SERVER) &&
+      this.nextConfig.experimental.requestInsights
+    ) {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    }
+
+    if (this.nextConfig.experimental.runtimeServerDeploymentId) {
+      if (!process.env.NEXT_DEPLOYMENT_ID) {
+        throw new Error(
+          'process.env.NEXT_DEPLOYMENT_ID is missing but runtimeServerDeploymentId is enabled'
+        )
+      }
+      this.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+    } else {
+      let id = this.nextConfig.experimental.useSkewCookie
+        ? ''
+        : this.nextConfig.deploymentId || ''
+
+      this.deploymentId = id
+      process.env.NEXT_DEPLOYMENT_ID = id
+    }
+    ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX =
+      this.nextConfig.supportsImmutableAssets || !this.deploymentId
+        ? ''
+        : `?dpl=${this.deploymentId}`
+
     this.hostname = hostname
     if (this.hostname) {
       // we format the hostname so that it can be fetched
@@ -462,6 +539,8 @@ export default abstract class Server<
       /* turbopackIgnore: true */ this.dir,
       this.nextConfig.distDir
     )
+    this.pagesNormalizers = new PagesNormalizers(this.distDir)
+    this.appNormalizers = new AppNormalizers(this.distDir)
     this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
@@ -486,12 +565,7 @@ export default abstract class Server<
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
     this.isAppPPREnabled =
-      this.enabledDirectories.app &&
-      checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
-
-    this.isAppSegmentPrefetchEnabled =
-      this.enabledDirectories.app &&
-      this.nextConfig.experimental.clientSegmentCache === true
+      this.enabledDirectories.app && Boolean(this.nextConfig.cacheComponents)
 
     this.normalizers = {
       // We should normalize the pathname from the RSC prefix only in minimal
@@ -501,30 +575,23 @@ export default abstract class Server<
         this.enabledDirectories.app && this.minimalMode
           ? new RSCPathnameNormalizer()
           : undefined,
-      prefetchRSC:
-        this.isAppPPREnabled && this.minimalMode
-          ? new PrefetchRSCPathnameNormalizer()
-          : undefined,
-      segmentPrefetchRSC:
-        this.isAppSegmentPrefetchEnabled && this.minimalMode
-          ? new SegmentPrefixRSCPathnameNormalizer()
-          : undefined,
+      segmentPrefetchRSC: this.minimalMode
+        ? new SegmentPrefixRSCPathnameNormalizer()
+        : undefined,
       data: this.enabledDirectories.pages
         ? new NextDataPathnameNormalizer(this.buildId)
         : undefined,
     }
 
     this.nextFontManifest = this.getNextFontManifest()
-    process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.deploymentId || ''
 
     this.renderOpts = {
       dir: this.dir,
       supportsDynamicResponse: true,
       trailingSlash: this.nextConfig.trailingSlash,
-      deploymentId: this.nextConfig.deploymentId,
       poweredByHeader: this.nextConfig.poweredByHeader,
       generateEtags,
-      previewProps: this.getPrerenderManifest().preview,
+      previewProps: this.getPreviewProps(),
       basePath: this.nextConfig.basePath,
       images: this.nextConfig.images,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
@@ -535,34 +602,65 @@ export default abstract class Server<
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
       serverComponents: this.enabledDirectories.app,
-      cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
+      cacheLifeProfiles: this.nextConfig.cacheLife,
+      staticPageGenerationTimeout: this.nextConfig.staticPageGenerationTimeout,
       enableTainting: this.nextConfig.experimental.taint,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
         : undefined,
       largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
 
-      isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
-      // `htmlLimitedBots` is passed to server as serialized config in string format
-      htmlLimitedBots: this.nextConfig.htmlLimitedBots,
+      isExperimentalCompile: options.compileMode
+        ? options.compileMode.isExperimentalCompile
+        : this.nextConfig.experimental.isExperimentalCompile,
+      cacheComponents: this.nextConfig.cacheComponents ?? false,
+      partialPrefetching: this.nextConfig.partialPrefetching,
+      validationLevel:
+        this.nextConfig.experimental.instantInsights.validationLevel,
       experimental: {
         expireTime: this.nextConfig.expireTime,
         staleTimes: this.nextConfig.experimental.staleTimes,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
-        cacheComponents: this.nextConfig.experimental.cacheComponents ?? false,
-        clientSegmentCache:
-          this.nextConfig.experimental.clientSegmentCache === 'client-only'
-            ? 'client-only'
-            : Boolean(this.nextConfig.experimental.clientSegmentCache),
         clientParamParsingOrigins:
           this.nextConfig.experimental.clientParamParsingOrigins,
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
+        optimisticRouting:
+          this.nextConfig.experimental.optimisticRouting ?? false,
+        parallelRouteMetadata:
+          this.nextConfig.experimental.parallelRouteMetadata ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
+        prefetchInlining:
+          this.nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        reactBrowserBailout:
+          this.nextConfig.experimental.reactBrowserBailout ?? false,
+        serverComponentsHmrCancellation:
+          this.nextConfig.experimental.serverComponentsHmrCancellation,
+        useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
+        durableUseCacheEntries: Boolean(
+          this.nextConfig.experimental.durableUseCacheEntries
+        ),
+        cachedNavigations:
+          this.nextConfig.experimental.cachedNavigations ?? false,
+        maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+          this.nextConfig.experimental.maxPostponedStateSize
+        ),
+        disableResumeDataCacheCompression:
+          this.nextConfig.experimental.disableResumeDataCacheCompression ??
+          false,
+        exposeTestingApi:
+          this.nextConfig.cacheComponents === true &&
+          (this.dev === true ||
+            this.nextConfig.experimental.exposeTestingApiInProductionBuild ===
+              true),
+        externalBrowserRuntime:
+          this.nextConfig.experimental.externalBrowserRuntime === true,
       },
-      onInstrumentationRequestError:
-        this.instrumentationOnRequestError.bind(this),
+      prefetchHints: {},
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
+      logServerFunctions:
+        typeof this.nextConfig.logging === 'object' &&
+        Boolean(this.nextConfig.logging.serverFunctions),
     }
 
     this.pagesManifest = this.getPagesManifest()
@@ -570,20 +668,7 @@ export default abstract class Server<
     this.appPathRoutes = this.getAppPathRoutes()
     this.interceptionRoutePatterns = this.getinterceptionRoutePatterns()
 
-    // Configure the routes.
-    this.matchers = this.getRouteMatchers()
-
-    // Start route compilation. We don't wait for the routes to finish loading
-    // because we use the `waitTillReady` promise below in `handleRequest` to
-    // wait. Also we can't `await` in the constructor.
-    void this.matchers.reload()
-
     this.setAssetPrefix(assetPrefix)
-    this.responseCache = this.getResponseCache({ dev })
-  }
-
-  protected reloadMatchers() {
-    return this.matchers.reload()
   }
 
   private handleRSCRequest: RouteHandler<ServerRequest, ServerResponse> = (
@@ -604,23 +689,12 @@ export default abstract class Server<
 
       // Mark the request as a router prefetch request.
       req.headers[RSC_HEADER] = '1'
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = NEXT_ROUTER_PREFETCH_STATIC
       req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] = segmentPath
 
       addRequestMeta(req, 'isRSCRequest', true)
       addRequestMeta(req, 'isPrefetchRSCRequest', true)
       addRequestMeta(req, 'segmentPrefetchRSCRequest', segmentPath)
-    } else if (this.normalizers.prefetchRSC?.match(parsedUrl.pathname)) {
-      parsedUrl.pathname = this.normalizers.prefetchRSC.normalize(
-        parsedUrl.pathname,
-        true
-      )
-
-      // Mark the request as a router prefetch request.
-      req.headers[RSC_HEADER] = '1'
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
-      addRequestMeta(req, 'isRSCRequest', true)
-      addRequestMeta(req, 'isPrefetchRSCRequest', true)
     } else if (this.normalizers.rsc?.match(parsedUrl.pathname)) {
       parsedUrl.pathname = this.normalizers.rsc.normalize(
         parsedUrl.pathname,
@@ -639,10 +713,12 @@ export default abstract class Server<
       stripFlightHeaders(req.headers)
 
       return false
-    } else if (req.headers[RSC_HEADER] === '1') {
+    } else if (isRSCRequestHeader(req.headers[RSC_HEADER])) {
       addRequestMeta(req, 'isRSCRequest', true)
 
-      if (req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1') {
+      if (
+        req.headers[NEXT_ROUTER_PREFETCH_HEADER] === NEXT_ROUTER_PREFETCH_STATIC
+      ) {
         addRequestMeta(req, 'isPrefetchRSCRequest', true)
 
         const segmentPrefetchRSCRequest =
@@ -775,54 +851,6 @@ export default abstract class Server<
     ServerResponse
   > = () => false
 
-  protected getRouteMatchers(): RouteMatcherManager {
-    // Create a new manifest loader that get's the manifests from the server.
-    const manifestLoader = new ServerManifestLoader((name) => {
-      switch (name) {
-        case PAGES_MANIFEST:
-          return this.getPagesManifest() ?? null
-        case APP_PATHS_MANIFEST:
-          return this.getAppPathsManifest() ?? null
-        default:
-          return null
-      }
-    })
-
-    // Configure the matchers and handlers.
-    const matchers: RouteMatcherManager = new DefaultRouteMatcherManager()
-
-    // Match pages under `pages/`.
-    matchers.push(
-      new PagesRouteMatcherProvider(
-        this.distDir,
-        manifestLoader,
-        this.i18nProvider
-      )
-    )
-
-    // Match api routes under `pages/api/`.
-    matchers.push(
-      new PagesAPIRouteMatcherProvider(
-        this.distDir,
-        manifestLoader,
-        this.i18nProvider
-      )
-    )
-
-    // If the app directory is enabled, then add the app matchers and handlers.
-    if (this.enabledDirectories.app) {
-      // Match app pages under `app/`.
-      matchers.push(
-        new AppPageRouteMatcherProvider(this.distDir, manifestLoader)
-      )
-      matchers.push(
-        new AppRouteRouteMatcherProvider(this.distDir, manifestLoader)
-      )
-    }
-
-    return matchers
-  }
-
   protected async instrumentationOnRequestError(
     ...args: Parameters<ServerOnInstrumentationRequestError>
   ) {
@@ -850,7 +878,7 @@ export default abstract class Server<
     }
   }
 
-  public logError(err: Error): void {
+  public logError(err: unknown): void {
     if (this.quiet) return
     Log.error(err)
   }
@@ -864,71 +892,175 @@ export default abstract class Server<
     const method = req.method.toUpperCase()
     const tracer = getTracer()
 
-    return tracer.withPropagatedContext(req.headers, () => {
-      return tracer.trace(
-        BaseServerSpan.handleRequest,
-        {
-          spanName: `${method}`,
-          kind: SpanKind.SERVER,
-          attributes: {
-            'http.method': method,
-            'http.target': req.url,
-          },
+    const handleRequest = () => {
+      // The render pass after a middleware invocation continues the trace
+      // context on the request, even when another span is active (e.g. a
+      // custom server or APM HTTP span). That is the context the
+      // middleware-invoke pass wrote onto the request, so the middleware span
+      // and the render are siblings under that pass's span, or a `traceparent`
+      // the middleware explicitly set as a request-header override.
+      const forcePropagation =
+        !getRequestMeta(req, 'middlewareInvoke') &&
+        getRequestMeta(req, 'middlewareInvokeTraceparent') !== undefined
+      // With forced propagation the active (host) span isn't the parent, so
+      // capture it before propagating to keep propagating `http.route` to it.
+      const hostSpan = forcePropagation
+        ? tracer.getActiveScopeSpan()
+        : undefined
+
+      return tracer.withPropagatedContext(
+        req.headers,
+        () => {
+          // Capture the parent span before creating the handleRequest span.
+          // When deployed with an adapter, the platform's runtime may create its
+          // own OTEL HTTP server span before Next.js runs. We propagate http.route
+          // to this parent span so APM tools (e.g. Datadog) can derive the
+          // resource name correctly.
+          const parentSpan = forcePropagation
+            ? hostSpan
+            : tracer.getActiveScopeSpan()
+
+          return tracer.trace(
+            BaseServerSpan.handleRequest,
+            {
+              spanName: `${method}`,
+              kind: SpanKind.SERVER,
+              attributes: {
+                'http.method': method,
+                'http.target': req.url,
+              },
+            },
+            async (span) => {
+              if (getRequestMeta(req, 'middlewareInvoke')) {
+                // When middleware lets the request continue, the router server
+                // calls `handleRequest` twice: once to run middleware (this pass)
+                // and once to render. Publish this span's W3C trace context on
+                // the request, so the middleware span (including the Edge
+                // sandbox, which extracts it from the request headers) and the
+                // render pass are both children of this span (siblings) instead
+                // of starting new traces.
+                const traceContext = tracer.getTraceContextHeaders()
+                if (traceContext) {
+                  Object.assign(req.headers, traceContext)
+                  if (!traceContext.tracestate) {
+                    // Don't pair this span's `traceparent` with a
+                    // `tracestate` of another trace context (e.g. an incoming
+                    // one, when a host span is this span's parent).
+                    delete req.headers.tracestate
+                  }
+                  addRequestMeta(
+                    req,
+                    'middlewareInvokeTraceparent',
+                    traceContext.traceparent
+                  )
+                }
+              }
+
+              return this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+                if (!span) return
+
+                const isRSCRequest =
+                  getRequestMeta(req, 'isRSCRequest') ?? false
+                span.setAttributes({
+                  'http.status_code': res.statusCode,
+                  'next.rsc': isRSCRequest,
+                })
+
+                if (res.statusCode && res.statusCode >= 500) {
+                  // For 5xx status codes: SHOULD be set to 'Error' span status.
+                  // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+                  span.setStatus({
+                    code: SpanStatusCode.ERROR,
+                  })
+                  // For span status 'Error', SHOULD set 'error.type' attribute.
+                  span.setAttribute('error.type', res.statusCode.toString())
+                }
+
+                const rootSpanAttributes = tracer.getRootSpanAttributes()
+                // We were unable to get attributes, probably OTEL is not enabled
+                if (!rootSpanAttributes) return
+
+                if (
+                  rootSpanAttributes.get('next.span_type') !==
+                  BaseServerSpan.handleRequest
+                ) {
+                  console.warn(
+                    `Unexpected root span type '${rootSpanAttributes.get(
+                      'next.span_type'
+                    )}'. Please report this Next.js issue https://github.com/vercel/next.js`
+                  )
+                  return
+                }
+
+                const route = rootSpanAttributes.get('next.route')
+                if (route) {
+                  const name = isRSCRequest
+                    ? `RSC ${method} ${route}`
+                    : `${method} ${route}`
+
+                  span.setAttributes({
+                    'next.route': route,
+                    'http.route': route,
+                    'next.span_name': name,
+                  })
+                  span.updateName(name)
+
+                  // Propagate http.route to the parent span if one exists and
+                  // is different from the handleRequest span. This ensures APM
+                  // tools that read attributes from the outermost span (e.g.
+                  // a platform-created HTTP span) can derive the resource name.
+                  if (parentSpan && parentSpan !== span) {
+                    parentSpan.setAttribute('http.route', route)
+                  }
+                } else {
+                  span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
+                }
+              })
+            }
+          )
         },
-        async (span) =>
-          this.handleRequestImpl(req, res, parsedUrl).finally(() => {
-            if (!span) return
-
-            const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
-            span.setAttributes({
-              'http.status_code': res.statusCode,
-              'next.rsc': isRSCRequest,
-            })
-
-            if (res.statusCode && res.statusCode >= 500) {
-              // For 5xx status codes: SHOULD be set to 'Error' span status.
-              // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
-              span.setStatus({
-                code: SpanStatusCode.ERROR,
-              })
-              // For span status 'Error', SHOULD set 'error.type' attribute.
-              span.setAttribute('error.type', res.statusCode.toString())
-            }
-
-            const rootSpanAttributes = tracer.getRootSpanAttributes()
-            // We were unable to get attributes, probably OTEL is not enabled
-            if (!rootSpanAttributes) return
-
-            if (
-              rootSpanAttributes.get('next.span_type') !==
-              BaseServerSpan.handleRequest
-            ) {
-              console.warn(
-                `Unexpected root span type '${rootSpanAttributes.get(
-                  'next.span_type'
-                )}'. Please report this Next.js issue https://github.com/vercel/next.js`
-              )
-              return
-            }
-
-            const route = rootSpanAttributes.get('next.route')
-            if (route) {
-              const name = isRSCRequest
-                ? `RSC ${method} ${route}`
-                : `${method} ${route}`
-
-              span.setAttributes({
-                'next.route': route,
-                'http.route': route,
-                'next.span_name': name,
-              })
-              span.updateName(name)
-            } else {
-              span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
-            }
-          })
+        undefined,
+        forcePropagation
       )
+    }
+
+    if (!isRequestInsightsEnabled()) {
+      return handleRequest()
+    }
+
+    const resolvedRequestInsightsIdentity = resolveRequestInsightsIdentity({
+      previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
+      requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
+      htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
+      url: req.url,
+      createRequestId: nanoid,
     })
+    const isMiddlewareInvoke = getRequestMeta(req, 'middlewareInvoke') === true
+    const requestInsightsIdentity: RequestInsightsIdentity = isMiddlewareInvoke
+      ? {
+          ...resolvedRequestInsightsIdentity,
+          source: 'proxy',
+        }
+      : resolvedRequestInsightsIdentity
+    addRequestMeta(req, 'requestInsightsIdentity', requestInsightsIdentity)
+
+    // The request root and route-matching spans start before App Render creates
+    // its workStore. Carry their identity in this outer scope; App Render copies
+    // it into the workStore so the complete timeline uses one request ID.
+    try {
+      return await runWithRequestInsightsIdentity(
+        requestInsightsIdentity,
+        handleRequest
+      )
+    } finally {
+      if (isMiddlewareInvoke) {
+        addRequestMeta(
+          req,
+          'requestInsightsIdentity',
+          resolvedRequestInsightsIdentity
+        )
+      }
+    }
   }
 
   private async handleRequestImpl(
@@ -937,9 +1069,6 @@ export default abstract class Server<
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     try {
-      // Wait for the matchers to be ready.
-      await this.matchers.waitTillReady()
-
       // ensure cookies set in middleware are merged and
       // not overridden by API routes/getServerSideProps
       patchSetHeaderWithCookieSupport(
@@ -966,7 +1095,7 @@ export default abstract class Server<
           throw new Error('Invariant: url can not be undefined')
         }
 
-        parsedUrl = parseUrl(req.url!, true)
+        parsedUrl = parseUrl(req.url)
       }
 
       if (!parsedUrl.pathname) {
@@ -1062,14 +1191,28 @@ export default abstract class Server<
             req.headers[NEXT_RESUME_HEADER] === '1' &&
             req.method === 'POST'
           ) {
+            const { maxPostponedStateSize, maxPostponedStateSizeBytes } =
+              getMaxPostponedStateSize(
+                this.nextConfig.experimental.maxPostponedStateSize
+              )
+
             // Decode the postponed state from the request body, it will come as
             // an array of buffers, so collect them and then concat them to form
             // the string.
-            const body: Array<Buffer> = []
-            for await (const chunk of req.body) {
-              body.push(chunk)
+            const body = await readBodyWithSizeLimit(
+              req.body,
+              maxPostponedStateSizeBytes
+            )
+            if (body === null) {
+              res.statusCode = 413
+              res
+                .body(
+                  getPostponedStateExceededErrorMessage(maxPostponedStateSize)
+                )
+                .send()
+              return
             }
-            const postponed = Buffer.concat(body).toString('utf8')
+            const postponed = body.toString('utf8')
 
             addRequestMeta(req, 'postponed', postponed)
           }
@@ -1078,7 +1221,7 @@ export default abstract class Server<
           // we should error, as it represents an unprocessable request.
           if (
             getRequestMeta(req, 'isNextDataReq') &&
-            getRequestMeta(req, 'postponed')
+            typeof getRequestMeta(req, 'postponed') === 'string'
           ) {
             // The server understood that this is a PPR resume request, as the
             // headers were included to correctly indicate a resume request, but
@@ -1125,21 +1268,31 @@ export default abstract class Server<
             hasValidParams: false,
           }
 
-          const match = await this.matchers.match(srcPathname, {
-            i18n: localeAnalysisResult,
-          })
+          // A dynamic x-matched-path identifies the route pattern, not a
+          // concrete pathname. Match it by identity so a pattern such as
+          // `/[...path]` cannot be captured by the regex for `/[slug]`.
+          let routeDefinition: RouteDefinition | undefined
+          if (pageIsDynamic) {
+            routeDefinition = this.getRoutePatternDefinition(
+              srcPathname,
+              localeAnalysisResult
+            )
+          } else {
+            const match = this.getRouteMatch(srcPathname, localeAnalysisResult)
+            if (match) {
+              routeDefinition = match.definition
 
-          if (!pageIsDynamic && match) {
-            // Update the source pathname to the matched page's pathname.
-            srcPathname = match.definition.pathname
+              // Update the source pathname to the matched page's pathname.
+              srcPathname = match.definition.pathname
 
-            // The page is dynamic if the params are defined. We know at this
-            // stage that the matched path is not a static page if the params
-            // were parsed from the matched path header.
-            if (typeof match.params !== 'undefined') {
-              pageIsDynamic = true
-              paramsResult.params = match.params
-              paramsResult.hasValidParams = true
+              // The page is dynamic if the params are defined. We know at this
+              // stage that the matched path is not a static page if the params
+              // were parsed from the matched path header.
+              if (typeof match.params !== 'undefined') {
+                pageIsDynamic = true
+                paramsResult.params = match.params
+                paramsResult.hasValidParams = true
+              }
             }
           }
 
@@ -1188,7 +1341,11 @@ export default abstract class Server<
             pathnameBeforeRewrite !== rewrittenParsedUrl.pathname
 
           if (didRewrite && rewrittenParsedUrl.pathname) {
-            addRequestMeta(req, 'rewroteURL', rewrittenParsedUrl.pathname)
+            addRequestMeta(
+              req,
+              'rewrittenPathname',
+              rewrittenParsedUrl.pathname
+            )
           }
 
           const routeParamKeys = new Set<string>()
@@ -1356,6 +1513,50 @@ export default abstract class Server<
             }
           }
 
+          // A platform route match can capture the locale as a dynamic param.
+          // Analyze the interpolated pathname again to remove that prefix, but
+          // preserve the original locale when it was already stripped above.
+          let finalLocaleAnalysisResult = localeAnalysisResult
+          if (this.i18nProvider) {
+            const analyzedMatchedPath = this.i18nProvider.analyze(matchedPath, {
+              defaultLocale,
+            })
+            const hasLocalePrefix = analyzedMatchedPath.pathname !== matchedPath
+
+            if (hasLocalePrefix || !localeAnalysisResult) {
+              finalLocaleAnalysisResult = analyzedMatchedPath
+            } else {
+              finalLocaleAnalysisResult = {
+                ...localeAnalysisResult,
+                pathname: matchedPath,
+              }
+            }
+
+            matchedPath = finalLocaleAnalysisResult.pathname
+            addRequestMeta(
+              req,
+              'locale',
+              finalLocaleAnalysisResult.detectedLocale
+            )
+            if (finalLocaleAnalysisResult.inferredFromDefault) {
+              addRequestMeta(req, 'localeInferredFromDefault', true)
+            } else {
+              removeRequestMeta(req, 'localeInferredFromDefault')
+            }
+          }
+
+          // Match the resulting concrete pathname again so route precedence
+          // is preserved while the concrete params remain available to PPR.
+          const finalRouteMatch = this.getRouteMatch(
+            matchedPath,
+            finalLocaleAnalysisResult
+          )
+          if (finalRouteMatch) {
+            addRequestMeta(req, 'match', finalRouteMatch)
+          } else {
+            removeRequestMeta(req, 'match')
+          }
+
           if (pageIsDynamic || didRewrite) {
             utils.normalizeCdnUrl(req, [
               ...rewriteParamKeys,
@@ -1380,8 +1581,8 @@ export default abstract class Server<
           // App Router routes should not include rewrite query params as they
           // affect RSC payload.
           if (
-            match?.definition.kind === RouteKind.PAGES ||
-            match?.definition.kind === RouteKind.PAGES_API
+            routeDefinition?.kind === RouteKind.PAGES ||
+            routeDefinition?.kind === RouteKind.PAGES_API
           ) {
             parsedUrl.query = rewrittenQueryParams
           }
@@ -1447,6 +1648,20 @@ export default abstract class Server<
         )
       }
 
+      // Attach the server components HMR refresh hash here, alongside the HMR
+      // cache, so it reaches every render that passes through this request
+      // handling, including internal renders (e.g. dev validation/warmup) that
+      // don't re-enter the top-level request handler. It's included in `"use
+      // cache"` keys so cached entries revalidate after an edit, for every
+      // client.
+      if (!getRequestMeta(req, 'hmrRefreshHash')) {
+        addRequestMeta(
+          req,
+          'hmrRefreshHash',
+          this.getServerComponentsHmrRefreshHash()
+        )
+      }
+
       // when invokePath is specified we can short short circuit resolving
       // we only honor this header if we are inside of a render worker to
       // prevent external users coercing the routing path
@@ -1483,17 +1698,28 @@ export default abstract class Server<
 
         if (parsedUrl.pathname !== parsedMatchedPath.pathname) {
           parsedUrl.pathname = parsedMatchedPath.pathname
-          addRequestMeta(req, 'rewroteURL', invokePathnameInfo.pathname)
+          addRequestMeta(req, 'rewrittenPathname', invokePathnameInfo.pathname)
         }
+        const pathnameNoBasePath = removePathPrefix(
+          parsedUrl.pathname,
+          this.nextConfig.basePath || ''
+        )
         const normalizeResult = normalizeLocalePath(
-          removePathPrefix(parsedUrl.pathname, this.nextConfig.basePath || ''),
+          pathnameNoBasePath,
           this.nextConfig.i18n?.locales
         )
 
         if (normalizeResult.detectedLocale) {
           addRequestMeta(req, 'locale', normalizeResult.detectedLocale)
         }
-        parsedUrl.pathname = normalizeResult.pathname
+        // The resolver already selected an App route using this literal
+        // pathname, so keep its locale segment for App Router param parsing.
+        if (getRequestMeta(req, 'didMatchLocalePrefixedPath')) {
+          parsedUrl.pathname = pathnameNoBasePath
+          removeRequestMeta(req, 'localeInferredFromDefault')
+        } else {
+          parsedUrl.pathname = normalizeResult.pathname
+        }
 
         for (const key of Object.keys(parsedUrl.query)) {
           delete parsedUrl.query[key]
@@ -1561,11 +1787,7 @@ export default abstract class Server<
         return this.renderError(null, req, res, '/_error', {})
       }
 
-      if (
-        this.minimalMode ||
-        this.renderOpts.dev ||
-        (isBubbledError(err) && err.bubble)
-      ) {
+      if (this.minimalMode || this.dev || (isBubbledError(err) && err.bubble)) {
         throw err
       }
       this.logError(getProperError(err))
@@ -1594,12 +1816,6 @@ export default abstract class Server<
       normalizers.push(this.normalizers.segmentPrefetchRSC)
     }
 
-    // We have to put the prefetch normalizer before the RSC normalizer
-    // because the RSC normalizer will match the prefetch RSC routes too.
-    if (this.normalizers.prefetchRSC) {
-      normalizers.push(this.normalizers.prefetchRSC)
-    }
-
     if (this.normalizers.rsc) {
       normalizers.push(this.normalizers.rsc)
     }
@@ -1611,6 +1827,271 @@ export default abstract class Server<
     }
 
     return pathname
+  }
+
+  private getPagesRouteDefinition(
+    page: string,
+    pathname: string,
+    kind: RouteKind.PAGES | RouteKind.PAGES_API,
+    locale?: string
+  ): LocaleRouteDefinition<RouteKind.PAGES | RouteKind.PAGES_API> | undefined {
+    const filename = this.pagesManifest?.[page]
+
+    if (!filename) return
+
+    return {
+      kind,
+      pathname,
+      page,
+      bundlePath: this.pagesNormalizers.bundlePath.normalize(page),
+      filename: this.pagesNormalizers.filename.normalize(filename),
+      ...(this.i18nProvider
+        ? {
+            i18n: {
+              locale,
+            },
+          }
+        : {}),
+    }
+  }
+
+  private getAppPageRouteDefinition(
+    pathname: string
+  ): AppPageRouteDefinition | undefined {
+    const appPaths = this.appPathRoutes?.[pathname]
+    if (!appPaths) return
+
+    const page = selectAppPageEntry(pathname, appPaths)
+    if (!isAppPageRoute(page)) return
+
+    const filename = this.appPathsManifest?.[page]
+    if (!filename) return
+
+    return {
+      kind: RouteKind.APP_PAGE,
+      pathname,
+      page,
+      bundlePath: this.appNormalizers.bundlePath.normalize(page),
+      filename: this.appNormalizers.filename.normalize(filename),
+      appPaths,
+    }
+  }
+
+  private getAppRouteRouteDefinition(
+    page: string
+  ): AppRouteRouteDefinition | AppGoRouteRouteDefinition | undefined {
+    const filename = this.appPathsManifest?.[page]
+    if (!filename) return
+
+    const pathname = this.appNormalizers.pathname.normalize(page)
+
+    return {
+      kind: filename.endsWith('.native.json')
+        ? RouteKind.APP_ROUTE_GO
+        : RouteKind.APP_ROUTE,
+      pathname,
+      page,
+      bundlePath: this.appNormalizers.bundlePath.normalize(page),
+      filename: this.appNormalizers.filename.normalize(filename),
+    }
+  }
+
+  private getRouteDefinitions(): RouteDefinition[] {
+    // Route definitions are rebuilt from the manifests instead of being held
+    // by route matcher providers. This keeps direct BaseServer entrypoints
+    // working when requests do not pass through router-server's fsChecker.
+    const definitions: RouteDefinition[] = []
+
+    if (this.enabledDirectories.pages) {
+      for (const page of Object.keys(this.pagesManifest || {})) {
+        const localeResult = this.i18nProvider?.analyze(page)
+        const pathname = localeResult?.pathname ?? page
+
+        if (isBlockedPage(pathname)) continue
+
+        const definition = this.getPagesRouteDefinition(
+          page,
+          pathname,
+          isAPIRoute(page) ? RouteKind.PAGES_API : RouteKind.PAGES,
+          localeResult?.detectedLocale
+        )
+
+        if (definition) {
+          definitions.push(definition)
+        }
+      }
+    }
+
+    if (this.enabledDirectories.app) {
+      for (const pathname of Object.keys(this.appPathRoutes || {})) {
+        const definition = this.getAppPageRouteDefinition(pathname)
+
+        if (definition) {
+          definitions.push(definition)
+        }
+      }
+
+      for (const page of Object.keys(this.appPathsManifest || {})) {
+        if (!isAppRouteRoute(page)) continue
+
+        const definition = this.getAppRouteRouteDefinition(page)
+
+        if (definition) {
+          definitions.push(definition)
+        }
+      }
+    }
+
+    return definitions
+  }
+
+  private getSortedRouteDefinitions(
+    definitions: RouteDefinition[]
+  ): RouteDefinition[] {
+    const references = new Map<string, RouteDefinition[]>()
+    const pathnames: string[] = []
+
+    for (const definition of definitions) {
+      const existing = references.get(definition.pathname)
+      if (existing) {
+        existing.push(definition)
+      } else {
+        references.set(definition.pathname, [definition])
+        pathnames.push(definition.pathname)
+      }
+    }
+
+    return getSortedRoutes(pathnames).flatMap(
+      (pathname) => references.get(pathname)!
+    )
+  }
+
+  private getRouteMatchPathname(
+    pathname: string,
+    definition: RouteDefinition,
+    localeAnalysisResult?: LocaleAnalysisResult
+  ): string | null {
+    const localeDefinition = definition as RouteDefinition & {
+      i18n?: { locale?: string }
+    }
+
+    if (localeDefinition.i18n && localeAnalysisResult) {
+      if (
+        localeDefinition.i18n.locale &&
+        localeAnalysisResult.detectedLocale &&
+        localeDefinition.i18n.locale !== localeAnalysisResult.detectedLocale
+      ) {
+        return null
+      }
+
+      return localeAnalysisResult.pathname
+    }
+
+    if (localeAnalysisResult?.inferredFromDefault) {
+      return localeAnalysisResult.pathname
+    }
+
+    return pathname
+  }
+
+  private testRouteDefinition(
+    pathname: string,
+    definition: RouteDefinition,
+    localeAnalysisResult?: LocaleAnalysisResult
+  ): RouteMatch | null {
+    const matchPathname = this.getRouteMatchPathname(
+      pathname,
+      definition,
+      localeAnalysisResult
+    )
+
+    if (!matchPathname) return null
+
+    if (isDynamicRoute(definition.pathname)) {
+      const params = getRouteMatcher(getRouteRegex(definition.pathname))(
+        matchPathname
+      )
+
+      if (!params) return null
+
+      return {
+        definition,
+        params,
+      }
+    }
+
+    if (matchPathname === definition.pathname) {
+      return {
+        definition,
+        params: undefined,
+      }
+    }
+
+    return null
+  }
+
+  private getRoutePatternDefinition(
+    pathname: string,
+    localeAnalysisResult?: LocaleAnalysisResult
+  ): RouteDefinition | undefined {
+    for (const definition of this.getRouteDefinitions()) {
+      const matchPathname = this.getRouteMatchPathname(
+        pathname,
+        definition,
+        localeAnalysisResult
+      )
+
+      if (matchPathname === definition.pathname) {
+        return definition
+      }
+    }
+  }
+
+  protected getRouteMatch(
+    pathname: string,
+    localeAnalysisResult?: LocaleAnalysisResult
+  ): RouteMatch | null {
+    const definitions = this.getRouteDefinitions()
+    const dynamicDefinitions: RouteDefinition[] = []
+
+    // Check exact routes first, then sort dynamic routes by specificity. The
+    // old matcher manager provided the same precedence before it was removed.
+    if (!isDynamicRoute(pathname)) {
+      for (const definition of definitions) {
+        if (isDynamicRoute(definition.pathname)) {
+          dynamicDefinitions.push(definition)
+          continue
+        }
+
+        const match = this.testRouteDefinition(
+          pathname,
+          definition,
+          localeAnalysisResult
+        )
+
+        if (match) return match
+      }
+    } else {
+      for (const definition of definitions) {
+        if (isDynamicRoute(definition.pathname)) {
+          dynamicDefinitions.push(definition)
+        }
+      }
+    }
+
+    for (const definition of this.getSortedRouteDefinitions(
+      dynamicDefinitions
+    )) {
+      const match = this.testRouteDefinition(
+        pathname,
+        definition,
+        localeAnalysisResult
+      )
+
+      if (match) return match
+    }
+
+    return null
   }
 
   private normalizeAndAttachMetadata: RouteHandler<
@@ -1655,7 +2136,11 @@ export default abstract class Server<
   ): Promise<void>
 
   public setAssetPrefix(prefix?: string): void {
-    this.nextConfig.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
+    this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
+  }
+
+  public getAssetPrefix(): string {
+    return this.renderOpts.assetPrefix || ''
   }
 
   protected prepared: boolean = false
@@ -1694,13 +2179,16 @@ export default abstract class Server<
       }
       appPathRoutes[normalizedPath].push(entry)
     })
+
+    // Preserve manifest order: legacy deployment builders package the final
+    // direct entry for a pathname as the function's loadable page module.
     return appPathRoutes
   }
 
   protected async run(
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery
   ): Promise<void> {
     return getTracer().trace(BaseServerSpan.run, async () =>
       this.runImpl(req, res, parsedUrl)
@@ -1710,7 +2198,7 @@ export default abstract class Server<
   private async runImpl(
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery
   ): Promise<void> {
     await this.handleCatchallRenderRequest(req, res, parsedUrl)
   }
@@ -1762,11 +2250,16 @@ export default abstract class Server<
     const { body } = payload
     let { cacheControl } = payload
     if (!res.sent) {
-      const { generateEtags, poweredByHeader, dev } = this.renderOpts
+      const { generateEtags, poweredByHeader } = this.renderOpts
 
-      // In dev, we should not cache pages for any reason.
-      if (dev) {
-        res.setHeader('Cache-Control', 'no-store, must-revalidate')
+      // Documents and data responses must not be stored in development.
+      // Browsers reuse a stored response for a history navigation without
+      // revalidating it, so a back navigation would restore a page from before
+      // the latest edit. Static assets never reach this code. They keep a
+      // revalidatable `Cache-Control`, so the browser caches them between page
+      // loads.
+      if (this.dev) {
+        res.setHeader('Cache-Control', 'no-store')
         cacheControl = undefined
       }
 
@@ -1912,11 +2405,7 @@ export default abstract class Server<
     requestHeaders: import('./lib/incremental-cache').IncrementalCache['requestHeaders']
     page: string
     isAppPath: boolean
-  }): Promise<{
-    staticPaths?: string[]
-    prerenderedRoutes?: PrerenderedRoute[]
-    fallbackMode?: FallbackMode
-  }> {
+  }): Promise<Partial<StaticPathsResult> & { staticPaths?: string[] }> {
     // Read whether or not fallback should exist from the manifest.
     const fallbackField =
       this.getPrerenderManifest().dynamicRoutes[pathname]?.fallback
@@ -1990,6 +2479,12 @@ export default abstract class Server<
     }: RequestContext<ServerRequest, ServerResponse>,
     { components, query }: FindComponentsResult
   ): Promise<ResponsePayload | null> {
+    if (this.dev && getRequestMeta(req, 'initialHmrVersion') === undefined) {
+      // Snapshot before rendering/streaming HTML. Reading the live version at
+      // script insertion or socket connection can hide an intervening CSS edit.
+      addRequestMeta(req, 'initialHmrVersion', this.getClientHmrVersion())
+    }
+
     if (pathname === UNDERSCORE_NOT_FOUND_ROUTE) {
       pathname = '/404'
     }
@@ -2026,22 +2521,25 @@ export default abstract class Server<
       const prefetchHeaderValue = headers[NEXT_ROUTER_PREFETCH_HEADER]
       const routerPrefetch =
         prefetchHeaderValue !== undefined
-          ? // We only recognize '1' and '2'. Strip all other values here.
-            prefetchHeaderValue === '1' || prefetchHeaderValue === '2'
+          ? // We only recognize the values we send. Strip all others here.
+            prefetchHeaderValue === NEXT_ROUTER_PREFETCH_STATIC ||
+            prefetchHeaderValue === NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH ||
+            prefetchHeaderValue === NEXT_ROUTER_PREFETCH_RUNTIME_SHELL ||
+            prefetchHeaderValue === NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION
             ? prefetchHeaderValue
             : undefined
           : // For runtime prefetches, we always perform a dynamic request,
             // so we don't expect the header to be stripped by an intermediate layer.
             // This should only happen for static prefetches, so we only handle those here.
             getRequestMeta(req, 'isPrefetchRSCRequest')
-            ? '1'
+            ? NEXT_ROUTER_PREFETCH_STATIC
             : undefined
 
       const segmentPrefetchRSCRequest =
         headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] ||
         getRequestMeta(req, 'segmentPrefetchRSCRequest')
 
-      const expectedHash = computeCacheBustingSearchParam(
+      const expectedHash = await computeCacheBustingSearchParam(
         routerPrefetch,
         segmentPrefetchRSCRequest,
         headers[NEXT_ROUTER_STATE_TREE_HEADER],
@@ -2053,13 +2551,32 @@ export default abstract class Server<
           NEXT_RSC_UNION_QUERY
         )
 
-      if (expectedHash !== actualHash) {
+      let matchesHash = expectedHash === actualHash
+      if (!matchesHash && actualHash !== null) {
+        // We'll fallback to checking the legacy hash format to support clients that do not have a secure context
+        matchesHash =
+          computeLegacyCacheBustingSearchParam(
+            routerPrefetch,
+            segmentPrefetchRSCRequest,
+            headers[NEXT_ROUTER_STATE_TREE_HEADER],
+            headers[NEXT_URL]
+          ) === actualHash
+      }
+
+      if (!matchesHash) {
         // The hash sent by the client does not match the expected value.
         // Redirect to the URL with the correct cache-busting search param.
         // This prevents cache poisoning attacks on CDNs that don't respect Vary headers.
+        // We continue to accept the legacy short hash for clients that still
+        // generate the 5-character `_rsc` form.
         // Note: When no headers are present, expectedHash is empty string and client
         // must send `_rsc` param, otherwise actualHash is null and hash check fails.
-        const url = new URL(req.url || '', 'http://localhost')
+        // `req.url` may have had its basePath removed during normalization.
+        // Build the redirect from the original URL so it remains public-facing.
+        const url = new URL(
+          getRequestMeta(req, 'initURL') || req.url || '',
+          'http://localhost'
+        )
         setCacheBustingSearchParamWithHash(url, expectedHash)
         res.statusCode = 307
         res.setHeader('location', `${url.pathname}${url.search}`)
@@ -2068,12 +2585,13 @@ export default abstract class Server<
       }
     }
 
-    // Compute the iSSG cache key. We use the rewroteUrl since
+    // Compute the iSSG cache key. We use the rewritten pathname since
     // pages with fallback: false are allowed to be rewritten to
     // and we need to look up the path by the rewritten path
     let urlPathname = parseUrl(req.url || '').pathname || '/'
 
-    let resolvedUrlPathname = getRequestMeta(req, 'rewroteURL') || urlPathname
+    let resolvedUrlPathname =
+      getRequestMeta(req, 'rewrittenPathname') || urlPathname
 
     this.setVaryHeader(req, res, isAppPath, resolvedUrlPathname)
 
@@ -2090,7 +2608,7 @@ export default abstract class Server<
       req.headers['x-now-route-matches']
     ) {
       isSSG = true
-    } else if (!this.renderOpts.dev) {
+    } else if (!this.dev) {
       isSSG ||= !!prerenderManifest.routes[toRoute(pathname)]
     }
 
@@ -2165,6 +2683,22 @@ export default abstract class Server<
       typeof query.__nextppronly !== 'undefined' &&
       couldSupportPPR
 
+    // Whether the testing API is exposed (dev mode or explicit flag)
+    const exposeTestingApi =
+      this.dev === true ||
+      this.nextConfig.experimental.exposeTestingApiInProductionBuild === true
+
+    // Check for the instant test cookie for MPA navigations (page reload, full
+    // page load) in the Instant Navigation Testing API. Only applies to
+    // document requests (no RSC header) - RSC requests should proceed normally
+    // even during a locked scope, with blocking happening on the client side.
+    const hasInstantTestCookie =
+      exposeTestingApi &&
+      !isRSCRequestHeader(req.headers[RSC_HEADER]) &&
+      typeof req.headers.cookie === 'string' &&
+      req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
+      couldSupportPPR
+
     // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
     // prerender manifest and this is an app page.
     const isRoutePPREnabled: boolean =
@@ -2176,10 +2710,9 @@ export default abstract class Server<
         // Ideally we'd want to check the appConfig to see if this page has PPR
         // enabled or not, but that would require plumbing the appConfig through
         // to the server during development. We assume that the page supports it
-        // but only during development.
-        (hasDebugStaticShellQuery &&
-          (this.renderOpts.dev === true ||
-            this.experimentalTestProxy === true)))
+        // but only during development or when the testing API is exposed.
+        ((hasDebugStaticShellQuery || hasInstantTestCookie) &&
+          (exposeTestingApi || this.experimentalTestProxy === true)))
 
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
@@ -2187,10 +2720,26 @@ export default abstract class Server<
     const minimalPostponed = isRoutePPREnabled
       ? getRequestMeta(req, 'postponed')
       : undefined
+    const hasPostponedState = typeof minimalPostponed === 'string'
 
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isNextDataRequest && !isRSCRequest) {
       res.statusCode = 404
+
+      // For subresource requests (e.g. images or fonts), return plain text
+      // 404 instead of rendering the not-found route.
+      if (
+        (req.method === 'GET' || req.method === 'HEAD') &&
+        isNonHtmlSecFetchDest(req.headers['sec-fetch-dest'])
+      ) {
+        res.setHeader(
+          'Cache-Control',
+          'private, no-cache, no-store, max-age=0, must-revalidate'
+        )
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.body('Not Found').send()
+        return null
+      }
     }
 
     // ensure correct status is set when visiting a status page
@@ -2203,7 +2752,7 @@ export default abstract class Server<
       // Server actions can use non-GET/HEAD methods.
       !isPossibleServerAction &&
       // Resume can use non-GET/HEAD methods.
-      !minimalPostponed &&
+      !hasPostponedState &&
       !is404Page &&
       !is500Page &&
       pathname !== '/_error' &&
@@ -2245,7 +2794,7 @@ export default abstract class Server<
     }
 
     // In development, we always want to generate dynamic HTML.
-    if (!isNextDataRequest && isAppPath && opts.dev) {
+    if (!isNextDataRequest && isAppPath && this.dev) {
       opts.supportsDynamicResponse = true
     }
 
@@ -2281,6 +2830,11 @@ export default abstract class Server<
       isDynamicRoute(pathname) &&
       (components.getStaticPaths || isAppPath)
     ) {
+      let getStaticPathsStart: bigint | undefined
+      if (this.dev) {
+        getStaticPathsStart = process.hrtime.bigint()
+      }
+
       const pathsResults = await this.getStaticPaths({
         pathname,
         urlPathname,
@@ -2288,29 +2842,110 @@ export default abstract class Server<
         page: components.page,
         isAppPath,
       })
-      if (isAppPath && this.nextConfig.experimental.cacheComponents) {
-        if (pathsResults.prerenderedRoutes?.length) {
-          let smallestFallbackRouteParams = null
-          for (const route of pathsResults.prerenderedRoutes) {
-            const fallbackRouteParams = route.fallbackRouteParams
-            if (!fallbackRouteParams || fallbackRouteParams.length === 0) {
-              // There are no fallback route params so we don't need to continue
-              smallestFallbackRouteParams = null
-              break
+
+      if (this.dev && getStaticPathsStart && pathsResults.staticPaths?.length) {
+        addRequestMeta(
+          req,
+          'devGenerateStaticParamsDuration',
+          process.hrtime.bigint() - getStaticPathsStart
+        )
+      }
+
+      if (isAppPath && this.nextConfig.cacheComponents) {
+        const paramMatching = pathsResults.paramMatching
+        if (paramMatching !== undefined) {
+          // Explicit fallback and blocking policies describe how production
+          // prerenders are selected. Normal dev requests still render
+          // dynamically; only an explicit not-found match changes their
+          // foreground behavior.
+          addRequestMeta(req, 'devParamMatchingRejected', false)
+          addRequestMeta(
+            req,
+            'devNotFoundParams',
+            Object.keys(paramMatching).filter(
+              (name) => paramMatching[name] === 'not-found'
+            )
+          )
+        }
+
+        if (
+          pathsResults.prerenderedRoutes?.length ||
+          pathsResults.prerenderRouteMatchers?.length
+        ) {
+          // Build-time pathnames are decoded. Match the decoded rewrite
+          // destination, not the original encoded URL, just as in production.
+          const decodedPathname = decodePathParams(resolvedUrlPathname)
+
+          // Match both build-time prerenders and routes that have no
+          // build-time output, such as an explicit blocking match.
+          let matchedRoute: PrerenderedRoute | PrerenderRouteMatcher | undefined
+          for (const route of pathsResults.prerenderedRoutes ?? []) {
+            if (!getRouteRegex(route.pathname).re.test(decodedPathname)) {
+              continue
             }
             if (
-              smallestFallbackRouteParams === null ||
-              fallbackRouteParams.length < smallestFallbackRouteParams.length
+              matchedRoute === undefined ||
+              (route.fallbackRouteParams?.length ?? 0) <
+                (matchedRoute.fallbackRouteParams?.length ?? 0)
             ) {
-              smallestFallbackRouteParams = fallbackRouteParams
+              matchedRoute = route
             }
           }
-          if (smallestFallbackRouteParams) {
+          for (const route of pathsResults.prerenderRouteMatchers ?? []) {
+            if (!getRouteRegex(route.pathname).re.test(decodedPathname)) {
+              continue
+            }
+            if (
+              matchedRoute === undefined ||
+              route.fallbackRouteParams.length <
+                (matchedRoute.fallbackRouteParams?.length ?? 0)
+            ) {
+              matchedRoute = route
+            }
+          }
+          if (
+            paramMatching !== undefined &&
+            matchedRoute?.fallbackMode === FallbackMode.NOT_FOUND
+          ) {
+            addRequestMeta(req, 'devParamMatchingRejected', true)
+          }
+
+          if (matchedRoute) {
+            // Shell requests keep the matched route's fallback params unknown.
+            // Ordinary requests use stagedFallbackParams below to determine
+            // which params resolve in the static phase.
             addRequestMeta(
               req,
-              'devValidatingFallbackParams',
-              createOpaqueFallbackRouteParams(smallestFallbackRouteParams)!
+              'fallbackRouteParams',
+              matchedRoute.fallbackRouteParams
+                ? createOpaqueFallbackRouteParams(
+                    matchedRoute.fallbackRouteParams
+                  )
+                : null
             )
+            let stagedFallbackParams = getStagedFallbackParams({
+              ...matchedRoute,
+              // A match without a build-time prerender has no shell validation
+              // metadata. With false, getStagedFallbackParams lets remaining
+              // prerenderable params resolve in the static phase; params that
+              // cannot be prerendered still wait for the dynamic phase.
+              throwOnEmptyStaticShell:
+                'throwOnEmptyStaticShell' in matchedRoute
+                  ? matchedRoute.throwOnEmptyStaticShell
+                  : false,
+            })
+            if (pathsResults.explicitFallbackRouteParams) {
+              // An explicit fallback must work even when its params are
+              // unknown. Preserve that boundary for fully generated URLs too,
+              // without losing holes in a required partial source shell.
+              stagedFallbackParams = new Map([
+                ...(stagedFallbackParams ?? []),
+                ...(createOpaqueFallbackRouteParams(
+                  pathsResults.explicitFallbackRouteParams
+                ) ?? []),
+              ])
+            }
+            addRequestMeta(req, 'stagedFallbackParams', stagedFallbackParams)
           }
         }
       }
@@ -2334,7 +2969,6 @@ export default abstract class Server<
 
     for (const normalizer of [
       this.normalizers.segmentPrefetchRSC,
-      this.normalizers.prefetchRSC,
       this.normalizers.rsc,
     ]) {
       if (normalizer?.match(initPathname)) {
@@ -2360,15 +2994,7 @@ export default abstract class Server<
       addRequestMeta(request, 'invokeError', opts.err)
     }
 
-    const handler: (
-      req: ServerRequest | IncomingMessage,
-      res: ServerResponse | HTTPServerResponse,
-      ctx: {
-        waitUntil: ReturnType<Server['getWaitUntil']>
-      }
-    ) => Promise<void> = components.ComponentMod.handler
-
-    const maybeDevRequest =
+    const maybeDevRequest: ServerRequest | IncomingMessage =
       // we need to capture fetch metrics when they are set
       // and can't wait for handler to resolve as the fetch
       // metrics are logged on response close which happens
@@ -2383,7 +3009,7 @@ export default abstract class Server<
             },
             set(target: any, prop, value) {
               if (prop === 'fetchMetrics') {
-                ;(req as any).fetchMetrics = value
+                req.fetchMetrics = value
               }
               target[prop] = value
               return true
@@ -2391,7 +3017,14 @@ export default abstract class Server<
           })
         : request
 
-    await handler(maybeDevRequest, response, {
+    // @ts-expect-error This isn't entirely correct, but the ServerRequest type param seems overly
+    // generic anyway.
+    let handlerReq: IncomingMessage = maybeDevRequest
+    // @ts-expect-error This isn't entirely correct, but the ServerResponse type param seems overly
+    // generic anyway.
+    let handlerRes: HTTPServerResponse = response
+
+    await components.ComponentMod.handler(handlerReq, handlerRes, {
       waitUntil: this.getWaitUntil(),
     })
 
@@ -2434,13 +3067,22 @@ export default abstract class Server<
   ) {
     const { query, pathname } = ctx
 
-    const appPaths = this.getOriginalAppPaths(pathname)
+    const match = getRequestMeta(ctx.req, 'match')
+    const appPaths =
+      this.getOriginalAppPaths(pathname) ??
+      (match && isAppPageRouteDefinition(match.definition)
+        ? match.definition.appPaths
+        : null)
     const isAppPath = Array.isArray(appPaths)
 
     let page = pathname
     if (isAppPath) {
-      // the last item in the array is the root page, if there are parallel routes
-      page = appPaths[appPaths.length - 1]
+      // Load the same direct entry selected by the build and deployment
+      // adapter. Expanded catch-all contributors are part of the route tree,
+      // but their modules are not necessarily traced into this function.
+      page = selectAppPageEntry(pathname, appPaths)
+    } else if (match?.definition.kind === RouteKind.APP_ROUTE) {
+      page = match.definition.page
     }
 
     const result = await this.findPageComponents({
@@ -2451,8 +3093,10 @@ export default abstract class Server<
       isAppPath,
       sriEnabled: !!this.nextConfig.experimental.sri?.algorithm,
       appPaths,
-      // Ensuring for loading page component routes is done via the matcher.
-      shouldEnsure: false,
+      // Normal routed requests are ensured by the route match. Legacy custom
+      // server render methods bypass that path, so ensure when no match exists.
+      shouldEnsure: !match,
+      url: pathname,
     })
     if (result) {
       getTracer().setRootSpanAttribute('next.route', pathname)
@@ -2489,7 +3133,7 @@ export default abstract class Server<
   protected abstract getMiddleware(): Promise<MiddlewareRoutingItem | undefined>
   protected abstract getFallbackErrorComponents(
     url?: string
-  ): Promise<LoadComponentsReturnType | null>
+  ): Promise<LoadComponentsReturnType<ErrorModule> | null>
   protected abstract getRoutesManifest(): NormalizedRouteManifest | undefined
 
   private async renderToResponseImpl(
@@ -2512,54 +3156,46 @@ export default abstract class Server<
     }
     delete query[NEXT_RSC_UNION_QUERY]
 
-    const options: MatchOptions = {
-      i18n: this.i18nProvider?.fromRequest(req, pathname),
-    }
-
-    const existingMatch = getRequestMeta(ctx.req, 'match')
-
-    let fastPath = true
-    // when a specific invoke-output is meant to be matched
-    // ensure a prior dynamic route/page doesn't take priority
+    let existingMatch = getRequestMeta(ctx.req, 'match')
     const invokeOutput = getRequestMeta(ctx.req, 'invokeOutput')
 
-    if (
-      (!this.minimalMode &&
-        typeof invokeOutput === 'string' &&
-        isDynamicRoute(invokeOutput || '') &&
-        invokeOutput !== existingMatch?.definition.pathname) ||
-      // Parallel routes are matched in `existingMatch` but since currently
-      // there can be multiple matches it's not guaranteed to be the right match
-      // therefor we need to opt-out of the fast path for parallel routes.
-      existingMatch?.definition.page.includes('/@')
-    ) {
-      fastPath = false
-    }
-
     try {
-      for await (const match of fastPath && existingMatch
-        ? [existingMatch]
-        : this.matchers.matchAll(pathname, options)) {
-        if (
+      if (!existingMatch) {
+        const localeAnalysisResult = this.i18nProvider?.fromRequest(
+          req,
+          pathname
+        )
+        const routeMatch = this.getRouteMatch(pathname, localeAnalysisResult)
+
+        if (routeMatch) {
+          existingMatch = routeMatch
+          addRequestMeta(req, 'match', routeMatch)
+        }
+      }
+
+      if (existingMatch) {
+        const shouldSkipMatch =
           !this.minimalMode &&
           typeof invokeOutput === 'string' &&
           isDynamicRoute(invokeOutput || '') &&
-          invokeOutput !== match.definition.pathname
-        ) {
-          continue
-        }
+          invokeOutput !== existingMatch.definition.pathname
 
-        const result = await this.renderPageComponent(
-          {
-            ...ctx,
-            pathname: match.definition.pathname,
-            renderOpts: {
-              ...ctx.renderOpts,
-              params: match.params,
+        if (!shouldSkipMatch) {
+          const result = await this.renderPageComponent(
+            {
+              ...ctx,
+              pathname: existingMatch.definition.pathname,
+              renderOpts: {
+                ...ctx.renderOpts,
+                params: existingMatch.params,
+              },
             },
-          },
-          bubbleNoFallback
-        )
+            bubbleNoFallback
+          )
+          if (result !== false) return result
+        }
+      } else {
+        const result = await this.renderPageComponent(ctx, bubbleNoFallback)
         if (result !== false) return result
       }
 
@@ -2586,8 +3222,8 @@ export default abstract class Server<
               url: ctx.req.url,
               matchedPath: ctx.req.headers[MATCHED_PATH_HEADER],
               initUrl: getRequestMeta(ctx.req, 'initURL'),
-              didRewrite: !!getRequestMeta(ctx.req, 'rewroteURL'),
-              rewroteUrl: getRequestMeta(ctx.req, 'rewroteURL'),
+              didRewrite: !!getRequestMeta(ctx.req, 'rewrittenPathname'),
+              rewrittenPathname: getRequestMeta(ctx.req, 'rewrittenPathname'),
             },
             null,
             2
@@ -2617,7 +3253,7 @@ export default abstract class Server<
       const isWrappedError = err instanceof WrappedBuildError
 
       if (!isWrappedError) {
-        if (this.minimalMode || this.renderOpts.dev) {
+        if (this.minimalMode || this.dev) {
           if (isError(err)) err.page = page
           throw err
         }
@@ -2739,7 +3375,7 @@ export default abstract class Server<
   ): Promise<ResponsePayload | null> {
     // Short-circuit favicon.ico in development to avoid compiling 404 page when the app has no favicon.ico.
     // Since favicon.ico is automatically requested by the browser.
-    if (this.renderOpts.dev && ctx.pathname === '/favicon.ico') {
+    if (this.dev && ctx.pathname === '/favicon.ico') {
       return {
         body: RenderResult.EMPTY,
       }
@@ -2791,7 +3427,7 @@ export default abstract class Server<
       ) {
         // skip ensuring /500 in dev mode as it isn't used and the
         // dev overlay is used instead
-        if (statusPage !== '/500' || !this.renderOpts.dev) {
+        if (statusPage !== '/500' || !this.dev) {
           if (!result && hasAppDir) {
             // Otherwise if app router present, load app router built-in 500 page
             result = await this.findPageComponents({
@@ -2848,7 +3484,7 @@ export default abstract class Server<
       if (!result) {
         // this can occur when a project directory has been moved/deleted
         // which is handled in the parent process in development
-        if (this.renderOpts.dev) {
+        if (this.dev) {
           return {
             // wait for dev-server to restart before refreshing
             body: RenderResult.fromStatic(
@@ -2970,7 +3606,7 @@ export default abstract class Server<
     parsedUrl?: Pick<NextUrlWithParsedQuery, 'pathname' | 'query'>,
     setHeaders = true
   ): Promise<void> {
-    const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(req.url!, true)
+    const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(req.url)
 
     // Ensure the locales are provided on the request meta.
     if (this.nextConfig.i18n) {

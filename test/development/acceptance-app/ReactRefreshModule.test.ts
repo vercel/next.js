@@ -12,7 +12,7 @@ describe('ReactRefreshModule app', () => {
   it('should allow any variable names', async () => {
     await using sandbox = await createSandbox(next, new Map([]))
     const { session } = sandbox
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
 
     const variables = [
       '_a',
@@ -34,7 +34,7 @@ describe('ReactRefreshModule app', () => {
           }
         `
       )
-      await session.assertNoRedbox()
+      await session.waitForNoRedbox()
       expect(next.cliOutput).not.toContain(
         `'${variable}' has already been declared`
       )

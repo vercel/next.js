@@ -11,26 +11,32 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn recompute() {
-    run_once(&REGISTRATION, || async {
-        let input = ChangingInput::new(1).resolve().await?;
-        let input2 = ChangingInput::new(2).resolve().await?;
+    run_once(&REGISTRATION, async || {
+        let input = ChangingInput {
+            state: State::new(1),
+        }
+        .resolved_cell();
+        let input2 = ChangingInput {
+            state: State::new(1),
+        }
+        .resolved_cell();
         input.await?.state.set(1);
         input2.await?.state.set(1000);
         let output = compute(input, input2, 1);
-        let read = output.strongly_consistent().await?;
+        let read = output.read_strongly_consistent().await?;
         assert_eq!(read.value, 42);
         assert_eq!(read.collectible, "1");
 
         for i in 2..100 {
             input.await?.state.set(i);
-            let read = output.strongly_consistent().await?;
+            let read = output.read_strongly_consistent().await?;
             assert_eq!(read.value, 42);
             assert_eq!(read.collectible, i.to_string());
         }
 
         for i in 0..100 {
             input2.await?.state.set(i);
-            let read = output.strongly_consistent().await?;
+            let read = output.read_strongly_consistent().await?;
             assert_eq!(read.value, 42);
             assert_eq!(read.collectible, "99");
         }
@@ -43,18 +49,6 @@ async fn recompute() {
 #[turbo_tasks::value]
 struct ChangingInput {
     state: State<u32>,
-}
-
-#[turbo_tasks::value_impl]
-impl ChangingInput {
-    #[turbo_tasks::function]
-    fn new(key: u32) -> Vc<Self> {
-        let _ = key;
-        Self {
-            state: State::new(1),
-        }
-        .cell()
-    }
 }
 
 #[turbo_tasks::value]
@@ -76,7 +70,7 @@ impl ValueToString for Collectible {
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn inner_compute(
     input: ResolvedVc<ChangingInput>,
     input2: ResolvedVc<ChangingInput>,
@@ -99,7 +93,7 @@ async fn inner_compute2(input: Vc<ChangingInput>, innerness: u32) -> Result<Vc<u
     Ok(Vc::cell(42))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation, root)]
 async fn compute(
     input: ResolvedVc<ChangingInput>,
     input2: ResolvedVc<ChangingInput>,
@@ -107,7 +101,7 @@ async fn compute(
 ) -> Result<Vc<Output>> {
     println!("compute({innerness})");
     if innerness > 0 {
-        return Ok(compute(*input, *input2, innerness - 1));
+        return Ok(compute(input, input2, innerness - 1).connect());
     }
     let operation = inner_compute(input, input2);
     let value = *operation.connect().await?;

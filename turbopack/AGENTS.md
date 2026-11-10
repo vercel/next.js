@@ -1,0 +1,28 @@
+# Turbopack Development Guide
+
+Turbopack is a general-purpose bundler that is built and designed for Next.js, but is not necessarily Next.js-specific. Keep Next.js concepts out of it.
+
+- **Do NOT mention Next.js config options** (e.g. anything under `next.config.js`, `experimental.*`, or other `NextConfig` fields) inside `turbopack/` code, comments, or docs. Refer to Turbopack's own options/inputs instead, and let the Next.js (in `packages/next/`) do the translation from Next.js config to Turbopack options. (This only applies to `turbopack/` — the Next.js-specific crates in `crates/` and `packages/next/` may reference Next.js config options.)
+
+## turbo_tasks caching and invalidation
+
+These rules apply throughout this directory tree when developing with turbo_tasks:
+
+- Keep task cache keys narrow: pass only the inputs the task needs. Avoid build-wide state or large collections when a per-module or per-entry input would suffice.
+- Avoid `.cell()` and `Vc::cell()` unless you know the current function is already called by functions with fine-grained cache keys. Inspect the callers and task boundaries before creating cells.
+- Pass booleans, enums, and similar small values directly as `TaskInput` where appropriate instead of wrapping them in cells.
+- When task inputs need to be cells to preserve fine-grained caching, arrange for them to already be cells returned by `#[turbo_tasks::function]` functions.
+- Do not blindly introduce "interning" task functions that only wrap values, such as `Vec<T> -> Vc<Vec<T>>`. Only add such a task when you are certain it is beneficial in that particular situation.
+- Existing `.cell()` calls or wrapping tasks are not automatically good precedent. Verify their caller and cache-key assumptions before copying the pattern.
+- Put maps containing information for a large part of the build (for example, a map from modules to analysis results) into separate cells. Use `cell = "keyed"` on their value types, for example `#[turbo_tasks::value(transparent, cell = "keyed")]` for a map wrapper.
+- Read keyed cells through keyed access, such as `map.get(&key).await?`, so invalidation depends only on the entries actually read. Awaiting the entire map and then looking up a key creates a dependency on the whole map instead.
+- When a task reads many keys of the same keyed cell, use `let map = map.keyed_reader().await?;` and then the synchronous `map.get(&key)` / `map.contains_key(&key)`. It reads the cell once and, when the `KeyedReadRef` is dropped, narrows the dependency to the accessed keys in one batch. The `KeyedReadRef` (and the `keyed_reader()` future) must be dropped within the task execution that called `keyed_reader()`: don't return, store, leak, or move them to other threads or tasks. Otherwise completing the task execution panics, which aborts the process.
+- When a task only needs a cell's value in some cases, and only finds out in synchronous code, use `let value = vc.lazy_reader().await?;` and access it with `value.get()`. When the `LazyReadRef` is dropped without `get()` ever being called, the read is canceled: the task no longer depends on the cell through it. The same lifetime rules as for `KeyedReadRef` apply.
+- When changing task boundaries, check the intended invalidation behavior. An unrelated module change should not invalidate consumers of unchanged keyed entries; correct output alone does not demonstrate good cache granularity.
+- Cell equality must include every observable distinction: comparison can retain the old value when the new value compares equal. In particular, `IndexSet` has deterministic iteration order but order-insensitive equality. Use `Vec` or an order-sensitive comparison when order is semantic or another cell stores positional indices into the collection; otherwise a reorder can leave old data paired with new indices even after recomputation settles.
+
+### Eventual consistency
+
+- Reads of separate cells can observe different executions during recomputation, even when the cells are produced by the same task or referenced through `ResolvedVc`. Do not assume a parent cell and its child/index cells form an atomic snapshot.
+- For cross-cell indices and lookups, handle transient mismatches with `bail!` or other `Result::Err` returns. Do not use panicking indexing, `unwrap`/`expect` or assertions.
+- Bounds checks prevent panics, not torn reads: an in-range index can still select the wrong value from another execution, for example leading to unexpected enum variants.

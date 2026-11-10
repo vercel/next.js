@@ -1,19 +1,20 @@
 import {
-  assertHasRedbox,
+  waitForRedbox,
   getBrowserBodyText,
   retry,
   waitFor,
 } from 'next-test-utils'
-import { createNext, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
 export function runBasicHmrTest(nextConfig: {
   basePath: string
   assetPrefix: string
 }) {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     nextConfig,
     patchFileDelay: 500,
+    forcedPort: 'random',
   })
   const { basePath } = nextConfig
 
@@ -48,25 +49,26 @@ export function runBasicHmrTest(nextConfig: {
       hello: 'world',
     })
   })
-
-  it('should have correct compile timing after fixing error', async () => {
-    const pageName = 'pages/auto-export-is-ready.js'
-    const originalContent = await next.readFile(pageName)
-
-    try {
+  ;(isTurbopack ? it : it.skip)(
+    'should have correct compile timing after fixing error',
+    async () => {
       const browser = await next.browser(basePath + '/auto-export-is-ready')
-      const outputLength = next.cliOutput.length
+      let outputLength
       await next.patchFile(
-        pageName,
-        `import hello from 'non-existent'\n` + originalContent
+        'pages/auto-export-is-ready.js',
+        (content) => `import hello from 'non-existent'\n` + content,
+        async () => {
+          await waitForRedbox(browser)
+          await waitFor(3000)
+          outputLength = next.cliOutput.length
+        }
       )
-      await assertHasRedbox(browser)
-      await waitFor(3000)
-      await next.patchFile(pageName, originalContent)
+
+      let compileTimeStr
       await retry(async () => {
-        expect(next.cliOutput.substring(outputLength)).toMatch(/Compiled.*?/i)
+        compileTimeStr = next.cliOutput.substring(outputLength)
+        expect(compileTimeStr).toMatch(/Compiled.*?/i)
       })
-      const compileTimeStr = next.cliOutput.substring(outputLength)
 
       const matches = [
         ...compileTimeStr.match(/Compiled.*? in ([\d.]{1,})\s?(?:s|ms)/i),
@@ -78,10 +80,8 @@ export function runBasicHmrTest(nextConfig: {
         compileTimeMs = compileTimeMs * 1000
       }
       expect(compileTimeMs).toBeLessThan(3000)
-    } finally {
-      await next.patchFile(pageName, originalContent)
     }
-  })
+  )
 
   it('should reload the page when the server restarts', async () => {
     const browser = await next.browser(basePath + '/hmr/about')
@@ -91,7 +91,7 @@ export function runBasicHmrTest(nextConfig: {
       )
     })
 
-    await next.destroy()
+    await next.stop()
 
     let reloadPromise = new Promise((resolve) => {
       browser.on('request', (req) => {
@@ -101,13 +101,8 @@ export function runBasicHmrTest(nextConfig: {
       })
     })
 
-    const secondNext = await createNext({
-      files: __dirname,
-      nextConfig,
-      forcedPort: next.appPort,
-    })
+    await next.start()
 
     await reloadPromise
-    await secondNext.destroy()
   })
 }

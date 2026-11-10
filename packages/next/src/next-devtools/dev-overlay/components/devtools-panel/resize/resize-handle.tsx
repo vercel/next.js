@@ -76,7 +76,6 @@ export const ResizeHandle = ({
     const borderBottom = parseFloat(computedStyle.borderBottomWidth) || 0
     const borderLeft = parseFloat(computedStyle.borderLeftWidth) || 0
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO
     setBorderWidths({
       top: borderTop,
       right: borderRight,

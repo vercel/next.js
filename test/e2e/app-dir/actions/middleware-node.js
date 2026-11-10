@@ -7,6 +7,15 @@ export async function middleware(req) {
     return NextResponse.rewrite(req.nextUrl)
   }
 
+  if (req.method === 'POST' && req.nextUrl.pathname.includes('body-finalize')) {
+    const body = await req.json()
+
+    console.log(
+      'Middleware - Body length: %d bytes',
+      new TextEncoder().encode(JSON.stringify(body)).length
+    )
+  }
+
   return NextResponse.next()
 }
 

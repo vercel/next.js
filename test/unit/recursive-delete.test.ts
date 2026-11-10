@@ -37,17 +37,76 @@ describe('recursiveDeleteSyncWithAsyncRetries', () => {
       await recursiveCopy(resolveDataDir, testpreservefileDir, {
         overwrite: true,
       })
-      // preserve cache dir
-      await recursiveDeleteSyncWithAsyncRetries(testpreservefileDir, /^cache/)
+      await recursiveDeleteSyncWithAsyncRetries(
+        testpreservefileDir,
+        new Set(['cache'])
+      )
 
       const result = await recursiveReadDir(testpreservefileDir)
-      expect(result.length).toBe(1)
+      expect(result).toEqual(['/cache/test.txt'])
     } finally {
       // Ensure test cleanup
       await recursiveDeleteSyncWithAsyncRetries(testpreservefileDir)
 
       const cleanupResult = await recursiveReadDir(testpreservefileDir)
       expect(cleanupResult.length).toBe(0)
+    }
+  })
+
+  it('should exclude a nested path', async () => {
+    expect.assertions(4)
+    try {
+      await recursiveCopy(resolveDataDir, testpreservefileDir, {
+        overwrite: true,
+      })
+      await recursiveDeleteSyncWithAsyncRetries(
+        testpreservefileDir,
+        new Set([join('aa', 'cache.js')])
+      )
+
+      const result = await recursiveReadDir(testpreservefileDir)
+      expect(result).toEqual(['/aa/cache.js'])
+      expect(
+        await fs.pathExists(join(testpreservefileDir, 'aa', 'cache.js'))
+      ).toBe(true)
+      expect(
+        await fs.pathExists(join(testpreservefileDir, 'aa', 'index.js'))
+      ).toBe(false)
+    } finally {
+      // Ensure test cleanup
+      await recursiveDeleteSyncWithAsyncRetries(testpreservefileDir)
+
+      const cleanupResult = await recursiveReadDir(testpreservefileDir)
+      expect(cleanupResult.length).toBe(0)
+    }
+  })
+
+  it('should only delete files older than maxAgeMs, and empty out dirs', async () => {
+    const dir = join(__dirname, 'isolated', 'ttl')
+    try {
+      await fs.outputFile(join(dir, 'stale', 'old.js'), 'old')
+      await fs.outputFile(join(dir, 'fresh', 'new.js'), 'new')
+      await fs.outputFile(join(dir, 'mixed', 'old.js'), 'old')
+      await fs.outputFile(join(dir, 'mixed', 'new.js'), 'new')
+      await fs.outputFile(join(dir, 'future.js'), 'future')
+
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      for (const p of ['stale/old.js', 'mixed/old.js']) {
+        await fs.utimes(join(dir, p), weekAgo, weekAgo)
+      }
+      const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000)
+      await fs.utimes(join(dir, 'future.js'), twoHoursFromNow, twoHoursFromNow)
+
+      await recursiveDeleteSyncWithAsyncRetries(dir, undefined, 60 * 60 * 1000)
+
+      expect((await recursiveReadDir(dir)).sort()).toEqual([
+        '/fresh/new.js',
+        '/mixed/new.js',
+      ])
+      // `stale` held nothing but stale files, so the directory goes too
+      expect(await fs.pathExists(join(dir, 'stale'))).toBe(false)
+    } finally {
+      await recursiveDeleteSyncWithAsyncRetries(dir)
     }
   })
 })

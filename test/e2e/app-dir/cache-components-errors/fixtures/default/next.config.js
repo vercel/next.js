@@ -2,8 +2,12 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  cacheComponents: true,
+  partialPrefetching: false,
   experimental: {
-    cacheComponents: true,
+    instantInsights: {
+      validationLevel: 'manual-warning',
+    },
   },
 }
 

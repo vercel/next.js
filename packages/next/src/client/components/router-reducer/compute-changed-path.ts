@@ -9,7 +9,6 @@ import {
   DEFAULT_SEGMENT_KEY,
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
-import { matchSegment } from '../match-segments'
 
 const removeLeadingSlash = (segment: string): string => {
   return segment[0] === '/' ? segment.slice(1) : segment
@@ -25,6 +24,44 @@ const segmentToPathname = (segment: Segment): string => {
   }
 
   return segment[1]
+}
+
+export const segmentToSourcePagePathname = (segment: Segment): string => {
+  if (typeof segment === 'string') {
+    if (segment === 'children') return ''
+    if (segment === PAGE_SEGMENT_KEY) return 'page'
+    return segment
+  }
+
+  const [paramName, , dynamicParamType] = segment
+
+  switch (dynamicParamType) {
+    case 'c':
+      return `[...${paramName}]`
+    case 'ci(..)(..)':
+      return `(..)(..)[...${paramName}]`
+    case 'ci(.)':
+      return `(.)[...${paramName}]`
+    case 'ci(..)':
+      return `(..)[...${paramName}]`
+    case 'ci(...)':
+      return `(...)[...${paramName}]`
+    case 'oc':
+      return `[[...${paramName}]]`
+    case 'd':
+      return `[${paramName}]`
+    case 'di(..)(..)':
+      return `(..)(..)[${paramName}]`
+    case 'di(.)':
+      return `(.)[${paramName}]`
+    case 'di(..)':
+      return `(..)[${paramName}]`
+    case 'di(...)':
+      return `(...)[${paramName}]`
+    default:
+      dynamicParamType satisfies never
+      return `[${paramName}]`
+  }
 }
 
 function normalizeSegments(segments: string[]): string {
@@ -53,7 +90,7 @@ export function extractPathFromFlightRouterState(
   )
     return undefined
 
-  if (segment.startsWith(PAGE_SEGMENT_KEY)) return ''
+  if (segment === PAGE_SEGMENT_KEY) return ''
 
   const segments = [segmentToPathname(segment)]
   const parallelRoutes = flightRouterState[1] ?? {}
@@ -79,6 +116,55 @@ export function extractPathFromFlightRouterState(
   return normalizeSegments(segments)
 }
 
+function extractSourcePageSegmentsFromFlightRouterState(
+  flightRouterState: FlightRouterState
+): string[] | undefined {
+  const segment = segmentToSourcePagePathname(flightRouterState[0])
+
+  if (segment === DEFAULT_SEGMENT_KEY) {
+    return undefined
+  }
+
+  if (segment === 'page') {
+    return [segment]
+  }
+
+  const parallelRoutes = flightRouterState[1] ?? {}
+
+  const childrenPath = parallelRoutes.children
+    ? extractSourcePageSegmentsFromFlightRouterState(parallelRoutes.children)
+    : undefined
+
+  if (childrenPath !== undefined) {
+    return segment === ''
+      ? childrenPath
+      : [removeLeadingSlash(segment), ...childrenPath]
+  }
+
+  for (const [key, value] of Object.entries(parallelRoutes)) {
+    if (key === 'children') continue
+
+    const childPath = extractSourcePageSegmentsFromFlightRouterState(value)
+
+    if (childPath !== undefined) {
+      return segment === ''
+        ? childPath
+        : [removeLeadingSlash(segment), ...childPath]
+    }
+  }
+
+  return undefined
+}
+
+export function extractSourcePageFromFlightRouterState(
+  flightRouterState: FlightRouterState
+): string | undefined {
+  const sourcePageSegments =
+    extractSourcePageSegmentsFromFlightRouterState(flightRouterState)
+
+  return sourcePageSegments ? `/${sourcePageSegments.join('/')}` : undefined
+}
+
 function computeChangedPathImpl(
   treeA: FlightRouterState,
   treeB: FlightRouterState
@@ -98,7 +184,22 @@ function computeChangedPathImpl(
     return ''
   }
 
-  if (!matchSegment(segmentA, segmentB)) {
+  // Param types and static sibling hints don't affect the resulting pathname,
+  // so only compare the segment name and param value.
+  // TODO: computeChangedPath is only used to compute the Next-Url header.
+  // We should refactor this data structure to be lower cardinality. For example
+  // it doesn't need to include any of the concrete param values, just the
+  // route structure.
+  const didPathChange =
+    typeof segmentA === 'string' || typeof segmentB === 'string'
+      ? segmentA !== segmentB
+      : segmentA[0] !== segmentB[0] || segmentA[1] !== segmentB[1]
+  if (
+    didPathChange ||
+    // A change to the page's search params counts, too. (They used to be part
+    // of the page segment string.)
+    (segmentA === PAGE_SEGMENT_KEY && treeA[5] !== treeB[5])
+  ) {
     // once we find where the tree changed, we compute the rest of the path by traversing the tree
     return extractPathFromFlightRouterState(treeB) ?? ''
   }
@@ -145,7 +246,7 @@ export function getSelectedParams(
     const segment = parallelRoute[0]
     const isDynamicParameter = Array.isArray(segment)
     const segmentValue = isDynamicParameter ? segment[1] : segment
-    if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
+    if (!segmentValue || segmentValue === PAGE_SEGMENT_KEY) continue
 
     // Ensure catchAll and optional catchall are turned into an array
     const isCatchAll =

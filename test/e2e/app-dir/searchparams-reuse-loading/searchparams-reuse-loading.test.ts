@@ -173,6 +173,7 @@ describe('searchparams-reuse-loading', () => {
       { path: '/with-middleware', label: 'With Middleware' },
     ])('$label', ({ path }) => {
       it('should correctly return different RSC data for full prefetches with different searchParam values', async () => {
+        // TODO: Skipped in deploy tests when middleware is present
         const rscRequestPromise = new Map<
           string,
           { resolve: () => Promise<void> }

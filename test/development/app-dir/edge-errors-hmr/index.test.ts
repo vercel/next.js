@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, assertNoRedbox } from 'next-test-utils'
+import { waitForRedbox, waitForNoRedbox } from 'next-test-utils'
 
 describe('develop - app-dir - edge errros hmr', () => {
   const { next } = nextTestSetup({
@@ -14,11 +14,11 @@ describe('develop - app-dir - edge errros hmr', () => {
       return content.replace('{/* < */}', '<') // uncomment
     })
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
 
     await next.patchFile('app/comp.server.js', clientComponentSource)
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 
   it('should recover from build errors when client component error', async () => {
@@ -29,10 +29,10 @@ describe('develop - app-dir - edge errros hmr', () => {
       return content.replace('{/* < */}', '<') // uncomment
     })
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
 
     await next.patchFile('app/comp.client.js', clientComponentSource)
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 })

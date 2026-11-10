@@ -1,5 +1,12 @@
 use std::{borrow::Cow, fmt::Display};
 
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
 use serde::{Deserialize, Serialize};
 use turbopack_core::source_map::{SourceMap, Token};
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
@@ -8,17 +15,20 @@ use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 ///
 /// Line and column can be None if the frame is anonymous.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct StackFrame<'a> {
-    pub file: Cow<'a, str>,
+pub(crate) struct StackFrame<'a> {
+    pub(super) file: Cow<'a, str>,
     #[serde(rename = "lineNumber")]
-    pub line: Option<u32>,
-    pub column: Option<u32>,
+    pub(super) line: Option<u32>,
+    pub(super) column: Option<u32>,
     #[serde(rename = "methodName")]
-    pub name: Option<Cow<'a, str>>,
+    pub(super) name: Option<Cow<'a, str>>,
 }
 
 impl<'a> StackFrame<'a> {
-    pub fn unmangle_identifiers<T: Display>(&self, magic: impl Fn(String) -> T) -> StackFrame<'_> {
+    pub(super) fn unmangle_identifiers<T: Display>(
+        &self,
+        magic: impl Fn(String) -> T,
+    ) -> StackFrame<'_> {
         StackFrame {
             file: Cow::Borrowed(self.file.as_ref()),
             line: self.line,
@@ -30,7 +40,7 @@ impl<'a> StackFrame<'a> {
         }
     }
 
-    pub fn with_path<'b>(&'a self, path: &'b str) -> StackFrame<'b>
+    pub(super) fn with_path<'b>(&'a self, path: &'b str) -> StackFrame<'b>
     where
         'a: 'b,
     {
@@ -42,7 +52,7 @@ impl<'a> StackFrame<'a> {
         }
     }
 
-    pub fn with_name<'b>(&'a self, name: Option<&'b str>) -> StackFrame<'b>
+    pub(super) fn with_name<'b>(&'a self, name: Option<&'b str>) -> StackFrame<'b>
     where
         'a: 'b,
     {
@@ -54,7 +64,7 @@ impl<'a> StackFrame<'a> {
         }
     }
 
-    pub fn get_pos(&self) -> Option<(u32, u32)> {
+    pub(super) fn get_pos(&self) -> Option<(u32, u32)> {
         self.line.zip(self.column)
     }
 }
@@ -73,9 +83,33 @@ impl Display for StackFrame<'_> {
     }
 }
 
+impl Encode for StackFrame<'_> {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        self.file.encode(encoder)?;
+        self.line.encode(encoder)?;
+        self.column.encode(encoder)?;
+        self.name.encode(encoder)?;
+        Ok(())
+    }
+}
+
+// needs a manual implementation because the derive macro doesn't handle the lifetime correctly
+impl<Context> Decode<Context> for StackFrame<'_> {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        Ok(Self {
+            file: Decode::decode(decoder)?,
+            line: Decode::decode(decoder)?,
+            column: Decode::decode(decoder)?,
+            name: Decode::decode(decoder)?,
+        })
+    }
+}
+
+impl_borrow_decode!(StackFrame<'_>);
+
 /// The result of performing a source map trace.
 #[derive(Debug)]
-pub enum TraceResult {
+pub(super) enum TraceResult {
     NotFound,
     Found(StackFrame<'static>),
 }
@@ -90,7 +124,7 @@ pub enum TraceResult {
 /// memory hog, it'd be so much faster if we could just directly access
 /// the individual sections of the JS file's map without the
 /// serialization.
-pub fn trace_source_map(
+pub(super) fn trace_source_map(
     map: &SourceMap,
     line: u32,
     column: u32,

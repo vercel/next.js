@@ -4,25 +4,26 @@ use rustc_hash::FxHashSet;
 use turbo_tasks::TaskId;
 
 use crate::backend::{
-    get,
     operation::{
         AggregationUpdateJob, AggregationUpdateQueue, TaskGuard, is_aggregating_node, is_root_node,
     },
+    storage_schema::TaskStorageAccessors,
 };
 
 const AGGREGATION_NUMBER_BUFFER_SPACE: u32 = 3;
 
 pub fn prepare_new_children(
     parent_task_id: TaskId,
-    parent_task: &mut impl TaskGuard,
+    parent_task: &mut TaskGuard<'_>,
     new_children: &FxHashSet<TaskId>,
     queue: &mut AggregationUpdateQueue,
-) {
+) -> u32 {
     debug_assert!(!new_children.is_empty());
     let children_count = new_children.len();
 
     // Compute future parent aggregation number based on the number of children
-    let current_parent_aggregation = get!(parent_task, AggregationNumber)
+    let current_parent_aggregation = parent_task
+        .get_aggregation_number()
         .copied()
         .unwrap_or_default();
     let future_parent_aggregation = if is_root_node(current_parent_aggregation.base) {
@@ -54,4 +55,6 @@ pub fn prepare_new_children(
             });
         }
     };
+
+    future_parent_aggregation
 }

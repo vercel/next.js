@@ -1,40 +1,51 @@
 import '../../server/web/globals'
-import { adapter, type NextRequestHint } from '../../server/web/adapter'
+import {
+  adapter,
+  type EdgeHandler,
+  type NextRequestHint,
+} from '../../server/web/adapter'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
 
 import * as pageMod from 'VAR_USERLAND'
 
-import type { RequestData } from '../../server/web/types'
-import type { NextConfigComplete } from '../../server/config-shared'
-import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
-import { createServerModuleMap } from '../../server/app-render/action-utils'
-import { initializeCacheHandlers } from '../../server/use-cache/handlers'
+import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
+import * as cacheHandlers from '../../server/use-cache/handlers'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
-import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
+import {
+  getTracer,
+  SpanKind,
+  SpanStatusCode,
+  type Span,
+} from '../../server/lib/trace/tracer'
 import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
 import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event'
 import type {
   AppPageRouteHandlerContext,
   AppPageRouteModule,
+  DevRenderContext,
+  RouteMatch,
 } from '../../server/route-modules/app-page/module.compiled'
 import type { AppPageRenderResultMetadata } from '../../server/render-result'
 import type RenderResult from '../../server/render-result'
-import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta'
+import { getServerActionRequestMetadata } from '../../server/lib/server-action-request-meta'
 import { getBotType } from '../../shared/lib/router/utils/is-bot'
+import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata'
 import { interopDefault } from '../../lib/interop-default'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { checkIsOnDemandRevalidate } from '../../server/api-utils'
 import { CloseController } from '../../server/web/web-on-close'
+import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
+import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
+import type { RequestMeta } from '../../server/request-meta'
+import { createDevRenderContext } from '../../server/route-modules/app-page/dev-render-context'
+import {
+  parseRequestHeaders,
+  type ParsedRequestHeaders,
+} from '../../server/route-modules/app-page/parse-request-headers'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
-
-// Initialize the cache handlers interface.
-initializeCacheHandlers()
-
-// injected by the loader afterwards.
-declare const nextConfig: NextConfigComplete
-// INJECT:nextConfig
+// INJECT_RAW:cacheHandlerImports
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
@@ -42,13 +53,10 @@ const rscManifest = self.__RSC_MANIFEST?.['VAR_PAGE']
 const rscServerManifest = maybeJSONParse(self.__RSC_SERVER_MANIFEST)
 
 if (rscManifest && rscServerManifest) {
-  setReferenceManifestsSingleton({
+  setManifestsSingleton({
     page: 'VAR_PAGE',
     clientReferenceManifest: rscManifest,
     serverActionsManifest: rscServerManifest,
-    serverModuleMap: createServerModuleMap({
-      serverActionsManifest: rscServerManifest,
-    }),
   })
 }
 
@@ -80,37 +88,61 @@ async function requestHandler(
     query,
     params,
     buildId,
+    nextConfig,
     buildManifest,
     prerenderManifest,
+    previewProps,
     reactLoadableManifest,
-    clientReferenceManifest,
     subresourceIntegrityManifest,
     dynamicCssManifest,
     nextFontManifest,
     resolvedPathname,
-    serverActionsManifest,
     interceptionRoutePatterns,
     routerServerContext,
+    deploymentId,
+    clientAssetToken,
   } = prepareResult
 
-  const isPossibleServerAction = getIsPossibleServerAction(req)
-  const botType = getBotType(req.headers.get('User-Agent') || '')
+  // Initialize the cache handlers interface.
+  cacheHandlers.initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+  // INJECT_RAW:cacheHandlerRegistration
+
+  const serverActionRequestMetadata = getServerActionRequestMetadata(baseReq)
+  const userAgent = req.headers.get('User-Agent') || ''
+  const botType = getBotType(userAgent)
   const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
-    req,
-    prerenderManifest.preview
+    req.headers,
+    previewProps
   )
 
   const closeController = new CloseController()
 
-  const renderContext: AppPageRouteHandlerContext = {
+  const routeMatch: RouteMatch = {
+    resolvedPathname,
+    // The Vary header is currently added after rendering in the Edge adapter.
+    couldBeIntercepted: false,
+  }
+  const dev: DevRenderContext | undefined = createDevRenderContext(baseReq)
+  const renderContextBase: Omit<
+    AppPageRouteHandlerContext,
+    'parsedRequestHeaders'
+  > = {
+    requestUrl: baseReq.url,
+    requestHeaders: baseReq.headers,
+    serverActionRequestMetadata,
     page: normalizedSrcPage,
+    routeMatch,
     query,
     params,
+    dev,
 
     sharedContext: {
       buildId,
+      deploymentId,
+      clientAssetToken,
     },
     fallbackRouteParams: null,
+    stagedFallbackParams: null,
 
     renderOpts: {
       App: () => null,
@@ -123,58 +155,86 @@ async function requestHandler(
       params,
       page: srcPage,
       postponed: undefined,
-      shouldWaitOnAllReady: false,
-      serveStreamingMetadata: true,
+      serveStreamingMetadata: shouldServeStreamingMetadata(
+        userAgent,
+        nextConfig.htmlLimitedBots
+      ),
       supportsDynamicResponse: true,
       buildManifest,
       nextFontManifest,
       reactLoadableManifest,
       subresourceIntegrityManifest,
       dynamicCssManifest,
-      serverActionsManifest,
-      clientReferenceManifest,
       setIsrStatus: routerServerContext?.setIsrStatus,
 
       dir: pageRouteModule.relativeProjectDir,
       botType,
       isDraftMode: false,
       isOnDemandRevalidate,
-      isPossibleServerAction,
       assetPrefix: nextConfig.assetPrefix,
       nextConfigOutput: nextConfig.output,
       crossOrigin: nextConfig.crossOrigin,
       trailingSlash: nextConfig.trailingSlash,
       images: nextConfig.images,
-      previewProps: prerenderManifest.preview,
-      deploymentId: nextConfig.deploymentId,
+      previewProps: previewProps,
       enableTainting: nextConfig.experimental.taint,
-      htmlLimitedBots: nextConfig.htmlLimitedBots,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
       multiZoneDraftMode: false,
-      cacheLifeProfiles: nextConfig.experimental.cacheLife,
+      cacheLifeProfiles: nextConfig.cacheLife,
+      staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
       basePath: nextConfig.basePath,
       serverActions: nextConfig.experimental.serverActions,
-
+      logServerFunctions:
+        typeof nextConfig.logging === 'object' &&
+        Boolean(nextConfig.logging.serverFunctions),
+      cacheComponents: Boolean(nextConfig.cacheComponents),
+      validationLevel: nextConfig.experimental.instantInsights.validationLevel,
       experimental: {
         isRoutePPREnabled: false,
         expireTime: nextConfig.expireTime,
         staleTimes: nextConfig.experimental.staleTimes,
-        cacheComponents: Boolean(nextConfig.experimental.cacheComponents),
-        clientSegmentCache: Boolean(nextConfig.experimental.clientSegmentCache),
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
+        optimisticRouting: Boolean(nextConfig.experimental.optimisticRouting),
+        parallelRouteMetadata: Boolean(
+          nextConfig.experimental.parallelRouteMetadata
+        ),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
+        prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
-        clientTraceMetadata:
-          nextConfig.experimental.clientTraceMetadata || ([] as any),
+        reactBrowserBailout: Boolean(
+          nextConfig.experimental.reactBrowserBailout
+        ),
+        // Edge has no Node response-close signal, so HMR cancellation is a
+        // no-op.
+        serverComponentsHmrCancellation: false,
+        useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+        durableUseCacheEntries: Boolean(
+          nextConfig.experimental.durableUseCacheEntries
+        ),
+        cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
+        clientTraceMetadata: nextConfig.experimental.clientTraceMetadata || [],
         clientParamParsingOrigins:
           nextConfig.experimental.clientParamParsingOrigins,
+        maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+          nextConfig.experimental.maxPostponedStateSize
+        ),
+        disableResumeDataCacheCompression:
+          nextConfig.experimental.disableResumeDataCacheCompression ?? false,
+        exposeTestingApi:
+          nextConfig.cacheComponents === true &&
+          (pageRouteModule.isDev === true ||
+            nextConfig.experimental.exposeTestingApiInProductionBuild === true),
+        externalBrowserRuntime:
+          nextConfig.experimental.externalBrowserRuntime === true,
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(
         baseReq,
         nextConfig,
-        prerenderManifest
+        previewProps,
+        prerenderManifest,
+        true
       ),
 
       waitUntil: event.waitUntil.bind(event),
@@ -183,14 +243,14 @@ async function requestHandler(
       },
       onAfterTaskError: () => {},
 
-      onInstrumentationRequestError: (error, _request, errorContext) =>
+      onInstrumentationRequestError: (error, errorContext, silenceLog) =>
         pageRouteModule.onRequestError(
           baseReq,
           error,
           errorContext,
+          silenceLog,
           routerServerContext
         ),
-      dev: pageRouteModule.isDev,
     },
   }
   let finalStatus = 200
@@ -214,7 +274,7 @@ async function requestHandler(
     const headers = new Headers()
     finalStatus = metadata.statusCode || baseRes.statusCode || 200
     // Pull any fetch metrics from the render onto the request.
-    ;(req as any).fetchMetrics = metadata.fetchMetrics
+    req.fetchMetrics = metadata.fetchMetrics
 
     // Set content type
     const contentType = result.contentType || 'text/html; charset=utf-8'
@@ -277,6 +337,20 @@ async function requestHandler(
 
   const invokeRender = async (span?: Span): Promise<Response> => {
     try {
+      const parsedRequestHeaders: ParsedRequestHeaders = parseRequestHeaders(
+        baseReq.headers,
+        {
+          isRoutePPREnabled:
+            renderContextBase.renderOpts.experimental.isRoutePPREnabled ===
+            true,
+          previewModeId:
+            renderContextBase.renderOpts.previewProps?.previewModeId,
+        }
+      )
+      const renderContext: AppPageRouteHandlerContext = {
+        ...renderContextBase,
+        parsedRequestHeaders,
+      }
       const result = await pageRouteModule
         .render(baseReq, baseRes, renderContext)
         .finally(() => {
@@ -286,6 +360,16 @@ async function requestHandler(
             'http.status_code': finalStatus,
             'next.rsc': false,
           })
+
+          if (finalStatus && finalStatus >= 500) {
+            // For 5xx status codes: SHOULD be set to 'Error' span status.
+            // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+            span.setStatus({
+              code: SpanStatusCode.ERROR,
+            })
+            // For span status 'Error', SHOULD set 'error.type' attribute.
+            span.setAttribute('error.type', finalStatus.toString())
+          }
 
           const rootSpanAttributes = tracer.getRootSpanAttributes()
           // We were unable to get attributes, probably OTEL is not enabled
@@ -322,12 +406,21 @@ async function requestHandler(
 
       return renderResultToResponse(result)
     } catch (err) {
-      await pageRouteModule.onRequestError(baseReq, err, {
-        routerKind: 'App Router',
-        routePath: normalizedSrcPage,
-        routeType: 'render',
-        revalidateReason: undefined,
-      })
+      if (!closeController.isClosed) {
+        closeController.dispatchClose()
+      }
+      const silenceLog = false
+      await pageRouteModule.onRequestError(
+        baseReq,
+        err,
+        {
+          routerKind: 'App Router',
+          routePath: normalizedSrcPage,
+          routeType: 'render',
+          revalidateReason: undefined,
+        },
+        silenceLog
+      )
       // rethrow so that we can handle serving error page
       throw err
     }
@@ -352,11 +445,59 @@ async function requestHandler(
   )
 }
 
-export default function nHandler(opts: { page: string; request: RequestData }) {
+const internalHandler: EdgeHandler = (opts) => {
   return adapter({
     ...opts,
     IncrementalCache,
     handler: requestHandler,
     incrementalCacheHandler,
+    page: 'VAR_PAGE',
   })
 }
+
+export async function handler(
+  request: Request,
+  ctx: {
+    waitUntil?: (prom: Promise<void>) => void
+    signal?: AbortSignal
+    requestMeta?: RequestMeta
+  }
+): Promise<Response> {
+  const result = await internalHandler({
+    request: {
+      url: request.url,
+      method: request.method,
+      headers: toNodeOutgoingHttpHeaders(request.headers),
+      nextConfig: {
+        basePath: process.env.__NEXT_BASE_PATH,
+        i18n: process.env.__NEXT_I18N_CONFIG as any,
+        trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
+        experimental: {
+          cacheLife: process.env.__NEXT_CACHE_LIFE as any,
+          authInterrupts: Boolean(
+            process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS
+          ),
+          clientParamParsingOrigins: process.env
+            .__NEXT_CLIENT_PARAM_PARSING_ORIGINS as any,
+        },
+      },
+      page: {
+        name: 'VAR_PAGE',
+      },
+      body:
+        request.method !== 'GET' && request.method !== 'HEAD'
+          ? (request.body ?? undefined)
+          : undefined,
+      waitUntil: ctx.waitUntil,
+      requestMeta: ctx.requestMeta,
+      signal: ctx.signal || new AbortController().signal,
+    },
+  })
+
+  ctx.waitUntil?.(result.waitUntil)
+
+  return result.response
+}
+
+// backwards compat
+export default internalHandler

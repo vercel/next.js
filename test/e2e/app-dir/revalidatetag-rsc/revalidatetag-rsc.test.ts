@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxHeader, retry } from 'next-test-utils'
+import { waitForRedbox, getRedboxHeader, retry } from 'next-test-utils'
 
 describe('revalidateTag-rsc', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
@@ -28,20 +28,42 @@ describe('revalidateTag-rsc', () => {
       await browser.elementByCss('#revalidate-via-page').click()
 
       if (isNextDev) {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         await expect(getRedboxHeader(browser)).resolves.toContain(
-          'Route /revalidate_via_page used "revalidateTag data"'
+          'Route "/revalidate_via_page": `revalidateTag("revalidatetag-rsc:data")` can\'t be called during render.'
         )
       } else {
         await retry(async () => {
           expect(
             await browser.eval('document.documentElement.innerHTML')
-          ).toContain('Application error: a server-side exception has occurred')
+          ).toContain('This page couldn\u2019t load')
         })
       }
 
       expect(next.cliOutput).toContain(
-        'Route /revalidate_via_page used "revalidateTag data"'
+        'Route "/revalidate_via_page": `revalidateTag("revalidatetag-rsc:data")` can\'t be called during render. Call it from a Server Action or Route Handler instead.\nLearn more: https://nextjs.org/docs/messages/revalidate-in-use-cache'
+      )
+    })
+
+    it('should error if revalidateTag is called inside a cached function', async () => {
+      const browser = await next.browser('/')
+      await browser.elementByCss('#revalidate-via-cache').click()
+
+      if (isNextDev) {
+        await waitForRedbox(browser)
+        await expect(getRedboxHeader(browser)).resolves.toContain(
+          'Route "/revalidate_via_cache": `revalidateTag("revalidatetag-rsc:data")` can\'t be called inside a cached function.'
+        )
+      } else {
+        await retry(async () => {
+          expect(
+            await browser.eval('document.documentElement.innerHTML')
+          ).toContain('This page couldn\u2019t load')
+        })
+      }
+
+      expect(next.cliOutput).toContain(
+        'Route "/revalidate_via_cache": `revalidateTag("revalidatetag-rsc:data")` can\'t be called inside a cached function. Call it from a Server Action or Route Handler instead.\nLearn more: https://nextjs.org/docs/messages/revalidate-in-use-cache'
       )
     })
   }

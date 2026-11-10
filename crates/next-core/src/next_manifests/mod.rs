@@ -4,16 +4,16 @@ pub mod client_reference_manifest;
 mod encode_uri_component;
 
 use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
+use serde_json::value::RawValue;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
-    Vc, trace::TraceRawVcs,
-};
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    output::{OutputAsset, OutputAssets},
+    json::RcJsonRawValue,
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
 use crate::next_config::RouteHas;
@@ -31,19 +31,30 @@ pub struct BuildManifest {
     pub client_relative_path: FileSystemPath,
 
     pub polyfill_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
+    /// The standalone browser runtime that applies React's instruction set when
+    /// `experimental.externalBrowserRuntime` is enabled. `None` otherwise.
+    pub external_browser_runtime_file: Option<ResolvedVc<Box<dyn OutputAsset>>>,
     pub root_main_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub pages: FxIndexMap<RcStr, ResolvedVc<OutputAssets>>,
+    /// Per-page extra files that supplement `root_main_files` for App Router
+    /// pages. Serialized as `rootMainFilesTree[page] = [...root_main_files,
+    /// ...per_page_files]` so that `required-scripts.tsx` can load the correct
+    /// page-specific scripts without polluting the shared `rootMainFiles`.
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub root_main_files_per_page: FxIndexMap<RcStr, Vec<ResolvedVc<Box<dyn OutputAsset>>>>,
+    /// Per-page inline chunk group bootstrap params, as JSON. Empty when the
+    /// bootstrap is emitted as a per-route chunk instead (e.g. dev).
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub pages_chunk_group_bootstrap_params: FxIndexMap<RcStr, RcJsonRawValue>,
+    /// The `globalThis[...]` chunk-loading global the runtime drains.
+    pub chunk_loading_global: RcStr,
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for BuildManifest {
+impl OutputAssetsReference for BuildManifest {
     #[turbo_tasks::function]
-    async fn path(&self) -> Vc<FileSystemPath> {
-        self.output_path.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
+    async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
         let chunks: Vec<ReadRef<OutputAssets>> = self.pages.values().try_join().await?;
 
         let root_main_files = self
@@ -53,15 +64,33 @@ impl OutputAsset for BuildManifest {
             .try_flat_join()
             .await?;
 
+        let per_page_files = self
+            .root_main_files_per_page
+            .values()
+            .flatten()
+            .copied()
+            .collect::<Vec<_>>();
+
         let references = chunks
             .into_iter()
             .flatten()
-            .copied()
-            .chain(root_main_files.into_iter())
+            .chain(root_main_files)
             .chain(self.polyfill_files.iter().copied())
+            .chain(self.external_browser_runtime_file)
+            .chain(per_page_files)
             .collect();
 
-        Ok(Vc::cell(references))
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
+            references,
+        )))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for BuildManifest {
+    #[turbo_tasks::function]
+    async fn path(&self) -> Vc<FileSystemPath> {
+        self.output_path.clone().cell()
     }
 }
 
@@ -73,14 +102,20 @@ impl Asset for BuildManifest {
 
         #[derive(Serialize, Default, Debug)]
         #[serde(rename_all = "camelCase")]
-        pub struct SerializedBuildManifest {
+        pub struct SerializedBuildManifest<'a> {
             pub dev_files: Vec<RcStr>,
             pub amp_dev_files: Vec<RcStr>,
             pub polyfill_files: Vec<RcStr>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub external_browser_runtime_file: Option<RcStr>,
             pub low_priority_files: Vec<RcStr>,
             pub root_main_files: Vec<RcStr>,
             pub pages: FxIndexMap<RcStr, Vec<RcStr>>,
             pub amp_first_pages: Vec<RcStr>,
+            pub root_main_files_tree: FxIndexMap<RcStr, Vec<RcStr>>,
+            // The values are already JSON; store them as `RawValue` so they are emitted verbatim.
+            pub pages_chunk_group_bootstrap_params: FxIndexMap<RcStr, &'a RawValue>,
+            pub chunk_loading_global: RcStr,
         }
 
         let pages: Vec<(RcStr, Vec<RcStr>)> = self
@@ -121,6 +156,22 @@ impl Asset for BuildManifest {
             .try_join()
             .await?;
 
+        let external_browser_runtime_file: Option<RcStr> = match self.external_browser_runtime_file
+        {
+            Some(chunk) => {
+                let chunk_path = chunk.path().await?;
+                Some(
+                    client_relative_path
+                        .get_path_to(&chunk_path)
+                        .context(
+                            "failed to resolve client-relative path to external browser runtime",
+                        )?
+                        .into(),
+                )
+            }
+            None => None,
+        };
+
         let root_main_files: Vec<RcStr> = self
             .root_main_files
             .iter()
@@ -140,15 +191,53 @@ impl Asset for BuildManifest {
             .try_flat_join()
             .await?;
 
+        let root_main_files_tree: Vec<(RcStr, Vec<RcStr>)> = self
+            .root_main_files_per_page
+            .iter()
+            .map(async |(page, per_page_chunks)| {
+                let per_page_paths: Vec<RcStr> = per_page_chunks
+                    .iter()
+                    .copied()
+                    .map(async |chunk| {
+                        let chunk_path = chunk.path().await?;
+                        Ok(client_relative_path
+                            .get_path_to(&chunk_path)
+                            .context(
+                                "failed to resolve client-relative path to per-page root file",
+                            )?
+                            .into())
+                    })
+                    .try_join()
+                    .await?;
+                // Combine the shared root_main_files with this page's extra
+                // files so that required-scripts.tsx gets the full list.
+                let combined = root_main_files
+                    .iter()
+                    .cloned()
+                    .chain(per_page_paths)
+                    .collect();
+                Ok((page.clone(), combined))
+            })
+            .try_join()
+            .await?;
+
         let manifest = SerializedBuildManifest {
-            pages: FxIndexMap::from_iter(pages.into_iter()),
+            pages: FxIndexMap::from_iter(pages),
             polyfill_files,
+            external_browser_runtime_file,
             root_main_files,
+            root_main_files_tree: FxIndexMap::from_iter(root_main_files_tree),
+            pages_chunk_group_bootstrap_params: self
+                .pages_chunk_group_bootstrap_params
+                .iter()
+                .map(|(k, v)| (k.clone(), &**v))
+                .collect(),
+            chunk_loading_global: self.chunk_loading_global.clone(),
             ..Default::default()
         };
 
         Ok(AssetContent::file(
-            File::from(serde_json::to_string_pretty(&manifest)?).into(),
+            FileContent::Content(File::from(serde_json::to_string_pretty(&manifest)?)).cell(),
         ))
     }
 }
@@ -159,7 +248,17 @@ pub struct ClientBuildManifest {
     pub output_path: FileSystemPath,
     pub client_relative_path: FileSystemPath,
 
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub pages: FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>,
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for ClientBuildManifest {
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let chunks: Vec<ResolvedVc<Box<dyn OutputAsset>>> = self.pages.values().copied().collect();
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(chunks)))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -167,12 +266,6 @@ impl OutputAsset for ClientBuildManifest {
     #[turbo_tasks::function]
     async fn path(&self) -> Vc<FileSystemPath> {
         self.output_path.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
-        let chunks: Vec<ResolvedVc<Box<dyn OutputAsset>>> = self.pages.values().copied().collect();
-        Ok(Vc::cell(chunks))
     }
 }
 
@@ -202,7 +295,7 @@ impl Asset for ClientBuildManifest {
             .collect();
 
         Ok(AssetContent::file(
-            File::from(serde_json::to_string_pretty(&manifest)?).into(),
+            FileContent::Content(File::from(serde_json::to_string_pretty(&manifest)?)).cell(),
         ))
     }
 }
@@ -223,23 +316,13 @@ impl Default for MiddlewaresManifest {
     }
 }
 
+#[turbo_tasks::task_input]
 #[derive(
-    Debug,
-    Clone,
-    Hash,
-    Eq,
-    PartialEq,
-    Ord,
-    PartialOrd,
-    TaskInput,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    NonLocalValue,
+    Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase", default)]
 pub struct ProxyMatcher {
-    // When skipped next.js with fill that during merging.
+    // When skipped, next.js will fill the field during merging.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regexp: Option<RcStr>,
     #[serde(skip_serializing_if = "bool_is_true")]
@@ -272,6 +355,7 @@ pub struct EdgeFunctionDefinition {
     pub files: Vec<RcStr>,
     pub name: RcStr,
     pub page: RcStr,
+    pub entrypoint: RcStr,
     pub matchers: Vec<ProxyMatcher>,
     pub wasm: Vec<AssetBinding>,
     pub assets: Vec<AssetBinding>,
@@ -371,23 +455,42 @@ pub struct ActionManifestEntry<'a> {
     /// module that exports it.
     pub workers: FxIndexMap<&'a str, ActionManifestWorkerEntry<'a>>,
 
-    pub layer: FxIndexMap<&'a str, ActionLayer>,
-
     #[serde(rename = "exportedName")]
     pub exported_name: &'a str,
 
     pub filename: &'a str,
+
+    /// Source location line number (1-indexed), if available
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line: Option<u32>,
+
+    /// Source location column number (1-indexed), if available
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub col: Option<u32>,
 }
 
 #[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct ActionManifestWorkerEntry<'a> {
-    #[serde(rename = "moduleId")]
     pub module_id: ActionManifestModuleId<'a>,
     #[serde(rename = "async")]
     pub is_async: bool,
-    #[serde(rename = "exportedName")]
-    pub exported_name: &'a str,
-    pub filename: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub durability: Option<ActionManifestWorkerEntryDurability<'a>>,
+    /// The sorted root param dependencies collected from the cache module's
+    /// graph. An empty list means that collection found no root params. The
+    /// build omits this field when it does not collect dependencies for the
+    /// module.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub root_param_dependencies: Option<&'a [RcStr]>,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionManifestWorkerEntryDurability<'a> {
+    pub code_hash: &'a str,
+    pub runtime_env_vars_read: &'a [RcStr],
+    pub runtime_env_vars_existence: &'a [RcStr],
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -397,20 +500,9 @@ pub enum ActionManifestModuleId<'a> {
     Number(u64),
 }
 
+#[turbo_tasks::task_input]
 #[derive(
-    Debug,
-    Copy,
-    Clone,
-    Hash,
-    Eq,
-    PartialEq,
-    Ord,
-    PartialOrd,
-    TaskInput,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    NonLocalValue,
+    Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Encode, Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum ActionLayer {

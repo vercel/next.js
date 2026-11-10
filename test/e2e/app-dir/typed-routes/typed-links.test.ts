@@ -1,24 +1,27 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('typed-links', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
-  if (skipped) {
-    return
-  }
-
   it('should generate types for next/link', async () => {
-    const dts = await next.readFile(`${next.distDir}/types/link.d.ts`)
-    expect(dts).toContain(`declare module 'next/link'`)
+    await retry(async () => {
+      const dts = await next.readFile(`${next.distDir}/types/link.d.ts`)
+      expect(dts).toContain(`declare module 'next/link'`)
+    })
   })
 
   it('should include handler route from app/api-test/route.ts in generated link route definitions', async () => {
-    const dts = await next.readFile(`${next.distDir}/types/link.d.ts`)
-    // Ensure the app route handler at app/api-test/route.ts ("/api-test") is present
-    expect(dts).toContain('`/api-test`')
+    await retry(async () => {
+      const dts = await next.readFile(`${next.distDir}/types/link.d.ts`)
+      // Ensure the app route handler at app/api-test/route.ts ("/api-test") is present
+      expect(dts).toContain('`/api-test`')
+    })
   })
 
   if (isNextStart) {

@@ -19,7 +19,6 @@ import {
   getAccessFallbackErrorTypeByStatus,
   isHTTPAccessFallbackError,
 } from './http-access-fallback'
-import { warnOnce } from '../../../shared/lib/utils/warn-once'
 import { MissingSlotContext } from '../../../shared/lib/app-router-context.shared-runtime'
 
 interface HTTPAccessFallbackBoundaryProps {
@@ -62,6 +61,8 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
       // A missing children slot is the typical not-found case, so no need to warn
       !this.props.missingSlots.has('children')
     ) {
+      const { warnOnce } =
+        require('../../../shared/lib/utils/warn-once') as typeof import('../../../shared/lib/utils/warn-once')
       let warningMessage =
         'No default component was found for a parallel route rendered on this page. Falling back to nearest NotFound boundary.\n' +
         'Learn more: https://nextjs.org/docs/app/building-your-application/routing/parallel-routes#defaultjs\n\n'
@@ -77,7 +78,7 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
     }
   }
 
-  static getDerivedStateFromError(error: any) {
+  static getDerivedStateFromError(error: unknown) {
     if (isHTTPAccessFallbackError(error)) {
       const httpStatus = getAccessFallbackHTTPStatus(error)
       return {

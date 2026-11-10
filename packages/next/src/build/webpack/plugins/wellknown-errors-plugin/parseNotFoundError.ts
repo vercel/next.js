@@ -4,6 +4,7 @@ import {
   createOriginalStackFrame,
   getIgnoredSources,
 } from '../../../../server/dev/middleware-webpack'
+import isInternal from '../../../../shared/lib/is-internal'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { RawSourceMap } from 'next/dist/compiled/source-map08'
 
@@ -89,10 +90,22 @@ async function getSourceFrame(
         },
       })
 
+      if (result === null || result.originalStackFrame === null) {
+        return {
+          column1: '',
+          frame: '',
+          line1: '',
+        }
+      }
+
+      const originalStackFrame = result.originalStackFrame
       return {
-        frame: result?.originalCodeFrame ?? '',
-        line1: result?.originalStackFrame?.line1?.toString() ?? '',
-        column1: result?.originalStackFrame?.column1?.toString() ?? '',
+        frame:
+          (!isInternal(originalStackFrame.file)
+            ? result.originalCodeFrame
+            : null) ?? '',
+        line1: originalStackFrame.line1?.toString() ?? '',
+        column1: originalStackFrame.column1?.toString() ?? '',
       }
     }
   } catch {}

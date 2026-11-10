@@ -6,7 +6,10 @@ use super::{
     Introspectable, IntrospectableChildren,
     utils::{children_from_output_assets, content_to_details},
 };
-use crate::{asset::Asset, output::OutputAsset};
+use crate::{
+    asset::Asset,
+    output::{OutputAsset, OutputAssetsReference},
+};
 
 #[turbo_tasks::value]
 pub struct IntrospectableOutputAsset(ResolvedVc<Box<dyn OutputAsset>>);

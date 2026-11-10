@@ -1,14 +1,17 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    file_source::FileSource, raw_module::RawModule, reference::ModuleReference,
+    chunk::{ChunkingType, TracedMode},
+    file_source::FileSource,
+    raw_module::RawModule,
+    reference::ModuleReference,
     resolve::ModuleResolveResult,
 };
 
 #[turbo_tasks::value]
-#[derive(Hash, Clone, Debug)]
+#[derive(Hash, Clone, Debug, ValueToString)]
+#[value_to_string("package.json {package_json}")]
 pub struct PackageJsonReference {
     pub package_json: FileSystemPath,
 }
@@ -31,18 +34,10 @@ impl ModuleReference for PackageJsonReference {
                 .await?,
         )))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for PackageJsonReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!(
-                "package.json {}",
-                self.package_json.value_to_string().await?
-            )
-            .into(),
-        ))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }

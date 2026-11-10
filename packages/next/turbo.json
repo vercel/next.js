@@ -1,0 +1,10 @@
+{
+  "$schema": "https://turborepo.org/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["@next/bundle-analyzer-ui#build", "^build"],
+      "outputs": ["dist/**"]
+    }
+  }
+}

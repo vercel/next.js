@@ -17,13 +17,12 @@ harness = false
 workspace = true
 
 [dependencies]
-anyhow = { workspace = true, features = ["backtrace"] }
+anyhow = { workspace = true }
 chromiumoxide = { workspace = true, features = [
   "tokio-runtime",
 ], default-features = false }
 criterion = { workspace = true, features = ["async_tokio"] }
 futures = { workspace = true }
-once_cell = { workspace = true }
 owo-colors = { workspace = true }
 parking_lot = { workspace = true }
 portpicker = "0.1.1"

@@ -1,18 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
+import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 
 describe('app dir - css', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: {
       sass: 'latest',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   describe('sass support', () => {
     ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
@@ -21,13 +16,13 @@ describe('app dir - css', () => {
         it('should use original source points for sass errors', async () => {
           const browser = await next.browser('/sass-error')
 
-          await assertHasRedbox(browser)
+          await waitForRedbox(browser)
           const source = await getRedboxSource(browser)
 
           // css-loader does not report an error for this case
           expect(source).toMatchInlineSnapshot(`
-           "./app/global.scss.css (45:1)
-           Parsing CSS source code failed
+           "./app/global.scss (45:1)
+           Error: Parsing CSS source code failed
              43 | }
              44 |
            > 45 | input.defaultCheckbox::before path {
@@ -37,6 +32,16 @@ describe('app dir - css', () => {
              48 |
 
            Pseudo-elements like '::before' or '::after' can't be followed by selectors like 'Ident("path")'
+
+           Generated code of PostCSS transform of loaders [next/dist/build/webpack/loaders/resolve-url-loader/index, next/dist/compiled/sass-loader] transform of file content of app/global.scss:
+           ./app/global.scss.css:46:30
+             44 | }
+             45 |
+           > 46 | input.defaultCheckbox::before path {
+                |                              ^
+             47 |   fill: currentColor;
+             48 | }
+             49 |
 
            Import trace:
              Client Component Browser:

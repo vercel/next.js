@@ -1,11 +1,13 @@
 use anyhow::{Result, bail};
-use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{
     FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent,
+    WriteLinkContent,
 };
 
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string("root-of-the-server")]
 pub struct ServerFileSystem {}
 
 #[turbo_tasks::value_impl]
@@ -29,6 +31,11 @@ impl FileSystem for ServerFileSystem {
     }
 
     #[turbo_tasks::function]
+    fn is_junction_point(&self, _fs_path: FileSystemPath) -> Result<Vc<bool>> {
+        bail!("Reading is not possible from the marker filesystem for the server")
+    }
+
+    #[turbo_tasks::function]
     fn raw_read_dir(&self, _fs_path: FileSystemPath) -> Result<Vc<RawDirectoryContent>> {
         bail!("Reading is not possible from the marker filesystem for the server")
     }
@@ -39,20 +46,16 @@ impl FileSystem for ServerFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn write_link(&self, _fs_path: FileSystemPath, _target: Vc<LinkContent>) -> Result<Vc<()>> {
+    fn write_link(
+        &self,
+        _fs_path: FileSystemPath,
+        _target: Vc<WriteLinkContent>,
+    ) -> Result<Vc<()>> {
         bail!("Writing is not possible to the marker filesystem for the server")
     }
 
     #[turbo_tasks::function]
     fn metadata(&self, _fs_path: FileSystemPath) -> Result<Vc<FileMeta>> {
         bail!("Reading is not possible from the marker filesystem for the server")
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for ServerFileSystem {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("root-of-the-server"))
     }
 }

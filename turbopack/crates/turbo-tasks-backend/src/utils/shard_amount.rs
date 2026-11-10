@@ -1,4 +1,4 @@
-use std::thread::available_parallelism;
+use turbo_tasks::parallel::available_parallelism;
 
 /// Compute a good number of shards to use for sharded data structures.
 /// The number of shards is computed based on the number of worker threads
@@ -11,7 +11,9 @@ use std::thread::available_parallelism;
 /// The returned number is always a power of two as this is often required
 /// by sharded data structures. The maximum shard amount is capped at 1 << 16 (65536).
 pub fn compute_shard_amount(num_workers: Option<usize>, small_preallocation: bool) -> usize {
-    let num_workers = num_workers.unwrap_or_else(|| available_parallelism().map_or(4, |v| v.get()));
+    let num_workers = num_workers
+        .unwrap_or_else(|| available_parallelism().map_or(4, |v| v.get()))
+        .max(4);
 
     // Once can compute the probability of a shard collision (which leads to false sharing) using
     // the birthday paradox formula.  It's notable that the probability of collisions increases
@@ -31,14 +33,14 @@ pub fn compute_shard_amount(num_workers: Option<usize>, small_preallocation: boo
     // 16` and more than 256 worker threads for `k = 1`.
 
     if small_preallocation {
-        // We also clamp the minimum number of workers to 256 so all following multiplications can't
+        // We also clamp the maximum number of workers to 256 so all following multiplications can't
         // overflow.
-        let num_workers = num_workers.max(256);
+        let num_workers = num_workers.min(256);
         (num_workers * num_workers).next_power_of_two()
     } else {
-        // We also clamp the minimum number of workers to 64 so all following multiplications can't
+        // We also clamp the maximum number of workers to 64 so all following multiplications can't
         // overflow.
-        let num_workers = num_workers.max(64);
+        let num_workers = num_workers.min(64);
         (num_workers * num_workers * 16).next_power_of_two()
     }
 }

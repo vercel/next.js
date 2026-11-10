@@ -1,14 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app dir - global error - layout error', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should render global error for error in server components', async () => {
     const browser = await next.browser('/')
@@ -33,7 +28,7 @@ describe('app dir - global error - layout error', () => {
     expect(await browser.elementByCss('#error').text()).toBe(
       isNextDev
         ? 'Global error: layout error'
-        : 'Global error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+        : 'Global error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
     )
     expect(await browser.elementByCss('#digest').text()).toMatch(/\w+/)
   })

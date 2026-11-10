@@ -1,10 +1,10 @@
-import { join } from 'path'
-import { recursiveDelete } from 'next/dist/lib/recursive-delete'
-const resolveDataDir = join(__dirname, `fixtures-${process.argv[2]}`)
+import { recursiveDeleteSyncWithAsyncRetries } from 'next/dist/lib/recursive-delete.js'
+
+const targetDir = process.argv[2]
 
 async function test() {
   const time = process.hrtime()
-  await recursiveDelete(resolveDataDir)
+  await recursiveDeleteSyncWithAsyncRetries(targetDir)
 
   const hrtime = process.hrtime(time)
   const nanoseconds = hrtime[0] * 1e9 + hrtime[1]

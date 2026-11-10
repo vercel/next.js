@@ -1,11 +1,28 @@
+import type { RuntimeErrorMetadata } from '../../server/dev/hot-reloader-types'
 import { useReducer } from 'react'
 
+import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { VersionInfo } from '../../server/dev/parse-version-info'
-import type { SupportedErrorEvent } from './container/runtime-error/render-error'
+import type {
+  SupportedErrorEvent,
+  RuntimeErrorEvent,
+} from './container/runtime-error/render-error'
 import type { DebugInfo } from '../shared/types'
 import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-server-state'
 import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
+import type { CacheIndicatorState } from './cache-indicator'
+import {
+  getRequestInsightKey,
+  MAX_LIVE_COMPLETED_REQUEST_INSIGHTS,
+  type RequestInsight,
+  type RequestInsightDelta,
+  type RequestInsightsSnapshot,
+} from '../shared/request-insights'
+import { readInstantNavCookieState } from './components/instant-navs/instant-nav-cookie'
+import { isBlockingRouteInNavError } from './container/errors'
+import { isDynamicRoute } from '../../shared/lib/router/utils/is-dynamic'
+import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 
 export type DevToolsConfig = {
   theme?: 'light' | 'dark' | 'system'
@@ -18,6 +35,10 @@ export type DevToolsConfig = {
   devToolsPanelSize?: Record<string, { width: number; height: number }>
   scale?: number
   hideShortcut?: string | null
+  requestInsights?: {
+    showInternal?: boolean
+    verbose?: boolean
+  }
 }
 
 export type Corners = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
@@ -49,6 +70,7 @@ export interface OverlayState {
   readonly notFound: boolean
   readonly buildingIndicator: boolean
   readonly renderingIndicator: boolean
+  readonly cacheIndicator: CacheIndicatorState
   readonly staticIndicator: 'pending' | 'static' | 'dynamic' | 'disabled'
   readonly showIndicator: boolean
   readonly disableDevIndicator: boolean
@@ -66,12 +88,21 @@ export interface OverlayState {
   >
   readonly scale: number
   readonly page: string
+  readonly tree: FlightRouterState | null
   readonly theme: 'light' | 'dark' | 'system'
   readonly hideShortcut: string | null
+  readonly instantNavs: boolean
+  readonly requestInsights: readonly RequestInsight[]
+  readonly requestInsightsConfig: Readonly<{
+    showInternal: boolean
+    verbose: boolean
+  }>
+  readonly hasVulnerabilityInsight: boolean
 }
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
 
+export const ACTION_CACHE_INDICATOR = 'cache-indicator'
 export const ACTION_STATIC_INDICATOR = 'static-indicator'
 export const ACTION_BUILD_OK = 'build-ok'
 export const ACTION_BUILD_ERROR = 'build-error'
@@ -98,6 +129,76 @@ export const ACTION_DEVTOOLS_PANEL_POSITION = 'devtools-panel-position'
 export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 
 export const ACTION_DEVTOOLS_CONFIG = 'devtools-config'
+export const ACTION_INSTANT_NAVS_TOGGLE = 'instant-navs-toggle'
+export const ACTION_INSTANT_NAVS_RESET = 'instant-navs-reset'
+export const ACTION_INSTANT_ERRORS_CLEAR = 'instant-errors-clear'
+export const ACTION_REQUEST_INSIGHTS_SNAPSHOT = 'request-insights-snapshot'
+export const ACTION_REQUEST_INSIGHTS_UPDATE = 'request-insights-update'
+export const ACTION_VULNERABILITY_INSIGHT = 'vulnerability-insight'
+
+export function updateRequestInsights(
+  currentRequests: readonly RequestInsight[],
+  update: RequestInsight | RequestInsightDelta
+): RequestInsight[] {
+  const insightKey = getRequestInsightKey(update)
+  const index = currentRequests.findIndex(
+    (request) => getRequestInsightKey(request) === insightKey
+  )
+  const previous = currentRequests[index]
+  let insight: RequestInsight
+  if ('spanOffset' in update) {
+    const { spanOffset, fetchOffset, ...metadata } = update
+    const spans = previous?.spans ?? []
+    const fetches = previous?.fetches ?? []
+    // Updates can arrive before the initial snapshot while HMR connects.
+    if (spanOffset > spans.length || fetchOffset > fetches.length) {
+      return [...currentRequests]
+    }
+    const addedSpans = update.spans.slice(spans.length - spanOffset)
+    const addedFetches = update.fetches.slice(fetches.length - fetchOffset)
+    insight = {
+      ...metadata,
+      completedAt: previous?.completedAt ?? update.completedAt,
+      status: previous?.status === 'error' ? 'error' : update.status,
+      spans: addedSpans.length > 0 ? [...spans, ...addedSpans] : spans,
+      fetches:
+        addedFetches.length > 0 ? [...fetches, ...addedFetches] : fetches,
+    }
+  } else {
+    insight = update
+  }
+  const requests = [...currentRequests]
+  if (index === -1) {
+    requests.push(insight)
+  } else if (
+    previous.completedAt === undefined &&
+    insight.completedAt !== undefined
+  ) {
+    requests.splice(index, 1)
+    requests.push(insight)
+  } else {
+    requests[index] = insight
+  }
+
+  let completedCount = requests.reduce(
+    (count, request) => count + (request.completedAt === undefined ? 0 : 1),
+    0
+  )
+  if (completedCount <= MAX_LIVE_COMPLETED_REQUEST_INSIGHTS) {
+    return requests
+  }
+
+  return requests.filter((request) => {
+    if (
+      request.completedAt === undefined ||
+      completedCount <= MAX_LIVE_COMPLETED_REQUEST_INSIGHTS
+    ) {
+      return true
+    }
+    completedCount--
+    return false
+  })
+}
 
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
   '__nextjs-dev-tools-panel-position'
@@ -109,6 +210,11 @@ export const STORE_KEY_SHARED_PANEL_LOCATION =
 
 export const ACTION_DEVTOOL_UPDATE_ROUTE_STATE =
   'segment-explorer-update-route-state'
+
+interface CacheIndicatorAction {
+  type: typeof ACTION_CACHE_INDICATOR
+  cacheIndicator: CacheIndicatorState
+}
 
 interface StaticIndicatorAction {
   type: typeof ACTION_STATIC_INDICATOR
@@ -132,10 +238,12 @@ interface FastRefreshAction {
 interface UnhandledErrorAction {
   type: typeof ACTION_UNHANDLED_ERROR
   reason: Error
+  metadata?: RuntimeErrorMetadata
 }
 interface UnhandledRejectionAction {
   type: typeof ACTION_UNHANDLED_REJECTION
   reason: Error
+  metadata?: RuntimeErrorMetadata
 }
 
 interface DebugInfoAction {
@@ -201,11 +309,40 @@ interface DevToolsScaleAction {
 interface DevToolUpdateRouteStateAction {
   type: typeof ACTION_DEVTOOL_UPDATE_ROUTE_STATE
   page: string
+  tree: FlightRouterState | null
 }
 
 interface DevToolsConfigAction {
   type: typeof ACTION_DEVTOOLS_CONFIG
   devToolsConfig: DevToolsConfig
+}
+
+interface CacheOnlyToggleAction {
+  type: typeof ACTION_INSTANT_NAVS_TOGGLE
+}
+
+interface InstantNavResetAction {
+  type: typeof ACTION_INSTANT_NAVS_RESET
+}
+
+interface InstantErrorsClearAction {
+  type: typeof ACTION_INSTANT_ERRORS_CLEAR
+  currentPath: string
+}
+
+interface RequestInsightsSnapshotAction {
+  type: typeof ACTION_REQUEST_INSIGHTS_SNAPSHOT
+  snapshot: RequestInsightsSnapshot
+}
+
+interface RequestInsightsUpdateAction {
+  type: typeof ACTION_REQUEST_INSIGHTS_UPDATE
+  insight: RequestInsightDelta
+}
+
+interface VulnerabilityInsightAction {
+  type: typeof ACTION_VULNERABILITY_INSIGHT
+  hasVulnerabilityInsight: boolean
 }
 
 export type DispatcherEvent =
@@ -216,6 +353,7 @@ export type DispatcherEvent =
   | UnhandledErrorAction
   | UnhandledRejectionAction
   | VersionInfoAction
+  | CacheIndicatorAction
   | StaticIndicatorAction
   | DebugInfoAction
   | DevIndicatorAction
@@ -232,6 +370,12 @@ export type DispatcherEvent =
   | DevToolUpdateRouteStateAction
   | DevIndicatorSetAction
   | DevToolsConfigAction
+  | CacheOnlyToggleAction
+  | InstantNavResetAction
+  | InstantErrorsClearAction
+  | RequestInsightsSnapshotAction
+  | RequestInsightsUpdateAction
+  | VulnerabilityInsightAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: new frame + v8
@@ -248,11 +392,38 @@ function getStackIgnoringStrictMode(stack: string | undefined) {
   return stack?.split(REACT_ERROR_STACK_BOTTOM_FRAME_REGEX)[0]
 }
 
+export function getInstantErrorRoute(error: unknown): string | null {
+  if (!error || typeof error !== 'object') return null
+  const message = (error as Error).message
+  if (typeof message !== 'string') return null
+  if (!isBlockingRouteInNavError(message)) return null
+  const prefixMatch = /^Route "([^"]+)":/.exec(message)
+  return prefixMatch ? prefixMatch[1] : null
+}
+
+// The route stored on an instant error is the route *template* from
+// `workStore.route` (e.g. `/foo/[slug]`), but the page we track in dev
+// overlay state is the resolved URL (e.g. `/foo/123`). For dynamic routes
+// we compile the template to a regex so the clear-on-nav reducer keeps
+// errors whose template matches the page the user just landed on.
+export function routeTemplateMatchesPath(
+  template: string,
+  path: string
+): boolean {
+  if (template === path) return true
+  if (!isDynamicRoute(template)) return false
+  return getRouteRegex(template).re.test(path)
+}
+
 const shouldDisableDevIndicator =
   process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
 
 const devToolsInitialPositionFromNextConfig = (process.env
   .__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
+
+const hasInstantNavsCookie =
+  !!process.env.__NEXT_INSTANT_NAV_TOGGLE &&
+  readInstantNavCookieState() !== null
 
 export const INITIAL_OVERLAY_STATE: Omit<
   OverlayState,
@@ -263,13 +434,17 @@ export const INITIAL_OVERLAY_STATE: Omit<
   errors: [],
   notFound: false,
   renderingIndicator: false,
+  cacheIndicator: 'disabled',
   staticIndicator: 'disabled',
-  /* 
+  /*
     This is set to `true` when we can reliably know
-    whether the indicator is in disabled state or not.  
+    whether the indicator is in disabled state or not.
     Otherwise the surface would flicker because the disabled flag loads from the config.
   */
-  showIndicator: false,
+  // When instant nav is active, show the indicator immediately so the user
+  // can toggle it off. Normally this is set to true by the HMR connection,
+  // but the HMR WebSocket is only created during hydration.
+  showIndicator: hasInstantNavsCookie,
   disableDevIndicator: false,
   buildingIndicator: false,
   refreshState: { type: 'idle' },
@@ -282,12 +457,18 @@ export const INITIAL_OVERLAY_STATE: Omit<
   devToolsPanelSize: {},
   scale: NEXT_DEV_TOOLS_SCALE.Medium,
   page: '',
+  tree: null,
   theme: 'system',
   hideShortcut: null,
+  instantNavs: hasInstantNavsCookie,
+  requestInsights: [],
+  requestInsightsConfig: { showInternal: false, verbose: false },
+  hasVulnerabilityInsight: false,
 }
 
 function getInitialState(
-  routerType: 'pages' | 'app'
+  routerType: 'pages' | 'app',
+  enableCacheIndicator: boolean
 ): OverlayState & { routerType: 'pages' | 'app' } {
   return {
     ...INITIAL_OVERLAY_STATE,
@@ -296,18 +477,66 @@ function getInitialState(
     // TODO: Should be the same default as App Router once we surface console.error in Pages Router.
     isErrorOverlayOpen: routerType === 'pages',
     routerType,
+    cacheIndicator: enableCacheIndicator ? 'ready' : 'disabled',
   }
+}
+
+export function mergeErrorEvent(
+  events: readonly RuntimeErrorEvent[],
+  pendingEvent: RuntimeErrorEvent,
+  getOwnerStack: (error: Error) => string | null | undefined
+): readonly RuntimeErrorEvent[] {
+  const matchesError = (event: RuntimeErrorEvent) =>
+    // SpiderMonkey and JavaScriptCore don't include the error message in the stack.
+    // We don't want to dedupe errors with different messages for which we don't have a good stack.
+    '' + event.error === '' + pendingEvent.error &&
+    (event.error.stack === pendingEvent.error.stack ||
+      // TODO: Let ReactDevTools control deduping instead?
+      getStackIgnoringStrictMode(event.error.stack) ===
+        getStackIgnoringStrictMode(pendingEvent.error.stack)) &&
+    getOwnerStack(event.error) === getOwnerStack(pendingEvent.error)
+
+  let duplicateIndex = events.findIndex(
+    (event) =>
+      matchesError(event) &&
+      event.boundary?.kind === pendingEvent.boundary?.kind &&
+      event.boundary?.name === pendingEvent.boundary?.name
+  )
+
+  if (duplicateIndex === -1 && pendingEvent.isFatal) {
+    // A previous console report may become a fatal render error. Preserve its
+    // ID while attaching the catcher, without merging different caught paths.
+    duplicateIndex = events.findIndex(
+      (event) =>
+        matchesError(event) && !event.isFatal && event.boundary === undefined
+    )
+  }
+  if (duplicateIndex === -1) {
+    return [...events, pendingEvent]
+  }
+
+  const duplicate = events[duplicateIndex]
+  if (pendingEvent.isFatal && !duplicate.isFatal) {
+    return events.map((event, index) =>
+      index === duplicateIndex ? { ...pendingEvent, id: duplicate.id } : event
+    )
+  }
+
+  return events
 }
 
 export function useErrorOverlayReducer(
   routerType: 'pages' | 'app',
   getOwnerStack: (error: Error) => string | null | undefined,
-  isRecoverableError: (error: Error) => boolean
+  isRecoverableError: (error: Error) => boolean,
+  enableCacheIndicator: boolean,
+  enableRuntimeErrorReporting: boolean = false
 ) {
   function pushErrorFilterDuplicates(
     events: readonly SupportedErrorEvent[],
     id: number,
-    error: Error
+    error: Error,
+    metadata: RuntimeErrorMetadata | undefined
   ): readonly SupportedErrorEvent[] {
     const ownerStack = getOwnerStack(error)
     const frames = parseStack((error.stack || '') + (ownerStack || ''))
@@ -315,31 +544,39 @@ export function useErrorOverlayReducer(
       id,
       error,
       frames,
-      type: isRecoverableError(error)
-        ? 'recoverable'
-        : isConsoleError(error)
-          ? 'console'
-          : 'runtime',
+      type:
+        enableRuntimeErrorReporting && metadata !== undefined
+          ? 'runtime'
+          : isRecoverableError(error)
+            ? 'recoverable'
+            : isConsoleError(error)
+              ? 'console'
+              : 'runtime',
+    }
+    if (enableRuntimeErrorReporting) {
+      return mergeErrorEvent(
+        events as readonly RuntimeErrorEvent[],
+        {
+          ...pendingEvent,
+          isFatal: metadata?.fatal ?? false,
+          boundary: metadata?.boundary,
+        },
+        getOwnerStack
+      )
     }
     const pendingEvents = events.filter((event) => {
-      // Filter out duplicate errors
       return (
-        // SpiderMonkey and JavaScriptCore don't include the error message in the stack.
-        // We don't want to dedupe errors with different messages for which we don't have a good stack
         '' + event.error !== '' + pendingEvent.error ||
         (event.error.stack !== pendingEvent.error.stack &&
-          // TODO: Let ReactDevTools control deduping instead?
           getStackIgnoringStrictMode(event.error.stack) !==
             getStackIgnoringStrictMode(pendingEvent.error.stack)) ||
         getOwnerStack(event.error) !== getOwnerStack(pendingEvent.error)
       )
     })
-    // If there's nothing filtered out, the event is a brand new error
     if (pendingEvents.length === events.length) {
       pendingEvents.push(pendingEvent)
       return pendingEvents
     }
-    // Otherwise remain the same events
     return events
   }
 
@@ -348,6 +585,9 @@ export function useErrorOverlayReducer(
       switch (action.type) {
         case ACTION_DEBUG_INFO: {
           return { ...state, debugInfo: action.debugInfo }
+        }
+        case ACTION_CACHE_INDICATOR: {
+          return { ...state, cacheIndicator: action.cacheIndicator }
         }
         case ACTION_STATIC_INDICATOR: {
           return { ...state, staticIndicator: action.staticIndicator }
@@ -388,7 +628,8 @@ export function useErrorOverlayReducer(
                 errors: pushErrorFilterDuplicates(
                   state.errors,
                   state.nextId,
-                  action.reason
+                  action.reason,
+                  action.metadata
                 ),
               }
             }
@@ -401,7 +642,8 @@ export function useErrorOverlayReducer(
                   errors: pushErrorFilterDuplicates(
                     state.errors,
                     state.nextId,
-                    action.reason
+                    action.reason,
+                    action.metadata
                   ),
                 },
               }
@@ -463,7 +705,7 @@ export function useErrorOverlayReducer(
           return { ...state, scale: action.scale }
         }
         case ACTION_DEVTOOL_UPDATE_ROUTE_STATE: {
-          return { ...state, page: action.page }
+          return { ...state, page: action.page, tree: action.tree }
         }
         case ACTION_DEVTOOLS_CONFIG: {
           const {
@@ -474,6 +716,7 @@ export function useErrorOverlayReducer(
             devToolsPanelSize,
             scale,
             hideShortcut,
+            requestInsights: requestInsightsConfig,
           } = action.devToolsConfig
 
           return {
@@ -489,6 +732,51 @@ export function useErrorOverlayReducer(
             hideShortcut:
               // hideShortcut can be null.
               hideShortcut !== undefined ? hideShortcut : state.hideShortcut,
+            requestInsightsConfig: requestInsightsConfig
+              ? {
+                  showInternal:
+                    requestInsightsConfig.showInternal ??
+                    state.requestInsightsConfig.showInternal,
+                  verbose:
+                    requestInsightsConfig.verbose ??
+                    state.requestInsightsConfig.verbose,
+                }
+              : state.requestInsightsConfig,
+          }
+        }
+        case ACTION_INSTANT_NAVS_TOGGLE: {
+          return { ...state, instantNavs: !state.instantNavs }
+        }
+        case ACTION_INSTANT_NAVS_RESET: {
+          return { ...state, instantNavs: false }
+        }
+        case ACTION_INSTANT_ERRORS_CLEAR: {
+          const remaining = state.errors.filter((event) => {
+            const route = getInstantErrorRoute(event.error)
+            if (route === null) return true
+            return routeTemplateMatchesPath(route, action.currentPath)
+          })
+          if (remaining.length === state.errors.length) {
+            return state
+          }
+          return { ...state, errors: remaining }
+        }
+        case ACTION_REQUEST_INSIGHTS_SNAPSHOT: {
+          return { ...state, requestInsights: action.snapshot.requests }
+        }
+        case ACTION_VULNERABILITY_INSIGHT: {
+          return {
+            ...state,
+            hasVulnerabilityInsight: action.hasVulnerabilityInsight,
+          }
+        }
+        case ACTION_REQUEST_INSIGHTS_UPDATE: {
+          return {
+            ...state,
+            requestInsights: updateRequestInsights(
+              state.requestInsights,
+              action.insight
+            ),
           }
         }
         default: {
@@ -496,6 +784,6 @@ export function useErrorOverlayReducer(
         }
       }
     },
-    getInitialState(routerType)
+    getInitialState(routerType, enableCacheIndicator)
   )
 }

@@ -51,6 +51,17 @@ response.cookies.getAll('experiments')
 response.cookies.getAll()
 ```
 
+### `has(name)`
+
+Given a cookie name, return `true` if the cookie exists on the response.
+
+```ts
+// Given incoming request /home
+let response = NextResponse.next()
+// Returns true if cookie exists, false if it does not
+response.cookies.has('experiments')
+```
+
 ### `delete(name)`
 
 Given a cookie name, delete the cookie from the response.

@@ -1,0 +1,11 @@
+{
+  "name": "test-pkg-sync-cjs-node20",
+  "type": "commonjs",
+  "exports": {
+    ".": {
+      "module-sync": "./module-sync.js",
+      "import": "./import.js",
+      "default": "./fallback.js"
+    }
+  }
+}

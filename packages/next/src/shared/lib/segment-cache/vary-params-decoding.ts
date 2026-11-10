@@ -1,0 +1,148 @@
+/**
+ * Vary Params Decoding
+ *
+ * This module is shared between server and client.
+ */
+
+import { readFulfilledValue } from '../rsc-transport'
+
+/**
+ * The vary path id for search params. Path params are identified by their
+ * name. Search params don't have a fixed set of names, so any access to them
+ * is reported under this one id, and the segment is keyed by the whole search
+ * string (see createVaryingSearchParams in app-render/vary-params.ts).
+ *
+ * It's a number so it can't collide with a param name. `app/[?]/page.tsx` is a
+ * valid route.
+ */
+export const SEARCH_PARAMS_VARY_ID = 0
+
+// Path param names, and SEARCH_PARAMS_VARY_ID for the search params.
+export type VaryParamId = string | number
+
+/**
+ * The params a piece of rendered output depends on — the ids of the vary path
+ * nodes it read: path param names, and SEARCH_PARAMS_VARY_ID for the search
+ * params — as the source that reports them rather than a snapshot of it.
+ *
+ * The wire iterables can only be drained from a fully-buffered response; they
+ * are drained once at decode into an already-settled thenable, and read at the
+ * point a decision needs the set (readVaryParams).
+ */
+export type VaryParams = PromiseLike<Set<VaryParamId>>
+
+/**
+ * Vary params are serialized into the Flight stream as an
+ * `AsyncIterable<VaryParamId>` that yields each accessed param id exactly once
+ * (the server dedupes before emitting). Because each access is flushed into the
+ * stream as it happens, there's no step at the end of the render that has to
+ * run for the client to read anything. If a prerender is aborted by sync I/O,
+ * the params yielded before the abort are already in the stream, and they're
+ * exactly the params the partial response actually depends on.
+ *
+ * Root params are NOT included in a segment's own iterable. They're emitted
+ * once at the top level of the response (as a separate iterable) and unioned in
+ * by `decodeVaryParams`, because root params can be accessed at any point
+ * during the render — folding them into every segment would otherwise require
+ * a merge once the whole render is complete.
+ */
+export type VaryParamsIterable = AsyncIterable<VaryParamId>
+
+/**
+ * Synchronously drains a vary params `AsyncIterable`, adding each yielded name
+ * to `target`.
+ *
+ * By the time this runs (on the client, or in collectSegmentData), the Flight
+ * stream has been fully buffered, so every yielded value is already
+ * materialized and can be read without awaiting: each iterator result is a
+ * Flight chunk whose settled state `readFulfilledValue` reads off the
+ * thenable's status.
+ *
+ * We add "every param yielded up to the point the stream suspends": a
+ * normally-closed iterable drains fully, while one left hanging (a sync-I/O
+ * abort, or a `close()` whose row hasn't flushed yet) drains to the prefix
+ * already in the stream. Both are correct — a segment's param accesses are all
+ * flushed as they happen during its render, so the prefix is exactly the set
+ * the response depends on. We therefore never need the terminating `done` row
+ * to be present; it's only stream hygiene.
+ */
+function drainVaryParams(
+  iterable: VaryParamsIterable,
+  target: Set<VaryParamId>
+): void {
+  const iterator = iterable[Symbol.asyncIterator]()
+  while (true) {
+    const step = readFulfilledValue(iterator.next(), undefined)
+    if (step === undefined || step.done) {
+      // Either the stream suspended here — everything yielded before this
+      // point has already been added — or the iterable finished cleanly.
+      return
+    }
+    target.add(step.value)
+  }
+}
+
+/**
+ * Converts a segment's (or the head's) vary params off the wire, at the
+ * decode boundary, unioning in the response-level root params.
+ *
+ * Root params are emitted once at the top level rather than folded into every
+ * segment by the server, so every decode recombines them here — building the
+ * merge into the decode means a caller can't forget it, and it's done in a
+ * single pass with no intermediate set.
+ *
+ * Returns null ("unknown", key on all params) unless BOTH iterables are
+ * present. A null/absent `iterable` means the segment's own tracking wasn't
+ * enabled (e.g. not a prerender). A null/absent `rootIterable` means root
+ * params weren't tracked — and since a segment's own iterable never includes
+ * root params (those are accessed in layouts above it), narrowing on the
+ * segment set alone would wrongly assume no root params were accessed. In
+ * either case we stay conservative.
+ *
+ * When both are present each is authoritative even when it drains to the empty
+ * set — a tracked segment that read no params, with no root params accessed,
+ * can be shared across all param values.
+ */
+export function decodeVaryParams(
+  iterable: VaryParamsIterable | null | undefined,
+  rootIterable: VaryParamsIterable | null | undefined
+): VaryParams | null {
+  if (
+    iterable === null ||
+    iterable === undefined ||
+    rootIterable === null ||
+    rootIterable === undefined
+  ) {
+    return null
+  }
+  const total: Set<VaryParamId> = new Set()
+  drainVaryParams(iterable, total)
+  drainVaryParams(rootIterable, total)
+  return createVaryParams(total)
+}
+
+/**
+ * Wraps an already-known set as a vary params source. Shaped like a settled
+ * Flight promise so readVaryParams can read it off the thenable's status.
+ */
+export function createVaryParams(total: Set<VaryParamId>): VaryParams {
+  // TODO: Don't need to use a native promise. Just inline a thenable that
+  // immediately calls its listener.
+  const settled = Promise.resolve(total) as Promise<Set<VaryParamId>> & {
+    status: 'fulfilled'
+    value: Set<VaryParamId>
+  }
+  settled.status = 'fulfilled'
+  settled.value = total
+  return settled
+}
+
+/**
+ * Reads the set from a vary params source. Null when it is not available;
+ * the reader assumes every param varies.
+ */
+export function readVaryParams(
+  varyParams: VaryParams
+): Set<VaryParamId> | null {
+  return readFulfilledValue(varyParams, null)
+}

@@ -1,5 +1,6 @@
 import { writeFileSync } from 'fs'
 import { getProjectDir } from '../lib/get-project-dir'
+import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 import { printAndExit } from '../server/lib/utils'
 import loadConfig from '../server/config'
 import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
@@ -11,7 +12,7 @@ import { installDependencies } from '../lib/install-dependencies'
 import type { NextConfigComplete } from '../server/config-shared'
 import findUp from 'next/dist/compiled/find-up'
 import { findPagesDir } from '../lib/find-pages-dir'
-import { verifyTypeScriptSetup } from '../lib/verify-typescript-setup'
+import { verifyAndRunTypeScript } from '../lib/verify-typescript-setup'
 import path from 'path'
 import spawn from 'next/dist/compiled/cross-spawn'
 
@@ -65,6 +66,10 @@ export async function nextTest(
     baseDir = getProjectDir()
     nextConfig = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir) // let this error bubble up if the `basePath` is still not a valid Next.js project
   }
+
+  // The directory may have been a runner argument; check the app only after
+  // the fallback above has resolved its actual project directory.
+  warnMissingReactDependencies(baseDir)
 
   // set the test runner. priority is CLI option > next config > default 'playwright'
   const configuredTestRunner =
@@ -137,16 +142,19 @@ async function runPlaywright(
   if (!playwrightConfigFile) {
     const { pagesDir, appDir } = findPagesDir(baseDir)
 
-    const { version: typeScriptVersion } = await verifyTypeScriptSetup({
+    const { version: typeScriptVersion } = await verifyAndRunTypeScript({
       dir: baseDir,
       distDir: nextConfig.distDir,
-      intentDirs: [pagesDir, appDir].filter(Boolean) as string[],
-      typeCheckPreflight: false,
+      strictRouteTypes: Boolean(nextConfig.experimental.strictRouteTypes),
+      shouldRunTypeCheck: false,
       tsconfigPath: nextConfig.typescript.tsconfigPath,
+      typedRoutes: Boolean(nextConfig.typedRoutes),
       disableStaticImages: nextConfig.images.disableStaticImages,
       hasAppDir: !!appDir,
       hasPagesDir: !!pagesDir,
-      isolatedDevBuild: nextConfig.experimental.isolatedDevBuild,
+      appDir: appDir || undefined,
+      pagesDir: pagesDir || undefined,
+      useTypeScriptCli: Boolean(nextConfig.experimental.useTypeScriptCli),
     })
 
     const isUsingTypeScript = !!typeScriptVersion

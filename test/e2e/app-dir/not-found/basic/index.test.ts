@@ -1,10 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
+// @force-gate !deploy
 describe('app dir - not-found - basic', () => {
   const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   if (skipped) {
@@ -59,6 +59,13 @@ describe('app dir - not-found - basic', () => {
   }
 
   const runTests = ({ isEdge }: { isEdge: boolean }) => {
+    it('should return 404 status if notFound() is called in shell', async () => {
+      const res = await next.fetch('/shell-not-found')
+
+      expect(res.status).toBe(404)
+      expect(await res.text()).toInclude('"noindex"')
+    })
+
     it('should use the not-found page for non-matching routes', async () => {
       const browser = await next.browser('/random-content')
       expect(await browser.elementByCss('h1').text()).toContain(

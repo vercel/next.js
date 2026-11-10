@@ -58,9 +58,13 @@
             Module(
                 ModuleValue {
                     module: "node:module",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            2,
+                        ),
+                    ),
                 },
             ),
             Constant(

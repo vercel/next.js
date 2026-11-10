@@ -103,8 +103,14 @@ export type ImageConfigComplete = {
   /** @see [Acceptable formats](https://nextjs.org/docs/api-reference/next/image#acceptable-formats) */
   formats: ImageFormat[]
 
+  /** @see [Maximum Disk Cache Size (in bytes)](https://nextjs.org/docs/api-reference/next/image#maximumdiskcachesize) */
+  maximumDiskCacheSize: number | undefined
+
   /** @see [Maximum Redirects](https://nextjs.org/docs/api-reference/next/image#maximumredirects) */
   maximumRedirects: number
+
+  /** @see [Maximum Response Body](https://nextjs.org/docs/api-reference/next/image#maximumresponsebody) */
+  maximumResponseBody: number
 
   /** @see [Dangerously Allow Local IP](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-local-ip) */
   dangerouslyAllowLocalIP: boolean
@@ -129,9 +135,104 @@ export type ImageConfigComplete = {
 
   /** @see [Unoptimized](https://nextjs.org/docs/api-reference/next/image#unoptimized) */
   unoptimized: boolean
+
+  /**
+   * When true, the `cacheHandler` configured in next.config.js will also be used
+   * for caching optimized images. When false, images use the default filesystem cache.
+   * @see [Image Optimization Caching](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandler#image-optimization-caching)
+   */
+  customCacheHandler: boolean
 }
 
 export type ImageConfig = Partial<ImageConfigComplete>
+
+type RequiredImageConfigForRendering = Pick<
+  ImageConfigComplete,
+  | 'deviceSizes'
+  | 'imageSizes'
+  | 'loader'
+  | 'path'
+  | 'dangerouslyAllowSVG'
+  | 'unoptimized'
+>
+
+export type ImageConfigForRendering = RequiredImageConfigForRendering &
+  Partial<
+    Pick<
+      ImageConfigComplete,
+      'qualities' | 'domains' | 'remotePatterns' | 'localPatterns'
+    >
+  > & {
+    output?: 'standalone' | 'export'
+  }
+
+export type PreparedImageConfig = RequiredImageConfigForRendering & {
+  allSizes: number[]
+  qualities: ImageConfigComplete['qualities']
+  domains: ImageConfigComplete['domains'] | undefined
+  remotePatterns: ImageConfigComplete['remotePatterns'] | undefined
+  localPatterns: ImageConfigComplete['localPatterns']
+  output: 'standalone' | 'export' | undefined
+}
+
+const missingImageConfig = {}
+const preparedImageConfigs = new WeakMap<
+  object,
+  WeakMap<object, PreparedImageConfig>
+>()
+
+/**
+ * Prepare owned, sorted image options once for each env/context pair.
+ * Changed options require new objects because results are cached by identity.
+ */
+export function prepareImageConfig(
+  envConfig?: ImageConfigForRendering,
+  contextConfig?: ImageConfigComplete
+): PreparedImageConfig {
+  const envKey = envConfig ?? missingImageConfig
+  const contextKey = contextConfig ?? missingImageConfig
+  let preparedByContext = preparedImageConfigs.get(envKey)
+  if (preparedByContext) {
+    const cached = preparedByContext.get(contextKey)
+    if (cached) {
+      return cached
+    }
+  }
+
+  const source: ImageConfigForRendering =
+    envConfig || contextConfig || imageConfigDefault
+  const deviceSizes = [...source.deviceSizes].sort((a, b) => a - b)
+  const imageSizes = [...source.imageSizes]
+  const prepared: PreparedImageConfig = {
+    deviceSizes,
+    imageSizes,
+    allSizes: [...deviceSizes, ...imageSizes].sort((a, b) => a - b),
+    qualities:
+      source.qualities === undefined
+        ? undefined
+        : [...source.qualities].sort((a, b) => a - b),
+    path: source.path,
+    loader: source.loader,
+    dangerouslyAllowSVG: source.dangerouslyAllowSVG,
+    unoptimized: source.unoptimized,
+    domains: source.domains,
+    remotePatterns: source.remotePatterns,
+    // The inlined browser options supply their own patterns. During SSR the
+    // context supplies security-sensitive patterns omitted from the inline data.
+    localPatterns:
+      typeof window === 'undefined' && contextConfig !== undefined
+        ? contextConfig.localPatterns
+        : source.localPatterns,
+    output: source.output,
+  }
+
+  if (!preparedByContext) {
+    preparedByContext = new WeakMap()
+    preparedImageConfigs.set(envKey, preparedByContext)
+  }
+  preparedByContext.set(contextKey, prepared)
+  return prepared
+}
 
 export const imageConfigDefault: ImageConfigComplete = {
   deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
@@ -146,7 +247,9 @@ export const imageConfigDefault: ImageConfigComplete = {
   disableStaticImages: false,
   minimumCacheTTL: 14400, // 4 hours
   formats: ['image/webp'],
+  maximumDiskCacheSize: undefined, // auto-detect by default
   maximumRedirects: 3,
+  maximumResponseBody: 50_000_000, // 50 MB
   dangerouslyAllowLocalIP: false,
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,
@@ -155,4 +258,5 @@ export const imageConfigDefault: ImageConfigComplete = {
   remotePatterns: [], // default: allow no remote images
   qualities: [75],
   unoptimized: false,
+  customCacheHandler: false,
 }

@@ -32,6 +32,9 @@ export function adaptForAppRouterInstance(
     prefetch(href) {
       void pagesRouter.prefetch(href)
     },
+    // The bfcacheId concept is App Router-only. Surfaced as a stable
+    // placeholder so consumers using this adapter don't crash.
+    bfcacheId: '0',
   }
 }
 

@@ -9,58 +9,64 @@ use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc, apply_effects};
+use turbo_tasks::{
+    Effects, OperationVc, ReadConsistency, ResolvedVc, TaskId, TransientInstance, TryJoinIterExt,
+    TurboTasks, Vc, read_strongly_consistent_and_apply_effects, take_effects,
+};
 use turbo_tasks_backend::{
-    BackendOptions, NoopBackingStorage, TurboTasksBackend, noop_backing_storage,
+    BackendOptions, BackingStorageOptions, GitVersionInfo, StartupCacheState, StorageMode,
+    TurboTasksBackend, noop_backing_storage, turbo_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_unix_path::join_path;
-use turbopack::{
-    css::chunk::CssChunkType, ecmascript::chunk::EcmascriptChunkType,
-    global_module_ids::get_global_module_id_strategy,
-};
-use turbopack_browser::{BrowserChunkingContext, ContentHashing, CurrentChunkMethod};
+use turbopack::global_module_ids::get_global_module_id_strategy;
+use turbopack_browser::{BrowserChunkingContext, CurrentChunkMethod};
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        ChunkingConfig, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
-        MangleType, MinifyType, SourceMapsType, availability_info::AvailabilityInfo,
+        ChunkingConfig, ChunkingContext, ChunkingContextExt, ContentHashing, EvaluatableAsset,
+        MangleType, MinifyType, availability_info::AvailabilityInfo,
     },
+    context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
     issue::{IssueReporter, IssueSeverity, handle_issues},
     module::Module,
     module_graph::{
-        ModuleGraph,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
-        export_usage::compute_export_usage_info,
+        GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph,
+        binding_usage_info::compute_binding_usage_info,
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
-    reference::all_assets_from_entries,
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
-        origin::{PlainResolveOrigin, ResolveOriginExt},
+        origin::{PlainResolveOrigin, ResolveOrigin},
         parse::Request,
     },
+    source_map::SourceMapType,
 };
+use turbopack_css::chunk::CssChunkType;
+use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
-use turbopack_node::execution_context::ExecutionContext;
+use turbopack_node::{child_process_backend, execution_context::ExecutionContext};
 use turbopack_nodejs::NodeJsChunkingContext;
+use turbopack_trace_utils::exit::ExitHandler;
 
 use crate::{
     arguments::{BuildArguments, Target},
     contexts::{NodeEnv, get_client_asset_context, get_client_compile_time_info},
+    go::{GoBuild, is_go_entry},
     util::{
         EntryRequest, NormalizedDirs, normalize_dirs, normalize_entries, output_fs, project_fs,
+        register_shutdown,
     },
 };
 
-type Backend = TurboTasksBackend<NoopBackingStorage>;
+type Backend = TurboTasksBackend;
 
 pub struct TurbopackBuildBuilder {
-    turbo_tasks: Arc<TurboTasks<Backend>>,
     project_dir: RcStr,
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
@@ -68,16 +74,17 @@ pub struct TurbopackBuildBuilder {
     log_level: IssueSeverity,
     show_all: bool,
     log_detail: bool,
-    source_maps_type: SourceMapsType,
+    source_maps_type: Option<SourceMapType>,
     minify_type: MinifyType,
     target: Target,
     scope_hoist: bool,
+    // Prepared inputs detected from .go filenames, not a separate opt-in compiler mode.
+    go_entries: Option<Arc<GoBuild>>,
 }
 
 impl TurbopackBuildBuilder {
-    pub fn new(turbo_tasks: Arc<TurboTasks<Backend>>, project_dir: RcStr, root_dir: RcStr) -> Self {
+    pub fn new(project_dir: RcStr, root_dir: RcStr) -> Self {
         TurbopackBuildBuilder {
-            turbo_tasks,
             project_dir,
             root_dir,
             entry_requests: vec![],
@@ -87,12 +94,13 @@ impl TurbopackBuildBuilder {
             log_level: IssueSeverity::Warning,
             show_all: false,
             log_detail: false,
-            source_maps_type: SourceMapsType::Full,
+            source_maps_type: Some(SourceMapType::Full),
             minify_type: MinifyType::Minify {
                 mangle: Some(MangleType::OptimalSize),
             },
             target: Target::Node,
             scope_hoist: true,
+            go_entries: None,
         }
     }
 
@@ -121,7 +129,7 @@ impl TurbopackBuildBuilder {
         self
     }
 
-    pub fn source_maps_type(mut self, source_maps_type: SourceMapsType) -> Self {
+    pub fn source_maps_type(mut self, source_maps_type: Option<SourceMapType>) -> Self {
         self.source_maps_type = source_maps_type;
         self
     }
@@ -141,60 +149,142 @@ impl TurbopackBuildBuilder {
         self
     }
 
-    pub async fn build(self) -> Result<()> {
-        self.turbo_tasks
-            .run_once(async move {
-                let build_result_op = build_internal(
-                    self.project_dir.clone(),
-                    self.root_dir,
-                    self.entry_requests.clone(),
-                    self.browserslist_query,
-                    self.source_maps_type,
-                    self.minify_type,
-                    self.target,
-                    self.scope_hoist,
-                );
+    pub fn go_entries(mut self, entries: Option<Arc<GoBuild>>) -> Self {
+        self.go_entries = entries;
+        self
+    }
 
-                // Await the result to propagate any errors.
-                build_result_op.read_strongly_consistent().await?;
+    /// The owning session keeps this root until compilation and shutdown have settled.
+    pub(crate) fn start(self, tasks: &TurboTasks<Backend>, watch: bool) -> TaskId {
+        let compilation = Arc::new(self);
+        tasks.spawn_root_task::<(), _, _>(move || {
+            let compilation = compilation.clone();
+            async move {
+                let result = compilation.run(watch).await;
+                if watch {
+                    if let Err(error) = result {
+                        eprintln!("{error:#}");
+                    }
+                } else {
+                    result?;
+                }
+                Ok(Vc::cell(()))
+            }
+        })
+    }
+    async fn run(&self, watch: bool) -> Result<()> {
+        let wrapper_op = extract_effects_operation(build_internal(
+            self.project_dir.clone(),
+            self.root_dir.clone(),
+            self.entry_requests.clone(),
+            self.browserslist_query.clone(),
+            self.source_maps_type,
+            self.minify_type,
+            self.target,
+            self.scope_hoist,
+            watch,
+            self.go_entries.clone(),
+        ));
 
-                apply_effects(build_result_op).await?;
+        // Cancellation is transient state, so a cached successful graph can still carry
+        // write effects after cancellation. Guard publication here, and let the graph
+        // settle without applying those effects before the owning session stops the engine.
+        tokio::select! {
+            biased;
+            _ = async {
+                match &self.go_entries {
+                    Some(build) => build.go_context.cancelled().await,
+                    None => std::future::pending().await,
+                }
+            } => {
+                // Let the shared graph settle without applying its effects. Stopping the
+                // engine first could strand operations that still need to schedule tasks.
+                let _ = wrapper_op.resolve().strongly_consistent().await;
+                return Ok(());
+            },
+            result = read_strongly_consistent_and_apply_effects(wrapper_op, |e| e) => { result?; }
+        }
 
-                let issue_reporter: Vc<Box<dyn IssueReporter>> =
-                    Vc::upcast(ConsoleUi::new(TransientInstance::new(LogOptions {
-                        project_dir: PathBuf::from(self.project_dir),
-                        current_dir: current_dir().unwrap(),
-                        show_all: self.show_all,
-                        log_detail: self.log_detail,
-                        log_level: self.log_level,
-                    })));
+        let issue_reporter: Vc<Box<dyn IssueReporter>> =
+            Vc::upcast(ConsoleUi::new(TransientInstance::new(LogOptions {
+                project_dir: PathBuf::from(&*self.project_dir),
+                current_dir: current_dir().unwrap(),
+                show_all: self.show_all,
+                log_detail: self.log_detail,
+                log_level: self.log_level,
+            })));
 
-                handle_issues(
-                    build_result_op,
-                    issue_reporter,
-                    IssueSeverity::Error,
-                    None,
-                    None,
-                )
-                .await?;
-
-                Ok(())
-            })
-            .await
+        handle_issues(wrapper_op, issue_reporter, IssueSeverity::Error, None, None).await?;
+        Ok(())
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
+async fn extract_effects_operation(op: OperationVc<()>) -> Result<Vc<Effects>> {
+    let _ = op.resolve().strongly_consistent().await?;
+    Ok(take_effects(op).await?.cell())
+}
+
+#[turbo_tasks::function(operation, root)]
 async fn build_internal(
     project_dir: RcStr,
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
     browserslist_query: RcStr,
-    source_maps_type: SourceMapsType,
+    source_maps_type: Option<SourceMapType>,
     minify_type: MinifyType,
     target: Target,
     scope_hoist: bool,
-) -> Result<Vc<()>> {
+    watch: bool,
+    go_entries: Option<Arc<GoBuild>>,
+) -> Result<()> {
+    if watch && let Some(entries) = &go_entries {
+        entries.start_watching().await?;
+    }
+    let output_root = output_fs(project_dir.clone()).root().await?.join("dist")?;
+    let js_entries = entry_requests
+        .into_iter()
+        .filter(|entry| !matches!(entry, EntryRequest::Relative(path) if is_go_entry(path)))
+        .collect();
+    let js_assets = build_assets(
+        project_dir,
+        root_dir,
+        js_entries,
+        browserslist_query,
+        source_maps_type,
+        minify_type,
+        target,
+        scope_hoist,
+        watch,
+    );
+    let go_assets = match go_entries {
+        Some(entries) => crate::go::output_assets(entries, output_root),
+        None => OutputAssets::empty(),
+    };
+    let all_assets = js_assets.concatenate(go_assets).await?;
+    all_assets
+        .iter()
+        .map(async |asset| asset.content().write(asset.path().owned().await?).await)
+        .try_join()
+        .await?;
+    Ok(())
+}
+
+#[turbo_tasks::function]
+async fn build_assets(
+    project_dir: RcStr,
+    root_dir: RcStr,
+    entry_requests: Vec<EntryRequest>,
+    browserslist_query: RcStr,
+    source_maps_type: Option<SourceMapType>,
+    minify_type: MinifyType,
+    target: Target,
+    scope_hoist: bool,
+    watch: bool,
+) -> Result<Vc<OutputAssets>> {
+    if entry_requests.is_empty() {
+        return Ok(OutputAssets::empty());
+    }
     let output_fs = output_fs(project_dir.clone());
     const OUTPUT_DIR: &str = "dist";
     let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
@@ -205,7 +295,7 @@ async fn build_internal(
         .into();
     let project_fs = project_fs(
         root_dir.clone(),
-        /* watch= */ false,
+        watch,
         join_path(project_relative.as_str(), OUTPUT_DIR)
             .unwrap()
             .into(),
@@ -226,7 +316,9 @@ async fn build_internal(
         NodeEnv::Production => RuntimeType::Production,
     };
 
-    let compile_time_info = get_client_compile_time_info(browserslist_query.clone(), node_env);
+    let compile_time_info =
+        get_client_compile_time_info(browserslist_query.clone(), node_env, false);
+    let node_backend = child_process_backend();
     let execution_context = ExecutionContext::new(
         root_path.clone(),
         Vc::upcast(
@@ -244,9 +336,13 @@ async fn build_internal(
                 .await?,
                 runtime_type,
             )
+            // Shared by every build-time JS evaluation, each with its own module graph but all
+            // emitting the same runtime chunk.
+            .shared_runtime_chunk(true)
             .build(),
         ),
         load_env(root_path.clone()),
+        node_backend,
     );
 
     let asset_context = get_client_asset_context(
@@ -257,48 +353,47 @@ async fn build_internal(
         source_maps_type,
     );
 
-    let entry_requests = (*entry_requests
-        .into_iter()
-        .map(|r| async move {
-            Ok(match r {
-                EntryRequest::Relative(p) => Request::relative(
-                    p.clone().into(),
-                    Default::default(),
-                    Default::default(),
-                    false,
-                ),
-                EntryRequest::Module(m, p) => Request::module(
-                    m.clone().into(),
-                    p.clone().into(),
-                    Default::default(),
-                    Default::default(),
-                ),
-            })
-        })
-        .try_join()
-        .await?)
-        .to_vec();
+    let entry_requests = entry_requests.into_iter().map(|r| match r {
+        EntryRequest::Relative(p) => Request::relative(
+            p.clone().into(),
+            Default::default(),
+            Default::default(),
+            false,
+        ),
+        EntryRequest::Module(m, p) => Request::module(
+            m.clone().into(),
+            p.clone().into(),
+            Default::default(),
+            Default::default(),
+        ),
+    });
 
-    let origin = PlainResolveOrigin::new(asset_context, project_fs.root().await?.join("_")?);
+    let origin =
+        PlainResolveOrigin::new(asset_context, project_fs.root().await?.join("_")?).await?;
+    let resolve_options = origin.resolve_options();
+    let asset_context = origin.asset_context();
+    let origin_path = origin.origin_path();
     let project_dir = &project_dir;
     let entries = async move {
         entry_requests
-            .into_iter()
-            .map(|request_vc| async move {
-                let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
-                let request = request_vc.await?;
-                origin
-                    .resolve_asset(request_vc, origin.resolve_options(ty.clone()).await?, ty)
-                    .await?
-                    .first_module()
-                    .await?
-                    .with_context(|| {
-                        format!(
-                            "Unable to resolve entry {} from directory {}.",
-                            request.request().unwrap(),
-                            project_dir
-                        )
-                    })
+            .map(|request_vc| {
+                let origin_path = origin_path.clone();
+                async move {
+                    let ty = ReferenceType::Entry(EntryReferenceSubType::default());
+                    let request = request_vc.await?;
+                    asset_context
+                        .resolve_asset(origin_path, request_vc, resolve_options, ty)
+                        .await?
+                        .first_module()
+                        .await?
+                        .with_context(|| {
+                            format!(
+                                "Unable to resolve entry {} from directory {}.",
+                                request.request().unwrap(),
+                                project_dir
+                            )
+                        })
+                }
             })
             .try_join()
             .await
@@ -306,17 +401,42 @@ async fn build_internal(
     .instrument(tracing::info_span!("resolve entries"))
     .await?;
 
-    let module_graph = ModuleGraph::from_modules(
-        Vc::cell(vec![ChunkGroupEntry::Entry(entries.clone())]),
-        false,
+    let single_graph = SingleModuleGraph::new_with_entries(
+        GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+            modules: entries.clone(),
+            heuristics: EntryHeuristics::default(),
+        }])
+        .resolved_cell(),
+        ModuleGraphOptions {
+            include_binding_usage: true,
+            // `compute_binding_usage_info(_, true)` below runs
+            // `compute_side_effect_free_module_info`, which reads `side_effects` from
+            // the graph node.
+            include_side_effects: true,
+            // Module merging (driven by `scope_hoist` in the chunking context below) reads
+            // `is_mergeable` from the graph node and bails if absent.
+            include_mergeable: scope_hoist,
+            // `get_global_module_id_strategy` below reads each module's `ident_string` from the
+            // graph node; collect it so it doesn't fan out a `to_string()` per module.
+            include_ident_strings: true,
+            ..Default::default()
+        },
     );
-    let module_id_strategy = ResolvedVc::upcast(
-        get_global_module_id_strategy(module_graph)
-            .to_resolved()
-            .await?,
+    let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
+    let binding_usage = compute_binding_usage_info(
+        module_graph,
+        /* remove_unused_imports */ true,
+        /* drop_unused_module_data */ true,
     );
-    let export_usage = compute_export_usage_info(module_graph.to_resolved().await?)
-        .resolve_strongly_consistent()
+    let unused_references = binding_usage
+        .connect()
+        .unused_references()
+        .to_resolved()
+        .await?;
+    module_graph = ModuleGraph::from_graphs(vec![single_graph], Some(binding_usage));
+    let module_graph = module_graph.connect();
+    let module_id_strategy = get_global_module_id_strategy(module_graph)
+        .to_resolved()
         .await?;
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match target {
@@ -341,9 +461,10 @@ async fn build_internal(
                 .await?,
                 runtime_type,
             )
-            .source_maps(source_maps_type)
+            .emitted_source_map_type(source_maps_type)
             .module_id_strategy(module_id_strategy)
-            .export_usage(Some(export_usage))
+            .export_usage(Some(binding_usage.connect().to_resolved().await?))
+            .unused_references(unused_references)
             .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
             .minify_type(minify_type);
 
@@ -367,7 +488,9 @@ async fn build_internal(
                                 ..Default::default()
                             },
                         )
-                        .use_content_hashing(ContentHashing::Direct { length: 16 })
+                        .chunk_content_hashing(ContentHashing::Direct { length: 13 })
+                        .asset_content_hashing(ContentHashing::Direct { length: 13 })
+                        .nested_async_availability(true)
                         .module_merging(scope_hoist);
                 }
             }
@@ -389,9 +512,10 @@ async fn build_internal(
                 .await?,
                 runtime_type,
             )
-            .source_maps(source_maps_type)
+            .emitted_source_map_type(source_maps_type)
             .module_id_strategy(module_id_strategy)
-            .export_usage(Some(export_usage))
+            .export_usage(Some(binding_usage.connect().to_resolved().await?))
+            .unused_references(unused_references)
             .minify_type(minify_type);
 
             match *node_env.await? {
@@ -433,29 +557,20 @@ async fn build_internal(
                         ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry_module)
                     {
                         match target {
-                            Target::Browser => {
-                                *chunking_context
-                                    .evaluated_chunk_group_assets(
-                                        AssetIdent::from_path(
-                                            build_output_root
-                                                .join(
-                                                    ecmascript
-                                                        .ident()
-                                                        .path()
-                                                        .await?
-                                                        .file_stem()
-                                                        .unwrap(),
-                                                )?
-                                                .with_extension("entry.js"),
-                                        ),
-                                        ChunkGroup::Entry(
-                                            [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
-                                        ),
-                                        module_graph,
-                                        AvailabilityInfo::Root,
-                                    )
-                                    .await?
-                            }
+                            Target::Browser => chunking_context.evaluated_chunk_group_assets(
+                                AssetIdent::from_path(
+                                    build_output_root
+                                        .join(ecmascript.ident().await?.path.file_stem().unwrap())?
+                                        .with_extension("entry.js"),
+                                )
+                                .into_vc(),
+                                ChunkGroupKey::Entry(
+                                    [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
+                                ),
+                                module_graph,
+                                OutputAssets::empty(),
+                                AvailabilityInfo::root(),
+                            ),
                             Target::Node => OutputAssetsWithReferenced {
                                 assets: ResolvedVc::cell(vec![
                                     chunking_context
@@ -464,23 +579,27 @@ async fn build_internal(
                                                 .join(
                                                     ecmascript
                                                         .ident()
-                                                        .path()
                                                         .await?
+                                                        .path
                                                         .file_stem()
                                                         .unwrap(),
                                                 )?
                                                 .with_extension("entry.js"),
-                                            EvaluatableAssets::one(*ecmascript),
+                                            ChunkGroupKey::Entry(vec![ResolvedVc::upcast(
+                                                ecmascript,
+                                            )]),
                                             module_graph,
                                             OutputAssets::empty(),
                                             OutputAssets::empty(),
-                                            AvailabilityInfo::Root,
+                                            AvailabilityInfo::root(),
                                         )
                                         .await?
                                         .asset,
                                 ]),
                                 referenced_assets: ResolvedVc::cell(vec![]),
-                            },
+                                references: ResolvedVc::cell(vec![]),
+                            }
+                            .cell(),
                         }
                     } else {
                         bail!(
@@ -496,59 +615,102 @@ async fn build_internal(
 
     let all_assets = async move {
         let mut all_assets: FxHashSet<ResolvedVc<Box<dyn OutputAsset>>> = FxHashSet::default();
-        for OutputAssetsWithReferenced {
-            assets,
-            referenced_assets,
-        } in entry_chunk_groups
-        {
-            all_assets.extend(all_assets_from_entries(*assets).await?.into_iter().copied());
-            all_assets.extend(
-                all_assets_from_entries(*referenced_assets)
-                    .await?
-                    .into_iter()
-                    .copied(),
-            );
+        for group in entry_chunk_groups {
+            all_assets.extend(group.expand_all_assets().await?);
         }
         anyhow::Ok(all_assets)
     }
     .instrument(tracing::info_span!("list chunks"))
     .await?;
 
-    all_assets
-        .iter()
-        .map(|c| async move { c.content().write(c.path().owned().await?).await })
-        .try_join()
-        .await?;
-
-    Ok(Default::default())
+    Ok(Vc::cell(all_assets.into_iter().collect()))
 }
 
-pub async fn build(args: &BuildArguments) -> Result<()> {
+pub async fn build(args: &BuildArguments, exit: &ExitHandler) -> Result<()> {
+    let go_entries = crate::go::prepare(&args.common).await?;
     let NormalizedDirs {
         project_dir,
         root_dir,
     } = normalize_dirs(&args.common.dir, &args.common.root)?;
 
-    let tt = TurboTasks::new(TurboTasksBackend::new(
-        BackendOptions {
-            dependency_tracking: false,
-            storage_mode: None,
-            ..Default::default()
-        },
-        noop_backing_storage(),
-    ));
+    let is_ci = std::env::var("CI").is_ok_and(|v| !v.is_empty());
+    let is_short_session = !args.watch;
 
-    let mut builder = TurbopackBuildBuilder::new(tt.clone(), project_dir, root_dir)
+    let tt = if args.common.persistent_caching {
+        let version_info = GitVersionInfo {
+            describe: env!("VERGEN_GIT_DESCRIBE"),
+            dirty: option_env!("CI").is_none_or(|v| v.is_empty())
+                && env!("VERGEN_GIT_DIRTY") == "true",
+        };
+        let cache_dir = args
+            .common
+            .cache_dir
+            .clone()
+            .unwrap_or_else(|| PathBuf::from(&*project_dir).join(".turbopack/cache"));
+        let (backing_storage, cache_state) = turbo_backing_storage(
+            &cache_dir,
+            &version_info,
+            BackingStorageOptions {
+                is_ci,
+                is_short_session,
+                skip_compaction: false,
+            },
+        )?;
+        let storage_mode = if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
+            StorageMode::ReadOnly
+        } else if is_ci || is_short_session {
+            StorageMode::ReadWriteOnShutdown
+        } else {
+            StorageMode::ReadWrite
+        };
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                // Go validates external compiler snapshots and can invalidate stale task
+                // results even in a one-shot build. Those retries need dependency links.
+                dependency_tracking: args.watch || go_entries.is_some(),
+                storage_mode: Some(storage_mode),
+                ..Default::default()
+            },
+            backing_storage,
+        ));
+        if let StartupCacheState::Invalidated { reason_code } = cache_state {
+            eprintln!(
+                "warn  - Turbopack cache was invalidated{}",
+                reason_code
+                    .as_deref()
+                    .map(|r| format!(": {r}"))
+                    .unwrap_or_default()
+            );
+        }
+        tt
+    } else {
+        TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                dependency_tracking: args.watch || go_entries.is_some(),
+                storage_mode: None,
+                ..Default::default()
+            },
+            noop_backing_storage(),
+        ))
+    };
+
+    let go_entries = match go_entries {
+        Some(entries) => Some(tt.run_once(async move { entries.connect().await }).await?),
+        None => None,
+    };
+
+    let mut builder = TurbopackBuildBuilder::new(project_dir, root_dir)
+        .go_entries(go_entries.clone())
         .log_detail(args.common.log_detail)
         .log_level(
             args.common
                 .log_level
-                .map_or_else(|| IssueSeverity::Warning, |l| l.0),
+                .map_or(IssueSeverity::Warning, |l| l.0),
         )
         .source_maps_type(if args.no_sourcemap {
-            SourceMapsType::None
+            None
         } else {
-            SourceMapsType::Full
+            Some(SourceMapType::Full)
         })
         .minify_type(if args.no_minify {
             MinifyType::NoMinify
@@ -565,7 +727,28 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         builder = builder.entry_request(EntryRequest::Relative(entry));
     }
 
-    builder.build().await?;
+    let task = builder.start(&tt, args.watch);
+    let shutdown = register_shutdown(exit, tt.clone(), go_entries, Some(task));
+
+    let result = if args.watch {
+        std::future::pending().await
+    } else {
+        let tasks = tt.clone();
+        tt.run_once(async move {
+            tasks
+                .wait_task_completion(task, ReadConsistency::Strong)
+                .await
+        })
+        .await
+    };
+
+    shutdown.skip_persistence();
+    if result.is_ok() {
+        shutdown.cleanup().await;
+        // Persist successful one-shot builds here, while the command still owns the engine.
+        // Errors only cancel work and release watchers via the exit handler.
+        tt.stop_and_wait().await;
+    }
 
     // Intentionally leak this `Arc`. Otherwise we'll waste time during process exit performing a
     // ton of drop calls.
@@ -573,5 +756,5 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         forget(tt);
     }
 
-    Ok(())
+    result
 }

@@ -1,0 +1,193 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
+/// <reference path="../../shared/runtime/runtime-utils.ts" />
+/// <reference path="../../shared-node/base-externals-utils.ts" />
+/// <reference path="../../shared-node/node-externals-utils.ts" />
+/// <reference path="./nodejs-globals.d.ts" />
+
+/**
+ * Base Node.js runtime shared between production and development.
+ * Contains chunk loading, module caching, and other non-HMR functionality.
+ */
+
+process.env.TURBOPACK = '1'
+
+const url = require('url') as typeof import('url')
+
+/**
+ * Returns an absolute path to the given module's id.
+ */
+function resolvePathFromModule(
+  this: TurbopackBaseContext<Module>,
+  moduleId: string
+): string {
+  const exported = getOrInstantiateModuleFromParent(moduleId, this.m)
+    .exports as Exports
+  const exportedPath = exported?.default ?? exported
+  if (typeof exportedPath !== 'string') {
+    return exported as any
+  }
+
+  const strippedAssetPrefix = exportedPath.slice(ASSET_PREFIX.length)
+  const resolved = path.resolve(RUNTIME_ROOT, strippedAssetPrefix)
+
+  return url.pathToFileURL(resolved).href
+}
+
+/**
+ * Exports a URL value. No suffix is added in Node.js runtime.
+ */
+function exportUrl(
+  this: TurbopackBaseContext<Module>,
+  urlValue: string,
+  id: ModuleId | undefined
+) {
+  exportValue.call(this, urlValue, id)
+}
+
+function loadRuntimeChunk(sourcePath: ChunkPath, chunkData: ChunkData): void {
+  if (typeof chunkData === 'string') {
+    loadRuntimeChunkPath(sourcePath, chunkData)
+  } else {
+    loadRuntimeChunkPath(sourcePath, chunkData.path)
+  }
+}
+
+const loadedChunks = new Set<ChunkPath>()
+const unsupportedLoadChunk = Promise.resolve(undefined)
+const loadedChunk: Promise<void> = Promise.resolve(undefined)
+const chunkCache = new Map<ChunkPath, Promise<void>>()
+
+function clearChunkCache() {
+  chunkCache.clear()
+  loadedChunks.clear()
+}
+
+function loadRuntimeChunkPath(
+  sourcePath: ChunkPath,
+  chunkPath: ChunkPath
+): void {
+  if (!isJs(chunkPath)) {
+    // We only support loading JS chunks in Node.js.
+    // This branch can be hit when trying to load a CSS chunk.
+    return
+  }
+
+  if (loadedChunks.has(chunkPath)) {
+    return
+  }
+
+  try {
+    const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
+    const chunkModules: CompressedModuleFactories = require(resolved)
+    installCompressedModuleFactories(chunkModules, 0)
+    loadedChunks.add(chunkPath)
+  } catch (cause) {
+    let errorMessage = `Failed to load chunk ${chunkPath}`
+
+    if (sourcePath) {
+      errorMessage += ` from runtime for chunk ${sourcePath}`
+    }
+
+    const error = new Error(errorMessage, { cause })
+    error.name = 'ChunkLoadError'
+    throw error
+  }
+}
+
+function loadChunkAsync<TModule extends Module>(
+  this: TurbopackBaseContext<TModule>,
+  chunkData: ChunkData
+): Promise<void> {
+  const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path
+  if (!isJs(chunkPath)) {
+    // We only support loading JS chunks in Node.js.
+    // This branch can be hit when trying to load a CSS chunk.
+    return unsupportedLoadChunk
+  }
+
+  let entry = chunkCache.get(chunkPath)
+  if (entry === undefined) {
+    const sourceModuleId = this.m.id
+    // `ensureChunk` is conditionally installed to support lazy dynamic imports during SSR
+    // It can be used to call back into turbopack to compile the chunk we are about to reference.
+    const ensureChunk = globalThis.__turbopack_ensure_chunk__
+    let ensuring: void | Promise<void> = undefined
+    if (ensureChunk !== undefined) {
+      try {
+        // Returns `undefined` when the chunk can be required right away.
+        ensuring = ensureChunk(chunkPath)
+      } catch (error) {
+        // Don't cache a failure to compile the chunk, so that the next load
+        // retries it.
+        return Promise.reject(error)
+      }
+    }
+    if (ensuring === undefined) {
+      entry = requireChunk(chunkPath, sourceModuleId)
+    } else {
+      // The chunk is being compiled on demand before it can be required.
+      // Cache the combined promise right away so that every caller (including
+      // concurrent ones) gets the same promise for this chunk.
+      const ensured: Promise<void> = Promise.resolve(ensuring).then(
+        () => requireChunk(chunkPath, sourceModuleId),
+        (error) => {
+          // Don't cache a failure to compile the chunk, so that the next load
+          // retries it.
+          if (chunkCache.get(chunkPath) === ensured) {
+            chunkCache.delete(chunkPath)
+          }
+          throw error
+        }
+      )
+      entry = ensured
+    }
+    chunkCache.set(chunkPath, entry)
+  }
+  // TODO: Return an instrumented Promise that React can use instead of relying on referential equality.
+  return entry
+}
+
+function requireChunk(
+  chunkPath: ChunkPath,
+  sourceModuleId: ModuleId
+): Promise<void> {
+  try {
+    // resolve to an absolute path to simplify `require` handling
+    const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
+    // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
+    // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
+    const chunkModules: CompressedModuleFactories = require(resolved)
+    installCompressedModuleFactories(chunkModules, 0)
+    return loadedChunk
+  } catch (cause) {
+    const errorMessage = `Failed to load chunk ${chunkPath} from module ${sourceModuleId}`
+    const error = new Error(errorMessage, { cause })
+    error.name = 'ChunkLoadError'
+
+    // Cache the failure promise, future requests will also get this same rejection
+    return Promise.reject(error)
+  }
+}
+contextPrototype.l = loadChunkAsync
+
+function loadChunkAsyncByUrl<TModule extends Module>(
+  this: TurbopackBaseContext<TModule>,
+  chunkUrl: string
+) {
+  const path = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT)) as ChunkPath
+  return loadChunkAsync.call(this, path)
+}
+contextPrototype.L = loadChunkAsyncByUrl
+
+// Shared runtime primitive: the root that on-disk chunk paths are resolved
+// against. Used by the bundled wasm helper (exposed as `__turbopack_runtime_root__`).
+contextPrototype.w = RUNTIME_ROOT
+
+const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/
+/**
+ * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
+ */
+function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
+  return regexJsUrl.test(chunkUrlOrPath)
+}

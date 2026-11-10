@@ -2,10 +2,7 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  experimental: {
-    cacheComponents: true,
-    clientSegmentCache: true,
-  },
+  cacheComponents: true,
   async rewrites() {
     return [
       {

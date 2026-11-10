@@ -1,3 +1,6 @@
+const enableCaching = !!process.env.ENABLE_CACHING
+const enableEviction = !!process.env.ENABLE_EVICTION
+
 /**
  * @type {import('next').NextConfig}
  */
@@ -16,8 +19,9 @@ const nextConfig = {
     },
   },
   experimental: {
-    turbopackFileSystemCacheForDev: true,
-    turbopackFileSystemCacheForBuild: true,
+    turbopackFileSystemCacheForBuild: enableCaching,
+    turbopackFileSystemCacheForDev: enableCaching,
+    turbopackMemoryEviction: enableEviction ? 'full' : false,
   },
   env: {
     NEXT_PUBLIC_CONFIG_ENV: 'hello world',
@@ -31,6 +35,11 @@ const nextConfig = {
       test: /app\/loader(?:\/client)?\/page\.tsx/,
       use: ['./my-loader.js'],
     })
+    if (enableCaching) {
+      config.cache = Object.freeze({
+        type: 'memory',
+      })
+    }
     if (dev) {
       // Make webpack consider the build as large change which makes it filesystem cache it sooner
       config.plugins.push((compiler) => {

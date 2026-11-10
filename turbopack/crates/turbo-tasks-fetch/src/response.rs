@@ -21,8 +21,7 @@ pub struct HttpResponseBody(pub Vec<u8>);
 #[turbo_tasks::value_impl]
 impl HttpResponseBody {
     #[turbo_tasks::function]
-    pub async fn to_string(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        let this = &*self.await?;
-        Ok(Vc::cell(std::str::from_utf8(&this.0)?.into()))
+    pub fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(std::str::from_utf8(&self.0)?.into()))
     }
 }

@@ -67,3 +67,11 @@ function h() {
   };
   h3();
 }
+function i() {
+  {
+    i1();
+    return;
+    i2();
+  }
+  i3();
+}

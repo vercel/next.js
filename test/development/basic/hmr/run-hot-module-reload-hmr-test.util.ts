@@ -5,6 +5,9 @@ import { nextTestSetup } from 'e2e-utils'
 export function runHotModuleReloadHmrTest(nextConfig: {
   basePath: string
   assetPrefix: string
+  turbopack?: {
+    chunkLoadingGlobal: string
+  }
 }) {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -22,6 +25,9 @@ export function runHotModuleReloadHmrTest(nextConfig: {
         const text = await browser.elementByCss('p').text()
         expect(text).toBe('This is the contact page.')
 
+        expect(next.cliOutput).toMatch(/GET .*\/hmr\/contact 200/)
+        let cliOutputLength = next.cliOutput.length
+
         // Rename the file to mimic a deleted page
         await next.renameFile(contactPagePath, newContactPagePath)
 
@@ -30,6 +36,10 @@ export function runHotModuleReloadHmrTest(nextConfig: {
             /This page could not be found/
           )
         })
+        expect(next.cliOutput.slice(cliOutputLength)).toMatch(
+          /GET .*\/hmr\/contact 404/
+        )
+        cliOutputLength = next.cliOutput.length
 
         // Rename the file back to the original filename
         await next.renameFile(newContactPagePath, contactPagePath)
@@ -40,8 +50,9 @@ export function runHotModuleReloadHmrTest(nextConfig: {
             /This is the contact page/
           )
         })
-
-        expect(next.cliOutput).toContain('Compiled /_error')
+        expect(next.cliOutput.slice(cliOutputLength)).toMatch(
+          /GET .*\/hmr\/contact 200/
+        )
       } finally {
         await next
           .renameFile(newContactPagePath, contactPagePath)
@@ -80,6 +91,56 @@ export function runHotModuleReloadHmrTest(nextConfig: {
           /This is the about page/
         )
       })
+    })
+
+    // A page with a re-export is turned into a different module (a facade) than a page
+    // without one, so this changes which module the page's client entry points at.
+    it('should keep updating a page that adds and removes a re-export', async () => {
+      const browser = await next.browser(basePath + '/hmr/reexport')
+      expect(await browser.elementByCss('p').text()).toBe(
+        'This is the reexport page.'
+      )
+
+      const pagePath = join('pages', 'hmr', 'reexport.js')
+      const originalContent = await next.readFile(pagePath)
+      const reexport =
+        "export { default as Reexported } from '../../components/hmr/reexported'\n"
+
+      try {
+        await next.patchFile(
+          pagePath,
+          reexport +
+            originalContent.replace('the reexport page', 'the reexport page 1')
+        )
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe(
+            'This is the reexport page 1.'
+          )
+        })
+
+        await next.patchFile(
+          pagePath,
+          reexport +
+            originalContent.replace('the reexport page', 'the reexport page 2')
+        )
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe(
+            'This is the reexport page 2.'
+          )
+        })
+
+        await next.patchFile(
+          pagePath,
+          originalContent.replace('the reexport page', 'the reexport page 3')
+        )
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe(
+            'This is the reexport page 3.'
+          )
+        })
+      } finally {
+        await next.patchFile(pagePath, originalContent)
+      }
     })
 
     it('should not reload unrelated pages', async () => {
@@ -176,11 +237,9 @@ export function runHotModuleReloadHmrTest(nextConfig: {
     // Added because of a regression in react-hot-loader, see issues: #4246 #4273
     // Also: https://github.com/vercel/styled-jsx/issues/425
     it('should update styles in a dynamic component correctly', async () => {
-      const browser = await next.browser(
-        basePath + '/hmr/style-dynamic-component'
-      )
+      const browser = await next.browser(basePath + '/hmr/dynamic-component')
       const secondBrowser = await next.browser(
-        basePath + '/hmr/style-dynamic-component'
+        basePath + '/hmr/dynamic-component'
       )
       const pagePath = join('components', 'hmr', 'dynamic.js')
       const originalContent = await next.readFile(pagePath)
@@ -192,12 +251,12 @@ export function runHotModuleReloadHmrTest(nextConfig: {
         expect(initialFontSize).toBe('100px')
 
         const initialHtml = await next.render(
-          basePath + '/hmr/style-dynamic-component'
+          basePath + '/hmr/dynamic-component'
         )
         expect(initialHtml.includes('100px')).toBeTruthy()
 
         const $initialHtml = await next.render$(
-          basePath + '/hmr/style-dynamic-component'
+          basePath + '/hmr/dynamic-component'
         )
         const initialServerClassName =
           $initialHtml('#dynamic-component').attr('class')
@@ -225,11 +284,11 @@ export function runHotModuleReloadHmrTest(nextConfig: {
         expect(browserHtml.includes('font-size:100px')).toBe(false)
 
         const editedHtml = await next.render(
-          basePath + '/hmr/style-dynamic-component'
+          basePath + '/hmr/dynamic-component'
         )
         expect(editedHtml.includes('200px')).toBeTruthy()
         const $editedHtml = await next.render$(
-          basePath + '/hmr/style-dynamic-component'
+          basePath + '/hmr/dynamic-component'
         )
         const editedServerClassName =
           $editedHtml('#dynamic-component').attr('class')
@@ -238,6 +297,40 @@ export function runHotModuleReloadHmrTest(nextConfig: {
       } finally {
         // Finally is used so that we revert the content back to the original regardless of the test outcome
         // restore the about page content.
+        await next.patchFile(pagePath, originalContent)
+      }
+    })
+
+    it('should update text in a dynamic component correctly', async () => {
+      const browser = await next.browser(basePath + '/hmr/dynamic-component')
+      const pagePath = join('components', 'hmr', 'dynamic.js')
+      const originalContent = await next.readFile(pagePath)
+      try {
+        const div = await browser.elementByCss('#dynamic-component')
+        const initialText = await div.text()
+        expect(initialText).toContain('Dynamic Component')
+
+        const timeOrigin = await browser.eval('performance.timeOrigin')
+
+        const editedContent = originalContent.replace(
+          'Dynamic Component',
+          'Dynamic Component UPDATED'
+        )
+
+        // Change the component text
+        await next.patchFile(pagePath, editedContent)
+
+        // Wait for HMR to propagate the text update
+        await retry(async () => {
+          const editedDiv = await browser.elementByCss('#dynamic-component')
+          const editedText = await editedDiv.text()
+          expect(editedText).toContain('Dynamic Component UPDATED')
+        })
+
+        // Ensure the page was updated via HMR and not a full reload
+        expect(await browser.eval('performance.timeOrigin')).toEqual(timeOrigin)
+      } finally {
+        // Restore the original content
         await next.patchFile(pagePath, originalContent)
       }
     })

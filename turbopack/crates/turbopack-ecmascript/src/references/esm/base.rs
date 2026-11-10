@@ -1,8 +1,14 @@
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, bail};
+use async_trait::async_trait;
+use bincode::{Decode, Encode};
 use either::Either;
+use rustc_hash::FxHashSet;
 use strsim::jaro;
 use swc_core::{
-    common::{BytePos, DUMMY_SP, Span, SyntaxContext, source_map::PURE_SP},
+    common::{
+        BytePos, DUMMY_SP, Span, SyntaxContext,
+        source_map::{PURE_SP, SmallPos},
+    },
     ecma::ast::{
         ComputedPropName, Decl, Expr, ExprStmt, Ident, Lit, MemberExpr, MemberProp, Number,
         SeqExpr, Stmt, Str,
@@ -10,54 +16,69 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, turbobail,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{
-        ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
-        ModuleChunkItemIdExt,
-    },
-    context::AssetContext,
+    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     issue::{
-        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
+        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString,
+        code_gen::CodeGenerationIssue,
     },
-    module::Module,
-    module_graph::export_usage::ModuleExportUsageInfo,
+    loader::{ResolvedWebpackLoaderItem, WebpackLoaderItem},
+    module::{Module, ModuleSideEffects},
+    module_graph::binding_usage_info::ModuleExportUsageInfo,
     reference::ModuleReference,
-    reference_type::{EcmaScriptModulesReferenceSubType, ImportWithType},
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
-        ExportUsage, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
-        RequestKey,
+        BindingUsage, ExportUsage, ExternalType, ImportUsage, ModulePart, ModuleResolveResult,
+        ModuleResolveResultItem, RequestKey, ResolveErrorMode,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
+        resolve,
     },
+    source::Source,
 };
 use turbopack_resolve::ecmascript::esm_resolve;
 
-use super::export::{all_known_export_names, is_export_missing};
 use crate::{
-    ScopeHoistingContext, TreeShakingMode,
-    analyzer::imports::ImportAnnotations,
+    EcmascriptModuleAsset, EcmascriptParsable, ScopeHoistingContext,
+    analyzer::imports::{ImportAnnotations, ImportedSymbol},
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     export::Liveness,
     magic_identifier,
-    references::{esm::EsmExport, util::throw_module_not_found_expr},
+    module_fragments::{TURBOPACK_PART_IMPORT_SOURCE, part::module::EcmascriptModulePartAsset},
+    parse::ParseResult,
+    references::{
+        esm::{
+            EsmExport,
+            export::{SubsumedImports, all_known_export_names, is_export_missing},
+            mangle::generated_export_key,
+        },
+        util::{SpecifiedChunkingType, throw_module_not_found_expr},
+    },
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
-    tree_shake::{TURBOPACK_PART_IMPORT_SOURCE, asset::EcmascriptModulePartAsset},
     utils::module_id_to_lit,
 };
 
-#[turbo_tasks::value]
+#[derive(PartialEq, Eq)]
 pub enum ReferencedAsset {
     Some(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>),
     External(RcStr, ExternalType),
+    /// The request resolved to a module that can't be placed in an ECMAScript
+    /// chunk (e.g. a stylesheet or a raw module), so it has no bindings to
+    /// import. Importing it for its side effects is fine, reading a binding off
+    /// it is not.
+    NonPlaceable(ResolvedVc<Box<dyn Module>>),
     None,
+    /// The module was aliased to `false`, resolving to an empty module.
+    Empty,
     Unresolvable,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum ReferencedAssetIdent {
     /// The given export (or namespace) is a local binding in the current scope hoisting group.
     LocalBinding {
@@ -65,22 +86,94 @@ pub enum ReferencedAssetIdent {
         ctxt: SyntaxContext,
         liveness: Liveness,
     },
-    /// The given export (or namespace) should be imported and will be assigned to a new variable.
+    /// The given export (or namespace) should be imported and accessed as `export` on the
+    /// `import_source.namespace_ident()` variable.
     Module {
-        namespace_ident: String,
         ctxt: Option<SyntaxContext>,
         export: Option<RcStr>,
+        /// What to import to populate the variable that will hold the imported namespace.
+        ///
+        /// When the ident was resolved through a re-export chain (e.g. `export * as X from
+        /// './inner'`), this is the final module in that chain, not the directly referenced
+        /// asset.
+        import_source: ImportSource,
     },
+}
+
+/// The source to import when initializing a `ReferencedAssetIdent::Module` variable.
+#[derive(Clone, Debug)]
+pub enum ImportSource {
+    /// Import an in-graph module.
+    Module {
+        asset: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        /// The name of the variable that should hold the imported namespace.
+        namespace_ident: String,
+    },
+    /// Import an external dependency. The emitting site decides between
+    /// `__turbopack_external_import` and `__turbopack_external_require` based on its own
+    /// `import_externals` flag.
+    External {
+        request: RcStr,
+        ty: ExternalType,
+        /// The name of the variable that should hold the imported namespace.
+        namespace_ident: String,
+    },
+}
+
+impl ImportSource {
+    async fn new_module(
+        asset: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<Self> {
+        Ok(ImportSource::Module {
+            asset,
+            namespace_ident: ReferencedAsset::get_ident_from_placeable(*asset, chunking_context)
+                .await?,
+        })
+    }
+
+    fn new_external(request: RcStr, ty: ExternalType) -> Self {
+        let namespace_ident = magic_identifier::mangle(&format!("{ty} external {request}"));
+        ImportSource::External {
+            request,
+            ty,
+            namespace_ident,
+        }
+    }
+
+    /// The name of the variable that should hold the imported namespace.
+    pub fn namespace_ident(&self) -> &str {
+        match self {
+            ImportSource::Module {
+                namespace_ident, ..
+            }
+            | ImportSource::External {
+                namespace_ident, ..
+            } => namespace_ident,
+        }
+    }
+
+    /// Like [`ImportSource::namespace_ident`], but takes ownership of the name.
+    pub fn into_namespace_ident(self) -> String {
+        match self {
+            ImportSource::Module {
+                namespace_ident, ..
+            }
+            | ImportSource::External {
+                namespace_ident, ..
+            } => namespace_ident,
+        }
+    }
 }
 
 impl ReferencedAssetIdent {
     pub fn into_module_namespace_ident(self) -> Option<(String, Option<SyntaxContext>)> {
         match self {
             ReferencedAssetIdent::Module {
-                namespace_ident,
+                import_source,
                 ctxt,
                 ..
-            } => Some((namespace_ident, ctxt)),
+            } => Some((import_source.into_namespace_ident(), ctxt)),
             ReferencedAssetIdent::LocalBinding { .. } => None,
         }
     }
@@ -93,15 +186,16 @@ impl ReferencedAssetIdent {
                 liveness: _,
             } => Either::Left(Ident::new(ident.as_str().into(), span, *ctxt)),
             ReferencedAssetIdent::Module {
-                namespace_ident,
                 ctxt,
                 export,
+                import_source,
             } => {
+                let namespace_ident = import_source.namespace_ident();
                 if let Some(export) = export {
                     Either::Right(MemberExpr {
                         span,
                         obj: Box::new(Expr::Ident(Ident::new(
-                            namespace_ident.as_str().into(),
+                            namespace_ident.into(),
                             DUMMY_SP,
                             ctxt.unwrap_or_default(),
                         ))),
@@ -116,7 +210,7 @@ impl ReferencedAssetIdent {
                     })
                 } else {
                     Either::Left(Ident::new(
-                        namespace_ident.as_str().into(),
+                        namespace_ident.into(),
                         span,
                         ctxt.unwrap_or_default(),
                     ))
@@ -198,7 +292,7 @@ impl ReferencedAsset {
                                     .await?;
 
                             if let Some(&initial) = initial
-                                && *referenced_asset == ReferencedAsset::Some(initial)
+                                && referenced_asset == ReferencedAsset::Some(initial)
                             {
                                 // `initial` reexports from `asset` reexports from
                                 // `referenced_asset` (which is `initial`)
@@ -225,81 +319,139 @@ impl ReferencedAsset {
                                 .await?
                                 {
                                     Some(ReferencedAssetIdent::Module {
-                                        namespace_ident,
                                         // Overwrite the context. This import isn't
                                         // inserted in the module that uses the import,
                                         // but in the module containing the reexport
                                         ctxt: None,
                                         export,
+                                        import_source,
                                     }) => Some(ReferencedAssetIdent::Module {
-                                        namespace_ident,
                                         ctxt: Some(ctxt),
                                         export,
+                                        import_source,
                                     }),
                                     ident => ident,
                                 },
                             );
                         }
-                        Some(EsmExport::Error) | None => {
-                            // Export not found, either there was already an error, or
-                            // this is some dynamic (CJS) (re)export situation.
+                        Some(EsmExport::Error) => {
+                            // The export has failed to resolve. The module is merged into this
+                            // scope hoisting group, so it might not have a module factory that
+                            // could be imported. There is nothing to bind to, so the binding
+                            // evaluates to `undefined`.
+                            return Ok(None);
+                        }
+                        None if exports.dynamic_exports.is_empty() => {
+                            // The export is statically known to not exist. The module is merged
+                            // into this scope hoisting group, so it might not have a module
+                            // factory that could be imported. There is nothing to bind to, so the
+                            // binding evaluates to `undefined`.
+                            return Ok(None);
+                        }
+                        None => {
+                            // Export not found, this is some dynamic (CJS) (re)export situation.
                         }
                     }
                 }
 
+                let import_source = ImportSource::new_module(*asset, chunking_context).await?;
                 Some(ReferencedAssetIdent::Module {
-                    namespace_ident: Self::get_ident_from_placeable(asset, chunking_context)
-                        .await?,
                     ctxt: None,
-                    export,
+                    // The target module may emit its exports under shortened keys. This is the
+                    // only place a cross-module export access is materialized, and it resolves
+                    // the same map the producing module uses (see
+                    // `EsmExports::code_generation`), so the two always agree.
+                    export: match &export {
+                        Some(export) => {
+                            Some(generated_export_key(*asset, chunking_context, export).await?)
+                        }
+                        None => None,
+                    },
+                    import_source,
                 })
             }
             ReferencedAsset::External(request, ty) => Some(ReferencedAssetIdent::Module {
-                namespace_ident: magic_identifier::mangle(&format!("{ty} external {request}")),
                 ctxt: None,
                 export,
+                import_source: ImportSource::new_external(request.clone(), *ty),
             }),
-            ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
+            ReferencedAsset::NonPlaceable(module) => {
+                // The module exists but has no ECMAScript bindings, so there is
+                // nothing this identifier could refer to. Report it instead of
+                // silently evaluating to `undefined`.
+                CodeGenerationIssue {
+                    severity: IssueSeverity::Error,
+                    title: StyledString::Text(rcstr!("non-ecmascript placeable asset"))
+                        .resolved_cell(),
+                    message: StyledString::Text(
+                        format!(
+                            "{} has no ECMAScript exports, so {} can't be read from it. It can \
+                             only be imported for its side effects.",
+                            module.ident().to_string().await?,
+                            match &export {
+                                Some(export) => format!("the export {export:?}"),
+                                None => "a namespace".to_string(),
+                            }
+                        )
+                        .into(),
+                    )
+                    .resolved_cell(),
+                    path: module.ident().await?.path.clone(),
+                    source: None,
+                }
+                .resolved_cell()
+                .emit();
+                None
+            }
+            ReferencedAsset::None | ReferencedAsset::Empty | ReferencedAsset::Unresolvable => None,
         })
     }
 
     pub(crate) async fn get_ident_from_placeable(
-        asset: &Vc<Box<dyn EcmascriptChunkPlaceable>>,
+        asset: Vc<Box<dyn EcmascriptChunkPlaceable>>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<String> {
         let id = asset.chunk_item_id(chunking_context).await?;
+        // There are a number of places in `next` that match on this prefix.
+        // See `packages/next/src/shared/lib/magic-identifier.ts`
         Ok(magic_identifier::mangle(&format!("imported module {id}")))
     }
 }
 
-#[turbo_tasks::value_impl]
 impl ReferencedAsset {
-    #[turbo_tasks::function]
-    pub async fn from_resolve_result(resolve_result: Vc<ModuleResolveResult>) -> Result<Vc<Self>> {
+    pub async fn from_resolve_result(resolve_result: Vc<ModuleResolveResult>) -> Result<Self> {
         // TODO handle multiple keyed results
         let result = resolve_result.await?;
-        if result.is_unresolvable_ref() {
-            return Ok(ReferencedAsset::Unresolvable.cell());
+        if result.is_unresolvable() {
+            return Ok(ReferencedAsset::Unresolvable);
         }
+        let mut non_placeable = None;
         for (_, result) in result.primary.iter() {
             match result {
                 ModuleResolveResultItem::External {
                     name: request, ty, ..
                 } => {
-                    return Ok(ReferencedAsset::External(request.clone(), *ty).cell());
+                    return Ok(ReferencedAsset::External(request.clone(), *ty));
                 }
-                &ModuleResolveResultItem::Module(module) => {
+                ModuleResolveResultItem::Module(module) => {
                     if let Some(placeable) =
-                        ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module)
+                        ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(*module)
                     {
-                        return Ok(ReferencedAsset::Some(placeable).cell());
+                        return Ok(ReferencedAsset::Some(placeable));
                     }
+                    non_placeable = non_placeable.or(Some(*module));
+                }
+                ModuleResolveResultItem::Empty => {
+                    return Ok(ReferencedAsset::Empty);
                 }
                 // TODO ignore should probably be handled differently
                 _ => {}
             }
         }
-        Ok(ReferencedAsset::None.cell())
+        Ok(match non_placeable {
+            Some(module) => ReferencedAsset::NonPlaceable(module),
+            None => ReferencedAsset::None,
+        })
     }
 }
 
@@ -315,72 +467,225 @@ impl EsmAssetReferences {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("import {request}")]
 pub struct EsmAssetReference {
+    pub module: ResolvedVc<EcmascriptModuleAsset>,
+    /// The resolve origin, with any annotation-driven transition already applied at construction.
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     // Request is a string to avoid eagerly parsing into a `Request` VC
     pub request: RcStr,
-    pub annotations: ImportAnnotations,
     pub issue_source: IssueSource,
     pub export_name: Option<ModulePart>,
+    pub import_usage: ImportUsage,
     pub import_externals: bool,
+    pub module_fragments_enabled: bool,
     pub is_pure_import: bool,
+    /// Rarely-present, slightly-large fields (import-annotation overrides and a resolve override),
+    /// boxed off the common path so the typical reference stays small. `None` whenever every field
+    /// would be empty.
+    extras: Option<Box<EsmReferenceExtras>>,
+}
+
+/// Construction options for an [`EsmAssetReference`].
+///
+/// The module, origin, and request stay as constructor arguments because they identify the
+/// reference. The remaining behavior is named here so call sites don't depend on argument order.
+pub struct EsmAssetReferenceOptions {
+    pub issue_source: IssueSource,
+    pub annotations: Option<ImportAnnotations>,
+    pub export_name: Option<ModulePart>,
+    pub import_usage: ImportUsage,
+    pub import_externals: bool,
+    pub module_fragments_enabled: bool,
+    /// Explicit export-usage passthrough mode for syntax-driven forwarding. `Some(false)` forwards
+    /// used names without exposing the target namespace's original property names.
+    pub export_usage_passthrough: Option<bool>,
+    pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+}
+
+/// Optional extra state for an [`EsmAssetReference`] that is rarely present: the few values
+/// extracted from `ImportAnnotations` (the full `ImportAnnotations` — a `BTreeMap` plus several
+/// `Option`s — is not retained) plus a `resolve_override` from matched inner assets.
+#[derive(
+    Clone, Default, PartialEq, Eq, Hash, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode,
+)]
+struct EsmReferenceExtras {
+    /// `turbopackLoader` configuration (drives `ImportWithTurbopackUse`).
+    turbopack_loader: Option<WebpackLoaderItem>,
+    /// `turbopackAs` rename configuration.
+    turbopack_rename_as: Option<RcStr>,
+    /// `turbopackModuleType` override (distinct from the `with { type: ... }` attribute).
+    turbopack_module_type: Option<RcStr>,
+    /// The `with { type: ... }` attribute (drives `ImportWithType`).
+    module_type: Option<RcStr>,
+    /// The chunking-type annotation (drives `chunking_type`).
+    chunking_type: Option<SpecifiedChunkingType>,
+    /// Whether the importing module's used exports should be forwarded to the target. The boolean
+    /// records whether this edge itself exposes the target namespace's original property names.
+    export_usage_passthrough: Option<bool>,
+    /// A module to resolve to directly, bypassing resolution (from a matched inner asset).
+    resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+}
+
+fn merge_export_usage_passthrough(
+    explicit: Option<bool>,
+    annotation_passthrough: bool,
+) -> Option<bool> {
+    // An annotation is an explicit request to expose the namespace's original names, so it must
+    // not be weakened by a syntax-driven passthrough mode on the same reference.
+    annotation_passthrough.then_some(true).or(explicit)
+}
+
+impl EsmReferenceExtras {
+    /// Builds the extras from import annotations and a resolve override, returning `None` (rather
+    /// than an all-empty box) when nothing relevant is present — the common case.
+    fn new(
+        annotations: Option<&ImportAnnotations>,
+        export_usage_passthrough: Option<bool>,
+        resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+    ) -> Option<Box<Self>> {
+        let extras = EsmReferenceExtras {
+            turbopack_loader: annotations.and_then(|a| a.turbopack_loader().cloned()),
+            turbopack_rename_as: annotations.and_then(|a| a.turbopack_rename_as().cloned()),
+            turbopack_module_type: annotations.and_then(|a| a.turbopack_module_type().cloned()),
+            module_type: annotations
+                .and_then(|a| a.module_type())
+                .map(|m| RcStr::from(&*m.to_string_lossy())),
+            chunking_type: annotations.and_then(|a| a.chunking_type()),
+            export_usage_passthrough: merge_export_usage_passthrough(
+                export_usage_passthrough,
+                annotations.is_some_and(|a| a.export_usage_passthrough()),
+            ),
+            resolve_override,
+        };
+        (extras != EsmReferenceExtras::default()).then(|| Box::new(extras))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::merge_export_usage_passthrough;
+
+    #[test]
+    fn annotation_passthrough_cannot_be_weakened() {
+        assert_eq!(merge_export_usage_passthrough(None, false), None);
+        assert_eq!(
+            merge_export_usage_passthrough(Some(false), false),
+            Some(false)
+        );
+        assert_eq!(
+            merge_export_usage_passthrough(Some(true), false),
+            Some(true)
+        );
+        assert_eq!(merge_export_usage_passthrough(None, true), Some(true));
+        assert_eq!(
+            merge_export_usage_passthrough(Some(false), true),
+            Some(true)
+        );
+        assert_eq!(merge_export_usage_passthrough(Some(true), true), Some(true));
+    }
 }
 
 impl EsmAssetReference {
-    fn get_origin(&self) -> Vc<Box<dyn ResolveOrigin>> {
-        if let Some(transition) = self.annotations.transition() {
-            self.origin.with_transition(transition.into())
+    async fn new_inner(
+        module: ResolvedVc<EcmascriptModuleAsset>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: RcStr,
+        options: EsmAssetReferenceOptions,
+        is_pure_import: bool,
+    ) -> Result<Self> {
+        let EsmAssetReferenceOptions {
+            issue_source,
+            annotations,
+            export_name,
+            import_usage,
+            import_externals,
+            module_fragments_enabled,
+            export_usage_passthrough,
+            resolve_override,
+        } = options;
+
+        // Apply any annotation-driven transition eagerly so the stored origin is final and the
+        // `annotations` don't need to be retained on the reference.
+        let origin = if let Some(transition) = annotations.as_ref().and_then(|a| a.transition()) {
+            origin
+                .with_transition(transition.into())
+                .await?
+                .to_resolved()
+                .await?
         } else {
-            *self.origin
-        }
-    }
-}
-
-impl EsmAssetReference {
-    pub fn new(
-        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        request: RcStr,
-        issue_source: IssueSource,
-        annotations: ImportAnnotations,
-        export_name: Option<ModulePart>,
-        import_externals: bool,
-    ) -> Self {
-        EsmAssetReference {
+            origin
+        };
+        Ok(EsmAssetReference {
+            module,
             origin,
             request,
             issue_source,
-            annotations,
             export_name,
+            import_usage,
             import_externals,
-            is_pure_import: false,
-        }
+            module_fragments_enabled,
+            is_pure_import,
+            extras: EsmReferenceExtras::new(
+                annotations.as_ref(),
+                export_usage_passthrough,
+                resolve_override,
+            ),
+        })
     }
 
-    pub fn new_pure(
+    pub async fn new(
+        module: ResolvedVc<EcmascriptModuleAsset>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: RcStr,
-        issue_source: IssueSource,
-        annotations: ImportAnnotations,
-        export_name: Option<ModulePart>,
-        import_externals: bool,
-    ) -> Self {
+        options: EsmAssetReferenceOptions,
+    ) -> Result<Self> {
+        Self::new_inner(
+            module, origin, request, options, /* is_pure_import */ false,
+        )
+        .await
+    }
+
+    pub async fn new_pure(
+        module: ResolvedVc<EcmascriptModuleAsset>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: RcStr,
+        options: EsmAssetReferenceOptions,
+    ) -> Result<Self> {
+        Self::new_inner(
+            module, origin, request, options, /* is_pure_import */ true,
+        )
+        .await
+    }
+
+    /// Builds a copy of this reference for a single resolved namespace export
+    /// (`import * as ns from 'foo'; ns.bar` → behave like `import { bar } from 'foo'`).
+    ///
+    /// Reuses the already-transitioned `origin` and the `extras` (annotation values + resolve
+    /// override), overriding only the `export_name`. Stays synchronous (no transition / annotation
+    /// re-extraction) so it can be called from the synchronous namespace-rewrite path.
+    pub fn rewrite_for_export(&self, export_name: ModulePart) -> Self {
         EsmAssetReference {
-            origin,
-            request,
-            issue_source,
-            annotations,
-            export_name,
-            import_externals,
-            is_pure_import: true,
+            module: self.module,
+            origin: self.origin,
+            request: self.request.clone(),
+            issue_source: self.issue_source,
+            export_name: Some(export_name),
+            // TODO this is correct, but an overapproximation. We should have individual
+            // import_usage data for each export. This would be fixed by moving this
+            // logic earlier.
+            import_usage: self.import_usage.clone(),
+            import_externals: self.import_externals,
+            module_fragments_enabled: self.module_fragments_enabled,
+            is_pure_import: self.is_pure_import,
+            extras: self.extras.clone(),
         }
     }
-}
 
-#[turbo_tasks::value_impl]
-impl EsmAssetReference {
-    #[turbo_tasks::function]
-    pub(crate) fn get_referenced_asset(self: Vc<Self>) -> Vc<ReferencedAsset> {
+    pub(crate) fn get_referenced_asset(
+        self: Vc<Self>,
+    ) -> impl Future<Output = Result<ReferencedAsset>> {
         ReferencedAsset::from_resolve_result(self.resolve_reference())
     }
 }
@@ -389,72 +694,81 @@ impl EsmAssetReference {
 impl ModuleReference for EsmAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let ty = if matches!(self.annotations.module_type(), Some("json")) {
-            EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Json)
-        } else if matches!(self.annotations.module_type(), Some("bytes")) {
-            EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Bytes)
+        let extras = self.extras.as_deref();
+        if let Some(resolved) = extras.and_then(|e| e.resolve_override) {
+            return Ok(*ModuleResolveResult::module(resolved));
+        }
+        let ty = if let Some(loader) = extras.and_then(|e| e.turbopack_loader.as_ref()) {
+            // Resolve the loader path relative to the importing file
+            let origin_ref = self.origin.into_trait_ref().await?;
+            let origin_path = origin_ref.origin_path();
+            let loader_request = Request::parse(loader.loader.clone().into());
+            let resolved = resolve(
+                origin_path.parent(),
+                ReferenceType::Loader,
+                loader_request,
+                origin_ref.resolve_options(),
+            );
+            let loader_fs_path = if let Some(source) = resolved.await?.first_source() {
+                source.ident().await?.path.clone()
+            } else {
+                bail!("Unable to resolve turbopackLoader '{}'", loader.loader);
+            };
+
+            EcmaScriptModulesReferenceSubType::ImportWithTurbopackUse {
+                loader: ResolvedWebpackLoaderItem {
+                    loader: loader_fs_path,
+                    options: loader.options.clone(),
+                },
+                rename_as: extras.and_then(|e| e.turbopack_rename_as.clone()),
+                module_type: extras.and_then(|e| e.turbopack_module_type.clone()),
+            }
+        } else if let Some(module_type) = extras.and_then(|e| e.module_type.as_ref()) {
+            EcmaScriptModulesReferenceSubType::ImportWithType(module_type.clone())
         } else if let Some(part) = &self.export_name {
             EcmaScriptModulesReferenceSubType::ImportPart(part.clone())
         } else {
             EcmaScriptModulesReferenceSubType::Import
         };
 
-        if let Some(ModulePart::Evaluation) = &self.export_name {
-            let module: ResolvedVc<crate::EcmascriptModuleAsset> =
-                ResolvedVc::try_downcast_type(self.origin)
-                    .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
-
-            let tree_shaking_mode = module.options().await?.tree_shaking_mode;
-
-            if let Some(TreeShakingMode::ModuleFragments) = tree_shaking_mode {
-                let side_effect_free_packages = module.asset_context().side_effect_free_packages();
-
-                if *module
-                    .is_marked_as_side_effect_free(side_effect_free_packages)
-                    .await?
-                {
-                    return Ok(ModuleResolveResult {
-                        primary: Box::new([(
-                            RequestKey::default(),
-                            ModuleResolveResultItem::Ignore,
-                        )]),
-                        affecting_sources: Default::default(),
-                    }
-                    .cell());
-                }
-            }
-        }
         let request = Request::parse(self.request.clone().into());
 
-        if let Request::Module { module, .. } = &*request.await?
-            && module.is_match(TURBOPACK_PART_IMPORT_SOURCE)
-        {
-            if let Some(part) = &self.export_name {
-                let module: ResolvedVc<crate::EcmascriptModuleAsset> =
-                    ResolvedVc::try_downcast_type(self.origin)
-                        .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
-
-                return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-                    EcmascriptModulePartAsset::select_part(*module, part.clone())
-                        .to_resolved()
-                        .await?,
-                )));
+        if self.module_fragments_enabled {
+            if let Some(ModulePart::Evaluation) = &self.export_name
+                && *self.module.side_effects().await? == ModuleSideEffects::SideEffectFree
+            {
+                return Ok(ModuleResolveResult {
+                    primary: Box::new([(RequestKey::default(), ModuleResolveResultItem::Ignore)]),
+                    affecting_sources: Default::default(),
+                }
+                .cell());
             }
 
-            bail!("export_name is required for part import")
+            if let Request::Module { module, .. } = &*request.await?
+                && module.is_match(TURBOPACK_PART_IMPORT_SOURCE)
+            {
+                if let Some(part) = &self.export_name {
+                    return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
+                        EcmascriptModulePartAsset::select_part(*self.module, part.clone())
+                            .to_resolved()
+                            .await?,
+                    )));
+                }
+                bail!("export_name is required for part import")
+            }
         }
 
         let result = esm_resolve(
-            self.get_origin().resolve().await?,
+            *self.origin,
             request,
             ty,
-            false,
+            ResolveErrorMode::Error,
             Some(self.issue_source),
         )
         .await?;
 
-        if let Some(ModulePart::Export(export_name)) = &self.export_name {
-            for &module in result.primary_modules().await? {
+        if let Some(export_name) = self.export_name.as_ref().and_then(ModulePart::get_export) {
+            for &module in result.await?.primary_modules().await?.iter() {
                 if let Some(module) = ResolvedVc::try_downcast(module)
                     && *is_export_missing(*module, export_name.clone()).await?
                 {
@@ -462,6 +776,8 @@ impl ModuleReference for EsmAssetReference {
                         export: export_name.clone(),
                         module,
                         source: self.issue_source,
+                        importing_module: self.module,
+                        request: self.request.clone(),
                     }
                     .resolved_cell()
                     .emit();
@@ -471,63 +787,91 @@ impl ModuleReference for EsmAssetReference {
 
         Ok(result)
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for EsmAssetReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(format!("import {} with {}", self.request, self.annotations).into())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EsmAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Result<Vc<ChunkingTypeOption>> {
-        Ok(Vc::cell(
-            if let Some(chunking_type) = self.annotations.chunking_type() {
-                match chunking_type {
-                    "parallel" => Some(ChunkingType::Parallel {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        self.extras
+            .as_deref()
+            .and_then(|e| e.chunking_type)
+            .map_or_else(
+                || {
+                    Some(ChunkingType::Parallel {
                         inherit_async: true,
                         hoisted: true,
-                    }),
-                    "none" => None,
-                    _ => return Err(anyhow!("unknown chunking_type: {}", chunking_type)),
-                }
-            } else {
-                Some(ChunkingType::Parallel {
-                    inherit_async: true,
-                    hoisted: true,
-                })
-            },
-        ))
+                    })
+                },
+                |c| c.as_chunking_type(true, true),
+            )
     }
 
-    #[turbo_tasks::function]
-    fn export_usage(&self) -> Vc<ExportUsage> {
-        match &self.export_name {
-            Some(ModulePart::Export(export_name)) => ExportUsage::named(export_name.clone()),
-            Some(ModulePart::Evaluation) => ExportUsage::evaluation(),
-            _ => ExportUsage::all(),
+    fn binding_usage(&self) -> BindingUsage {
+        let export_usage_passthrough = self
+            .extras
+            .as_deref()
+            .and_then(|extras| extras.export_usage_passthrough);
+        BindingUsage {
+            import: self.import_usage.clone(),
+            export: match (&self.export_name, export_usage_passthrough) {
+                // Evaluation references preserve their side-effect-only semantics even when the
+                // corresponding import forwards export usage.
+                (Some(ModulePart::Evaluation), _) => ExportUsage::Evaluation,
+                (_, Some(namespace_object_may_escape)) => ExportUsage::Passthrough {
+                    namespace_object_may_escape,
+                },
+                (
+                    Some(
+                        ModulePart::Export(export_name)
+                        | ModulePart::PartialExport {
+                            export: export_name,
+                            ..
+                        },
+                    ),
+                    _,
+                ) => {
+                    // Until resolution proves a partial export is a namespace, it is still an
+                    // ordinary named read of the outer module. The synthesized namespace rename
+                    // reference records the member read on the resolved target.
+                    ExportUsage::Named(export_name.clone())
+                }
+                _ => ExportUsage::All,
+            },
         }
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
     }
 }
 
 impl EsmAssetReference {
-    pub async fn code_generation(
-        self: Vc<Self>,
+    pub(crate) async fn code_generation(
+        self: ResolvedVc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
+        // References a compact re-export registration (`TURBOPACK_ESM_REEXPORT`) already imports
+        // for itself. Emitting them here too would instantiate the module twice.
+        subsumed_imports: &SubsumedImports,
     ) -> Result<CodeGeneration> {
         let this = &*self.await?;
 
+        if chunking_context
+            .unused_references()
+            .contains_key(&ResolvedVc::upcast(self))
+            .await?
+        {
+            return Ok(CodeGeneration::empty());
+        }
+
         // only chunked references can be imported
-        if this.annotations.chunking_type() != Some("none") {
+        if this
+            .extras
+            .as_deref()
+            .and_then(|e| e.chunking_type)
+            .is_none_or(|v| v != SpecifiedChunkingType::None)
+        {
             let import_externals = this.import_externals;
             let referenced_asset = self.get_referenced_asset().await?;
 
-            match &*referenced_asset {
+            match &referenced_asset {
                 ReferencedAsset::Unresolvable => {
                     // Insert code that throws immediately at time of import if a request is
                     // unresolvable
@@ -541,11 +885,15 @@ impl EsmAssetReference {
                         stmt,
                     ));
                 }
-                ReferencedAsset::None => {}
+                // A module without ECMAScript bindings (e.g. a stylesheet) may still
+                // be imported for its side effects, which needs no code generation.
+                ReferencedAsset::None
+                | ReferencedAsset::Empty
+                | ReferencedAsset::NonPlaceable(_) => {}
                 _ => {
                     let mut result = vec![];
 
-                    let merged_index = if let ReferencedAsset::Some(asset) = &*referenced_asset {
+                    let merged_index = if let ReferencedAsset::Some(asset) = &referenced_asset {
                         scope_hoisting_context.get_module_index(*asset)
                     } else {
                         None
@@ -564,176 +912,164 @@ impl EsmAssetReference {
                     }
 
                     if merged_index.is_some()
-                        && matches!(*self.export_usage().await?, ExportUsage::Evaluation)
+                        && matches!(this.export_name, Some(ModulePart::Evaluation))
                     {
                         // No need to import, the module was already executed and is available in
                         // the same scope hoisting group (unless it's a
                         // namespace import)
                     } else {
-                        let ident = referenced_asset
-                            .get_ident(
-                                chunking_context,
-                                this.export_name.as_ref().and_then(|e| match e {
-                                    ModulePart::Export(export_name) => Some(export_name.clone()),
-                                    _ => None,
-                                }),
-                                scope_hoisting_context,
-                            )
-                            .await?;
-                        match ident {
-                            Some(ReferencedAssetIdent::LocalBinding { .. }) => {
-                                // no need to import
-                            }
-                            Some(ident @ ReferencedAssetIdent::Module { .. }) => {
-                                let span = this
-                                    .issue_source
-                                    .to_swc_offsets()
-                                    .await?
-                                    .map_or(DUMMY_SP, |(start, end)| {
-                                        Span::new(BytePos(start), BytePos(end))
-                                    });
-                                match &*referenced_asset {
-                                    ReferencedAsset::Unresolvable => {
-                                        unreachable!();
+                        'import: {
+                            let ident = referenced_asset
+                                .get_ident(
+                                    chunking_context,
+                                    this.export_name
+                                        .as_ref()
+                                        .and_then(ModulePart::get_export)
+                                        .cloned(),
+                                    scope_hoisting_context,
+                                )
+                                .await?;
+                            // `referenced_asset` must not be used past this point: the ident
+                            // carries everything about the import
+                            // target (see `ImportSource`) — notably,
+                            // when the ident was resolved through a re-export chain, the
+                            // directly-referenced asset is the outer (rename) module, not the one
+                            // the emitted variable actually holds.
+                            drop(referenced_asset);
+                            let span = this
+                                .issue_source
+                                .to_swc_offsets()
+                                .await?
+                                .map_or(DUMMY_SP, |(start, end)| {
+                                    Span::new(BytePos(start), BytePos(end))
+                                });
+                            match ident {
+                                Some(ReferencedAssetIdent::LocalBinding { .. }) => {
+                                    // no need to import
+                                }
+                                Some(ReferencedAssetIdent::Module {
+                                    ctxt,
+                                    export: _,
+                                    import_source,
+                                }) => {
+                                    let namespace_key =
+                                        (import_source.namespace_ident().to_owned(), ctxt);
+                                    if subsumed_imports.namespaces.contains(&namespace_key)
+                                        && (!matches!(
+                                            this.export_name,
+                                            Some(ModulePart::Evaluation)
+                                        ) || subsumed_imports.evaluation_spans.contains(&span))
+                                    {
+                                        // A compact re-export registration performs this import.
+                                        // An evaluation import with a different span is a separate
+                                        // earlier declaration of the same module and stays in
+                                        // place.
+                                        break 'import;
                                     }
-                                    ReferencedAsset::Some(asset) => {
-                                        let id = asset.chunk_item_id(chunking_context).await?;
-                                        let (sym, ctxt) =
-                                            ident.into_module_namespace_ident().unwrap();
-                                        let name = Ident::new(
-                                            sym.into(),
-                                            DUMMY_SP,
-                                            ctxt.unwrap_or_default(),
-                                        );
-                                        let mut call_expr = quote!(
-                                            "$turbopack_import($id)" as Expr,
-                                            turbopack_import: Expr = TURBOPACK_IMPORT.into(),
-                                            id: Expr = module_id_to_lit(&id),
-                                        );
-                                        if this.is_pure_import {
-                                            call_expr.set_span(PURE_SP);
-                                        }
-                                        result.push(CodeGenerationHoistedStmt::new(
-                                            id.to_string().into(),
-                                            var_decl_with_span(
+                                    let name = Ident::new(
+                                        namespace_key.0.into(),
+                                        DUMMY_SP,
+                                        ctxt.unwrap_or_default(),
+                                    );
+                                    let (key, mut call_expr) = match import_source {
+                                        ImportSource::Module { asset, .. } => {
+                                            let id = asset.chunk_item_id(chunking_context).await?;
+                                            // Include ctxt in the key to prevent incorrect
+                                            // deduplication when multiple merged modules import the
+                                            // same target but have different syntax contexts (which
+                                            // would cause hygiene to rename one of them).
+                                            (
+                                                format!("{} {:?}", id, ctxt).into(),
                                                 quote!(
-                                                    "var $name = $call;" as Stmt,
-                                                    name = name,
-                                                    call: Expr = call_expr
+                                                    "$turbopack_import($id)" as Expr,
+                                                    turbopack_import: Expr = TURBOPACK_IMPORT.into(),
+                                                    id: Expr = module_id_to_lit(&id),
                                                 ),
-                                                span,
-                                            ),
-                                        ));
-                                    }
-                                    ReferencedAsset::External(
-                                        request,
-                                        ExternalType::EcmaScriptModule,
-                                    ) => {
-                                        if !*chunking_context
-                                            .environment()
-                                            .supports_esm_externals()
-                                            .await?
-                                        {
-                                            bail!(
-                                                "the chunking context ({}) does not support \
-                                                 external modules (esm request: {})",
-                                                chunking_context.name().await?,
-                                                request
-                                            );
-                                        }
-                                        let (sym, ctxt) =
-                                            ident.into_module_namespace_ident().unwrap();
-                                        let name = Ident::new(
-                                            sym.into(),
-                                            DUMMY_SP,
-                                            ctxt.unwrap_or_default(),
-                                        );
-                                        let mut call_expr = if import_externals {
-                                            quote!(
-                                                "$turbopack_external_import($id)" as Expr,
-                                                turbopack_external_import: Expr = TURBOPACK_EXTERNAL_IMPORT.into(),
-                                                id: Expr = Expr::Lit(request.clone().to_string().into())
                                             )
-                                        } else {
-                                            quote!(
+                                        }
+                                        ImportSource::External {
+                                            request,
+                                            ty: ExternalType::EcmaScriptModule,
+                                            ..
+                                        } => {
+                                            if !*chunking_context
+                                                .environment()
+                                                .supports_esm_externals()
+                                                .await?
+                                            {
+                                                turbobail!(
+                                                    "the chunking context ({}) does not support \
+                                                     external modules (esm request: {request})",
+                                                    chunking_context.name()
+                                                );
+                                            }
+                                            let call = if import_externals {
+                                                quote!(
+                                                    "$turbopack_external_import($id)" as Expr,
+                                                    turbopack_external_import: Expr = TURBOPACK_EXTERNAL_IMPORT.into(),
+                                                    id: Expr = Expr::Lit(request.to_string().into())
+                                                )
+                                            } else {
+                                                quote!(
+                                                    "$turbopack_external_require($id, () => require($id), true)" as Expr,
+                                                    turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
+                                                    id: Expr = Expr::Lit(request.to_string().into())
+                                                )
+                                            };
+                                            (name.sym.as_str().into(), call)
+                                        }
+                                        ImportSource::External {
+                                            request,
+                                            ty: ExternalType::CommonJs | ExternalType::Url,
+                                            ..
+                                        } => {
+                                            if !*chunking_context
+                                                .environment()
+                                                .supports_commonjs_externals()
+                                                .await?
+                                            {
+                                                turbobail!(
+                                                    "the chunking context ({}) does not support \
+                                                     external modules (request: {request})",
+                                                    chunking_context.name()
+                                                );
+                                            }
+                                            let call = quote!(
                                                 "$turbopack_external_require($id, () => require($id), true)" as Expr,
                                                 turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
-                                                id: Expr = Expr::Lit(request.clone().to_string().into())
-                                            )
-                                        };
-                                        if this.is_pure_import {
-                                            call_expr.set_span(PURE_SP);
-                                        }
-                                        result.push(CodeGenerationHoistedStmt::new(
-                                            name.sym.as_str().into(),
-                                            var_decl_with_span(
-                                                quote!(
-                                                    "var $name = $call;" as Stmt,
-                                                    name = name,
-                                                    call: Expr = call_expr,
-                                                ),
-                                                span,
-                                            ),
-                                        ));
-                                    }
-                                    ReferencedAsset::External(
-                                        request,
-                                        ExternalType::CommonJs | ExternalType::Url,
-                                    ) => {
-                                        if !*chunking_context
-                                            .environment()
-                                            .supports_commonjs_externals()
-                                            .await?
-                                        {
-                                            bail!(
-                                                "the chunking context ({}) does not support \
-                                                 external modules (request: {})",
-                                                chunking_context.name().await?,
-                                                request
+                                                id: Expr = Expr::Lit(request.to_string().into())
                                             );
+                                            (name.sym.as_str().into(), call)
                                         }
-                                        let (sym, ctxt) =
-                                            ident.into_module_namespace_ident().unwrap();
-                                        let name = Ident::new(
-                                            sym.into(),
-                                            DUMMY_SP,
-                                            ctxt.unwrap_or_default(),
-                                        );
-                                        let mut call_expr = quote!(
-                                            "$turbopack_external_require($id, () => require($id), true)" as Expr,
-                                            turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
-                                            id: Expr = Expr::Lit(request.clone().to_string().into())
-                                        );
-                                        if this.is_pure_import {
-                                            call_expr.set_span(PURE_SP);
+                                        // fallback in case we introduce a new `ExternalType`
+                                        #[allow(unreachable_patterns)]
+                                        ImportSource::External { request, ty, .. } => {
+                                            bail!(
+                                                "Unsupported external type {:?} for ESM reference \
+                                                 with request: {:?}",
+                                                ty,
+                                                request
+                                            )
                                         }
-                                        result.push(CodeGenerationHoistedStmt::new(
-                                            name.sym.as_str().into(),
-                                            var_decl_with_span(
-                                                quote!(
-                                                    "var $name = $call;" as Stmt,
-                                                    name = name,
-                                                    call: Expr = call_expr,
-                                                ),
-                                                span,
+                                    };
+                                    if this.is_pure_import {
+                                        call_expr.set_span(PURE_SP);
+                                    }
+                                    result.push(CodeGenerationHoistedStmt::new(
+                                        key,
+                                        var_decl_with_span(
+                                            quote!(
+                                                "var $name = $call;" as Stmt,
+                                                name = name,
+                                                call: Expr = call_expr
                                             ),
-                                        ));
-                                    }
-                                    // fallback in case we introduce a new `ExternalType`
-                                    #[allow(unreachable_patterns)]
-                                    ReferencedAsset::External(request, ty) => {
-                                        bail!(
-                                            "Unsupported external type {:?} for ESM reference \
-                                             with request: {:?}",
-                                            ty,
-                                            request
-                                        )
-                                    }
-                                    ReferencedAsset::None => {}
-                                };
-                            }
-                            None => {
-                                // Nothing to import.
+                                            span,
+                                        ),
+                                    ));
+                                }
+                                None => {
+                                    // Nothing to import.
+                                }
                             }
                         }
                     }
@@ -759,92 +1095,119 @@ pub struct InvalidExport {
     export: RcStr,
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     source: IssueSource,
+    /// The module containing the import declaration, used to find the other names imported by the
+    /// same declaration (so they aren't suggested as alternatives).
+    importing_module: ResolvedVc<EcmascriptModuleAsset>,
+    /// The request of the import declaration.
+    request: RcStr,
 }
 
+impl InvalidExport {
+    /// Returns the export names referenced by the other specifiers of the import (or re-export)
+    /// declaration that requested the missing export. All specifiers of one declaration share the
+    /// declaration's span and request.
+    ///
+    /// This reads the importing module's parse result, so it's only meant to be called when the
+    /// issue is rendered.
+    async fn names_imported_by_same_declaration(&self) -> Result<FxHashSet<RcStr>> {
+        let ParseResult::Ok { eval_context, .. } = &*self.importing_module.failsafe_parse().await?
+        else {
+            return Ok(FxHashSet::default());
+        };
+        let source = self.importing_module.await?.source;
+        Ok(eval_context
+            .imports
+            .references()
+            .filter_map(|r| {
+                let ImportedSymbol::Symbol(name) = &r.imported_symbol else {
+                    return None;
+                };
+                (IssueSource::from_swc_offsets(source, r.span.lo.to_u32(), r.span.hi.to_u32())
+                    == self.source
+                    && *r.module_path.to_string_lossy() == *self.request)
+                    .then(|| RcStr::from(&**name))
+            })
+            .collect())
+    }
+}
+
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for InvalidExport {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Result<Vc<StyledString>> {
+    async fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Line(vec![
             StyledString::Text(rcstr!("Export ")),
             StyledString::Code(self.export.clone()),
             StyledString::Text(rcstr!(" doesn't exist in target module")),
-        ])
-        .cell())
+        ]))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Bindings.into()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Bindings
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().await
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+    async fn description(&self) -> Result<Option<StyledString>> {
         let export_names = all_known_export_names(*self.module).await?;
+        let already_imported = self.names_imported_by_same_declaration().await?;
         let did_you_mean = export_names
             .iter()
+            .filter(|s| !already_imported.contains(*s))
             .map(|s| (s, jaro(self.export.as_str(), s.as_str())))
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
             .map(|(s, _)| s);
-        Ok(Vc::cell(Some(
-            StyledString::Stack(vec![
-                StyledString::Line(vec![
-                    StyledString::Text(rcstr!("The export ")),
-                    StyledString::Code(self.export.clone()),
-                    StyledString::Text(rcstr!(" was not found in module ")),
-                    StyledString::Strong(self.module.ident().to_string().owned().await?),
-                    StyledString::Text(rcstr!(".")),
-                ]),
-                if let Some(did_you_mean) = did_you_mean {
-                    StyledString::Line(vec![
-                        StyledString::Text(rcstr!("Did you mean to import ")),
-                        StyledString::Code(did_you_mean.clone()),
-                        StyledString::Text(rcstr!("?")),
-                    ])
-                } else {
-                    StyledString::Strong(rcstr!("The module has no exports at all."))
-                },
-                StyledString::Text(
-                    "All exports of the module are statically known (It doesn't have dynamic \
-                     exports). So it's known statically that the requested export doesn't exist."
-                        .into(),
-                ),
-            ])
-            .resolved_cell(),
-        )))
+        let mut lines = vec![StyledString::Line(vec![
+            StyledString::Text(rcstr!("The export ")),
+            StyledString::Code(self.export.clone()),
+            StyledString::Text(rcstr!(" was not found in module ")),
+            StyledString::Strong(self.module.ident().to_string().owned().await?),
+            StyledString::Text(rcstr!(".")),
+        ])];
+        if let Some(did_you_mean) = did_you_mean {
+            lines.push(StyledString::Line(vec![
+                StyledString::Text(rcstr!("Did you mean to import ")),
+                StyledString::Code(did_you_mean.clone()),
+                StyledString::Text(rcstr!("?")),
+            ]));
+        } else if export_names.is_empty() {
+            lines.push(StyledString::Strong(rcstr!(
+                "The module has no exports at all."
+            )));
+        }
+        // Otherwise all exports are already imported by the same declaration, so there is nothing
+        // to suggest.
+        lines.push(StyledString::Text(
+            "All exports of the module are statically known (It doesn't have dynamic exports). So \
+             it's known statically that the requested export doesn't exist."
+                .into(),
+        ));
+        Ok(Some(StyledString::Stack(lines)))
     }
 
-    #[turbo_tasks::function]
-    async fn detail(&self) -> Result<Vc<OptionStyledString>> {
+    async fn detail(&self) -> Result<Option<StyledString>> {
         let export_names = all_known_export_names(*self.module).await?;
-        Ok(Vc::cell(Some(
-            StyledString::Line(vec![
-                StyledString::Text(rcstr!("These are the exports of the module:\n")),
-                StyledString::Code(
-                    export_names
-                        .iter()
-                        .map(|s| s.as_str())
-                        .intersperse(", ")
-                        .collect::<String>()
-                        .into(),
-                ),
-            ])
-            .resolved_cell(),
-        )))
+        Ok(Some(StyledString::Line(vec![
+            StyledString::Text(rcstr!("These are the exports of the module:\n")),
+            StyledString::Code(
+                export_names
+                    .iter()
+                    .map(|s| s.as_str())
+                    .intersperse(", ")
+                    .collect::<String>()
+                    .into(),
+            ),
+        ])))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }
 
@@ -856,60 +1219,52 @@ pub struct CircularReExport {
     module_cycle: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for CircularReExport {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
+    async fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Line(vec![
             StyledString::Text(rcstr!("Export ")),
             StyledString::Code(self.export.clone()),
             StyledString::Text(rcstr!(" is a circular re-export")),
-        ])
-        .cell())
+        ]))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Bindings.into()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Bindings
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.module.ident().path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.module.ident().await?.path.clone())
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
-            StyledString::Stack(vec![
-                StyledString::Line(vec![StyledString::Text(rcstr!("The export"))]),
-                StyledString::Line(vec![
-                    StyledString::Code(self.export.clone()),
-                    StyledString::Text(rcstr!(" of module ")),
-                    StyledString::Strong(self.module.ident().to_string().owned().await?),
-                ]),
-                StyledString::Line(vec![StyledString::Text(rcstr!(
-                    "is a re-export of the export"
-                ))]),
-                StyledString::Line(vec![
-                    StyledString::Code(self.import.clone().unwrap_or_else(|| rcstr!("*"))),
-                    StyledString::Text(rcstr!(" of module ")),
-                    StyledString::Strong(self.module_cycle.ident().to_string().owned().await?),
-                    StyledString::Text(rcstr!(".")),
-                ]),
-            ])
-            .resolved_cell(),
-        )))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Line(vec![StyledString::Text(rcstr!("The export"))]),
+            StyledString::Line(vec![
+                StyledString::Code(self.export.clone()),
+                StyledString::Text(rcstr!(" of module ")),
+                StyledString::Strong(self.module.ident().to_string().owned().await?),
+            ]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(
+                "is a re-export of the export"
+            ))]),
+            StyledString::Line(vec![
+                StyledString::Code(self.import.clone().unwrap_or_else(|| rcstr!("*"))),
+                StyledString::Text(rcstr!(" of module ")),
+                StyledString::Strong(self.module_cycle.ident().to_string().owned().await?),
+                StyledString::Text(rcstr!(".")),
+            ]),
+        ])))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
+    fn source(&self) -> Option<IssueSource> {
         // TODO(PACK-4879): This should point at the buggy export by querying for the source
         // location
-        Vc::cell(None)
+        None
     }
 }

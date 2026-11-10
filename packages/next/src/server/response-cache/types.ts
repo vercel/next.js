@@ -1,7 +1,9 @@
+import type { ResponseCacheOwner } from '../lib/route-cache-key'
 import type { OutgoingHttpHeaders } from 'http'
 import type RenderResult from '../render-result'
 import type { CacheControl, Revalidate } from '../lib/cache-control'
 import type { RouteKind } from '../route-kind'
+import type { PrerenderFailure } from '../render-result'
 
 export interface ResponseCacheBase {
   get(
@@ -28,7 +30,7 @@ export interface ResponseCacheBase {
        */
       isRoutePPREnabled?: boolean
     }
-  ): Promise<ResponseCacheEntry | null>
+  ): Promise<ResponseCacheResult>
 }
 
 // The server components HMR cache might store other data as well in the future,
@@ -105,6 +107,7 @@ export interface CachedImageValue {
   upstreamEtag: string
   buffer: Buffer
   extension: string
+  revalidate?: number
   isMiss?: boolean
   isStale?: boolean
 }
@@ -142,6 +145,7 @@ export interface IncrementalResponseCacheEntry {
    */
   isStale?: boolean | -1
   isMiss?: boolean
+  isFallback?: boolean
   value: Exclude<IncrementalCacheValue, CachedFetchValue> | null
 }
 
@@ -177,7 +181,10 @@ export type ResponseCacheEntry = {
   value: ResponseCacheValue | null
   isStale?: boolean | -1
   isMiss?: boolean
+  isFallback?: boolean
 }
+
+export type ResponseCacheResult = ResponseCacheEntry | PrerenderFailure | null
 
 /**
  * @param hasResolved whether the responseGenerator has resolved it's promise
@@ -197,7 +204,7 @@ export type ResponseGenerator = (state: {
    * dynamic RSC request.
    */
   forceStaticRender?: boolean
-}) => Promise<ResponseCacheEntry | null>
+}) => Promise<ResponseCacheResult>
 
 export const enum IncrementalCacheKind {
   APP_PAGE = 'APP_PAGE',
@@ -216,8 +223,11 @@ export interface GetIncrementalFetchCacheContext {
   softTags?: string[]
 }
 
-export interface GetIncrementalResponseCacheContext {
-  kind: Exclude<IncrementalCacheKind, IncrementalCacheKind.FETCH>
+export interface GetIncrementalResponseCacheHandlerContext {
+  kind: Exclude<
+    IncrementalCacheKind,
+    IncrementalCacheKind.FETCH | IncrementalCacheKind.IMAGE
+  >
 
   /**
    * True if the route is enabled for PPR.
@@ -230,6 +240,12 @@ export interface GetIncrementalResponseCacheContext {
   isFallback: boolean
 }
 
+export interface GetIncrementalResponseCacheContext
+  extends GetIncrementalResponseCacheHandlerContext {
+  /** Internal ownership used before invoking the storage handler. */
+  route: ResponseCacheOwner
+}
+
 export interface SetIncrementalFetchCacheContext {
   fetchCache: true
   fetchUrl?: string
@@ -238,7 +254,7 @@ export interface SetIncrementalFetchCacheContext {
   isImplicitBuildTimeCache?: boolean
 }
 
-export interface SetIncrementalResponseCacheContext {
+export interface SetIncrementalResponseCacheHandlerContext {
   fetchCache?: false
   cacheControl?: CacheControl
 
@@ -253,15 +269,35 @@ export interface SetIncrementalResponseCacheContext {
   isFallback?: boolean
 }
 
+export interface SetIncrementalResponseCacheContext
+  extends SetIncrementalResponseCacheHandlerContext {
+  /** Internal ownership used before invoking the storage handler. */
+  route: ResponseCacheOwner
+}
+
+export interface GetIncrementalImageCacheContext {
+  kind: IncrementalCacheKind.IMAGE
+  route?: never
+  isFallback: false
+  isRoutePPREnabled?: false
+}
+
+export interface SetIncrementalImageCacheContext {
+  kind: IncrementalCacheKind.IMAGE
+  route?: never
+  fetchCache?: false
+  cacheControl?: CacheControl
+}
+
 export interface IncrementalResponseCache {
   get(
     cacheKey: string,
-    ctx: GetIncrementalResponseCacheContext
+    ctx: GetIncrementalResponseCacheContext | GetIncrementalImageCacheContext
   ): Promise<IncrementalResponseCacheEntry | null>
   set(
     key: string,
     data: Exclude<IncrementalCacheValue, CachedFetchValue> | null,
-    ctx: SetIncrementalResponseCacheContext
+    ctx: SetIncrementalResponseCacheContext | SetIncrementalImageCacheContext
   ): Promise<void>
 }
 
@@ -272,7 +308,7 @@ export interface IncrementalCache extends IncrementalResponseCache {
   ): Promise<IncrementalFetchCacheEntry | null>
   get(
     cacheKey: string,
-    ctx: GetIncrementalResponseCacheContext
+    ctx: GetIncrementalResponseCacheContext | GetIncrementalImageCacheContext
   ): Promise<IncrementalResponseCacheEntry | null>
   set(
     key: string,
@@ -282,7 +318,7 @@ export interface IncrementalCache extends IncrementalResponseCache {
   set(
     key: string,
     data: Exclude<IncrementalCacheValue, CachedFetchValue> | null,
-    ctx: SetIncrementalResponseCacheContext
+    ctx: SetIncrementalResponseCacheContext | SetIncrementalImageCacheContext
   ): Promise<void>
   revalidateTag(
     tags: string | string[],

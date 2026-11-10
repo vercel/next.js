@@ -17,8 +17,40 @@ pub use self::{
     filter::FilterProcessEnv,
 };
 
-#[turbo_tasks::value(transparent)]
-pub struct EnvMap(#[turbo_tasks(trace_ignore)] FxIndexMap<RcStr, RcStr>);
+/// Like [`EnvMap`], but with `serialization = "skip"` to avoid storing
+/// environment variables (which may contain secrets) in the persistent cache.
+#[turbo_tasks::value(transparent, serialization = "skip")]
+pub struct TransientEnvMap(FxIndexMap<RcStr, RcStr>);
+
+#[turbo_tasks::value_impl]
+impl TransientEnvMap {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        TransientEnvMap(FxIndexMap::default()).cell()
+    }
+}
+
+/// A map of environment variables.
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct EnvMap(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RcStr>);
+
+/// An [`EnvMap`] with uppercased keys, used for key-granular case-insensitive lookups.
+///
+/// Unlike [`TransientEnvMap`] this is persisted: it only contains values that are already
+/// persisted in the [`EnvMap`] it's derived from. Keyed comparison needs the previous content, so
+/// persisting it keeps a dirty recomputation after a warm restore from invalidating every reader.
+#[turbo_tasks::value(transparent, cell = "keyed")]
+struct UppercaseEnvMap(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RcStr>);
+
+#[turbo_tasks::function]
+async fn uppercase_env_map(map: Vc<EnvMap>) -> Result<Vc<UppercaseEnvMap>> {
+    let map = &*map.await?;
+    let mut new = FxIndexMap::with_capacity_and_hasher(map.len(), Default::default());
+    for (k, v) in map {
+        new.insert(k.to_uppercase().into(), v.clone());
+    }
+    Ok(Vc::cell(new))
+}
 
 #[turbo_tasks::value_impl]
 impl EnvMap {
@@ -31,26 +63,26 @@ impl EnvMap {
 #[turbo_tasks::value_impl]
 impl ProcessEnv for EnvMap {
     #[turbo_tasks::function]
-    fn read_all(self: Vc<Self>) -> Vc<EnvMap> {
-        self
+    async fn read_all(self: Vc<Self>) -> Result<Vc<TransientEnvMap>> {
+        Ok(Vc::cell((*self.await?).clone()))
     }
 
+    /// Reads a single env variable, ignoring casing. Only depends on the requested variable, so
+    /// it isn't invalidated when other variables change.
     #[turbo_tasks::function]
-    fn read(self: Vc<Self>, name: RcStr) -> Vc<Option<RcStr>> {
-        case_insensitive_read(self, name)
+    async fn read(self: Vc<Self>, name: RcStr) -> Result<Vc<Option<RcStr>>> {
+        let value = uppercase_env_map(self)
+            .get(name.to_uppercase().as_str())
+            .await?;
+        Ok(Vc::cell(value.as_deref().cloned()))
     }
 }
 
 #[turbo_tasks::value_trait]
 pub trait ProcessEnv {
-    // TODO SECURITY: From security perspective it's not good that we read *all* env
-    // vars into the cache. This might store secrects into the filesystem cache
-    // which we want to avoid.
-    // Instead we should use only `read_prefix` to read all env vars with a specific
-    // prefix.
     /// Reads all env variables into a Map
     #[turbo_tasks::function]
-    fn read_all(self: Vc<Self>) -> Vc<EnvMap>;
+    fn read_all(self: Vc<Self>) -> Vc<TransientEnvMap>;
 
     /// Reads a single env variable. Ignores casing.
     #[turbo_tasks::function]
@@ -68,7 +100,10 @@ pub fn sorted_env_vars() -> FxIndexMap<RcStr, RcStr> {
 }
 
 #[turbo_tasks::function]
-pub async fn case_insensitive_read(map: Vc<EnvMap>, name: RcStr) -> Result<Vc<Option<RcStr>>> {
+pub async fn case_insensitive_read(
+    map: Vc<TransientEnvMap>,
+    name: RcStr,
+) -> Result<Vc<Option<RcStr>>> {
     Ok(Vc::cell(
         to_uppercase_map(map)
             .await?
@@ -78,7 +113,7 @@ pub async fn case_insensitive_read(map: Vc<EnvMap>, name: RcStr) -> Result<Vc<Op
 }
 
 #[turbo_tasks::function]
-async fn to_uppercase_map(map: Vc<EnvMap>) -> Result<Vc<EnvMap>> {
+async fn to_uppercase_map(map: Vc<TransientEnvMap>) -> Result<Vc<TransientEnvMap>> {
     let map = &*map.await?;
     let mut new = FxIndexMap::with_capacity_and_hasher(map.len(), Default::default());
     for (k, v) in map {

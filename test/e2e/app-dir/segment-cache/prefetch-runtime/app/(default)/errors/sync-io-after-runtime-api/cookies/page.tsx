@@ -2,6 +2,14 @@ import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 import { DebugRenderKind } from '../../../../shared'
 
+export const instant = {
+  // We're intentionally testing error behavior at runtime.
+  // Build-time validation catches it and prevents that.
+  unstable_disableValidation: true,
+  unstable_samples: [{ cookies: [] }],
+}
+export const prefetch = 'partial'
+
 export default async function Page() {
   return (
     <main>

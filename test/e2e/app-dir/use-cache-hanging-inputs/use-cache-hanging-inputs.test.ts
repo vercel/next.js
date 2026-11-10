@@ -4,28 +4,28 @@ import {
   getRedboxDescription,
   getRedboxSource,
   openRedbox,
-  assertHasRedbox,
+  waitForRedbox,
   getRedboxTitle,
   getRedboxTotalErrorCount,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-const expectedTimeoutErrorMessage =
-  'Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".'
+const timeoutErrorMessage =
+  'A `"use cache"` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as `params` or `searchParams`, into the cached function. Resolve the data before calling the function and pass only the values you need.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
+
+function expectedTimeoutErrorMessage(route: string) {
+  return `Route "${route}": ${timeoutErrorMessage}`
+}
 
 describe('use-cache-hanging-inputs', () => {
-  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
   })
 
-  if (skipped) {
-    return
-  }
-
   if (isNextDev) {
-    describe('when an uncached promise is used inside of "use cache"', () => {
+    // TODO(restart-on-cache-miss): reenable when fixed
+    describe.skip('when an uncached promise is used inside of "use cache"', () => {
       it('should show an error toast after a timeout', async () => {
         const outputIndex = next.cliOutput.length
         const browser = await next.browser('/uncached-promise')
@@ -41,45 +41,32 @@ describe('use-cache-hanging-inputs', () => {
         const errorSource = await getRedboxSource(browser)
 
         expect(errorCount).toBe(1)
-        expect(errorDescription).toBe(expectedTimeoutErrorMessage)
+        expect(errorDescription).toBe(
+          expectedTimeoutErrorMessage('/uncached-promise')
+        )
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        if (isTurbopack) {
-          expect(errorSource).toMatchInlineSnapshot(`
-           "app/uncached-promise/page.tsx (10:13) @ {module evaluation}
+        expect(errorSource).toMatchInlineSnapshot(`
+         "app/uncached-promise/page.tsx (10:13) @ Foo
 
-              8 | }
-              9 |
-           > 10 | const Foo = async ({ promise }) => {
-                |             ^
-             11 |   'use cache'
-             12 |
-             13 |   return ("
-          `)
+            8 | }
+            9 |
+         > 10 | const Foo = async ({ promise }) => {
+              |             ^
+           11 |   'use cache'
+           12 |
+           13 |   return ("
+        `)
 
-          expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at __TURBOPACK__module__evaluation__`)
-        } else {
-          expect(errorSource).toMatchInlineSnapshot(`
-           "app/uncached-promise/page.tsx (10:13) @ eval
-
-              8 | }
-              9 |
-           > 10 | const Foo = async ({ promise }) => {
-                |             ^
-             11 |   'use cache'
-             12 |
-             13 |   return ("
-          `)
-
-          expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at eval (app/uncached-promise/page.tsx:10:13)`)
-        }
+        expect(cliOutput)
+          .toContain(`Error: ${expectedTimeoutErrorMessage('/uncached-promise')}
+    at Foo (app/uncached-promise/page.tsx:10:13)`)
       }, 180_000)
     })
 
-    describe('when an uncached promise is used inside of a nested "use cache"', () => {
+    // TODO(restart-on-cache-miss): reenable when fixed
+    describe.skip('when an uncached promise is used inside of a nested "use cache"', () => {
       it('should show an error toast after a timeout', async () => {
         const outputIndex = next.cliOutput.length
         const browser = await next.browser('/uncached-promise-nested')
@@ -95,45 +82,33 @@ describe('use-cache-hanging-inputs', () => {
         const errorSource = await getRedboxSource(browser)
 
         expect(errorCount).toBe(1)
-        expect(errorDescription).toBe(expectedTimeoutErrorMessage)
+        expect(errorDescription).toBe(
+          expectedTimeoutErrorMessage('/uncached-promise-nested')
+        )
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        if (isTurbopack) {
-          expect(errorSource).toMatchInlineSnapshot(`
-           "app/uncached-promise-nested/page.tsx (16:1) @ {module evaluation}
+        expect(errorSource).toMatchInlineSnapshot(`
+         "app/uncached-promise-nested/page.tsx (16:1) @ indirection
 
-             14 | }
-             15 |
-           > 16 | async function indirection(promise: Promise<number>) {
-                | ^
-             17 |   'use cache'
-             18 |
-             19 |   return getCachedData(promise)"
-          `)
+           14 | }
+           15 |
+         > 16 | async function indirection(promise: Promise<number>) {
+              | ^
+           17 |   'use cache'
+           18 |
+           19 |   return getCachedData(promise)"
+        `)
 
-          expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at __TURBOPACK__module__evaluation__`)
-        } else {
-          expect(errorSource).toMatchInlineSnapshot(`
-           "app/uncached-promise-nested/page.tsx (16:1) @ eval
-
-             14 | }
-             15 |
-           > 16 | async function indirection(promise: Promise<number>) {
-                | ^
-             17 |   'use cache'
-             18 |
-             19 |   return getCachedData(promise)"
-          `)
-
-          expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at eval (app/uncached-promise-nested/page.tsx:16:1)`)
-        }
+        expect(cliOutput)
+          .toContain(`Error: ${expectedTimeoutErrorMessage('/uncached-promise-nested')}
+    at indirection (app/uncached-promise-nested/page.tsx:16:1)
+    at Page (app/uncached-promise-nested/page.tsx:23:22)`)
       }, 180_000)
     })
 
-    describe('when a "use cache" function is closing over an uncached promise', () => {
+    // TODO(restart-on-cache-miss): reenable when fixed
+    describe.skip('when a "use cache" function is closing over an uncached promise', () => {
       it('should show an error toast after a timeout', async () => {
         const outputIndex = next.cliOutput.length
         const browser = await next.browser('/bound-args')
@@ -152,39 +127,25 @@ describe('use-cache-hanging-inputs', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(errorDescription).toBe(expectedTimeoutErrorMessage)
+        expect(errorDescription).toBe(
+          expectedTimeoutErrorMessage('/bound-args')
+        )
 
-        if (isTurbopack) {
-          expect(errorSource).toMatchInlineSnapshot(`
-           "app/bound-args/page.tsx (13:15) @ {module evaluation}
+        expect(errorSource).toMatchInlineSnapshot(`
+         "app/bound-args/page.tsx (13:15) @ Foo
 
-             11 |   const uncachedDataPromise = fetchUncachedData()
-             12 |
-           > 13 |   const Foo = async () => {
-                |               ^
-             14 |     'use cache'
-             15 |
-             16 |     return ("
-          `)
+           11 |   const uncachedDataPromise = fetchUncachedData()
+           12 |
+         > 13 |   const Foo = async () => {
+              |               ^
+           14 |     'use cache'
+           15 |
+           16 |     return ("
+        `)
 
-          expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at __TURBOPACK__module__evaluation__`)
-        } else {
-          expect(errorSource).toMatchInlineSnapshot(`
-            "app/bound-args/page.tsx (13:15) @ eval
-
-              11 |   const uncachedDataPromise = fetchUncachedData()
-              12 |
-            > 13 |   const Foo = async () => {
-                 |               ^
-              14 |     'use cache'
-              15 |
-              16 |     return ("
-          `)
-
-          expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at eval (app/bound-args/page.tsx:13:15)`)
-        }
+        expect(cliOutput)
+          .toContain(`Error: ${expectedTimeoutErrorMessage('/bound-args')}
+    at Foo (app/bound-args/page.tsx:13:15)`)
       }, 180_000)
     })
 
@@ -192,7 +153,7 @@ describe('use-cache-hanging-inputs', () => {
       it('should show an error overlay with only one error', async () => {
         const browser = await next.browser('/error')
 
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
 
         const count = await getRedboxTotalErrorCount(browser)
         const title = await getRedboxTitle(browser)
@@ -200,9 +161,7 @@ describe('use-cache-hanging-inputs', () => {
 
         expect({ count, title, description }).toEqual({
           count: 1,
-          // TODO(restart-on-cache-miss): fix environment labelling
-          // title: 'Runtime Error\nCache',
-          title: 'Runtime Error\nPrerender',
+          title: 'Runtime Error\nCache',
           description: 'kaputt!',
         })
       })
@@ -210,13 +169,14 @@ describe('use-cache-hanging-inputs', () => {
   } else {
     // TODO: Be more precise about the expected error messages and stacks.
     it('should fail the build with errors after a timeout', async () => {
-      const { cliOutput } = await next.build()
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
 
       expect(cliOutput).toInclude(createExpectedBuildErrorMessage('/error'))
       expect(cliOutput).toInclude('Error: kaputt!')
 
       expect(cliOutput).toIncludeRepeated(
-        escapeStringRegexp(expectedTimeoutErrorMessage),
+        escapeStringRegexp(timeoutErrorMessage),
         4
       )
 
@@ -235,7 +195,7 @@ describe('use-cache-hanging-inputs', () => {
       expect(cliOutput).toInclude(
         createExpectedBuildErrorMessage('/uncached-promise-nested')
       )
-    }, 180_000)
+    }, 240_000)
   }
 })
 

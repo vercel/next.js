@@ -1,10 +1,12 @@
 #![feature(impl_trait_in_bindings)]
 
 mod config_shared;
+mod force_complete_runtime_plugin;
 mod handle_externals;
 mod next_externals_plugin;
 
 use napi::bindgen_prelude::*;
+use napi_derive::napi;
 use rspack_binding_builder_macros::register_plugin;
 use rspack_core::BoxPlugin;
 use rspack_regex::RspackRegex;
@@ -12,12 +14,9 @@ use rustc_hash::FxHashMap;
 
 use crate::{
     config_shared::{EsmExternalsConfig, ExperimentalConfig, NextConfigComplete},
+    force_complete_runtime_plugin::ForceCompleteRuntimePlugin,
     next_externals_plugin::{NextExternalsPlugin, NextExternalsPluginOptions},
 };
-
-#[macro_use]
-extern crate napi_derive;
-extern crate rspack_binding_builder;
 
 #[derive(Debug)]
 #[napi(object, object_to_js = false)]
@@ -110,3 +109,10 @@ register_plugin!("NextExternalsPlugin", |env: Env, object: Unknown<'_>| {
         unsafe { FromNapiValue::from_napi_value(env.raw(), object.raw())? };
     Ok(Box::new(NextExternalsPlugin::new(napi_options.into())) as BoxPlugin)
 });
+
+register_plugin!(
+    "ForceCompleteRuntimePlugin",
+    |_env: Env, _object: Unknown<'_>| {
+        Ok(Box::new(ForceCompleteRuntimePlugin::new()) as BoxPlugin)
+    }
+);

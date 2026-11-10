@@ -8,14 +8,14 @@ description: Learn how to use the assetPrefix config option to configure your CD
 <AppOnly>
 
 > **Attention**: [Deploying to Vercel](/docs/app/getting-started/deploying) automatically configures a global CDN for your Next.js project.
-> You do not need to manually setup an Asset Prefix.
+> You do not need to manually set up an Asset Prefix.
 
 </AppOnly>
 
 <PagesOnly>
 
 > **Attention**: [Deploying to Vercel](/docs/pages/getting-started/deploying) automatically configures a global CDN for your Next.js project.
-> You do not need to manually setup an Asset Prefix.
+> You do not need to manually set up an Asset Prefix.
 
 </PagesOnly>
 

@@ -1,25 +1,26 @@
 #!/usr/bin/env node
 
 import '../server/lib/cpu-profile'
+import { saveCpuProfile } from '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
 import {
   RESTART_EXIT_CODE,
   getNodeDebugType,
   getParsedDebugAddress,
   getMaxOldSpaceSize,
-  getParsedNodeOptionsWithoutInspect,
   printAndExit,
   formatNodeOptions,
   formatDebugAddress,
+  getParsedNodeOptions,
+  type DebugAddress,
 } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { getProjectDir } from '../lib/get-project-dir'
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
+import { ensureProfilesDir } from '../lib/profiles-dir'
 import path from 'path'
-import type { NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
-import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
@@ -29,26 +30,39 @@ import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
 import { fork } from 'child_process'
 import type { ChildProcess } from 'child_process'
+import type { UpgradeContext, UpgradeReminder } from '../lib/upgrade/nudge'
+import {
+  closedUpgradeMenu,
+  createPromptOutput,
+  drainPromptOutput,
+  flushUpgradeTelemetry,
+  getPromptOutputEnv,
+  reassertRawMode,
+  showUpgradeMenu,
+  type UpgradeMenuResult,
+} from '../lib/upgrade/prompt-output'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
+import { getCacheDirectory } from '../lib/helpers/get-cache-directory'
+import { getGitBranch } from '../lib/helpers/git'
 import os from 'os'
+import fs from 'node:fs'
 import { once } from 'node:events'
 import { clearTimeout } from 'timers'
-import { flushAllTraces, trace } from '../trace'
+import { trace, initializeTraceState, exportTraceState } from '../trace'
 import { traceId } from '../trace/shared'
-import {
-  Bundler,
-  finalizeBundlerFromConfig,
-  parseBundlerArgs,
-} from '../lib/bundler'
+import { Bundler, parseBundlerArgs } from '../lib/bundler'
 
 export type NextDevOptions = {
   disableSourceMaps: boolean
+  // Commander is not putting `--inspect` through the arg parser
+  inspect?: DebugAddress | true
   turbo?: boolean
   turbopack?: boolean
   webpack?: boolean
+  customWebpack?: boolean
   port: number
   hostname?: string
   experimentalHttps?: boolean
@@ -57,19 +71,50 @@ export type NextDevOptions = {
   experimentalHttpsCa?: string
   experimentalUploadTrace?: string
   experimentalNextConfigStripTypes?: boolean
+  experimentalCpuProf?: boolean
+  serverFastRefresh?: boolean
+  internalTrace?: string | boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
 
 let dir: string
 let child: undefined | ChildProcess
-// The config in next-dev is only used to access config.distDir for telemetry and trace.
-let config: NextConfigComplete
-let bundler: Bundler
+// distDir is received from the child process via IPC, used for telemetry and trace.
+let distDir: string | undefined
+let isTurbopack: boolean
 let traceUploadUrl: string
 let sessionStopHandled = false
+let upgradeController: AbortController | null = null
+let upgradeMenu: Promise<UpgradeMenuResult> | undefined
+// Holds the dev server's output while the upgrade menu is open.
+const promptOutput = createPromptOutput()
+let upgradeOffered = false
+let upgradeInProgress = false
+let interruption: NodeJS.Signals | null = null
+let devSpanAttrs: { 'rage-restart': boolean; 'missing-next-dir': boolean } = {
+  'rage-restart': false,
+  'missing-next-dir': false,
+}
 const sessionStarted = Date.now()
 const sessionSpan = trace('next-dev')
+
+// If the user restarts the dev server within this window we count it as a "rage restart".
+const RAGE_RESTART_THRESHOLD_MS = 90_000
+
+// Shape of a single project entry in the dev-state.json file.
+// All fields are optional so older entries without gitBranch are still valid.
+type DevStateEntry = {
+  stopTime?: number
+  distDirPath?: string
+  gitBranch?: string
+}
+
+// Single shared file for all projects — keyed by project directory path.
+const DEV_STATE_FILE = path.join(
+  getCacheDirectory('nextjs-nodejs'),
+  'dev-state.json'
+)
 
 // How long should we wait for the child to cleanly exit after sending
 // SIGINT/SIGTERM to the child process before sending SIGKILL?
@@ -77,15 +122,30 @@ const CHILD_EXIT_TIMEOUT_MS = parseInt(
   process.env.NEXT_EXIT_TIMEOUT_MS ?? '100',
   10
 )
+const shouldWaitForChildExit =
+  process.env.__NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN === '1'
 
-const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
-  if (signal != null && child?.pid) child.kill(signal)
-  if (sessionStopHandled) return
+const handleSessionStop = async (
+  signal: NodeJS.Signals | number | null,
+  exit = true
+) => {
+  if (signal != null && child?.pid) {
+    child.kill(signal)
+  }
+  if (sessionStopHandled) {
+    return
+  }
   sessionStopHandled = true
+  const interruptedUpgrade = upgradeInProgress
+  // Close the menu and let it print what it held.
+  upgradeController?.abort()
+  await closedUpgradeMenu(upgradeMenu)
 
   // Capture the child's exit code if it has already exited and caused the
-  // session stop (via the 'exit' event), otherwise assume success (0).
-  const exitCode = child?.exitCode || 0
+  // session stop (via the 'exit' event), otherwise assume success (0). A
+  // worker that exited to restart is not a failure.
+  const exitCode =
+    child?.exitCode === RESTART_EXIT_CODE ? 0 : child?.exitCode || 0
 
   if (
     signal != null &&
@@ -93,15 +153,18 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
     child.exitCode === null &&
     child.signalCode === null
   ) {
-    let exitTimeout = setTimeout(() => {
-      child?.kill('SIGKILL')
-    }, CHILD_EXIT_TIMEOUT_MS)
+    let exitTimeout: NodeJS.Timeout | undefined
+    if (!shouldWaitForChildExit) {
+      exitTimeout = setTimeout(() => {
+        child?.kill('SIGKILL')
+      }, CHILD_EXIT_TIMEOUT_MS)
+    }
     await once(child, 'exit').catch(() => {})
-    clearTimeout(exitTimeout)
+    if (exitTimeout) clearTimeout(exitTimeout)
+    await drainPromptOutput(child)
   }
 
   sessionSpan.stop()
-  await flushAllTraces({ end: true })
 
   try {
     const { eventCliSessionStopped } =
@@ -119,71 +182,168 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       pagesDir = !!pagesResult.pagesDir
     }
 
-    config =
-      config ||
-      (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, { silent: true }))
-
-    let telemetry =
+    const telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
         typeof import('../telemetry/storage').Telemetry
       >) ||
       new Telemetry({
-        distDir: path.join(dir, config.distDir),
+        distDir: path.join(dir, distDir || '.next'),
       })
-    // Reading the config can modify environment variables that influence the bundler selection.
-    bundler = finalizeBundlerFromConfig(bundler)
 
     telemetry.record(
       eventCliSessionStopped({
         cliCommand: 'dev',
-        turboFlag: bundler === Bundler.Turbopack,
+        turboFlag: isTurbopack,
         durationMilliseconds: Date.now() - sessionStarted,
         pagesDir,
         appDir,
       }),
       true
     )
-    telemetry.flushDetached('dev', dir)
+    telemetry.flushDetached({ mode: 'dev', dir, distDir: null, events: null })
   } catch (_) {
     // errors here aren't actionable so don't add
     // noise to the output
   }
 
-  if (traceUploadUrl) {
+  if (traceUploadUrl && distDir) {
     uploadTrace({
       traceUploadUrl,
       mode: 'dev',
       projectDir: dir,
-      distDir: config.distDir,
-      isTurboSession: bundler === Bundler.Turbopack,
+      distDir,
+      isTurboSession: isTurbopack,
     })
+
+    writeDevState()
   }
+
+  // Save CPU profile if it was enabled (before exiting)
+  saveCpuProfile()
 
   // ensure we re-enable the terminal cursor before exiting
   // the program, or the cursor could remain hidden
   process.stdout.write('\x1B[?25h')
   process.stdout.write('\n')
-  process.exit(exitCode)
+  if (exit) {
+    await flushUpgradeTelemetry()
+    process.exit(
+      interruption && (interruption === 'SIGHUP' || interruptedUpgrade)
+        ? 128 + os.constants.signals[interruption]
+        : exitCode
+    )
+  }
 }
 
-process.on('SIGINT', () => handleSessionStop('SIGINT'))
-process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
+const onInterrupt = () => {
+  interruption = 'SIGINT'
+  void handleSessionStop('SIGINT')
+}
+const onTerminate = () => {
+  interruption = 'SIGTERM'
+  void handleSessionStop('SIGTERM')
+}
+const onHangup = () => {
+  interruption = 'SIGHUP'
+  void handleSessionStop('SIGTERM')
+}
+process.on('SIGINT', onInterrupt)
+process.on('SIGTERM', onTerminate)
 
 // exit event must be synchronous
-process.on('exit', () => child?.kill('SIGKILL'))
+process.on('exit', () => {
+  child?.kill('SIGKILL')
+  // Catch aggressive kills (e.g. OOM, unhandled exception) that bypass handleSessionStop.
+  // SIGKILL of the parent cannot be caught; for all other exits this ensures state is written.
+  if (!sessionStopHandled) {
+    writeDevState()
+  }
+})
 
 const nextDev = async (
   options: NextDevOptions,
   portSource: PortSource,
   directory?: string
 ) => {
-  bundler = parseBundlerArgs(options)
+  // Note: parseBundlerArgs can only decide on Turbopack or webpack.
+  // Rspack can be configured via next.config.js but next.config.js is not loaded in the main process, only in the child process.
+  isTurbopack = parseBundlerArgs(options) === Bundler.Turbopack
 
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
+  warnMissingReactDependencies(dir)
+
+  const { shouldPromptForUpgrade, runUpgrade } = await import(
+    '../lib/upgrade/nudge.js'
+  )
+  const humanUpgrade = await shouldPromptForUpgrade()
+  if (humanUpgrade) {
+    // The server's output is piped, so it only knows the terminal width it
+    // started with. Pass on later resizes.
+    process.stdout.on('resize', () => {
+      if (child?.connected && process.stdout.columns) {
+        child.send({ nextTerminalColumns: process.stdout.columns })
+      }
+    })
+  }
+  const allowedUpgradeRetries = new Set<string>()
+  async function offerUpgrade(
+    context: UpgradeContext,
+    initialAssessment: Promise<UpgradeReminder | null> | null,
+    telemetryDisabled: string | undefined
+  ) {
+    process.on('SIGHUP', onHangup)
+    upgradeOffered = true
+    upgradeInProgress = true
+    const controller = new AbortController()
+    upgradeController = controller
+
+    upgradeMenu = showUpgradeMenu(promptOutput, {
+      dir,
+      context,
+      command: 'dev',
+      signal: controller.signal,
+      initialAssessment,
+      telemetryDisabled,
+    })
+    const result = await upgradeMenu
+    upgradeController = null
+
+    // Dev is already stopping (e.g. the server crashed).
+    if (sessionStopHandled) {
+      return
+    }
+    if (result === 'interrupt') {
+      onInterrupt()
+      return
+    }
+    if (result) {
+      // The server is stopping, so its output doesn't matter.
+      promptOutput.discard()
+      await handleSessionStop('SIGTERM', false)
+      if (interruption) {
+        await flushUpgradeTelemetry()
+        process.exit(128 + os.constants.signals[interruption])
+      }
+      process.off('SIGINT', onInterrupt)
+      process.off('SIGTERM', onTerminate)
+      process.off('SIGHUP', onHangup)
+      const exitCode = await runUpgrade(dir, result.policy, result.nudgeId)
+      await flushUpgradeTelemetry()
+      process.exit(exitCode)
+    }
+    upgradeInProgress = false
+    process.off('SIGHUP', onHangup)
+  }
 
   // Check if pages dir exists and warn if not
   if (!(await fileExists(dir, FileType.Directory))) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
+  }
+
+  if (options.experimentalCpuProf) {
+    Log.info(
+      `CPU profiling enabled. Profile will be saved to .next-profiles/ on exit (Ctrl+C).`
+    )
   }
 
   async function preflight(skipOnReboot: boolean) {
@@ -244,12 +404,66 @@ const nextDev = async (
     traceUploadUrl = options.experimentalUploadTrace
   }
 
+  if (traceUploadUrl) {
+    let isRageRestart = false
+    let distDirCleared = false
+    try {
+      if (fs.existsSync(DEV_STATE_FILE)) {
+        const allState = JSON.parse(
+          fs.readFileSync(DEV_STATE_FILE, 'utf8')
+        ) as Record<string, DevStateEntry>
+        const state = allState[dir]
+        if (
+          state?.stopTime &&
+          Date.now() - state.stopTime < RAGE_RESTART_THRESHOLD_MS
+        ) {
+          // Only flag as a rage restart if the git branch hasn't changed. If
+          // either the stored or current branch is unknown, skip the comparison
+          // and fall back to time-only detection.
+          const storedBranch = state.gitBranch
+          const currentBranch = getGitBranch(dir)
+          const branchChanged =
+            storedBranch && currentBranch && storedBranch !== currentBranch
+          if (!branchChanged) {
+            isRageRestart = true
+          }
+        }
+        if (state?.distDirPath && !fs.existsSync(state.distDirPath)) {
+          distDirCleared = true
+        }
+      }
+    } catch {
+      // Corrupt file — leave both flags false
+    }
+    devSpanAttrs = {
+      'rage-restart': isRageRestart,
+      'missing-next-dir': distDirCleared,
+    }
+  }
+
+  const enabledFeatures = Object.fromEntries(
+    Object.entries({
+      serverFastRefreshDisabled: options.serverFastRefresh === false,
+      experimentalCpuProf: options.experimentalCpuProf,
+    }).filter(([_, value]) => value)
+  )
+
+  for (const [key, value] of Object.entries(enabledFeatures)) {
+    sessionSpan.setAttribute(`feature.${key}`, value)
+  }
+
+  initializeTraceState({
+    ...exportTraceState(),
+    defaultParentSpanId: sessionSpan.getId(),
+  })
+
   const devServerOptions: StartServerOptions = {
     dir,
     port,
     allowRetry,
     isDev: true,
     hostname: host,
+    serverFastRefresh: options.serverFastRefresh,
   }
 
   const startServerPath = require.resolve('../server/lib/start-server')
@@ -259,8 +473,7 @@ const nextDev = async (
       let resolved = false
       const defaultEnv = (initialEnv || process.env) as typeof process.env
 
-      const nodeOptions = getParsedNodeOptionsWithoutInspect()
-      const nodeDebugType = getNodeDebugType()
+      const nodeOptions = getParsedNodeOptions()
 
       let maxOldSpaceSize: string | number | undefined = getMaxOldSpaceSize()
       if (!maxOldSpaceSize && !process.env.NEXT_DISABLE_MEM_OVERRIDE) {
@@ -280,42 +493,106 @@ const nextDev = async (
         nodeOptions['enable-source-maps'] = true
       }
 
-      if (nodeDebugType) {
-        const address = getParsedDebugAddress()
-        address.port = address.port + 1
+      const nodeDebugType = getNodeDebugType(nodeOptions)
+      const originalAddress =
+        nodeDebugType === undefined ? undefined : nodeOptions[nodeDebugType]
+      delete nodeOptions.inspect
+      delete nodeOptions['inspect-brk']
+      delete nodeOptions['inspect_brk']
+      if (nodeDebugType !== undefined) {
+        const address = getParsedDebugAddress(originalAddress)
+        address.port = address.port === 0 ? 0 : address.port + 1
         nodeOptions[nodeDebugType] = formatDebugAddress(address)
+      } else if (options.inspect) {
+        const address: DebugAddress =
+          options.inspect === true
+            ? getParsedDebugAddress(true)
+            : options.inspect
+        nodeOptions.inspect = formatDebugAddress(address)
       }
 
+      const { nodeOptions: formattedNodeOptions, execArgv } =
+        formatNodeOptions(nodeOptions)
+
+      // Pipe output through us so it can be held while the menu is open.
       child = fork(startServerPath, {
-        stdio: 'inherit',
+        stdio: humanUpgrade ? ['inherit', 'pipe', 'pipe', 'ipc'] : 'inherit',
+        execArgv,
         env: {
           ...defaultEnv,
-          ...(bundler === Bundler.Turbopack
-            ? { TURBOPACK: process.env.TURBOPACK }
-            : undefined),
+          ...(humanUpgrade ? getPromptOutputEnv() : undefined),
+          ...(isTurbopack ? { TURBOPACK: process.env.TURBOPACK } : undefined),
+          __NEXT_DEV_SERVER: '1',
+          NEXT_PRIVATE_START_TIME: process.env.NEXT_PRIVATE_START_TIME,
           NEXT_PRIVATE_WORKER: '1',
+          NEXT_PRIVATE_UPGRADE_PROMPT:
+            humanUpgrade && !upgradeOffered ? '1' : undefined,
+          NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES: Array.from(
+            allowedUpgradeRetries
+          ).join(','),
           NEXT_PRIVATE_TRACE_ID: traceId,
+          NEXT_PRIVATE_ENABLED_FEATURES: JSON.stringify(enabledFeatures),
+          NEXT_PRIVATE_DEV_SPAN_ATTRS: JSON.stringify(devSpanAttrs),
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
-          NODE_OPTIONS: formatNodeOptions(nodeOptions),
+          NODE_OPTIONS: formattedNodeOptions,
           // There is a node.js bug on MacOS which causes closing file watchers to be really slow.
-          // This limits the number of watchers to mitigate the issue.
+          // This limits the number of watchers x mitigate the issue.
           // https://github.com/nodejs/node/issues/29949
           WATCHPACK_WATCHER_LIMIT:
             os.platform() === 'darwin' ? '20' : undefined,
+          // Enable CPU profiling if requested
+          ...(options.experimentalCpuProf
+            ? {
+                NEXT_CPU_PROF: '1',
+                NEXT_CPU_PROF_DIR: ensureProfilesDir(dir),
+                __NEXT_PRIVATE_CPU_PROFILE: 'dev-server',
+              }
+            : undefined),
+          ...(process.env.NEXT_TURBOPACK_TRACING
+            ? { NEXT_TURBOPACK_TRACING: process.env.NEXT_TURBOPACK_TRACING }
+            : undefined),
         },
       })
+      if (humanUpgrade) {
+        promptOutput.attach(child)
+      }
 
       child.on('message', (msg: any) => {
         if (msg && typeof msg === 'object') {
-          if (msg.nextWorkerReady) {
+          if (
+            typeof msg.nextUpgradeRetryAllowed === 'string' &&
+            /^[a-f0-9]{64}$/.test(msg.nextUpgradeRetryAllowed)
+          ) {
+            allowedUpgradeRetries.add(msg.nextUpgradeRetryAllowed)
+          } else if (msg.nextUpgradeContext) {
+            const context = msg.nextUpgradeContext as UpgradeContext
+            distDir = context.distDir
+            const initialAssessment =
+              msg.nextUpgradeAssessment !== undefined
+                ? Promise.resolve(msg.nextUpgradeAssessment)
+                : null
+            void offerUpgrade(
+              context,
+              initialAssessment,
+              msg.telemetryDisabled
+            ).catch(async (error) => {
+              console.error(error)
+              await handleSessionStop('SIGTERM', false)
+              process.exit(1)
+            })
+          } else if (msg.nextWorkerReady) {
             child?.send({ nextWorkerOptions: startServerOptions })
           } else if (msg.nextServerReady && !resolved) {
             if (msg.port) {
               // Store the used port in case a random one was selected, so that
               // it can be re-used on automatic dev server restarts.
               port = parseInt(msg.port, 10)
+            }
+            if (msg.distDir) {
+              // Store the distDir from the child process for telemetry and trace uploads.
+              distDir = msg.distDir
             }
 
             resolved = true
@@ -324,32 +601,40 @@ const nextDev = async (
         }
       })
 
-      child.on('exit', async (code, signal) => {
-        if (sessionStopHandled || signal) {
+      // A restart replaces `child`, so keep this one.
+      const worker = child
+      worker.on('exit', async (code, signal) => {
+        reassertRawMode()
+        // Read the rest of its output first. A restart keeps the menu open.
+        await drainPromptOutput(worker)
+        if (sessionStopHandled) {
+          return
+        }
+        if (signal) {
+          if (upgradeInProgress) {
+            interruption ??= signal
+            await handleSessionStop(null)
+          }
           return
         }
         if (code === RESTART_EXIT_CODE) {
           // Starting the dev server will overwrite the `.next/trace` file, so we
           // must upload the existing contents before restarting the server to
           // preserve the metrics.
-          if (traceUploadUrl) {
-            // Postpone loading next config when we need to get
-            //  config.distDir for upload trace.
-            config =
-              config ||
-              (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
-                silent: true,
-              }))
-            bundler = finalizeBundlerFromConfig(bundler)
+          if (traceUploadUrl && distDir) {
             uploadTrace({
               traceUploadUrl,
               mode: 'dev',
               projectDir: dir,
-              distDir: config.distDir,
-              isTurboSession: bundler === Bundler.Turbopack,
+              distDir,
+              isTurboSession: isTurbopack,
               sync: true,
             })
           }
+
+          // Reset the start time so "Ready in X" reflects the restart
+          // duration, not time since the original process started.
+          process.env.NEXT_PRIVATE_START_TIME = Date.now().toString()
 
           return startServer({ ...startServerOptions, port })
         }
@@ -391,6 +676,8 @@ const nextDev = async (
         await startServer(devServerOptions)
       }
 
+      // Its warnings would land on the menu's screen and be lost.
+      await upgradeMenu
       await preflight(reboot)
     } catch (err) {
       console.error(err)
@@ -399,6 +686,45 @@ const nextDev = async (
   }
 
   await runDevServer(false)
+}
+
+function writeDevState(): void {
+  if (!traceUploadUrl || !dir) return
+  try {
+    fs.mkdirSync(path.dirname(DEV_STATE_FILE), { recursive: true })
+
+    let state: Record<string, DevStateEntry> = {}
+    try {
+      state = JSON.parse(fs.readFileSync(DEV_STATE_FILE, 'utf8'))
+    } catch {
+      // File missing or corrupt — start with empty state
+    }
+
+    // Eagerly remove entries that are stale (older than threshold) or invalid
+    // (future timestamps from clock skew or corruption).
+    const now = Date.now()
+    const cutoff = now - RAGE_RESTART_THRESHOLD_MS
+    for (const key of Object.keys(state)) {
+      const t = state[key]?.stopTime
+      if (!t || t < cutoff || t > now) {
+        delete state[key]
+      }
+    }
+
+    // Update current project
+    const gitBranch = getGitBranch(dir)
+    state[dir] = {
+      stopTime: Date.now(),
+      distDirPath: path.join(dir, distDir ?? '.next'),
+      ...(gitBranch ? { gitBranch } : {}),
+    }
+
+    const { sync: writeFileAtomicSync } =
+      require('next/dist/compiled/write-file-atomic') as typeof import('next/dist/compiled/write-file-atomic')
+    writeFileAtomicSync(DEV_STATE_FILE, JSON.stringify(state))
+  } catch {
+    // Best effort — don't interfere with shutdown
+  }
 }
 
 export { nextDev }

@@ -21,17 +21,20 @@ export function ErrorOverlayCallStack({
   function onToggleIgnoreList() {
     const dialog = dialogResizerRef?.current
 
-    if (!dialog) {
-      return
-    }
-
-    const { height: currentHeight } = dialog.getBoundingClientRect()
-
-    if (!initialDialogHeight.current) {
-      initialDialogHeight.current = currentHeight
-    }
-
     if (isIgnoreListOpen) {
+      // Closing requires dialog for animation
+      if (!dialog) {
+        // No dialog ref available, just close without animation
+        setIsIgnoreListOpen(false)
+        return
+      }
+
+      const { height: currentHeight } = dialog.getBoundingClientRect()
+
+      if (!initialDialogHeight.current) {
+        initialDialogHeight.current = currentHeight
+      }
+
       function onTransitionEnd() {
         // TS bug. We closed over a non-nullable value here.
         dialog!.removeEventListener('transitionend', onTransitionEnd)
@@ -41,6 +44,14 @@ export function ErrorOverlayCallStack({
       dialog.style.height = `${initialDialogHeight.current}px`
       dialog.addEventListener('transitionend', onTransitionEnd)
     } else {
+      if (dialog) {
+        const { height: currentHeight } = dialog.getBoundingClientRect()
+        // When the ignore list is closed, we need to store the initial height of the dialog,
+        // we need this value to restore the dialog to its original height when the ignore list is opened again.
+        if (!initialDialogHeight.current) {
+          initialDialogHeight.current = currentHeight
+        }
+      }
       setIsIgnoreListOpen(true)
     }
   }

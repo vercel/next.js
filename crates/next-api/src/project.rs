@@ -1,105 +1,136 @@
-use std::time::Duration;
+use std::{
+    iter,
+    path::{Path, PathBuf},
+    sync::Arc,
+    time::{Duration, Instant, SystemTime},
+};
 
 use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
+use bincode::{Decode, Encode};
 use indexmap::map::Entry;
 use next_core::{
-    all_assets_from_entries,
     app_structure::find_app_dir,
     emit_assets, get_edge_chunking_context, get_edge_chunking_context_with_client_assets,
     get_edge_compile_time_info, get_edge_resolve_options_context,
     instrumentation::instrumentation_files,
     middleware::middleware_files,
     mode::NextMode,
+    next_app::{AppPage, AppPath},
     next_client::{
-        ClientChunkingContextOptions, get_client_chunking_context, get_client_compile_time_info,
+        ClientChunkingContextOptions, ClientContextType, ServiceWorkerChunkingContextOptions,
+        get_client_chunking_context, get_client_compile_time_info,
+        get_client_module_options_context, get_client_resolve_options_context,
+        get_service_worker_chunking_context,
     },
-    next_config::{ModuleIds as ModuleIdStrategyConfig, NextConfig},
+    next_config::{
+        DIST_PROFILES_DIR_NAME, ModuleIds as ModuleIdStrategyConfig, NextConfig, OutputType,
+        TurbopackPluginRuntimeStrategy,
+    },
     next_edge::context::EdgeChunkingContextOptions,
     next_server::{
         ServerChunkingContextOptions, ServerContextType, get_server_chunking_context,
         get_server_chunking_context_with_client_assets, get_server_compile_time_info,
         get_server_module_options_context, get_server_resolve_options_context,
+        get_tracing_compile_time_info,
     },
-    next_telemetry::NextFeatureTelemetry,
+    next_telemetry::ProjectFeatureUsageSummary,
     parse_segment_config_from_source,
     segment_config::ParseSegmentMode,
     util::{NextRuntime, OptionEnvMap},
 };
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
-use tracing::Instrument;
+use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, OperationValue, OperationVc,
-    ReadRef, ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Vc,
-    debug::ValueDebugFormat,
-    fxindexmap,
-    graph::{AdjacencyMap, GraphTraversal},
-    mark_root,
-    trace::TraceRawVcs,
+    Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue,
+    OperationVc, ReadRef, ResolvedVc, State, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt,
+    Vc, debug::ValueDebugFormat, fxindexmap, message_queue::TraceEvent, turbo_tasks,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
-use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem, invalidation};
-use turbo_unix_path::{join_path, unix_to_sys};
+use turbo_tasks_fs::{
+    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, File, FileContent, FileSystem,
+    FileSystemPath, VirtualFileSystem, invalidation,
+};
+use turbo_unix_path::join_path;
 use turbopack::{
-    ModuleAssetContext, evaluate_context::node_build_environment,
+    ModuleAssetContext, evaluate_context::node_build_environment, externals_tracing_module_context,
     global_module_ids::get_global_module_id_strategy, transition::TransitionOptions,
 };
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME,
+    asset::AssetContent,
     changed::content_changed,
     chunk::{
-        ChunkingContext, EvaluatableAssets, SourceMapsType,
-        module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
+        ChunkingContext, EvaluatableAssets, UnusedReferences,
+        chunk_id_strategy::{ModuleIdFallback, ModuleIdStrategy},
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
-    diagnostics::DiagnosticExt,
     environment::NodeJsVersion,
     file_source::FileSource,
     ident::Layer,
     issue::{
-        CollectibleIssuesExt, Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString,
+        CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage, PlainIssue,
         StyledString,
     },
-    module::Module,
+    module::{Module, Modules},
     module_graph::{
-        GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
-        chunk_group_info::ChunkGroupEntry,
-        export_usage::{OptionExportUsageInfo, compute_export_usage_info},
+        GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph, VisitedModules,
+        binding_usage_info::{
+            BindingUsageInfo, OptionBindingUsageInfo, compute_binding_usage_info,
+        },
+        chunk_group_info::{ChunkGroupEntry, EntryHeuristics},
     },
-    output::{OutputAsset, OutputAssets},
+    output::{
+        ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
+        expand_output_assets,
+    },
+    reference::all_assets_from_entries,
+    reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{FindContextFileResult, find_context_file},
-    source_map::OptionStringifiedSourceMap,
+    source::{OptionSource, Source},
+    source_map::{SourceMapGenerationOptions, SourceMapType},
     version::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },
+    virtual_source::VirtualSource,
 };
+use turbopack_ecmascript::async_chunk::proxy::{
+    activation_key_from_chunk_path, lazy_compilation_state,
+};
+#[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
+use turbopack_node::child_process_backend;
 use turbopack_node::execution_context::ExecutionContext;
-use turbopack_nodejs::NodeJsChunkingContext;
+#[cfg(feature = "worker_pool")]
+use turbopack_node::worker_threads_backend;
+use turbopack_nodejs::{NodeJsChunkingContext, fs::NodeModulesPathMatcher};
 
+pub use crate::additional_roots::{AdditionalRootConfig, AdditionalRootName, BuiltinRootKind};
 use crate::{
+    additional_roots::{
+        AdditionalDiskFileSystem, BuiltinRootsConfig, create_additional_root_file_systems,
+    },
+    aggregate_hmr::ServerHmrChunkLists,
     app::{AppProject, OptionAppProject},
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
+    next_server_nft::{pages_renderer_modules, require_hook_modules},
     pages::PagesProject,
-    route::{AppPageRoute, Endpoint, Endpoints, Route},
+    path_utils::convention_file_base_name,
+    route::{
+        Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups, Endpoints,
+        Route,
+    },
     versioned_content_map::VersionedContentMap,
 };
 
+#[turbo_tasks::task_input]
 #[derive(
-    Debug,
-    Serialize,
-    Deserialize,
-    Clone,
-    TaskInput,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
+    Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct DraftModeOptions {
@@ -108,6 +139,11 @@ pub struct DraftModeOptions {
     pub preview_mode_signing_key: RcStr,
 }
 
+/// A cell holding [`DraftModeOptions`], some of these change in every session.
+#[turbo_tasks::value(transparent)]
+struct DraftModeOptionsValue(DraftModeOptions);
+
+#[turbo_tasks::task_input]
 #[derive(
     Debug,
     Default,
@@ -115,13 +151,12 @@ pub struct DraftModeOptions {
     Deserialize,
     Copy,
     Clone,
-    TaskInput,
     PartialEq,
     Eq,
     Hash,
-    TraceRawVcs,
-    NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct WatchOptions {
@@ -133,38 +168,163 @@ pub struct WatchOptions {
     pub poll_interval: Option<Duration>,
 }
 
+#[turbo_tasks::task_input]
+#[derive(
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct DebugBuildPaths {
+    pub app: Vec<RcStr>,
+    pub pages: Vec<RcStr>,
+}
+
+/// Pre-converted route keys from debug build paths for O(1) lookups.
+struct DebugBuildPathsRouteKeys {
+    app: FxHashSet<RcStr>,
+    pages: FxHashSet<RcStr>,
+}
+
+impl DebugBuildPathsRouteKeys {
+    fn app_route_key_from_debug_path(path: &str) -> Result<RcStr> {
+        let mut segments = path
+            .trim_start_matches('/')
+            .split('/')
+            .filter(|segment| !segment.is_empty())
+            .collect::<Vec<_>>();
+
+        if let Some(last_segment) = segments.last()
+            && (*last_segment == "page"
+                || last_segment.starts_with("page.")
+                || *last_segment == "route"
+                || last_segment.starts_with("route."))
+        {
+            segments.pop();
+        }
+
+        let normalized_path = segments.join("/");
+        Ok(AppPath::from(AppPage::parse(&normalized_path)?)
+            .to_string()
+            .into())
+    }
+
+    fn pages_route_key_from_debug_path(path: &RcStr) -> Result<RcStr> {
+        // Strip extension: "/foo.tsx" -> "/foo"
+        // Catch-all routes like "/foo/[...slug]" contain dots in the segment name;
+        // only treat the suffix as an extension when it is a plain alphanumeric token.
+        let file_name = path.rsplit('/').next().unwrap_or(path);
+        let result = if let Some(dot_idx) = file_name.rfind('.') {
+            let ext = &file_name[dot_idx + 1..];
+            if !ext.is_empty() && ext.chars().all(|c| c.is_ascii_alphanumeric()) {
+                let trimmed_len = path.len() - (file_name.len() - dot_idx);
+                path[..trimmed_len].into()
+            } else {
+                path.clone()
+            }
+        } else {
+            path.clone()
+        };
+
+        // Strip index suffix: "/foo/index.tsx" -> "/foo"
+        Ok(if let Some(stripped) = result.strip_suffix("/index") {
+            if stripped.is_empty() {
+                "/".into()
+            } else {
+                stripped.into()
+            }
+        } else {
+            result
+        })
+    }
+
+    fn from_debug_build_paths(paths: &DebugBuildPaths) -> Result<Self> {
+        Ok(Self {
+            app: paths
+                .app
+                .iter()
+                .map(|path| Self::app_route_key_from_debug_path(path))
+                .collect::<Result<_>>()?,
+            pages: paths
+                .pages
+                .iter()
+                .map(Self::pages_route_key_from_debug_path)
+                .collect::<Result<_>>()?,
+        })
+    }
+
+    fn should_include_app_route(&self, route_key: &RcStr) -> bool {
+        // Special app router framework routes
+        if matches!(route_key.as_str(), "/_not-found" | "/_global-error") {
+            return true;
+        }
+        self.app.contains(route_key)
+    }
+
+    fn should_include_pages_route(&self, route_key: &RcStr) -> bool {
+        // Special pages router framework routes
+        if matches!(
+            route_key.as_str(),
+            "/_error" | "/_document" | "/_app" | "/404" | "/500"
+        ) {
+            return self.pages.iter().any(|page| {
+                let page = page.as_str();
+                page != "/api" && !page.starts_with("/api/")
+            });
+        }
+        self.pages.contains(route_key)
+    }
+}
+
 #[derive(
     Debug,
     Serialize,
     Deserialize,
     Clone,
-    TaskInput,
     PartialEq,
     Eq,
-    Hash,
-    TraceRawVcs,
     NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectOptions {
-    /// An absolute root path (Unix or Windows path) from which all files must be nested under.
-    /// Trying to access a file outside this root will fail, so think of this as a chroot.
-    /// E.g. `/home/user/projects/my-repo`.
+    /// An [canonicalized][std::fs::canonicalize] root path (Unix or Windows path) from which all
+    /// files must be nested under. Trying to access a file outside this root will fail, so think
+    /// of this as a weak chroot. E.g. `/home/user/projects/my-repo`.
+    ///
+    /// This serves two purposes:
+    /// - It gives us a root to configure the file system watcher with.
+    /// - It ensures the cache is portable when the root path is moved, since every other path is
+    ///   relative to it.
+    ///
+    /// Symlinks outside of the `root_path` can still be resolved if the targets exist in
+    /// [`ProjectOptions::additional_roots`].
     pub root_path: RcStr,
 
-    /// A path which contains the app/pages directories, relative to [`Project::root_path`], always
-    /// Unix path. E.g. `apps/my-app`
+    /// A path which contains the app/pages directories, relative to [`Project::project_path`].
+    /// Always a Unix-style (`/`-separated) path. E.g. `apps/my-app`.
     pub project_path: RcStr,
 
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: RcStr,
 
+    /// Additional filesystem roots. Canonicalized during initialization.
+    pub additional_roots: Vec<AdditionalRootConfig>,
+
     /// A map of environment variables to use when compiling code.
     pub env: Vec<(RcStr, RcStr)>,
 
-    /// A map of environment variables which should get injected at compile
-    /// time.
+    /// A map of environment variables which should get injected at compile time.
     pub define_env: DefineEnv,
 
     /// Filesystem watcher options.
@@ -185,65 +345,69 @@ pub struct ProjectOptions {
     /// The browserslist query to use for targeting browsers.
     pub browserslist_query: RcStr,
 
-    /// When the code is minified, this opts out of the default mangling of
-    /// local names for variables, functions etc., which can be useful for
-    /// debugging/profiling purposes.
+    /// When the code is minified, this opts out of the default mangling of local names for
+    /// variables, functions etc., which can be useful for debugging/profiling purposes.
     pub no_mangling: bool,
+
+    /// Whether to write the route hashes manifest.
+    pub write_routes_hashes_manifest: bool,
 
     /// The version of Node.js that is available/currently running.
     pub current_node_js_version: RcStr,
+
+    /// Debug build paths for selective builds. When set, only routes matching these paths will be
+    /// included in the build.
+    pub debug_build_paths: Option<DebugBuildPaths>,
+
+    /// App-router page routes that should be built after non-deferred routes.
+    pub deferred_entries: Option<Vec<RcStr>>,
+
+    /// Whether to enable persistent caching
+    pub is_persistent_caching_enabled: bool,
+
+    /// The version of Next.js that is running.
+    pub next_version: RcStr,
+
+    /// Whether server-side HMR is enabled (disabled with `--no-server-fast-refresh`).
+    pub server_hmr: bool,
+
+    /// Retains shallow source maps (e.g. for `next analyze`) without changing the emitted source
+    /// map variant.
+    pub ensure_shallow_source_maps: bool,
 }
 
-#[derive(
-    Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue,
-)]
-#[serde(rename_all = "camelCase")]
+/// The subset of [`ProjectOptions`] that may change without restarting the process. Used by
+/// [`ProjectContainer::update`].
+///
+/// Refer to [`ProjectOptions`] for documentation on this struct's fields.
+#[derive(Default)]
 pub struct PartialProjectOptions {
-    /// A root path from which all files must be nested under. Trying to access
-    /// a file outside this root will fail. Think of this as a chroot.
-    pub root_path: Option<RcStr>,
-
-    /// A path inside the root_path which contains the app/pages directories.
-    pub project_path: Option<RcStr>,
-
-    /// The contents of next.config.js, serialized to JSON.
     pub next_config: Option<RcStr>,
 
-    /// A map of environment variables to use when compiling code.
     pub env: Option<Vec<(RcStr, RcStr)>>,
 
-    /// A map of environment variables which should get injected at compile
-    /// time.
     pub define_env: Option<DefineEnv>,
 
-    /// Filesystem watcher options.
-    pub watch: Option<WatchOptions>,
-
-    /// The mode in which Next.js is running.
     pub dev: Option<bool>,
 
-    /// The server actions encryption key.
     pub encryption_key: Option<RcStr>,
 
-    /// The build id.
     pub build_id: Option<RcStr>,
 
-    /// Options for draft mode.
     pub preview_props: Option<DraftModeOptions>,
+
+    pub browserslist_query: Option<RcStr>,
+
+    pub no_mangling: Option<bool>,
+
+    pub write_routes_hashes_manifest: Option<bool>,
+
+    pub debug_build_paths: Option<DebugBuildPaths>,
 }
 
+#[turbo_tasks::task_input]
 #[derive(
-    Debug,
-    Serialize,
-    Deserialize,
-    Clone,
-    TaskInput,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
+    Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct DefineEnv {
@@ -252,31 +416,45 @@ pub struct DefineEnv {
     pub nodejs: Vec<(RcStr, Option<RcStr>)>,
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct Middleware {
     pub endpoint: ResolvedVc<Box<dyn Endpoint>>,
     pub is_proxy: bool,
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct Instrumentation {
     pub node_js: ResolvedVc<Box<dyn Endpoint>>,
     pub edge: ResolvedVc<Box<dyn Endpoint>>,
 }
 
-#[turbo_tasks::value]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, OperationValue, Encode, Decode)]
+struct ProjectFileSystemState {
+    project_file_system: OperationVc<DiskFileSystem>,
+    output_file_system: OperationVc<DiskFileSystem>,
+}
+
+#[turbo_tasks::value(evict = "never", eq = "manual", cell = "new")]
 pub struct ProjectContainer {
     name: RcStr,
+    go_sessions: ResolvedVc<turbopack_go::GoSessionPool>,
     options_state: State<Option<ProjectOptions>>,
+    file_systems_state: State<Option<ProjectFileSystemState>>,
+    additional_roots_state: State<Vec<(RcStr, AdditionalDiskFileSystem)>>,
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
+    #[bincode(skip)]
+    fs_map_init_lock: tokio::sync::Mutex<()>,
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
 }
 
 #[turbo_tasks::value_impl]
 impl ProjectContainer {
-    #[turbo_tasks::function]
-    pub fn new(name: RcStr, dev: bool) -> Result<Vc<Self>> {
+    #[turbo_tasks::function(operation, root)]
+    pub fn new_operation(name: RcStr, dev: bool) -> Result<Vc<Self>> {
+        let go_sessions = turbopack_go::GoSessionPool::new();
         Ok(ProjectContainer {
             name,
+            go_sessions,
             // we only need to enable versioning in dev mode, since build
             // is assumed to be operating over a static snapshot
             versioned_content_map: if dev {
@@ -285,155 +463,472 @@ impl ProjectContainer {
                 None
             },
             options_state: State::new(None),
+            file_systems_state: State::new(None),
+            additional_roots_state: State::new(Vec::new()),
+            fs_map_init_lock: tokio::sync::Mutex::new(()),
         }
         .cell())
     }
 }
 
-#[turbo_tasks::function(operation)]
-fn project_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Project> {
-    project.project()
+impl ProjectContainer {
+    /// Attach process-local cleanup after resolving the container. Shutdown hooks must not be
+    /// task inputs: making the container transient also prevents its project graph from persisting.
+    pub fn register_shutdown_hooks(&self, shutdown: &crate::shutdown::ShutdownHooks) {
+        shutdown.on_shutdown(self.go_sessions, |sessions| {
+            Box::pin(async move {
+                sessions
+                    .await?
+                    .shutdown()
+                    .await
+                    .context("shutting down Go compiler sessions")
+            })
+        });
+    }
 }
 
-#[turbo_tasks::function(operation)]
-fn project_fs_operation(project: ResolvedVc<Project>) -> Vc<DiskFileSystem> {
-    project.project_fs()
+/// Constructs and activates the initial project container state, including its filesystem
+/// watchers. Called by [`ProjectContainer::initialize`].
+async fn prepare_project_container_state(
+    container_vc: ResolvedVc<ProjectContainer>,
+    options: ProjectOptions,
+) -> Result<Vec<ReadRef<PlainIssue>>> {
+    let container = container_vc.await?;
+    // Operations created during initialization may begin running immediately. Keep operations that
+    // require the complete filesystem map blocked until both filesystem states are populated.
+    let fs_map_init_guard = container.fs_map_init_lock.lock().await;
+
+    let map = disk_file_system_map_operation(container_vc);
+    let config_json: serde_json::Value = serde_json::from_str(&options.next_config)?;
+
+    let dist_dir_root = config_json
+        .get("distDirRoot")
+        .and_then(|value| value.as_str())
+        .unwrap_or(".next");
+
+    let builtin_roots = BuiltinRootsConfig {
+        detect_global_virtual_store: config_json
+            .pointer("/experimental/turbopackDetectGlobalVirtualStore")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false),
+    };
+
+    let watcher_config = DiskWatcherConfig {
+        poll_interval: options.watch.poll_interval,
+        report_invalidation_reason: true,
+        ..Default::default()
+    };
+
+    let denied_paths = vec![
+        RcStr::from(
+            join_path(&options.project_path, dist_dir_root)
+                .context("distDirRoot must stay inside the project root")?,
+        ),
+        // CPU profiles are written to `.next-profiles/` at the project root (see `--cpu-prof`).
+        // Deny access to it so the bundler doesn't traverse into the profiling output directory.
+        RcStr::from(join_path(&options.project_path, DIST_PROFILES_DIR_NAME).unwrap()),
+    ];
+
+    let enable_watch = options.watch.enable;
+    let configured_additional_roots = options.additional_roots.clone();
+    let project_root = options.root_path.clone();
+    let project_path = options.project_path.clone();
+
+    // `project_root_path_operation` reads `options_state`, so publish it first. This operation
+    // cannot depend on `fs_map_init_lock` because we must eagerly resolve `project_fs_op` to
+    // create `config_path`.
+    container.options_state.set(Some(options));
+
+    // Wrap `options.root_path` in an `OperationVc`
+    // Note: It's important that the identity of this operation is stable, so that we don't end up
+    // changing the identity of every `FileSystemPath` that depends on its output cell.
+    let root_path_op = project_root_path_operation(container_vc);
+
+    let project_fs_op = disk_file_system_operation(
+        PROJECT_FILESYSTEM_NAME,
+        root_path_op,
+        denied_paths,
+        watcher_config,
+        map,
+    );
+
+    let output_fs_op = disk_file_system_operation(
+        rcstr!("output"),
+        root_path_op,
+        Vec::new(),
+        DiskWatcherConfig::default(),
+        DiskFileSystemMap::empty(),
+    );
+
+    // The filesystem only stores (and does not resolve) the filesystem map.
+    container
+        .file_systems_state
+        .set(Some(ProjectFileSystemState {
+            project_file_system: project_fs_op,
+            output_file_system: output_fs_op,
+        }));
+    let project_fs_vc = project_fs_op.resolve().strongly_consistent().await?;
+    let project_fs = project_fs_op.read_strongly_consistent().await?;
+
+    let config_file_name = config_json
+        .get("configFileName")
+        .and_then(|value| value.as_str())
+        .unwrap_or("next.config.js");
+    let config_path = FileSystemPath::new_normalized_unchecked(
+        ResolvedVc::upcast(project_fs_vc),
+        RcStr::default(),
+    )
+    .join(&project_path)?
+    .join(config_file_name)?;
+    let additional_roots = create_additional_root_file_systems(
+        container_vc,
+        configured_additional_roots,
+        builtin_roots,
+        &project_root,
+        &project_path,
+        watcher_config,
+        map,
+        config_path,
+    )
+    .await?;
+
+    let additional_file_systems = additional_roots
+        .roots_by_name
+        .values()
+        .map(|root| root.file_system)
+        .collect::<Vec<_>>();
+
+    // This state must be populated before the lazy additional filesystem operations or the
+    // filesystem map are first resolved.
+    container
+        .additional_roots_state
+        .set(additional_roots.roots_by_name.into_iter().collect());
+    drop(fs_map_init_guard);
+
+    // perform complete invalidations of all paths and watcher setup after finalizing the `map`
+    fn invalidation_reason(path: &Path) -> impl InvalidationReason + Clone + use<> {
+        invalidation::Initialize {
+            path: RcStr::from(path.to_string_lossy()),
+        }
+    }
+    if enable_watch {
+        project_fs.start_watching().await?;
+        for op in &additional_file_systems {
+            let fs = op.read_strongly_consistent().await?;
+            fs.start_watching().await?;
+        }
+    } else {
+        project_fs.invalidate_with_reason(invalidation_reason);
+        for op in &additional_file_systems {
+            op.read_strongly_consistent()
+                .await?
+                .invalidate_with_reason(invalidation_reason);
+        }
+    }
+
+    // we never watch `output_file_system`, but we do invalidate it across restarts, in case some
+    // other process modified or deleted files.
+    output_fs_op
+        .read_strongly_consistent()
+        .await?
+        .invalidate_with_reason(invalidation_reason);
+
+    Ok(additional_roots.issues)
 }
 
-#[turbo_tasks::function(operation)]
-fn output_fs_operation(project: ResolvedVc<Project>) -> Vc<DiskFileSystem> {
-    project.project_fs()
+/// Activates the lazy dynamic import that `chunk_path` names, returning whether it named one. The
+/// caller has to rebuild the owning entrypoint before serving the request.
+#[turbo_tasks::function(operation, root)]
+pub async fn activate_lazy_chunk_operation(chunk_path: RcStr) -> Result<Vc<bool>> {
+    let Some(key) = activation_key_from_chunk_path(&chunk_path) else {
+        return Ok(Vc::cell(false));
+    };
+    lazy_compilation_state(key).await?.activate();
+    Ok(Vc::cell(true))
+}
+
+#[turbo_tasks::function(operation, root)]
+pub(crate) fn disk_file_system_operation(
+    name: RcStr,
+    canonical_root: OperationVc<RcStr>,
+    denied_paths: Vec<RcStr>,
+    mut watcher_config: DiskWatcherConfig,
+    map: OperationVc<DiskFileSystemMap>,
+) -> Vc<DiskFileSystem> {
+    watcher_config.extended_batch_delay_matcher =
+        Some(ResolvedVc::upcast(NodeModulesPathMatcher.resolved_cell()));
+    DiskFileSystem::new_with_options(
+        name,
+        canonical_root.connect(),
+        denied_paths,
+        watcher_config,
+        map,
+    )
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn project_root_path_operation(container: ResolvedVc<ProjectContainer>) -> Result<Vc<RcStr>> {
+    let container = container.await?;
+    let root_path = container
+        .options_state
+        .get()
+        .as_ref()
+        .context("Unexpected: ProjectContainer is uninitialized")?
+        .root_path
+        .clone();
+    Ok(Vc::cell(root_path))
+}
+
+#[turbo_tasks::function(operation, root)]
+pub(crate) async fn additional_root_path_operation(
+    container: ResolvedVc<ProjectContainer>,
+    key: RcStr,
+) -> Result<Vc<RcStr>> {
+    let container = container.await?;
+    let _guard = container.fs_map_init_lock.lock().await;
+    let roots = container.additional_roots_state.get();
+    let root = roots
+        .iter()
+        .find_map(|(name, root)| (name == &key).then_some(root))
+        .with_context(|| format!("Unexpected: additional root {key} is missing"))?;
+    Ok(Vc::cell(root.canonical_path.clone()))
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn disk_file_system_map_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<DiskFileSystemMap>> {
+    let (project_file_system, additional_file_systems) = {
+        let container = container.await?;
+        let _guard = container.fs_map_init_lock.lock().await;
+        let file_systems = container.file_systems_state.get();
+        let file_systems = file_systems
+            .as_ref()
+            .context("Unexpected: ProjectContainer is uninitialized")?;
+        (
+            file_systems.project_file_system,
+            container
+                .additional_roots_state
+                .get()
+                .iter()
+                .map(|(_, root)| root.file_system)
+                .collect::<Vec<_>>(),
+        )
+    };
+    let filesystems = iter::once(project_file_system)
+        .chain(additional_file_systems)
+        .map(async |operation| {
+            let fs = operation.connect().to_resolved().await?;
+            Ok((PathBuf::from(fs.await?.root()), fs))
+        })
+        .try_join()
+        .await?;
+    Ok(filesystems
+        .into_iter()
+        .collect::<DiskFileSystemMap>()
+        .cell())
+}
+
+enum EnvDiffType {
+    Added,
+    Removed,
+    Modified,
+}
+
+fn env_diff(
+    old: &[(RcStr, Option<RcStr>)],
+    new: &[(RcStr, Option<RcStr>)],
+) -> Vec<(RcStr, EnvDiffType)> {
+    let mut diffs = Vec::new();
+    let mut old_map: FxHashMap<_, _> = old.iter().cloned().collect();
+
+    for (key, new_value) in new.iter() {
+        match old_map.remove(key) {
+            Some(old_value) => {
+                if &old_value != new_value {
+                    diffs.push((key.clone(), EnvDiffType::Modified));
+                }
+            }
+            None => {
+                diffs.push((key.clone(), EnvDiffType::Added));
+            }
+        }
+    }
+
+    for (key, _) in old.iter() {
+        if old_map.contains_key(key) {
+            diffs.push((key.clone(), EnvDiffType::Removed));
+        }
+    }
+
+    diffs
+}
+
+fn env_diff_report(old: &[(RcStr, Option<RcStr>)], new: &[(RcStr, Option<RcStr>)]) -> String {
+    use std::fmt::Write;
+
+    let diff = env_diff(old, new);
+
+    let mut report = String::new();
+    for (key, diff_type) in diff {
+        let symbol = match diff_type {
+            EnvDiffType::Added => "+",
+            EnvDiffType::Removed => "-",
+            EnvDiffType::Modified => "*",
+        };
+        if !report.is_empty() {
+            report.push_str(", ");
+        }
+        write!(report, "{}{}", symbol, key).unwrap();
+    }
+    report
+}
+
+fn define_env_diff_report(old: &DefineEnv, new: &DefineEnv) -> String {
+    use std::fmt::Write;
+
+    let mut report = String::new();
+    for (name, old, new) in [
+        ("client", &old.client, &new.client),
+        ("edge", &old.edge, &new.edge),
+        ("nodejs", &old.nodejs, &new.nodejs),
+    ] {
+        let diff = env_diff_report(old, new);
+        if !diff.is_empty() {
+            if !report.is_empty() {
+                report.push_str(", ");
+            }
+            write!(report, "{name}: {{ {diff} }}").unwrap();
+        }
+    }
+    report
 }
 
 impl ProjectContainer {
-    #[tracing::instrument(level = "info", name = "initialize project", skip_all)]
-    pub async fn initialize(self: ResolvedVc<Self>, options: ProjectOptions) -> Result<()> {
-        let watch = options.watch;
-
-        self.await?.options_state.set(Some(options));
-
-        let project = self.project().to_resolved().await?;
-        let project_fs = project_fs_operation(project)
-            .read_strongly_consistent()
-            .await?;
-        if watch.enable {
-            project_fs
-                .start_watching_with_invalidation_reason(watch.poll_interval)
-                .await?;
-        } else {
-            project_fs.invalidate_with_reason(|path| invalidation::Initialize {
-                // this path is just used for display purposes
-                path: RcStr::from(path.to_string_lossy()),
-            });
+    /// Set up filesystems, watchers, and construct the [`Project`] instance inside the container.
+    ///
+    /// This function is intended to be called inside of [`turbo_tasks::TurboTasks::run`], but not
+    /// part of a [`turbo_tasks::function`]. We don't want it to be possibly re-executed.
+    ///
+    /// This is an associated function instead of a method because we don't currently implement
+    /// [`std::ops::Receiver`] on [`OperationVc`].
+    pub async fn initialize(
+        this_op: OperationVc<Self>,
+        options: ProjectOptions,
+    ) -> Result<Vec<ReadRef<PlainIssue>>> {
+        let this = this_op.read_strongly_consistent().await?;
+        let span = tracing::info_span!(
+            "initialize project",
+            project_name = %this.name,
+            version = options.next_version.as_str(),
+            node_version = options.current_node_js_version.as_str(),
+            os = std::env::consts::OS,
+            arch = std::env::consts::ARCH,
+            turbo_tasks_available_parallelism =
+                turbo_tasks::parallel::available_parallelism().map(|n| n.get()).unwrap_or(0),
+            std_thread_available_parallelism =
+                std::thread::available_parallelism().map(|n| n.get()).unwrap_or(0),
+            dev = options.dev,
+            env_diff = Empty
+        );
+        let span_clone = span.clone();
+        async move {
+            let container = this_op.resolve().strongly_consistent().await?;
+            prepare_project_container_state(container, options).await
         }
-        let output_fs = output_fs_operation(project)
-            .read_strongly_consistent()
-            .await?;
-        output_fs.invalidate_with_reason(|path| invalidation::Initialize {
-            path: RcStr::from(path.to_string_lossy()),
-        });
-        Ok(())
+        .instrument(span_clone)
+        .await
     }
 
-    #[tracing::instrument(level = "info", name = "update project options", skip_all)]
-    pub async fn update(self: Vc<Self>, options: PartialProjectOptions) -> Result<()> {
-        let PartialProjectOptions {
-            root_path,
-            project_path,
-            next_config,
-            env,
-            define_env,
-            watch,
-            dev,
-            encryption_key,
-            build_id,
-            preview_props,
-        } = options;
-
-        let resolved_self = self.to_resolved().await?;
-        let this = resolved_self.await?;
-
-        let mut new_options = this
-            .options_state
-            .get()
-            .clone()
-            .context("ProjectContainer need to be initialized with initialize()")?;
-
-        if let Some(root_path) = root_path {
-            new_options.root_path = root_path;
-        }
-        if let Some(project_path) = project_path {
-            new_options.project_path = project_path;
-        }
-        if let Some(next_config) = next_config {
-            new_options.next_config = next_config;
-        }
-        if let Some(env) = env {
-            new_options.env = env;
-        }
-        if let Some(define_env) = define_env {
-            new_options.define_env = define_env;
-        }
-        if let Some(watch) = watch {
-            new_options.watch = watch;
-        }
-        if let Some(dev) = dev {
-            new_options.dev = dev;
-        }
-        if let Some(encryption_key) = encryption_key {
-            new_options.encryption_key = encryption_key;
-        }
-        if let Some(build_id) = build_id {
-            new_options.build_id = build_id;
-        }
-        if let Some(preview_props) = preview_props {
-            new_options.preview_props = preview_props;
-        }
-
-        // TODO: Handle mode switch, should prevent mode being switched.
-        let watch = new_options.watch;
-
-        let project = project_operation(resolved_self)
-            .resolve_strongly_consistent()
-            .await?;
-        let prev_project_fs = project_fs_operation(project)
-            .read_strongly_consistent()
-            .await?;
-        let prev_output_fs = output_fs_operation(project)
-            .read_strongly_consistent()
-            .await?;
-
-        this.options_state.set(Some(new_options));
-        let project = project_operation(resolved_self)
-            .resolve_strongly_consistent()
-            .await?;
-        let project_fs = project_fs_operation(project)
-            .read_strongly_consistent()
-            .await?;
-        let output_fs = output_fs_operation(project)
-            .read_strongly_consistent()
-            .await?;
-
-        if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
-            if watch.enable {
-                // TODO stop watching: prev_project_fs.stop_watching()?;
-                project_fs
-                    .start_watching_with_invalidation_reason(watch.poll_interval)
-                    .await?;
-            } else {
-                project_fs.invalidate_with_reason(|path| invalidation::Initialize {
-                    // this path is just used for display purposes
-                    path: RcStr::from(path.to_string_lossy()),
-                });
+    pub async fn update(self: ResolvedVc<Self>, options: PartialProjectOptions) -> Result<()> {
+        let span = tracing::info_span!(
+            "update project options",
+            project_name = %self.await?.name,
+            env_diff = Empty
+        );
+        let span_clone = span.clone();
+        async move {
+            // HACK: `update` is called from a top-level function. Top-level functions are not
+            // allowed to perform eventually consistent reads. Create a stub operation
+            // to upgrade the `ResolvedVc` to an `OperationVc`. This is mostly okay
+            // because we can assume the `ProjectContainer` was originally resolved with
+            // strong consistency, and is rarely updated.
+            #[turbo_tasks::function(operation, root)]
+            fn project_container_operation_hack(
+                container: ResolvedVc<ProjectContainer>,
+            ) -> Vc<ProjectContainer> {
+                *container
             }
-        }
-        if !ReadRef::ptr_eq(&prev_output_fs, &output_fs) {
-            prev_output_fs.invalidate_with_reason(|path| invalidation::Initialize {
-                path: RcStr::from(path.to_string_lossy()),
-            });
-        }
+            let this = project_container_operation_hack(self)
+                .read_strongly_consistent()
+                .await?;
+            let PartialProjectOptions {
+                next_config,
+                env,
+                define_env,
+                dev,
+                encryption_key,
+                build_id,
+                preview_props,
+                browserslist_query,
+                no_mangling,
+                write_routes_hashes_manifest,
+                debug_build_paths,
+            } = options;
 
-        Ok(())
+            // Filesystem roots and watcher options are initialization-only. Changing them requires
+            // restarting the process so their process-local watchers can be recreated safely.
+            let mut new_options = this
+                .options_state
+                .get_untracked()
+                .clone()
+                .context("ProjectContainer need to be initialized with initialize()")?;
+            let old_define_env = new_options.define_env.clone();
+
+            if let Some(next_config) = next_config {
+                new_options.next_config = next_config;
+            }
+            if let Some(env) = env {
+                new_options.env = env;
+            }
+            if let Some(define_env) = define_env {
+                new_options.define_env = define_env;
+            }
+            if let Some(dev) = dev {
+                new_options.dev = dev;
+            }
+            if let Some(encryption_key) = encryption_key {
+                new_options.encryption_key = encryption_key;
+            }
+            if let Some(build_id) = build_id {
+                new_options.build_id = build_id;
+            }
+            if let Some(preview_props) = preview_props {
+                new_options.preview_props = preview_props;
+            }
+            if let Some(browserslist_query) = browserslist_query {
+                new_options.browserslist_query = browserslist_query;
+            }
+            if let Some(no_mangling) = no_mangling {
+                new_options.no_mangling = no_mangling;
+            }
+            if let Some(write_routes_hashes_manifest) = write_routes_hashes_manifest {
+                new_options.write_routes_hashes_manifest = write_routes_hashes_manifest;
+            }
+            if let Some(debug_build_paths) = debug_build_paths {
+                new_options.debug_build_paths = Some(debug_build_paths);
+            }
+
+            span.record(
+                "env_diff",
+                define_env_diff_report(&old_define_env, &new_options.define_env).as_str(),
+            );
+            this.options_state.set(Some(new_options));
+
+            Ok(())
+        }
+        .instrument(span_clone)
+        .await
     }
 }
 
@@ -444,7 +939,7 @@ impl ProjectContainer {
         let env_map: Vc<EnvMap>;
         let next_config;
         let define_env;
-        let root_path;
+        let root_path_str: RcStr;
         let project_path;
         let watch;
         let dev;
@@ -453,10 +948,23 @@ impl ProjectContainer {
         let preview_props;
         let browserslist_query;
         let no_mangling;
+        let write_routes_hashes_manifest;
         let current_node_js_version;
+        let debug_build_paths;
+        let deferred_entries;
+        let is_persistent_caching_enabled;
+        let server_hmr;
+        let ensure_shallow_source_maps;
+        let project_file_system;
+        let output_file_system;
+        let additional_roots;
         {
             let options = self.options_state.get();
             let options = options
+                .as_ref()
+                .context("ProjectContainer need to be initialized with initialize()")?;
+            let file_systems = self.file_systems_state.get();
+            let file_systems = file_systems
                 .as_ref()
                 .context("ProjectContainer need to be initialized with initialize()")?;
             env_map = Vc::cell(options.env.iter().cloned().collect());
@@ -467,7 +975,7 @@ impl ProjectContainer {
             }
             .cell();
             next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
-            root_path = options.root_path.clone();
+            root_path_str = options.root_path.clone();
             project_path = options.project_path.clone();
             watch = options.watch;
             dev = options.dev;
@@ -476,12 +984,27 @@ impl ProjectContainer {
             preview_props = options.preview_props.clone();
             browserslist_query = options.browserslist_query.clone();
             no_mangling = options.no_mangling;
+            write_routes_hashes_manifest = options.write_routes_hashes_manifest;
             current_node_js_version = options.current_node_js_version.clone();
+            debug_build_paths = options.debug_build_paths.clone();
+            deferred_entries = options.deferred_entries.clone().unwrap_or_default();
+            is_persistent_caching_enabled = options.is_persistent_caching_enabled;
+            server_hmr = options.server_hmr;
+            ensure_shallow_source_maps = options.ensure_shallow_source_maps;
+            project_file_system = file_systems.project_file_system;
+            output_file_system = file_systems.output_file_system;
+            additional_roots = self.additional_roots_state.get().iter().cloned().collect();
         }
 
+        let root_path = ResolvedVc::cell(root_path_str);
         let dist_dir = next_config.dist_dir().owned().await?;
         let dist_dir_root = next_config.dist_dir_root().owned().await?;
         Ok(Project {
+            go_sessions: if *next_config.go_routes().await? {
+                Some(self.go_sessions)
+            } else {
+                None
+            },
             root_path,
             project_path,
             watch,
@@ -497,11 +1020,20 @@ impl ProjectContainer {
                 NextMode::Build.resolved_cell()
             },
             versioned_content_map: self.versioned_content_map,
-            build_id,
-            encryption_key,
-            preview_props,
+            build_id: ResolvedVc::cell(build_id),
+            encryption_key: ResolvedVc::cell(encryption_key),
+            preview_props: ResolvedVc::cell(preview_props),
             no_mangling,
+            write_routes_hashes_manifest,
             current_node_js_version,
+            debug_build_paths,
+            deferred_entries,
+            is_persistent_caching_enabled,
+            server_hmr,
+            ensure_shallow_source_maps,
+            project_file_system,
+            output_file_system,
+            additional_roots,
         }
         .cell())
     }
@@ -512,34 +1044,45 @@ impl ProjectContainer {
         self.project().entrypoints()
     }
 
-    /// See [Project::hmr_identifiers].
+    /// See [`Project::hmr_chunk_names`].
     #[turbo_tasks::function]
-    pub fn hmr_identifiers(self: Vc<Self>) -> Vc<Vec<RcStr>> {
-        self.project().hmr_identifiers()
+    pub fn hmr_chunk_names(self: Vc<Self>) -> Vc<Vec<RcStr>> {
+        self.project().hmr_chunk_names()
     }
 
     /// Gets a source map for a particular `file_path`. If `dev` mode is disabled, this will always
-    /// return [`OptionStringifiedSourceMap::none`].
+    /// return [`FileContent::NotFound`].
     #[turbo_tasks::function]
-    pub fn get_source_map(
-        &self,
+    pub async fn get_source_map(
+        self: Vc<Self>,
         file_path: FileSystemPath,
         section: Option<RcStr>,
-    ) -> Vc<OptionStringifiedSourceMap> {
-        if let Some(map) = self.versioned_content_map {
-            map.get_source_map(file_path, section)
+    ) -> Result<Vc<FileContent>> {
+        if let Some(map) = self.await?.versioned_content_map {
+            let project = self.project();
+            // Error tracing must use shallow maps when input source maps are disabled.
+            let ty = if project.client_source_map_generation_options().await?.full
+                || project.server_source_map_generation_options().await?.full
+            {
+                SourceMapType::Full
+            } else {
+                SourceMapType::Shallow
+            };
+            Ok(map.get_source_map(file_path, section, ty))
         } else {
-            OptionStringifiedSourceMap::none()
+            Ok(FileContent::NotFound.cell())
         }
     }
 }
 
+#[derive(Clone)]
 #[turbo_tasks::value]
 pub struct Project {
+    pub(crate) go_sessions: Option<ResolvedVc<turbopack_go::GoSessionPool>>,
     /// An absolute root path (Windows or Unix path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
     /// E.g. `/home/user/projects/my-repo`.
-    root_path: RcStr,
+    root_path: ResolvedVc<RcStr>,
 
     /// A path which contains the app/pages directories, relative to [`Project::root_path`], always
     /// a Unix path.
@@ -551,9 +1094,9 @@ pub struct Project {
     /// E.g. `.next`
     dist_dir: RcStr,
 
-    /// The root directory of the distDir. Generally the same as `distDir` but when
-    /// `isolatedDevBuild` is true it is the parent directory of `distDir`.  This is used to
-    /// ensure that the bundler doesn't traverse into the output directory.
+    /// The root directory of the distDir. In development mode, this is the parent directory of
+    /// `distDir` since development builds use `{distDir}/dev`. This is used to ensure that the
+    /// bundler doesn't traverse into the output directory.
     dist_dir_root: RcStr,
 
     /// Filesystem watcher options.
@@ -576,18 +1119,46 @@ pub struct Project {
 
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
 
-    build_id: RcStr,
+    /// Stored in a separate cell, as it can change between builds. Keeping it out of the
+    /// [`Project`] value avoids invalidating every task that reads the [`Project`].
+    build_id: ResolvedVc<RcStr>,
 
-    encryption_key: RcStr,
+    /// Stored in a separate cell, as it can change between builds (e.g. key rotation or a
+    /// per-build `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`). Keeping it out of the [`Project`] value
+    /// avoids invalidating every task that reads the [`Project`].
+    encryption_key: ResolvedVc<RcStr>,
 
-    preview_props: DraftModeOptions,
+    preview_props: ResolvedVc<DraftModeOptionsValue>,
 
     /// When the code is minified, this opts out of the default mangling of
     /// local names for variables, functions etc., which can be useful for
     /// debugging/profiling purposes.
     no_mangling: bool,
 
+    /// Whether to write the route hashes manifest.
+    write_routes_hashes_manifest: bool,
+
     current_node_js_version: RcStr,
+
+    /// Debug build paths for selective builds.
+    /// When set, only routes matching these paths will be included in the build.
+    debug_build_paths: Option<DebugBuildPaths>,
+
+    /// App-router page routes that should be built after non-deferred routes.
+    deferred_entries: Vec<RcStr>,
+
+    /// Whether to enable persistent caching
+    is_persistent_caching_enabled: bool,
+
+    /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
+    server_hmr: bool,
+    /// Retains shallow source maps for `analyze` without changing the emitted source map variant.
+    ensure_shallow_source_maps: bool,
+
+    project_file_system: OperationVc<DiskFileSystem>,
+    output_file_system: OperationVc<DiskFileSystem>,
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub(crate) additional_roots: FxIndexMap<RcStr, AdditionalDiskFileSystem>,
 }
 
 #[turbo_tasks::value]
@@ -595,6 +1166,13 @@ pub struct ProjectDefineEnv {
     client: ResolvedVc<OptionEnvMap>,
     edge: ResolvedVc<OptionEnvMap>,
     nodejs: ResolvedVc<OptionEnvMap>,
+}
+
+async fn import_meta_env_base_url(next_config: ResolvedVc<NextConfig>) -> Result<RcStr> {
+    Ok(match &*next_config.base_path().await? {
+        Some(base_path) => format!("{base_path}/").into(),
+        None => rcstr!("/"),
+    })
 }
 
 #[turbo_tasks::value_impl]
@@ -623,30 +1201,64 @@ struct ConflictIssue {
     severity: IssueSeverity,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ConflictIssue {
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::AppStructure.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
     }
 
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        *self.title
+    async fn title(&self) -> Result<StyledString> {
+        self.title.owned().await
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.description))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(self.description.owned().await?))
+    }
+}
+
+impl Project {
+    /// Whether the project uses the deterministic module-id strategy, i.e. whether
+    /// `get_global_module_id_strategy` runs (and therefore whether the module graph needs each
+    /// module's stringified ident). `Named` (the dev default, and an opt-in build config) does not.
+    ///
+    /// The strategy only ever runs on the whole-app graph, which is only built when *not* using
+    /// per-page graphs — so this also requires `!per_page_module_graph`. Encoding that here means
+    /// every graph (per-page or whole-app) can derive `include_ident_strings` from this single
+    /// query without the caller having to know which graph it's building.
+    pub(super) async fn uses_deterministic_module_ids(self: Vc<Self>) -> Result<bool> {
+        Ok(!*self.per_page_module_graph().await?
+            && matches!(
+                *self.next_config().module_ids(self.next_mode()).await?,
+                ModuleIdStrategyConfig::Deterministic
+            ))
+    }
+
+    /// Builds the [`ModuleGraphOptions`] shared by all project-config-derived module graphs, so the
+    /// per-page and whole-app graphs can't drift. Every field is derived from project config;
+    /// `include_ident_strings` follows [`Self::uses_deterministic_module_ids`] (the only consumer
+    /// of the stringified idents is `get_global_module_id_strategy`, which runs only on the
+    /// whole-app graph).
+    pub(super) async fn module_graph_options(self: Vc<Self>) -> Result<ModuleGraphOptions> {
+        let next_mode = self.next_mode();
+        Ok(ModuleGraphOptions {
+            include_ident_strings: self.uses_deterministic_module_ids().await?,
+            include_side_effects: *self
+                .next_config()
+                .turbopack_remove_unused_imports(next_mode)
+                .await?,
+            include_mergeable: *self.next_config().turbo_scope_hoisting(next_mode).await?,
+            include_traced: *self.should_write_nft_manifests().await?,
+            include_binding_usage: self.next_mode().await?.is_production(),
+        })
     }
 }
 
@@ -671,22 +1283,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub fn project_fs(&self) -> Result<Vc<DiskFileSystem>> {
-        let denied_path = match join_path(&self.project_path, &self.dist_dir_root) {
-            Some(dist_dir_root) => dist_dir_root.into(),
-            None => {
-                bail!(
-                    "Invalid distDirRoot: {:?}. distDirRoot should not navigate out of the \
-                     projectPath.",
-                    self.dist_dir_root
-                );
-            }
-        };
-
-        Ok(DiskFileSystem::new_with_denied_path(
-            rcstr!(PROJECT_FILESYSTEM_NAME),
-            self.root_path.clone(),
-            denied_path,
-        ))
+        Ok(self.project_file_system.connect())
     }
 
     #[turbo_tasks::function]
@@ -697,23 +1294,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub fn output_fs(&self) -> Vc<DiskFileSystem> {
-        DiskFileSystem::new(rcstr!("output"), self.root_path.clone())
-    }
-
-    #[turbo_tasks::function]
-    pub fn dist_dir_absolute(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!(
-                "{}{}{}",
-                self.root_path,
-                std::path::MAIN_SEPARATOR,
-                unix_to_sys(
-                    &join_path(&self.project_path, &self.dist_dir)
-                        .context("expected project_path to be inside of root_path")?
-                )
-            )
-            .into(),
-        ))
+        self.output_file_system.connect()
     }
 
     #[turbo_tasks::function]
@@ -793,8 +1374,23 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn next_config(&self) -> Vc<NextConfig> {
+    pub fn next_config(&self) -> Vc<NextConfig> {
         *self.next_config
+    }
+
+    /// Build the `IssueFilter` for this project, incorporating any
+    /// `turbopack.ignoreIssue` rules from the Next.js config.
+    #[turbo_tasks::function]
+    pub async fn issue_filter(self: Vc<Self>) -> Result<Vc<IssueFilter>> {
+        let ignore_rules = self.next_config().turbopack_ignore_issue_rules().await?;
+        Ok(IssueFilter::warnings_and_foreign_errors()
+            .with_ignore_rules(ReadRef::into_owned(ignore_rules))
+            .cell())
+    }
+
+    #[turbo_tasks::function]
+    pub(super) fn is_persistent_caching_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.is_persistent_caching_enabled)
     }
 
     #[turbo_tasks::function]
@@ -808,13 +1404,40 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) fn watch_poll_interval_ms(&self) -> Vc<Option<u64>> {
+        Vc::cell(
+            self.watch
+                .poll_interval
+                .map(|interval| interval.as_millis().try_into().unwrap_or(u64::MAX)),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub(super) fn should_write_routes_hashes_manifest(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.write_routes_hashes_manifest))
+    }
+
+    #[turbo_tasks::function]
+    pub(super) async fn should_write_nft_manifests(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.mode.await?.is_production()
+                && *self.next_config.output().await? != Some(OutputType::Export),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub fn deferred_entries(&self) -> Vc<Vec<RcStr>> {
+        Vc::cell(self.deferred_entries.clone())
+    }
+
+    #[turbo_tasks::function]
     pub(super) async fn per_page_module_graph(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(*self.mode.await? == NextMode::Development))
     }
 
     #[turbo_tasks::function]
     pub(super) fn encryption_key(&self) -> Vc<RcStr> {
-        Vc::cell(self.encryption_key.clone())
+        *self.encryption_key
     }
 
     #[turbo_tasks::function]
@@ -823,16 +1446,46 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn should_create_webpack_stats(&self) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.env.read(rcstr!("TURBOPACK_STATS")).await?.is_some(),
-        ))
+    pub(super) async fn client_source_map_generation_options(
+        &self,
+    ) -> Result<Vc<SourceMapGenerationOptions>> {
+        let mut generation = SourceMapGenerationOptions::from_emitted(
+            *self.next_config.client_source_maps(*self.mode).await?,
+        );
+        if self.ensure_shallow_source_maps {
+            generation.shallow = true;
+            generation.shallow_sources_content = !*self.next_config.input_source_maps().await?;
+        }
+        Ok(generation.cell())
+    }
+
+    #[turbo_tasks::function]
+    pub(super) async fn server_source_map_generation_options(
+        &self,
+    ) -> Result<Vc<SourceMapGenerationOptions>> {
+        let mut generation =
+            SourceMapGenerationOptions::from_emitted(*self.next_config.server_source_maps().await?);
+        if self.ensure_shallow_source_maps {
+            generation.shallow = true;
+            generation.shallow_sources_content = !*self.next_config.input_source_maps().await?;
+        }
+        Ok(generation.cell())
     }
 
     #[turbo_tasks::function]
     pub(super) async fn execution_context(self: Vc<Self>) -> Result<Vc<ExecutionContext>> {
         let node_root = self.node_root().owned().await?;
         let next_mode = self.next_mode().await?;
+        let strategy = *self
+            .next_config()
+            .turbopack_plugin_runtime_strategy()
+            .await?;
+        let node_backend = match strategy {
+            #[cfg(feature = "worker_pool")]
+            TurbopackPluginRuntimeStrategy::WorkerThreads => worker_threads_backend(),
+            #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
+            TurbopackPluginRuntimeStrategy::ChildProcesses => child_process_backend(),
+        };
 
         let node_execution_chunking_context = Vc::upcast(
             NodeJsChunkingContext::builder(
@@ -845,11 +1498,12 @@ impl Project {
                 node_build_environment().to_resolved().await?,
                 next_mode.runtime_type(),
             )
-            .source_maps(if *self.next_config().server_source_maps().await? {
-                SourceMapsType::Full
-            } else {
-                SourceMapsType::None
-            })
+            .emitted_source_map_type(*self.next_config().server_source_maps().await?)
+            // This context is shared by every node-side transform that needs to evaluate JS at
+            // build time (postcss configs, webpack loaders, next/font/google, ...). Each of those
+            // builds its own module graph but they all emit the same `[turbopack]_runtime.js`, so
+            // no single graph can decide which optional runtime features to drop.
+            .shared_runtime_chunk(true)
             .build(),
         );
 
@@ -857,80 +1511,156 @@ impl Project {
             self.project_path().owned().await?,
             node_execution_chunking_context,
             self.env(),
+            node_backend,
         ))
     }
 
     #[turbo_tasks::function]
-    pub(super) fn client_compile_time_info(&self) -> Vc<CompileTimeInfo> {
-        get_client_compile_time_info(self.browserslist_query.clone(), self.define_env.client())
+    pub(super) async fn client_compile_time_info(&self) -> Result<Vc<CompileTimeInfo>> {
+        let next_mode = self.mode.await?;
+        Ok(get_client_compile_time_info(
+            self.browserslist_query.clone(),
+            self.define_env.client(),
+            self.next_config.report_system_env_inlining(),
+            next_mode.is_development(),
+            import_meta_env_base_url(self.next_config).await?,
+        ))
     }
 
     #[turbo_tasks::function]
-    pub async fn get_all_endpoints(self: Vc<Self>, app_dir_only: bool) -> Result<Vc<Endpoints>> {
-        let mut endpoints = Vec::new();
+    pub async fn get_all_endpoint_groups(
+        self: Vc<Self>,
+        app_dir_only: bool,
+    ) -> Result<Vc<EndpointGroups>> {
+        Ok(self.get_all_endpoint_groups_with_app_route_filter(app_dir_only, None))
+    }
 
-        let entrypoints = self.entrypoints().await?;
-        let mut is_pages_entries_added = false;
+    #[turbo_tasks::function]
+    pub async fn get_all_endpoint_groups_with_app_route_filter(
+        self: Vc<Self>,
+        app_dir_only: bool,
+        app_route_filter: Option<Vec<RcStr>>,
+    ) -> Result<Vc<EndpointGroups>> {
+        let mut endpoint_groups = Vec::new();
+
+        let entrypoints = self
+            .entrypoints_with_app_route_filter(app_route_filter)
+            .await?;
+        let mut add_pages_entries = false;
 
         if let Some(middleware) = &entrypoints.middleware {
-            endpoints.push(middleware.endpoint);
+            endpoint_groups.push((
+                EndpointGroupKey::Middleware,
+                EndpointGroup::from(middleware.endpoint),
+            ));
         }
 
         if let Some(instrumentation) = &entrypoints.instrumentation {
-            endpoints.push(instrumentation.node_js);
-            endpoints.push(instrumentation.edge);
+            endpoint_groups.push((
+                EndpointGroupKey::Instrumentation,
+                EndpointGroup::from(instrumentation.node_js),
+            ));
+            endpoint_groups.push((
+                EndpointGroupKey::InstrumentationEdge,
+                EndpointGroup::from(instrumentation.edge),
+            ));
         }
 
-        for (_, route) in entrypoints.routes.iter() {
+        for (key, route) in entrypoints.routes.iter() {
             match route {
                 Route::Page {
                     html_endpoint,
                     data_endpoint,
                 } => {
                     if !app_dir_only {
-                        endpoints.push(*html_endpoint);
-                        if !is_pages_entries_added {
-                            endpoints.push(entrypoints.pages_error_endpoint);
-                            endpoints.push(entrypoints.pages_app_endpoint);
-                            endpoints.push(entrypoints.pages_document_endpoint);
-                            is_pages_entries_added = true;
-                        }
-                        // This only exists in development mode for HMR
-                        if let Some(data_endpoint) = data_endpoint {
-                            endpoints.push(*data_endpoint);
-                        }
+                        endpoint_groups.push((
+                            EndpointGroupKey::Route(key.clone()),
+                            EndpointGroup {
+                                primary: vec![EndpointGroupEntry {
+                                    endpoint: *html_endpoint,
+                                    sub_name: None,
+                                }],
+                                // This only exists in development mode for HMR
+                                additional: data_endpoint
+                                    .iter()
+                                    .map(|endpoint| EndpointGroupEntry {
+                                        endpoint: *endpoint,
+                                        sub_name: None,
+                                    })
+                                    .collect(),
+                            },
+                        ));
+                        add_pages_entries = true;
                     }
                 }
                 Route::PageApi { endpoint } => {
                     if !app_dir_only {
-                        endpoints.push(*endpoint);
-                        if !is_pages_entries_added {
-                            endpoints.push(entrypoints.pages_error_endpoint);
-                            endpoints.push(entrypoints.pages_app_endpoint);
-                            endpoints.push(entrypoints.pages_document_endpoint);
-                            is_pages_entries_added = true;
-                        }
+                        endpoint_groups.push((
+                            EndpointGroupKey::Route(key.clone()),
+                            EndpointGroup::from(*endpoint),
+                        ));
+                        add_pages_entries = true;
                     }
                 }
                 Route::AppPage(page_routes) => {
-                    for AppPageRoute {
-                        original_name: _,
-                        html_endpoint,
-                        rsc_endpoint: _,
-                    } in page_routes
-                    {
-                        endpoints.push(*html_endpoint);
-                    }
+                    endpoint_groups.push((
+                        EndpointGroupKey::Route(key.clone()),
+                        EndpointGroup {
+                            primary: page_routes
+                                .iter()
+                                .map(|r| EndpointGroupEntry {
+                                    endpoint: r.html_endpoint,
+                                    sub_name: Some(r.original_name.clone()),
+                                })
+                                .collect(),
+                            additional: Vec::new(),
+                        },
+                    ));
                 }
-                Route::AppRoute {
+                Route::AppGoRoute { endpoint, .. }
+                | Route::AppRoute {
                     original_name: _,
                     endpoint,
+                    ..
                 } => {
-                    endpoints.push(*endpoint);
+                    endpoint_groups.push((
+                        EndpointGroupKey::Route(key.clone()),
+                        EndpointGroup::from(*endpoint),
+                    ));
                 }
                 Route::Conflict => {
                     tracing::info!("WARN: conflict");
                 }
+            }
+        }
+
+        if add_pages_entries {
+            endpoint_groups.push((
+                EndpointGroupKey::PagesError,
+                EndpointGroup::from(entrypoints.pages_error_endpoint),
+            ));
+            endpoint_groups.push((
+                EndpointGroupKey::PagesApp,
+                EndpointGroup::from(entrypoints.pages_app_endpoint),
+            ));
+            endpoint_groups.push((
+                EndpointGroupKey::PagesDocument,
+                EndpointGroup::from(entrypoints.pages_document_endpoint),
+            ));
+        }
+
+        Ok(Vc::cell(endpoint_groups))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn get_all_endpoints(self: Vc<Self>, app_dir_only: bool) -> Result<Vc<Endpoints>> {
+        let mut endpoints = Vec::new();
+        for (_key, group) in self.get_all_endpoint_groups(app_dir_only).await?.iter() {
+            for entry in group.primary.iter() {
+                endpoints.push(entry.endpoint);
+            }
+            for entry in group.additional.iter() {
+                endpoints.push(entry.endpoint);
             }
         }
 
@@ -939,15 +1669,28 @@ impl Project {
 
     #[turbo_tasks::function]
     pub async fn get_all_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        let mut modules = self
+        let endpoint_entries = self
             .get_all_endpoints(false)
             .await?
             .iter()
-            .map(async |endpoint| Ok(endpoint.entries().owned().await?))
-            .try_flat_join()
+            .map(|endpoint| endpoint.entries().owned())
+            .try_join()
             .await?;
-        modules.extend(self.client_main_modules().await?.iter().cloned());
-        Ok(Vc::cell(modules))
+
+        let result = GraphEntries::concatenate(
+            endpoint_entries
+                .into_iter()
+                .chain(iter::once(self.client_main_modules().owned().await?))
+                .chain(iter::once(GraphEntries::new(
+                    vec![],
+                    // The superset of what any endpoint traces, so that these modules and their
+                    // references are part of the graph. Which endpoint actually traces them is
+                    // decided by what is passed to `trace_endpoint`.
+                    self.pages_traced_modules().owned().await?,
+                ))),
+        );
+
+        Ok(result.cell())
     }
 
     #[turbo_tasks::function]
@@ -955,14 +1698,15 @@ impl Project {
         self: Vc<Self>,
         graphs: Vc<ModuleGraph>,
     ) -> Result<Vc<GraphEntries>> {
-        let modules = self
-            .get_all_endpoints(false)
-            .await?
-            .iter()
-            .map(async |endpoint| Ok(endpoint.additional_entries(graphs).owned().await?))
-            .try_flat_join()
-            .await?;
-        Ok(Vc::cell(modules))
+        let result = GraphEntries::concatenate(
+            self.get_all_endpoints(false)
+                .await?
+                .iter()
+                .map(|endpoint| endpoint.additional_entries(graphs).owned())
+                .try_join()
+                .await?,
+        );
+        Ok(result.cell())
     }
 
     #[turbo_tasks::function]
@@ -971,7 +1715,17 @@ impl Project {
         entry: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
-            ModuleGraph::from_entry_module(*entry, self.next_mode().await?.is_production())
+            ModuleGraph::from_graphs(
+                vec![SingleModuleGraph::new_with_entry(
+                    ChunkGroupEntry::Entry {
+                        modules: vec![entry],
+                        heuristics: EntryHeuristics::default(),
+                    },
+                    self.module_graph_options().await?,
+                )],
+                None,
+            )
+            .connect()
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -989,41 +1743,53 @@ impl Project {
                 .copied()
                 .map(ResolvedVc::upcast)
                 .collect();
-            ModuleGraph::from_modules(
-                Vc::cell(vec![ChunkGroupEntry::Entry(entries)]),
-                self.next_mode().await?.is_production(),
+            ModuleGraph::from_graphs(
+                vec![SingleModuleGraph::new_with_entries(
+                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                        modules: entries,
+                        heuristics: EntryHeuristics::default(),
+                    }])
+                    .resolved_cell(),
+                    self.module_graph_options().await?,
+                )],
+                None,
             )
+            .connect()
         } else {
             *self.whole_app_module_graphs().await?.full
         })
     }
 
+    /// Computes the whole app module graph without dropping issues.
+    ///
+    /// Use this instead of [Self::whole_app_module_graphs] when you need to collect issues from
+    /// the computation (e.g. for the `get_compilation_issues` MCP tool).
     #[turbo_tasks::function]
-    pub async fn whole_app_module_graphs(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraphs>> {
-        async move {
-            let module_graphs_op = whole_app_module_graph_operation(self);
-            let module_graphs_vc = if self.next_mode().await?.is_production() {
-                module_graphs_op.connect()
-            } else {
-                // In development mode, we need to to take and drop the issues, otherwise every
-                // route will report all issues.
-                let vc = module_graphs_op.resolve_strongly_consistent().await?;
-                module_graphs_op.drop_issues();
-                *vc
-            };
+    pub async fn whole_app_module_graphs_without_dropping_issues(
+        self: ResolvedVc<Self>,
+    ) -> Result<Vc<BaseAndFullModuleGraph>> {
+        let module_graphs_op = whole_app_module_graph_operation(self);
+        let module_graphs_vc = module_graphs_op.connect();
+        scale_down_node_pool(self).await?;
+        Ok(module_graphs_vc)
+    }
 
-            // At this point all modules have been computed and we can get rid of the node.js
-            // process pools
-            if *self.is_watch_enabled().await? {
-                turbopack_node::evaluate::scale_down();
-            } else {
-                turbopack_node::evaluate::scale_zero();
-            }
-
-            Ok(module_graphs_vc)
-        }
-        .instrument(tracing::info_span!("module graph for app"))
-        .await
+    /// Computes the whole app module graph, dropping issues in development mode so that
+    /// individual routes don't each report every issue from the shared graph.
+    #[turbo_tasks::function(root)]
+    pub async fn whole_app_module_graphs(
+        self: ResolvedVc<Self>,
+    ) -> Result<Vc<BaseAndFullModuleGraph>> {
+        let module_graphs_op = whole_app_module_graph_operation(self);
+        let module_graphs_vc = if self.next_mode().await?.is_production() {
+            module_graphs_op.connect()
+        } else {
+            let vc = module_graphs_op.resolve().strongly_consistent().await?;
+            module_graphs_op.drop_issues();
+            *vc
+        };
+        scale_down_node_pool(self).await?;
+        Ok(module_graphs_vc)
     }
 
     #[turbo_tasks::function]
@@ -1034,6 +1800,9 @@ impl Project {
             self.project_path(),
             this.define_env.nodejs(),
             self.current_node_js_version(),
+            this.next_config.report_system_env_inlining(),
+            this.server_hmr,
+            import_meta_env_base_url(this.next_config).await?,
         ))
     }
 
@@ -1044,48 +1813,137 @@ impl Project {
             self.project_path().owned().await?,
             this.define_env.edge(),
             self.current_node_js_version(),
+            this.next_config.report_system_env_inlining(),
+            import_meta_env_base_url(this.next_config).await?,
         ))
     }
 
     #[turbo_tasks::function]
-    pub(super) fn edge_env(&self) -> Vc<EnvMap> {
+    pub(super) async fn edge_env(&self) -> Result<Vc<EnvMap>> {
+        let preview_props = self.preview_props.await?;
         let edge_env = fxindexmap! {
-            rcstr!("__NEXT_BUILD_ID") => self.build_id.clone(),
-            rcstr!("NEXT_SERVER_ACTIONS_ENCRYPTION_KEY") => self.encryption_key.clone(),
-            rcstr!("__NEXT_PREVIEW_MODE_ID") => self.preview_props.preview_mode_id.clone(),
-            rcstr!("__NEXT_PREVIEW_MODE_ENCRYPTION_KEY") => self.preview_props.preview_mode_encryption_key.clone(),
-            rcstr!("__NEXT_PREVIEW_MODE_SIGNING_KEY") => self.preview_props.preview_mode_signing_key.clone(),
+            rcstr!("__NEXT_BUILD_ID") => self.build_id.owned().await?,
+            rcstr!("NEXT_SERVER_ACTIONS_ENCRYPTION_KEY") => self.encryption_key.owned().await?,
+            rcstr!("__NEXT_PREVIEW_MODE_ID") => preview_props.preview_mode_id.clone(),
+            rcstr!("__NEXT_PREVIEW_MODE_ENCRYPTION_KEY") => preview_props.preview_mode_encryption_key.clone(),
+            rcstr!("__NEXT_PREVIEW_MODE_SIGNING_KEY") => preview_props.preview_mode_signing_key.clone(),
         };
-        Vc::cell(edge_env)
+        Ok(Vc::cell(edge_env))
     }
 
     #[turbo_tasks::function]
     pub(super) async fn client_chunking_context(
         self: Vc<Self>,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        let css_url_suffix = self.next_config().asset_suffix_path();
+        let turbopack_chunking = self.next_config().turbopack_chunking().await?;
         Ok(get_client_chunking_context(ClientChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
             client_root: self.client_relative_path().owned().await?,
             client_root_to_root_path: rcstr!("/ROOT"),
+            client_static_folder_name: self
+                .next_config()
+                .client_static_folder_name()
+                .owned()
+                .await?,
             asset_prefix: self.next_config().computed_asset_prefix(),
-            chunk_suffix_path: self.next_config().chunk_suffix_path(),
+            service_worker_scope_base_path: self.next_config().base_path(),
             environment: self.client_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
-            minify: self.next_config().turbo_minify(self.next_mode()),
-            source_maps: self.next_config().client_source_maps(self.next_mode()),
+            unused_references: self.unused_references(),
+            minify: self.next_config().turbo_client_minify(self.next_mode()),
+            emitted_source_map_type: self.next_config().client_source_maps(self.next_mode()),
+            source_map_generation_options: self.client_source_map_generation_options(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
+            minify_before_chunking: self.next_config().turbopack_minify_before_chunking(),
+            nested_async_chunking: self
+                .next_config()
+                .turbo_nested_async_chunking(self.next_mode(), true),
+            shared_runtime: self.next_config().turbo_shared_runtime(self.next_mode()),
+            per_page_module_graph: self.per_page_module_graph(),
+            lazy_dynamic_imports: self
+                .next_config()
+                .turbopack_lazy_dynamic_imports(*self.next_mode().await?),
             debug_ids: self.next_config().turbopack_debug_ids(),
+            worker_asset_prefix: self.next_config().turbopack_worker_asset_prefix(),
+            should_use_absolute_url_references: self.next_config().inline_css(),
+            css_url_suffix,
+            hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
+            cross_origin: self.next_config().cross_origin(),
+            chunk_loading_global: self.next_config().turbopack_chunk_loading_global(),
+            style_groups_algorithm: self.next_config().css_chunking().owned().await?,
+            chunking_first_page_load_priority: turbopack_chunking.first_page_load_priority,
+            chunking_priority_boost_percent: turbopack_chunking.priority_boost_percent,
+            chunking_request_cost: turbopack_chunking.request_cost,
+            chunking_min_chunk_size: turbopack_chunking.min_chunk_size,
+            chunking_max_chunk_count_per_group: turbopack_chunking.max_chunk_count_per_group,
+            chunking_max_merge_chunk_size: turbopack_chunking.max_merge_chunk_size,
+            chunking_min_component_chunk_size: turbopack_chunking.min_component_chunk_size,
+            generate_component_chunks: self.next_config().turbopack_generate_component_chunks(),
         }))
     }
 
     #[turbo_tasks::function]
+    pub(super) async fn service_worker_chunking_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        Ok(get_service_worker_chunking_context(
+            ServiceWorkerChunkingContextOptions {
+                mode: self.next_mode(),
+                root_path: self.project_root_path().owned().await?,
+                output_root: self.node_root().owned().await?,
+                output_root_to_root_path: self.node_root_to_root_path().owned().await?,
+                environment: self.client_compile_time_info().environment(),
+                minify: self.next_config().turbo_client_minify(self.next_mode()),
+                emitted_source_map_type: self.next_config().client_source_maps(self.next_mode()),
+                source_map_generation_options: self.client_source_map_generation_options(),
+                no_mangling: self.no_mangling(),
+                hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
+            },
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub(super) async fn service_worker_asset_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<Box<dyn AssetContext>>> {
+        Ok(Vc::upcast(ModuleAssetContext::new(
+            TransitionOptions::default().cell(),
+            self.client_compile_time_info(),
+            get_client_module_options_context(
+                self.project_path().owned().await?,
+                self.execution_context(),
+                self.client_compile_time_info().environment(),
+                ClientContextType::Other,
+                self.next_mode(),
+                self.next_config(),
+                self.encryption_key(),
+                self.client_source_map_generation_options(),
+            ),
+            get_client_resolve_options_context(
+                self.project_path().owned().await?,
+                ClientContextType::Other,
+                self.next_mode(),
+                self.next_config(),
+                self.execution_context(),
+            ),
+            Layer::new_with_user_friendly_name(rcstr!("service-worker"), rcstr!("Service Worker")),
+        )))
+    }
+
+    // Proxy and instrumentation stay eager: the lazy activation hook rebuilds route entries,
+    // not these startup entries.
+    #[turbo_tasks::function]
     pub(super) async fn server_chunking_context(
         self: Vc<Self>,
         client_assets: bool,
+        supports_lazy_dynamic_imports: bool,
     ) -> Result<Vc<NodeJsChunkingContext>> {
+        let css_url_suffix = self.next_config().asset_suffix_path();
+        let turbopack_chunking = self.next_config().turbopack_chunking().await?;
         let options = ServerChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1094,13 +1952,35 @@ impl Project {
             environment: self.server_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
-            turbo_minify: self.next_config().turbo_minify(self.next_mode()),
-            turbo_source_maps: self.next_config().server_source_maps(),
+            unused_references: self.unused_references(),
+            minify: self.next_config().turbo_server_minify(self.next_mode()),
+            emitted_source_map_type: self.next_config().server_source_maps(),
+            source_map_generation_options: self.server_source_map_generation_options(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
+            minify_before_chunking: self.next_config().turbopack_minify_before_chunking(),
+            nested_async_chunking: self
+                .next_config()
+                .turbo_nested_async_chunking(self.next_mode(), false),
             debug_ids: self.next_config().turbopack_debug_ids(),
             client_root: self.client_relative_path().owned().await?,
+            client_static_folder_name: self
+                .next_config()
+                .client_static_folder_name()
+                .owned()
+                .await?,
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
+            css_url_suffix,
+            hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
+            style_groups_algorithm: self.next_config().css_chunking().owned().await?,
+            per_page_module_graph: self.per_page_module_graph(),
+            lazy_dynamic_imports: supports_lazy_dynamic_imports
+                && *self
+                    .next_config()
+                    .turbopack_lazy_dynamic_imports_ssr(*self.next_mode().await?)
+                    .await?,
+            chunking_min_chunk_size: turbopack_chunking.min_server_chunk_size,
+            chunking_max_merge_chunk_size: turbopack_chunking.max_merge_server_chunk_size,
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)
@@ -1114,6 +1994,7 @@ impl Project {
         self: Vc<Self>,
         client_assets: bool,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        let css_url_suffix = self.next_config().asset_suffix_path();
         let options = EdgeChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1122,12 +2003,27 @@ impl Project {
             environment: self.edge_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
-            turbo_minify: self.next_config().turbo_minify(self.next_mode()),
-            turbo_source_maps: self.next_config().server_source_maps(),
+            unused_references: self.unused_references(),
+            turbo_minify: self.next_config().turbo_edge_minify(self.next_mode()),
+            emitted_source_map_type: self.next_config().server_source_maps(),
+            source_map_generation_options: self.server_source_map_generation_options(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
+            minify_before_chunking: self.next_config().turbopack_minify_before_chunking(),
+            nested_async_chunking: self
+                .next_config()
+                .turbo_nested_async_chunking(self.next_mode(), false),
             client_root: self.client_relative_path().owned().await?,
+            client_static_folder_name: self
+                .next_config()
+                .client_static_folder_name()
+                .owned()
+                .await?,
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
+            css_url_suffix,
+            hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
+            cross_origin: self.next_config().cross_origin(),
+            style_groups_algorithm: self.next_config().css_chunking().owned().await?,
         };
         Ok(if client_assets {
             get_edge_chunking_context_with_client_assets(options)
@@ -1144,108 +2040,261 @@ impl Project {
     ) -> Vc<Box<dyn ChunkingContext>> {
         match runtime {
             NextRuntime::Edge => self.edge_chunking_context(client_assets),
-            NextRuntime::NodeJs => Vc::upcast(self.server_chunking_context(client_assets)),
+            NextRuntime::NodeJs => Vc::upcast(self.server_chunking_context(
+                client_assets,
+                true, // supports_lazy_dynamic_imports
+            )),
         }
     }
 
-    /// Emit a telemetry event corresponding to [webpack configuration telemetry](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
-    /// to detect which feature is enabled.
+    /// Computes the project's feature-usage telemetry summary.
+    ///
+    /// Includes:
+    /// - The SWC target triple (`swc/target/...`, always on).
+    /// - Boolean config and compiler-option flags, mirroring the webpack [`TelemetryPlugin`](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
+    ///   shape.
+    /// - Per-feature-module import counts (e.g. `next/image`, `next/font/google`) computed by
+    ///   walking the whole-app module graph and counting **unique importing modules** per feature.
+    ///   This replaces an earlier `before_resolve` plugin that emitted telemetry per resolve;
+    ///   because Turbopack caches resolves, the earlier approach under-counted to at most one per
+    ///   feature.
+    ///
+    /// Returns `bail!` if the project is not in build mode — `whole_app_module_graphs` drops
+    /// issues in development and the graph may not reflect the full project, so reporting
+    /// telemetry from dev would produce misleading counts.
+    ///
+    /// The returned summary is sorted by feature name for determinism.
     #[turbo_tasks::function]
-    async fn collect_project_feature_telemetry(self: Vc<Self>) -> Result<Vc<()>> {
-        let emit_event = |feature_name: &str, enabled: bool| {
-            NextFeatureTelemetry::new(feature_name.into(), enabled)
-                .resolved_cell()
-                .emit();
-        };
+    pub async fn project_feature_usage(
+        self: ResolvedVc<Self>,
+    ) -> Result<Vc<ProjectFeatureUsageSummary>> {
+        if !self.next_mode().await?.is_production() {
+            bail!("project_feature_usage() may only be called during `next build`");
+        }
 
-        // First, emit an event for the binary target triple.
-        // This is different to webpack-config; when this is being called,
-        // it is always using SWC so we don't check swc here.
-        emit_event(env!("VERGEN_CARGO_TARGET_TRIPLE"), true);
+        // (public feature specifier, path suffix) pairs. The suffix identifies the resolved
+        // feature module; we match via `module.ident().path.path.ends_with(suffix)`. Mirrors
+        // the webpack `FEATURE_MODULE_MAP` + `FEATURE_MODULE_REGEXP_MAP` in
+        // `packages/next/src/build/webpack/plugins/telemetry-plugin/telemetry-plugin.ts`.
+        //
+        // Font specifiers (`next/font/*`, `@next/font/*`) are matched against the synthesized
+        // `target.css` virtual module produced by the Next.js font loader transform
+        // (`crates/next-custom-transforms/src/transforms/fonts`). That transform rewrites
+        // `import { Inter } from 'next/font/google'` into
+        // `import inter from 'next/font/google/target.css?{...}'` — the original specifier never
+        // appears in the module graph, but the synthesized `target.css` module's path suffix does.
+        // `ident.path.path` does not include the query string (that lives on `ident.query`), so
+        // `ends_with` is the correct matcher here.
+        static FEATURE_MODULE_PATH_SUFFIXES: &[(RcStr, &str)] = &[
+            (rcstr!("next/image"), "/next/image.js"),
+            (rcstr!("next/image"), "/next/dist/api/image.js"),
+            (rcstr!("next/image"), "/next/dist/esm/api/image.js"),
+            // next/dist/api/image.js re-exports this module. When Turbopack can prove that
+            // the re-export has no side effects, it may flatten the re-export
+            // chain and leave this as the feature module in the graph.
+            (rcstr!("next/image"), "/next/dist/client/image-component.js"),
+            (
+                rcstr!("next/image"),
+                "/next/dist/esm/client/image-component.js",
+            ),
+            (
+                rcstr!("next/image"),
+                "/next/dist/shared/lib/image-external-get-image-props.js",
+            ),
+            (
+                rcstr!("next/image"),
+                "/next/dist/esm/shared/lib/image-external-get-image-props.js",
+            ),
+            (rcstr!("next/future/image"), "/next/future/image.js"),
+            (rcstr!("next/legacy/image"), "/next/legacy/image.js"),
+            (rcstr!("next/script"), "/next/script.js"),
+            (rcstr!("next/dynamic"), "/next/dynamic.js"),
+            (rcstr!("next/font/google"), "/next/font/google/target.css"),
+            (rcstr!("next/font/local"), "/next/font/local/target.css"),
+            (rcstr!("@next/font/google"), "/@next/font/google/target.css"),
+            (rcstr!("@next/font/local"), "/@next/font/local/target.css"),
+        ];
 
-        // Go over config and report enabled features.
-        // [TODO]: useSwcLoader is not being reported as it is not directly corresponds (it checks babel config existence)
-        // need to confirm what we'll do with turbopack.
+        // TODO: useSwcLoader is not being reported as it is not directly corresponds (it checks
+        // babel config existence) — need to confirm what we'll do with turbopack.
         let config = self.next_config();
-
-        emit_event(
-            "skipProxyUrlNormalize",
-            *config.skip_proxy_url_normalize().await?,
-        );
-
-        emit_event(
-            "skipTrailingSlashRedirect",
-            *config.skip_trailing_slash_redirect().await?,
-        );
-        emit_event(
-            "persistentCaching",
-            *config.persistent_caching_enabled().await?,
-        );
-
-        emit_event(
-            "modularizeImports",
-            !config.modularize_imports().await?.is_empty(),
-        );
-        emit_event(
-            "transpilePackages",
-            !config.transpile_packages().await?.is_empty(),
-        );
-        emit_event("turbotrace", false);
-
-        // compiler options
         let compiler_options = config.compiler().await?;
-        let swc_relay_enabled = compiler_options.relay.is_some();
-        let styled_components_enabled = compiler_options
-            .styled_components
-            .as_ref()
-            .map(|sc| sc.is_enabled())
-            .unwrap_or_default();
-        let react_remove_properties_enabled = compiler_options
-            .react_remove_properties
-            .as_ref()
-            .map(|rc| rc.is_enabled())
-            .unwrap_or_default();
-        let remove_console_enabled = compiler_options
-            .remove_console
-            .as_ref()
-            .map(|rc| rc.is_enabled())
-            .unwrap_or_default();
-        let emotion_enabled = compiler_options
-            .emotion
-            .as_ref()
-            .map(|e| e.is_enabled())
-            .unwrap_or_default();
+        let mut features: Vec<(RcStr, u32)> = vec![
+            // SWC target triple is prefixed with `swc/target/` to match the webpack
+            // `swc/target/${SWC_TARGET_TRIPLE}` variant in `EventBuildFeatureUsage`.
+            (
+                format!("swc/target/{}", env!("VERGEN_CARGO_TARGET_TRIPLE")).into(),
+                1,
+            ),
+            (
+                rcstr!("skipProxyUrlNormalize"),
+                (*config.skip_proxy_url_normalize().await?) as u32,
+            ),
+            (
+                rcstr!("skipTrailingSlashRedirect"),
+                (*config.skip_trailing_slash_redirect().await?) as u32,
+            ),
+            (
+                rcstr!("modularizeImports"),
+                !config.modularize_imports().await?.is_empty() as u32,
+            ),
+            (
+                rcstr!("transpilePackages"),
+                !config.transpile_packages().await?.is_empty() as u32,
+            ),
+            (rcstr!("swcRelay"), compiler_options.relay.is_some() as u32),
+            (
+                rcstr!("swcStyledComponents"),
+                compiler_options
+                    .styled_components
+                    .as_ref()
+                    .is_some_and(|sc| sc.is_enabled()) as u32,
+            ),
+            (
+                rcstr!("swcReactRemoveProperties"),
+                compiler_options
+                    .react_remove_properties
+                    .as_ref()
+                    .is_some_and(|rc| rc.is_enabled()) as u32,
+            ),
+            (
+                rcstr!("swcRemoveConsole"),
+                compiler_options
+                    .remove_console
+                    .as_ref()
+                    .is_some_and(|rc| rc.is_enabled()) as u32,
+            ),
+            (
+                rcstr!("swcEmotion"),
+                compiler_options
+                    .emotion
+                    .as_ref()
+                    .is_some_and(|e| e.is_enabled()) as u32,
+            ),
+        ];
 
-        emit_event("swcRelay", swc_relay_enabled);
-        emit_event("swcStyledComponents", styled_components_enabled);
-        emit_event("swcReactRemoveProperties", react_remove_properties_enabled);
-        emit_event("swcRemoveConsole", remove_console_enabled);
-        emit_event("swcEmotion", emotion_enabled);
+        // Module-usage counts: two passes over the module graph.
+        //  1. Iterate all nodes, classify each in parallel, keep only feature-module matches.
+        //  2. Walk edges, for each edge whose target is a classified feature module, add the parent
+        //     to that feature's unique-importer set.
+        let module_graph = self.whole_app_module_graphs().await?.full.await?;
 
-        Ok(Default::default())
+        let matching: FxHashMap<ResolvedVc<Box<dyn Module>>, &'static RcStr> = module_graph
+            .iter_modules_with_idents()
+            .map(async |(node, ident)| {
+                let ident = ident.await?;
+                let path = &ident.path.path;
+                for (feature, suffix) in FEATURE_MODULE_PATH_SUFFIXES {
+                    if path.ends_with(suffix) {
+                        return Ok(Some((node, feature)));
+                    }
+                }
+                Ok(None)
+            })
+            .try_flat_join()
+            .await?
+            .into_iter()
+            .collect();
+
+        // Collect (feature, parent) pairs for every edge whose target is a feature module.
+        //
+        // We count every such edge regardless of whether the import is eventually tree-shaken.
+        // This matches webpack's `TelemetryPlugin`, which hooks `finishModules` (before DCE).
+        // We could filter via `BindingUsageInfo` to only count edges that survive tree-shaking,
+        // but staying parallel to webpack lets dashboards compare counts across the two bundlers
+        // directly.
+        let mut pairs: Vec<(&'static RcStr, ResolvedVc<Box<dyn Module>>)> =
+            Vec::with_capacity(matching.len() * 2);
+        module_graph.traverse_edges_unordered(|parent, node| {
+            if let Some((parent_node, _)) = parent
+                && let Some(&feature) = matching.get(&node)
+                // A feature's public entry point may re-export another matched module. Only
+                // count the external importer, not the internal re-export edge.
+                && matching.get(&parent_node) != Some(&feature)
+            {
+                pairs.push((feature, parent_node));
+            }
+            Ok(())
+        })?;
+
+        // Dedupe parents by their source location (path + query + fragment), ignoring
+        // `ident().layer` and other modifiers. In Turbopack the same user file often appears as
+        // separate modules per layer (e.g. SSR, client, edge), but webpack counts one "importer"
+        // per source file — this matches that semantics.
+        let parent_source_keys = pairs
+            .into_iter()
+            .map(async |(feature, parent)| {
+                let ident = module_graph.module_ident(parent)?.await?;
+                let key = (
+                    ident.path.path.clone(),
+                    ident.query.clone(),
+                    ident.fragment.clone(),
+                );
+                Ok((feature, key))
+            })
+            .try_join()
+            .await?;
+
+        let mut importers: FxHashMap<&'static RcStr, FxHashSet<(RcStr, RcStr, RcStr)>> =
+            FxHashMap::default();
+        for (feature, key) in parent_source_keys {
+            importers.entry(feature).or_default().insert(key);
+        }
+        for (feature, unique_sources) in importers {
+            features.push((feature.clone(), unique_sources.len() as u32));
+        }
+
+        features.sort_by(|a, b| a.0.cmp(&b.0));
+        Ok(ProjectFeatureUsageSummary { features }.cell())
     }
 
     /// Scans the app/pages directories for entry points files (matching the
     /// provided page_extensions).
     #[turbo_tasks::function]
     pub async fn entrypoints(self: Vc<Self>) -> Result<Vc<Entrypoints>> {
-        self.collect_project_feature_telemetry().await?;
+        Ok(self.entrypoints_with_app_route_filter(None))
+    }
 
+    #[turbo_tasks::function]
+    pub async fn entrypoints_with_app_route_filter(
+        self: Vc<Self>,
+        app_route_filter: Option<Vec<RcStr>>,
+    ) -> Result<Vc<Entrypoints>> {
+        let this = self.await?;
         let mut routes = FxIndexMap::default();
         let app_project = self.app_project();
         let pages_project = self.pages_project();
 
+        // Convert debug build paths to route keys once for O(1) lookups
+        let debug_build_paths_route_keys = this
+            .debug_build_paths
+            .as_ref()
+            .map(DebugBuildPathsRouteKeys::from_debug_build_paths)
+            .transpose()?;
+
         if let Some(app_project) = &*app_project.await? {
-            let app_routes = app_project.routes();
+            let app_routes = app_project.routes_with_filter(app_route_filter);
             routes.extend(
                 app_routes
                     .await?
                     .iter()
+                    .filter(|(k, _)| {
+                        debug_build_paths_route_keys
+                            .as_ref()
+                            .is_none_or(|keys| keys.should_include_app_route(k))
+                    })
                     .map(|(k, v)| (k.clone(), v.clone())),
             );
         }
 
-        for (pathname, page_route) in pages_project.routes().await?.iter() {
+        for (pathname, page_route) in &pages_project.routes().await? {
+            if debug_build_paths_route_keys
+                .as_ref()
+                .is_some_and(|keys| !keys.should_include_pages_route(pathname))
+            {
+                continue;
+            }
+
             match routes.entry(pathname.clone()) {
                 Entry::Occupied(mut entry) => {
                     ConflictIssue {
@@ -1284,7 +2333,7 @@ impl Project {
 
         let middleware = self.find_middleware();
         let middleware = if let FindContextFileResult::Found(fs_path, _) = &*middleware.await? {
-            let is_proxy = fs_path.file_stem() == Some("proxy");
+            let is_proxy = convention_file_base_name(fs_path.file_name()) == "proxy";
             Some(Middleware {
                 endpoint: self.middleware_endpoint().to_resolved().await?,
                 is_proxy,
@@ -1293,8 +2342,7 @@ impl Project {
             None
         };
 
-        let instrumentation = self.find_instrumentation();
-        let instrumentation = if let FindContextFileResult::Found(..) = *instrumentation.await? {
+        let instrumentation = if self.instrumentation_source().await?.is_some() {
             Some(Instrumentation {
                 node_js: self.instrumentation_endpoint(false).to_resolved().await?,
                 edge: self.instrumentation_endpoint(true).to_resolved().await?,
@@ -1357,6 +2405,9 @@ impl Project {
                 self.encryption_key(),
                 self.edge_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
+                // There is no NFT on edge
+                false,
+                self.server_source_map_generation_options(),
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1420,6 +2471,8 @@ impl Project {
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
+                *self.should_write_nft_manifests().await?,
+                self.server_source_map_generation_options(),
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1437,28 +2490,6 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn middleware_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
-        let edge_module_context = self.edge_middleware_context();
-
-        let middleware = self.find_middleware();
-        let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
-            return Ok(edge_module_context);
-        };
-        let source = Vc::upcast(FileSource::new(fs_path.clone()));
-
-        let runtime = parse_segment_config_from_source(source, ParseSegmentMode::Base)
-            .await?
-            .runtime
-            .unwrap_or(NextRuntime::Edge);
-
-        if matches!(runtime, NextRuntime::NodeJs) {
-            Ok(self.node_middleware_context())
-        } else {
-            Ok(edge_module_context)
-        }
-    }
-
-    #[turbo_tasks::function]
     async fn find_middleware(self: Vc<Self>) -> Result<Vc<FindContextFileResult>> {
         Ok(find_context_file(
             self.project_path().owned().await?,
@@ -1472,7 +2503,7 @@ impl Project {
     async fn middleware_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
         let middleware = self.find_middleware();
         let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
-            return Ok(Vc::upcast(EmptyEndpoint::new()));
+            return Ok(Vc::upcast(EmptyEndpoint::new(self)));
         };
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
         let app_dir = find_app_dir(self.project_path().owned().await?)
@@ -1482,7 +2513,25 @@ impl Project {
             .as_ref()
             .map(|_| AppProject::client_transition_name());
 
-        let middleware_asset_context = self.middleware_context();
+        let is_proxy = convention_file_base_name(fs_path.file_name()) == "proxy";
+        let config = parse_segment_config_from_source(
+            source,
+            if is_proxy {
+                ParseSegmentMode::Proxy
+            } else {
+                ParseSegmentMode::Base
+            },
+        );
+        let runtime = config.await?.runtime.unwrap_or(if is_proxy {
+            NextRuntime::NodeJs
+        } else {
+            NextRuntime::Edge
+        });
+
+        let middleware_asset_context = match runtime {
+            NextRuntime::NodeJs => self.node_middleware_context(),
+            NextRuntime::Edge => self.edge_middleware_context(),
+        };
 
         Ok(Vc::upcast(MiddlewareEndpoint::new(
             self,
@@ -1490,6 +2539,8 @@ impl Project {
             source,
             app_dir.clone(),
             ecmascript_client_reference_transition_name,
+            config,
+            runtime,
         )))
     }
 
@@ -1537,6 +2588,8 @@ impl Project {
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
+                *self.should_write_nft_manifests().await?,
+                self.server_source_map_generation_options(),
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1600,6 +2653,9 @@ impl Project {
                 self.encryption_key(),
                 self.edge_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
+                // There is no NFT on edge
+                false,
+                self.server_source_map_generation_options(),
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1629,16 +2685,68 @@ impl Project {
         ))
     }
 
+    /// The source compiled into the instrumentation slot. Without `instrumentationInject`, that is
+    /// the project's instrumentation file, including one in a parent directory. Otherwise a
+    /// virtual module at the project root requires every `instrumentationInject` entry, so the
+    /// bundler resolves them there, then the project's file, and runs all of their hooks.
+    /// `entrypoints` and `instrumentation_endpoint` both read this.
+    #[turbo_tasks::function]
+    async fn instrumentation_source(self: Vc<Self>) -> Result<Vc<OptionSource>> {
+        let project_file = match &*self.find_instrumentation().await? {
+            FindContextFileResult::Found(fs_path, _) => Some(fs_path.clone()),
+            _ => None,
+        };
+        let inject = self.next_config().instrumentation_inject().await?;
+        if inject.is_empty() {
+            let Some(fs_path) = project_file else {
+                return Ok(Vc::cell(None));
+            };
+            let source = Vc::upcast::<Box<dyn Source>>(FileSource::new(fs_path));
+            return Ok(Vc::cell(Some(source.to_resolved().await?)));
+        }
+        let project_path = self.project_path().owned().await?;
+        let mut specifiers: Vec<RcStr> = inject.iter().cloned().collect();
+        if let Some(fs_path) = &project_file {
+            let request = project_path
+                .get_relative_request_to(fs_path)
+                .context("project instrumentation file is outside the project filesystem")?;
+            specifiers.push(request);
+        }
+        // Keep in sync with
+        // packages/next/src/build/webpack/loaders/next-instrumentation-inject-loader.ts.
+        let requires = specifiers
+            .iter()
+            .map(|spec| {
+                Ok(format!(
+                    "require({})",
+                    serde_json::to_string(spec.as_str())?
+                ))
+            })
+            .collect::<Result<Vec<_>>>()?
+            .join(", ");
+        let source_text = format!(
+            "const {{ combineInstrumentation }} = \
+             require('next/dist/lib/combine-instrumentation');\nmodule.exports = \
+             combineInstrumentation([{requires}]);\n"
+        );
+        // CommonJS so a `type: module` package.json can't change how it parses. Not a convention
+        // file name, so discovery never treats it as a project file.
+        let path = project_path.join("instrumentation.inject.cjs")?;
+        let source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
+            path,
+            AssetContent::file(FileContent::Content(File::from(source_text)).cell()),
+        ));
+        Ok(Vc::cell(Some(source.to_resolved().await?)))
+    }
+
     #[turbo_tasks::function]
     async fn instrumentation_endpoint(
         self: Vc<Self>,
         is_edge: bool,
     ) -> Result<Vc<Box<dyn Endpoint>>> {
-        let instrumentation = self.find_instrumentation();
-        let FindContextFileResult::Found(fs_path, _) = &*instrumentation.await? else {
-            return Ok(Vc::upcast(EmptyEndpoint::new()));
+        let Some(source) = *self.instrumentation_source().await? else {
+            return Ok(Vc::upcast(EmptyEndpoint::new(self)));
         };
-        let source = Vc::upcast(FileSource::new(fs_path.clone()));
         let app_dir = find_app_dir(self.project_path().owned().await?)
             .owned()
             .await?;
@@ -1655,7 +2763,7 @@ impl Project {
         Ok(Vc::upcast(InstrumentationEndpoint::new(
             self,
             instrumentation_asset_context,
-            source,
+            *source,
             is_edge,
             app_dir.clone(),
             ecmascript_client_reference_transition_name,
@@ -1703,46 +2811,60 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn hmr_content(self: Vc<Self>, identifier: RcStr) -> Result<Vc<OptionVersionedContent>> {
+    async fn server_hmr_root_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        Ok(self.node_root().await?.join("server/app")?.cell())
+    }
+
+    /// Get client HMR content by chunk_name.
+    #[turbo_tasks::function]
+    async fn hmr_content(self: Vc<Self>, chunk_name: RcStr) -> Result<Vc<OptionVersionedContent>> {
         if let Some(map) = self.await?.versioned_content_map {
-            let content = map.get(self.client_relative_path().await?.join(&identifier)?);
+            let content = map.get(self.client_relative_path().await?.join(&chunk_name)?);
             Ok(content)
         } else {
             bail!("must be in dev mode to hmr")
         }
     }
 
-    #[turbo_tasks::function]
-    async fn hmr_version(self: Vc<Self>, identifier: RcStr) -> Result<Vc<Box<dyn Version>>> {
-        let content = self.hmr_content(identifier).await?;
-        if let Some(content) = &*content {
-            Ok(content.version())
-        } else {
-            Ok(Vc::upcast(NotFoundVersion::new()))
-        }
-    }
-
-    /// Get the version state for a session. Initialized with the first seen
+    /// Get the version state for an HMR session. Initialized with the first seen
     /// version in that session.
     #[turbo_tasks::function]
     pub async fn hmr_version_state(
-        self: Vc<Self>,
-        identifier: RcStr,
+        self: ResolvedVc<Self>,
+        chunk_name: RcStr,
         session: TransientInstance<()>,
     ) -> Result<Vc<VersionState>> {
-        let version = self.hmr_version(identifier);
-
         // The session argument is important to avoid caching this function between
         // sessions.
         let _ = session;
+
+        #[tracing::instrument(
+            level = "info",
+            name = "get HMR version",
+            skip_all,
+            fields(chunk_name = %chunk_name),
+        )]
+        #[turbo_tasks::function(operation, root)]
+        async fn hmr_version_operation(
+            this: ResolvedVc<Project>,
+            chunk_name: RcStr,
+        ) -> Result<Vc<Box<dyn Version>>> {
+            tracing::info!(chunk_name = %chunk_name, "hmr subscription");
+            let content = this.hmr_content(chunk_name).await?;
+            if let Some(content) = &*content {
+                Ok(content.version())
+            } else {
+                Ok(Vc::upcast(NotFoundVersion::new()))
+            }
+        }
+        let version_op = hmr_version_operation(self, chunk_name);
 
         // INVALIDATION: This is intentionally untracked to avoid invalidating this
         // function completely. We want to initialize the VersionState with the
         // first seen version of the session.
         let state = VersionState::new(
-            version
-                .into_trait_ref()
-                .strongly_consistent()
+            version_op
+                .read_trait_strongly_consistent()
                 .untracked()
                 .await?,
         )
@@ -1751,15 +2873,15 @@ impl Project {
     }
 
     /// Emits opaque HMR events whenever a change is detected in the chunk group
-    /// internally known as `identifier`.
+    /// internally known as `chunk_name`.
     #[turbo_tasks::function]
     pub async fn hmr_update(
         self: Vc<Self>,
-        identifier: RcStr,
+        chunk_name: RcStr,
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();
-        let content = self.hmr_content(identifier).await?;
+        let content = self.hmr_content(chunk_name).await?;
         if let Some(content) = *content {
             Ok(content.update(from))
         } else {
@@ -1767,10 +2889,30 @@ impl Project {
         }
     }
 
-    /// Gets a list of all HMR identifiers that can be subscribed to. This is
-    /// only needed for testing purposes and isn't used in real apps.
+    /// Server entry chunks shared by all pull baselines.
     #[turbo_tasks::function]
-    pub async fn hmr_identifiers(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
+    pub async fn server_hmr_chunks(self: Vc<Self>) -> Result<Vc<ServerHmrChunkLists>> {
+        let Some(map) = self.await?.versioned_content_map else {
+            bail!("must be in dev mode to hmr")
+        };
+        let root = self.server_hmr_root_path().owned().await?;
+        Ok(map.server_hmr_chunks_in_path(root))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn server_hmr_chunks_for_entries(
+        self: Vc<Self>,
+        entry_paths: Vec<RcStr>,
+    ) -> Result<Vc<ServerHmrChunkLists>> {
+        let mut chunk_lists =
+            ServerHmrChunkLists::new(self.server_hmr_chunks().await?.as_slice().to_vec());
+        chunk_lists.retain_entry_paths(&entry_paths.into_iter().collect());
+        Ok(chunk_lists.cell())
+    }
+
+    /// Gets a list of all client HMR chunk names that can be subscribed to.
+    #[turbo_tasks::function]
+    pub async fn hmr_chunk_names(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         if let Some(map) = self.await?.versioned_content_map {
             Ok(map.keys_in_path(self.client_relative_path().owned().await?))
         } else {
@@ -1794,92 +2936,301 @@ impl Project {
         Ok(any_output_changed(roots, path, false))
     }
 
+    /// Whether Pages Router endpoints are emitted, which is exactly when `get_all_endpoint_groups`
+    /// adds the `/_app` endpoint (i.e. there is at least one Pages Router route).
+    #[turbo_tasks::function]
+    pub async fn contains_pages_endpoints(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.get_all_endpoint_groups(/* app_dir_only */ false)
+                .await?
+                .iter()
+                .any(|(key, _)| matches!(key, EndpointGroupKey::PagesApp)),
+        ))
+    }
+
     #[turbo_tasks::function]
     pub async fn client_main_modules(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        let pages_project = self.pages_project();
-        let mut modules = vec![ChunkGroupEntry::Entry(vec![
-            pages_project.client_main_module().to_resolved().await?,
-        ])];
+        let mut chunk_groups = Vec::new();
 
-        if let Some(app_project) = *self.app_project().await? {
-            modules.push(ChunkGroupEntry::Entry(vec![
-                app_project.client_main_module().to_resolved().await?,
-            ]));
+        // The Pages Router client runtime is only needed when Pages endpoints are emitted.
+        // Otherwise including it would pull the whole Pages Router client graph into the
+        // whole-app module graph for nothing.
+        if *self.contains_pages_endpoints().await? {
+            chunk_groups.push(ChunkGroupEntry::Entry {
+                modules: vec![
+                    self.pages_project()
+                        .client_main_module()
+                        .to_resolved()
+                        .await?,
+                ],
+                heuristics: EntryHeuristics::high_priority(),
+            });
         }
 
-        Ok(Vc::cell(modules))
+        if let Some(app_project) = *self.app_project().await? {
+            chunk_groups.push(ChunkGroupEntry::Entry {
+                modules: vec![app_project.client_main_module().to_resolved().await?],
+                heuristics: EntryHeuristics::high_priority(),
+            });
+        }
+
+        Ok(GraphEntries::from_chunk_groups(chunk_groups).cell())
     }
 
     /// Gets the module id strategy for the project.
     #[turbo_tasks::function]
-    pub async fn module_ids(self: Vc<Self>) -> Result<Vc<Box<dyn ModuleIdStrategy>>> {
+    pub async fn module_ids(self: Vc<Self>) -> Result<Vc<ModuleIdStrategy>> {
         let module_id_strategy = *self.next_config().module_ids(self.next_mode()).await?;
         match module_id_strategy {
-            ModuleIdStrategyConfig::Named => Ok(Vc::upcast(DevModuleIdStrategy::new())),
+            ModuleIdStrategyConfig::Named => Ok(ModuleIdStrategy {
+                module_id_map: None,
+                fallback: ModuleIdFallback::Ident,
+            }
+            .cell()),
             ModuleIdStrategyConfig::Deterministic => {
                 let module_graphs = self.whole_app_module_graphs().await?;
-                Ok(Vc::upcast(get_global_module_id_strategy(
-                    *module_graphs.full,
-                )))
+                Ok(get_global_module_id_strategy(*module_graphs.full))
             }
         }
     }
 
+    /// Compute the used exports and unused imports for each module.
+    #[turbo_tasks::function]
+    async fn binding_usage_info(self: Vc<Self>) -> Result<Vc<BindingUsageInfo>> {
+        let module_graphs = self.whole_app_module_graphs().await?;
+        Ok(module_graphs
+            .binding_usage_info
+            .context("No binding usage info")?
+            .connect())
+    }
+
     /// Compute the used exports for each module.
     #[turbo_tasks::function]
-    pub async fn export_usage(self: Vc<Self>) -> Result<Vc<OptionExportUsageInfo>> {
+    pub async fn export_usage(self: Vc<Self>) -> Result<Vc<OptionBindingUsageInfo>> {
         if *self
             .next_config()
             .turbopack_remove_unused_exports(self.next_mode())
             .await?
         {
-            let module_graphs = self.whole_app_module_graphs().await?;
             Ok(Vc::cell(Some(
-                compute_export_usage_info(module_graphs.full)
-                    // As a performance optimization, we resolve strongly consistently
-                    .resolve_strongly_consistent()
-                    .await?,
+                self.binding_usage_info().to_resolved().await?,
             )))
         } else {
             Ok(Vc::cell(None))
         }
     }
+
+    /// Compute the unused references that were removed (inner graph tree shaking).
+    #[turbo_tasks::function]
+    pub async fn unused_references(self: Vc<Self>) -> Result<Vc<UnusedReferences>> {
+        if *self
+            .next_config()
+            .turbopack_remove_unused_imports(self.next_mode())
+            .await?
+        {
+            Ok(self.binding_usage_info().unused_references())
+        } else {
+            Ok(Vc::cell(Default::default()))
+        }
+    }
+
+    /// Returns any modules specified as `nextConfig.cacheHandler` and/or `nextConfig.cacheHandlers`
+    #[turbo_tasks::function]
+    pub async fn additional_traced_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        let project_path = self.project_path().owned().await?;
+        let cache_handler = self
+            .next_config()
+            .cache_handler(project_path.clone())
+            .await?;
+        let cache_handlers = self
+            .next_config()
+            .cache_handlers(project_path.clone())
+            .await?;
+
+        let asset_context = externals_tracing_module_context(
+            get_tracing_compile_time_info(),
+            /* resolve_typescript */ false,
+            /* prune */ None,
+            /* trace_file_references */ true,
+        );
+
+        Ok(Vc::cell(
+            cache_handler
+                .iter()
+                .chain(cache_handlers.iter())
+                .map(|f| {
+                    asset_context
+                        .process(
+                            Vc::upcast(FileSource::new(f.clone())),
+                            ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+                        )
+                        .module()
+                })
+                .map(|m| m.to_resolved())
+                .try_join()
+                .await?,
+        ))
+    }
+
+    /// [`Project::additional_traced_modules`] plus the modules the Pages Router resolves only at
+    /// runtime: the targets of `next/dist/server/require-hook` and the production Pages renderer.
+    /// Other endpoints use [`Project::additional_traced_modules`].
+    #[turbo_tasks::function]
+    pub async fn pages_traced_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        let asset_context = Vc::upcast(externals_tracing_module_context(
+            get_tracing_compile_time_info(),
+            /* resolve_typescript */ false,
+            /* prune */ None,
+            /* trace_file_references */ true,
+        ));
+        let hook_modules = require_hook_modules(self.project_path().owned().await?, asset_context)
+            .owned()
+            .await?;
+        let renderer_modules =
+            pages_renderer_modules(self.project_path().owned().await?, asset_context)
+                .owned()
+                .await?;
+
+        Ok(Vc::cell(
+            self.additional_traced_modules()
+                .owned()
+                .await?
+                .into_iter()
+                .chain(hook_modules)
+                .chain(renderer_modules)
+                .collect(),
+        ))
+    }
+}
+
+/// Scales down or shuts down the Node.js process pool after module graph computation.
+async fn scale_down_node_pool(project: ResolvedVc<Project>) -> Result<()> {
+    let execution_context = project.execution_context().await?;
+    let node_backend = execution_context.node_backend.into_trait_ref().await?;
+    if *project.is_watch_enabled().await? {
+        node_backend.scale_down()?;
+    } else {
+        node_backend.scale_zero()?;
+    }
+    Ok(())
 }
 
 // This is a performance optimization. This function is a root aggregation function that
 // aggregates over the whole subgraph.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn whole_app_module_graph_operation(
     project: ResolvedVc<Project>,
-) -> Result<Vc<ModuleGraphs>> {
-    mark_root();
+) -> Result<Vc<BaseAndFullModuleGraph>> {
+    let start = Instant::now();
+    let wall_start = SystemTime::now();
+    let span = tracing::info_span!("whole app module graph", modules = Empty, edges = Empty);
+    let span_clone = span.clone();
+    let result = async move {
+        let next_mode = project.next_mode();
+        let turbopack_remove_unused_imports = *project
+            .next_config()
+            .turbopack_remove_unused_imports(next_mode)
+            .await?;
+        let graph_options = project.module_graph_options().await?;
+        let base_single_module_graph = SingleModuleGraph::new_with_entries(
+            project.get_all_entries().to_resolved().await?,
+            graph_options,
+        );
+        let base_visited_modules = VisitedModules::from_graph(base_single_module_graph);
 
-    let should_trace = project.next_mode().await?.is_production();
-    let base_single_module_graph =
-        SingleModuleGraph::new_with_entries(project.get_all_entries(), should_trace);
-    let base_visited_modules = VisitedModules::from_graph(base_single_module_graph);
+        let base = ModuleGraph::from_graphs(vec![base_single_module_graph], None);
 
-    let base = ModuleGraph::from_single_graph(base_single_module_graph);
-    let additional_entries = project.get_all_additional_entries(base);
+        let base = if turbopack_remove_unused_imports {
+            // TODO suboptimal that we do compute_binding_usage_info twice (once for the base
+            // graph and later for the full graph)
+            let binding_usage_info = compute_binding_usage_info(
+                base, /* remove_unused_imports */ true,
+                /* drop_unused_module_data */ false,
+            );
+            ModuleGraph::from_graphs(vec![base_single_module_graph], Some(binding_usage_info))
+        } else {
+            base
+        };
 
-    let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
-        additional_entries,
-        base_visited_modules,
-        should_trace,
-    );
+        let additional_entries = project
+            .get_all_additional_entries(base.connect())
+            .to_resolved()
+            .await?;
 
-    let full = ModuleGraph::from_graphs(vec![base_single_module_graph, additional_module_graph]);
-    Ok(ModuleGraphs {
-        base: base.to_resolved().await?,
-        full: full.to_resolved().await?,
+        let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
+            additional_entries,
+            base_visited_modules,
+            graph_options,
+        );
+
+        if !span.is_disabled() {
+            let base_module_count = base_single_module_graph
+                .connect()
+                .module_count()
+                .untracked()
+                .await?;
+            let additional_module_count = additional_module_graph
+                .connect()
+                .module_count()
+                .untracked()
+                .await?;
+            span.record("modules", *base_module_count + *additional_module_count);
+            let base_edge_count = base_single_module_graph
+                .connect()
+                .edge_count()
+                .untracked()
+                .await?;
+            let additional_edge_count = additional_module_graph
+                .connect()
+                .edge_count()
+                .untracked()
+                .await?;
+            span.record("edges", *base_edge_count + *additional_edge_count);
+        }
+
+        let graphs = vec![base_single_module_graph, additional_module_graph];
+
+        let (full, binding_usage_info) = if turbopack_remove_unused_imports {
+            let full_with_unused_references = ModuleGraph::from_graphs(graphs.clone(), None);
+            let binding_usage_info = compute_binding_usage_info(
+                full_with_unused_references,
+                /* remove_unused_imports */ true,
+                /* drop_unused_module_data */ true,
+            );
+            (
+                ModuleGraph::from_graphs(graphs, Some(binding_usage_info)),
+                Some(binding_usage_info),
+            )
+        } else {
+            (ModuleGraph::from_graphs(graphs, None), None)
+        };
+
+        Ok(BaseAndFullModuleGraph {
+            base: base.connect().to_resolved().await?,
+            full: full.connect().to_resolved().await?,
+            binding_usage_info,
+        }
+        .cell())
     }
-    .cell())
+    .instrument(span_clone)
+    .await;
+    turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
+        "turbopack-module-graph",
+        wall_start,
+        start.elapsed(),
+        serde_json::json!([]),
+    )));
+    result
 }
 
 #[turbo_tasks::value(shared)]
-pub struct ModuleGraphs {
+pub struct BaseAndFullModuleGraph {
+    /// The base module graph generated from the entry points.
     pub base: ResolvedVc<ModuleGraph>,
+    /// `full_with_unused_references` but with unused references removed.
     pub full: ResolvedVc<ModuleGraph>,
+    /// Information about binding usage in the module graph.
+    pub binding_usage_info: Option<OperationVc<BindingUsageInfo>>,
 }
 
 #[turbo_tasks::function]
@@ -1888,13 +3239,13 @@ async fn any_output_changed(
     path: FileSystemPath,
     server: bool,
 ) -> Result<Vc<Completion>> {
-    let completions = AdjacencyMap::new()
-        .skip_duplicates()
-        .visit(roots.await?.iter().copied(), get_referenced_output_assets)
-        .await
-        .completed()?
-        .into_inner()
-        .into_postorder_topological()
+    let all_assets = expand_output_assets(
+        roots.await?.into_iter().map(ExpandOutputAssetsInput::Asset),
+        true,
+    )
+    .await?;
+    let completions = all_assets
+        .into_iter()
         .map(|m| {
             let path = path.clone();
 
@@ -1920,21 +3271,10 @@ async fn any_output_changed(
     Ok(Vc::<Completions>::cell(completions).completed())
 }
 
-async fn get_referenced_output_assets(
-    parent: ResolvedVc<Box<dyn OutputAsset>>,
-) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>> + Send> {
-    Ok(parent.references().owned().await?.into_iter())
-}
-
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn all_assets_from_entries_operation(
     operation: OperationVc<OutputAssets>,
-) -> Result<Vc<OutputAssets>> {
+) -> Result<Vc<ExpandedOutputAssets>> {
     let assets = operation.connect();
     Ok(all_assets_from_entries(assets))
-}
-
-#[turbo_tasks::function]
-fn stable_endpoint(endpoint: Vc<Box<dyn Endpoint>>) -> Vc<Box<dyn Endpoint>> {
-    endpoint
 }

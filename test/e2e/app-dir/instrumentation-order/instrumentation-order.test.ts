@@ -1,17 +1,21 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('instrumentation-order', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should work', async () => {
     await next.fetch('/')
 
     await retry(async () => {
-      const serverLog = next.cliOutput.split('Starting...')[1]
+      // `next.cliOutput` includes both `next build` and `next start` in the production test run
+      // Because of that we have to split the output by `Ready in` and get the second part only
+      const serverLog = next.cliOutput.split('Ready in')[1]
       const cliOutputLines = serverLog.split('\n')
 
       const ORDERED_LOGS = [

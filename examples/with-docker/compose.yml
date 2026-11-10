@@ -1,0 +1,28 @@
+services:
+  # Node.js service (use with: docker compose up nextjs-standalone --build)
+  nextjs-standalone:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nextjs-standalone-image
+    container_name: nextjs-standalone-container
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  # Bun service (use with: docker compose up nextjs-standalone-with-bun --build)
+  nextjs-standalone-with-bun:
+    build:
+      context: .
+      dockerfile: Dockerfile.bun
+    image: nextjs-standalone-bun-image
+    container_name: nextjs-standalone-bun-container
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    restart: unless-stopped

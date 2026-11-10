@@ -48,6 +48,7 @@ export async function toResponseCacheEntry(
     isMiss: response.isMiss,
     isStale: response.isStale,
     cacheControl: response.cacheControl,
+    isFallback: response.isFallback,
     value:
       response.value?.kind === CachedRouteKind.PAGES
         ? ({
@@ -90,7 +91,8 @@ export function routeKindToIncrementalCacheKind(
     case RouteKind.APP_ROUTE:
       return IncrementalCacheKind.APP_ROUTE
     case RouteKind.PAGES_API:
-      // Pages Router API routes are not cached in the incremental cache.
+    case RouteKind.APP_ROUTE_GO:
+      // Pages Router API routes and Go routes are not incrementally cached.
       throw new Error(`Unexpected route kind ${routeKind}`)
     default:
       return routeKind satisfies never

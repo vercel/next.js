@@ -1,0 +1,62 @@
+import Link from 'next/link'
+
+export default function Home() {
+  return (
+    <main>
+      <h1>Home</h1>
+      <h2>
+        Links with <code>prefetch=false</code>
+      </h2>
+      <ul>
+        <li>
+          <Link href="/partially-static" prefetch={false}>
+            Go to partially static page
+          </Link>
+        </li>
+        <li>
+          <Link
+            href="/partially-static-without-runtime-prefetch"
+            prefetch={false}
+          >
+            Go to partially static page without a runtime prefetch
+          </Link>
+        </li>
+        <li>
+          <Link href="/fully-static" prefetch={false}>
+            Go to fully static page
+          </Link>
+        </li>
+        <li>
+          <Link href="/with-static-params/foo" prefetch={false}>
+            Go to page with static params
+          </Link>
+        </li>
+        <li>
+          <Link href="/with-fallback-params/foo" prefetch={false}>
+            Go to page with fallback params
+          </Link>
+        </li>
+        <li>
+          <Link href="/partial-fallback-params/foo" prefetch={false}>
+            Go to Partial Prefetching page with fallback params
+          </Link>
+        </li>
+        <li>
+          <Link href="/complete-prerender-shell/foo" prefetch={false}>
+            Go to complete prerender with a shell
+          </Link>
+        </li>
+        <li>
+          <Link href="/runtime-prefetchable" prefetch={false}>
+            Go to runtime-prefetchable page
+          </Link>
+        </li>
+        <li>
+          <Link href="/prefetch-partial" prefetch={false}>
+            Go to prefetch=partial page
+          </Link>
+        </li>
+      </ul>
+    </main>
+  )
+}

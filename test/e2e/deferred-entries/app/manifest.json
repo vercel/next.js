@@ -1,0 +1,6 @@
+{
+  "name": "Deferred Entries Metadata",
+  "short_name": "DeferredMeta",
+  "description": "Metadata manifest for deferred entries e2e",
+  "start_url": "/"
+}

@@ -2,14 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('with babel', () => {
-  const { next, isNextStart, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should support babel in app dir', async () => {
     const $ = await next.render$('/')
@@ -26,7 +21,7 @@ describe('with babel', () => {
         await retry(async () => {
           const middleware = await next.readFile('.next/server/middleware.js')
           // @vercel/og default font should be bundled
-          expect(middleware).not.toContain('noto-sans-v27-latin-regular.ttf')
+          expect(middleware).not.toContain('Geist-Regular.ttf')
         })
       }
     )

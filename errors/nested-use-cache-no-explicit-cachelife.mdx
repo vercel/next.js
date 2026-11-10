@@ -1,0 +1,106 @@
+---
+title: Nested `"use cache"` with short cache lifetime requires explicit `cacheLife` on outer cache
+---
+
+## Why This Error Occurred
+
+A `"use cache"` function or component with a very short cache lifetime (either `revalidate: 0` or `expire` under 5 minutes) is nested inside another `"use cache"` that doesn't have an explicit `cacheLife()` call.
+
+When a nested cache has a very short lifetime, it would normally create a "dynamic hole" - meaning it's excluded from static prerenders. However, when this happens inside another `"use cache"` without an explicit `cacheLife`, the outer cache's lifetime silently becomes very short too (via propagation), which may be unintentional.
+
+To prevent accidental misconfigurations, Next.js requires you to explicitly declare your intent by adding `cacheLife()` to the outer `"use cache"`.
+
+## Possible Ways to Fix It
+
+Add an explicit `cacheLife()` call to the outer `"use cache"` to declare your intent.
+
+### Before
+
+```jsx filename="components/short-lived-widget.js"
+import { cacheLife } from 'next/cache'
+
+export async function ShortLivedWidget() {
+  'use cache'
+  cacheLife('seconds')
+  const data = await fetchRealtimeData()
+  return <div>{data}</div>
+}
+```
+
+```jsx filename="app/page.js"
+import { ShortLivedWidget } from '@/components/short-lived-widget'
+
+export default async function Page() {
+  'use cache'
+  // Error: no explicit cacheLife on outer cache
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <p>Last updated: {new Date().toISOString()}</p>
+      <ShortLivedWidget />
+    </div>
+  )
+}
+```
+
+### After: If you want the outer cache to remain static (prerendered)
+
+Set a longer cache lifetime on the outer cache:
+
+```jsx filename="app/page.js" highlight={6}
+import { cacheLife } from 'next/cache'
+import { ShortLivedWidget } from '@/components/short-lived-widget'
+
+export default async function Page() {
+  'use cache'
+  cacheLife('default') // Explicit cacheLife prevents the error
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <p>Last updated: {new Date().toISOString()}</p>
+      <ShortLivedWidget />
+    </div>
+  )
+}
+```
+
+### After: If you want the outer cache to also be short-lived
+
+Explicitly set a short cache lifetime on the outer cache to confirm this is intentional. Wrap the component in a `<Suspense>` boundary to provide a fallback while content loads:
+
+```jsx filename="app/page.js" highlight={7,17-19}
+import { Suspense } from 'react'
+import { cacheLife } from 'next/cache'
+import { ShortLivedWidget } from '@/components/short-lived-widget'
+
+async function Content() {
+  'use cache: remote'
+  cacheLife('seconds') // Explicit cacheLife confirms this is intentionally short-lived
+  return (
+    <>
+      <p>Last updated: {new Date().toISOString()}</p>
+      <ShortLivedWidget />
+    </>
+  )
+}
+
+export default function Page() {
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <Suspense fallback={<p>Loading...</p>}>
+        <Content />
+      </Suspense>
+    </div>
+  )
+}
+```
+
+> **Note:** This example uses `"use cache: remote"` because runtime caching in serverless deployments doesn't persist across requests with the default in-memory cache. For self-hosted environments, `"use cache"` may be sufficient. See [Runtime caching considerations](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations) for more details.
+
+## Useful Links
+
+- [`cacheLife` function](/docs/app/api-reference/functions/cacheLife)
+- [`"use cache"` directive](/docs/app/api-reference/directives/use-cache)
+- [Prerendering behavior](/docs/app/api-reference/functions/cacheLife#prerendering-behavior)
+- [Nested short-lived caches](/docs/app/api-reference/functions/cacheLife#nested-short-lived-caches)

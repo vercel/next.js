@@ -1,56 +1,16 @@
-import { collectFallbackRouteParams } from '../../build/segment-config/app/app-segments'
+import { resolveRouteParamsFromTree } from '../../build/static-paths/utils'
 import type { FallbackRouteParam } from '../../build/static-paths/types'
-import type { DynamicParamTypesShort } from '../../shared/lib/app-router-types'
-import { InvariantError } from '../../shared/lib/invariant-error'
-import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
-import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
-import { dynamicParamTypes } from '../app-render/get-short-dynamic-param-type'
 import type AppPageRouteModule from '../route-modules/app-page/module'
-
-function getParamKeys(page: string) {
-  const pattern = getRouteRegex(page)
-  const matcher = getRouteMatcher(pattern)
-
-  // Get the default list of allowed params.
-  return Object.keys(matcher(page))
-}
-
-export type OpaqueFallbackRouteParamValue = [
-  /**
-   * The search value of the fallback route param. This is the opaque key
-   * that will be used to replace the dynamic param in the postponed state.
-   */
-  searchValue: string,
-
-  /**
-   * The dynamic param type of the fallback route param. This is the type of
-   * the dynamic param that will be used to replace the dynamic param in the
-   * postponed state.
-   */
-  dynamicParamType: DynamicParamTypesShort,
-]
+import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
+import { extractPathnameRouteParamSegmentsFromLoaderTree } from '../../build/static-paths/app/extract-pathname-route-param-segments-from-loader-tree'
+import { getParamProperties } from '../../shared/lib/router/utils/get-segment-param'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 /**
- * An opaque fallback route params object. This is used to store the fallback
- * route params in a way that is not easily accessible to the client.
+ * Maps unknown param names to internal placeholders. The parameter wrappers
+ * control when reads suspend; these placeholders must not become rendered UI.
  */
-export type OpaqueFallbackRouteParams = ReadonlyMap<
-  string,
-  OpaqueFallbackRouteParamValue
->
-
-/**
- * The entries of the opaque fallback route params object.
- *
- * @param key the key of the fallback route param
- * @param value the value of the fallback route param
- */
-export type OpaqueFallbackRouteParamEntries =
-  ReturnType<OpaqueFallbackRouteParams['entries']> extends MapIterator<
-    [infer K, infer V]
-  >
-    ? ReadonlyArray<[K, V]>
-    : never
+export type OpaqueFallbackRouteParams = ReadonlyMap<string, string>
 
 /**
  * Creates an opaque fallback route params object from the fallback route params.
@@ -69,18 +29,91 @@ export function createOpaqueFallbackRouteParams(
   // be also be unique.
   const uniqueID = Math.random().toString(16).slice(2)
 
-  const keys = new Map<string, OpaqueFallbackRouteParamValue>()
+  const keys = new Map<string, string>()
 
   // Generate a unique key for the fallback route param, if this key is found
   // in the static output, it represents a bug in cache components.
-  for (const { paramName, paramType } of fallbackRouteParams) {
-    keys.set(paramName, [
-      `%%drp:${paramName}:${uniqueID}%%`,
-      dynamicParamTypes[paramType],
-    ])
+  for (const { paramName } of fallbackRouteParams) {
+    keys.set(paramName, `%%drp:${paramName}:${uniqueID}%%`)
   }
 
   return keys
+}
+
+/**
+ * Selects the params that a staged render defers for the shell target that a
+ * request selects. Dev static-shell validation stages the same set, so it
+ * checks the shell that the build validates.
+ *
+ * The set derives from the build's shell metadata, not from the serving mode. A
+ * required shell (`throwOnEmptyStaticShell`) is the most specific shell the
+ * build generated for its params, and the build fails when its prelude is
+ * empty. Staging defers all of its fallback params, because the build validated
+ * exactly that shape. Any other shell may be empty, and a request completes it
+ * with the params that `generateStaticParams` can still supply. Only the params
+ * that completion never resolves stay deferred.
+ */
+export function getStagedFallbackParams(route: {
+  fallbackRouteParams: readonly FallbackRouteParam[] | undefined
+  remainingPrerenderableParams?: readonly FallbackRouteParam[]
+  throwOnEmptyStaticShell?: boolean
+}): OpaqueFallbackRouteParams | null {
+  const { fallbackRouteParams, remainingPrerenderableParams } = route
+  if (!fallbackRouteParams?.length) {
+    return null
+  }
+
+  if (route.throwOnEmptyStaticShell === undefined) {
+    throw new InvariantError(
+      'Expected throwOnEmptyStaticShell for a route with fallback params'
+    )
+  }
+
+  // A required shell keeps all of its fallback params deferred.
+  if (route.throwOnEmptyStaticShell || !remainingPrerenderableParams?.length) {
+    return createOpaqueFallbackRouteParams(fallbackRouteParams)
+  }
+
+  return createOpaqueFallbackRouteParams(
+    fallbackRouteParams.filter(
+      (param) =>
+        !remainingPrerenderableParams.some(
+          (prerenderableParam) =>
+            prerenderableParam.paramName === param.paramName
+        )
+    )
+  )
+}
+
+export function buildDynamicSegmentPlaceholder(
+  param: Pick<FallbackRouteParam, 'paramName' | 'paramType'>
+): string {
+  const { repeat, optional } = getParamProperties(param.paramType)
+
+  if (optional) {
+    return `[[...${param.paramName}]]`
+  }
+
+  if (repeat) {
+    return `[...${param.paramName}]`
+  }
+
+  return `[${param.paramName}]`
+}
+
+export function getPlaceholderFallbackRouteParams(
+  params: Record<string, undefined | string | string[]> | undefined,
+  fallbackRouteParams: readonly FallbackRouteParam[]
+): FallbackRouteParam[] {
+  return fallbackRouteParams.filter((param) => {
+    const placeholder = buildDynamicSegmentPlaceholder(param)
+    const value = params?.[param.paramName]
+
+    return (
+      value === placeholder ||
+      (Array.isArray(value) && value.length === 1 && value[0] === placeholder)
+    )
+  })
 }
 
 /**
@@ -96,78 +129,37 @@ export function getFallbackRouteParams(
   page: string,
   routeModule: AppPageRouteModule
 ) {
-  // First, get the fallback route params based on the provided page.
-  const unknownParamKeys = new Set(getParamKeys(page))
+  const route = parseNormalizedAppRoute(page)
 
-  // Needed when processing fallback route params for catchall routes in
-  // parallel segments, derive from pathname. This is similar to
-  // getDynamicParam's pagePath parsing logic.
-  const pathSegments = page.split('/').filter(Boolean)
+  // Extract the pathname-contributing segments from the loader tree. This
+  // mirrors the logic in buildAppStaticPaths where we determine which segments
+  // actually contribute to the pathname.
+  const { pathnameRouteParamSegments, params } =
+    extractPathnameRouteParamSegmentsFromLoaderTree(
+      routeModule.userland.loaderTree,
+      route
+    )
 
-  const collected = collectFallbackRouteParams(routeModule)
+  // Create fallback route params for the pathname segments.
+  const fallbackRouteParams: FallbackRouteParam[] =
+    pathnameRouteParamSegments.map(({ paramName, paramType }) => ({
+      paramName,
+      paramType,
+    }))
 
-  // Then, we have to get the fallback route params from the segments that are
-  // associated with parallel route segments.
-  const fallbackRouteParams: FallbackRouteParam[] = []
-  for (const fallbackRouteParam of collected) {
-    if (fallbackRouteParam.isParallelRouteParam) {
-      // Try to see if we can resolve this parameter from the page that was
-      // passed in.
-      if (unknownParamKeys.has(fallbackRouteParam.paramName)) {
-        // The parameter is known, we can skip adding it to the fallback route
-        // params.
-        continue
-      }
+  // Resolve route params from the loader tree. This mutates the
+  // fallbackRouteParams array to add any route params that are
+  // unknown at request time.
+  //
+  // The page parameter contains placeholders like [slug], which helps
+  // resolveRouteParamsFromTree determine which params are unknown.
+  resolveRouteParamsFromTree(
+    routeModule.userland.loaderTree,
+    params, // Static params extracted from the page
+    route, // The page pattern with placeholders
+    fallbackRouteParams // Will be mutated to add route params
+  )
 
-      if (
-        fallbackRouteParam.paramType === 'optional-catchall' ||
-        fallbackRouteParam.paramType === 'catchall'
-      ) {
-        // If there are any fallback route segments then we can't use the
-        // pathname to derive the value because it's not complete. We can
-        // make this assumption because the routes are always resolved left
-        // to right and the catchall is always the last segment, so any
-        // route parameters that are unknown will always contribute to the
-        // pathname and therefore the catchall param too.
-        if (
-          collected.some(
-            (param) =>
-              !param.isParallelRouteParam &&
-              unknownParamKeys.has(param.paramName)
-          )
-        ) {
-          fallbackRouteParams.push(fallbackRouteParam)
-          continue
-        }
-
-        if (
-          pathSegments.length === 0 &&
-          fallbackRouteParam.paramType !== 'optional-catchall'
-        ) {
-          // We shouldn't be able to match a catchall segment without any path
-          // segments if it's not an optional catchall.
-          throw new InvariantError(
-            `Unexpected empty path segments match for a pathname "${page}" with param "${fallbackRouteParam.paramName}" of type "${fallbackRouteParam.paramType}"`
-          )
-        }
-
-        // The path segments are not empty, and the segments didn't contain any
-        // unknown params, so we know that this particular fallback route param
-        // route param is not actually unknown, and is known. We can skip adding
-        // it to the fallback route params.
-      } else {
-        // This is some other type of route param that shouldn't get resolved
-        // statically.
-        throw new InvariantError(
-          `Unexpected match for a pathname "${page}" with a param "${fallbackRouteParam.paramName}" of type "${fallbackRouteParam.paramType}"`
-        )
-      }
-    } else if (unknownParamKeys.has(fallbackRouteParam.paramName)) {
-      // As this is a non-parallel route segment, and it exists in the unknown
-      // param keys, we know it's a fallback route param.
-      fallbackRouteParams.push(fallbackRouteParam)
-    }
-  }
-
+  // Track the unknown params using the same opaque placeholders as prerenders.
   return createOpaqueFallbackRouteParams(fallbackRouteParams)
 }
