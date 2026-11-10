@@ -41,11 +41,11 @@ use crate::{
 
 enum EarlyReturn<'a> {
     Always {
-        prev_effects: Vec<Effect<'a>>,
+        prev_effects: BumpVec<'a, Effect<'a>>,
         start_ast_path: BumpBox<'a, [AstParentKind]>,
     },
     Conditional {
-        prev_effects: Vec<Effect<'a>>,
+        prev_effects: BumpVec<'a, Effect<'a>>,
         start_ast_path: BumpBox<'a, [AstParentKind]>,
 
         condition: BumpBox<'a, JsValue<'a>>,
@@ -419,7 +419,7 @@ mod analyzer_state {
             ast_path: &AstNodePath<AstParentNodeRef<'_>>,
         ) {
             let early_return = EarlyReturn::Always {
-                prev_effects: take(&mut self.effects),
+                prev_effects: BumpVec::from(self.take_effects_into_arena()),
                 start_ast_path: as_parent_path_in(self.arena, ast_path),
             };
             self.early_return_stack_mut().push(early_return);
@@ -483,7 +483,7 @@ mod analyzer_state {
                         prev_effects,
                         start_ast_path,
                     } => {
-                        self.effects = prev_effects;
+                        self.effects = prev_effects.into_iter().collect();
                         if self.analyze_mode.is_codegen {
                             self.effects.push(Effect::Unreachable { start_ast_path });
                         }
@@ -505,7 +505,7 @@ mod analyzer_state {
                                 self.ast_paths.intern(start_ast_path.iter().copied()),
                             ),
                         };
-                        self.effects = prev_effects;
+                        self.effects = prev_effects.into_iter().collect();
                         let kind = match (then, r#else, early_return_condition_value) {
                             (None, None, false) => ConditionalKind::If { then: block },
                             (None, None, true) => ConditionalKind::IfElseMultiple {
@@ -1037,7 +1037,8 @@ impl<'a> Analyzer<'a, '_> {
     fn collect_effects(&mut self, visit: impl FnOnce(&mut Self)) -> BumpBox<'a, [Effect<'a>]> {
         let prev_effects = take(&mut self.effects);
         visit(self);
-        replace(&mut self.effects, prev_effects).into_boxed_slice()
+        BumpVec::from_iter_in(self.arena, replace(&mut self.effects, prev_effects))
+            .into_boxed_slice()
     }
 
     fn check_iife<'ast: 'r, 'r>(
@@ -2980,7 +2981,7 @@ impl<'a> Analyzer<'a, '_> {
         match (early_return_when_true, early_return_when_false) {
             (true, false) => {
                 let early_return = EarlyReturn::Conditional {
-                    prev_effects: take(&mut self.effects),
+                    prev_effects: BumpVec::from(self.take_effects_into_arena()),
                     start_ast_path: as_parent_path_in(self.arena, ast_path),
                     condition,
                     then,
@@ -2997,7 +2998,7 @@ impl<'a> Analyzer<'a, '_> {
             }
             (false, true) => {
                 let early_return = EarlyReturn::Conditional {
-                    prev_effects: take(&mut self.effects),
+                    prev_effects: BumpVec::from(self.take_effects_into_arena()),
                     start_ast_path: as_parent_path_in(self.arena, ast_path),
                     condition,
                     then,
@@ -3030,7 +3031,7 @@ impl<'a> Analyzer<'a, '_> {
                 });
                 if early_return_when_false && early_return_when_true {
                     let early_return = EarlyReturn::Always {
-                        prev_effects: take(&mut self.effects),
+                        prev_effects: BumpVec::from(self.take_effects_into_arena()),
                         start_ast_path: as_parent_path_in(self.arena, ast_path),
                     };
                     self.early_return_stack_mut().push(early_return);
