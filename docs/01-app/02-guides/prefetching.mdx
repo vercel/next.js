@@ -86,7 +86,7 @@ With [Partial Prefetching](/docs/app/glossary#partial-prefetching) enabled via t
 
 - **One shell per route, shared across links.** `<Link>` prefetches the route's App Shell, which holds its static and session output. Any number of links to the same route reuse that one shell, fetched once as the first link enters the viewport, so a page with many links makes fewer prefetch requests than prefetching each route in full.
 - **The rest streams in.** Uncached data streams in after navigation, behind the shell's `<Suspense>` boundaries. A link can also resolve its URL data (`searchParams`, `params`) at prefetch time with [`prefetch={true}`](/docs/app/guides/optimizing-prefetching).
-- **Immediate invalidations clear prefetches.** In a Server Action, `updateTag`, `revalidatePath`, and `revalidateTag` with a profile that resolves to `expire: 0` currently invalidate all prefetched routes, including unrelated routes. `revalidateTag(tag, 'max')` leaves prefetches unchanged. See [client cache behavior](/docs/app/api-reference/functions/cacheLife#client-cache-behavior).
+- **Invalidations can clear prefetches.** Server Actions can invalidate prefetched routes. See [client cache behavior](/docs/app/api-reference/functions/cacheLife#client-cache-behavior) for the differences between revalidation APIs.
 
 See [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for the behavior change and the recommended adoption path. See [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) to resolve cached URL-specific content before navigation with `prefetch={true}`.
 

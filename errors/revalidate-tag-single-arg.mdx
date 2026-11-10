@@ -20,7 +20,7 @@ revalidateTag('posts')
 revalidateTag('posts', 'max')
 ```
 
-In a Server Action, this also stops the call from triggering a re-render of the current route and invalidating the client cache. To preserve those immediate client effects, use [`updateTag`](#option-2-use-updatetag-in-server-actions) instead. See [client cache behavior](/docs/app/api-reference/functions/revalidateTag#client-cache-behavior).
+> **Good to know**: In Server Actions, switching to `'max'` also changes [client cache behavior](/docs/app/api-reference/functions/updateTag#client-cache-behavior). Use [`updateTag`](#option-2-use-updatetag-in-server-actions) to preserve immediate updates.
 
 ### Option 2: Use updateTag in Server Actions
 

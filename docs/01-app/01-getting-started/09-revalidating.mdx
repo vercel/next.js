@@ -112,8 +112,6 @@ export async function updateUser(id) {
 
 You can reuse the same tag in multiple functions to revalidate them all at once. Call `revalidateTag` in a [Server Action](/docs/app/getting-started/mutating-data) or [Route Handler](/docs/app/api-reference/file-conventions/route).
 
-In a Server Action, `revalidateTag(tag, 'max')` does not trigger a re-render of the current route or invalidate the client cache. A profile that resolves to `expire: 0`, including `{ expire: 0 }`, has the same client effects as [`updateTag`](#updatetag).
-
 > **Good to know:** The second argument sets how long stale content can be served while fresh content generates in the background. Once it expires, subsequent requests block until fresh content is ready. Using `'max'` gives the longest stale window.
 
 See the [`revalidateTag` API reference](/docs/app/api-reference/functions/revalidateTag) to learn more.
@@ -122,7 +120,7 @@ See the [`revalidateTag` API reference](/docs/app/api-reference/functions/revali
 
 `updateTag` immediately expires cached data for read-your-own-writes scenarios — the user sees their change right away instead of stale content. Unlike `revalidateTag`, it can only be used in [Server Actions](/docs/app/guides/server-actions).
 
-When invoked by a client, the action re-renders the current route and includes the updated UI in its response, even if the route does not use the tag. `updateTag` also currently invalidates all prefetched routes and cached route data used for back/forward navigation, including unrelated routes. Activity-preserved pages keep their local React state; their server data is refreshed when revisited.
+> **Good to know**: `updateTag` also refreshes the calling route and invalidates client cache entries. See [client cache behavior](/docs/app/api-reference/functions/updateTag#client-cache-behavior) for the scope and comparison with `revalidateTag`.
 
 ```tsx filename="app/lib/actions.ts" highlight={1,12} switcher
 import { updateTag } from 'next/cache'
@@ -188,7 +186,7 @@ export async function updateUser(id) {
 }
 ```
 
-> **Good to know**: Tags let you target server-side cached data more precisely than paths. Client cache invalidation is currently broader: both `updateTag` and `revalidatePath` invalidate prefetched routes and cached route data used for back/forward navigation.
+> **Good to know**: Tags let you target server-side cached data more precisely than paths. See [client cache behavior](/docs/app/api-reference/functions/cacheLife#client-cache-behavior) for the broader scope of client invalidation.
 
 See the [`revalidatePath` API reference](/docs/app/api-reference/functions/revalidatePath) to learn more.
 

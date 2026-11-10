@@ -32,10 +32,9 @@ type CacheLifeConfig = {
  * (e.g. `"max"`), or a `{ expire }` object. For immediate expiration in Server Actions, use
  * [`updateTag`](https://nextjs.org/docs/app/api-reference/functions/updateTag) instead.
  *
- * In a Server Action, a profile that resolves to `expire: 0` also re-renders
- * the current route in the action response and invalidates all prefetched
- * routes and cached route data used for back/forward navigation. A profile
- * with a nonzero `expire`, such as `"max"`, does not trigger these client effects.
+ * In a Server Action, `expire: 0` also triggers
+ * [`updateTag`'s client refresh and invalidation](https://nextjs.org/docs/app/api-reference/functions/updateTag#client-cache-behavior).
+ * A nonzero `expire`, such as `"max"`, does not trigger these client effects.
  *
  * Read more: [Next.js Docs: `revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag)
  */
@@ -58,11 +57,8 @@ export function revalidateTag(tag: string, profile: string | CacheLifeConfig) {
  * This function allows you to update [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
  * This can only be called from within a Server Action to enable read-your-own-writes semantics.
  *
- * Re-renders the current route in the action response, even if it does not use
- * the tag. Also invalidates all prefetched routes and cached route data used
- * for back/forward navigation, including unrelated routes. Activity-preserved
- * pages keep their local React state. Server-side cached data without the tag
- * remains cached.
+ * Also re-renders the current route and invalidates client cache entries.
+ * See [client cache behavior](https://nextjs.org/docs/app/api-reference/functions/updateTag#client-cache-behavior) for the scope.
  *
  * Read more: [Next.js Docs: `updateTag`](https://nextjs.org/docs/app/api-reference/functions/updateTag)
  */

@@ -21,7 +21,7 @@ When a client invokes a Server Action that calls `updateTag`, Next.js re-renders
 
 `updateTag` also currently invalidates all prefetched routes and cached route data used for back/forward navigation, including routes that do not use the tag. This invalidation does not unmount pages preserved by [Activity](/docs/app/api-reference/config/next-config-js/cacheComponents#navigation-with-activity) or reset their local React state. Their server data is refreshed when you navigate back to them.
 
-To mark tagged data as stale without triggering this immediate re-render or client cache invalidation, use [`revalidateTag(tag, 'max')`](/docs/app/api-reference/functions/revalidateTag#client-cache-behavior).
+[`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) has the same client effects when called in a Server Action with `{ expire: 0 }`, a named profile that resolves to `expire: 0`, or the deprecated single-argument form. With a nonzero `expire` value, such as `'max'`, it marks tagged data as stale without triggering this immediate re-render or client cache invalidation. Other operations in the action, such as [`refresh`](/docs/app/api-reference/functions/refresh), can still cause a re-render.
 
 ## Parameters
 
