@@ -38,6 +38,7 @@ pub async fn get_app_client_shared_chunk_group(
                 // chunks (e.g. client references) are routed through a separate page-specific
                 // evaluated chunk group instead.
                 OutputAssets::empty(),
+                OutputAssets::empty(),
                 AvailabilityInfo::root(),
             )
             .to_resolved()
