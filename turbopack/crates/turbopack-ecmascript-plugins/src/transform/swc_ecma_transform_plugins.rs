@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use async_trait::async_trait;
 use swc_core::{
     ecma::ast::Program,
@@ -6,8 +6,13 @@ use swc_core::{
 };
 use swc_plugin_backend_wasmtime::WasmtimeRuntime;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, StyledString};
+use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::{FileContent, FileSystemPath};
+use turbopack_core::{
+    asset::Asset,
+    issue::{Issue, IssueSeverity, IssueStage, StyledString},
+    source::Source,
+};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 /// A wrapper around an SWC's ecma transform wasm plugin module bytes, allowing
@@ -32,15 +37,32 @@ pub struct SwcPluginModule {
     pub plugin: swc_core::plugin_runner::plugin_module_bytes::CompiledPluginModuleBytes,
 }
 
+#[turbo_tasks::value_impl]
 impl SwcPluginModule {
-    pub fn new(plugin_name: RcStr, plugin_bytes: Vec<u8>) -> Self {
-        Self {
+    /// Compiles the wasm plugin read from `source`.
+    ///
+    /// This makes sure that concurrently created cells in a shared task cannot come back in another
+    /// plugin's slot and run with that plugin's config (e.g., after a cache restore or eviction)
+    #[turbo_tasks::function]
+    pub async fn from_source(
+        plugin_name: RcStr,
+        source: ResolvedVc<Box<dyn Source>>,
+    ) -> Result<Vc<Self>> {
+        let FileContent::Content(file) = &*source.content().file_content().await? else {
+            bail!("Expected file content for SWC plugin {plugin_name}");
+        };
+
+        Ok(Self {
             plugin: CompiledPluginModuleBytes::from_raw_module(
                 &WasmtimeRuntime,
-                RawPluginModuleBytes::new(plugin_name.to_string(), plugin_bytes),
+                RawPluginModuleBytes::new(
+                    plugin_name.to_string(),
+                    file.content().to_bytes().to_vec(),
+                ),
             ),
             name: plugin_name,
         }
+        .cell())
     }
 }
 
