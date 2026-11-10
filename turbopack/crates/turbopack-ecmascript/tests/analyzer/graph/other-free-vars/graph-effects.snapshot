@@ -147,6 +147,7 @@
                         #2,
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -234,48 +235,6 @@
         span: 56..62,
         in_truthiness_context: false,
     },
-    FreeVar {
-        var: "Object",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    2,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 63..69,
-    },
     MemberCall {
         obj: Variable(
             (
@@ -295,6 +254,50 @@
                 FreeVar(
                     "Object",
                 ),
+                [
+                    FreeVar {
+                        var: "Object",
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    2,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    0,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 63..69,
+                    },
+                ],
             ),
         ],
         ast_path: [

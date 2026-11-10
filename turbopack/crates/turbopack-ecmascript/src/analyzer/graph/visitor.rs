@@ -1349,20 +1349,24 @@ impl<'a> Analyzer<'a, '_> {
                             ),
                         )
                     } else {
-                        self.visit_arg_maybe_cjs_export_target(
+                        let effects = self.collect_effects(|this| {
+                            this.visit_arg_maybe_cjs_export_target(
+                                guard_cjs_export_target,
+                                arg,
+                                &mut ast_path,
+                            );
+                        });
+                        EffectArg::Value(value, effects)
+                    }
+                } else {
+                    let effects = self.collect_effects(|this| {
+                        this.visit_arg_maybe_cjs_export_target(
                             guard_cjs_export_target,
                             arg,
                             &mut ast_path,
                         );
-                        EffectArg::Value(value)
-                    }
-                } else {
-                    self.visit_arg_maybe_cjs_export_target(
-                        guard_cjs_export_target,
-                        arg,
-                        &mut ast_path,
-                    );
-                    EffectArg::Spread
+                    });
+                    EffectArg::Spread(effects)
                 }
             }),
         );
