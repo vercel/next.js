@@ -38,7 +38,7 @@ use crate::{
         storage::{SpecificTaskDataCategory, StorageWriteGuard, TaskEntryGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
+    data::{CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
 
 /// Whether an [`ExecuteContext`] task open may create the task, requires it to already exist, or
@@ -1554,12 +1554,12 @@ impl<'a> TaskGuard<'a> {
         .compute();
         // Fire the all_clean_event if the task transitioned to clean
         if result.dirty_count_update - result.current_session_clean_update < 0
-            && let Some(activeness_state) = self.get_activeness_mut()
+            && let Some(activeness_state) = self.get_activeness_state_mut()
         {
             activeness_state.all_clean_event.notify(usize::MAX);
             activeness_state.unset_active_until_clean();
             if activeness_state.is_empty() {
-                self.take_activeness();
+                self.take_activeness_state();
             }
         }
         result
@@ -1821,18 +1821,6 @@ impl<'a> TaskGuard<'a> {
             )
             .collect::<FxIndexMap<_, _>>();
         (map.len() > 1).then_some(map)
-    }
-
-    /// Get mutable reference to the activeness state, inserting a new one if not present
-    pub fn get_activeness_mut_or_insert_with<F>(&mut self, f: F) -> &mut ActivenessState
-    where
-        F: FnOnce() -> ActivenessState,
-    {
-        if !self.has_activeness() {
-            self.set_activeness(f());
-        }
-        self.get_activeness_mut()
-            .expect("activeness should exist after set")
     }
 }
 

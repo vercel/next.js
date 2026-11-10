@@ -103,9 +103,9 @@ use crate::{
             },
             invalidate::make_task_dirty_internal,
         },
-        storage_schema::TaskStorageAccessors,
+        storage_schema::{ActivenessAccessors, TaskStorageAccessors},
     },
-    data::{ActivenessState, AggregationNumber, CollectibleRef, CollectiblesRef},
+    data::{AggregationNumber, CollectibleRef, CollectiblesRef},
     utils::swap_retain,
 };
 
@@ -631,7 +631,7 @@ impl AggregatedDataUpdate {
                 // When a dirty container count is increased and the task is considered as active
                 // we need to schedule the dirty tasks in the new dirty container
                 let current_session_update = count - current_session_clean_update;
-                if current_session_update > 0 && task.has_activeness() {
+                if current_session_update > 0 && task.is_active() {
                     queue.push_find_and_schedule_dirty(dirty_container_id)
                 }
             }
@@ -748,11 +748,11 @@ impl AggregatedDataUpdate {
                     {
                         // When the current task is no longer dirty, we need to fire the
                         // aggregate root events and do some cleanup
-                        if let Some(activeness_state) = task.get_activeness_mut() {
+                        if let Some(activeness_state) = task.get_activeness_state_mut() {
                             activeness_state.all_clean_event.notify(usize::MAX);
                             activeness_state.unset_active_until_clean();
                             if activeness_state.is_empty() {
-                                task.take_activeness();
+                                task.take_activeness_state();
                             }
                         }
                     }
@@ -1940,7 +1940,7 @@ impl AggregationUpdateQueue {
                         });
                     }
 
-                    if ctx.should_track_activeness() && upper.has_activeness() {
+                    if ctx.should_track_activeness() && upper.is_active() {
                         // If the upper node is has `Activeness` we need to schedule the
                         // dirty tasks in the new dirty container
                         self.push_find_and_schedule_dirty(task_id);
@@ -2080,15 +2080,14 @@ impl AggregationUpdateQueue {
 
         // if it has `Activeness` we can skip visiting the nested nodes since
         // this would already be scheduled by the `Activeness`
-        let is_active_until_clean = task.get_activeness().is_some_and(|a| a.active_until_clean);
+        let is_active_until_clean = task.is_active_until_clean();
         if !is_active_until_clean {
             let mut dirty_containers = task.dirty_containers().peekable();
             let is_empty = dirty_containers.peek().is_none();
             if !is_empty || dirty.is_some() {
                 self.extend_find_and_schedule_dirty(dirty_containers);
 
-                let activeness_state =
-                    task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
+                let activeness_state = task.activeness_state_mut_or_insert(task_id);
                 activeness_state.set_active_until_clean();
             }
         }
@@ -2484,7 +2483,7 @@ impl AggregationUpdateQueue {
             // STEP 6f
             // We need to check this again, since this might have changed in the meantime due to
             // race conditions
-            if ctx.should_track_activeness() && !*is_any_upper_active && upper.has_activeness() {
+            if ctx.should_track_activeness() && !*is_any_upper_active && upper.is_active() {
                 *is_any_upper_active = true;
             }
         };
@@ -2555,7 +2554,7 @@ impl AggregationUpdateQueue {
         if ctx.should_track_activeness() && !is_upper_active {
             // We need to check this again, since this might have changed in the meantime due to
             // race conditions
-            is_upper_active = upper.has_activeness();
+            is_upper_active = upper.is_active();
         }
         let upper_ids = if diffs.is_empty() {
             TaskIdVec::new()
@@ -2670,8 +2669,7 @@ impl AggregationUpdateQueue {
                         // STEP 3c
                         if ctx.should_track_activeness() {
                             // update active count
-                            let has_active_count =
-                                upper.get_activeness().is_some_and(|a| a.active_counter > 0);
+                            let has_active_count = upper.has_positive_active_count();
 
                             // STEP 3d
                             if has_active_count {
@@ -2705,7 +2703,7 @@ impl AggregationUpdateQueue {
                 } else {
                     // STEP 4
                     // It's an inner node, continue with the list
-                    if ctx.should_track_activeness() && upper.has_activeness() {
+                    if ctx.should_track_activeness() && upper.is_active() {
                         is_active = true;
                     }
                     drop(upper);
@@ -2903,7 +2901,7 @@ impl AggregationUpdateQueue {
                 }
 
                 // STEP 4
-                if ctx.should_track_activeness() && upper.has_activeness() {
+                if ctx.should_track_activeness() && upper.is_active() {
                     is_active = true;
                 }
             }
@@ -3092,7 +3090,7 @@ impl AggregationUpdateQueue {
 
             // STEP 4
             // It's an inner node, continue with the list
-            let is_active = ctx.should_track_activeness() && upper.has_activeness();
+            let is_active = ctx.should_track_activeness() && upper.is_active();
             drop(upper);
             let min_upper_aggregation_number = upper_aggregation_number;
 
@@ -3152,13 +3150,8 @@ impl AggregationUpdateQueue {
             AGGREGATION_UPDATE_CATEGORY,
         );
         self.check_optimization_pending(&task);
-        let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
-        let is_new = state.is_empty();
-        let is_zero = state.decrement_active_counter();
-        let is_empty = state.is_empty();
-        if is_empty {
-            task.take_activeness();
-        }
+        let is_new = !task.is_active();
+        let is_zero = task.add_active_count(task_id, -1) == 0;
         debug_assert!(
             !(is_new && is_zero),
             // This allows us to but the `if is_zero` block in the else branch of the `if is_new`
@@ -3166,10 +3159,9 @@ impl AggregationUpdateQueue {
             "A new Activeness will never be zero after decrementing"
         );
         if is_new {
-            // A task is considered "active" purely by the existence of an `Activeness` item, even
-            // if that item has an negative active counter. So we need to make sure to
-            // schedule it here. That case is pretty rare and only happens under extreme race
-            // conditions.
+            // A task is considered active while its active count is non-zero, even if negative.
+            // So we need to make sure to schedule it here. That case is pretty rare and only
+            // happens under extreme race conditions.
             self.find_and_schedule_dirty_internal(task_id, task, ctx);
         } else if is_zero {
             let followers = get_followers(&task);
@@ -3203,16 +3195,10 @@ impl AggregationUpdateQueue {
             AGGREGATION_UPDATE_CATEGORY,
         );
         task.assert_not_deleted("increase_active_count");
-        let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
-        let is_new = state.is_empty();
-        let is_positive_now = state.increment_active_counter();
-        let is_empty = state.is_empty();
+        let is_new = !task.is_active();
+        let is_positive_now = task.add_active_count(task_id, 1) == 1;
         if release_construction_ref {
             task.update_and_get_transient_ref_count(-1);
-        }
-        // This can happen if active count was negative before
-        if is_empty {
-            task.take_activeness();
         }
         debug_assert!(
             !is_new || is_positive_now,
@@ -3643,8 +3629,7 @@ struct FollowerEdgePropagation {
 impl FollowerEdgePropagation {
     fn capture(ctx: &ExecuteContext<'_>, upper: &TaskGuard<'_>) -> Self {
         Self {
-            has_active_count: ctx.should_track_activeness()
-                && upper.get_activeness().is_some_and(|a| a.active_counter > 0),
+            has_active_count: ctx.should_track_activeness() && upper.has_positive_active_count(),
             upper_ids: get_uppers(upper),
         }
     }
@@ -4001,11 +3986,10 @@ mod follower_debt_tests {
     use crate::{
         backend::{
             BackendOptions, StorageMode, TaskDataCategory, TurboTasksBackend,
-            operation::ExecuteContext, storage_schema::TaskStorageAccessors,
+            operation::ExecuteContext,
+            storage_schema::{ActivenessAccessors, TaskStorageAccessors},
         },
-        data::{
-            ActivenessState, AggregationNumber, CellRef, CollectibleRef, Dirtyness, OutputValue,
-        },
+        data::{AggregationNumber, CellRef, CollectibleRef, Dirtyness, OutputValue},
         noop_backing_storage,
     };
 
@@ -4896,9 +4880,7 @@ mod follower_debt_tests {
         for &task_id in active_tasks {
             let mut task = ctx.task(id(task_id), TaskDataCategory::All);
             task.set_output(OutputValue::Cell(collectible().cell));
-            let mut state = ActivenessState::new(id(task_id));
-            state.active_counter = 2;
-            task.set_activeness(state);
+            task.add_active_count(id(task_id), 2);
         }
         assert!(ctx.should_track_activeness());
     }
@@ -4914,8 +4896,7 @@ mod follower_debt_tests {
             task.get_aggregated_current_session_clean_container_count()
                 .copied()
                 .unwrap_or_default(),
-            task.get_activeness()
-                .map_or(0, |state| state.active_counter),
+            task.active_count(),
         )
     }
 

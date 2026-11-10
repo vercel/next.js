@@ -11,7 +11,7 @@ use crate::{
                 AggregationUpdateJob, AggregationUpdateQueue, ComputeDirtyAndCleanUpdate,
             },
         },
-        storage_schema::TaskStorageAccessors,
+        storage_schema::{ActivenessAccessors, TaskStorageAccessors},
     },
     data::{Dirtyness, InProgressState, InProgressStateInner},
 };
@@ -240,7 +240,7 @@ pub(super) fn make_task_dirty_without_scheduling(
         queue.extend(AggregationUpdateJob::data_update(task, aggregated_update));
     }
 
-    let should_schedule = !ctx.should_track_activeness() || task.has_activeness();
+    let should_schedule = !ctx.should_track_activeness() || task.is_active();
 
     if should_schedule {
         let description = EventDescription::new(|| task.get_task_desc_fn());

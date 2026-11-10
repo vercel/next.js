@@ -74,12 +74,12 @@ use crate::{
         },
         snapshot_coordinator::{OperationGuard, SlowSettle, SnapshotCoordinator},
         storage::{Storage, StorageOptions, encode_snapshot_item},
-        storage_schema::{TaskStorage, TaskStorageAccessors},
+        storage_schema::{ActivenessAccessors, TaskStorage, TaskStorageAccessors},
     },
     backing_storage::SnapshotItem,
     data::{
-        ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
-        InProgressState, InProgressStateInner, LeafDistance, OutputValue, TransientTask,
+        CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState, InProgressState,
+        InProgressStateInner, LeafDistance, OutputValue, TransientTask,
     },
     error::{TaskError, TaskErrorItem},
     kv_backing_storage::TurboBackingStorage,
@@ -765,7 +765,7 @@ impl TurboTasksBackend {
             // Check the dirty count of the root node
             let has_dirty_containers = task.has_dirty_containers();
             if has_dirty_containers || is_dirty.is_some() {
-                let activeness = task.get_activeness_mut();
+                let activeness = task.get_activeness_state_mut();
                 let mut task_ids_to_schedule: Vec<_> = Vec::new();
                 // When there are dirty task, subscribe to the all_clean_event
                 let activeness = if let Some(activeness) = activeness {
@@ -783,8 +783,7 @@ impl TurboTasksBackend {
                         task_ids_to_schedule = task.dirty_containers().collect();
                         task_ids_to_schedule.push(task_id);
                     }
-                    let activeness =
-                        task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
+                    let activeness = task.activeness_state_mut_or_insert(task_id);
                     activeness.set_active_until_clean();
                     activeness
                 };
@@ -815,10 +814,15 @@ impl TurboTasksBackend {
                                         InProgressState::Scheduled { .. } => "scheduled",
                                         InProgressState::Canceled => "canceled",
                                     });
-                            let activeness = task.get_activeness().map_or_else(
-                                || "not active".to_string(),
-                                |activeness| format!("{activeness:?}"),
-                            );
+                            let activeness = if task.is_active() {
+                                format!(
+                                    "active count {}, {:?}",
+                                    task.active_count(),
+                                    task.get_activeness_state()
+                                )
+                            } else {
+                                "not active".to_string()
+                            };
                             let aggregation_number = get_aggregation_number(&task);
                             let missing_upper = if let Some((parent_task_id, _)) = parent_and_count
                             {
@@ -2979,10 +2983,7 @@ impl TurboTasksBackend {
             return Some(stale_priority);
         }
 
-        let has_active_count = ctx.should_track_activeness()
-            && task
-                .get_activeness()
-                .is_some_and(|activeness| activeness.active_counter > 0);
+        let has_active_count = ctx.should_track_activeness() && task.has_positive_active_count();
         connect_children(
             ctx,
             task_id,
@@ -3733,13 +3734,13 @@ impl TurboTasksBackend {
         let is_dirty = task.is_dirty();
         let has_dirty_containers = task.has_dirty_containers();
         if is_dirty.is_some() || has_dirty_containers {
-            if let Some(activeness_state) = task.get_activeness_mut() {
+            if let Some(activeness_state) = task.get_activeness_state_mut() {
                 // We will finish the task, but it would be removed after the task is done
                 activeness_state.unset_root_type();
                 activeness_state.set_active_until_clean();
             };
         } else {
-            if let Some(activeness_state) = task.take_activeness() {
+            if let Some(activeness_state) = task.take_all_activeness() {
                 // Technically nobody should be listening to this event, but just in case
                 // we notify it anyway
                 activeness_state.all_clean_event.notify(usize::MAX);
