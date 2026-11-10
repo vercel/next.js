@@ -1,3 +1,4 @@
+mod base;
 mod counter;
 mod memory_footprint;
 mod memory_pressure;
@@ -187,56 +188,35 @@ impl TurboMalloc {
     }
 }
 
-/// Get the allocator for this platform that we should wrap with TurboMalloc.
-#[inline]
-fn base_alloc() -> &'static impl GlobalAlloc {
-    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
-    return &mimalloc::MiMalloc;
-    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
-    return &std::alloc::System;
-}
-
-#[allow(unused_variables)]
-unsafe fn base_alloc_size(ptr: *const u8, layout: Layout) -> usize {
-    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
-    return unsafe { mimalloc::MiMalloc.usable_size(ptr) };
-    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
-    return layout.size();
-}
-
 unsafe impl GlobalAlloc for TurboMalloc {
+    #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let ret = unsafe { base_alloc().alloc(layout) };
+        let (ret, size) = unsafe { base::alloc(layout) };
         if !ret.is_null() {
-            let size = unsafe { base_alloc_size(ret, layout) };
             add(size);
         }
         ret
     }
 
+    #[inline]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        let size = unsafe { base_alloc_size(ptr, layout) };
-        unsafe { base_alloc().dealloc(ptr, layout) };
+        let size = unsafe { base::dealloc(ptr, layout) };
         remove(size);
     }
 
+    #[inline]
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
-        let ret = unsafe { base_alloc().alloc_zeroed(layout) };
+        let (ret, size) = unsafe { base::alloc_zeroed(layout) };
         if !ret.is_null() {
-            let size = unsafe { base_alloc_size(ret, layout) };
             add(size);
         }
         ret
     }
 
+    #[inline]
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        let old_size = unsafe { base_alloc_size(ptr, layout) };
-        let ret = unsafe { base_alloc().realloc(ptr, layout, new_size) };
+        let (ret, old_size, new_size) = unsafe { base::realloc(ptr, layout, new_size) };
         if !ret.is_null() {
-            // SAFETY: the caller must ensure that the `new_size` does not overflow.
-            // `layout.align()` comes from a `Layout` and is thus guaranteed to be valid.
-            let new_layout = unsafe { Layout::from_size_align_unchecked(new_size, layout.align()) };
-            let new_size = unsafe { base_alloc_size(ret, new_layout) };
             update(old_size, new_size);
         }
         ret
@@ -245,6 +225,8 @@ unsafe impl GlobalAlloc for TurboMalloc {
 
 #[cfg(test)]
 mod tests {
+    use std::alloc::{GlobalAlloc, Layout};
+
     use super::TurboMalloc;
 
     // `memory_usage` reports what *this* allocator has committed, so the test binary has to
@@ -252,6 +234,72 @@ mod tests {
     // system allocator and mimalloc's counter never moves.
     #[global_allocator]
     static ALLOC: TurboMalloc = TurboMalloc;
+
+    /// The sizes reported on allocation and on deallocation must match. Otherwise the counters
+    /// drift. Covers every size class and alignment path, including reallocation in place, moving
+    /// reallocation and over-aligned reallocation.
+    #[test]
+    fn allocation_counters_balance() {
+        // Small, at and above the small-size limit, medium, and huge.
+        // Huge is skipped under Miri because it's too slow there.
+        #[cfg(not(miri))]
+        const SIZES: [usize; 6] = [1, 24, 1024, 1025, 64 * 1024, 8 * 1024 * 1024];
+        #[cfg(miri)]
+        const SIZES: [usize; 5] = [1, 24, 1024, 1025, 64 * 1024];
+        const ALIGNS: [usize; 4] = [1, 16, 64, 4096];
+
+        // No other allocation may happen on this thread between `before` and `after`, so collect
+        // all layouts up front.
+        let mut layouts = [Layout::new::<u8>(); SIZES.len() * ALIGNS.len()];
+        for (i, (size, align)) in SIZES
+            .iter()
+            .flat_map(|size| ALIGNS.iter().map(move |align| (*size, *align)))
+            .enumerate()
+        {
+            layouts[i] = Layout::from_size_align(size, align).unwrap();
+        }
+
+        let before = TurboMalloc::allocation_counters();
+        for layout in layouts {
+            for zeroed in [false, true] {
+                unsafe {
+                    let ptr = if zeroed {
+                        ALLOC.alloc_zeroed(layout)
+                    } else {
+                        ALLOC.alloc(layout)
+                    };
+                    assert!(!ptr.is_null());
+                    assert_eq!(ptr as usize % layout.align(), 0);
+                    if zeroed {
+                        assert_eq!(*ptr, 0);
+                        assert_eq!(*ptr.add(layout.size() - 1), 0);
+                    }
+                    ptr.write_bytes(0xab, layout.size());
+
+                    // Shrink a little (usually in place), then grow a lot (moves).
+                    let mut layout = layout;
+                    let mut ptr = ptr;
+                    for new_size in [layout.size().div_ceil(2).max(1), layout.size() * 3] {
+                        ptr = ALLOC.realloc(ptr, layout, new_size);
+                        assert!(!ptr.is_null());
+                        assert_eq!(ptr as usize % layout.align(), 0);
+                        let kept = layout.size().min(new_size);
+                        assert_eq!(*ptr, 0xab);
+                        assert_eq!(*ptr.add(kept - 1), 0xab);
+                        layout = Layout::from_size_align(new_size, layout.align()).unwrap();
+                        ptr.write_bytes(0xab, layout.size());
+                    }
+                    ALLOC.dealloc(ptr, layout);
+                }
+            }
+        }
+        let after = TurboMalloc::allocation_counters();
+
+        let allocated = after.allocations - before.allocations;
+        let deallocated = after.deallocations - before.deallocations;
+        assert!(allocated > 0);
+        assert_eq!(allocated, deallocated);
+    }
 
     /// Guards against the counter silently becoming unavailable.
     #[test]
