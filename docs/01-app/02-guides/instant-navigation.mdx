@@ -309,9 +309,11 @@ Toggle **Pause on navigations** off when you're done inspecting loading states. 
 
 ## Prevent regressions with e2e tests
 
-Validation catches structural problems during development, but as the codebase grows, the structural checks can only tell you that a shell exists. They can't tell you whether the right content is in it. E2E tests close that gap: they assert on what the user actually sees when the navigation completes, catching regressions before they ship.
+Instant validation checks that a route can show a shell. E2E tests check that the shell contains the content and loading states you expect.
 
-The [`@next/playwright`](https://www.npmjs.com/package/@next/playwright) package includes an `instant()` helper for this. Install it alongside `@playwright/test`:
+The [`@next/playwright`](https://www.npmjs.com/package/@next/playwright) package provides `instant()`, which pauses dynamic content while you make assertions inside its callback. When the callback finishes, dynamic content resumes. This matches **Pause on navigations** and **Resume** in the [Navigation Inspector](#visualize-loading-states-with-the-nextjs-devtools).
+
+Install it alongside `@playwright/test`:
 
 ```bash package="pnpm"
 pnpm add -D @next/playwright @playwright/test
@@ -329,10 +331,14 @@ yarn add -D @next/playwright @playwright/test
 bun add -D @next/playwright @playwright/test
 ```
 
-A route can be reached two ways, and a `<Suspense>` boundary can cover one without covering the other:
+### Test page loads and client navigations
 
-- **Initial page load**: Use `page.goto()` to test the static UI from the document response.
-- **Client navigation**: Click a `<Link>` to test the destination's prefetched UI. [Per-link prefetching](/docs/app/guides/optimizing-prefetching) can add request-specific content to this UI.
+Test both ways of reaching the route, because each can show different content before dynamic data arrives:
+
+- **Initial page load:** Use `page.goto()` to check the static UI. Pass Playwright's `baseURL` to `instant()` so it knows the origin before the first request.
+- **Client navigation:** Click a `<Link>` to check the destination's prefetched UI. [Per-link prefetching](/docs/app/guides/optimizing-prefetching) can include URL-specific content.
+
+For the [product route above](#a-page-that-navigates-instantly), the initial static shell shows the product fallback because there is no `generateStaticParams`. On client navigation, a link with `prefetch={true}` makes the cached product heading available. Inventory loads after the callback in both cases.
 
 ```typescript filename="e2e/navigation.test.ts" highlight={6-18,29-41}
 import { test, expect } from '@playwright/test'
@@ -348,7 +354,7 @@ test.describe('Product page (/store/[slug])', () => {
           page.getByText('Loading product...').filter({ visible: true })
         ).toBeVisible()
         await expect(
-          page.getByText('In stock').filter({ visible: true })
+          page.getByText(/^\d+ in stock$/).filter({ visible: true })
         ).toHaveCount(0)
       },
       { baseURL }
@@ -357,7 +363,7 @@ test.describe('Product page (/store/[slug])', () => {
       'Baseball Cap'
     )
     await expect(
-      page.getByText('In stock').filter({ visible: true })
+      page.getByText(/^\d+ in stock$/).filter({ visible: true })
     ).toBeVisible()
   })
 
@@ -373,31 +379,26 @@ test.describe('Product page (/store/[slug])', () => {
         'Baseball Cap'
       )
       await expect(
-        page.getByText('In stock').filter({ visible: true })
+        page.getByText(/^\d+ in stock$/).filter({ visible: true })
       ).toHaveCount(0)
     })
     await expect(
-      page.getByText('In stock').filter({ visible: true })
+      page.getByText(/^\d+ in stock$/).filter({ visible: true })
     ).toBeVisible()
   })
 })
 ```
 
-The example route has no `generateStaticParams`, so its product heading is outside the initial static shell. Check the product fallback inside the initial-load scope and the heading after it finishes. On a client navigation, per-link prefetching makes the product heading available inside the scope.
-
-Pass Playwright's `baseURL` to `instant()` when `page.goto()` is the first navigation. The helper needs the origin before requesting the document.
-
-Inside the callback, an initial page load shows the static UI and a client navigation shows the destination's prefetched UI. Other dynamic content remains blocked until the callback finishes.
-
-> **Good to know:** The start of the `instant()` scope is the same as turning on **Pause on navigations** in the Navigation Inspector, and the end of the scope releases the pause the way **Resume** does.
-
-For client navigations, wait for the destination URL before asserting on its UI. Otherwise, a shared selector can match the source page before the destination commits. If the prefetched destination cannot commit, the URL wait times out and the test fails.
-
 > **Good to know:** A completed page response includes any content streamed after navigation. Assertions inside `instant()` check what is available immediately, before that content arrives.
 
-Cache Components keeps previous pages hidden in the DOM after navigation. Use `getByRole`, which excludes hidden elements by default, or filter other locators with `.filter({ visible: true })` so assertions target the visible page. See [Testing preserved UI](/docs/app/guides/preserving-ui-state#testing).
+When writing assertions:
 
-Run these against `next dev`, where the testing API is enabled automatically. For CI with a production build, enable [`exposeTestingApiInProductionBuild`](/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild) only for the test build:
+- Wait for the destination URL before checking its UI. Otherwise, a shared selector can match the source page. If the destination cannot appear while dynamic content is paused, the URL wait times out and the test fails.
+- Target visible elements. Cache Components keeps previous pages hidden in the DOM. `getByRole` excludes hidden elements by default. For other locators, use `.filter({ visible: true })`. See [Testing preserved UI](/docs/app/guides/preserving-ui-state#testing).
+
+### Run against a production build
+
+The testing API is enabled automatically in `next dev`. To run these tests against a production build, enable [`exposeTestingApiInProductionBuild`](/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild) only for the test build:
 
 ```ts filename="next.config.ts" highlight={3,9}
 import type { NextConfig } from 'next'
@@ -416,8 +417,6 @@ export default nextConfig
 ```
 
 Set `EXPOSE_TESTING_API=1` when running both `next build` and `next start`. Setting it only for `next start` does not add the testing API to an existing build.
-
-Focus these tests on the user flows that matter most.
 
 ## Fixing a navigation that blocks
 
