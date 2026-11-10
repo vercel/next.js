@@ -334,8 +334,6 @@ A route can be reached two ways, and a `<Suspense>` boundary can cover one witho
 - **Initial page load**: Use `page.goto()` to test the static UI from the document response.
 - **Client navigation**: Click a `<Link>` to test the destination's prefetched UI. [Per-link prefetching](/docs/app/guides/optimizing-prefetching) can add request-specific content to this UI.
 
-A completed page response can include both prefetched and dynamic content. Clicking a `<Link>` inside `instant()` lets you test the prefetched UI while dynamic content is paused.
-
 ```typescript filename="e2e/navigation.test.ts" highlight={6-18,29-41}
 import { test, expect } from '@playwright/test'
 import { instant } from '@next/playwright'
@@ -389,7 +387,7 @@ The example route has no `generateStaticParams`, so its product heading is outsi
 
 Pass Playwright's `baseURL` to `instant()` when `page.goto()` is the first navigation. The helper needs the origin before requesting the document.
 
-Inside the callback, an initial page load shows the static UI and a client navigation shows the destination's prefetched UI. Other dynamic content remains blocked until the callback finishes.
+Inside the callback, an initial page load shows the static UI and a client navigation shows the destination's prefetched UI. Dynamic content remains paused until the callback finishes. Checking only the completed response would include that later content, so it would not tell you which UI was available immediately.
 
 > **Good to know:** The start of the `instant()` scope is the same as turning on **Pause on navigations** in the Navigation Inspector, and the end of the scope releases the pause the way **Resume** does.
 
