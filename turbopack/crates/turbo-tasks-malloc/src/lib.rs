@@ -92,7 +92,7 @@ impl TurboMalloc {
     ///
     /// See `current_commit` in [`mi_process_info`], which documents each figure mimalloc reports.
     ///
-    /// [`mi_process_info`]: https://docs.rs/libmimalloc-sys/latest/libmimalloc_sys/fn.mi_process_info.html
+    /// [`mi_process_info`]: https://github.com/microsoft/mimalloc/blob/main3/include/mimalloc.h
     ///
     /// Without the `custom_allocator` feature this is a process-wide live-bytes counter instead,
     /// which is approximate because threads buffer their updates.
@@ -105,7 +105,7 @@ impl TurboMalloc {
             let mut current_commit = 0usize;
             // Safety: every out-param is either null or a valid `usize` we own.
             unsafe {
-                libmimalloc_sys::mi_process_info(
+                mimalloc::sys::mi_process_info(
                     /* elapsed_msecs */ std::ptr::null_mut(),
                     /* user_msecs */ std::ptr::null_mut(),
                     /* system_msecs */ std::ptr::null_mut(),
@@ -141,9 +141,7 @@ impl TurboMalloc {
     /// return memory to the OS if possible, this is much slower and should only be done rarely.
     pub fn collect(force: bool) {
         #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
-        unsafe {
-            libmimalloc_sys::mi_collect(force);
-        }
+        mimalloc::collect(force);
         #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
         {
             let _ = force;
