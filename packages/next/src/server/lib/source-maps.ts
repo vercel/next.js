@@ -11,6 +11,15 @@ const findSourceMap =
     ? noSourceMap
     : (require('module') as typeof import('module')).findSourceMap
 
+// Edge runtime does not implement `inspector`
+const isInspectorActive: () => boolean =
+  process.env.NEXT_RUNTIME === 'edge'
+    ? () => false
+    : (() => {
+        const inspector = require('inspector') as typeof import('inspector')
+        return () => inspector.url() !== undefined
+      })()
+
 /**
  * https://tc39.es/source-map/#index-map
  */
@@ -223,7 +232,58 @@ const sourceMapURLs = new LRUCache<string | typeof invalidSourceMap>(
       : // these URLs contain only ASCII characters so .length is equal to Buffer.byteLength
         url.length)
 )
+/**
+ * The `findSourceMapURL` option of the Flight clients that run on the server
+ * (SSR, "use cache", ...). React calls it for every fake function it creates
+ * for a replayed Server Component stack frame.
+ *
+ * With a source map URL, the fake function gets a virtual
+ * `about://React/<env>/<chunk>?<n>` URL and a `sourceMappingURL` comment.
+ * Under `--enable-source-maps`, Node.js then eagerly records source map
+ * metadata for each of these scripts, including the length of every line of
+ * their padding (as many newlines as the frame's line in the chunk). With
+ * many frames, that is a lot of CPU time and memory for data we never need.
+ *
+ * Without a source map URL, React names the fake function after the chunk
+ * it points into instead, and its positions are padded to match the chunk.
+ * For chunks loaded from disk, Node.js and our own stack handling
+ * (`patch-error-inspect`, the dev overlay middlewares) then map the frames
+ * lazily through the chunk's source map. Only an attached debugger needs the
+ * source map URL on the fake function itself. React caches fake functions,
+ * so frames created before a debugger attached stay unmapped in it.
+ *
+ * Any other script keeps the source map URL, e.g. modules evaluated by
+ * server HMR, whose URL has a query: React re-encodes the fake function's
+ * URL, so it would no longer match the script Node.js knows the source map
+ * of.
+ */
 export function findSourceMapURLDEV(
+  scriptNameOrSourceURL: string
+): string | null {
+  if (isPlainAbsoluteFilePath(scriptNameOrSourceURL) && !isInspectorActive()) {
+    return null
+  }
+  return findSourceMapURLWithBundlerDEV(scriptNameOrSourceURL)
+}
+
+/**
+ * Whether `scriptNameOrSourceURL` is an absolute POSIX path that the fake
+ * function's URL (React uses `encodeURI('file://' + path)`) still points at,
+ * i.e. one that `fileURLToPath` turns back into the same path.
+ * React doesn't turn Windows paths into `file:` URLs, so those keep the
+ * source map URL.
+ */
+function isPlainAbsoluteFilePath(scriptNameOrSourceURL: string): boolean {
+  return (
+    scriptNameOrSourceURL.startsWith('/') &&
+    // `encodeURI` keeps `?` and `#`, which would start the URL's query or
+    // fragment. Paths containing `%` are left alone too, so that there are no
+    // encoding round-trip surprises.
+    !/[?#%]/.test(scriptNameOrSourceURL)
+  )
+}
+
+function findSourceMapURLWithBundlerDEV(
   scriptNameOrSourceURL: string
 ): string | null {
   try {

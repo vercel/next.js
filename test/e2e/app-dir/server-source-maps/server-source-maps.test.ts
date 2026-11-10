@@ -396,6 +396,46 @@ describe('app-dir - server source maps', () => {
     }
   })
 
+  it('Server Component frames in SSR owner stacks are sourcemapped', async () => {
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/ssr-owner-stack')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: ssr-owner-stack'
+        )
+      })
+      const output = normalizeCliOutput(next.cliOutput.slice(outputIndex))
+      // The owners are Server Components, so their frames come from the fake
+      // functions created by the SSR Flight client.
+      expect(output).toContain(
+        'Error: ssr-owner-stack' +
+          '\n    at ServerComponent (app/ssr-owner-stack/page.js:4:10)' +
+          '\n    at Page (app/ssr-owner-stack/page.js:8:10)' +
+          '\n'
+      )
+
+      // Without an attached debugger, fake functions of chunks loaded from
+      // disk are created without a source map URL. React then names them
+      // after the chunk instead of a virtual `about://React/` URL.
+      // Webpack's server modules have `webpack-internal:` URLs and Windows
+      // paths aren't turned into `file:` URLs, so both keep their source map
+      // URL.
+      if (isTurbopack && process.platform !== 'win32') {
+        const rawOwnerStack: string = JSON.parse(
+          output.match(/ssr-owner-stack raw: (".*")/)![1]
+        )
+        expect(rawOwnerStack).not.toContain('about://React/')
+        expect(rawOwnerStack).toMatch(
+          /at ServerComponent \(file:\/\/\/.+\/\.next\/.+\.js:\d+:\d+\)/
+        )
+      }
+    } else {
+      // Owner stacks are only available in development.
+    }
+  })
+
   it('stack frames are ignore-listed in ssr', async () => {
     if (isNextDev) {
       const outputIndex = next.cliOutput.length
