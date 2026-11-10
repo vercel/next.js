@@ -9,6 +9,8 @@ export interface MissingDependency {
    * If `exportsRestrict` is false, `${file}` MUST also resolve.
    */
   pkg: string
+  /** Package specifier to install when it differs from pkg. */
+  install?: string
   /**
    * If true, the pkg's package.json needs to be resolvable.
    * If true, will resolve `file` relative to the real path of the package.json.

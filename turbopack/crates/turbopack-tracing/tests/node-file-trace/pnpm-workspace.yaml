@@ -22,6 +22,8 @@ allowBuilds:
   es5-ext: true
   esbuild: true
   ffmpeg-static: true
+  # macOS-only optional dependency; builds from source with node-gyp
+  fsevents: false
   leveldown: true
   microtime: true
   msgpackr-extract: true

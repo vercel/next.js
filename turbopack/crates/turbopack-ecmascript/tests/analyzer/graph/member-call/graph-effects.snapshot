@@ -13,6 +13,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -41,6 +42,7 @@
             ),
         ],
         span: 35..43,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -56,6 +58,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -93,6 +96,7 @@
             ),
         ],
         span: 70..82,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -268,6 +272,95 @@
                 ),
             ),
         ),
+        base_effects: [
+            Member {
+                obj: Array {
+                    total_nodes: 5,
+                    items: [
+                        Array {
+                            total_nodes: 4,
+                            items: [
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            1.0,
+                                        ),
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            2.0,
+                                        ),
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            3.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                            mutable: true,
+                        },
+                    ],
+                    mutable: true,
+                },
+                prop: Constant(
+                    Num(
+                        ConstantNumber(
+                            0.0,
+                        ),
+                    ),
+                ),
+                base_effects: [],
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            3,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Callee,
+                    ),
+                    Callee(
+                        Expr,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                ],
+                span: 139..153,
+                in_truthiness_context: false,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -305,91 +398,7 @@
             ),
         ],
         span: 139..160,
-    },
-    Member {
-        obj: Array {
-            total_nodes: 5,
-            items: [
-                Array {
-                    total_nodes: 4,
-                    items: [
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    1.0,
-                                ),
-                            ),
-                        ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    2.0,
-                                ),
-                            ),
-                        ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    3.0,
-                                ),
-                            ),
-                        ),
-                    ],
-                    mutable: true,
-                },
-            ],
-            mutable: true,
-        },
-        prop: Constant(
-            Num(
-                ConstantNumber(
-                    0.0,
-                ),
-            ),
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    3,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 139..153,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "unknown",
@@ -611,6 +620,95 @@
                 ),
             ),
         ),
+        base_effects: [
+            Member {
+                obj: Array {
+                    total_nodes: 5,
+                    items: [
+                        Array {
+                            total_nodes: 4,
+                            items: [
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            1.0,
+                                        ),
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            2.0,
+                                        ),
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            3.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                            mutable: true,
+                        },
+                    ],
+                    mutable: true,
+                },
+                prop: Constant(
+                    Num(
+                        ConstantNumber(
+                            0.0,
+                        ),
+                    ),
+                ),
+                base_effects: [],
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            4,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Callee,
+                    ),
+                    Callee(
+                        Expr,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                ],
+                span: 200..214,
+                in_truthiness_context: false,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -648,91 +746,7 @@
             ),
         ],
         span: 200..221,
-    },
-    Member {
-        obj: Array {
-            total_nodes: 5,
-            items: [
-                Array {
-                    total_nodes: 4,
-                    items: [
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    1.0,
-                                ),
-                            ),
-                        ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    2.0,
-                                ),
-                            ),
-                        ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    3.0,
-                                ),
-                            ),
-                        ),
-                    ],
-                    mutable: true,
-                },
-            ],
-            mutable: true,
-        },
-        prop: Constant(
-            Num(
-                ConstantNumber(
-                    0.0,
-                ),
-            ),
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    4,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 200..214,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "unknown",
@@ -906,6 +920,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -934,6 +949,7 @@
             ),
         ],
         span: 304..313,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -949,6 +965,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -986,6 +1003,7 @@
             ),
         ],
         span: 348..360,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(

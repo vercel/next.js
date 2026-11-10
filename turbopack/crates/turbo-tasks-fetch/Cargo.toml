@@ -61,6 +61,11 @@ webpki-root-certs = "1"
 [target.'cfg(all(windows, target_arch = "aarch64"))'.dependencies]
 reqwest = { workspace = true, features = ["native-tls"] }
 
+# On wasm there is no usable HTTP client (see `src/wasm_reqwest.rs`), so `reqwest` is not a
+# dependency there and the local stand-in is used instead. It only needs a hash map.
+[target.'cfg(target_family = "wasm")'.dependencies]
+rustc-hash = { workspace = true }
+
 [dev-dependencies]
 mockito = { version = "1.7.0", default-features = false }
 tokio = { workspace = true, features = ["full"] }

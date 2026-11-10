@@ -39,17 +39,25 @@ const getReactCompilerPlugins = (
     // react/package.json not resolvable — skip target detection
   }
 
-  const environment: Pick<EnvironmentConfig, 'enableNameAnonymousFunctions'> = {
-    enableNameAnonymousFunctions: isDev,
-  }
   const options: ReactCompilerOptions =
     typeof maybeOptions === 'boolean' ? {} : maybeOptions
-  const compilerOptions: JSONValue = {
-    ...options,
+  const { environment: userEnvironment, ...compilerOptions } = options
+  const environment = {
+    enableNameAnonymousFunctions: isDev,
+    ...(userEnvironment?.enablePreserveExistingMemoizationGuarantees !==
+    undefined
+      ? {
+          enablePreserveExistingMemoizationGuarantees:
+            userEnvironment.enablePreserveExistingMemoizationGuarantees,
+        }
+      : {}),
+  } satisfies Partial<EnvironmentConfig>
+  const resolvedCompilerOptions: JSONValue = {
+    ...compilerOptions,
     ...(target ? { target } : {}),
     environment,
   }
-  return [[getReactCompiler(), compilerOptions]]
+  return [[getReactCompiler(), resolvedCompilerOptions]]
 }
 
 const getBabelLoader = (

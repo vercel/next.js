@@ -28,6 +28,7 @@ import {
 import { SavedSpan } from './constants'
 
 const customKey = Symbol.for('opentelemetry.test/custom')
+const forceFlushKey = Symbol.for('opentelemetry.test/forceFlush')
 
 const serializeSpan = (span: ReadableSpan): SavedSpan => ({
   runtime: process.env.NEXT_RUNTIME,
@@ -46,12 +47,26 @@ const serializeSpan = (span: ReadableSpan): SavedSpan => ({
 })
 
 class TestExporter implements SpanExporter {
+  private pendingExports = new Set<Promise<void>>()
+
   constructor(private port: number) {}
 
-  async export(
+  export(
     spans: ReadableSpan[],
     resultCallback: (result: ExportResult) => void
-  ) {
+  ): void {
+    const pending = this.exportSpans(spans, resultCallback)
+    this.pendingExports.add(pending)
+    void pending.then(
+      () => this.pendingExports.delete(pending),
+      () => this.pendingExports.delete(pending)
+    )
+  }
+
+  private async exportSpans(
+    spans: ReadableSpan[],
+    resultCallback: (result: ExportResult) => void
+  ): Promise<void> {
     try {
       const response = await fetch(`http://localhost:${this.port}`, {
         method: 'POST',
@@ -82,6 +97,12 @@ class TestExporter implements SpanExporter {
   shutdown(): Promise<void> {
     return Promise.resolve()
   }
+
+  async forceFlush(): Promise<void> {
+    // SimpleSpanProcessor does not await ordinary exports in forceFlush, so
+    // drain this test exporter's pending HTTP requests explicitly.
+    await Promise.all(this.pendingExports)
+  }
 }
 
 export const register = () => {
@@ -107,6 +128,9 @@ export const register = () => {
       propagators: [new CustomPropagator(), new W3CTraceContextPropagator()],
     }),
   })
+  ;(globalThis as typeof globalThis & Record<symbol, () => Promise<void>>)[
+    forceFlushKey
+  ] = () => provider.forceFlush()
 }
 
 class CustomPropagator implements TextMapPropagator {

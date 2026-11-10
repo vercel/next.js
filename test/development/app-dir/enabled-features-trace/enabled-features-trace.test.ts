@@ -1,14 +1,27 @@
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
-import { existsSync, readFileSync } from 'fs'
+import { readFileSync } from 'fs'
 import { createServer } from 'http'
 import { spawn } from 'child_process'
+import { retry } from 'next-test-utils'
 import { parseTraceFile } from '../../../lib/parse-trace-file'
 
 describe('enabled features in trace', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     startArgs: ['--no-server-fast-refresh'],
+    env: {
+      // Trace events are buffered in memory, and `render-path` is recorded when
+      // the response closes, too late for any flush other than the one the dev
+      // server performs while shutting down. The parent `next dev` process
+      // escalates to SIGKILL 100ms after signalling the child, and on a busy
+      // machine the child does not reliably get scheduled to run its cleanup
+      // within that window, so the span never reaches the trace file.
+      // `NEXT_EXIT_TIMEOUT_MS` raises that budget for cases like this one,
+      // where the flushed output matters more than how quickly the server
+      // exits.
+      NEXT_EXIT_TIMEOUT_MS: '30000',
+    },
   })
 
   if (!isNextDev) {
@@ -16,42 +29,46 @@ describe('enabled features in trace', () => {
     return
   }
 
-  it('should record enabled features on root span', async () => {
-    const tracePath = join(next.testDir, '.next/dev/trace')
+  let tracePath: string
 
-    // Trigger page request to generate traces
-    if (!existsSync(tracePath)) {
-      const $ = await next.render$('/')
-      expect($('p').text()).toBe('hello world')
-      await next.stop('SIGTERM')
-      await new Promise((resolve) => setTimeout(resolve, 500))
+  beforeAll(async () => {
+    tracePath = join(next.testDir, '.next/dev/trace')
+
+    // Request a page so that the spans under test get recorded. The dev server
+    // creates the trace file on its own as soon as the first compile finishes,
+    // so its existence says nothing about whether this request has happened.
+    const $ = await next.render$('/')
+    const pageText = $('p').text()
+    if (pageText !== 'hello world') {
+      throw new Error(`Unexpected content rendered for "/": ${pageText}`)
     }
 
-    const traceStructure = parseTraceFile(tracePath)
+    // Shutting the server down flushes the buffered events to the trace file.
+    await next.stop('SIGTERM')
+
+    await retry(async () => {
+      const { eventsByName } = parseTraceFile(tracePath)
+      for (const name of ['start-dev-server', 'compile-path', 'render-path']) {
+        if (!eventsByName.has(name)) {
+          throw new Error(`The trace file has no "${name}" span`)
+        }
+      }
+    }, 5000)
+  })
+
+  it('should record enabled features on root span', async () => {
+    const { eventsByName } = parseTraceFile(tracePath)
 
     // Verify start-dev-server span has feature tags
-    const startDevServerEvents =
-      traceStructure.eventsByName.get('start-dev-server')
-    expect(startDevServerEvents).toBeDefined()
-    expect(startDevServerEvents!.length).toBeGreaterThan(0)
-
-    const startDevServerEvent = startDevServerEvents![0]
-    expect(startDevServerEvent.tags).toBeDefined()
-    expect(startDevServerEvent.tags!['feature.serverFastRefreshDisabled']).toBe(
-      true
-    )
+    const [startDevServerEvent] = eventsByName.get('start-dev-server') ?? []
+    expect(startDevServerEvent).toBeDefined()
+    expect(startDevServerEvent?.tags).toBeDefined()
+    expect(
+      startDevServerEvent?.tags?.['feature.serverFastRefreshDisabled']
+    ).toBe(true)
   })
 
   it('should denormalize inherited enabled features during upload', async () => {
-    const tracePath = join(next.testDir, '.next/dev/trace')
-
-    if (!existsSync(tracePath)) {
-      const $ = await next.render$('/')
-      expect($('p').text()).toBe('hello world')
-      await next.stop('SIGTERM')
-      await new Promise((resolve) => setTimeout(resolve, 500))
-    }
-
     const fakeServer = await createTestTraceUploadServer()
 
     // Get trace ID from the trace file
@@ -59,6 +76,7 @@ describe('enabled features in trace', () => {
     const firstLine = traceContent.trim().split('\n')[0]
     const firstEvents = JSON.parse(firstLine)
     const traceId = firstEvents[0]?.traceId
+    expect(traceId).toBeDefined()
 
     const uploaderPath = join(
       __dirname,

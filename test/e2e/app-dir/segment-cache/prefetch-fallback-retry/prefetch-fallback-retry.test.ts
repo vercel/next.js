@@ -7,6 +7,8 @@ describe('segment cache prefetch fallback retry', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
+  // Deploy mode exclusion: This suite requires direct observation and control
+  // of local ISR cache state and background regeneration.
   if (isNextDev || isNextDeploy) {
     // Prefetching is disabled in dev, and the recovery test relies on
     // observing ISR cache state and background regeneration, which aren't
@@ -124,10 +126,8 @@ describe('segment cache prefetch fallback retry', () => {
     // concrete version — the client keeps receiving the fallback shell on every
     // retry. (Uses its own un-enumerated param so it doesn't share an ISR entry
     // with the recovery test above.)
-    const getRequestCount = await simulateNeverUpgradingIsrEntries(
-      page,
-      '/posts/retry-limit'
-    )
+    const { getRequestCount, getRuntimeRequestCount } =
+      await simulateNeverUpgradingIsrEntries(page, '/posts/retry-limit')
 
     await browser
       .elementByCss('input[data-link-accordion="/posts/retry-limit"]')
@@ -146,6 +146,68 @@ describe('segment cache prefetch fallback retry', () => {
     // The initial prefetch plus a small, fixed number of retries — never a
     // runaway loop.
     expect(getRequestCount()).toBeLessThan(5)
+    // The link asks for more than the shell, so once the retries give up, it
+    // sends one runtime request instead.
+    expect(getRuntimeRequestCount()).toBe(1)
+  })
+
+  it('sends a runtime prefetch right away when a static prefetch fails', async () => {
+    const { browser, page, act } = await startBrowserWithFakeClock('/')
+
+    // Fails the page's static segment prefetches with a server error. The
+    // first one is held until the second act scope is listening for what
+    // comes after it.
+    let onStaticRequest = () => {}
+    const staticRequestReceived = new Promise<void>((resolve) => {
+      onStaticRequest = resolve
+    })
+    let releaseStaticRequest = () => {}
+    const staticRequestReleased = new Promise<void>((resolve) => {
+      releaseStaticRequest = resolve
+    })
+    let failedRequestCount = 0
+    const failStaticRequests = async (route: Playwright.Route) => {
+      const request = route.request()
+      const segmentKey = request.headers()['next-router-segment-prefetch']
+      if (
+        segmentKey !== undefined &&
+        segmentKey !== '/_tree' &&
+        new URL(request.url()).pathname === '/static-posts/1'
+      ) {
+        failedRequestCount++
+        onStaticRequest()
+        await staticRequestReleased
+        await route.fulfill({ status: 500, body: '' })
+        return
+      }
+      await route.fallback()
+    }
+
+    await act(async () => {
+      // Added inside each act scope, so it runs before router-act's handler.
+      await page.route('**/*', failStaticRequests)
+      await browser
+        .elementByCss('input[data-link-accordion="/static-posts/1"]')
+        .click()
+    })
+    await staticRequestReceived
+
+    // The static request delivered nothing, so the runtime request goes out
+    // right away instead of waiting for the failure to expire.
+    await act(
+      async () => {
+        await page.route('**/*', failStaticRequests)
+        releaseStaticRequest()
+      },
+      { includes: 'Static post 1', kind: 'runtime' }
+    )
+
+    // The failed entries are still backing off, and the runtime request
+    // filled them, so nothing else is sent.
+    await act(async () => {
+      await page.clock.fastForward(5000)
+    }, 'no-requests')
+    expect(failedRequestCount).toBe(1)
   })
 })
 
@@ -161,21 +223,32 @@ describe('segment cache prefetch fallback retry', () => {
  * concrete version — which is exactly what we want to prevent when testing the
  * retry *limit*.)
  *
- * Returns a getter for the number of intercepted segment-bundle requests.
+ * Returns getters for the number of intercepted segment-bundle requests, and
+ * the number of runtime prefetches for the same page.
  */
 async function simulateNeverUpgradingIsrEntries(
   page: Playwright.Page,
   pathname: string
-): Promise<() => number> {
+): Promise<{
+  getRequestCount: () => number
+  getRuntimeRequestCount: () => number
+}> {
   const cachedResponses = new Map<
     string,
     { body: Buffer; headers: Record<string, string>; status: number }
   >()
   let requestCount = 0
+  let runtimeRequestCount = 0
   await page.route('**/*', async (route) => {
     const request = route.request()
     const headers = request.headers()
     const segmentKey = headers['next-router-segment-prefetch']
+    if (
+      headers['next-router-prefetch'] === '2' &&
+      new URL(request.url()).pathname === pathname
+    ) {
+      runtimeRequestCount++
+    }
     const isSegmentBundlePrefetch =
       headers['next-router-prefetch'] !== undefined &&
       segmentKey !== undefined &&
@@ -206,5 +279,8 @@ async function simulateNeverUpgradingIsrEntries(
     }
     await route.fulfill(cached)
   })
-  return () => requestCount
+  return {
+    getRequestCount: () => requestCount,
+    getRuntimeRequestCount: () => runtimeRequestCount,
+  }
 }

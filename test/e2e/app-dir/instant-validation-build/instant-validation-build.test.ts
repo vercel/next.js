@@ -7,15 +7,11 @@ import {
 } from 'e2e-utils/instant-validation'
 
 describe('instant-validation-build', () => {
-  const { next, skipped, isNextStart, isTurbopack } = nextTestSetup({
+  const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
 
-  if (skipped) {
-    return
-  }
   if (!isNextStart) {
     it.skip('Build-time only test', () => {})
     return
@@ -42,7 +38,14 @@ describe('instant-validation-build', () => {
   }
 
   beforeAll(async () => {
-    await next.build({ args: ['--experimental-build-mode', 'compile'] })
+    const result = await next.build({
+      args: ['--experimental-build-mode', 'compile'],
+    })
+    if (result.exitCode !== 0) {
+      throw new Error(
+        `Build exited with exit code ${result.exitCode}. CLI Output:\n\n${result.cliOutput}`
+      )
+    }
   })
 
   describe('basic dynamic hole detection', () => {
@@ -70,11 +73,10 @@ describe('instant-validation-build', () => {
 
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [block] Set \`export const instant = false\` to allow a blocking route
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
              at main (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
@@ -840,8 +842,8 @@ describe('instant-validation-build', () => {
         .toMatchInlineSnapshot(`
        "Error: Route "/root-params/[lang]/invalid-root-param-not-provided" accessed root param "lang" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`params\` object.
            at <unknown> (app/root-params/[lang]/invalid-root-param-not-provided/page.tsx:18:11)
-           at a (ensure-error.ts:48:11)
-           at b (app/root-params/[lang]/invalid-root-param-not-provided/page.tsx:17:9)
+           at a.s.d (ensure-error.ts:48:11)
+           at a.s.level (app/root-params/[lang]/invalid-root-param-not-provided/page.tsx:17:9)
          16 |
          17 |   await ensureRejects(
        > 18 |     () => lang(),
@@ -869,8 +871,8 @@ describe('instant-validation-build', () => {
         .toMatchInlineSnapshot(`
        "Error: Route "/root-params/[lang]/invalid-root-param-not-provided-caught" accessed root param "lang" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`params\` object.
            at <unknown> (app/root-params/[lang]/invalid-root-param-not-provided-caught/page.tsx:19:13)
-           at a (ensure-error.ts:48:11)
-           at b (app/root-params/[lang]/invalid-root-param-not-provided-caught/page.tsx:18:11)
+           at a.s.d (ensure-error.ts:48:11)
+           at a.s.level (app/root-params/[lang]/invalid-root-param-not-provided-caught/page.tsx:18:11)
          17 |   try {
          18 |     await ensureRejects(
        > 19 |       () => lang(),

@@ -1,12 +1,10 @@
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDeploy } from 'e2e-utils'
 
 describe('navigation between pages and app dir', () => {
   const { next } = nextTestSetup({
     files: new FileRef(__dirname),
     dependencies: {
-      typescript: 'latest',
       '@types/react': 'latest',
-      '@types/node': 'latest',
     },
   })
 
@@ -37,7 +35,7 @@ describe('navigation between pages and app dir', () => {
   })
 
   // TODO: re-enable after 404 transition bug is addressed
-  if (!(global as any).isNextDeploy) {
+  if (!isNextDeploy) {
     it('It should be able to navigate pages -> app and go back an forward', async () => {
       const browser = await next.browser('/pages')
       // Increased timeout: in dev mode, cross-router navigation triggers on-demand

@@ -19,7 +19,7 @@ const CASES = [
 describe('persistent-caching-migration', () => {
   for (const [option, error] of CASES) {
     describe(option, () => {
-      const { skipped, next, isTurbopack, isNextStart } = nextTestSetup({
+      const { next, isTurbopack, isNextDev } = nextTestSetup({
         files: {
           'next.config.js': `module.exports = {
   experimental: {
@@ -27,25 +27,19 @@ describe('persistent-caching-migration', () => {
   },
 }`,
         },
-        skipDeployment: true,
         skipStart: true,
       })
-
-      if (skipped) {
-        return
-      }
 
       if (!isTurbopack) {
         it.skip('only for turbopack', () => {})
         return
       }
 
-      if (isNextStart) {
+      if (!isNextDev) {
         it('error on old option on build', async () => {
-          let { exitCode, cliOutput } = await next.build()
-          expect(exitCode).toBe(1)
-          expect(cliOutput).toContain(error)
-        })
+          await expect(next.start()).rejects.toThrow()
+          expect(next.cliOutput).toContain(error)
+        }, 240_000)
       } else {
         it('error on old option in dev', async () => {
           await next.start()

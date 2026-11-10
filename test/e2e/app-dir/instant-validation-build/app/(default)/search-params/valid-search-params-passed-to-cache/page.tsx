@@ -13,7 +13,7 @@ export const instant: Instant = {
     },
   ],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default async function Page({
   searchParams,

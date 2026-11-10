@@ -1,18 +1,18 @@
 use anyhow::{Context, Result, bail};
+use auto_hash_map::AutoMap;
+use smallvec::{SmallVec, smallvec};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    FxIndexMap, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, ValueToStringRef, Vc,
-};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Upcast, ValueToString, ValueToStringRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, EntryChunkGroupResult,
-        EvaluatableAsset, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences,
-        UrlBehavior, WorkerConfigurationOptions,
+        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkItemOrBatchWithAsyncModuleInfo,
+        ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingConfig, ChunkingConfigs,
+        ChunkingContext, ContentHashing, EntryChunkGroupResult, EvaluatableAsset, MinifyType,
+        SourceMapSourceType, UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -23,19 +23,21 @@ use turbopack_core::{
     module_graph::{
         ModuleGraph,
         binding_usage_info::{BindingUsageInfo, ModuleExportUsage},
-        chunk_group_info::ChunkGroup,
+        chunk_group_info::ChunkGroupKey,
     },
     output::{OutputAsset, OutputAssets},
+    source_map::{OptionSourceMapType, SourceMapGenerationOptions, SourceMapType},
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
-    chunk::EcmascriptChunk,
+    chunk::{EcmascriptChunk, EcmascriptChunkPlaceable},
     manifest::{chunk_asset::ManifestAsyncModule, loader_module::ManifestLoaderModule},
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 
 use crate::ecmascript::node::{
-    chunk::EcmascriptBuildNodeChunk, entry::chunk::EcmascriptBuildNodeEntryChunk,
+    chunk::EcmascriptBuildNodeChunk,
+    entry::{chunk::EcmascriptBuildNodeEntryChunk, chunk_list::EcmascriptBuildNodeChunkList},
 };
 
 /// A builder for [`Vc<NodeJsChunkingContext>`].
@@ -79,8 +81,23 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
-    pub fn source_maps(mut self, source_maps: SourceMapsType) -> Self {
-        self.chunking_context.source_maps_type = source_maps;
+    /// EXPERIMENTAL. See [`ChunkingContext::minify_before_chunking`].
+    pub fn minify_before_chunking(mut self, minify_before_chunking: bool) -> Self {
+        self.chunking_context.minify_before_chunking = minify_before_chunking;
+        self
+    }
+
+    pub fn source_map_generation_options(mut self, options: SourceMapGenerationOptions) -> Self {
+        self.chunking_context.source_map_generation_options = Some(options);
+        self
+    }
+
+    /// Selects the source map variant emitted to disk.
+    pub fn emitted_source_map_type(
+        mut self,
+        emitted_source_map_type: Option<SourceMapType>,
+    ) -> Self {
+        self.chunking_context.emitted_source_map_type = emitted_source_map_type;
         self
     }
 
@@ -165,6 +182,18 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    /// Marks this context as being shared by multiple independent module graphs, each of which
+    /// only sees part of what is written to `chunk_root_path`.
+    ///
+    /// The runtime chunk is emitted to a fixed path (`[turbopack]_runtime.js`), so every graph
+    /// sharing this context writes the same file. Optional runtime features must therefore not be
+    /// decided from a single graph: one graph would omit a helper that another graph's chunks
+    /// call, and which variant lands on disk depends on emission order.
+    pub fn shared_runtime_chunk(mut self, shared_runtime_chunk: bool) -> Self {
+        self.chunking_context.shared_runtime_chunk = shared_runtime_chunk;
+        self
+    }
+
     /// Builds the chunking context.
     pub fn build(self) -> Vc<NodeJsChunkingContext> {
         NodeJsChunkingContext::cell(self.chunking_context)
@@ -184,23 +213,19 @@ pub struct NodeJsChunkingContext {
     /// This path is used to compute the url to request chunks or assets from
     client_root: FileSystemPath,
     /// This path is used to compute the url to request chunks or assets from
-    #[bincode(with = "turbo_bincode::indexmap")]
-    client_roots: FxIndexMap<RcStr, FileSystemPath>,
+    client_roots: AutoMap<RcStr, FileSystemPath>,
     /// Chunks are placed at this path
     chunk_root_path: FileSystemPath,
     /// Static assets are placed at this path
     asset_root_path: FileSystemPath,
     /// Static assets are placed at this path
-    #[bincode(with = "turbo_bincode::indexmap")]
-    asset_root_paths: FxIndexMap<RcStr, FileSystemPath>,
+    asset_root_paths: AutoMap<RcStr, FileSystemPath>,
     /// Static assets requested from this url base
     asset_prefix: Option<RcStr>,
     /// Static assets requested from this url base
-    #[bincode(with = "turbo_bincode::indexmap")]
-    asset_prefixes: FxIndexMap<RcStr, RcStr>,
+    asset_prefixes: AutoMap<RcStr, RcStr>,
     /// URL behavior overrides for different tags.
-    #[bincode(with = "turbo_bincode::indexmap")]
-    url_behaviors: FxIndexMap<RcStr, UrlBehavior>,
+    url_behaviors: AutoMap<RcStr, UrlBehavior>,
     /// Default URL behavior when no tag-specific override is found.
     default_url_behavior: Option<UrlBehavior>,
     /// The environment chunks will be evaluated in.
@@ -215,8 +240,12 @@ pub struct NodeJsChunkingContext {
     enable_dynamic_chunk_content_loading: bool,
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
+    /// EXPERIMENTAL: minify each chunk item before the chunk is assembled, rather than minifying
+    /// the finished chunk. See [`ChunkingContext::minify_before_chunking`].
+    minify_before_chunking: bool,
     /// Whether to generate source maps
-    source_maps_type: SourceMapsType,
+    emitted_source_map_type: Option<SourceMapType>,
+    source_map_generation_options: Option<SourceMapGenerationOptions>,
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
     /// The strategy to use for generating module ids
@@ -237,6 +266,9 @@ pub struct NodeJsChunkingContext {
     asset_content_hashing: ContentHashing,
     /// Salt mixed into chunk and asset content hashes. Empty string means no salt.
     hash_salt: ResolvedVc<RcStr>,
+    /// Whether the runtime chunk is shared with other module graphs using this context.
+    /// See [`NodeJsChunkingContextBuilder::shared_runtime_chunk`].
+    shared_runtime_chunk: bool,
 }
 
 impl NodeJsChunkingContext {
@@ -271,7 +303,9 @@ impl NodeJsChunkingContext {
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
-                source_maps_type: SourceMapsType::Full,
+                minify_before_chunking: false,
+                emitted_source_map_type: Some(SourceMapType::Full),
+                source_map_generation_options: None,
                 manifest_chunks: false,
                 source_map_source_type: SourceMapSourceType::TurbopackUri,
                 module_id_strategy: None,
@@ -282,6 +316,7 @@ impl NodeJsChunkingContext {
                 worker_forwarded_globals: vec![],
                 asset_content_hashing: ContentHashing::Direct { length: 13 },
                 hash_salt: ResolvedVc::cell(RcStr::default()),
+                shared_runtime_chunk: false,
             },
         }
     }
@@ -313,6 +348,39 @@ impl NodeJsChunkingContext {
     pub fn asset_prefix(&self) -> Vc<Option<RcStr>> {
         Vc::cell(self.asset_prefix.clone())
     }
+
+    /// Creates a standalone server-HMR tracking anchor at `path` covering
+    /// `chunks`, without producing an evaluate chunk.
+    ///
+    /// Unlike the browser's `hmr_chunk_list`, the caller supplies an explicit
+    /// output `path` so the anchor can be placed alongside the App Router
+    /// entries it belongs to (under `server/app/`). This is what lets the
+    /// aggregate server-HMR subscription scope tracking to App Router: the
+    /// anchor for client-component SSR chunks (which are physically emitted
+    /// under the shared `server/chunks/ssr/`) is registered under the app
+    /// entry's directory so it rides the same App Router scope.
+    #[turbo_tasks::function]
+    pub async fn server_hmr_chunk_list(
+        self: ResolvedVc<Self>,
+        path: FileSystemPath,
+        chunks: Vc<OutputAssets>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        #[cfg(debug_assertions)]
+        if !matches!(*self.runtime_type().await?, RuntimeType::Development) {
+            bail!("server_hmr_chunk_list can only be used in development");
+        }
+        Ok(Vc::upcast(EcmascriptBuildNodeChunkList::new(
+            *self, path, chunks,
+        )))
+    }
+
+    /// Whether the runtime chunk is shared with other module graphs using this context, meaning no
+    /// single graph may decide which optional runtime features to omit.
+    /// See [`NodeJsChunkingContextBuilder::shared_runtime_chunk`].
+    #[turbo_tasks::function]
+    pub fn shared_runtime_chunk(&self) -> Vc<bool> {
+        Vc::cell(self.shared_runtime_chunk)
+    }
 }
 
 impl NodeJsChunkingContext {
@@ -341,6 +409,20 @@ impl NodeJsChunkingContext {
 
 #[turbo_tasks::value_impl]
 impl ChunkingContext for NodeJsChunkingContext {
+    #[turbo_tasks::function]
+    fn source_map_generation_options(&self) -> Vc<SourceMapGenerationOptions> {
+        self.source_map_generation_options
+            .unwrap_or_else(|| {
+                SourceMapGenerationOptions::from_emitted(self.emitted_source_map_type)
+            })
+            .cell()
+    }
+
+    #[turbo_tasks::function]
+    fn emitted_source_map_type(&self) -> Vc<OptionSourceMapType> {
+        Vc::cell(self.emitted_source_map_type)
+    }
+
     #[turbo_tasks::function]
     fn name(&self) -> Vc<RcStr> {
         Vc::cell(rcstr!("unknown"))
@@ -384,6 +466,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     pub fn minify_type(&self) -> Vc<MinifyType> {
         self.minify_type.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn minify_before_chunking(&self) -> Vc<bool> {
+        Vc::cell(self.minify_before_chunking)
     }
 
     #[turbo_tasks::function]
@@ -437,20 +524,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     fn reference_chunk_source_maps(&self, _chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool> {
-        Vc::cell(match self.source_maps_type {
-            SourceMapsType::Full => true,
-            SourceMapsType::Partial => true,
-            SourceMapsType::None => false,
-        })
-    }
-
-    #[turbo_tasks::function]
-    fn reference_module_source_maps(&self, _module: Vc<Box<dyn Module>>) -> Vc<bool> {
-        Vc::cell(match self.source_maps_type {
-            SourceMapsType::Full => true,
-            SourceMapsType::Partial => true,
-            SourceMapsType::None => false,
-        })
+        Vc::cell(self.emitted_source_map_type.is_some())
     }
 
     #[turbo_tasks::function]
@@ -514,18 +588,23 @@ impl ChunkingContext for NodeJsChunkingContext {
     async fn chunk_group(
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_groups: SmallVec<[ChunkGroupKey; 1]>,
         module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", name = display(ident.to_string().await?));
         async move {
+            let chunk_group_info = module_graph.chunk_group_info();
+            let mut groups = SmallVec::with_capacity(chunk_groups.len());
+            for key in chunk_groups {
+                groups.push(chunk_group_info.get_chunk_group(key).await?);
+            }
             let MakeChunkGroupResult {
                 chunks,
                 references,
                 availability_info,
             } = make_chunk_group(
-                chunk_group,
+                groups,
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,
@@ -545,6 +624,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 referenced_assets: OutputAssets::empty_resolved(),
                 references: ResolvedVc::cell(references),
                 availability_info,
+                chunk_group_bootstrap_params: None,
             }
             .cell())
         }
@@ -556,7 +636,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     pub async fn entry_chunk_group(
         self: ResolvedVc<Self>,
         path: FileSystemPath,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: ResolvedVc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -568,12 +648,16 @@ impl ChunkingContext for NodeJsChunkingContext {
             chunking_type = "entry",
         );
         async move {
+            let chunk_group = module_graph
+                .chunk_group_info()
+                .get_chunk_group(chunk_group)
+                .await?;
             let MakeChunkGroupResult {
                 chunks,
                 references,
                 availability_info,
             } = make_chunk_group(
-                chunk_group.clone(),
+                smallvec![chunk_group.clone()],
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,
@@ -590,16 +674,24 @@ impl ChunkingContext for NodeJsChunkingContext {
                 .await?;
             other_chunks.extend(extra_chunks.iter().copied());
 
-            let Some(module) = ResolvedVc::try_sidecast(chunk_group.entries().last().unwrap())
+            let module = chunk_group.entries().last().unwrap();
+            let Some(module) =
+                ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module)
             else {
-                bail!("module must be placeable in an ecmascript chunk");
+                bail!("last entry must be EcmascriptChunkPlaceable {:?}", module);
             };
 
             let evaluatable_assets = chunk_group
                 .entries()
                 .map(|entry| {
-                    ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry)
-                        .context("entry_chunk_group entries must be evaluatable")
+                    ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry).with_context(
+                        || {
+                            format!(
+                                "entry_chunk_group entries must be EvaluatableAssets {:?}",
+                                entry
+                            )
+                        },
+                    )
                 })
                 .collect::<Result<Vec<_>>>()?;
 
@@ -632,7 +724,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     fn evaluated_chunk_group(
         self: Vc<Self>,
         _ident: Vc<AssetIdent>,
-        _chunk_group: ChunkGroup,
+        _chunk_group: ChunkGroupKey,
         _module_graph: Vc<ModuleGraph>,
         _extra_chunks: Vc<OutputAssets>,
         _availability_info: AvailabilityInfo,
@@ -658,7 +750,14 @@ impl ChunkingContext for NodeJsChunkingContext {
             Vc::upcast::<Box<dyn ChunkingContext>>(self)
                 .to_resolved()
                 .await?;
-        Ok(if self.await?.manifest_chunks {
+        let use_manifest = self.await?.manifest_chunks
+            // This guard is in place so that only javascript goes
+            // this path for lazy loading dynamic imports not things like css.
+            && ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(
+                module.to_resolved().await?,
+            )
+            .is_some();
+        Ok(if use_manifest {
             let manifest_asset = ManifestAsyncModule::new(
                 module,
                 module_graph,
@@ -676,11 +775,48 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
+    async fn standalone_chunk(
+        self: Vc<Self>,
+        chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let chunk_type = chunk_item
+            .into_trait_ref()
+            .await?
+            .ty()
+            .to_resolved()
+            .await?;
+        let chunk = chunk_type
+            .chunk(
+                Vc::upcast(self),
+                vec![ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
+                    ChunkItemWithAsyncModuleInfo {
+                        chunk_item,
+                        chunk_type,
+                        module: None,
+                        async_info: None,
+                    },
+                )],
+                Vec::new(),
+                Vec::new(),
+            )
+            .to_resolved()
+            .await?;
+        Ok(*self.generate_chunk(chunk).await?)
+    }
+
+    #[turbo_tasks::function]
     async fn async_loader_chunk_item_ident(
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
     ) -> Result<Vc<AssetIdent>> {
-        Ok(if self.await?.manifest_chunks {
+        let use_manifest = self.await?.manifest_chunks
+            // This guard is in place so that only javascript goes
+            // this path for lazy loading dynamic imports not things like css.
+            && ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(
+                module.to_resolved().await?,
+            )
+            .is_some();
+        Ok(if use_manifest {
             ManifestLoaderModule::asset_ident_for(module)
         } else {
             AsyncLoaderModule::asset_ident_for(module)
@@ -695,7 +831,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         if let Some(export_usage) = self.export_usage {
             Ok(export_usage.await?.used_exports(module).await?)
         } else {
-            Ok(ModuleExportUsage::all())
+            Ok(ModuleExportUsage::unknown())
         }
     }
 

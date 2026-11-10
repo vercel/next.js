@@ -5,13 +5,13 @@
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use turbo_tasks::{Completion, ReadRef, Vc, trace::TraceRawVcs};
+use turbo_tasks::{Completion, ReadRef, Vc};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 struct OneUnnamedField(u32);
 
 #[turbo_tasks::function]
@@ -22,7 +22,7 @@ fn one_unnamed_field(input: OneUnnamedField) -> Vc<Completion> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn tests() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         #[turbo_tasks::function(operation, root)]
         async fn equality_operation() -> Result<Vc<bool>> {
             Ok(Vc::cell(ReadRef::ptr_eq(
@@ -30,8 +30,7 @@ async fn tests() {
                 &Completion::immutable().await?,
             )))
         }
-        equality_operation().read_strongly_consistent().await?;
-        anyhow::Ok(())
+        equality_operation().read_strongly_consistent().await
     })
     .await
     .unwrap()

@@ -1,4 +1,4 @@
-import { DetachedPromise } from '../../lib/detached-promise'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import { AsyncLocalStorage } from 'async_hooks'
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
@@ -67,12 +67,12 @@ describe('AfterContext', () => {
 
     // ==================================
 
-    const promise0 = new DetachedPromise<string>()
+    const promise0 = createPromiseWithResolvers<string>()
 
-    const promise1 = new DetachedPromise<string>()
+    const promise1 = createPromiseWithResolvers<string>()
     const afterCallback1 = jest.fn(() => promise1.promise)
 
-    const promise2 = new DetachedPromise<string>()
+    const promise2 = createPromiseWithResolvers<string>()
     const afterCallback2 = jest.fn(() => promise2.promise)
 
     await run(async () => {
@@ -138,7 +138,7 @@ describe('AfterContext', () => {
 
     // ==================================
 
-    const promise1 = new DetachedPromise<string>()
+    const promise1 = createPromiseWithResolvers<string>()
     const afterCallback1 = jest.fn(() => promise1.promise)
 
     await run(async () => {
@@ -187,13 +187,13 @@ describe('AfterContext', () => {
 
     // ==================================
 
-    const promise1 = new DetachedPromise<string>()
+    const promise1 = createPromiseWithResolvers<string>()
     const afterCallback1 = jest.fn(() => promise1.promise)
 
-    const promise2 = new DetachedPromise<string>()
+    const promise2 = createPromiseWithResolvers<string>()
     const afterCallback2 = jest.fn(() => promise2.promise)
 
-    const streamStarted = new DetachedPromise<void>()
+    const streamStarted = createPromiseWithResolvers<void>()
 
     const stream = run(() => {
       return new ReadableStream<string>({
@@ -278,13 +278,13 @@ describe('AfterContext', () => {
 
     // ==================================
 
-    const promise1 = new DetachedPromise<string>()
+    const promise1 = createPromiseWithResolvers<string>()
     const afterCallback1 = jest.fn(async () => {
       await promise1.promise
       after(afterCallback2)
     })
 
-    const promise2 = new DetachedPromise<string>()
+    const promise2 = createPromiseWithResolvers<string>()
     const afterCallback2 = jest.fn(() => promise2.promise)
 
     await run(async () => {
@@ -342,7 +342,7 @@ describe('AfterContext', () => {
 
     // ==================================
 
-    const promise = new DetachedPromise<void>()
+    const promise = createPromiseWithResolvers<void>()
     let promiseDidResolve = false
     promise.promise.then(() => {
       promiseDidResolve = true
@@ -383,8 +383,8 @@ describe('AfterContext', () => {
 
     // ==================================
 
-    const promise1 = new DetachedPromise<void>()
-    const promise2 = new DetachedPromise<void>()
+    const promise1 = createPromiseWithResolvers<void>()
+    const promise2 = createPromiseWithResolvers<void>()
 
     let afterCallback2DidFinish = false
     const afterCallback2 = jest.fn(async () => {
@@ -429,6 +429,25 @@ describe('AfterContext', () => {
       undefined, // callbacks all get collected into a big void promise
     ])
     expect(taskErrors).toEqual([])
+  })
+
+  it('runs callbacks registered after close in the after phase', async () => {
+    const completions: Promise<unknown>[] = []
+    const { onClose, triggerOnClose } = createOnClose()
+    const afterContext = new AfterContext({
+      waitUntil: (promise) => completions.push(promise),
+      onClose,
+      onTaskError: undefined,
+    })
+    const workStore = createMockWorkStore(afterContext)
+    const workUnitStore = createMockWorkUnitStore()
+    const run = createRun(afterContext, workStore, workUnitStore)
+    triggerOnClose()
+    const callback = jest.fn(() => workUnitStore.phase)
+    run(() => after(callback))
+    await Promise.all(completions)
+    expect(callback).toHaveBeenCalledTimes(1)
+    expect(callback.mock.results[0].value).toBe('after')
   })
 
   it('reports onClose failures', async () => {
@@ -493,7 +512,7 @@ describe('AfterContext', () => {
 
     // ==================================
 
-    const promise1 = new DetachedPromise<string>()
+    const promise1 = createPromiseWithResolvers<string>()
     const afterCallback1 = jest.fn(() => promise1.promise)
 
     const thrownFromCallback2 = new Error('2')
@@ -501,7 +520,7 @@ describe('AfterContext', () => {
       throw thrownFromCallback2
     })
 
-    const promise3 = new DetachedPromise<string>()
+    const promise3 = createPromiseWithResolvers<string>()
     const afterCallback3 = jest.fn(() => promise3.promise)
 
     const thrownFromPromise4 = new Error('4')
@@ -595,7 +614,7 @@ describe('AfterContext', () => {
       workStore: WorkStore | undefined
       workUnitStore: WorkUnitStore | undefined
     }
-    const stores = new DetachedPromise<[Stores, Stores]>()
+    const stores = createPromiseWithResolvers<[Stores, Stores]>()
 
     await run(async () => {
       const stores1 = {
@@ -650,9 +669,10 @@ describe('AfterContext', () => {
 
     // ==================================
 
-    const stores = new DetachedPromise<
-      [TestStore | undefined, TestStore | undefined]
-    >()
+    const stores =
+      createPromiseWithResolvers<
+        [TestStore | undefined, TestStore | undefined]
+      >()
 
     await testStorage.run('value', () =>
       run(async () => {
@@ -678,6 +698,201 @@ describe('AfterContext', () => {
     expect(store2 === store1).toBe(true)
     expect(taskErrors).toEqual([])
   })
+
+  describe('revalidations on close', () => {
+    function setup(overrides: MockWorkStoreOverrides = {}) {
+      const completions: Promise<unknown>[] = []
+      const { onClose, triggerOnClose } = createOnClose()
+      const afterContext = new AfterContext({
+        waitUntil: (promise) => completions.push(promise),
+        onClose,
+        onTaskError: undefined,
+      })
+      const workStore = createMockWorkStore(afterContext, overrides)
+      return { afterContext, workStore, completions, triggerOnClose }
+    }
+
+    it('waits for late writes without waiting again for an earlier flush', async () => {
+      const { afterContext, workStore, completions, triggerOnClose } = setup()
+
+      const initial = createPromiseWithResolvers<void>()
+      const late = createPromiseWithResolvers<void>()
+      workStore.pendingRevalidateWrites = [initial.promise]
+      const initialFlush = afterContext.executeRevalidations(workStore)
+      expect(completions).toHaveLength(1)
+      workStore.pendingRevalidateWrites.push(late.promise)
+      let settled = false
+      completions[0].then(() => {
+        settled = true
+      })
+
+      try {
+        triggerOnClose()
+        await waitForCallbackQueue()
+        expect(settled).toBe(false)
+        late.resolve()
+        await completions[0]
+        expect(settled).toBe(true)
+      } finally {
+        initial.resolve()
+        late.resolve()
+        await initialFlush
+      }
+    })
+
+    it('waits for late writes when the initial flush is empty', async () => {
+      const { afterContext, workStore, completions, triggerOnClose } = setup()
+      expect(afterContext.executeRevalidations(workStore)).toBe(false)
+      expect(completions).toHaveLength(1)
+
+      const late = createPromiseWithResolvers<void>()
+      workStore.pendingRevalidateWrites = [late.promise]
+      let settled = false
+      completions[0].then(() => {
+        settled = true
+      })
+
+      try {
+        triggerOnClose()
+        await waitForCallbackQueue()
+        expect(settled).toBe(false)
+      } finally {
+        late.resolve()
+        await completions[0]
+      }
+      expect(settled).toBe(true)
+    })
+
+    it('waits for a new promise registered under a previously flushed key', async () => {
+      const { afterContext, workStore, completions, triggerOnClose } = setup()
+      afterContext.scheduleRevalidationsOnClose(workStore)
+      workStore.pendingRevalidates = { key: Promise.resolve() }
+      await afterContext.executeRevalidations(workStore)
+
+      const replacement = createPromiseWithResolvers<void>()
+      workStore.pendingRevalidates.key = replacement.promise
+      let settled = false
+      completions[0].then(() => {
+        settled = true
+      })
+      try {
+        triggerOnClose()
+        await waitForCallbackQueue()
+        expect(settled).toBe(false)
+      } finally {
+        replacement.resolve()
+        await completions[0]
+      }
+    })
+
+    it('does not repeat flushed tags with colons in tags and profiles', async () => {
+      const revalidateTag = jest.fn(() => Promise.resolve())
+      const profile = { stale: 0, revalidate: 60, expire: 3600 }
+      const { afterContext, workStore, completions, triggerOnClose } = setup({
+        incrementalCache: { revalidateTag },
+        cacheLifeProfiles: { default: profile, c: profile, 'b:c': profile },
+      })
+      workStore.pendingRevalidatedTags = [
+        { tag: 'a:b', profile: 'c', revalidatedAt: 2 },
+        { tag: 'a', profile: 'b:c', revalidatedAt: 1 },
+      ]
+      afterContext.scheduleRevalidationsOnClose(workStore)
+      await afterContext.executeRevalidations(workStore)
+      expect(revalidateTag).toHaveBeenCalledTimes(2)
+      triggerOnClose()
+      await completions[0]
+      expect(revalidateTag).toHaveBeenCalledTimes(2)
+    })
+
+    it('flushes streamed tags at close and callback tags after the callback completes', async () => {
+      const { revalidateTag } = await import('../web/spec-extension/revalidate')
+      const updateTags = jest.fn(() => Promise.resolve())
+      const { afterContext, workStore, completions, triggerOnClose } = setup({
+        incrementalCache: { revalidateTag: updateTags },
+      })
+      const workUnitStore = {
+        type: 'request',
+        phase: 'action',
+      } as WorkUnitStore
+      const run = createRun(afterContext, workStore, workUnitStore)
+      const callbackCompletion = createPromiseWithResolvers<void>()
+
+      await run(() => {
+        revalidateTag('early', { expire: 0 })
+        after(async () => {
+          revalidateTag('callback', { expire: 0 })
+          await callbackCompletion.promise
+        })
+        return afterContext.executeRevalidations(workStore)
+      })
+      expect(updateTags.mock.calls).toEqual([[['early'], { expire: 0 }]])
+
+      run(() => revalidateTag('streamed', { expire: 0 }))
+      try {
+        expect(updateTags.mock.calls).toEqual([[['early'], { expire: 0 }]])
+        triggerOnClose()
+        await waitForCallbackQueue()
+        expect(updateTags.mock.calls).toEqual([
+          [['early'], { expire: 0 }],
+          [['streamed'], { expire: 0 }],
+        ])
+      } finally {
+        callbackCompletion.resolve()
+        await Promise.all(completions)
+      }
+      expect(updateTags.mock.calls).toEqual([
+        [['early'], { expire: 0 }],
+        [['streamed'], { expire: 0 }],
+        [['callback'], { expire: 0 }],
+      ])
+    })
+
+    it('does not register a close wait after close was already observed', () => {
+      const { afterContext, workStore, completions, triggerOnClose } = setup()
+      triggerOnClose()
+      afterContext.scheduleRevalidationsOnClose(workStore)
+      expect(completions).toHaveLength(0)
+    })
+
+    it('preserves the registration context when flushing at close', async () => {
+      let observedStore: WorkStore | undefined
+      const { afterContext, workStore, completions, triggerOnClose } = setup({
+        incrementalCache: {
+          revalidateTag: async () => {
+            observedStore = workAsyncStorage.getStore()
+          },
+        },
+      })
+      workAsyncStorage.run(workStore, () => {
+        afterContext.scheduleRevalidationsOnClose(workStore)
+      })
+      workStore.pendingRevalidatedTags = [{ tag: 'late', revalidatedAt: 1 }]
+      triggerOnClose()
+      await completions[0]
+      expect(observedStore === workStore).toBe(true)
+    })
+
+    it('leaves revalidation to the explicit flush when waitUntil is unavailable', async () => {
+      const { onClose, triggerOnClose } = createOnClose()
+      const afterContext = new AfterContext({
+        waitUntil: undefined,
+        onClose,
+        onTaskError: undefined,
+      })
+      const write = jest.fn(() => Promise.resolve())
+      const workStore = createMockWorkStore(afterContext, {
+        incrementalCache: { revalidateTag: write },
+      })
+      workStore.pendingRevalidatedTags = [{ tag: 'explicit', revalidatedAt: 1 }]
+      afterContext.scheduleRevalidationsOnClose(workStore)
+      triggerOnClose()
+      expect(write).not.toHaveBeenCalled()
+      const flushed = afterContext.executeRevalidations(workStore)
+      expect(flushed).not.toBe(false)
+      await flushed
+      expect(write).toHaveBeenCalledTimes(1)
+    })
+  })
 })
 
 function createOnClose() {
@@ -700,17 +915,29 @@ function waitForCallbackQueue() {
   return new Promise((resolve) => setImmediate(() => setImmediate(resolve)))
 }
 
-const createMockWorkStore = (afterContext: AfterContext): WorkStore => {
-  const partialStore: Partial<WorkStore> = {
+type MockWorkStoreOverrides = {
+  incrementalCache?: Pick<
+    NonNullable<WorkStore['incrementalCache']>,
+    'revalidateTag'
+  >
+  cacheLifeProfiles?: WorkStore['cacheLifeProfiles']
+}
+
+const createMockWorkStore = (
+  afterContext: AfterContext,
+  overrides: MockWorkStoreOverrides = {}
+): WorkStore => {
+  const partialStore: Partial<Omit<WorkStore, 'incrementalCache'>> &
+    MockWorkStoreOverrides = {
     afterContext: afterContext,
     forceStatic: false,
     forceDynamic: false,
     dynamicShouldError: false,
-    isStaticGeneration: false,
     pendingRevalidatedTags: [],
     pendingRevalidates: undefined,
     pendingRevalidateWrites: undefined,
     incrementalCache: undefined,
+    ...overrides,
   }
 
   return new Proxy(partialStore as WorkStore, {

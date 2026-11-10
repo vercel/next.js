@@ -2,14 +2,15 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
-use std::{str::FromStr, time::Instant};
+use std::{path::Path, str::FromStr, sync::Arc, time::Instant};
 
 use anyhow::{Context, Result, bail};
 use futures_util::{StreamExt, TryStreamExt};
 use next_api::{
     entrypoints::Entrypoints,
-    project::{HmrTarget, ProjectContainer, ProjectOptions},
+    project::{ProjectContainer, ProjectOptions},
     route::{Endpoint, EndpointOutputPaths, Route, endpoint_write_to_disk},
+    shutdown::ShutdownHooks,
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -17,6 +18,7 @@ use turbo_tasks::{
     read_strongly_consistent_and_apply_effects, take_effects,
 };
 use turbo_tasks_backend::TurboTasksBackend;
+use turbo_tasks_fs::canonicalize_to_rcstr;
 use turbo_tasks_malloc::TurboMalloc;
 
 pub async fn main_inner(
@@ -31,6 +33,7 @@ pub async fn main_inner(
         .with_context(|| format!("loading file at {}", path.display()))?;
 
     let mut options: ProjectOptions = serde_json::from_reader(&mut file)?;
+    options.root_path = canonicalize_to_rcstr(Path::new(&*options.root_path))?;
 
     if matches!(strategy, Strategy::Development { .. }) {
         options.dev = true;
@@ -40,11 +43,41 @@ pub async fn main_inner(
         options.watch.enable = false;
     }
 
+    let shutdown = Arc::new(ShutdownHooks::default());
+    let result = run_project(
+        tt,
+        options,
+        strategy,
+        factor,
+        limit,
+        files,
+        shutdown.clone(),
+    )
+    .await;
+    tt.run_once(async move {
+        shutdown.run().await;
+        Ok(())
+    })
+    .await?;
+    result
+}
+
+async fn run_project(
+    tt: &TurboTasks<TurboTasksBackend>,
+    options: ProjectOptions,
+    strategy: Strategy,
+    factor: usize,
+    limit: usize,
+    files: Option<Vec<String>>,
+    shutdown_hooks: Arc<ShutdownHooks>,
+) -> Result<()> {
     let project = tt
-        .run(async {
+        .run(async move {
             let container_op = ProjectContainer::new_operation(rcstr!("next.js"), options.dev);
             ProjectContainer::initialize(container_op, options).await?;
-            container_op.resolve().strongly_consistent().await
+            let container = container_op.resolve().strongly_consistent().await?;
+            container.await?.register_shutdown_hooks(&shutdown_hooks);
+            anyhow::Ok(container)
         })
         .await?;
 
@@ -199,9 +232,11 @@ pub async fn render_routes(
                                 endpoint_write_to_disk_with_apply(route.html_endpoint).await?;
                             }
                         }
-                        Route::AppRoute {
+                        Route::AppGoRoute { endpoint, .. }
+                        | Route::AppRoute {
                             original_name: _,
                             endpoint,
+                            ..
                         } => {
                             endpoint_write_to_disk_with_apply(endpoint).await?;
                         }
@@ -290,7 +325,7 @@ async fn hmr(
 
     #[turbo_tasks::function(operation, root)]
     fn project_hmr_chunk_names_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Vec<RcStr>> {
-        project.hmr_chunk_names(HmrTarget::Client)
+        project.hmr_chunk_names()
     }
 
     let idents = tt
@@ -314,10 +349,8 @@ async fn hmr(
             let ident = ident_for_task.clone();
             async move {
                 let project = project.project();
-                let state = project.hmr_version_state(ident.clone(), HmrTarget::Client, session);
-                project
-                    .hmr_update(ident.clone(), HmrTarget::Client, state)
-                    .await?;
+                let state = project.hmr_version_state(ident.clone(), session);
+                project.hmr_update(ident.clone(), state).await?;
                 Ok(Vc::<()>::cell(()))
             }
         });

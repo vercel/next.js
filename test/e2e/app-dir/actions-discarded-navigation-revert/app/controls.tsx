@@ -48,6 +48,15 @@ export function Controls() {
     }
   }
 
+  async function dispatchBRevalidate() {
+    setB('pending')
+    try {
+      setB(await revalidate())
+    } catch {
+      setB('rejected')
+    }
+  }
+
   async function dispatchC() {
     setC('pending')
     try {
@@ -71,7 +80,10 @@ export function Controls() {
       <button id="dispatch-b" onClick={dispatchB}>
         dispatch queued action
       </button>
-      <button id="go-dest" onClick={() => router.push('/dest')}>
+      <button id="dispatch-b-revalidate" onClick={dispatchBRevalidate}>
+        dispatch revalidating queued action
+      </button>
+      <button id="go-dest" onClick={() => router.push('/adr/dest')}>
         go to destination
       </button>
       <button id="dispatch-c" onClick={dispatchC}>

@@ -6,6 +6,16 @@ export type PackageManager = 'npm' | 'pnpm' | 'yarn'
 
 export function getPkgManager(baseDir: string): PackageManager {
   try {
+    const userAgent = process.env.npm_config_user_agent
+    if (userAgent) {
+      if (userAgent.startsWith('yarn')) {
+        return 'yarn'
+      } else if (userAgent.startsWith('pnpm')) {
+        return 'pnpm'
+      } else if (userAgent.startsWith('npm')) {
+        return 'npm'
+      }
+    }
     for (const { lockFile, packageManager } of [
       { lockFile: 'yarn.lock', packageManager: 'yarn' },
       { lockFile: 'pnpm-lock.yaml', packageManager: 'pnpm' },
@@ -13,14 +23,6 @@ export function getPkgManager(baseDir: string): PackageManager {
     ]) {
       if (fs.existsSync(path.join(baseDir, lockFile))) {
         return packageManager as PackageManager
-      }
-    }
-    const userAgent = process.env.npm_config_user_agent
-    if (userAgent) {
-      if (userAgent.startsWith('yarn')) {
-        return 'yarn'
-      } else if (userAgent.startsWith('pnpm')) {
-        return 'pnpm'
       }
     }
     try {

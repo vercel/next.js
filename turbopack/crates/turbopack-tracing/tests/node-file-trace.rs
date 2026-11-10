@@ -29,7 +29,7 @@ use tokio::{process::Command, time::timeout};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Effects, ResolvedVc, TurboTasks, ValueToString, Vc, backend::Backend,
-    read_strongly_consistent_and_apply_effects, take_effects, trace::TraceRawVcs,
+    read_strongly_consistent_and_apply_effects, take_effects,
 };
 use turbo_tasks_backend::TurboTasksBackend;
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
@@ -41,7 +41,6 @@ use turbopack::{
     },
 };
 use turbopack_core::{
-    chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -52,6 +51,7 @@ use turbopack_core::{
     reference::all_assets_from_entry,
     reference_type::ReferenceType,
     resolve::options::ConditionValue,
+    source_map::SourceMapGenerationOptions,
 };
 use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -331,9 +331,10 @@ fn node_file_trace_persistent(#[case] input: CaseInput) {
                     describe: "test-unversioned",
                     dirty: false,
                 },
-                false,
-                true,
-                false,
+                turbo_tasks_backend::BackingStorageOptions {
+                    is_short_session: true,
+                    ..Default::default()
+                },
             )
             .unwrap()
             .0,
@@ -407,17 +408,18 @@ async fn node_file_trace_operation(
                 ..Default::default()
             },
             css: CssOptionsContext {
-                source_maps: SourceMapsType::None,
+                source_map_generation_options: SourceMapGenerationOptions::NONE,
                 enable_raw_css: true,
                 ..Default::default()
             },
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
-            analyze_mode: AnalyzeMode::Tracing,
+            analyze_mode: AnalyzeMode::tracing(),
             // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
             // execute at runtime.
-            tree_shaking_mode: None,
+            follow_reexports: false,
+            module_fragments_enabled: false,
             ..Default::default()
         }
         .cell(),
@@ -606,7 +608,6 @@ fn node_file_trace<B: Backend + 'static>(
     })
 }
 
-#[derive(TraceRawVcs)]
 struct CommandOutput {
     stdout: String,
     stderr: String,

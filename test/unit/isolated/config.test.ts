@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { join } from 'path'
-import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
+import { PHASE_DEVELOPMENT_SERVER, PHASE_TEST } from 'next/constants'
 
 const pathToConfig = join(__dirname, '_resolvedata', 'without-function')
 const pathToConfigFn = join(__dirname, '_resolvedata', 'with-function')
@@ -60,6 +60,168 @@ describe('config', () => {
     })
     expect((config as any).customConfig).toBe(true)
     expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
+  })
+
+  it('Should not share image defaults between configs loaded in one process', async () => {
+    const { imageConfigDefault } = await import(
+      'next/dist/shared/lib/image-config'
+    )
+    const defaultPath = imageConfigDefault.path
+
+    // Different directories, so the second load is not served from the config
+    // cache.
+    const docs = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>/docs', {
+      customConfig: { basePath: '/docs' },
+    })
+    const blog = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>/blog', {
+      customConfig: { basePath: '/blog' },
+    })
+
+    expect(docs.images.path).toBe('/docs/_next/image')
+    expect(blog.images.path).toBe('/blog/_next/image')
+    expect(docs.images).not.toBe(blog.images)
+    expect(imageConfigDefault.path).toBe(defaultPath)
+    expect(imageConfigDefault.localPatterns).toBeUndefined()
+  })
+
+  it('Should not modify the customConfig object passed in', async () => {
+    const localPatterns = [{ pathname: '/assets/**', search: '' }]
+    const staleTimes = { static: 300 }
+    await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+      customConfig: {
+        images: { localPatterns },
+        experimental: { staleTimes },
+      },
+    })
+
+    expect(localPatterns).toEqual([{ pathname: '/assets/**', search: '' }])
+    expect(staleTimes).toEqual({ static: 300 })
+  })
+
+  it('Should deeply freeze the loaded config in test mode', async () => {
+    const ignore = /\/healthz/g
+    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+      customConfig: {
+        logging: { incomingRequests: { ignore: [ignore] } },
+      },
+    })
+
+    expect(Object.isFrozen(config)).toBe(true)
+    expect(Object.isFrozen(config.images)).toBe(true)
+    expect(Object.isFrozen(config.images.deviceSizes)).toBe(true)
+    expect(Object.isFrozen(config.experimental)).toBe(true)
+    expect(() => {
+      ;(config.images as any).path = '/changed'
+    }).toThrow(TypeError)
+
+    // The shared defaults are frozen too.
+    const { defaultConfig } = await import('next/dist/server/config-shared')
+    const { imageConfigDefault } = await import(
+      'next/dist/shared/lib/image-config'
+    )
+    expect(Object.isFrozen(defaultConfig.experimental)).toBe(true)
+    expect(Object.isFrozen(imageConfigDefault)).toBe(true)
+    expect(Object.isFrozen(imageConfigDefault.deviceSizes)).toBe(true)
+
+    // Class instances are left alone, so a global RegExp keeps working.
+    const [loadedIgnore] = (config.logging as any).incomingRequests.ignore
+    expect(Object.isFrozen(loadedIgnore)).toBe(false)
+    expect(loadedIgnore.test('/healthz')).toBe(true)
+  })
+
+  it('Should deeply freeze the shared defaults in test mode without loading config', async () => {
+    // `beforeEach` imports `config.ts`; reset so only `config-shared.ts` loads.
+    jest.resetModules()
+    const { defaultConfig } = await import('next/dist/server/config-shared')
+    const { imageConfigDefault } = await import(
+      'next/dist/shared/lib/image-config'
+    )
+
+    expect(Object.isFrozen(defaultConfig.experimental)).toBe(true)
+    expect(Object.isFrozen(imageConfigDefault)).toBe(true)
+    expect(Object.isFrozen(imageConfigDefault.deviceSizes)).toBe(true)
+  })
+
+  it('Should enable the TypeScript CLI by default and allow opting out', async () => {
+    const defaultConfig = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      '<rootDir>-typescript-cli-default',
+      { customConfig: {} }
+    )
+    expect(defaultConfig.experimental.useTypeScriptCli).toBe(true)
+
+    const apiConfig = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      '<rootDir>-typescript-api',
+      {
+        customConfig: {
+          experimental: {
+            useTypeScriptCli: false,
+          },
+        },
+      }
+    )
+    expect(apiConfig.experimental.useTypeScriptCli).toBe(false)
+  })
+
+  it('Should configure the development memory threshold opt-out', async () => {
+    const defaultConfig = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      '<rootDir>-memory-threshold-default',
+      {
+        customConfig: {},
+      }
+    )
+    expect(defaultConfig.experimental.devMemoryThresholdRestart).toBe(true)
+
+    const disabledConfig = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      '<rootDir>-memory-threshold-disabled',
+      {
+        customConfig: {
+          experimental: {
+            devMemoryThresholdRestart: false,
+          },
+        },
+      }
+    )
+    expect(disabledConfig.experimental.devMemoryThresholdRestart).toBe(false)
+  })
+
+  it.each([undefined, true, false])(
+    'Should preserve imgOptMozjpeg=%s in the runtime config',
+    async (imgOptMozjpeg) => {
+      const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+        customConfig: {
+          experimental: {
+            imgOptMozjpeg,
+            runtimeServerDeploymentId: true,
+          },
+        },
+      })
+      const { getNextConfigRuntime } = await import(
+        'next/dist/server/config-shared'
+      )
+      expect(config.experimental.imgOptMozjpeg).toBe(imgOptMozjpeg ?? true)
+      expect(getNextConfigRuntime(config).experimental.imgOptMozjpeg).toBe(
+        imgOptMozjpeg ?? true
+      )
+    }
+  )
+
+  it('Should allow bundler-specific options during the test phase', async () => {
+    const config = await loadConfig(PHASE_TEST, '<rootDir>-test-phase', {
+      customConfig: {
+        reactCompiler: true,
+        experimental: {
+          cssChunking: 'graph',
+          turbopackRustReactCompiler: true,
+        },
+      },
+    })
+
+    expect(config.experimental.cssChunking).toBe('graph')
+    expect(config.experimental.turbopackRustReactCompiler).toBe(true)
   })
 
   it('Should allow setting objects which do not have defaults', async () => {
@@ -249,6 +411,47 @@ describe('config', () => {
         }
       )
       expect(config.partialPrefetching).toBe(true)
+    })
+  })
+
+  describe('experimental.useCache config', () => {
+    it('Should throw when `useCache` is disabled while `cacheComponents` is enabled', async () => {
+      await expect(async () => {
+        await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>-uc-conflict', {
+          customConfig: {
+            cacheComponents: true,
+            experimental: { useCache: false },
+          },
+        })
+      }).rejects.toThrow(
+        /`experimental.useCache` cannot be disabled when `cacheComponents` is enabled/
+      )
+    })
+
+    it('Should accept `useCache: false` when `cacheComponents` is not enabled', async () => {
+      const config = await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        '<rootDir>-uc-off',
+        {
+          customConfig: {
+            experimental: { useCache: false },
+          },
+        }
+      )
+      expect(config.experimental.useCache).toBe(false)
+    })
+
+    it('Should backfill `useCache` from `cacheComponents` when it is not set', async () => {
+      const config = await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        '<rootDir>-uc-backfill',
+        {
+          customConfig: {
+            cacheComponents: true,
+          },
+        }
+      )
+      expect(config.experimental.useCache).toBe(true)
     })
   })
 })

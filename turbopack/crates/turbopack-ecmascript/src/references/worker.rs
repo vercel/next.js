@@ -7,8 +7,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-    turbofmt,
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -26,11 +25,12 @@ use turbopack_core::{
 };
 
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
-        AstPath,
         pattern_mapping::{PatternMapping, ResolveType},
+        raw::resolve_static_files,
     },
     worker_chunk::{WorkerType, module::WorkerLoaderModule},
 };
@@ -56,10 +56,10 @@ pub struct WorkerAssetReference {
 pub enum WorkerRequest {
     /// Web workers use Request (URLs)
     Url(ResolvedVc<Request>),
-    /// Node.js workers use Pattern (file paths) with a context directory that should be the server
-    /// working directory
+    /// Node.js workers resolve static project files and the complete request in the package.
     Pattern {
-        context_dir: FileSystemPath,
+        static_files_only_context_dir: Option<FileSystemPath>,
+        fallback_context_dir: FileSystemPath,
         path: ResolvedVc<Pattern>,
         collect_affecting_sources: bool,
     },
@@ -90,7 +90,8 @@ impl WorkerAssetReference {
 
     pub fn new_node_worker_thread(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        context_dir: FileSystemPath,
+        static_files_only_context_dir: Option<FileSystemPath>,
+        fallback_context_dir: FileSystemPath,
         path: ResolvedVc<Pattern>,
         collect_affecting_sources: bool,
         issue_source: IssueSource,
@@ -101,7 +102,8 @@ impl WorkerAssetReference {
             worker_type: WorkerType::NodeWorkerThread,
             origin,
             request: WorkerRequest::Pattern {
-                context_dir,
+                static_files_only_context_dir,
+                fallback_context_dir,
                 path,
                 collect_affecting_sources,
             },
@@ -133,22 +135,36 @@ impl ModuleReference for WorkerAssetReference {
             (
                 WorkerType::NodeWorkerThread,
                 WorkerRequest::Pattern {
-                    context_dir,
+                    static_files_only_context_dir,
+                    fallback_context_dir,
                     path,
                     collect_affecting_sources,
                 },
             ) => {
-                // Node.js worker resolution uses resolve_raw
-                let result = resolve_raw(
-                    context_dir.clone(),
+                let reference_type = ReferenceType::Worker(WorkerReferenceSubType::NodeWorker);
+                let mut results = Vec::new();
+                if let Some(static_files) = resolve_static_files(
+                    static_files_only_context_dir,
+                    *path,
+                    *collect_affecting_sources,
+                )
+                .await?
+                {
+                    results.push(
+                        asset_context.process_resolve_result(static_files, reference_type.clone()),
+                    );
+                }
+                let fallback = resolve_raw(
+                    fallback_context_dir.clone(),
                     **path,
                     *collect_affecting_sources,
                     /* force_in_lookup_dir */ false,
                 );
-                let reference_type = ReferenceType::Worker(WorkerReferenceSubType::NodeWorker);
-                let result = asset_context.process_resolve_result(result, reference_type.clone());
+                results
+                    .push(asset_context.process_resolve_result(fallback, reference_type.clone()));
+                let result = ModuleResolveResult::concat(results);
 
-                // Report an error if we cannot resolve
+                // Report an error if neither location resolves
                 handle_resolve_error(
                     result,
                     reference_type.clone(),
@@ -308,9 +324,14 @@ impl ValueToString for WorkerAssetReference {
 }
 
 impl IntoCodeGenReference for WorkerAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
         (
@@ -320,25 +341,24 @@ impl IntoCodeGenReference for WorkerAssetReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct WorkerAssetReferenceCodeGen {
     reference: ResolvedVc<WorkerAssetReference>,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl WorkerAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
 
         // Build the request for PatternMapping
-        let request = match &reference.request {
-            WorkerRequest::Url(request) => **request,
-            WorkerRequest::Pattern { path, .. } => Request::parse(path.owned().await?),
+        let (request, request_key) = match &reference.request {
+            WorkerRequest::Url(request) => (**request, request.await?.request()),
+            WorkerRequest::Pattern { path, .. } => (Request::parse(path.owned().await?), None),
         };
 
         // Use PatternMapping to handle both single and multiple (dynamic) worker results
@@ -348,13 +368,14 @@ impl WorkerAssetReferenceCodeGen {
             chunking_context,
             self.reference.resolve_reference(),
             ResolveType::ChunkItem,
+            None,
         )
         .await?;
 
         // Transform `new Worker(url, opts)` into `require(id)(Worker, opts)`
         // The loader module exports a function that creates the worker with all necessary
         // configuration (entrypoint, chunks, forwarded globals, etc.)
-        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             let message = if let Expr::New(new_expr) = expr {
                 if let Some(args) = &mut new_expr.args {
                     match args.first_mut() {
@@ -365,8 +386,14 @@ impl WorkerAssetReferenceCodeGen {
                             // Get the Worker constructor (callee)
                             let constructor = new_expr.callee.take();
 
-                            // Build the require call for the loader module
-                            let require_call = pm.create_require(*url_expr.take());
+                            // URL references are rewritten before their enclosing Worker
+                            // expression. Use the analyzed request string for the context lookup
+                            // instead of the rewritten URL object.
+                            let key_expr = match &request_key {
+                                Some(request) => Expr::Lit(Lit::Str(request.as_str().into())),
+                                None => *url_expr.take(),
+                            };
+                            let require_call = pm.create_require(key_expr);
 
                             // Build the arguments: (WorkerConstructor, ...rest_args)
                             let mut call_args = vec![ExprOrSpread {
@@ -408,9 +435,7 @@ impl WorkerAssetReferenceCodeGen {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode)]
 pub enum WorkerGlobalPlaceholder {
     /// `const _TURBOPACK_WORKER_FORWARDED_GLOBALS_ = []`
     ForwardedGlobals,
@@ -418,22 +443,21 @@ pub enum WorkerGlobalPlaceholder {
     BasePath,
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode)]
 pub struct WorkerGlobalsReplacementCodeGen {
     /// Which placeholder this codegen replaces (determines the injected value).
     placeholder: WorkerGlobalPlaceholder,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl WorkerGlobalsReplacementCodeGen {
-    pub fn new(placeholder: WorkerGlobalPlaceholder, path: AstPath) -> Self {
+    pub fn new(placeholder: WorkerGlobalPlaceholder, path: AstPathId) -> Self {
         WorkerGlobalsReplacementCodeGen { placeholder, path }
     }
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let options = chunking_context.worker_configuration_options().await?;
@@ -452,7 +476,7 @@ impl WorkerGlobalsReplacementCodeGen {
             },
         };
 
-        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             *expr = value.clone();
         });
 

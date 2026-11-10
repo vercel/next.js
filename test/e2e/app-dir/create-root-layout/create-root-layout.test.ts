@@ -1,15 +1,15 @@
 import path from 'path'
-import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { FileRef, nextTestSetup, isNextDev, isNextDeploy } from 'e2e-utils'
+import { check, retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 // Skip on Turbopack because the user should create the layout manually
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'app-dir create root layout',
   () => {
-    const isDev = (global as any).isNextDev
+    const isDev = isNextDev
 
-    if ((global as any).isNextDeploy) {
+    if (isNextDeploy) {
       it('should skip next deploy for now', () => {})
       return
     }
@@ -224,3 +224,37 @@ import stripAnsi from 'strip-ansi'
     }
   }
 )
+// @force-gate !deploy && turbopack
+describe('app-dir missing root layout', () => {
+  const { next, isNextDev, skipped } = nextTestSetup({
+    files: {
+      app: new FileRef(path.join(__dirname, 'app')),
+      'next.config.js': new FileRef(path.join(__dirname, 'next.config.js')),
+    },
+    skipStart: true,
+  })
+
+  if (skipped) return
+
+  it('reports a compiler error without modifying the app', async () => {
+    if (isNextDev) {
+      await next.start()
+
+      const response = await next.fetch('/route')
+      expect(response.status).toBe(500)
+
+      await retry(async () => {
+        expect(stripAnsi(next.cliOutput)).toContain(
+          "route/page.js doesn't have a root layout. To fix this error, make sure every page has a root layout."
+        )
+      })
+    } else {
+      await expect(next.start()).rejects.toThrow('next build failed')
+      expect(stripAnsi(next.cliOutput)).toContain(
+        "route/page.js doesn't have a root layout. To fix this error, make sure every page has a root layout."
+      )
+    }
+
+    expect(await next.hasFile('app/layout.js')).toBe(false)
+  })
+})

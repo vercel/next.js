@@ -1,5 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { assertNoConsoleErrors } from 'next-test-utils'
+import type * as Playwright from 'playwright'
+import { createRouterAct } from 'router-act'
 
 describe('fallback-shells', () => {
   const { next, isNextDev, isNextDeploy, isNextStart } = nextTestSetup({
@@ -17,6 +19,91 @@ describe('fallback-shells', () => {
       // If we didn't use the fallback shell, then we didn't postpone the
       // response, and therefore shouldn't have sent the postponed header.
       expect(headers['x-nextjs-postponed']).not.toBe('1')
+    })
+
+    // Coverage for the head (metadata) surviving hydration of a fallback
+    // shell page for an uncovered param: the title must be correct after
+    // hydration, the head must be included in prefetched data, and a return
+    // navigation must be served entirely from the cache that was populated
+    // during the initial hydration.
+    //
+    // NOTE: This does not exercise the client resume path
+    // (createInitialRSCPayloadFromFallbackPrerender). In deployed
+    // environments an uncovered param currently gets a blocking on-demand
+    // render rather than the prerendered fallback shell, and `next start`
+    // renders uncovered params on demand as well. The resume script is only
+    // present in the build-time fallback shell artifact.
+    describe('with metadata', () => {
+      if (isNextDev) {
+        // Fallback shells (and prefetching) only exist in production builds.
+        test('disabled in development', () => {})
+        return
+      }
+
+      it('preserves metadata when hydrating a fallback shell page', async () => {
+        let act: ReturnType<typeof createRouterAct>
+        const { browser, response } = await next.browserWithResponse(
+          '/without-io/with-metadata/world',
+          {
+            beforePageLoad(p: Playwright.Page) {
+              act = createRouterAct(p)
+            },
+          }
+        )
+        expect(response.headers()['x-nextjs-postponed']).not.toBe('1')
+        expect(await browser.elementById('slug').text()).toBe('Hello /world')
+        expect(await browser.eval('document.title')).toBe(
+          'Fallback Shell Metadata Title'
+        )
+
+        // Prefetch the hub page. The head (title) should be included in the
+        // prefetched data.
+        await act(
+          async () => {
+            const toggle = await browser.elementByCss(
+              'input[data-link-accordion="/without-io/metadata-hub"]'
+            )
+            await toggle.click()
+          },
+          { includes: 'Metadata Hub Title' }
+        )
+
+        // Navigate to the hub. It was fully prefetched, so no additional
+        // requests should be needed. This also proves hydration of the
+        // initial page completed, since it requires the client router to
+        // be interactive.
+        await act(async () => {
+          const link = await browser.elementByCss(
+            'a[href="/without-io/metadata-hub"]'
+          )
+          await link.click()
+        }, 'no-requests')
+        expect(await browser.elementById('hub').text()).toBe(
+          'Metadata hub page content'
+        )
+        expect(await browser.eval('document.title')).toBe('Metadata Hub Title')
+
+        // Navigate back to the fallback page. Hydrating the initial page
+        // wrote its data — including the head — into the segment cache, so
+        // the return navigation should be served entirely from the cache.
+        await act(async () => {
+          const toggle = await browser.elementByCss(
+            'input[data-link-accordion="/without-io/with-metadata/world"]'
+          )
+          await toggle.click()
+        }, 'no-requests')
+        await act(async () => {
+          const link = await browser.elementByCss(
+            'a[href="/without-io/with-metadata/world"]'
+          )
+          await link.click()
+        }, 'no-requests')
+        expect(await browser.elementById('slug').text()).toBe('Hello /world')
+        expect(await browser.eval('document.title')).toBe(
+          'Fallback Shell Metadata Title'
+        )
+        await assertNoConsoleErrors(browser)
+      })
     })
   })
 

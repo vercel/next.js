@@ -1,7 +1,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import { fetchViaHTTP } from 'next-test-utils'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDeploy, isNextDev } from 'e2e-utils'
 
 jest.setTimeout(2 * 60 * 1000)
 
@@ -12,7 +12,7 @@ export function runTests(
 ) {
   const versionParts = process.versions.node.split('.').map((i) => Number(i))
 
-  if ((global as any).isNextDeploy) {
+  if (isNextDeploy) {
     it('should not run for next deploy', () => {})
     return
   }
@@ -43,7 +43,7 @@ export function runTests(
       ),
       packageJson: {
         // Bootstrap with classic yarn; the install command below runs
-        // `yarn set version berry` which rewrites this to the berry version.
+        // `yarn set version` which rewrites this to the berry version.
         packageManager: 'yarn@1.22.22',
       },
       dependencies: {
@@ -55,32 +55,15 @@ export function runTests(
           prev.push(`${cur}@${dependencies[cur]}`)
           return prev
         }, [] as string[])
-        const minimumReleaseAgeExclude = JSON.stringify(
-          JSON.stringify([
-            '@next/*',
-            '@turbo/*',
-            '@vercel/*',
-            '@workflow/*',
-            'babel-plugin-react-compiler',
-            'next',
-            'react',
-            'react-dom',
-            'react-is',
-            'react-server-dom-*',
-            'scheduler',
-            'turbo',
-          ])
-        )
         return [
           `yarn set version 4.15.0`,
           `yarn config set enableGlobalCache true`,
           `yarn config set compressionLevel 0`,
-          `yarn config set npmPreapprovedPackages --json ${minimumReleaseAgeExclude}`,
           `yarn add ${pkgs.join(' ')}`,
         ].join(' && ')
       },
       buildCommand: `yarn next build`,
-      startCommand: (global as any).isNextDev ? `yarn next` : `yarn next start`,
+      startCommand: isNextDev ? `yarn next` : `yarn next start`,
     })
 
     it(`should compile and serve the index page correctly ${example}`, async () => {

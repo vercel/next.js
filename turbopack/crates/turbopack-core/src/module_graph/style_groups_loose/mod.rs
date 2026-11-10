@@ -90,6 +90,8 @@ async fn collect_style_modules_per_chunk_group(
         let mut items_in_postorder = FxIndexSet::default();
         batches_graph.traverse_edges_from_entries_dfs(
             entries.iter().copied(),
+            // TODO this would be wrong with emitted CSS modules
+            None,
             &mut (),
             |parent_info, module, _| {
                 if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info
@@ -265,7 +267,7 @@ pub async fn compute_style_groups(
         .map(|m| (m, false))
         .collect::<FxIndexMap<_, _>>();
 
-    let mut shared_chunk_items = FxIndexMap::default();
+    let mut shared_chunk_items = FxHashMap::default();
     for i in 0..ordered_modules_with_state.len() {
         let (&module, processed) = ordered_modules_with_state.get_index_mut(i).unwrap();
         if *processed {

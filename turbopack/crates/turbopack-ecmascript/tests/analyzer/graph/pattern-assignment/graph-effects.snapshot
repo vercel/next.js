@@ -1,1 +1,154 @@
-[]
+[
+    DestructuredMember {
+        obj: Object {
+            total_nodes: 3,
+            parts: [
+                KeyValue(
+                    Constant(
+                        Str(
+                            Atom(
+                                "singleAssignBool",
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        True,
+                    ),
+                ),
+            ],
+            mutability: Mutable,
+        },
+        prop: Constant(
+            Str(
+                Atom(
+                    "singleAssignBool",
+                ),
+            ),
+        ),
+        span: 9..25,
+    },
+    DestructuredMember {
+        obj: Object {
+            total_nodes: 3,
+            parts: [
+                KeyValue(
+                    Constant(
+                        Str(
+                            Atom(
+                                "objPatternBool",
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        True,
+                    ),
+                ),
+            ],
+            mutability: Mutable,
+        },
+        prop: Constant(
+            Str(
+                Atom(
+                    "objPatternBool",
+                ),
+            ),
+        ),
+        span: 65..79,
+    },
+    DestructuredMember {
+        obj: Object {
+            total_nodes: 3,
+            parts: [
+                KeyValue(
+                    Constant(
+                        Str(
+                            Atom(
+                                "objPatternBool",
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        False,
+                    ),
+                ),
+            ],
+            mutability: Mutable,
+        },
+        prop: Constant(
+            Str(
+                Atom(
+                    "objPatternBool",
+                ),
+            ),
+        ),
+        span: 113..127,
+    },
+    DestructuredMember {
+        obj: Object {
+            total_nodes: 4,
+            parts: [
+                KeyValue(
+                    Constant(
+                        Str(
+                            Atom(
+                                "inner",
+                            ),
+                        ),
+                    ),
+                    Array {
+                        total_nodes: 2,
+                        items: [
+                            Constant(
+                                True,
+                            ),
+                        ],
+                        mutable: true,
+                    },
+                ),
+            ],
+            mutability: Mutable,
+        },
+        prop: Constant(
+            Str(
+                Atom(
+                    "inner",
+                ),
+            ),
+        ),
+        span: 231..236,
+    },
+    DestructuredMember {
+        obj: Object {
+            total_nodes: 4,
+            parts: [
+                KeyValue(
+                    Constant(
+                        Str(
+                            Atom(
+                                "inner",
+                            ),
+                        ),
+                    ),
+                    Array {
+                        total_nodes: 2,
+                        items: [
+                            Constant(
+                                False,
+                            ),
+                        ],
+                        mutable: true,
+                    },
+                ),
+            ],
+            mutability: Mutable,
+        },
+        prop: Constant(
+            Str(
+                Atom(
+                    "inner",
+                ),
+            ),
+        ),
+        span: 287..292,
+    },
+]

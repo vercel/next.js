@@ -1,0 +1,11 @@
+@custom-media --narrow (max-width: 960px);
+
+.box {
+  color: blue;
+}
+
+@media (--narrow) {
+  .box {
+    color: red;
+  }
+}

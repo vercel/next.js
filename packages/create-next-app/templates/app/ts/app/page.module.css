@@ -140,3 +140,11 @@ a.secondary {
     --button-secondary-border: #1a1a1a;
   }
 }
+
+.code {
+  font-family: var(--font-geist-mono);
+  font-size: 0.9em;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  padding: 0.1em 0.4em;
+  border-radius: 6px;
+}

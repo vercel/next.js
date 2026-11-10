@@ -121,6 +121,51 @@ describe('use-cache-private', () => {
     }
   })
 
+  it('dedupes private caches within a route handler request', async () => {
+    const response = await next.fetch('/route-handler?id=dedupe', {
+      headers: { cookie: 'use-cache-private-test=from-cookie' },
+    })
+
+    const { concurrentA, concurrentB, sequential } = await response.json()
+
+    // The cache function read the request's cookie.
+    expect(concurrentA).toStartWith('dedupe:from-cookie:')
+
+    // Two concurrent calls join a single in-flight invocation.
+    expect(concurrentB).toBe(concurrentA)
+
+    // A call made after the in-flight window has closed is served the entry
+    // that the request retained.
+    expect(sequential).toBe(concurrentA)
+  })
+
+  it('does not share a route handler private cache entry across requests', async () => {
+    const fetchValue = async () => {
+      const response = await next.fetch('/route-handler?id=cross-request')
+      const { concurrentA } = await response.json()
+
+      return concurrentA
+    }
+
+    const initialValue = await fetchValue()
+
+    if (isNextDev) {
+      // In dev the private entry is persisted and forced to `revalidate: 0`, so
+      // it is always stale and served immediately on the next request while a
+      // fresh entry warms in the background.
+      expect(await fetchValue()).toBe(initialValue)
+
+      // A subsequent request reflects the freshly warmed value.
+      await retry(async () => {
+        expect(await fetchValue()).not.toBe(initialValue)
+      })
+    } else {
+      // In production private entries are neither persisted nor deduped across
+      // requests, so every request re-runs the cache function.
+      expect(await fetchValue()).not.toBe(initialValue)
+    }
+  })
+
   it('revalidates a persisted entry by tag in dev', async () => {
     if (!isNextDev) {
       // Private caches are only persisted in development, so tag revalidation

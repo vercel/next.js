@@ -7,7 +7,7 @@ export default function Page() {
     <main>
       <h1>Home</h1>
 
-      <h2>Dynamic posts (allow-runtime)</h2>
+      <h2>Dynamic posts (partial)</h2>
       <p>
         These posts read request-time data (cookies) and root params. Their App
         Shell is the part of the page that doesn&apos;t depend on the URL

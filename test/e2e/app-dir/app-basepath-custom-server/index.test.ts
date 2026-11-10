@@ -2,20 +2,18 @@ import { nextTestSetup } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
 import { join } from 'path'
 
+// These tests start a custom Next.js server (server.js),
+// which is not supported in deploy mode.
+// @force-gate !deploy
 describe('custom-app-server-action-redirect', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: join(__dirname, 'custom-server'),
-    skipDeployment: true,
     startCommand: 'node server.js',
     serverReadyPattern: /Next mode: (production|development)/,
     dependencies: {
       'get-port': '5.1.1',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   it('redirects with basepath properly when server action handler uses `redirect`', async () => {
     const browser = await next.browser('/base')

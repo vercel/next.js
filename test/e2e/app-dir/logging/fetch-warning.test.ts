@@ -1,15 +1,13 @@
 import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('app-dir - fetch warnings', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
-    skipDeployment: true,
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) {
-    return
-  }
 
   beforeAll(async () => {
     // we don't need verbose logging (enabled by default in this Next app) for these tests to work
