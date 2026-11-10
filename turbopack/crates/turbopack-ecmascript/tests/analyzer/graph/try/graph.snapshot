@@ -1,5 +1,49 @@
 [
     (
+        "caughtThrow",
+        Function(
+            4,
+            204,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Str(
+                            Atom(
+                                "try",
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        Undefined,
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "condition#11",
+        Argument(
+            673,
+            0,
+        ),
+    ),
+    (
+        "condition#5",
+        Argument(
+            204,
+            0,
+        ),
+    ),
+    (
+        "condition#8",
+        Argument(
+            439,
+            0,
+        ),
+    ),
+    (
         "e",
         Unknown {
             original_value: Some(
@@ -64,5 +108,42 @@
             ],
             logical_property: None,
         },
+    ),
+    (
+        "throwWithFinally",
+        Function(
+            4,
+            439,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Str(
+                            Atom(
+                                "try",
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        Undefined,
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "throwingFinally",
+        Function(
+            2,
+            673,
+            Constant(
+                Str(
+                    Atom(
+                        "value",
+                    ),
+                ),
+            ),
+        ),
     ),
 ]

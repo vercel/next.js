@@ -2427,6 +2427,15 @@ impl VisitAstPath for Analyzer<'_, '_> {
         self.add_early_return_always(ast_path);
     }
 
+    fn visit_throw_stmt<'ast: 'r, 'r>(
+        &mut self,
+        stmt: &'ast ThrowStmt,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        stmt.visit_children_with_ast_path(self, ast_path);
+        self.add_early_return_always(ast_path);
+    }
+
     fn visit_ident<'ast: 'r, 'r>(
         &mut self,
         ident: &'ast Ident,

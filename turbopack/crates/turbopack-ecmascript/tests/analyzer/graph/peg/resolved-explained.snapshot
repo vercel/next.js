@@ -1225,7 +1225,7 @@ peg$maxFailPos = ???*0*
 
 peg$otherExpectation = (...) => {"type": "other", "description": description}
 
-peg$parse = (...) => (peg$result | undefined)
+peg$parse = (...) => peg$result
 
 peg$parse_ = (...) => s0
 

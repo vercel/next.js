@@ -1,3 +1,17 @@
+caughtThrow = (...) => ("try" | undefined)
+
+condition#11 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+condition#5 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+condition#8 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
 e = ???*0*
 - *0* e
   ⚠️  pattern without value
@@ -5,3 +19,7 @@ e = ???*0*
 pkg = (???*0* | module<packages/not-found, {}> | module<packages/found, {}>)
 - *0* pkg
   ⚠️  pattern without value
+
+throwWithFinally = (...) => ("try" | undefined)
+
+throwingFinally = (...) => "value"

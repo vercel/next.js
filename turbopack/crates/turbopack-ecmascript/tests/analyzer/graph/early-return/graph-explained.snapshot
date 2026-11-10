@@ -4,11 +4,33 @@ b (const after eval) = (...) => undefined
 
 c (const after eval) = (...) => undefined
 
+condition#28 = arguments[0]
+
+condition#29 = arguments[0]
+
+condition#32 = arguments[0]
+
+condition#33 = arguments[0]
+
+condition#34 = arguments[0]
+
+condition#35 = arguments[0]
+
+condition#37 = arguments[0]
+
+conditionalThrow (const after eval) = (...) => "value"
+
 d (const after eval) = (...) => undefined
 
 e (const after eval) = (...) => undefined
 
+emptyReturn (const after eval) = (...) => undefined
+
+explicitUndefined (const after eval) = (...) => undefined
+
 f (const after eval) = (...) => undefined
+
+fallthrough (const after eval) = (...) => undefined
 
 g (const after eval) = (...) => undefined
 
@@ -16,8 +38,16 @@ h (const after eval) = (...) => undefined
 
 i (const after eval) = (...) => (FreeVar(i1)() | FreeVar(i2)())
 
+inner = (...) => "inner"
+
 j#2 (const after eval) = (...) => (FreeVar(i1)() | FreeVar(i2)())
 
 j#25 = arguments[0]
 
 j#26 = arguments[0]
+
+nestedThrow (const after eval) = (...) => undefined
+
+returnOrThrow (const after eval) = (...) => "value"
+
+throwOrReturn (const after eval) = (...) => "value"

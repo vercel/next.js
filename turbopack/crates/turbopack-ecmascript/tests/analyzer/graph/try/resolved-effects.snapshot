@@ -11,3 +11,99 @@
 0 -> 6 member call = (???*0* | module<packages/not-found, {}> | module<packages/found, {}>)["fn"]()
 - *0* pkg
   ⚠️  pattern without value
+
+0 -> 7 conditional = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+7 -> 8 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+7 -> 9 free var = FreeVar(makeError)
+
+7 -> 10 call = ???*0*()
+- *0* FreeVar(makeError)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+7 -> 11 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 12 free var = FreeVar(inCatch)
+
+0 -> 13 call = ???*0*()
+- *0* FreeVar(inCatch)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 14 free var = FreeVar(afterTry)
+
+0 -> 15 call = ???*0*()
+- *0* FreeVar(afterTry)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 16 conditional = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+16 -> 17 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+16 -> 18 free var = FreeVar(makeFinallyError)
+
+16 -> 19 call = ???*0*()
+- *0* FreeVar(makeFinallyError)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+16 -> 20 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 21 free var = FreeVar(inFinally)
+
+0 -> 22 call = ???*0*()
+- *0* FreeVar(inFinally)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 23 conditional = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+23 -> 24 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+23 -> 25 free var = FreeVar(inTry)
+
+23 -> 26 call = ???*0*()
+- *0* FreeVar(inTry)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+23 -> 27 free var = FreeVar(inHandler)
+
+23 -> 28 call = ???*0*()
+- *0* FreeVar(inHandler)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+23 -> 29 free var = FreeVar(makeFinalizerError)
+
+23 -> 30 call = ???*0*()
+- *0* FreeVar(makeFinalizerError)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+23 -> 31 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+23 -> 32 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects

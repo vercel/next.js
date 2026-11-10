@@ -38,15 +38,7 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 
 *anonymous function 114743* = (...) => null
 
-*anonymous function 117815* = (...) => (
-  | ???*0*
-  | b
-  | pj(a, b, c)
-  | cj(a, b, b["type"], b["pendingProps"], c)
-  | yj(a, b, c)
-  | ej(a, b, c)
-  | undefined
-)
+*anonymous function 117815* = (...) => (???*0* | b | pj(a, b, c) | cj(a, b, b["type"], b["pendingProps"], c) | yj(a, b, c) | ej(a, b, c))
 - *0* zj(a, b, c)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
@@ -705,7 +697,7 @@ Fh = {"current": {}}
 
 Fi = (...) => di()["memoizedState"]
 
-Fj = (...) => (???*0* | null | (???*1* ? b : null) | b["child"] | undefined)
+Fj = (...) => (???*0* | null | (???*1* ? b : null) | b["child"])
 - *0* null
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
@@ -2107,15 +2099,7 @@ Wj = (...) => undefined
 
 Wk = (
   | ???*0*
-  | (...) => (
-      | ???*1*
-      | b
-      | pj(a, b, c)
-      | cj(a, b, b["type"], b["pendingProps"], c)
-      | yj(a, b, c)
-      | ej(a, b, c)
-      | undefined
-    )
+  | (...) => (???*1* | b | pj(a, b, c) | cj(a, b, b["type"], b["pendingProps"], c) | yj(a, b, c) | ej(a, b, c))
 )
 - *0* Wk
   ⚠️  pattern without value
@@ -6880,7 +6864,7 @@ b#255 = (???*0* | [])
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-b#257 = (???*0* | undefined)
+b#257 = ???*0*
 - *0* ???*1*["stateNode"]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -21330,7 +21314,7 @@ tl = {
          || !(a)
          || ((5 !== a["tag"]) && (6 !== a["tag"]) && (13 !== a["tag"]) && (3 !== a["tag"]))
         ) ? null : a),
-        (...) => (a["stateNode"] | undefined),
+        (...) => a["stateNode"],
         (...) => (a[Pf] || null),
         (...) => undefined,
         (...) => undefined,
@@ -21379,7 +21363,7 @@ ud = {
     "detail": 0
 }
 
-ue = (...) => (a["stateNode"] | undefined)
+ue = (...) => a["stateNode"]
 
 uf = `__reactContainer$${???*0*}`
 - *0* ???*1*["slice"](2)

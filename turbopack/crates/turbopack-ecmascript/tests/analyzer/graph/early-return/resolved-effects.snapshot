@@ -201,3 +201,157 @@
 0 -> 60 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
+
+0 -> 61 conditional = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+61 -> 62 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+61 -> 63 free var = FreeVar(makeError)
+
+61 -> 64 call = ???*0*()
+- *0* FreeVar(makeError)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+61 -> 65 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 66 conditional = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+66 -> 67 free var = FreeVar(makeBranchError)
+
+66 -> 68 call = ???*0*()
+- *0* FreeVar(makeBranchError)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+66 -> 69 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+66 -> 70 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 71 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 72 conditional = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+72 -> 73 free var = FreeVar(makeConditionalError)
+
+72 -> 74 call = ???*0*()
+- *0* FreeVar(makeConditionalError)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+72 -> 75 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+72 -> 76 free var = FreeVar(afterConditionalThrow)
+
+72 -> 77 call = ???*0*()
+- *0* FreeVar(afterConditionalThrow)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+72 -> 78 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 79 conditional = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+79 -> 80 free var = FreeVar(makeFallthroughError)
+
+79 -> 81 call = ???*0*()
+- *0* FreeVar(makeFallthroughError)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+79 -> 82 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 83 conditional = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+83 -> 84 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+83 -> 85 free var = FreeVar(makeEmptyReturnError)
+
+83 -> 86 call = ???*0*()
+- *0* FreeVar(makeEmptyReturnError)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+83 -> 87 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 88 conditional = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+88 -> 89 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+88 -> 90 free var = FreeVar(makeUndefinedError)
+
+88 -> 91 call = ???*0*()
+- *0* FreeVar(makeUndefinedError)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+88 -> 92 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 93 free var = FreeVar(useInner)
+
+0 -> 94 call = ???*0*((...) => "inner")
+- *0* FreeVar(useInner)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 95 free var = FreeVar(afterInner)
+
+0 -> 96 call = ???*0*()
+- *0* FreeVar(afterInner)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 97 conditional = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+97 -> 98 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+97 -> 99 free var = FreeVar(makeNestedError)
+
+97 -> 100 call = ???*0*()
+- *0* FreeVar(makeNestedError)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+97 -> 101 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
