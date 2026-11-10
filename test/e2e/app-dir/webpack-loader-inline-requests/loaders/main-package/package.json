@@ -1,0 +1,6 @@
+{
+  "name": "inline-main-loader",
+  "version": "1.0.0",
+  "loader": "./entry",
+  "main": "./runtime.cjs"
+}
