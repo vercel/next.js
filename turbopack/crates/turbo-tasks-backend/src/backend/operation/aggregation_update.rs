@@ -73,7 +73,7 @@ use std::{
     cmp::max,
     collections::{VecDeque, hash_map::Entry as HashMapEntry},
     hash::Hash,
-    mem::take,
+    mem::{swap, take},
     num::NonZeroU32,
 };
 
@@ -591,12 +591,14 @@ impl AggregatedDataUpdate {
     /// the updates returned by [`AggregatedDataUpdate::apply`] on the same task, which always
     /// use that task's id.
     ///
-    /// Collectible entries are only concatenated. Call [`AggregatedDataUpdate::optimize`]
-    /// afterwards to combine them, ideally after releasing any task lock.
+    /// Collectible entries are only concatenated. Since their order doesn't matter, the smaller
+    /// list is appended to the larger one. Call [`AggregatedDataUpdate::optimize`] afterwards to
+    /// combine them, ideally after releasing any task lock. To merge many updates, prefer
+    /// [`AggregatedDataUpdate::merge_all`].
     fn merge(&mut self, other: Self) {
         let Self {
             dirty_container_update,
-            collectibles_update,
+            mut collectibles_update,
         } = other;
         if let Some(other) = dirty_container_update {
             match &mut self.dirty_container_update {
@@ -614,11 +616,41 @@ impl AggregatedDataUpdate {
                 None => self.dirty_container_update = Some(other),
             }
         }
-        if self.collectibles_update.is_empty() {
-            self.collectibles_update = collectibles_update;
-        } else {
-            self.collectibles_update.extend(collectibles_update);
+        if collectibles_update.len() > self.collectibles_update.len() {
+            swap(&mut self.collectibles_update, &mut collectibles_update);
         }
+        self.collectibles_update.extend(collectibles_update);
+    }
+
+    /// Merges all `updates` into a single optimized update, with the same requirements as
+    /// [`AggregatedDataUpdate::merge`].
+    ///
+    /// The update with the most collectible entries is used as the base, so its entries are not
+    /// moved, and the capacity for all other entries is reserved once, so concatenating doesn't
+    /// reallocate repeatedly. A single update is returned as is, without optimizing it.
+    ///
+    /// This is O(number of entries), so call it after releasing any task lock.
+    fn merge_all(mut updates: Vec<Self>) -> Self {
+        if updates.len() <= 1 {
+            return updates.pop().unwrap_or_default();
+        }
+        let largest = updates
+            .iter()
+            .enumerate()
+            .max_by_key(|(_, update)| update.collectibles_update.len())
+            .map(|(index, _)| index)
+            .unwrap_or_default();
+        let mut result = updates.swap_remove(largest);
+        result.collectibles_update.reserve(
+            updates
+                .iter()
+                .map(|update| update.collectibles_update.len())
+                .sum(),
+        );
+        for update in updates {
+            result.merge(update);
+        }
+        result.optimize()
     }
 
     /// Inverts the update. This is used when the task is removed from an upper task.
@@ -4099,6 +4131,83 @@ mod tests {
         assert_eq!(update.collectibles_update.len(), 2);
 
         assert!(merged([AggregatedDataUpdate::new(), AggregatedDataUpdate::new()]).is_empty());
+    }
+
+    #[test]
+    fn merge_appends_smaller_into_larger() {
+        let a = collectible(1);
+        let b = collectible(2);
+        let c = collectible(3);
+        let mut larger = Vec::with_capacity(8);
+        larger.extend([(b, 1), (c, 1), (a, -1)]);
+        let larger_ptr = larger.as_ptr();
+        let mut update = AggregatedDataUpdate::new().collectibles_update(vec![(a, 1)]);
+        update.merge(AggregatedDataUpdate::new().collectibles_update(larger));
+        assert_eq!(update.collectibles_update.len(), 4);
+        // The smaller list was appended to the larger one, reusing its allocation.
+        assert_eq!(update.collectibles_update.as_ptr(), larger_ptr);
+        let update = update.optimize();
+        assert_eq!(
+            real_collectibles(&update),
+            [(b, 1), (c, 1)].into_iter().collect()
+        );
+    }
+
+    #[test]
+    fn merge_all_empty_and_single() {
+        assert!(AggregatedDataUpdate::merge_all(Vec::new()).is_empty());
+
+        // A single update is returned as is, without being optimized.
+        let task_id = TaskId::new(5).unwrap();
+        let a = collectible(1);
+        let update = AggregatedDataUpdate::merge_all(vec![
+            AggregatedDataUpdate::new()
+                .collectibles_update(vec![(a, 1), (a, -1)])
+                .dirty_container_update(task_id, 1, 0),
+        ]);
+        assert_eq!(update.collectibles_update, vec![(a, 1), (a, -1)]);
+        assert_eq!(dirty_counts(&update), Some((task_id, 1, 0)));
+    }
+
+    #[test]
+    fn merge_all_sums_and_cancels() {
+        let task_id = TaskId::new(5).unwrap();
+        let a = collectible(1);
+        let b = collectible(2);
+        let c = collectible(3);
+        let d = collectible(4);
+        // The update with the most collectibles is not the first one. It has enough spare
+        // capacity for all entries, so its allocation is used for the result.
+        let mut largest = Vec::with_capacity(16);
+        largest.extend([(b, 1), (c, 1), (d, -1), (a, 1)]);
+        let largest_ptr = largest.as_ptr();
+        let updates = vec![
+            AggregatedDataUpdate::new()
+                .collectibles_update(vec![(a, 1)])
+                .dirty_container_update(task_id, 1, 0),
+            AggregatedDataUpdate::new().collectibles_update(largest),
+            AggregatedDataUpdate::new()
+                .collectibles_update(vec![(b, -1), (d, 1)])
+                .dirty_container_update(task_id, 0, 1),
+        ];
+        let update = AggregatedDataUpdate::merge_all(updates);
+        assert_eq!(dirty_counts(&update), Some((task_id, 1, 1)));
+        assert_eq!(
+            real_collectibles(&update),
+            [(a, 2), (c, 1)].into_iter().collect()
+        );
+        assert_eq!(update.collectibles_update.len(), 2);
+        assert_eq!(update.collectibles_update.as_ptr(), largest_ptr);
+
+        let update = AggregatedDataUpdate::merge_all(vec![
+            AggregatedDataUpdate::new()
+                .collectibles_update(vec![(a, 1)])
+                .dirty_container_update(task_id, 1, 1),
+            AggregatedDataUpdate::new()
+                .collectibles_update(vec![(a, -1)])
+                .dirty_container_update(task_id, -1, -1),
+        ]);
+        assert!(update.is_empty());
     }
 }
 
