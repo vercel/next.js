@@ -60,15 +60,17 @@ if (!isNextStart) {
         '.next/server/pages/500.js.nft.json'
       )
       const trace = await fs.readJSON(traceFile)
+      // Turbopack traces chunks under `chunks/ssr/`, webpack under
+      // `chunks/`. Match either, so this check runs on both bundlers.
       const chunkFiles = (trace.files as string[]).filter((file) =>
-        file.includes('chunks/ssr/')
+        file.includes('chunks/')
       )
       expect(chunkFiles.length).toBeGreaterThan(0)
       for (const file of chunkFiles) {
         const standalonePath = path.join(
           tmpFolder,
           '.next/server',
-          file.replace('../chunks/ssr/', 'chunks/ssr/')
+          file.replace(/^\.\.\//, '')
         )
         expect(await fs.pathExists(standalonePath)).toBe(true)
       }
