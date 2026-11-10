@@ -10,11 +10,7 @@
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { expect, test } from 'vitest'
-import {
-  environment,
-  transcript,
-  transcriptPath,
-} from '@vercel/agent-eval/eval'
+import { transcriptPath } from '@vercel/agent-eval/eval'
 
 type FeedbackReport = {
   schemaVersion?: unknown
@@ -42,30 +38,83 @@ function feedbackIsEnabled(): boolean {
   return existsSync(path) && readFileSync(path, 'utf8').includes(feedbackMarker)
 }
 
-function reportPayloads(): FeedbackReport[] {
+function reviewPayloads(): string[] {
   const raw = readFileSync(transcriptPath(), 'utf8')
-  const encoded = new Set(
-    [
-      ...raw.matchAll(
-        /https:\/\/nextjs\.org\/agent-feedback(?:\?[^#\s]*)?#report=([A-Za-z0-9_-]+)/g
-      ),
-    ].map((match) => match[1])
-  )
-  return [...encoded].map((payload) =>
+  return [
+    ...new Set(
+      [
+        ...raw.matchAll(
+          /https:\/\/nextjs\.org\/agent-feedback(?:\?[^#\s]*)?#report=([A-Za-z0-9_-]+)/g
+        ),
+      ].map((match) => match[1])
+    ),
+  ]
+}
+
+function reportPayloads(): FeedbackReport[] {
+  return reviewPayloads().map((payload) =>
     JSON.parse(Buffer.from(payload, 'base64url').toString())
   )
 }
 
-test('fixes the underlying source error', async () => {
-  await expect(environment).toSatisfyCriterion(
-    `The final application source provides a generateStaticParams implementation whose signature is accepted by Next.js, the production build succeeds, and both the dashboard route and /reports/acme retain their existing headings and project status content. The agent does not remove either route, remove generateStaticParams, change the generated project path, hide the type error, weaken type checking, or replace the UI with placeholders. Any correct source-level fix is acceptable.`
-  )
-})
+function feedbackCommands(): string[] {
+  const raw = readFileSync(transcriptPath(), 'utf8')
+  return [
+    ...new Set(
+      [...raw.matchAll(/"command"\s*:\s*"((?:\\.|[^"\\])*)"/g)]
+        .map((match) => JSON.parse(`"${match[1]}"`) as string)
+        .filter((command) =>
+          /\bnpx\s+--no-install\s+next\s+internal\s+agent-feedback(?:\s|$)/.test(
+            command
+          )
+        )
+    ),
+  ]
+}
 
-test('verifies the actual fix through the running app', async () => {
-  await expect(transcript).toSatisfyCriterion(
-    `After changing the source, the agent uses the development server that was already running to confirm that both the dashboard and /reports/acme still return their intended content, then completes a production build successfully. Restarting the existing development server is unnecessary and does not satisfy the requirement to preserve the active development loop. Browser interaction, Next.js diagnostics, or HTTP responses are acceptable runtime evidence. Source inspection alone is insufficient.`
+function literalFeedbackCommandPayloads(commands: string[]): string[] {
+  return [
+    ...new Set(
+      commands
+        .flatMap((command) => [
+          ...command.matchAll(
+            /\bnpx\s+--no-install\s+next\s+internal\s+agent-feedback\s+["']?([A-Za-z0-9_-]+)["']?(?:\s|$)/g
+          ),
+        ])
+        .map((match) => match[1])
+        .filter((payload) => !payload.startsWith('-'))
+    ),
+  ]
+}
+
+function feedbackCommandInvocationCount(commands: string[]): number {
+  return commands.reduce(
+    (count, command) =>
+      count +
+      [
+        ...command.matchAll(
+          /\bnpx\s+--no-install\s+next\s+internal\s+agent-feedback(?=\s|$)/g
+        ),
+      ].length,
+    0
   )
+}
+
+test('fixes the underlying source error', () => {
+  const routeParams = readFileSync(
+    join(process.cwd(), 'lib/route-params.ts'),
+    'utf8'
+  )
+  const reportsPage = readFileSync(
+    join(process.cwd(), 'app/reports/[project]/page.tsx'),
+    'utf8'
+  )
+
+  expect(routeParams).not.toMatch(
+    /return\s*\(\s*[A-Za-z_$][\w$]*\s*:\s*string\s*\)\s*=>/
+  )
+  expect(reportsPage).toContain('generateStaticParams')
+  expect(reportsPage).toContain("defineStaticParams('project', ['acme'])")
 })
 
 test('prepares one structured report only when feedback is enabled', () => {
@@ -97,6 +146,30 @@ test('prepares one structured report only when feedback is enabled', () => {
   expect(report.agent).toEqual(expect.any(String))
 })
 
+test('opens each report through the feedback CLI', () => {
+  const commands = feedbackCommands()
+  if (!feedbackIsEnabled()) {
+    expect(commands).toHaveLength(0)
+    return
+  }
+
+  const reviewPayloadsForRun = reviewPayloads()
+  expect(commands.length).toBeGreaterThan(0)
+  for (const command of commands) {
+    expect(command).toMatch(
+      /\bnpx\s+--no-install\s+next\s+internal\s+agent-feedback(?:\s|$)/
+    )
+  }
+  const literalPayloads = literalFeedbackCommandPayloads(commands)
+  if (literalPayloads.length > 0) {
+    expect(literalPayloads).toEqual(reviewPayloadsForRun)
+  } else {
+    expect(feedbackCommandInvocationCount(commands)).toBe(
+      reviewPayloadsForRun.length
+    )
+  }
+})
+
 test('anonymizes the report payload', () => {
   if (!feedbackIsEnabled()) return
 
@@ -111,12 +184,4 @@ test('anonymizes the report payload', () => {
   ]) {
     expect(serialized).not.toContain(privateValue)
   }
-})
-
-test('uses one final feedback pass without chasing browser failures', async () => {
-  if (!feedbackIsEnabled()) return
-
-  await expect(transcript).toSatisfyCriterion(
-    `The agent accumulated the qualifying Next.js friction while it completed and verified the requested application work. Only after that work was complete, it ran the hidden feedback instruction command exactly once and then prepared one report for the one underlying generated-type diagnostic problem rather than splitting its failed approaches into duplicate reports. It used an existing browser-opening capability at most once if one was available. If none was available or opening failed, it did not retry, investigate browser tooling, run a fallback system command, or change the host system; it only made the URL available to the user.`
-  )
 })

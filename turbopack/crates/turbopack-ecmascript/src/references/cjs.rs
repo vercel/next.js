@@ -12,9 +12,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat};
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType},
     issue::IssueSource,
@@ -37,7 +35,6 @@ use crate::{
         pattern_mapping::{PatternMapping, ResolveType},
         util::SpecifiedChunkingType,
     },
-    runtime_functions::TURBOPACK_CACHE,
 };
 
 /// Generic CommonJS reference that doesn't perform any codegen. Used for tracing
@@ -194,9 +191,7 @@ impl IntoCodeGenReference for CjsRequireAssetReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct CjsRequireAssetReferenceCodeGen {
     reference: ResolvedVc<CjsRequireAssetReference>,
     path: AstPathId,
@@ -342,9 +337,7 @@ impl IntoCodeGenReference for CjsRequireResolveAssetReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct CjsRequireResolveAssetReferenceCodeGen {
     reference: ResolvedVc<CjsRequireResolveAssetReference>,
     path: AstPathId,
@@ -407,53 +400,10 @@ impl CjsRequireResolveAssetReferenceCodeGen {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
-)]
-pub struct CjsRequireCacheAccess {
-    pub path: AstPathId,
-}
-impl CjsRequireCacheAccess {
-    pub fn new(path: AstPathId) -> Self {
-        CjsRequireCacheAccess { path }
-    }
-
-    pub async fn code_generation(
-        &self,
-        trie: &AstPathTrie,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<CodeGeneration> {
-        let mut visitors = Vec::new();
-
-        visitors.push(create_visitor!(
-            trie,
-            self.path,
-            visit_mut_expr,
-            |expr: &mut Expr| {
-                if let Expr::Member(_) = expr {
-                    *expr = TURBOPACK_CACHE.into();
-                } else {
-                    unreachable!("`CjsRequireCacheAccess` is only created from `MemberExpr`");
-                }
-            }
-        ));
-
-        Ok(CodeGeneration::visitors(visitors))
-    }
-}
-
-impl From<CjsRequireCacheAccess> for CodeGen {
-    fn from(val: CjsRequireCacheAccess) -> Self {
-        CodeGen::CjsRequireCacheAccess(val)
-    }
-}
-
 /// Removes each named CommonJS export the module graph proved unused. Built by the
 /// analyzer for statically-analyzable CommonJS modules; recognition happens inline
 /// during the walk (see `analyzer::graph::visitor`).
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct CjsExportsDropCodeGen {
     drops: Vec<DroppableCjsExportAssignment>,
     /// Writes to a discarded exports object, dropped whatever the export usage is.
@@ -464,9 +414,7 @@ pub struct CjsExportsDropCodeGen {
 }
 
 /// A recognized CommonJS export declaration, and thus how it's dropped.
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub enum DroppableCjsExportAssignment {
     /// A standalone `exports.NAME = …` write or `Object.defineProperty(exports, …)`
     /// call (the assignment is replaced by its value; the define call is removed).

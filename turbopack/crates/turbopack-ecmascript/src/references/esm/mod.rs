@@ -10,7 +10,7 @@ pub(crate) mod url;
 
 pub use self::{
     base::{EsmAssetReference, EsmAssetReferenceOptions},
-    binding::EsmBinding,
+    binding::EsmBindings,
     dynamic::EsmAsyncAssetReference,
     export::{EsmExport, EsmExports, FoundExportType, Liveness},
     mangle::generated_export_key,

@@ -26,7 +26,6 @@ use turbopack::{
     },
 };
 use turbopack_core::{
-    chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -36,6 +35,7 @@ use turbopack_core::{
     reference::referenced_modules_and_affecting_sources,
     reference_type::ReferenceType,
     resolve::options::{ConditionValue, ImportMap, ImportMapping},
+    source_map::SourceMapGenerationOptions,
 };
 use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -173,6 +173,10 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 // #[case::pixelmatch("pixelmatch")]
 #[case::pkg_dir_outside_base("pkg-dir-outside-base")]
 #[case::pkg_file_outside_base("pkg-file-outside-base")]
+#[case::pkg_project_root_static("pkg-project-root-static")]
+#[case::pkg_project_root_directory("pkg-project-root-directory")]
+#[case::pkg_project_root_mixed_directory("pkg-project-root-mixed-directory")]
+#[case::pkg_project_root_symlink_directory("pkg-project-root-symlink-directory")]
 // #[case::pkginfo("pkginfo")]
 // #[case::pnpm_symlinks("pnpm-symlinks")]
 // #[case::prisma_photon("prisma-photon")]
@@ -298,7 +302,7 @@ async fn node_file_trace_operation(
                 ..Default::default()
             },
             css: CssOptionsContext {
-                source_maps: SourceMapsType::None,
+                source_map_generation_options: SourceMapGenerationOptions::NONE,
                 enable_raw_css: true,
                 ..Default::default()
             },

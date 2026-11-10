@@ -10,10 +10,7 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    NonLocalValue, ReadRef, TaskInput, ValueToString, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ReadRef, TaskInput, ValueToString, Vc, debug::ValueDebugFormat};
 use turbo_tasks_fs::{
     FileSystemEntryType, FileSystemPath, LinkContent, RawDirectoryContent, RawDirectoryEntry,
 };
@@ -147,6 +144,28 @@ impl Pattern {
             Pattern::Alternatives(list) | Pattern::Concatenation(list) => {
                 list.iter().any(|p| p.has_dynamic_parts())
             }
+        }
+    }
+
+    /// Returns the alternatives that contain no dynamic parts.
+    ///
+    /// The pattern is expected to be normalized so that alternatives are at the top level.
+    pub fn filter_static(&self) -> Option<Pattern> {
+        if let Pattern::Alternatives(list) = self {
+            let mut static_alternatives = list
+                .iter()
+                .filter(|alternative| !alternative.has_dynamic_parts())
+                .cloned()
+                .collect::<Vec<_>>();
+            match static_alternatives.len() {
+                0 => None,
+                1 => static_alternatives.pop(),
+                _ => Some(Pattern::Alternatives(static_alternatives)),
+            }
+        } else if self.has_dynamic_parts() {
+            None
+        } else {
+            Some(self.clone())
         }
     }
 
@@ -1484,9 +1503,7 @@ impl Pattern {
     }
 }
 
-#[derive(
-    Debug, PartialEq, Eq, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
-)]
+#[derive(Debug, PartialEq, Eq, Clone, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub enum PatternMatch {
     File(RcStr, FileSystemPath),
     Directory(RcStr, FileSystemPath),
@@ -2027,6 +2044,43 @@ mod tests {
 
             assert_eq!(p, Pattern::Dynamic);
         }
+    }
+
+    #[test]
+    fn filter_static() {
+        let static_a = Pattern::Constant(rcstr!("./next-i18next.config.js"));
+        let static_b = Pattern::Constant(rcstr!("./i18next.config.js"));
+
+        assert_eq!(static_a.filter_static(), Some(static_a.clone()));
+        assert_eq!(Pattern::Dynamic.filter_static(), None);
+        assert_eq!(Pattern::DynamicNoSlash.filter_static(), None);
+
+        let pattern = Pattern::Alternatives(vec![
+            static_a.clone(),
+            static_b.clone(),
+            Pattern::Dynamic,
+            Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(rcstr!("/suffix"))]),
+            Pattern::Concatenation(vec![
+                Pattern::Constant(rcstr!("/prefix/")),
+                Pattern::Dynamic,
+            ]),
+        ]);
+        assert_eq!(
+            pattern.filter_static(),
+            Some(Pattern::Alternatives(vec![static_a, static_b]))
+        );
+
+        assert_eq!(
+            Pattern::Alternatives(vec![
+                Pattern::Dynamic,
+                Pattern::Concatenation(vec![
+                    Pattern::Constant(rcstr!("/prefix/")),
+                    Pattern::Dynamic,
+                ]),
+            ])
+            .filter_static(),
+            None
+        );
     }
 
     #[test]

@@ -159,11 +159,24 @@ export async function installPlaywright(sandbox: Sandbox): Promise<void> {
  * before the coding agent starts.
  */
 export async function prepareFixture(sandbox: Sandbox): Promise<void> {
-  let pkg: { scripts?: Record<string, string> }
+  let pkg: {
+    scripts?: Record<string, string>
+    dependencies?: { next?: string }
+    devDependencies?: { next?: string }
+  }
   try {
     pkg = JSON.parse(await sandbox.readFile('package.json'))
   } catch {
     return
+  }
+
+  if (pkg.dependencies?.next ?? pkg.devDependencies?.next) {
+    await sandbox.writeFiles({
+      '__agent_eval__/next-test-utils.mjs': readFileSync(
+        join(REPO_ROOT, 'evals/lib/next-test-utils.mjs'),
+        'utf8'
+      ),
+    })
   }
 
   if (!pkg.scripts?.['eval:setup']) return
@@ -202,6 +215,7 @@ Before any Next.js work, find and read the relevant doc in \`node_modules/next/d
 `
   await sandbox.writeFiles({
     'AGENTS.md': body,
+    'CLAUDE.md': '@AGENTS.md\n',
   })
 }
 
@@ -242,6 +256,9 @@ require(path.join(nextRoot, 'dist/server/lib/generate-agent-files.js'))
       `enabling agent feedback for the eval failed (exit ${exitCode}):\n${stderr}`
     )
   }
+  await sandbox.writeFiles({
+    'CLAUDE.md': '@AGENTS.md\n',
+  })
   console.log('  Enabled deterministic agent feedback instructions')
 }
 

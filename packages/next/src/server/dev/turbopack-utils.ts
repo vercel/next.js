@@ -141,6 +141,10 @@ export type ClientStateMap = WeakMap<ws, ClientState>
 type HandleRouteTypeHooks = {
   handleWrittenEndpoint: HandleWrittenEndpoint
   subscribeToChanges: StartChangeSubscription
+  subscribeToClientHmrChanges?: (
+    key: EntryKey,
+    endpoint: Endpoint
+  ) => Promise<void>
   handleServerComponentChanges?: () => void
 }
 
@@ -191,6 +195,14 @@ export async function handleRouteType({
           const key = getEntryKey('pages', 'server', '_app')
 
           const writtenEndpoint = await entrypoints.global.app.writeToDisk()
+          if (dev) {
+            // Page client chunks exclude modules already provided by _app, so
+            // its global CSS needs its own baseline before we serve the HTML.
+            await hooks?.subscribeToClientHmrChanges?.(
+              getEntryKey('pages', 'client', '_app'),
+              entrypoints.global.app
+            )
+          }
           documentOrAppChanged ||=
             hooks?.handleWrittenEndpoint(key, writtenEndpoint, false) ?? false
           processIssues(
@@ -294,6 +306,12 @@ export async function handleRouteType({
               }
             }
           )
+          // Reuse the existing Pages client observer, but wait for its baseline
+          // before HTML can be delivered to an initially unsubscribed browser.
+          await hooks?.subscribeToClientHmrChanges?.(
+            clientKey,
+            route.htmlEndpoint
+          )
           if (entrypoints.global.document) {
             hooks?.subscribeToChanges(
               getEntryKey('pages', 'server', '_document'),
@@ -351,6 +369,13 @@ export async function handleRouteType({
       hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
 
       if (dev) {
+        // Establish client-output observation before serving HTML. Unlike the
+        // RSC/server observer, this includes CSS edits made before the browser
+        // has installed its first chunk-list subscription.
+        await hooks?.subscribeToClientHmrChanges?.(
+          getEntryKey('app', 'client', page),
+          route.htmlEndpoint
+        )
         // TODO subscriptions should only be caused by the WebSocket connections
         // otherwise we don't known when to unsubscribe and this leaking
         hooks?.subscribeToChanges(
@@ -400,12 +425,12 @@ export async function handleRouteType({
 
       break
     }
-    case 'app-route': {
+    case 'app-route':
+    case 'app-route-go': {
       const key = getEntryKey('app', 'server', page)
 
       const writtenEndpoint = await route.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
-
       if (dev) {
         // Advance the hot-reloader's HMR refresh hash whenever this route
         // handler is recompiled, so its `"use cache"` entries are invalidated
@@ -435,6 +460,12 @@ export async function handleRouteType({
       }
 
       const type = writtenEndpoint.value.type
+      const isNative = type === 'native'
+      if (isNative) {
+        // Native compilation may fail without publishing manifests. Keep the
+        // issue subscription above active so source edits can repair the route.
+        processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      }
 
       manifestLoader.loadAppPathsManifest(page)
       if (route.hasActionManifest) {
@@ -453,7 +484,9 @@ export async function handleRouteType({
         productionRewrites,
         entrypoints,
       })
-      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      if (!isNative) {
+        processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      }
 
       break
     }
@@ -645,7 +678,8 @@ export async function handleEntrypoints({
         })
         break
       }
-      case 'app-route': {
+      case 'app-route':
+      case 'app-route-go': {
         currentEntrypoints.app.set(route.originalName, route)
         break
       }

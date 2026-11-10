@@ -1,0 +1,127 @@
+---
+title: Next.js encountered `prefetch()` or `navigation()` in `generateViewport()`
+kind: insight
+---
+
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This insight is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant navigations](/docs/app/guides/instant-navigation) guide for an
+  overview of what instant navigations are and how Next.js validates them, then
+  come back here for the specific fix.
+</div>
+
+During prerendering or a client-side navigation, [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) called [`prefetch()`](/docs/app/api-reference/functions/prefetch) or [`navigation()`](/docs/app/api-reference/functions/navigation). `prefetch()` delays the viewport until a per-link prefetch or navigation. `navigation()` delays it until navigation.
+
+Next.js needs the viewport before it can complete the route's [App Shell](/docs/app/glossary#app-shell). Holding the viewport until a later stage prevents Next.js from creating the App Shell and can make navigation slower. If the later timing is not intentional, remove the API call. If it is intentional, you can leave the behavior unchanged. To stop reporting the insight, disable validation for the segment.
+
+For the same insight in the page body or metadata code, see [`prefetch()` or `navigation()` outside of Suspense](/docs/messages/instant-navigation-stage) or [`prefetch()` or `navigation()` in `generateMetadata()`](/docs/messages/instant-navigation-stage-metadata).
+
+## Ways to fix this
+
+<FixCardGrid>
+  <FixCard
+    group="remove"
+    title="Remove the API call"
+    href="#remove-the-api-call"
+    snippets={[
+      { text: 'async function generateViewport() {' },
+      { text: '-  await navigation()', highlight: true },
+      { text: '}' },
+    ]}
+  />
+  <FixCard
+    group="ignore"
+    title="Disable validation on this route"
+    href="#disable-validation-on-this-route"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ]}
+  />
+</FixCardGrid>
+
+## Remove the API call
+
+Choose this fix when you do not need to control when the viewport is included. Remove `prefetch()` or `navigation()` from [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport). Keep `generateViewport()` and its existing caching.
+
+### Patterns
+
+#### Remove the API call
+
+Remove the call to `prefetch()` or `navigation()`.
+
+```jsx filename="app/dashboard/layout.js"
+import { getViewport } from './data'
+
+export async function generateViewport() {
+  return getViewport()
+}
+
+export default function DashboardLayout({ children }) {
+  return children
+}
+```
+
+Learn more: [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport).
+
+### Trade-off
+
+Removing the API can increase the viewport work performed during prerendering and prefetching.
+
+### Gotchas
+
+- You do not need to replace `generateViewport()` with a static [`viewport`](/docs/app/api-reference/functions/generate-viewport#the-viewport-object) export. Use a static export only when the values are fixed for the route segment.
+
+## Disable validation on this route
+
+Choose this fix when the later viewport timing is intentional and you do not want Next.js to report the insight. Add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout that exports `generateViewport()`. This disables instant-navigation validation for the segment. It does not change when the viewport becomes available.
+
+### Patterns
+
+#### Disable validation for the segment
+
+```jsx filename="app/dashboard/layout.js"
+export const instant = false
+```
+
+Learn more: [Route segment `instant` config](/docs/app/api-reference/file-conventions/route-segment-config/instant).
+
+### Trade-off
+
+The viewport remains unavailable until the selected navigation stage, but Next.js no longer reports the delay for this segment.
+
+### Gotchas
+
+- Child segments are still validated during client navigations.
+- The export does not change when the viewport becomes available or disable prerendering.
+
+## Verifying the fix
+
+After applying a fix, navigate to the route and confirm the insight no longer appears. The page should paint meaningful UI immediately.
+
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay identifies the failing component with a file path and line number. The default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is shorter. Run `next build --debug-prerender` for full user-frame stack traces or `next build --debug-build-paths /dashboard /settings` to inspect specific routes.
+
+## Don't want this validation?
+
+Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and surfaces this insight.
+
+- **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
+- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
+
+See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
+
+## Related Insights
+
+See [Instant Navigation validation errors](/docs/messages/instant-navigation-validation) for the complete reference.

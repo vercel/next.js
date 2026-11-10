@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use next_taskless::NEVER_EXTERNAL_RE;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc};
 use turbo_tasks_fs::{
     self, FileJsonContent, FileSystemPath,
     glob::{Glob, GlobOptions},
@@ -51,12 +51,11 @@ pub(crate) struct ExternalCjsModulesResolvePlugin {
 impl ExternalCjsModulesResolvePlugin {
     #[turbo_tasks::function]
     pub async fn new(
-        root: FileSystemPath,
         predicate: ResolvedVc<ExternalPredicate>,
         import_externals: bool,
     ) -> Result<Vc<Self>> {
         let condition = AfterResolvePluginCondition::new_with_glob(
-            root,
+            None,
             Glob::new(rcstr!("**/node_modules/**"), GlobOptions::default()),
         )
         .to_resolved()
@@ -329,7 +328,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
     }
 }
 
-#[derive(TraceRawVcs, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 pub struct PackagesGlobs {
     path_glob: ResolvedVc<Glob>,
     request_glob: ResolvedVc<Glob>,

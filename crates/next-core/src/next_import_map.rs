@@ -65,6 +65,11 @@ pub async fn get_next_client_import_map(
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
+    import_map.insert_exact_alias(
+        rcstr!("next/image"),
+        request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/image")),
+    );
+
     insert_next_shared_aliases(
         &mut import_map,
         project_path.clone(),
@@ -281,6 +286,11 @@ pub async fn get_next_server_import_map(
     collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
+
+    import_map.insert_exact_alias(
+        rcstr!("next/image"),
+        request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/image")),
+    );
 
     insert_next_shared_aliases(
         &mut import_map,
@@ -570,7 +580,6 @@ async fn insert_unsupported_node_internal_aliases(import_map: &mut ImportMap) ->
 
 pub async fn get_next_client_resolved_map(
     context_path: FileSystemPath,
-    root: FileSystemPath,
     _mode: NextMode,
     expose_testing_api: bool,
     concurrent_router_queue: bool,
@@ -581,14 +590,13 @@ pub async fn get_next_client_resolved_map(
     // into the client bundle. This is the Turbopack analog of the webpack alias in
     // `create-compiler-aliases.ts` and is client-only because `get_next_client_resolved_map`
     // is used only by the client context. Matching is on the resolved file path, so it
-    // intercepts the relative import regardless of which module pulls it in. Anchored at the
-    // filesystem root so it matches wherever `next` resolves from (node_modules, pnpm store,
-    // or monorepo `packages/next`).
-    let fs_root = root.root().owned().await?;
+    // intercepts the relative import regardless of which module pulls it in. Not anchored to
+    // any filesystem, so it matches wherever `next` resolves from (node_modules, pnpm store,
+    // monorepo `packages/next`, or an additional root such as a global pnpm virtual store).
     let mut glob_mappings = Vec::with_capacity(BROWSER_VARIANT_MODULES.len() + 1);
     for module in BROWSER_VARIANT_MODULES {
         glob_mappings.push((
-            fs_root.clone(),
+            None,
             Glob::new(
                 format!("**/next/dist/{module}.js").into(),
                 GlobOptions::default(),
@@ -609,7 +617,7 @@ pub async fn get_next_client_resolved_map(
     // alias in `create-compiler-aliases.ts`.
     if !expose_testing_api {
         glob_mappings.push((
-            fs_root.clone(),
+            None,
             Glob::new(
                 rcstr!("**/next/dist/client/components/segment-cache/navigation-testing-lock.js"),
                 GlobOptions::default(),
@@ -632,7 +640,7 @@ pub async fn get_next_client_resolved_map(
     // This mirrors the webpack alias in `create-compiler-aliases.ts`.
     if concurrent_router_queue {
         glob_mappings.push((
-            fs_root.clone(),
+            None,
             Glob::new(
                 rcstr!("**/next/dist/client/components/navigator.js"),
                 GlobOptions::default(),
@@ -645,7 +653,7 @@ pub async fn get_next_client_resolved_map(
             ),
         ));
         glob_mappings.push((
-            fs_root,
+            None,
             Glob::new(
                 rcstr!("**/next/dist/client/app-call-server.js"),
                 GlobOptions::default(),
@@ -1196,7 +1204,7 @@ async fn insert_next_shared_aliases(
     import_map.insert_alias(
         AliasPattern::exact(GOOGLE_FONTS_INTERNAL_PREFIX),
         ImportMapping::Dynamic(ResolvedVc::upcast(
-            NextFontGoogleFontFileReplacer::new(project_path.clone(), fetch_client)
+            NextFontGoogleFontFileReplacer::new(project_path.clone(), next_mode, fetch_client)
                 .to_resolved()
                 .await?,
         ))

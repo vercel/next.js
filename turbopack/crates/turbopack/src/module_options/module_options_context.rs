@@ -4,30 +4,30 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::{
     FileSystemPath,
     glob::{Glob, GlobOptions},
 };
 use turbopack_core::{
-    chunk::SourceMapsType, compile_time_info::CompileTimeInfo, condition::ContextCondition,
-    environment::Environment, resolve::options::ImportMapping,
+    compile_time_info::CompileTimeInfo, condition::ContextCondition, environment::Environment,
+    loader::WebpackLoaderItems, resolve::options::ImportMapping,
+    source_map::SourceMapGenerationOptions,
 };
 use turbopack_ecmascript::{
     AnalyzeMode, TypeofWindow,
     references::esm::UrlRewriteBehavior,
-    transform::{PresetEnvConfig, ReactCompilerCompilationMode, ReactCompilerTarget},
+    transform::{PresetEnvConfig, ReactCompilerTarget, ReactCompilerTransformOptions},
 };
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
-    execution_context::ExecutionContext,
-    transforms::{postcss::PostCssTransformOptions, webpack::WebpackLoaderItems},
+    execution_context::ExecutionContext, transforms::postcss::PostCssTransformOptions,
 };
 
 use super::ModuleRule;
 use crate::module_options::RuleCondition;
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 pub struct LoaderRuleItem {
     pub loaders: ResolvedVc<WebpackLoaderItems>,
     pub rename_as: Option<RcStr>,
@@ -44,19 +44,19 @@ pub struct LoaderRuleItem {
 #[turbo_tasks::value(transparent)]
 pub struct WebpackRules(Vec<(RcStr, LoaderRuleItem)>);
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 pub enum ConditionPath {
     Glob(RcStr),
     Regex(ResolvedVc<EsRegex>),
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 pub enum ConditionQuery {
     Constant(RcStr),
     Regex(ResolvedVc<EsRegex>),
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 pub enum ConditionContentType {
     Glob(RcStr),
     Regex(ResolvedVc<EsRegex>),
@@ -128,7 +128,7 @@ impl WebpackLoaderBuiltinConditionSet for EmptyWebpackLoaderBuiltinConditionSet 
 /// The kind of ECMAScript class decorators transform to use.
 ///
 /// TODO: might need bikeshed for the name (Ecma)
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 pub enum DecoratorsKind {
     /// Enables the syntax and behavior of the modern [stage 3 proposal]. This is the recommended
     /// transform with JavaScript or [TypeScript 5.0][ts5] or later.
@@ -254,7 +254,7 @@ pub struct EcmascriptOptionsContext {
     // node_modules.
     pub enable_typeof_window_inlining: Option<TypeofWindow>,
     pub enable_jsx: Option<ResolvedVc<JsxTransformOptions>>,
-    pub enable_rust_react_compiler: Option<ReactCompilerCompilationMode>,
+    pub enable_rust_react_compiler: Option<ReactCompilerTransformOptions>,
     pub rust_react_compiler_target: ReactCompilerTarget,
     /// Follow type references and resolve declaration files in additional to
     /// normal resolution.
@@ -270,7 +270,7 @@ pub struct EcmascriptOptionsContext {
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
     /// Specifies how Source Maps are handled.
-    pub source_maps: SourceMapsType,
+    pub source_map_generation_options: SourceMapGenerationOptions,
 
     /// Whether to allow accessing exports info via `__webpack_exports_info__`.
     pub enable_exports_info_inlining: bool,
@@ -292,6 +292,9 @@ pub struct EcmascriptOptionsContext {
     /// is observable from user code — modules whose export names can escape keep their original
     /// names. Defaults to false.
     pub mangle_export_names: bool,
+    /// Whether to materialize public namespaces with a facade so local export keys can still be
+    /// mangled when the namespace escapes. Defaults to false and requires `mangle_export_names`.
+    pub mangle_via_materialized_namespace_object: bool,
     /// Whether to scope-hoist static CommonJS modules. Defaults to false.
     pub cjs_scope_hoisting: bool,
 
@@ -317,7 +320,7 @@ pub struct CssOptionsContext {
     pub enable_raw_css: bool,
 
     /// Specifies how Source Maps are handled.
-    pub source_maps: SourceMapsType,
+    pub source_map_generation_options: SourceMapGenerationOptions,
 
     /// Override the conditions for module CSS (doesn't have any effect if `enable_raw_css` is
     /// true). By default (for `None`), it uses

@@ -14,12 +14,12 @@ Next.js automatically optimizes bundles by code splitting, tree-shaking, and oth
 
 There are two tools for analyzing your application's bundles:
 
-- [Next.js Bundle Analyzer for Turbopack (experimental)](#nextjs-bundle-analyzer-experimental)
+- [Next.js Bundle Analyzer for Turbopack](#nextjs-bundle-analyzer)
 - [`@next/bundle-analyzer` plugin for Webpack](#nextbundle-analyzer-for-webpack)
 
 This guide will walk you through how to use each tool and how to [optimize large bundles](#optimizing-large-bundles).
 
-## Next.js Bundle Analyzer (Experimental)
+## Next.js Bundle Analyzer
 
 > Available in v16.1 and later. You can share feedback in the [dedicated GitHub discussion](https://github.com/vercel/next.js/discussions/86731) and view the demo at [turbopack-bundle-analyzer-demo.vercel.sh](https://turbopack-bundle-analyzer-demo.vercel.sh/).
 
@@ -30,19 +30,19 @@ The Next.js Bundle Analyzer is integrated with Turbopack's module graph. You can
 To get started, run the following command and open up the interactive view in your browser.
 
 ```bash filename="Terminal" package="npm"
-npx next experimental-analyze
+npx next analyze
 ```
 
 ```bash filename="Terminal" package="yarn"
-yarn next experimental-analyze
+yarn next analyze
 ```
 
 ```bash filename="Terminal" package="pnpm"
-pnpm next experimental-analyze
+pnpm next analyze
 ```
 
 ```bash filename="Terminal" package="bun"
-bunx next experimental-analyze
+bunx next analyze
 ```
 
 ### Step 2: Filter and inspect modules
@@ -75,19 +75,19 @@ Click a module to see its size, inspect its full import chain and see exactly wh
 If you want to share the analysis with teammates or compare bundle sizes before/after optimizations, you can skip the interactive view and save the analysis as a static file with the `--output` flag:
 
 ```bash filename="Terminal" package="npm"
-npx next experimental-analyze --output
+npx next analyze --output
 ```
 
 ```bash filename="Terminal" package="yarn"
-yarn next experimental-analyze --output
+yarn next analyze --output
 ```
 
 ```bash filename="Terminal" package="pnpm"
-pnpm next experimental-analyze --output
+pnpm next analyze --output
 ```
 
 ```bash filename="Terminal" package="bun"
-bunx next experimental-analyze --output
+bunx next analyze --output
 ```
 
 This command writes the output to `.next/diagnostics/analyze`. You can copy this directory elsewhere to compare results:
@@ -96,7 +96,53 @@ This command writes the output to `.next/diagnostics/analyze`. You can copy this
 cp -r .next/diagnostics/analyze ./analyze-before-refactor
 ```
 
+### Export analysis data
+
+> Available in v16.4 and later. You can share feedback in the [dedicated GitHub discussion](https://github.com/vercel/next.js/discussions/86731) and view the demo at [turbopack-bundle-analyzer-demo.vercel.sh](https://turbopack-bundle-analyzer-demo.vercel.sh/).
+
+Use `next analyze export` to stream a saved snapshot as JSON Lines for scripts or AI tools, without rebuilding or starting a server:
+
+```bash filename="Terminal" package="npm"
+npx next analyze --output --snapshot before
+npx next analyze export --snapshot before > bundle-graph.jsonl
+```
+
+```bash filename="Terminal" package="yarn"
+yarn next analyze --output --snapshot before
+yarn next analyze export --snapshot before > bundle-graph.jsonl
+```
+
+```bash filename="Terminal" package="pnpm"
+pnpm next analyze --output --snapshot before
+pnpm next analyze export --snapshot before > bundle-graph.jsonl
+```
+
+```bash filename="Terminal" package="bun"
+bunx next analyze --output --snapshot before
+bunx next analyze export --snapshot before > bundle-graph.jsonl
+```
+
+See the [CLI reference](/docs/app/api-reference/cli/next#next-analyze-export-options) for export options.
+
 > More options are available for the Bundle Analyzer, see Next.js CLI reference docs for the full list.
+
+### Give your AI agent access to the bundle analyzer
+
+The [`next-bundle-optimizer`](https://www.skills.sh/vercel/next.js/next-bundle-optimizer) skill gives your AI agent access to the data powering Turbopack's bundle analyzer to automatically identify sources of large client-side bundles that impact your site's initial load performance.
+
+First, install the skill:
+
+```bash filename="Terminal"
+npx skills add vercel/next.js --skill next-bundle-optimizer
+```
+
+Then prompt your agent. In audit-only mode, it produces a report without making any changes:
+
+```prompt
+Use the next-bundle-optimizer skill to produce a report of the initial load performance of this site.
+```
+
+You can also tell your agent to fix any issues, and it will optimize your site based on its findings. Or have it focus on a specific route by providing the route in the prompt.
 
 ## `@next/bundle-analyzer` for Webpack
 
@@ -309,3 +355,9 @@ module.exports = nextConfig
 ```
 
 </PagesOnly>
+
+## Version History
+
+| Version   | Changes                                                          |
+| --------- | ---------------------------------------------------------------- |
+| `v16.4.0` | Add `next analyze export` and the `next-bundle-optimizer` skill. |

@@ -26,6 +26,7 @@
                             export: Some(
                                 "named",
                             ),
+                            member: None,
                             ast_path: [
                                 Program(
                                     Module,

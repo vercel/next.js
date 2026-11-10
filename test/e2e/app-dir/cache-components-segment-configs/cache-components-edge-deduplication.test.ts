@@ -23,9 +23,6 @@ function filterToErrorHeaders(output: string): string {
 
 // Only Turbopack runs the transform on the layout once in edge and non-edge contexts
 // so we only test this on Turbopack
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
-// @force-gate !deploy
 // @force-gate turbopack
 describe('cache-components-edge-deduplication', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -34,22 +31,18 @@ describe('cache-components-edge-deduplication', () => {
   })
 
   it('should not duplicate errors when layout is compiled for both edge and non-edge contexts', async () => {
-    try {
-      await next.start()
-    } catch {
-      // we expect the build to fail
-    }
-
     if (isNextDev) {
+      await next.start()
+
       const browser = await next.browser('/edge-with-layout/edge')
       waitForRedbox(browser)
       await expect(browser).toDisplayRedbox(`
          {
-           "description": "Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
+           "description": "Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./app/edge-with-layout/layout.tsx (1:14)
-         Error: Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+         Error: Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components
          > 1 | export const dynamic = 'force-dynamic'
              |              ^^^^^^^",
            "stack": [],
@@ -65,14 +58,16 @@ describe('cache-components-edge-deduplication', () => {
       // We don't show an error stack, just the individual error messages at each location
       expect(layoutErrorMatches.length).toBe(1)
     } else {
+      await expect(next.start()).rejects.toThrow()
+
       // Check that both the layout and edge page errors appear
       expect(next.cliOutput).toContain('./app/edge-with-layout/layout.tsx')
       expect(next.cliOutput).toContain('./app/edge-with-layout/edge/page.tsx')
       expect(next.cliOutput).toContain(
-        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
       )
       expect(next.cliOutput).toContain(
-        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
       )
       // Count occurrences of the layout error at the specific location
       const layoutErrorMatches = next.cliOutput.match(
@@ -84,5 +79,5 @@ describe('cache-components-edge-deduplication', () => {
       // them names the route.
       expect(layoutErrorMatches.length).toBe(1)
     }
-  })
+  }, 240_000)
 })

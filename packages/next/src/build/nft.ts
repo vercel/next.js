@@ -54,9 +54,8 @@ export interface NftJson extends NftFileList {
 /** Turbopack extension: Paths stored with a different base path. */
 export interface NftAdditionalRoot extends NftFileList {
   /**
-   * Stable unique identifier provided in `next.config.js`. This can be used to
-   * generate the output path where these files are copied, such as
-   * `next_additional_roots/${name}`.
+   * Stable unique identifier. This can be used to generate the output path
+   * where these files are copied, such as `next_additional_roots/${name}`.
    *
    * This uses a character set that is valid on most filesystems, and identifiers
    * are guaranteed not to overlap on case-insensitive filesystems.
@@ -118,6 +117,8 @@ export interface MappedNftFileEntry {
    * `undefined` value here means that the file is not a symlink.
    */
   symlinkTarget?: string
+  /** Whether the symlink target is stored relative to a different NFT root. */
+  symlinkCrossesRoot: boolean
 }
 
 function invalid(message: string): never {
@@ -229,8 +230,10 @@ export function mapNftFileEntries(
       }
 
       let symlinkTarget: string | undefined
+      let symlinkCrossesRoot = false
       if (symlink !== undefined) {
         const [, target, rootIndex] = symlink
+        symlinkCrossesRoot = rootIndex !== undefined
         const targetRootIndex = rootIndex ?? currentRootIndex
         symlinkTarget =
           targetRootIndex === -1
@@ -246,9 +249,11 @@ export function mapNftFileEntries(
       }
 
       result.push({
-        ...mapped,
+        source: mapped.source,
+        destination: mapped.destination,
         hash: fileHashes?.[fileIndex],
         symlinkTarget,
+        symlinkCrossesRoot,
       })
     }
   }

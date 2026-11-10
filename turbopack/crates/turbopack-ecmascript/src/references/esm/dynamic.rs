@@ -5,9 +5,7 @@ use swc_core::{
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
     quote_expr,
 };
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat};
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType},
     issue::IssueSource,
@@ -40,7 +38,6 @@ pub struct EsmAsyncAssetReference {
     pub request: ResolvedVc<Request>,
     pub issue_source: IssueSource,
     pub error_mode: ResolveErrorMode,
-    pub import_externals: bool,
     /// The export usage extracted from the dynamic import usage pattern.
     /// Detected from destructured await, member access on await, .then()
     /// callback destructuring, or webpackExports/turbopackExports comments.
@@ -58,7 +55,6 @@ impl EsmAsyncAssetReference {
         issue_source: IssueSource,
         annotations: ImportAnnotations,
         error_mode: ResolveErrorMode,
-        import_externals: bool,
         export_usage: ExportUsage,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
         lazy_compilation: bool,
@@ -79,7 +75,6 @@ impl EsmAsyncAssetReference {
             request,
             issue_source,
             error_mode,
-            import_externals,
             export_usage,
             resolve_override,
             lazy_compilation,
@@ -155,9 +150,7 @@ impl IntoCodeGenReference for EsmAsyncAssetReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct EsmAsyncAssetReferenceCodeGen {
     path: AstPathId,
     reference: ResolvedVc<EsmAsyncAssetReference>,
@@ -185,8 +178,6 @@ impl EsmAsyncAssetReferenceCodeGen {
         )
         .await?;
 
-        let import_externals = reference.import_externals;
-
         let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             let old_expr = expr.take();
             let message = if let Expr::Call(CallExpr { args, .. }) = old_expr {
@@ -195,7 +186,7 @@ impl EsmAsyncAssetReferenceCodeGen {
                         spread: None,
                         expr: key_expr,
                     }) => {
-                        *expr = pm.create_import(*key_expr, import_externals);
+                        *expr = pm.create_import(*key_expr);
                         return;
                     }
                     // These are SWC bugs: https://github.com/swc-project/swc/issues/5394

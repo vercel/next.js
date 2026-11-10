@@ -29,9 +29,6 @@ describe('instant validation - opting out of static shells', () => {
 })
 
 describe('instant validation', () => {
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
-  // @force-gate !deploy
   describe('requires a static shell if a below a static layout page is configured as blocking', () => {
     const { next, isNextDev } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'invalid-blocking-page-below-static'),
@@ -78,18 +75,10 @@ describe('instant validation', () => {
         `)
       })
     } else {
-      let didBuildError = false
-      beforeAll(async () => {
-        try {
-          await next.start()
-        } catch (err) {
-          didBuildError = true
-        }
-      })
-      it('errors during build', () => {
-        expect(didBuildError).toBe(true)
+      it('errors during build', async () => {
+        await expect(next.start()).rejects.toThrow()
         expect(next.cliOutput).toContain('during prerendering')
-      })
+      }, 240_000)
     }
   })
 })

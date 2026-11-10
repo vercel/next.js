@@ -8,7 +8,7 @@ use swc_core::{
     ecma::ast::{ComputedPropName, Expr, Lit, MemberProp, ObjectPatProp, Pat, PropName, Str},
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, TaskInput};
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
 use crate::{
@@ -188,6 +188,26 @@ where
     }
 }
 
+/// Formats a property access on `object` in its shortest form: `object.name` when `name` is a
+/// plain (ASCII) identifier, `object["name"]` otherwise.
+pub struct PropertyAccessJs<'a>(pub &'a str, pub &'a str);
+
+impl std::fmt::Display for PropertyAccessJs<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let PropertyAccessJs(object, name) = *self;
+        let mut chars = name.chars();
+        let is_ident = chars
+            .next()
+            .is_some_and(|c| c.is_ascii_alphabetic() || c == '_' || c == '$')
+            && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$');
+        if is_ident {
+            write!(f, "{object}.{name}")
+        } else {
+            write!(f, "{object}[{}]", StringifyJs(name))
+        }
+    }
+}
+
 pub struct FormatIter<T: Iterator, F: Fn() -> T>(pub F);
 
 macro_rules! format_iter {
@@ -216,7 +236,7 @@ format_iter!(std::fmt::Pointer);
 format_iter!(std::fmt::UpperExp);
 format_iter!(std::fmt::UpperHex);
 
-#[derive(Clone, Copy, PartialEq, Eq, TraceRawVcs, Debug, NonLocalValue, Hash, Encode, Decode)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, NonLocalValue, Hash, Encode, Decode)]
 pub enum AstPathRange {
     /// The ast path to the block or expression.
     Exact(AstPathId),
@@ -265,12 +285,8 @@ pub fn module_value_to_well_known_object<'a>(module_value: &ModuleValue) -> Opti
     })
 }
 
-#[derive(Hash, Debug, Clone, Copy, Eq, PartialEq, TraceRawVcs, Encode, Decode)]
-pub struct AstSyntaxContext(
-    #[turbo_tasks(trace_ignore)]
-    #[bincode(with_serde)]
-    SyntaxContext,
-);
+#[derive(Hash, Debug, Clone, Copy, Eq, PartialEq, Encode, Decode)]
+pub struct AstSyntaxContext(#[bincode(with_serde)] SyntaxContext);
 
 impl TaskInput for AstSyntaxContext {
     fn is_transient(&self) -> bool {
@@ -331,8 +347,19 @@ mod tests {
 
     use crate::{
         analyzer::{BumpVec, ConstantString, ConstantValue, JsValue, ThreadLocal},
-        utils::js_value_to_pattern,
+        utils::{PropertyAccessJs, js_value_to_pattern},
     };
+
+    #[test]
+    fn property_access_uses_shortest_form() {
+        let access = |name| PropertyAccessJs("a", name).to_string();
+        assert_eq!(access("b"), "a.b");
+        assert_eq!(access("$_x1"), "a.$_x1");
+        assert_eq!(access("b-c"), r#"a["b-c"]"#);
+        assert_eq!(access("1x"), r#"a["1x"]"#);
+        assert_eq!(access("é"), r#"a["é"]"#);
+        assert_eq!(access(""), r#"a[""]"#);
+    }
 
     #[test]
     fn test_path_normalization_in_pattern() {

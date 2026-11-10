@@ -225,7 +225,8 @@ If `sizes` is missing, the browser assumes the image will be as wide as the view
 
 In addition, `sizes` affects how `srcset` is generated:
 
-- Without `sizes`: Next.js generates a limited `srcset` (e.g. 1x, 2x), suitable for fixed-size images.
+- Without `sizes`, on an image with a `width`: Next.js generates a limited `srcset` (e.g. 1x, 2x), suitable for fixed-size images.
+- Without `sizes`, on a `fill` image: Next.js generates a `srcset` from [`deviceSizes`](#devicesizes) only, as if the image spans the full viewport.
 - With `sizes`: Next.js generates a full `srcset` (e.g. 640w, 750w, etc.), optimized for responsive layouts.
 
 > Learn more about `srcset` and `sizes` on [web.dev](https://web.dev/learn/design/responsive-images/#sizes) and [mdn](https://developer.mozilla.org/docs/Web/HTML/Element/img#sizes).
@@ -276,9 +277,7 @@ A boolean that indicates if the image should be preloaded.
 
 **When to use it:**
 
-- The image is the [Largest Contentful Paint (LCP)](https://nextjs.org/learn/seo/web-performance/lcp) element.
-- The image is above the fold, typically the hero image.
-- You want to begin loading the image in the `<head>`, before its discovered later in the `<body>`.
+Use `preload` for a known [Largest Contentful Paint (LCP)](https://nextjs.org/learn/seo/web-performance/lcp) image, such as a hero image, when you want the browser to start loading it before discovering its `<img>` element in the `<body>`.
 
 **When not to use it:**
 
@@ -286,11 +285,13 @@ A boolean that indicates if the image should be preloaded.
 - When the `loading` property is used.
 - When the `fetchPriority` property is used.
 
-In most cases, you should use `loading="eager"` or `fetchPriority="high"` instead of `preload`.
+In most cases, use [`loading="eager"`](#loading) for an above-the-fold image to disable lazy loading. Add [`fetchPriority="high"`](https://developer.mozilla.org/docs/Web/API/HTMLImageElement/fetchPriority) to ask the browser to prioritize that request over other images. `fetchPriority` alone does not disable lazy loading.
+
+React may also automatically preload eagerly loaded images during server rendering. Learn more about [React's image preloading behavior](https://react.dev/reference/react-dom/components/img#controlling-image-preloading-during-server-rendering).
 
 #### `priority`
 
-Starting with Next.js 16, the `priority` property has been deprecated in favor of the [`preload`](#preload) property in order to make the behavior clear.
+Starting with Next.js 16, the `priority` property is deprecated. Use [`preload`](#preload) to preserve the same preloading behavior, or [`loading="eager"`](#loading) if you only need to disable lazy loading.
 
 #### `loading`
 
@@ -390,7 +391,7 @@ A callback function that is invoked if the image fails to load.
 
 #### `unoptimized`
 
-A boolean that indicates if the image should be optimized. This is useful for images that do not benefit from optimization such as small images (less than 1KB), vector images (SVG), or animated images (GIF).
+A boolean that indicates if the image should skip the Image Optimization API to be served as-is. This is useful for images that do not benefit from optimization such as small images (less than 1KB), vector images (SVG), or animated images (GIF).
 
 ```js
 import Image from 'next/image'
@@ -612,7 +613,7 @@ Note that any allowed `remotePatterns` that respond with a redirect will follow 
 
 #### `loaderFile`
 
-`loaderFiles` allows you to use a custom image optimization service instead of Next.js.
+`loaderFile` allows you to use a custom image optimization service instead of Next.js.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -667,7 +668,7 @@ module.exports = {
 
 #### `deviceSizes`
 
-`deviceSizes` allows you to specify a list of device width breakpoints. These widths are used when the `next/image` component uses [`sizes`](#sizes) prop to ensure the correct image is served for the user's device.
+`deviceSizes` allows you to specify a list of device width breakpoints. These widths are used when the `next/image` component uses the [`sizes`](#sizes) prop, or the [`fill`](#fill) prop without `sizes`, to ensure the correct image is served for the user's device.
 
 If no configuration is provided, the default below is used:
 
@@ -773,7 +774,7 @@ module.exports = {
 
 #### `minimumCacheTTL`
 
-`minimumCacheTTL` allows you to configure the Time to Live (TTL) in seconds for cached optimized images. In many cases, it's better to use a [Static Image Import](/docs/app/getting-started/images#local-images) which will automatically hash the file contents and cache the image forever with a `Cache-Control` header of `immutable`.
+`minimumCacheTTL` allows you to configure the Time to Live (TTL) in seconds for cached optimized images. In many cases, it's better to use a [Static Image Import](/docs/app/getting-started/images#local-images) which will automatically hash the file contents and cache the image with a long-lived `immutable` `Cache-Control` header.
 
 If no configuration is provided, the default below is used.
 
@@ -921,19 +922,9 @@ This might be necessary when hosting Next.js in a VPC with split-horizon DNS and
 
 #### `dangerouslyAllowSVG`
 
-`dangerouslyAllowSVG` allows you to serve SVG images.
+Next.js never optimizes SVG images for a few reasons:
 
-```js filename="next.config.js"
-module.exports = {
-  images: {
-    dangerouslyAllowSVG: true,
-  },
-}
-```
-
-By default, Next.js does not optimize SVG images for a few reasons:
-
-- SVG is a vector format meaning it can be resized losslessly.
+- SVG is a vector format, meaning browsers can resize the image without losing quality, no server-side rasterization needed.
 - SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without proper [Content Security Policy (CSP) headers](/docs/app/api-reference/config/next-config-js/headers#content-security-policy).
 
 We recommend using the [`unoptimized`](#unoptimized) prop when the [`src`](#src) prop is known to be SVG. This happens automatically when `src` ends with `".svg"`.
@@ -941,6 +932,10 @@ We recommend using the [`unoptimized`](#unoptimized) prop when the [`src`](#src)
 ```jsx
 <Image src="/my-image.svg" unoptimized />
 ```
+
+This skips the Image Optimization API and serves the SVG directly from the source. The default `dangerouslyAllowSVG: false` rejects SVG images.
+
+If you can't use the [`unoptimized`](#unoptimized) prop and you understand the risks, you can enable SVG pass-through in the Image Optimization API with `dangerouslyAllowSVG: true`.
 
 In addition, it is strongly recommended to also set `contentDispositionType` to force the browser to download the image, as well as `contentSecurityPolicy` to prevent scripts embedded in the image from executing.
 

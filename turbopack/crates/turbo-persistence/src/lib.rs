@@ -1,6 +1,13 @@
 #![cfg_attr(target_os = "wasi", feature(wasi_ext))]
+#![feature(core_io_borrowed_buf)]
 #![feature(once_cell_try)]
+// The positional `BorrowedCursor` reads `pread_buf` uses: unix gates them behind `read_buf_at`,
+// Windows behind `seek_read_exact_seek_write_all`, WASI behind `wasi_ext`.
+#![cfg_attr(unix, feature(read_buf_at))]
+#![cfg_attr(windows, feature(seek_read_exact_seek_write_all))]
 #![feature(sync_unsafe_cell)]
+// Miri compiles a reduced test subset, leaving helpers from disabled tests intentionally unused.
+#![cfg_attr(miri, allow(dead_code, unused_imports))]
 
 mod arc_bytes;
 pub(crate) mod be;
@@ -8,6 +15,7 @@ mod collector;
 mod collector_entry;
 mod compaction;
 mod compression;
+mod concurrent_slice;
 mod constants;
 mod db;
 mod key;
@@ -19,6 +27,7 @@ mod meta_file_builder;
 pub mod mmap_helper;
 mod parallel_scheduler;
 mod rc_bytes;
+pub mod shard;
 mod shared_bytes;
 pub mod sst_filter;
 pub mod static_sorted_file;
@@ -67,6 +76,13 @@ pub struct FamilyConfig {
     pub name: &'static str,
     pub kind: FamilyKind,
     pub compression: Compression,
+    /// Initial sharding factor for the family. There will be 2^ShardBits shards of each family.
+    ///
+    /// The shard count follows the size of the family, see [`DbConfig::target_shard_size`].
+    /// This is just a hint to bootstrap the family. `0` would always work, but families with lots
+    /// of data would benefit from starting with many shards since this influences how initial
+    /// commits shard outputs.
+    pub initial_shard_bits: shard::ShardBits,
 }
 
 /// Database-wide configuration with per-family storage settings.
@@ -78,6 +94,10 @@ pub struct DbConfig<const FAMILIES: usize> {
     pub family_configs: [FamilyConfig; FAMILIES],
     /// How SST and meta files are read from disk.
     pub access_mode: AccessMode,
+    /// The size a shard of a family should have after compaction.
+    ///
+    /// This is a rough bound to avoid frequent resharding, See [`shard`] for sizing semantics.
+    pub target_shard_size: u64,
 }
 
 /// Returns the default access mode for this execution environment.
@@ -128,8 +148,10 @@ impl<const FAMILIES: usize> DbConfig<FAMILIES> {
                 name: "unknown",
                 kind: FamilyKind::SingleValue,
                 compression: Compression::Lz4,
+                initial_shard_bits: shard::ShardBits::new(0),
             }; FAMILIES],
             access_mode: default_access_mode(),
+            target_shard_size: 256 * 1024 * 1024,
         }
     }
 }

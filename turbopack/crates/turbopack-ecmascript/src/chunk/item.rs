@@ -7,7 +7,6 @@ use smallvec::SmallVec;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, Upcast, ValueToString, Vc,
-    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
@@ -22,6 +21,7 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     source_map::{
+        SourceMapGenerationOptions, SourceMaps,
         structured::StructuredSourceMap,
         utils::{absolute_fileify_source_map, relative_fileify_source_map},
     },
@@ -36,7 +36,7 @@ use crate::{
 };
 
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Default, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Encode, Decode)]
 pub enum RewriteSourcePath {
     AbsoluteFilePath(FileSystemPath),
     RelativeFilePath(FileSystemPath, RcStr),
@@ -50,7 +50,7 @@ pub enum RewriteSourcePath {
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
-    pub source_map: Option<StructuredSourceMap>,
+    pub source_maps: SourceMaps<StructuredSourceMap>,
     pub additional_ids: SmallVec<[ModuleId; 1]>,
     pub options: EcmascriptChunkItemOptions,
     pub rewrite_source_path: RewriteSourcePath,
@@ -94,7 +94,7 @@ impl EcmascriptChunkItemContent {
                 SourceMapSourceType::TurbopackUri => RewriteSourcePath::None,
             },
             inner_code: content.inner_code.clone(),
-            source_map: content.source_map.clone(),
+            source_maps: content.source_maps.clone(),
             additional_ids: content.additional_ids.clone(),
             options: if content.is_esm {
                 EcmascriptChunkItemOptions {
@@ -126,7 +126,7 @@ impl EcmascriptChunkItemContent {
 
 impl EcmascriptChunkItemContent {
     async fn module_factory(&self) -> Result<ResolvedVc<PersistedCode>> {
-        let mut code = CodeBuilder::default();
+        let mut code = CodeBuilder::new(false, self.source_maps.generation_options());
         for additional_id in self.additional_ids.iter() {
             writeln!(code, "{}, ", StringifyJs(&additional_id))?;
         }
@@ -148,7 +148,10 @@ impl EcmascriptChunkItemContent {
         }
 
         if self.options.strict {
-            code += "\"use strict\";\n\n";
+            // Recorded so that a chunk placing this factory in a strict context anyway can drop
+            // it again (see `write_module_factories`).
+            code.push_strict_directive();
+            code += "\n\n";
         } else {
             code += "\n";
         }
@@ -169,17 +172,22 @@ impl EcmascriptChunkItemContent {
             code += " try {\n";
         }
 
-        let source_map = match (&self.rewrite_source_path, &self.source_map) {
-            (RewriteSourcePath::AbsoluteFilePath(path), Some(map)) => {
-                Some(absolute_fileify_source_map(map, path.clone()).await?)
-            }
-            (RewriteSourcePath::RelativeFilePath(path, relative_path), Some(map)) => {
-                Some(relative_fileify_source_map(map, path.clone(), relative_path.clone()).await?)
-            }
-            (_, map) => map.clone(),
-        };
-
-        code.push_source(&self.inner_code, source_map);
+        let source_maps = self
+            .source_maps
+            .clone()
+            .try_map_async(|map| async move {
+                match &self.rewrite_source_path {
+                    RewriteSourcePath::AbsoluteFilePath(path) => {
+                        absolute_fileify_source_map(&map, path.clone()).await
+                    }
+                    RewriteSourcePath::RelativeFilePath(path, relative_path) => {
+                        relative_fileify_source_map(&map, path.clone(), relative_path.clone()).await
+                    }
+                    RewriteSourcePath::None => Ok(map),
+                }
+            })
+            .await?;
+        code.push_source(&self.inner_code, source_maps)?;
 
         if let Some(opts) = &self.options.async_module {
             write!(
@@ -196,7 +204,7 @@ impl EcmascriptChunkItemContent {
     }
 }
 
-#[derive(PartialEq, Eq, Default, Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, Default, Debug, Clone, NonLocalValue, Encode, Decode)]
 pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item should be in "use strict" mode.
     pub strict: bool,
@@ -215,7 +223,7 @@ pub struct EcmascriptChunkItemOptions {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct EcmascriptChunkItemWithAsyncInfo {
     pub chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
@@ -309,7 +317,7 @@ async fn module_factory_with_code_generation_issue(
         Ok(factory) => factory,
         Err(error) => {
             let id = chunk_item.asset_ident().to_string().await;
-            let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
+            let id = id.as_ref().map_or("unknown", |id| &**id);
 
             // ast-grep-ignore: no-context-format
             let error = error.context(format!(
@@ -327,7 +335,7 @@ async fn module_factory_with_code_generation_issue(
             }
             .resolved_cell()
             .emit();
-            let mut code = CodeBuilder::default();
+            let mut code = CodeBuilder::new(false, SourceMapGenerationOptions::NONE);
             code += "(() => {{\n\n";
             writeln!(code, "throw new Error({error});", error = js_error_message)?;
             code += "\n}})";

@@ -1,11 +1,11 @@
-0 -> 2 free var = FreeVar(Object)
+1 -> 2 free var = FreeVar(Object)
 
 0 -> 3 member call = Object*0*["keys"](???*1*)
 - *0* Object: The global Object variable
 - *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 7 free var = FreeVar(console)
+6 -> 7 free var = FreeVar(console)
 
 0 -> 8 conditional = ???*0*
 - *0* arguments[1]

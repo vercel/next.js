@@ -395,13 +395,13 @@ Here are the steps to implement a sign-up and/or login form:
 Consider a login form where users can input their credentials:
 
 ```tsx filename="pages/login.tsx" switcher
-import { FormEvent } from 'react'
+import type { SubmitEvent } from 'react'
 import { useRouter } from 'next/router'
 
 export default function LoginPage() {
   const router = useRouter()
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
 
     const formData = new FormData(event.currentTarget)
@@ -432,7 +432,6 @@ export default function LoginPage() {
 ```
 
 ```jsx filename="pages/login.jsx" switcher
-import { FormEvent } from 'react'
 import { useRouter } from 'next/router'
 
 export default function LoginPage() {

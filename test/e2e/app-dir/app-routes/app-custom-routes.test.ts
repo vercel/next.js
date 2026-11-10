@@ -1,3 +1,4 @@
+import { RouteKind } from 'next/dist/server/route-kind'
 import { nextTestSetup } from 'e2e-utils'
 import { check, waitFor, retry } from 'next-test-utils'
 import { Readable } from 'stream'
@@ -44,12 +45,26 @@ describe('app-custom-routes', () => {
       if (isNextStart) {
         expect(
           await next
-            .readFile('.next/server/app/api/dynamic.body')
+            .readFile(
+              next.getPrerenderFilePath('/api/dynamic', '.body', {
+                route: {
+                  kind: RouteKind.APP_ROUTE,
+                  sourceRoute: '/api/dynamic/route',
+                },
+              })
+            )
             .catch(() => '')
         ).toBeFalsy()
         expect(
           await next
-            .readFile('.next/server/app/api/dynamic.meta')
+            .readFile(
+              next.getPrerenderFilePath('/api/dynamic', '.meta', {
+                route: {
+                  kind: RouteKind.APP_ROUTE,
+                  sourceRoute: '/api/dynamic/route',
+                },
+              })
+            )
             .catch(() => '')
         ).toBeFalsy()
       }
@@ -73,10 +88,24 @@ describe('app-custom-routes', () => {
       if (isNextStart) {
         await check(async () => {
           expect(
-            await next.readFile(`.next/server/app/${path}.body`)
+            await next.readFile(
+              next.getPrerenderFilePath(path, '.body', {
+                route: {
+                  kind: RouteKind.APP_ROUTE,
+                  sourceRoute: '/static/[slug]/data.json/route',
+                },
+              })
+            )
           ).toBeTruthy()
           expect(
-            await next.readFile(`.next/server/app/${path}.meta`)
+            await next.readFile(
+              next.getPrerenderFilePath(path, '.meta', {
+                route: {
+                  kind: RouteKind.APP_ROUTE,
+                  sourceRoute: '/static/[slug]/data.json/route',
+                },
+              })
+            )
           ).toBeTruthy()
           return 'success'
         }, 'success')
@@ -102,10 +131,24 @@ describe('app-custom-routes', () => {
       if (isNextStart) {
         await check(async () => {
           expect(
-            await next.readFile(`.next/server/app/${path}.body`)
+            await next.readFile(
+              next.getPrerenderFilePath(path, '.body', {
+                route: {
+                  kind: RouteKind.APP_ROUTE,
+                  sourceRoute: '/revalidate-1/[slug]/data.json/route',
+                },
+              })
+            )
           ).toBeTruthy()
           expect(
-            await next.readFile(`.next/server/app/${path}.meta`)
+            await next.readFile(
+              next.getPrerenderFilePath(path, '.meta', {
+                route: {
+                  kind: RouteKind.APP_ROUTE,
+                  sourceRoute: '/revalidate-1/[slug]/data.json/route',
+                },
+              })
+            )
           ).toBeTruthy()
           return 'success'
         }, 'success')

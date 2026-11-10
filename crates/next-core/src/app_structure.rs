@@ -9,7 +9,7 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault,
-    ValueToStringRef, Vc, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, turbobail,
+    ValueToStringRef, Vc, debug::ValueDebugFormat, fxindexmap, turbobail,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString};
@@ -72,7 +72,7 @@ impl AppDirModules {
 }
 
 /// A single metadata file plus an optional "alt" text file.
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum MetadataWithAltItem {
     Static {
         path: FileSystemPath,
@@ -85,7 +85,7 @@ pub enum MetadataWithAltItem {
 
 /// A single metadata file.
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 pub enum MetadataItem {
     Static { path: FileSystemPath },
     Dynamic { path: FileSystemPath },
@@ -127,7 +127,7 @@ impl From<MetadataWithAltItem> for MetadataItem {
 }
 
 /// Metadata file that can be placed in any segment of the app directory.
-#[derive(Default, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct Metadata {
     pub icon: Vec<MetadataWithAltItem>,
     pub apple: Vec<MetadataWithAltItem>,
@@ -228,7 +228,7 @@ struct PlainDirectoryTree {
 /// ```
 ///
 /// This makes it easy to find all siblings at a given URL level.
-#[derive(Clone, Debug, Default, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 struct UrlSegmentTree {
     pub children: BTreeMap<RcStr, UrlSegmentTree>,
 }
@@ -375,7 +375,7 @@ async fn get_directory_tree_internal(
                     continue;
                 }
                 if let Some((stem, ext)) = basename.split_once('.')
-                    && page_extensions_value.iter().any(|e| e == ext)
+                    && (page_extensions_value.iter().any(|e| e == ext) || basename == "route.go")
                 {
                     match stem {
                         "page" => modules.page = Some(file.clone()),
@@ -389,7 +389,18 @@ async fn get_directory_tree_internal(
                         "unauthorized" => modules.unauthorized = Some(file.clone()),
                         "not-found" => modules.not_found = Some(file.clone()),
                         "default" => modules.default = Some(file.clone()),
-                        "route" => modules.route = Some(file.clone()),
+                        "route" => {
+                            if let Some(existing) = &modules.route
+                                && (ext == "go" || existing.path.ends_with(".go"))
+                            {
+                                DirectoryTreeIssue {
+                                    app_dir: dir.clone(),
+                                    severity: IssueSeverity::Error,
+                                    message: StyledString::Text(format!("Conflicting App Router handlers: {} and {}", existing.path, file.path).into()).resolved_cell(),
+                                }.resolved_cell().emit();
+                            }
+                            modules.route = Some(file.clone());
+                        },
                         _ => {}
                     }
                 }
@@ -682,7 +693,7 @@ impl ValueDefault for FileSystemPathVec {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Clone, PartialEq, Eq, Hash, TraceRawVcs, ValueDebugFormat, Debug, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Hash, ValueDebugFormat, Debug, Encode, Decode)]
 pub enum Entrypoint {
     AppPage {
         pages: Vec<AppPage>,
@@ -693,7 +704,11 @@ pub enum Entrypoint {
     AppRoute {
         page: AppPage,
         path: FileSystemPath,
-        root_layouts: ResolvedVc<FileSystemPathVec>,
+        root_params: ResolvedVc<RootParamVecOption>,
+    },
+    AppGoRoute {
+        page: AppPage,
+        path: FileSystemPath,
         root_params: ResolvedVc<RootParamVecOption>,
     },
     AppMetadata {
@@ -707,14 +722,15 @@ impl Entrypoint {
     pub fn page(&self) -> &AppPage {
         match self {
             Entrypoint::AppPage { pages, .. } => pages.first().unwrap(),
-            Entrypoint::AppRoute { page, .. } => page,
+            Entrypoint::AppRoute { page, .. } | Entrypoint::AppGoRoute { page, .. } => page,
             Entrypoint::AppMetadata { page, .. } => page,
         }
     }
     pub fn root_params(&self) -> ResolvedVc<RootParamVecOption> {
         match self {
             Entrypoint::AppPage { root_params, .. } => *root_params,
-            Entrypoint::AppRoute { root_params, .. } => *root_params,
+            Entrypoint::AppRoute { root_params, .. }
+            | Entrypoint::AppGoRoute { root_params, .. } => *root_params,
             Entrypoint::AppMetadata { root_params, .. } => *root_params,
         }
     }
@@ -837,6 +853,10 @@ fn add_app_page(
         Entrypoint::AppRoute {
             page: existing_page,
             ..
+        }
+        | Entrypoint::AppGoRoute {
+            page: existing_page,
+            ..
         } => {
             conflict("route", existing_page);
         }
@@ -852,20 +872,13 @@ fn add_app_page(
 fn add_app_route(
     app_dir: FileSystemPath,
     result: &mut FxIndexMap<AppPath, Entrypoint>,
-    page: AppPage,
-    path: FileSystemPath,
-    root_layouts: ResolvedVc<FileSystemPathVec>,
-    root_params: ResolvedVc<RootParamVecOption>,
+    entrypoint: Entrypoint,
 ) {
+    let page = entrypoint.page().clone();
     let e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
         Entry::Vacant(e) => {
-            e.insert(Entrypoint::AppRoute {
-                page,
-                path,
-                root_layouts,
-                root_params,
-            });
+            e.insert(entrypoint);
             return;
         }
     };
@@ -880,6 +893,10 @@ fn add_app_route(
             conflict("page", pages.first().unwrap());
         }
         Entrypoint::AppRoute {
+            page: existing_page,
+            ..
+        }
+        | Entrypoint::AppGoRoute {
             page: existing_page,
             ..
         } => {
@@ -923,6 +940,10 @@ fn add_app_metadata_route(
             conflict("page", pages.first().unwrap());
         }
         Entrypoint::AppRoute {
+            page: existing_page,
+            ..
+        }
+        | Entrypoint::AppGoRoute {
             page: existing_page,
             ..
         } => {
@@ -2261,14 +2282,21 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     }
 
     if let Some(route) = &modules.route {
-        add_app_route(
-            app_dir.clone(),
-            &mut result,
-            app_page.complete(PageType::Route)?,
-            route.clone(),
-            root_layouts,
-            root_params,
-        );
+        let page = app_page.complete(PageType::Route)?;
+        let entrypoint = if route.path.ends_with("/route.go") {
+            Entrypoint::AppGoRoute {
+                page,
+                path: route.clone(),
+                root_params,
+            }
+        } else {
+            Entrypoint::AppRoute {
+                page,
+                path: route.clone(),
+                root_params,
+            }
+        };
+        add_app_route(app_dir.clone(), &mut result, entrypoint);
     }
 
     let Metadata {
@@ -2378,6 +2406,8 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     segment: rcstr!("/_not-found"),
                     parallel_routes: fxindexmap! {
                         rcstr!("children") => AppPageLoaderTree {
+                            // Keep the root identity so the synthetic leaf does not contribute
+                            // runtime or deployment config, matching webpack's layout inheritance.
                             page: app_page.clone(),
                             segment: rcstr!("__PAGE__"),
                             parallel_routes: FxIndexMap::default(),
@@ -2604,20 +2634,8 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         );
                     }
                 }
-                Entrypoint::AppRoute {
-                    page,
-                    path,
-                    root_layouts,
-                    root_params,
-                } => {
-                    add_app_route(
-                        app_dir.clone(),
-                        &mut result,
-                        page.clone(),
-                        path.clone(),
-                        *root_layouts,
-                        *root_params,
-                    );
+                entrypoint @ (Entrypoint::AppRoute { .. } | Entrypoint::AppGoRoute { .. }) => {
+                    add_app_route(app_dir.clone(), &mut result, entrypoint.clone());
                 }
                 Entrypoint::AppMetadata {
                     page,

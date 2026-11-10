@@ -35,8 +35,8 @@ the process listening on the recorded port before the next build.
 ### Testing API
 
 An `instant()` test against a production build requires
-`experimental.exposeTestingApiInProductionBuild`. Gate it so real production
-builds do not expose the API:
+[`experimental.exposeTestingApiInProductionBuild`](https://nextjs.org/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild).
+Gate it so real production builds do not expose the API:
 
 ```ts filename="next.config.ts" highlight={3,8-10}
 import type { NextConfig } from 'next'
@@ -56,13 +56,9 @@ export default nextConfig
 Merge the option into an existing `experimental` object instead of replacing
 the project's other experimental options.
 
-Set the condition while running `next build`. Setting it only for `next start`
-is too late because the testing API is compiled into the production artifact.
-When the artifact was built without it, Next.js does not activate the
-navigation lock, so the test cannot distinguish shell content from streamed
-dynamic content. Rebuild with the condition enabled before interpreting the
-results. Use the project's existing environment naming when it already
-distinguishes test, staging, preview, and production builds.
+Follow the [option reference](https://nextjs.org/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild)
+for build and server setup. Use the project's existing environment naming when
+it already distinguishes test, staging, preview, and production builds.
 
 ### Test command and base URL
 
@@ -72,16 +68,21 @@ and reporters. The suite must import `instant()` from `@next/playwright`. If
 the dependencies are absent, install `@next/playwright` on the same release
 line as the project's `next`, alongside `@playwright/test`.
 
-For a local rig, a typical sequence is:
+Prefer an existing Playwright `webServer` configuration to own the local
+server lifecycle. Ensure its command serves the production build with
+`next start`. With `webServer` managing startup and cleanup, run the build and
+test commands without starting another server manually:
 
 ```bash filename="Terminal"
 EXPOSE_TESTING_API=1 pnpm build
-pnpm start --port 3000
-BASE_URL=http://localhost:3000 pnpm playwright test tests/static-shell.spec.ts
+EXPOSE_TESTING_API=1 BASE_URL=http://localhost:3000 pnpm playwright test tests/static-shell.spec.ts
 ```
 
-Adapt the script names and port to the project. Keep the production server
-running while the test command executes. Follow the public
+If the rig does not use `webServer`, start `EXPOSE_TESTING_API=1 pnpm start --port 3000` in a
+separate terminal after the build, keep it running during the test command,
+and stop it afterward. Use only one server lifecycle for the measured app.
+
+Adapt the script names and port to the project. Follow the public
 [`instant()` testing pattern](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests): use `page.goto()` for an initial-load
 contract and click the real `<Link>` for a client-navigation contract.
 
@@ -171,3 +172,7 @@ Before recording the static-shell contract:
 Fix the rig before interpreting an optimizer failure. A missing testing API,
 stale deployment, unreachable target, or wrong test state is an environment
 failure rather than evidence that the shell blocks.
+
+Once the rig produces a conclusive result, continue to the next workflow gate.
+Do not repeat the same build or test to look for flakiness unless two observed
+results conflict.

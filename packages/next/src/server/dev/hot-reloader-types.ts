@@ -14,9 +14,9 @@ import type {
 } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
 import type {
-  RequestInsight,
+  RequestInsightDelta,
   RequestInsightsSnapshot,
-} from '../../next-devtools/shared/request-insights'
+} from '../../shared/lib/request-insights'
 import type { ReactDebugChannelForBrowser } from './debug-channel'
 import type { AnyStream } from '../app-render/stream-ops'
 
@@ -41,6 +41,8 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   CACHE_INDICATOR = 'cacheIndicator',
   DEV_INDICATOR = 'devIndicator',
   DEVTOOLS_CONFIG = 'devtoolsConfig',
+  VULNERABILITY_INSIGHT = 'vulnerabilityInsight',
+  VERSION_INFO = 'versionInfo',
   REQUEST_CURRENT_ERROR_STATE = 'requestCurrentErrorState',
   RUNTIME_ERRORS = 'runtimeErrors',
   REQUEST_PAGE_METADATA = 'requestPageMetadata',
@@ -88,6 +90,7 @@ export interface SyncMessage {
   errors: ReadonlyArray<CompilationError>
   warnings: ReadonlyArray<CompilationError>
   versionInfo: VersionInfo
+  hasVulnerabilityInsight: boolean
   updatedModules?: ReadonlyArray<string>
   debug?: DebugInfo
   devIndicator: DevIndicatorServerState
@@ -261,7 +264,23 @@ export interface CacheIndicatorMessage {
 
 export interface RequestInsightsUpdateMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE
-  insight: RequestInsight
+  insight: RequestInsightDelta
+}
+
+export interface VulnerabilityInsightMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.VULNERABILITY_INSIGHT
+  hasVulnerabilityInsight: boolean
+}
+
+/**
+ * Sent when the version staleness info resolves after the client already
+ * received a placeholder in the `sync` message. The registry request
+ * behind it is never awaited before `sync`, so a slow registry cannot delay
+ * the dev overlay.
+ */
+export interface VersionInfoMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.VERSION_INFO
+  versionInfo: VersionInfo
 }
 
 export type HmrMessageSentToBrowser =
@@ -289,6 +308,8 @@ export type HmrMessageSentToBrowser =
   | RequestPageMetadataMessage
   | CacheIndicatorMessage
   | RequestInsightsUpdateMessage
+  | VulnerabilityInsightMessage
+  | VersionInfoMessage
 
 export type BinaryHmrMessageSentToBrowser = Extract<
   HmrMessageSentToBrowser,
@@ -340,6 +361,11 @@ export interface NextJsHotReloaderInterface {
    * them for code that changed while the server was down.
    */
   getServerComponentsHmrRefreshHash(): string
+  /** The client HMR baseline, available only with Turbopack HMR. */
+  getClientHmrVersion?(): string
+  onNativeRoutesChanged?(
+    listener: (pages: ReadonlySet<string>) => void
+  ): () => void
   setCacheStatus(status: ServerCacheStatus, htmlRequestId: string): void
   setReactDebugChannel(
     debugChannel: ReactDebugChannelForBrowser,

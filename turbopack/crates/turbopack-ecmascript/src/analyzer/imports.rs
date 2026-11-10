@@ -22,7 +22,7 @@ use swc_core::{
 };
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, trace::TraceRawVcs};
+use turbo_tasks::{FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc};
 use turbopack_core::{
     loader::WebpackLoaderItem,
     resolve::{ExportUsage, ImportUsage},
@@ -51,13 +51,12 @@ use crate::{
 #[derive(Default, Debug, Clone, Hash)]
 pub struct ImportAnnotations {
     // TODO store this in more structured way
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     map: BTreeMap<Wtf8Atom, Wtf8Atom>,
 
     /// Parsed turbopack loader configuration from import attributes.
     /// e.g. `import "file" with { turbopackLoader: "raw-loader" }`
-    #[turbo_tasks(trace_ignore)]
     #[bincode(with_serde)]
     turbopack_loader: Option<WebpackLoaderItem>,
     turbopack_rename_as: Option<RcStr>,
@@ -573,9 +572,7 @@ pub(crate) enum ImportedSymbol {
 /// export code generation and the import references agree without either re-deriving it.
 ///
 /// See `references::esm::export` for the emitted forms.
-#[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue, Encode, Decode, Default,
-)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, NonLocalValue, Encode, Decode, Default)]
 pub enum ExportRegistrationMode {
     /// The module has local exports (or no re-exports at all): the general registration is needed.
     #[default]
@@ -1471,10 +1468,13 @@ impl Visit for Analyzer<'_> {
         n.visit_children_with(self);
     }
 
+    /// check if `new Worker()` or `new URL()` contains magic comments, e.g.
+    /// - new Worker(/* turbopackIgnore: true */ new URL("./worker.js", import.meta.url))
+    /// - new URL(/* turbopackIgnore: true */ url, import.meta.url)
     fn visit_new_expr(&mut self, n: &NewExpr) {
         if let Some(comments) = self.comments {
             let callee_span = match &*n.callee {
-                Expr::Ident(Ident { sym, .. }) if sym == "Worker" => Some(n.span),
+                Expr::Ident(Ident { sym, .. }) if sym == "Worker" || sym == "URL" => Some(n.span),
                 _ => None,
             };
 

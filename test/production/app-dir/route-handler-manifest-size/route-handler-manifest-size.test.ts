@@ -3,11 +3,9 @@ import { getClientReferenceManifest } from 'next-test-utils'
 import type { ClientReferenceManifest } from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
 
 describe('route-handler-manifest-size', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) return
 
   /**
    * Gets the module paths from clientModules

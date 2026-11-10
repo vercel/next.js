@@ -21,12 +21,11 @@ it('should handle `default` when destructuring a namespace', () => {
   expect(value).toBe('default-value')
 })
 
-it('should back off for a module read through a namespace binding', () => {
-  // Reads through an `import * as ns` binding are reported as a *partial namespace object*: we
-  // know which names are used, but not whether every read was lowered to a direct named access,
-  // and a read that wasn't (a destructuring pattern, say) still uses the original name. So the
-  // module keeps its names. Distinguishing lowered reads from a materialized namespace object is
-  // a follow-up; it would unlock mangling for namespace-imported modules too.
-  expect(mod.exportsInfo.aVeryLongExportName.canMangle).toBe(false)
-  expect(mod.exportsInfo.aVeryLongExportName.mangledName).toBe(null)
+it('should preserve original names when a namespace binding escapes', () => {
+  // The public facade exposes original names while the backing module mangles its keys.
+  expect(mod.aVeryLongExportName).toBe('a-value')
+  expect(mod.exportsInfo.aVeryLongExportName.canMangle).toBe(true)
+  expect(mod.exportsInfo.aVeryLongExportName.mangledName).not.toBe(
+    'aVeryLongExportName'
+  )
 })

@@ -21,12 +21,12 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use serde::Deserialize;
 use serde_json::value::RawValue;
-use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
+use turbo_tasks::NonLocalValue;
 use turbo_tasks_fs::rope::{Rope, RopeBuilder};
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 /// A single source map in structured form. See the module documentation.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Encode, Decode, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Encode, Decode, NonLocalValue)]
 pub struct StructuredSourceMap {
     // Raw snippet fields hold the field's verbatim JSON value (e.g. `3`, `"..."`, `[...]`).
     // Declaration order mirrors `swc_sourcemap`'s `RawSourceMap`, which is the emission order.
@@ -50,7 +50,7 @@ pub struct StructuredSourceMap {
 
 /// The `sources` field. Kept verbatim until a rewrite actually changes an entry, so maps whose
 /// `sources` cannot be decoded (or are never rewritten) round-trip byte-for-byte.
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
 enum SourcesField {
     /// The field's verbatim JSON value.
     Raw(Rope),
@@ -60,7 +60,7 @@ enum SourcesField {
 }
 
 /// The `sourcesContent` field.
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
 enum SourcesContentField {
     /// The field's verbatim JSON value (maps parsed from external bytes). Never decoded — this
     /// tolerates content JSON that does not decode into Rust strings, e.g. lone surrogate
@@ -361,6 +361,12 @@ impl StructuredSourceMap {
         Ok(result)
     }
 
+    /// Omits source text from analyzer maps without copying their mappings.
+    pub fn without_sources_content(mut self) -> Self {
+        self.sources_content = None;
+        self
+    }
+
     /// Serializes the map. Field order matches `swc_sourcemap`'s serializer; `sourcesContent`
     /// and `mappings` ropes are shared, not copied, into the result.
     pub fn to_rope(&self) -> Rope {
@@ -511,6 +517,29 @@ mod tests {
 
         let structured = StructuredSourceMap::from_swc_map(map)?;
         assert_eq!(structured.to_rope().to_bytes().as_ref(), &expected[..]);
+        Ok(())
+    }
+
+    #[test]
+    fn content_free_sections_preserve_sources_when_flattened() -> Result<()> {
+        let input = r#"{"version":3,"sources":["a.js","b.js"],"sourcesContent":["let a = 1","let b = 2"],"names":[],"mappings":"AAAA,KCAA"}"#;
+        let original = StructuredSourceMap::from_json_slice(input.as_bytes())?;
+        let map = original.clone().without_sources_content();
+        let map: serde_json::Value = serde_json::from_slice(&map.to_rope().to_bytes())?;
+        assert!(map.get("sourcesContent").is_none());
+        assert_eq!(original.to_rope().to_str()?.as_ref(), input);
+        let index = serde_json::to_vec(&serde_json::json!({
+            "version": 3,
+            "sources": [],
+            "names": [],
+            "sections": [{"offset": {"line": 0, "column": 0}, "map": map}],
+        }))?;
+        let flattened = swc_sourcemap::lazy::decode(&index)?
+            .into_source_map()?
+            .into_raw_sourcemap();
+        let flattened = serde_json::to_value(flattened)?;
+        assert_eq!(flattened["sources"], map["sources"]);
+        assert_eq!(flattened["mappings"], map["mappings"]);
         Ok(())
     }
 

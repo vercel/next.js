@@ -7,11 +7,13 @@ import { getRedboxSource, retry, waitForRedbox } from 'next-test-utils'
   () => {
     const { next } = nextTestSetup({
       files: __dirname,
-      patchFileDelay: 500,
     })
 
-    async function assetsContaining(marker: string): Promise<string[]> {
-      const root = path.join(next.testDir, next.distDir, 'static')
+    async function assetsContaining(
+      marker: string,
+      outputDir: 'static' | 'server' = 'static'
+    ): Promise<string[]> {
+      const root = path.join(next.testDir, next.distDir, outputDir)
       const matches: string[] = []
 
       async function walk(dir: string) {
@@ -33,6 +35,146 @@ import { getRedboxSource, retry, waitForRedbox } from 'next-test-utils'
       await walk(root)
       return matches
     }
+
+    it('loads instrumentation dynamic imports during startup', async () => {
+      expect(
+        await next.fetch('/api/lazy-import').then((res) => res.status)
+      ).toBe(200)
+      await retry(async () => {
+        expect(next.cliOutput).toContain(
+          'instrumentation-startup-target-marker'
+        )
+      })
+    })
+
+    it.each([
+      {
+        name: 'route handler',
+        entryPath: 'app/api/lazy-import/route.ts',
+        targetPath: 'app/api/lazy-import/target.ts',
+        route: '/api/lazy-import',
+        marker: 'route-lazy-target-marker',
+      },
+      {
+        name: 'Pages API',
+        entryPath: 'pages/api/lazy-import-pages.ts',
+        targetPath: 'lib/lazy-pages-api-target.ts',
+        route: '/api/lazy-import-pages',
+        marker: 'pages-api-lazy-target-marker',
+      },
+    ])(
+      'compiles $name imports when reached',
+      async ({ entryPath, targetPath, route, marker }) => {
+        await next.patchFile(
+          targetPath,
+          (content) => `${content}\nexport const invalid = ;`,
+          async () => {
+            expect(await next.fetch(route).then((res) => res.json())).toEqual({
+              value: 'idle',
+            })
+            expect(await assetsContaining(marker, 'server')).toHaveLength(0)
+          }
+        )
+
+        // Rebuild the owning entry after restoration without activating the import.
+        await next.patchFile(
+          entryPath,
+          (content) => content.replace("'idle'", "'ready'"),
+          async () => {
+            await retry(async () => {
+              expect(await next.fetch(route).then((res) => res.json())).toEqual(
+                {
+                  value: 'ready',
+                }
+              )
+            })
+            expect(await assetsContaining(marker, 'server')).toHaveLength(0)
+
+            const responses = await Promise.all([
+              next.fetch(`${route}?load=1`).then((res) => res.json()),
+              next.fetch(`${route}?load=1`).then((res) => res.json()),
+            ])
+            expect(responses).toEqual([{ value: marker }, { value: marker }])
+          }
+        )
+
+        await next.patchFile(
+          targetPath,
+          (content) => content.replace(marker, `updated-${marker}`),
+          async () => {
+            await retry(async () => {
+              expect(
+                await next.fetch(`${route}?load=1`).then((res) => res.json())
+              ).toEqual({ value: `updated-${marker}` })
+            }, 10000)
+          }
+        )
+      }
+    )
+
+    it('compiles Pages SSR imports when reached', async () => {
+      const targetPath = path.join('lib', 'lazy-pages-ssr-target.ts')
+      await next.patchFile(
+        targetPath,
+        (content) => `${content}\nexport const invalid = ;`,
+        async () => {
+          expect(await next.render('/lazy-ssr')).toContain('idle')
+          expect(
+            await assetsContaining('pages-ssr-lazy-target-marker', 'server')
+          ).toHaveLength(0)
+        }
+      )
+
+      await next.patchFile(
+        'pages/lazy-ssr.tsx',
+        (content) => content.replace("'idle'", "'ready'"),
+        async () => {
+          await retry(async () => {
+            const $ = await next.render$('/lazy-ssr')
+            expect($('#pages-ssr-lazy-value').text()).toBe('ready')
+          })
+          expect(
+            await assetsContaining('pages-ssr-lazy-target-marker', 'server')
+          ).toHaveLength(0)
+
+          const renders = await Promise.all([
+            next.render('/lazy-ssr?load=1'),
+            next.render('/lazy-ssr?load=1'),
+          ])
+          for (const html of renders) {
+            expect(html).toContain('pages-ssr-lazy-target-marker')
+          }
+        }
+      )
+
+      await next.patchFile(
+        targetPath,
+        (content) =>
+          content.replace(
+            'pages-ssr-lazy-target-marker',
+            'updated-pages-ssr-lazy-target-marker'
+          ),
+        async () => {
+          await retry(async () => {
+            expect(await next.render('/lazy-ssr?load=1')).toContain(
+              'updated-pages-ssr-lazy-target-marker'
+            )
+          }, 10000)
+        }
+      )
+    })
+
+    it('keeps proxy imports eager', async () => {
+      expect(
+        await next.fetch('/lazy-proxy-probe').then((res) => res.json())
+      ).toEqual({ value: 'idle' })
+      expect(
+        await assetsContaining('proxy-lazy-target-marker', 'server')
+      ).not.toHaveLength(0)
+      expect(
+        await next.fetch('/lazy-proxy-probe?load=1').then((res) => res.json())
+      ).toEqual({ value: 'proxy-lazy-target-marker' })
+    })
 
     it('activates a dynamic import over HTTP and keeps Fast Refresh working', async () => {
       const targetPath = path.join('app', 'target.tsx')
@@ -188,7 +330,40 @@ import { getRedboxSource, retry, waitForRedbox } from 'next-test-utils'
       }
     })
 
-    it('preserves client and server references behind a server dynamic import', async () => {
+    it('does not compile a server component dynamic import before it is reached', async () => {
+      const targetPath = path.join(
+        'app',
+        'server-graph',
+        'lazy-server-content.tsx'
+      )
+      const originalTarget = await next.readFile(targetPath)
+
+      try {
+        await next.patchFile(
+          targetPath,
+          `${originalTarget}\nexport const invalid = ;`
+        )
+        expect(await next.render('/server-graph')).toContain(
+          'reveal server graph'
+        )
+        expect(
+          await assetsContaining('server-graph-marker', 'server')
+        ).toHaveLength(0)
+      } finally {
+        await next.patchFile(targetPath, originalTarget)
+      }
+      const renders = await Promise.all([
+        next.render('/server-graph?show=1'),
+        next.render('/server-graph?show=1'),
+      ])
+      for (const html of renders) {
+        expect(html).toContain('server-graph-marker')
+        expect(html).toContain('hydrate-client')
+        expect(html).not.toContain('Could not find the module')
+      }
+    })
+
+    it('preserves client and server references behind a lazy server component import', async () => {
       const browser = await next.browser('/server-graph')
 
       expect(
@@ -214,6 +389,29 @@ import { getRedboxSource, retry, waitForRedbox } from 'next-test-utils'
           'hidden-action-result'
         )
       })
+
+      const targetPath = path.join(
+        'app',
+        'server-graph',
+        'lazy-server-content.tsx'
+      )
+      const originalTarget = await next.readFile(targetPath)
+      try {
+        await next.patchFile(
+          targetPath,
+          originalTarget.replace(
+            'server-graph-marker',
+            'updated-server-graph-marker'
+          )
+        )
+        await retry(async () => {
+          expect(await next.render('/server-graph?show=1')).toContain(
+            'updated-server-graph-marker'
+          )
+        }, 10000)
+      } finally {
+        await next.patchFile(targetPath, originalTarget)
+      }
     })
 
     it('does not parse a dynamic import target before activation', async () => {
@@ -254,11 +452,23 @@ export const invalid = ;`
           `)
         ).toBe(false)
 
+        const cliOutput = next.getCliOutputFromHere()
         await browser.elementByCss('#load-parse-error').click()
-        await waitForRedbox(browser)
-        expect(await getRedboxSource(browser)).toContain(
-          'parse-error-proves-target-was-analyzed'
-        )
+        await retry(async () => {
+          expect(cliOutput()).toContain(
+            'parse-error-proves-target-was-analyzed'
+          )
+        })
+        const source = browser
+          .locateRedbox()
+          .locator('[data-nextjs-codeframe], [data-nextjs-terminal]', {
+            hasText: 'parse-error-proves-target-was-analyzed',
+          })
+        await retry(async () => {
+          expect(await source.innerText()).toContain(
+            'parse-error-proves-target-was-analyzed'
+          )
+        })
       } finally {
         await next.patchFile(targetPath, originalTarget)
         await next.patchFile(demoPath, originalDemo)
@@ -297,6 +507,59 @@ export const invalid = ;`
       ).toContain('next-dynamic-css-marker')
     })
 
+    it('preloads and applies CSS for a Pages next/dynamic component', async () => {
+      const $ = await next.render$('/pages-next-dynamic-css')
+      expect($('#pages-dynamic-target').text()).toBe(
+        'pages-next-dynamic-marker'
+      )
+
+      const stylesheetHrefs = $('link[rel="stylesheet"]')
+        .map((_, link) => $(link).attr('href'))
+        .get()
+      const stylesheets = await Promise.all(
+        stylesheetHrefs.map((href) =>
+          next.fetch(href).then((response) => response.text())
+        )
+      )
+      const targetStylesheet = stylesheets.findIndex((css) =>
+        css.includes('pages-dynamic-target')
+      )
+      expect(targetStylesheet).not.toBe(-1)
+      const preloadHrefs = $('link[rel="preload"][as="style"]')
+        .map((_, link) => $(link).attr('href'))
+        .get()
+      expect(preloadHrefs).toContain(stylesheetHrefs[targetStylesheet])
+
+      const scriptPreloadHrefs = $('link[rel="preload"][as="script"]')
+        .map((_, link) => $(link).attr('href'))
+        .get()
+      const preloadedScripts = await Promise.all(
+        scriptPreloadHrefs.map((href) =>
+          next.fetch(href).then((response) => response.text())
+        )
+      )
+      const targetScript = preloadedScripts.findIndex((script) =>
+        script.includes('pages-next-dynamic-marker')
+      )
+      expect(targetScript).not.toBe(-1)
+      const scriptSources = $('script[src]')
+        .map((_, script) => $(script).attr('src'))
+        .get()
+      expect(scriptSources).toContain(scriptPreloadHrefs[targetScript])
+
+      const browser = await next.browser('/pages-next-dynamic-css')
+      await retry(async () => {
+        expect(await browser.elementByCss('#pages-dynamic-target').text()).toBe(
+          'pages-next-dynamic-marker'
+        )
+        expect(
+          await browser
+            .elementByCss('#pages-dynamic-target')
+            .getComputedCss('color')
+        ).toBe('rgb(23, 45, 67)')
+      })
+    })
+
     it('activates a pattern import without colliding with its target', async () => {
       const browser = await next.browser('/pattern')
       const getActivationKeys = async (): Promise<string[]> =>
@@ -333,6 +596,22 @@ export const invalid = ;`
           (pathname) => !manifestsAfterA.includes(pathname)
         )
       ).toHaveLength(1)
+    })
+
+    it('compiles an import.meta.glob match only when its thunk is called', async () => {
+      const browser = await next.browser('/glob')
+      expect(await browser.elementByCss('#load-glob').text()).toBe('idle')
+      expect(await assetsContaining('glob-marker-a-5e1d')).toHaveLength(0)
+      expect(await assetsContaining('glob-marker-b-8f3c')).toHaveLength(0)
+
+      await browser.elementByCss('#load-glob').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#load-glob').text()).toBe(
+          'glob-marker-a-5e1d'
+        )
+      })
+      expect(await assetsContaining('glob-marker-a-5e1d')).not.toHaveLength(0)
+      expect(await assetsContaining('glob-marker-b-8f3c')).toHaveLength(0)
     })
 
     it('shares a proxy for repeated imports', async () => {
@@ -478,6 +757,60 @@ export const invalid = ;`
         expect(await browser.eval('performance.timeOrigin')).toBe(timeOrigin)
       } finally {
         await next.patchFile(cssPath, originalCss)
+      }
+    })
+
+    it('activates dynamic imports reached during server rendering', async () => {
+      const hostPath = path.join('app', 'ssr-dynamic', 'host.tsx')
+      const targetPath = path.join('app', 'ssr-dynamic', 'ssr-target.tsx')
+      const originalHost = await next.readFile(hostPath)
+      const originalTarget = await next.readFile(targetPath)
+
+      try {
+        await next.patchFile(
+          targetPath,
+          `${originalTarget}\nexport const invalid = ;`
+        )
+        expect(await next.render('/ssr-dynamic')).toContain(
+          'SSR target not rendered'
+        )
+        expect(
+          await assetsContaining('ssr-lazy-marker-4f31', 'server')
+        ).toHaveLength(0)
+      } finally {
+        await next.patchFile(targetPath, originalTarget)
+      }
+
+      await retry(async () => {
+        expect(await next.render('/ssr-dynamic?target=ssr')).toContain(
+          'ssr-lazy-marker-4f31'
+        )
+      })
+      expect(
+        await assetsContaining('ssr-lazy-marker-4f31', 'server')
+      ).not.toHaveLength(0)
+      expect(await assetsContaining('ssr-lazy-marker-4f31')).toHaveLength(0)
+
+      try {
+        await next.patchFile(
+          hostPath,
+          originalHost.replace('<SsrTarget />', '<SsrTarget key="edited" />')
+        )
+        await retry(async () => {
+          expect(await next.render('/ssr-dynamic?target=ssr')).toContain(
+            'ssr-lazy-marker-4f31'
+          )
+        })
+      } finally {
+        await next.patchFile(hostPath, originalHost)
+      }
+
+      const renders = await Promise.all([
+        next.render('/ssr-dynamic?target=concurrent'),
+        next.render('/ssr-dynamic?target=concurrent'),
+      ])
+      for (const html of renders) {
+        expect(html).toContain('concurrent-lazy-marker-6c20')
       }
     })
   }

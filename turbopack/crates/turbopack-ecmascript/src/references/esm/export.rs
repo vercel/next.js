@@ -14,13 +14,11 @@ use swc_core::{
 };
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, trace::TraceRawVcs, turbofmt,
-};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, turbofmt};
 use turbopack_core::{
     chunk::{ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
-    issue::{IssueExt, IssueSeverity, StyledString, analyze::AnalyzeIssue},
+    issue::{IssueExt, IssueSeverity, analyze::AnalyzeIssue},
     module::{Module, ModuleSideEffects},
     module_graph::binding_usage_info::ModuleExportUsageInfo,
     reference::ModuleReference,
@@ -49,7 +47,7 @@ use crate::{
 /// Models the 'liveness' of an esm export
 /// All ESM exports are technically live but many never change and we can optimize representation to
 /// support that, this enum tracks the actual behavior of the export binding.
-#[derive(Copy, Clone, Hash, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Copy, Clone, Hash, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum Liveness {
     // The binding never changes after module evaluation
     Constant,
@@ -61,7 +59,7 @@ pub enum Liveness {
     Mutable,
 }
 
-#[derive(Clone, Hash, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum EsmExport {
     /// A local binding that is exported (export { a } or export const a = 1)
     ///
@@ -140,7 +138,7 @@ pub async fn all_known_export_names(
     Ok(Vc::cell(export_names.esm_exports.keys().cloned().collect()))
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum FoundExportType {
     Found,
     Dynamic,
@@ -523,8 +521,8 @@ async fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) -
     AnalyzeIssue::new(
         IssueSeverity::Warning,
         source_ident,
-        Vc::cell(rcstr!("unexpected export *")),
-        StyledString::Text(message).cell(),
+        rcstr!("unexpected export *"),
+        message,
         None,
         None,
     )
@@ -656,9 +654,12 @@ async fn compact_reference_target(
     let referenced_asset =
         ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?;
     let Some(ReferencedAssetIdent::Module {
-        namespace_ident,
         ctxt,
-        import_source: ImportSource::Module { asset },
+        import_source:
+            ImportSource::Module {
+                asset,
+                namespace_ident,
+            },
         ..
     }) = referenced_asset
         .get_ident(chunking_context, None, scope_hoisting_context)
@@ -681,6 +682,7 @@ async fn build_compact_reexports(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     scope_hoisting_context: ScopeHoistingContext<'_>,
 ) -> Result<Option<CompactReexports>> {
+    let unused_references = chunking_context.unused_references().await?;
     let locally_bound: FxHashSet<usize> = eval_context
         .imports
         .locally_bound_reference_idxs()
@@ -698,11 +700,7 @@ async fn build_compact_reexports(
         // a group for a reference the usage graph pruned: its target may not exist in this chunk,
         // and its code generation deliberately emits no namespace binding either.
         for (order, reference) in part_references.iter().enumerate() {
-            if chunking_context
-                .unused_references()
-                .contains_key(&ResolvedVc::upcast(*reference))
-                .await?
-            {
+            if unused_references.contains_key(&ResolvedVc::upcast(*reference)) {
                 continue;
             }
 
@@ -735,6 +733,12 @@ async fn build_compact_reexports(
 
         let offset = part_references.len();
         for (index, reference) in esm_references.iter().enumerate() {
+            // Unused re-exports are absent from the module ID map and cannot contribute
+            // an import or a source-order position to the compact registration.
+            if unused_references.contains_key(&ResolvedVc::upcast(*reference)) {
+                continue;
+            }
+
             if let Some((key, _)) = compact_reference_target(
                 ResolvedVc::upcast(*reference),
                 chunking_context,
@@ -751,6 +755,12 @@ async fn build_compact_reexports(
         let EsmExport::ImportedBinding(esm_ref, imported_name, mutable) = local else {
             return Ok(None);
         };
+        // The usage graph can prune a re-export's target even though its name is still
+        // present in the facade's expanded export list. Do not generate a module ID for
+        // a target that was excluded from chunking.
+        if unused_references.contains_key(esm_ref) {
+            continue;
+        }
         if *mutable {
             // A mutable re-export needs a setter, which the compact form cannot express.
             return Ok(None);
@@ -767,10 +777,13 @@ async fn build_compact_reexports(
         let referenced_asset =
             ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
         let Some(ReferencedAssetIdent::Module {
-            namespace_ident,
             ctxt,
             export: Some(imported_key),
-            import_source: ImportSource::Module { asset },
+            import_source:
+                ImportSource::Module {
+                    asset,
+                    namespace_ident,
+                },
         }) = referenced_asset
             .get_ident(
                 chunking_context,
@@ -1001,6 +1014,7 @@ impl EsmExports {
         synthetic_references: Option<SyntheticReexportReferences<'_>>,
         is_async_module: bool,
     ) -> Result<(CodeGeneration, SubsumedImports)> {
+        let unused_references = chunking_context.unused_references().await?;
         let export_usage_info = chunking_context
             .module_export_usage(*ResolvedVc::upcast(module))
             .await?;
@@ -1027,7 +1041,7 @@ impl EsmExports {
 
             for dynamic_export_asset in &expanded.dynamic_exports {
                 let ident = ReferencedAsset::get_ident_from_placeable(
-                    dynamic_export_asset,
+                    **dynamic_export_asset,
                     chunking_context,
                 )
                 .await?;
@@ -1094,6 +1108,12 @@ impl EsmExports {
         }
 
         for (exported, local) in &expanded.exports {
+            if let EsmExport::ImportedBinding(reference, ..)
+            | EsmExport::ImportedNamespace(reference) = local
+                && unused_references.contains_key(reference)
+            {
+                continue;
+            }
             let exprs: ExportBinding = match local {
                 EsmExport::Error => ExportBinding::Getter(quote!(
                     "(() => { throw new Error(\"Failed binding. See build errors!\"); })" as Expr,

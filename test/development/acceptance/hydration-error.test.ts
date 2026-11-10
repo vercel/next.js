@@ -78,10 +78,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
        [
          {
            "componentStack": "<Mismatch>
-           <div>
-             <main>
-       +       "server"
-       -       "client"",
+         <div>
+           <main>
+       +     "server"
+       -     "client"",
            "description": "Text content did not match. Server: "server" Client: "client"",
            "environmentLabel": null,
            "label": "Recoverable Error",
@@ -167,8 +167,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
        [
          {
            "componentStack": "<Mismatch>
-       >   <div>
-       >     <main>",
+       > <div>
+       >   <main>",
            "description": "Expected server HTML to contain a matching <main> in <div>.",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -177,8 +177,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
          },
          {
            "componentStack": "<Mismatch>
-       >   <div>
-       >     <main>",
+       > <div>
+       >   <main>",
            "description": "Expected server HTML to contain a matching <main> in <div>.",
            "environmentLabel": null,
            "label": "Recoverable Error",
@@ -246,10 +246,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
       await expect(browser).toDisplayRedbox(`
        [
          {
-           "componentStack": "<Mismatch>
-           <div>
-       >     <div>
-       >       "second"",
+           "componentStack": "<div>
+       > <div>
+       >   "second"",
            "description": "Expected server HTML to contain a matching text node for "second" in <div>.",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -257,10 +256,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "componentStack": "<Mismatch>
-           <div>
-       >     <div>
-       >       "second"",
+           "componentStack": "<div>
+       > <div>
+       >   "second"",
            "description": "Expected server HTML to contain a matching text node for "second" in <div>.",
            "environmentLabel": null,
            "label": "Recoverable Error",
@@ -325,7 +323,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        [
          {
            "componentStack": "<Mismatch>
-       >   <div>",
+       > <div>",
            "description": "Did not expect server HTML to contain a <main> in <div>.",
            "environmentLabel": null,
            "label": "Recoverable Error",
@@ -383,10 +381,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
       await expect(browser).toDisplayRedbox(`
        [
          {
-           "componentStack": "<Mismatch>
-           <div>
-       >     <div>
-       >       "only"",
+           "componentStack": "<div>
+       > <div>
+       >   "only"",
            "description": "Did not expect server HTML to contain the text node "only" in <div>.",
            "environmentLabel": null,
            "label": "Recoverable Error",
@@ -459,7 +456,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        [
          {
            "componentStack": "<Page>
-       >   <table>",
+       > <table>",
            "description": "Expected server HTML to contain a matching <table> in <div>.",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -468,7 +465,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          },
          {
            "componentStack": "<Page>
-       >   <table>",
+       > <table>",
            "description": "Expected server HTML to contain a matching <table> in <div>.",
            "environmentLabel": null,
            "label": "Recoverable Error",
@@ -535,7 +532,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        [
          {
            "componentStack": "<Page>
-       >   <table>",
+       > <table>",
            "description": "Expected server HTML to contain a matching <table> in <div>.",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -544,7 +541,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          },
          {
            "componentStack": "<Page>
-       >   <table>",
+       > <table>",
            "description": "Expected server HTML to contain a matching <table> in <div>.",
            "environmentLabel": null,
            "label": "Recoverable Error",
@@ -617,9 +614,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
        [
          {
            "componentStack": "<Mismatch>
-       >   <div>
-             <Suspense>
-       >       <main>",
+       > <div>
+       >     <main>",
            "description": "Expected server HTML to contain a matching <main> in <div>.",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -628,9 +624,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
          },
          {
            "componentStack": "<Mismatch>
-       >   <div>
-             <Suspense>
-       >       <main>",
+       > <div>
+       >     <main>",
            "description": "Expected server HTML to contain a matching <main> in <div>.",
            "environmentLabel": null,
            "label": "Recoverable Error",
@@ -730,8 +725,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
        [
          {
            "componentStack": "<Page>
-       >   <p>
-       >     <p>",
+       > <p>
+       >   <p>",
            "description": "Expected server HTML to contain a matching <p> in <p>.",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -740,8 +735,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
          },
          {
            "componentStack": "<Page>
-       >   <p>
-       >     <p>",
+       > <p>
+       >   <p>",
            "description": "Expected server HTML to contain a matching <p> in <p>.",
            "environmentLabel": null,
            "label": "Recoverable Error",
@@ -811,11 +806,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
       await expect(browser).toDisplayRedbox(`
        [
          {
-           "componentStack": "<Page>
-           <div>
-             <div>
-       >       <p>
-       >         <div>",
+           "componentStack": "<div>
+       > <p>
+       >   <div>",
            "description": "Expected server HTML to contain a matching <div> in <p>.",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -823,11 +816,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "componentStack": "<Page>
-           <div>
-             <div>
-       >       <p>
-       >         <div>",
+           "componentStack": "<div>
+       > <p>
+       >   <div>",
            "description": "Expected server HTML to contain a matching <div> in <p>.",
            "environmentLabel": null,
            "label": "Recoverable Error",
@@ -890,8 +881,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
        [
          {
            "componentStack": "<Page>
-       >   <div>
-       >     <tr>",
+       > <div>
+       >   <tr>",
            "description": "Expected server HTML to contain a matching <tr> in <div>.",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -900,8 +891,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
          },
          {
            "componentStack": "<Page>
-       >   <div>
-       >     <tr>",
+       > <div>
+       >   <tr>",
            "description": "Expected server HTML to contain a matching <tr> in <div>.",
            "environmentLabel": null,
            "label": "Recoverable Error",
@@ -965,13 +956,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
       await expect(browser).toDisplayRedbox(`
        [
          {
-           "componentStack": "<Page>
-           <p>
-             <span>
-               <span>
-                 <span>
-       >           <span>
-       >             <p>",
+           "componentStack": "<span>
+       > <span>
+       >   <p>",
            "description": "Expected server HTML to contain a matching <p> in <span>.",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -979,13 +966,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "componentStack": "<Page>
-           <p>
-             <span>
-               <span>
-                 <span>
-       >           <span>
-       >             <p>",
+           "componentStack": "<span>
+       > <span>
+       >   <p>",
            "description": "Expected server HTML to contain a matching <p> in <span>.",
            "environmentLabel": null,
            "label": "Recoverable Error",

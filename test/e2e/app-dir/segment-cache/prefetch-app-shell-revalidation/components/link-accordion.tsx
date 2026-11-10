@@ -1,23 +1,25 @@
 'use client'
-import Link from 'next/link'
+import Link, { type LinkProps } from 'next/link'
 import { useState } from 'react'
 
 export function LinkAccordion({
   href,
   children,
-  prefetch,
+  prefetch = 'auto',
 }: {
   href: string
   children: React.ReactNode
-  prefetch?: boolean
+  prefetch?: LinkProps['prefetch']
 }) {
   const [isVisible, setIsVisible] = useState(false)
+  const prefetchAttr = prefetch === null ? 'auto' : `${prefetch}`
   return (
     <>
       <input
         type="checkbox"
         checked={isVisible}
         onChange={() => setIsVisible(!isVisible)}
+        data-prefetch={prefetchAttr}
         data-link-accordion={href}
       />
       {isVisible ? (
@@ -25,7 +27,7 @@ export function LinkAccordion({
           {children}
         </Link>
       ) : (
-        `${children} (link is hidden)`
+        <>{children} (link is hidden)</>
       )}
     </>
   )

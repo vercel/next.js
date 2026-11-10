@@ -1,6 +1,8 @@
 import { readFile } from 'fs/promises'
 import path from 'path'
 import { isAgentFeedbackEnabled } from './agent-feedback-status'
+import { isCI } from '../../server/ci-info'
+import { Telemetry } from '../../telemetry/storage'
 
 const AGENT_FEEDBACK_PROTOCOL_PATH = path.join(
   __dirname,
@@ -8,6 +10,7 @@ const AGENT_FEEDBACK_PROTOCOL_PATH = path.join(
 )
 
 type IsEnabled = () => Promise<boolean>
+type IsLocallyEnabled = () => boolean
 type ReadProtocol = () => Promise<string>
 export interface AgentFeedbackInstructionsOptions {
   dryRun?: boolean
@@ -27,9 +30,10 @@ export async function loadAgentFeedbackInstructions(
   options: AgentFeedbackInstructionsOptions = {},
   isEnabled: IsEnabled = isAgentFeedbackEnabled,
   readProtocol: ReadProtocol = () =>
-    readFile(AGENT_FEEDBACK_PROTOCOL_PATH, 'utf8')
+    readFile(AGENT_FEEDBACK_PROTOCOL_PATH, 'utf8'),
+  isLocallyEnabled: IsLocallyEnabled = isAgentFeedbackLocallyEnabled
 ): Promise<string | null> {
-  if (!options.dryRun && !(await isEnabled())) {
+  if (!options.dryRun && (!isLocallyEnabled() || !(await isEnabled()))) {
     return null
   }
 
@@ -39,6 +43,15 @@ export async function loadAgentFeedbackInstructions(
   } catch {
     return null
   }
+}
+
+function isAgentFeedbackLocallyEnabled(): boolean {
+  if (isCI) return false
+
+  return new Telemetry({
+    distDir: path.join(process.cwd(), '.next'),
+    skipNotify: true,
+  }).isEnabled
 }
 
 export async function agentFeedbackInstructionsCli(

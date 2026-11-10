@@ -8,8 +8,7 @@ use bincode::{Decode, Encode};
 use indexmap::IndexSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, NonLocalValue, ResolvedVc, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
-    turbobail, turbofmt,
+    Completion, NonLocalValue, ResolvedVc, ValueToString, ValueToStringRef, Vc, turbobail, turbofmt,
 };
 use turbo_unix_path::{
     get_parent_path, get_relative_path_to, get_relative_request_to, join_path, normalize_path,
@@ -522,13 +521,13 @@ pub struct RealPathWithLinksResult {
 
 /// Errors that can occur when resolving a path with symlinks.
 /// Many of these can be transient conditions that might happen when package managers are running.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, Encode, Decode)]
 pub struct RealPathError {
     original_path: FileSystemPath,
     kind: RealPathErrorType,
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, Encode, Decode)]
 pub enum RealPathErrorType {
     TooManySymlinks {
         symlinks: Box<[FileSystemPath]>,
