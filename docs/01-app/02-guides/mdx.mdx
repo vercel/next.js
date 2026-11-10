@@ -338,7 +338,7 @@ export function generateStaticParams() {
 
 > **Good to know**:
 >
-> - With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), `generateStaticParams` does not restrict requests to the returned slugs. Do not export `dynamicParams` because the export causes a build error. Call `notFound()` before importing a slug that does not map to content.
+> - `dynamicParams` is not supported with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents). Slugs not returned by `generateStaticParams` are handled at request time. The check above returns a 404 for slugs that do not map to content.
 > - Ensure you specify the `.mdx` file extension in your import. While it is not required to use [module path aliases](/docs/app/getting-started/installation#set-up-absolute-imports-and-module-path-aliases) (e.g., `@/content`), it does simplify your import path.
 
 </AppOnly>
