@@ -2634,17 +2634,12 @@ impl AggregationUpdateQueue {
         };
         drop(upper);
         if !upper_ids.is_empty() {
-            // TODO: Merge the nonempty outgoing AggregatedDataUpdate diffs for this common
-            // ancestor list, instead of cloning the list and queuing a separate job per diff.
-            // Each input must still be applied to the upper above, including intermediate effects.
-            for diff in diffs {
-                self.push(
-                    AggregatedDataUpdateJob {
-                        upper_ids: upper_ids.clone(),
-                        update: diff,
-                    }
-                    .into(),
-                );
+            // Outside of the lock: merge the outgoing diffs into a single update for the uppers of
+            // the upper, instead of cloning the list and enqueuing one job per diff. Each input
+            // was already applied to the upper above, including intermediate effects.
+            let update = AggregatedDataUpdate::merge_all(diffs);
+            if !update.is_empty() {
+                self.push(AggregatedDataUpdateJob { upper_ids, update }.into());
             }
         }
         is_upper_active
