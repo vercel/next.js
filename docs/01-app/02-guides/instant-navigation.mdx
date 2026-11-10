@@ -387,11 +387,13 @@ The example route has no `generateStaticParams`, so its product heading is outsi
 
 Pass Playwright's `baseURL` to `instant()` when `page.goto()` is the first navigation. The helper needs the origin before requesting the document.
 
-Inside the callback, an initial page load shows the static UI and a client navigation shows the destination's prefetched UI. Dynamic content remains paused until the callback finishes. Checking only the completed response would include that later content, so it would not tell you which UI was available immediately.
+Inside the callback, an initial page load shows the static UI and a client navigation shows the destination's prefetched UI. Other dynamic content remains blocked until the callback finishes.
 
 > **Good to know:** The start of the `instant()` scope is the same as turning on **Pause on navigations** in the Navigation Inspector, and the end of the scope releases the pause the way **Resume** does.
 
 For client navigations, wait for the destination URL before asserting on its UI. Otherwise, a shared selector can match the source page before the destination commits. If the prefetched destination cannot commit, the URL wait times out and the test fails.
+
+> **Good to know:** A completed page response includes any content streamed after navigation. Assertions inside `instant()` check what is available immediately, before that content arrives.
 
 Cache Components keeps previous pages hidden in the DOM after navigation. Use `getByRole`, which excludes hidden elements by default, or filter other locators with `.filter({ visible: true })` so assertions target the visible page. See [Testing preserved UI](/docs/app/guides/preserving-ui-state#testing).
 
