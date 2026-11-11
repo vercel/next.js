@@ -255,14 +255,14 @@ describe.each([false, true])(
     })
 
     it.each(['', '/en', '/fr'])(
-      'handles the locale prefix "%s"',
+      'forwards the URL with locale prefix "%s"',
       async (prefix) => {
-        const path = `${prefix}/protected?from=locale`
+        const path = `${prefix}/url-normalization?from=locale`
         const response = await next.fetch(path)
         expect(response.status).toBe(200)
         expect(response.headers.get('x-go-url')).toBe(
           !skipProxyUrlNormalize && prefix === '/en'
-            ? '/protected?from=locale'
+            ? '/url-normalization?from=locale'
             : path
         )
       }
@@ -271,11 +271,11 @@ describe.each([false, true])(
     // The build ID and Pages data endpoint require a local production build.
     // @force-gate start
     it('handles the original locale-prefixed data-request URL', async () => {
-      const path = `/_next/data/${next.buildId}/en/protected.json?from=data`
+      const path = `/_next/data/${next.buildId}/en/url-normalization.json?from=data`
       const response = await next.fetch(path)
       expect(response.status).toBe(200)
       expect(response.headers.get('x-go-url')).toBe(
-        skipProxyUrlNormalize ? path : '/protected?from=data'
+        skipProxyUrlNormalize ? path : '/url-normalization?from=data'
       )
     })
   }
