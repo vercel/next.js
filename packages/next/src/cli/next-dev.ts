@@ -27,7 +27,7 @@ import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import { createSelfSignedCertificate } from '../lib/mkcert'
 import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
-import { initialEnv } from '@next/env'
+import { initialEnv, loadEnvConfig } from '@next/env'
 import { fork } from 'child_process'
 import type { ChildProcess } from 'child_process'
 import type { UpgradeContext, UpgradeReminder } from '../lib/upgrade/nudge'
@@ -82,6 +82,7 @@ let dir: string
 let child: undefined | ChildProcess
 // distDir is received from the child process via IPC, used for telemetry and trace.
 let distDir: string | undefined
+let serverTelemetryDisabled: string | undefined
 let isTurbopack: boolean
 let traceUploadUrl: string
 let sessionStopHandled = false
@@ -182,6 +183,11 @@ const handleSessionStop = async (
       pagesDir = !!pagesResult.pagesDir
     }
 
+    // The CLI parent does not load config; read .env opt-outs before creating telemetry.
+    loadEnvConfig(dir, true)
+    if (serverTelemetryDisabled) {
+      process.env.NEXT_TELEMETRY_DISABLED = serverTelemetryDisabled
+    }
     const telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
         typeof import('../telemetry/storage').Telemetry
@@ -200,7 +206,7 @@ const handleSessionStop = async (
       }),
       true
     )
-    telemetry.flushDetached({ mode: 'dev', dir, distDir: null, events: null })
+    telemetry.flushDetached({ mode: 'dev', dir, events: null })
   } catch (_) {
     // errors here aren't actionable so don't add
     // noise to the output
@@ -569,6 +575,7 @@ const nextDev = async (
           } else if (msg.nextUpgradeContext) {
             const context = msg.nextUpgradeContext as UpgradeContext
             distDir = context.distDir
+            serverTelemetryDisabled = msg.telemetryDisabled
             const initialAssessment =
               msg.nextUpgradeAssessment !== undefined
                 ? Promise.resolve(msg.nextUpgradeAssessment)
@@ -585,6 +592,8 @@ const nextDev = async (
           } else if (msg.nextWorkerReady) {
             child?.send({ nextWorkerOptions: startServerOptions })
           } else if (msg.nextServerReady && !resolved) {
+            // Preserve opt-outs set by config already evaluated in the server child.
+            serverTelemetryDisabled = msg.telemetryDisabled
             if (msg.port) {
               // Store the used port in case a random one was selected, so that
               // it can be re-used on automatic dev server restarts.

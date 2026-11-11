@@ -1,0 +1,5 @@
+const { Telemetry } = require(process.argv[2])
+const telemetry = new Telemetry({ distDir: process.argv[3], skipNotify: true })
+if (process.argv[4] === 'persisted') telemetry.setEnabled(false)
+telemetry.record({ eventName: 'DETACHED_FLUSH_TEST', payload: {} }, true)
+telemetry.flushDetached({ mode: 'dev', dir: process.cwd(), events: null })
