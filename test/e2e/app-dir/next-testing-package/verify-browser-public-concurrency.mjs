@@ -1,0 +1,3 @@
+import { runBrowserFixtureRegressions } from './browser-fixture-regressions.mjs'
+
+await runBrowserFixtureRegressions('public-concurrency')

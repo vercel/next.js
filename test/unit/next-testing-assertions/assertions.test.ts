@@ -429,6 +429,23 @@ it.each(['node', 'browser'])(
   30000
 )
 
+it('publishes actual global Tasks across hooks, native and custom assertions, and concurrent bodies', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'global-task-flags.cjs')],
+    { timeout: 50000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    results: [
+      { mode: 'development', group: 'flags', cases: 5 },
+      { mode: 'development', group: 'attribution', cases: 4 },
+      { mode: 'production', group: 'flags', cases: 5 },
+      { mode: 'production', group: 'attribution', cases: 4 },
+    ],
+  })
+}, 55000)
+
 it.each(['node', 'browser'] as const)(
   'publishes genuine native public Promise queues through the %s primitive with captured private ownership',
   async (mode) => {
@@ -446,6 +463,69 @@ it.each(['node', 'browser'] as const)(
     expect(result.mode).toBe(mode)
     expect(result.controls).toBe(11)
   }
+)
+
+it('checks native public Promise queue identity and cleanup in actual Node cases', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'native-public-promises-public.cjs')],
+    { timeout: 50000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    results: [
+      { mode: 'development', group: 'fields', cases: 4 },
+      { mode: 'production', group: 'fields', cases: 4 },
+    ],
+  })
+}, 55000)
+
+it.each([
+  { batch: 'queue', groups: 10 },
+  { batch: 'ownership', groups: 6 },
+  { batch: 'rejections', groups: 3 },
+])(
+  'consumes actual public Promise queues with genuine iteration, retries and native ownership: $batch',
+  async ({ batch, groups }) => {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'manual-public-promises-public.cjs'), batch],
+      { timeout: 120000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      profiles: groups * 2,
+      groups,
+      cases: groups * 2,
+      rows: groups * 2,
+    })
+  },
+  125000
+)
+
+it.each([
+  { batch: 'finished-fields', groups: 5, cases: 12 },
+  { batch: 'finished-runtime', groups: 3, cases: 6 },
+  { batch: 'failed-fields', groups: 4, cases: 10 },
+  { batch: 'failed-sequence', groups: 4, cases: 8 },
+  { batch: 'empty', groups: 1, cases: 4 },
+])(
+  'shares real public completion arrays with genuine registration and consumption: $batch',
+  async ({ batch, groups, cases }) => {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'public-task-listeners.cjs'), batch],
+      { timeout: 120000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      profiles: groups * 2,
+      groups,
+      cases,
+      rows: groups * 2,
+    })
+  },
+  125000
 )
 
 it.each(['node', 'browser'])(
@@ -517,6 +597,51 @@ it('observes only actual settled afterAll assertion finalizers without changing 
   ).toBe(true)
 }, 30000)
 
+it.each(['object', 'fulfilled'])(
+  'retains Istanbul completion for an unobserved shared afterAll %s payload',
+  async (kind) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const output = await mkdtemp(
+      join(tmpdir(), 'next-istanbul-shared-payload-')
+    )
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(
+            __dirname,
+            '../next-testing-coverage/istanbul-afterall-payloads.mjs'
+          ),
+          'source',
+          process.cwd(),
+          output,
+          kind,
+        ],
+        {
+          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          timeout: 125000,
+        }
+      ).catch((error) => {
+        throw new Error([error.message, error.stdout, error.stderr].join('\n'))
+      })
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        kind,
+        exit: 0,
+        passedCases: 3,
+        failedFiles: 0,
+        completeCoverageReports: true,
+        noNativeRejection: true,
+      })
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  },
+  125000
+)
+
 it('publishes the real snapshot state only at actual attempt start and preserves its lifetime', async () => {
   const { stdout, stderr } = await promisify(execFile)(
     process.execPath,
@@ -533,6 +658,98 @@ it('publishes the real snapshot state only at actual attempt start and preserves
     cleanupGuardsAndGlobalRestoration: true,
   })
 }, 20000)
+
+it.each(['development', 'production'])(
+  'exposes actual snapshot state across public %s lifecycle, failure and retry',
+  async (mode) => {
+    const { mkdtemp, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-snapshot-state-public-')
+    )
+    try {
+      const { stdout, stderr } = await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'snapshot-state-public.mjs'),
+          'source',
+          process.cwd(),
+          join(directory, 'observed'),
+          mode,
+        ],
+        { timeout: 180000, maxBuffer: 4 * 1024 * 1024 }
+      ).catch((error) => {
+        throw new Error([error.message, error.stdout, error.stderr].join('\n'))
+      })
+      expect(stderr).toBe('')
+      expect(JSON.parse(stdout)).toEqual({
+        profiles: 4,
+        cases: 8,
+        observations: 48,
+        lifecycleAndSnapshotCounters: true,
+        sourceAndInlineSnapshotsUnchanged: true,
+        allOwnersJoined: true,
+      })
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  },
+  185000
+)
+
+it('matches genuine snapshot state and CounterMap public types', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'snapshot-state-types.cjs')],
+    { timeout: 30000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    programs: 18,
+    accepted: 12,
+    rejected: 6,
+    rootConfigAndGlobalAugmentations: true,
+    publishedFacadeTarget: true,
+    globalContextCustomMatcherAndStateWrites: true,
+    actualBundledSnapshotType: true,
+  })
+}, 35000)
+
+it('matches genuine AssertType and snapshot root type exports', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'root-authoring-types.cjs')],
+    { timeout: 30000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    programs: 24,
+    accepted: 6,
+    rejected: 18,
+    rootConfigAndGlobalAugmentations: true,
+    publishedFacadeTarget: true,
+    transitiveSnapshotTypeIdentity: true,
+    typeOnlyExports: true,
+  })
+}, 35000)
+
+it('matches genuine matcher authoring root type exports', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'matcher-authoring-types.cjs')],
+    { timeout: 30000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    programs: 44,
+    accepted: 16,
+    rejected: 28,
+    rootConfigAndGlobalAugmentations: true,
+    publishedFacadeTarget: true,
+    directRealMatcherTypeIdentity: true,
+    typeOnlyExports: true,
+  })
+}, 35000)
 
 it.each(['poll-ownership', 'poll-hook-admission'])(
   'owns actual lazy polling invocation and Test lifetime: %s',
@@ -555,6 +772,61 @@ it.each(['poll-ownership', 'poll-hook-admission'])(
   20000
 )
 
+it.each([
+  ['development', 'js', 'poll-ownership'],
+  ['development', 'js', 'poll-hook-admission'],
+  ['development', 'mjs', 'poll-ownership'],
+  ['development', 'mjs', 'poll-hook-admission'],
+  ['production', 'js', 'poll-ownership'],
+  ['production', 'js', 'poll-hook-admission'],
+  ['production', 'mjs', 'poll-ownership'],
+  ['production', 'mjs', 'poll-hook-admission'],
+])(
+  'matches genuine public polling ownership in %s %s %s',
+  async (mode, extension, profile) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-poll-ownership-public-')
+    )
+    try {
+      const output = join(directory, profile)
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'poll-ownership-public.mjs'),
+          'source',
+          process.cwd(),
+          output,
+          mode,
+          profile,
+          extension,
+        ],
+        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      ).catch(async (error) => {
+        const raw = await readFile(join(output, 'RESULT.json'), 'utf8').catch(
+          () => ''
+        )
+        throw new Error(
+          [error.message, error.stdout, error.stderr, raw].join('\n')
+        )
+      })
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        exactGenuineAuthorRows: true,
+        exactCaseStatesAndErrorNamesMessages: true,
+        noSyntheticResults: true,
+        originalBoundsHeld: true,
+        allOwnersJoined: true,
+      })
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  },
+  130000
+)
+
 it('seeds assertion state from the actual resolved environment with owned getter and teardown effects', async () => {
   const { stdout, stderr } = await promisify(execFile)(
     process.execPath,
@@ -570,6 +842,98 @@ it('seeds assertion state from the actual resolved environment with owned getter
     allDisposalsJoined: true,
   })
 }, 20000)
+
+it.each([
+  ['development', 'js', 'node'],
+  ['development', 'mjs', 'node'],
+  ['production', 'js', 'node'],
+  ['production', 'mjs', 'node'],
+  ['development', 'mjs', 'custom'],
+  ['production', 'js', 'custom'],
+  ['development', 'mjs', 'custom-getter'],
+  ['production', 'js', 'custom-getter'],
+  ['development', 'mjs', 'custom-undefined-second'],
+  ['production', 'js', 'custom-undefined-second'],
+  ['development', 'mjs', 'custom-throw-second'],
+  ['production', 'js', 'custom-throw-second'],
+  ['development', 'mjs', 'state-inheritance'],
+  ['production', 'js', 'state-inheritance'],
+  ['development', 'mjs', 'custom-throw-second-cleanup'],
+  ['production', 'js', 'custom-throw-second-cleanup'],
+  ['development', 'mjs', 'custom-throw-second-undefined'],
+  ['production', 'js', 'custom-throw-second-undefined'],
+  ['development', 'mjs', 'browser'],
+])(
+  'publishes actual environment state in %s %s %s',
+  async (mode, extension, profile) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-environment-state-public-')
+    )
+    let completed = false
+    try {
+      const output = join(directory, profile)
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'environment-state-public.mjs'),
+          'source',
+          process.cwd(),
+          output,
+          mode,
+          profile,
+          extension,
+        ],
+        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      ).catch(async (error) => {
+        const raw = await readFile(join(output, 'RESULT.json'), 'utf8').catch(
+          () => ''
+        )
+        throw new Error(
+          [error.message, error.stdout, error.stderr, raw, directory].join('\n')
+        )
+      })
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        exactGenuineAuthorRows: true,
+        exactCaseStates: true,
+        noSyntheticResults: true,
+        originalBoundsHeld: true,
+        allOwnersJoined: true,
+      })
+      completed = true
+    } finally {
+      if (completed) await rm(directory, { recursive: true, force: true })
+      else
+        console.error(
+          'Retained failed environment state observations at ' + directory
+        )
+    }
+  },
+  130000
+)
+
+it('matches genuine complete expectation authoring types and the actual primitive matcher graph', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'expect-authoring-types.cjs')],
+    { timeout: 120000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    programs: 37,
+    accepted: 20,
+    rejected: 17,
+    eachAugmentationIsolated: true,
+    rootConfigAndGlobalAugmentations: true,
+    publishedFacadeTarget: true,
+    actualPrimitiveMatcherGraph: true,
+    realUserAugmentationDeclarations: true,
+    typeOnlyExports: true,
+  })
+}, 125000)
 
 it('owns genuine polling deadlines, outputs and actual native timer cleanup', async () => {
   const { stdout, stderr } = await promisify(execFile)(
@@ -592,6 +956,62 @@ it('owns genuine polling deadlines, outputs and actual native timer cleanup', as
   })
 }, 25000)
 
+it.each([
+  ['development', 'js', 'core'],
+  ['production', 'mjs', 'core'],
+  ['development', 'js', 'takeover'],
+  ['production', 'mjs', 'takeover'],
+])(
+  'matches genuine polling deadline and settlement ownership in %s %s %s',
+  async (mode, extension, family) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-poll-deadline-public-')
+    )
+    const output = join(directory, 'output')
+    let completed = false
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'poll-deadline-public.mjs'),
+          'source',
+          process.cwd(),
+          output,
+          mode,
+          extension,
+          family,
+        ],
+        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      ).catch(async (error) => {
+        const raw = await readFile(join(output, 'RESULT.json'), 'utf8').catch(
+          () => ''
+        )
+        throw new Error(
+          [error.message, error.stdout, error.stderr, raw, directory].join('\n')
+        )
+      })
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        exactGenuineAuthorRows: true,
+        exactCaseStatesAndStandardCounts: true,
+        originalBoundsHeld: true,
+        allOwnersJoined: true,
+      })
+      completed = true
+    } finally {
+      if (completed) await rm(directory, { recursive: true, force: true })
+      else
+        console.error(
+          'Retained failed poll deadline observations at ' + directory
+        )
+    }
+  },
+  130000
+)
+
 it('preserves actual takeover descriptors and retained readonly metadata without invoking getters', async () => {
   const { stdout, stderr } = await promisify(execFile)(
     process.execPath,
@@ -609,6 +1029,57 @@ it('preserves actual takeover descriptors and retained readonly metadata without
     invocationCodeUnchanged: true,
   })
 }, 25000)
+it.each([
+  ['development', 'js'],
+  ['production', 'mjs'],
+])(
+  'matches actual callable tag descriptor effects in %s %s',
+  async (mode, extension) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(join(tmpdir(), 'next-callable-tag-public-'))
+    const output = join(directory, 'observed')
+    let completed = false
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'poll-takeover-descriptor-public.mjs'),
+          'source',
+          process.cwd(),
+          output,
+          mode,
+          extension,
+          'effects',
+        ],
+        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      ).catch(async (error) => {
+        const raw = await readFile(join(output, 'RESULT.json'), 'utf8').catch(
+          () => ''
+        )
+        throw new Error(
+          [error.message, error.stdout, error.stderr, raw, directory].join('\n')
+        )
+      })
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        exactGenuineAuthorRows: true,
+        exactCaseStatesAndStandardCounts: true,
+        originalBoundsHeld: true,
+        allOwnersJoined: true,
+      })
+      completed = true
+    } finally {
+      if (completed) await rm(directory, { recursive: true, force: true })
+      else
+        console.error(
+          'Retained failed callable metadata observations at ' + directory
+        )
+    }
+  },
+  130000
+)
 
 it.each([
   'prototype',
@@ -646,6 +1117,215 @@ it.each([
   25000
 )
 
+it.each([
+  ['development', 'js', 'prototype'],
+  ['production', 'mjs', 'prototype'],
+  ['development', 'js', 'owners'],
+  ['production', 'mjs', 'owners'],
+  ['development', 'js', 'dispatch'],
+  ['production', 'mjs', 'dispatch'],
+  ['development', 'js', 'identity'],
+  ['production', 'mjs', 'identity'],
+  ['development', 'js', 'overwrite-static'],
+  ['production', 'mjs', 'overwrite-static'],
+  ['development', 'js', 'overwrite-utility'],
+  ['production', 'mjs', 'overwrite-utility'],
+  ['development', 'js', 'native-alias'],
+  ['production', 'mjs', 'native-alias'],
+  ['development', 'js', 'super-this'],
+  ['production', 'mjs', 'super-this'],
+  ['development', 'js', 'subject'],
+  ['production', 'mjs', 'subject'],
+])(
+  'checks Chai callable identity and receiver semantics in %s %s %s',
+  async (mode, extension, family) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-chai-callable-public-')
+    )
+    const output = join(directory, 'observed')
+    let completed = false
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'chai-prototype-callable-public.mjs'),
+          'source',
+          process.cwd(),
+          output,
+          mode,
+          extension,
+          family,
+        ],
+        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      ).catch(async (error) => {
+        const raw = await readFile(join(output, 'RESULT.json'), 'utf8').catch(
+          () => ''
+        )
+        throw new Error(
+          [error.message, error.stdout, error.stderr, raw, directory].join('\n')
+        )
+      })
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        lane: 'source',
+        mode,
+        extension,
+        cases:
+          family === 'prototype'
+            ? 4
+            : family === 'identity'
+              ? 7
+              : family === 'native-alias'
+                ? 1
+                : 2,
+        behaviorAssertions: true,
+        allOwnersJoined: true,
+      })
+      completed = true
+    } finally {
+      if (completed) await rm(directory, { recursive: true, force: true })
+      else
+        console.error(
+          'Retained failed Chai callable observations at ' + directory
+        )
+    }
+  },
+  130000
+)
+
+const callableFamilies = [
+  {
+    kind: 'name',
+    variants: ['default', 'proxy-disabled', 'proxify', 'proxify-disabled'],
+    count: (family: string) => (family.startsWith('proxify') ? 2 : 3),
+    privateTitle:
+      'retains actual callable name metadata after File disposal in %s',
+    publicTitle: 'checks callable name metadata in %s %s %s',
+    facts: { actualNameReadsAfterDispose: true },
+  },
+  {
+    kind: 'fields',
+    variants: ['default', 'disabled'],
+    count: () => 2,
+    privateTitle:
+      'retains actual callable descriptor identity after File disposal in %s',
+    publicTitle: 'checks callable descriptor traversal in %s %s %s',
+    facts: { actualDescriptorIdentityAfterDispose: true, noGetterReads: true },
+  },
+  {
+    kind: 'intrinsic',
+    variants: ['default', 'disabled'],
+    count: () => 3,
+    privateTitle:
+      'retains native callable string intrinsic after File disposal in %s',
+    publicTitle: 'checks native callable string intrinsic in %s %s %s',
+    facts: {
+      retainedIntrinsicAfterDispose: true,
+      exactNativeReceiverErrorsAfterDispose: true,
+      noAdditionalGetterReads: true,
+    },
+  },
+  {
+    kind: 'data',
+    variants: ['default', 'disabled', 'forwarding', 'forwarding-disabled'],
+    count: (family: string) => (family.startsWith('forwarding') ? 3 : 2),
+    privateTitle:
+      'preserves callable data identity and alias ownership after File disposal in %s',
+    publicTitle: 'checks own callable data behavior in %s %s %s',
+    facts: {
+      retainedCallerFunctionsAfterDispose: true,
+      publicAliasOwnershipAfterDispose: true,
+      neverCalledMetadataGetters: true,
+    },
+  },
+]
+for (const {
+  kind,
+  variants,
+  count,
+  privateTitle,
+  publicTitle,
+  facts,
+} of callableFamilies) {
+  it.each(variants)(
+    privateTitle,
+    async (family) => {
+      const { stdout, stderr } = await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, `chai-callable-${kind}.cjs`),
+          process.cwd(),
+          '',
+          family,
+        ],
+        { timeout: 20000 }
+      )
+      expect(stderr).toBe('')
+      expect(JSON.parse(stdout)).toMatchObject({
+        cases: count(family),
+        behaviorAssertions: true,
+        actualFileDisposalJoined: true,
+        ...facts,
+      })
+    },
+    25000
+  )
+
+  it.each(
+    variants.flatMap((family) => [
+      ['development', 'js', family],
+      ['production', 'mjs', family],
+    ])
+  )(
+    publicTitle,
+    async (mode, extension, family) => {
+      const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+      const { tmpdir } = await import('node:os')
+      const directory = await mkdtemp(
+        join(tmpdir(), `next-chai-${kind}-public-`)
+      )
+      const output = join(directory, 'observed')
+      let completed = false
+      try {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, `chai-callable-${kind}-public.mjs`),
+            'source',
+            process.cwd(),
+            output,
+            mode,
+            extension,
+            family,
+          ],
+          { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          lane: 'source',
+          mode,
+          extension,
+          cases: count(family),
+          behaviorAssertions: true,
+          allOwnersJoined: true,
+        })
+        completed = true
+      } finally {
+        if (completed) await rm(directory, { recursive: true, force: true })
+        else
+          console.error(
+            `Retained failed callable ${kind} observations at ${directory}`
+          )
+      }
+    },
+    130000
+  )
+}
+
 it.each(['dispatch', 'classes', 'null'])(
   'forwards actual Chai receivers through the file lifecycle in %s',
   async (family) => {
@@ -666,3 +1346,189 @@ it.each(['dispatch', 'classes', 'null'])(
   },
   25000
 )
+
+it.each(
+  ['dispatch', 'classes', 'null', 'unchanged'].flatMap((family) => [
+    ['development', family],
+    ['production', family],
+  ])
+)(
+  'checks Chai receiver values and native errors in %s for %s',
+  async (mode, family) => {
+    const { execFile } = await import('node:child_process')
+    const { promisify } = await import('node:util')
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-chai-receivers-public-')
+    )
+    let completed = false
+    try {
+      const output = join(directory, 'observed')
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'chai-receivers-public.mjs'),
+          'source',
+          process.cwd(),
+          output,
+          mode,
+          'ts',
+          family,
+        ],
+        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        lane: 'source',
+        mode,
+        extension: 'ts',
+        cases:
+          family === 'dispatch'
+            ? 28
+            : family === 'classes'
+              ? 24
+              : family === 'null'
+                ? 16
+                : 1,
+        behaviorAssertions: true,
+        allOwnersJoined: true,
+      })
+      completed = true
+    } finally {
+      if (completed) await rm(directory, { recursive: true, force: true })
+      else console.error('Retained Chai receiver observations at ' + directory)
+    }
+  },
+  130000
+)
+
+it('matches six genuine snapshot root type exports without controller dependencies', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'snapshot-root-exports.cjs')],
+    { timeout: 30000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    programs: 20,
+    accepted: 8,
+    rejected: 12,
+    rootConfigAndGlobalAugmentations: true,
+    publishedFacadeTarget: true,
+    transitiveSnapshotTypeIdentity: true,
+    serializerOverloadContracts: true,
+    noVitestViteFormatterDependencies: true,
+    typeOnlyImports: true,
+  })
+}, 35000)
+
+it('matches standalone task and external-result root type contracts', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'standalone-target-types.cjs')],
+    { timeout: 30000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    programs: 18,
+    accepted: 9,
+    rejected: 9,
+    rootConfigAndGlobalAugmentations: true,
+    publishedFacadeTarget: true,
+    taskStateUnionIdentity: true,
+    executionAndTryFieldIdentities: true,
+    noVitestViteFormatterDependencies: true,
+    typeOnlyImports: true,
+  })
+}, 35000)
+
+it('retains the exact engine-neutral BenchFn root type without executing benchmarks', () => {
+  const { execFileSync } = require('node:child_process')
+  const { join } = require('node:path')
+  const actual = JSON.parse(
+    execFileSync(process.execPath, [join(__dirname, 'bench-fn-types.cjs')], {
+      encoding: 'utf8',
+      timeout: 30000,
+    })
+  )
+  expect(actual).toMatchObject({
+    rootConfigAndGlobalAugmentations: true,
+    noExternalVitestViteFormatterDeclarations: true,
+    typeOnlyNoBenchmarkExecution: true,
+    programs: 8,
+    accepted: 4,
+    rejected: 4,
+  })
+}, 35000)
+
+it('matches genuine public error metadata root types without controller dependencies', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'error-metadata-types.cjs')],
+    { timeout: 30000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toMatchObject({
+    rootConfigAndGlobalAugmentations: true,
+    publishedFacadeTarget: true,
+    actualBundledPrimitiveTypes: true,
+    noExternalVitestViteFormatterDeclarations: true,
+    typeOnlyImports: true,
+    programs: 12,
+    accepted: 5,
+    rejected: 7,
+    symbols: [
+      { name: 'ParsedStack', exported: true, hasValueFlag: false },
+      { name: 'SerializedError', exported: true, hasValueFlag: false },
+    ],
+  })
+}, 35000)
+
+it('matches genuine public runner task data and update pack types', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'runner-task-types.cjs')],
+    { timeout: 30000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toMatchObject({
+    rootConfigAndGlobalAugmentations: true,
+    publishedFacadeTarget: true,
+    actualNextTaskDataTypes: true,
+    noExternalVitestViteFormatterDeclarations: true,
+    typeOnlyImports: true,
+    declarationOnlyTaskPacks: true,
+    exactOptionalPrograms: 8,
+    programs: 45,
+    accepted: 18,
+    rejected: 27,
+    symbols: [
+      { name: 'RunnerTaskBase', exported: true, hasValueFlag: false },
+      { name: 'RunnerTaskResult', exported: true, hasValueFlag: false },
+      { name: 'RunnerTaskResultPack', exported: true, hasValueFlag: false },
+      { name: 'RunnerTaskEventPack', exported: true, hasValueFlag: false },
+    ],
+  })
+}, 35000)
+
+it('matches genuine Node result types through both normal consumer paths', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'node-result-types.cjs')],
+    { timeout: 60000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    programs: 24,
+    accepted: 6,
+    rejected: 18,
+    namedTypeOnlyExports: 8,
+    exactDiagnosticsAndAstSpans: true,
+    rootConfigAndGlobalAugmentations: true,
+    publishedOptInWithoutPaths: true,
+    normalTypecheckWorkerWithoutOptIn: true,
+    noExternalVitestViteDeclarations: true,
+  })
+}, 65000)
