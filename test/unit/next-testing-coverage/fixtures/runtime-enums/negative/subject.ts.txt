@@ -1,0 +1,9 @@
+export enum Value {
+  Negative = -2,
+  Following,
+  Later = 7,
+}
+export function choose(active: boolean) {
+  if (active) return Value.Negative
+  return Value.Later
+}

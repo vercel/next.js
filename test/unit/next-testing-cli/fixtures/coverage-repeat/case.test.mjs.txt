@@ -1,0 +1,1 @@
+import{test}from"vitest";import{appendFileSync}from"node:fs";test("repeated coverage scalar",()=>{appendFileSync(process.env.COVERAGE_REPEAT_MARKER,"ran\n")})

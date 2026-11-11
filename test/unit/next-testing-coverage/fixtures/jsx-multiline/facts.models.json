@@ -1,0 +1,72 @@
+{
+  "model": {
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [4, 30, 8, null],
+      "1": [5, 2, 7, null]
+    },
+    "functions": {
+      "0": {
+        "name": "(anonymous_0)",
+        "decl": [4, 30, 4, 31],
+        "loc": [5, 2, 7, null],
+        "line": 5
+      }
+    },
+    "branches": {},
+    "s": {
+      "0": 0,
+      "1": 0
+    },
+    "f": {
+      "0": 0
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 1,
+      "lastStatement": 2,
+      "seen": {
+        "s:4:30:8:Infinity": 0,
+        "f:4:30:4:31": 0,
+        "s:5:2:7:Infinity": 1
+      },
+      "fnNames": {}
+    }
+  },
+  "observed": {
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [4, 13, 7, null],
+      "1": [5, 2, 7, null]
+    },
+    "functions": {
+      "0": {
+        "name": "(anonymous_0)",
+        "decl": [4, 13, 4, 31],
+        "loc": [5, 2, 7, null],
+        "line": 5
+      }
+    },
+    "branches": {},
+    "s": {
+      "0": 1,
+      "1": 2
+    },
+    "f": {
+      "0": 2
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 1,
+      "lastStatement": 2,
+      "seen": {
+        "s:4:13:7:Infinity": 0,
+        "f:4:13:4:31": 0,
+        "s:5:2:7:Infinity": 1
+      },
+      "fnNames": {}
+    }
+  }
+}

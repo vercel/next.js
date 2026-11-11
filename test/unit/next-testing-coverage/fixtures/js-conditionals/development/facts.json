@@ -1,0 +1,16 @@
+{
+  "file": "file:///private/tmp/next-testing-parallel-20261019/authoring-hooks163/.next-test-conditional164-development/subject.mjs",
+  "model": {
+    "path": "file:///private/tmp/next-testing-parallel-20261019/authoring-hooks163/.next-test-conditional164-development/subject.mjs"
+  },
+  "observed": {
+    "path": "file:///private/tmp/next-testing-parallel-20261019/authoring-hooks163/.next-test-conditional164-development/subject.mjs"
+  },
+  "sourceSHA256": "46c35f2f9c59f5ab040e4e43bd301053a4aa333dbf056d6a0669094bfa77634b",
+  "producer": {
+    "path": "server/chunks/_next-test-conditional164-development_0175ikidxa2gg._.js",
+    "sha256": "697406cf1248c1ce1eb6ba4c6fe05b501cd295eb0902d522290afb499dbbd3f3",
+    "mapPath": "server/chunks/_next-test-conditional164-development_0175ikidxa2gg._.js.map",
+    "mapSha256": "3f61378e19eb13be3b26058737d8b690721c3095ee79b45f638a01677da4b661"
+  }
+}

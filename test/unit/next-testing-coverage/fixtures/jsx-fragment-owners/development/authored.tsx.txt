@@ -1,0 +1,11 @@
+import React from 'react'
+import { label } from './helper.js'
+type Props = { active: boolean; name: string }
+export function Fragment({ active, name }: Props) {
+  return <>{active && <span>{label(name)}</span>}<em>{label('tail')}</em></>
+}
+export const Arrow = ({ name }: Props): React.ReactElement => (
+  <>
+    <p data-name={name}>{label(name)}</p>
+  </>
+)

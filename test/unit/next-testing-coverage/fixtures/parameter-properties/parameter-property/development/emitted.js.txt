@@ -1,0 +1,38 @@
+(()=>{"use strict";module.exports = [
+"[project]/.next-test-ts-runtime174-parameter-property-development/contract.case.mjs [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/packages/next/dist/experimental/testing/vitest.js [next-test-node] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime174$2d$parameter$2d$property$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/.next-test-ts-runtime174-parameter-property-development/subject.ts [next-test-node] (ecmascript)");
+;
+;
+(0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["test"])("runtime parameter-property", ()=>{
+    const counter = new __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime174$2d$parameter$2d$property$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["Counter"](2, 3);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])(counter.add(true)).toBe(5);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])(counter.add(false)).toBe(2);
+});
+}),
+"[project]/.next-test-ts-runtime174-parameter-property-development/subject.ts [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "Counter",
+    ()=>Counter
+]);
+class Counter {
+    value;
+    step;
+    constructor(value, step = 1){
+        this.value = value;
+        this.step = step;
+    }
+    add(active) {
+        if (active) return this.value + this.step;
+        return this.value;
+    }
+}
+}),
+];})()
+
+//# sourceMappingURL=_next-test-ts-runtime174-parameter-property-development_03f1b5zp_qe1m._.js.map

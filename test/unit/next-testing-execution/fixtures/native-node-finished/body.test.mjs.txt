@@ -1,0 +1,6 @@
+import {test} from 'vitest'
+__SUBJECT_IMPORT__
+  test('settled native body assertion', async ({ expect }) => {
+    expect(Promise.resolve(1)).resolves.toBe(2)
+  })
+  test('following body', ({ expect }) => { expect(true).toBe(true); __SNAPSHOT_ASSERTION__ })

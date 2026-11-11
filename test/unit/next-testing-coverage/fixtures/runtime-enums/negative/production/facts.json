@@ -1,0 +1,95 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-negative-production/subject.ts",
+  "sourceMap": {
+    "version": 3,
+    "sources": [
+      "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-negative-production/subject.ts"
+    ],
+    "names": [],
+    "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;AAAO,IAAA,AAAK,+BAAA;;;2BAGF;WAHE;;AAKL,SAAS,OAAO,MAAe;IACpC,IAAI,QAAQ;IACZ,OAJQ;AAKV",
+    "sourcesContent": [
+      "export enum Value {\n  Negative = -2,\n  Following,\n  Later = 7,\n}\nexport function choose(active: boolean) {\n  if (active) return Value.Negative\n  return Value.Later\n}\n"
+    ]
+  },
+  "model": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-negative-production/subject.ts"
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-negative-production/subject.ts"
+  },
+  "generated": {
+    "$coverage": "range-tuples-v1",
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-negative-production/.next-test-32378f22-f359-4e8f-b2eb-169ebda45274/server/chunks/_1e2w6qwc9z2je._.js",
+    "statements": {
+      "0": [1, 0, 145, null],
+      "14": [28, 26, 33, 5],
+      "15": [29, 4, 29, null],
+      "16": [30, 4, 30, null],
+      "17": [31, 4, 31, null],
+      "18": [32, 4, 32, null],
+      "21": [36, 4, 36, null]
+    },
+    "functions": {
+      "0": {
+        "name": "(anonymous_0)",
+        "decl": [2, 1, 2, 2],
+        "loc": [2, 5, 136, 2],
+        "line": 2
+      },
+      "6": {
+        "name": "(anonymous_6)",
+        "decl": [28, 26, 28, 34],
+        "loc": [28, 42, 33, 1],
+        "line": 28
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [35, 4, 35, null],
+        "type": "if",
+        "locations": [
+          [35, 4, 35, null],
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 35
+      }
+    },
+    "s": {
+      "0": 1,
+      "14": 1,
+      "15": 1,
+      "16": 1,
+      "17": 1,
+      "18": 1,
+      "21": 1
+    },
+    "f": {
+      "0": 1,
+      "6": 1
+    },
+    "b": {
+      "0": [1, 1]
+    },
+    "meta": {
+      "lastBranch": 10,
+      "lastFunction": 28,
+      "lastStatement": 69,
+      "seen": {
+        "s:1:0:145:Infinity": 0,
+        "f:2:1:2:2": 0,
+        "s:28:26:33:5": 14,
+        "f:28:26:28:34": 6,
+        "s:29:4:29:Infinity": 15,
+        "s:30:4:30:Infinity": 16,
+        "s:31:4:31:Infinity": 17,
+        "s:32:4:32:Infinity": 18,
+        "b:35:4:35:Infinity:undefined:undefined:undefined:undefined": 0,
+        "s:36:4:36:Infinity": 21
+      },
+      "fnNames": {}
+    }
+  }
+}

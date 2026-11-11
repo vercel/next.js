@@ -1,0 +1,7 @@
+export namespace Box {
+  export const label = "box"
+  export function choose(active: boolean) {
+    if (active) return label
+    return "empty"
+  }
+}

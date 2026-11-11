@@ -1,0 +1,130 @@
+{
+  "helper.ts": {
+    "$coverage": "range-tuples-v1",
+    "path": "helper.ts",
+    "statements": {
+      "0": [1, 0, 1, null],
+      "1": [2, 30, 2, null],
+      "2": [3, 48, 3, 66]
+    },
+    "functions": {
+      "0": {
+        "name": "prefix",
+        "decl": [3, 16, 3, 23],
+        "loc": [3, 46, 3, null],
+        "line": 3
+      }
+    },
+    "branches": {},
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    "f": {
+      "0": 0
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 1,
+      "lastStatement": 3,
+      "seen": {
+        "s:1:0:1:Infinity": 0,
+        "s:2:30:2:Infinity": 1,
+        "f:3:16:3:23": 0,
+        "s:3:48:3:66": 2
+      },
+      "fnNames": {}
+    }
+  },
+  "subject.ts": {
+    "$coverage": "range-tuples-v1",
+    "path": "subject.ts",
+    "statements": {
+      "0": [1, 0, 1, null],
+      "1": [6, 18, 6, null],
+      "2": [7, 28, 7, null],
+      "3": [5, 31, 5, 51],
+      "4": [6, 53, 6, 80],
+      "5": [7, 63, 7, 81],
+      "6": [8, 34, 8, 61],
+      "7": [11, 18, 11, null],
+      "8": [12, 2, 12, null]
+    },
+    "functions": {
+      "0": {
+        "name": "constructor",
+        "decl": [5, 2, 5, 14],
+        "loc": [5, 29, 5, null],
+        "line": 5
+      },
+      "1": {
+        "name": "(anonymous_1)",
+        "decl": [6, 18, 6, 28],
+        "loc": [6, 51, 6, null],
+        "line": 6
+      },
+      "2": {
+        "name": "(anonymous_2)",
+        "decl": [7, 28, 7, 38],
+        "loc": [7, 61, 7, null],
+        "line": 7
+      },
+      "3": {
+        "name": "method",
+        "decl": [8, 2, 8, 9],
+        "loc": [8, 32, 8, null],
+        "line": 8
+      },
+      "4": {
+        "name": "exercise",
+        "decl": [10, 16, 10, 25],
+        "loc": [10, 48, 13, null],
+        "line": 10
+      }
+    },
+    "branches": {},
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 5,
+      "lastStatement": 9,
+      "seen": {
+        "s:1:0:1:Infinity": 0,
+        "s:6:18:6:Infinity": 1,
+        "s:7:28:7:Infinity": 2,
+        "f:5:2:5:14": 0,
+        "s:5:31:5:51": 3,
+        "f:6:18:6:28": 1,
+        "s:6:53:6:80": 4,
+        "f:7:28:7:38": 2,
+        "s:7:63:7:81": 5,
+        "f:8:2:8:9": 3,
+        "s:8:34:8:61": 6,
+        "f:10:16:10:25": 4,
+        "s:11:18:11:Infinity": 7,
+        "s:12:2:12:Infinity": 8
+      },
+      "fnNames": {}
+    }
+  }
+}

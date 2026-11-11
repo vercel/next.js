@@ -1,0 +1,49 @@
+(()=>{"use strict";module.exports = [
+"[project]/.next-test-class-functions196-observed12-local-functions-development/contract.case.mjs [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/packages/next/dist/experimental/testing/vitest.js [next-test-node] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$class$2d$functions196$2d$observed12$2d$local$2d$functions$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/.next-test-class-functions196-observed12-local-functions-development/subject.ts [next-test-node] (ecmascript)");
+;
+;
+(0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["test"])('typed class callables', ()=>{
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$class$2d$functions196$2d$observed12$2d$local$2d$functions$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["exercise"])(0)).toBe(6);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$class$2d$functions196$2d$observed12$2d$local$2d$functions$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["exercise"])(2)).toBe(14);
+});
+}),
+"[project]/.next-test-class-functions196-observed12-local-functions-development/subject.ts [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "Counter",
+    ()=>Counter,
+    "exercise",
+    ()=>exercise
+]);
+const offset = 2;
+function prefix(value) {
+    return value + 1;
+}
+class Counter {
+    constructor(value){
+        this.total = value;
+    }
+    read = function(delta) {
+        return this.total + delta;
+    };
+    static combine = function(value) {
+        return value * 2;
+    };
+    method(delta) {
+        return this.total + delta;
+    }
+}
+function exercise(value) {
+    const counter = new Counter(prefix(value));
+    return counter.read(offset) + Counter.combine(value) + counter.method(offset);
+}
+}),
+];})()
+
+//# sourceMappingURL=1o7g_ext-test-class-functions196-observed12-local-functions-development_0j8wgfapzys2l._.js.map

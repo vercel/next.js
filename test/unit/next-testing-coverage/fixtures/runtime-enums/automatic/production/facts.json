@@ -1,0 +1,92 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-automatic-production/subject.ts",
+  "sourceMap": {
+    "version": 3,
+    "sources": [
+      "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-automatic-production/subject.ts"
+    ],
+    "names": [],
+    "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;AAAO,IAAA,AAAK,8BAAA;;;;WAAA;;AAKL,SAAS,OAAO,MAAe;IACpC,IAAI,QAAQ;IACZ;AACF",
+    "sourcesContent": [
+      "export enum Step {\n  First,\n  Second,\n  Third,\n}\nexport function choose(active: boolean) {\n  if (active) return Step.Second\n  return Step.Third\n}\n"
+    ]
+  },
+  "model": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-automatic-production/subject.ts"
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-automatic-production/subject.ts"
+  },
+  "generated": {
+    "$coverage": "range-tuples-v1",
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-automatic-production/.next-test-edbaf836-fd7c-45c7-a988-63fe984d6fdf/server/chunks/_02tqp7qtbkkcu._.js",
+    "statements": {
+      "0": [1, 0, 144, null],
+      "13": [27, 25, 32, 5],
+      "14": [28, 4, 28, null],
+      "15": [29, 4, 29, null],
+      "16": [30, 4, 30, null],
+      "17": [31, 4, 31, null]
+    },
+    "functions": {
+      "0": {
+        "name": "(anonymous_0)",
+        "decl": [2, 1, 2, 2],
+        "loc": [2, 5, 135, 2],
+        "line": 2
+      },
+      "6": {
+        "name": "(anonymous_6)",
+        "decl": [27, 25, 27, 33],
+        "loc": [27, 40, 32, 1],
+        "line": 27
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [34, 4, 34, null],
+        "type": "if",
+        "locations": [
+          [34, 4, 34, null],
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 34
+      }
+    },
+    "s": {
+      "0": 1,
+      "13": 1,
+      "14": 1,
+      "15": 1,
+      "16": 1,
+      "17": 1
+    },
+    "f": {
+      "0": 1,
+      "6": 1
+    },
+    "b": {
+      "0": [1, 1]
+    },
+    "meta": {
+      "lastBranch": 10,
+      "lastFunction": 28,
+      "lastStatement": 68,
+      "seen": {
+        "s:1:0:144:Infinity": 0,
+        "f:2:1:2:2": 0,
+        "s:27:25:32:5": 13,
+        "f:27:25:27:33": 6,
+        "s:28:4:28:Infinity": 14,
+        "s:29:4:29:Infinity": 15,
+        "s:30:4:30:Infinity": 16,
+        "s:31:4:31:Infinity": 17,
+        "b:34:4:34:Infinity:undefined:undefined:undefined:undefined": 0
+      },
+      "fnNames": {}
+    }
+  }
+}

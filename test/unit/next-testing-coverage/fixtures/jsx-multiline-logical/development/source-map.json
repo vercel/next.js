@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "sources": [
+    "/private/tmp/next-testing-parallel-20261019/coverage-jsx-return168/.next-test-jsx170-private02-logical-development/subject.tsx"
+  ],
+  "names": [],
+  "mappings": ";;;;A;A;A;;;A,I,+K,E,8C;I,M,S,I,kM,E;Q,Q;I,G,K,C,Q;I,I,iL,E,M,C,E,C,K,C,Q,E,I,C;I,I,iL,E,M,C,E,C,K,C,Q,E,I,C;I,M,W,I,kM,E;Q,Q;I,G,K,C,Q;I,I,iL,E,Q,C,E,E,I,C;I,I,iL,E,Q,C,E,C,K,C,Q,E,I,C;A;;;;;A;;;;A,S,M,K;I,O,Q;A;;;;;A;;;;;AACA;;;AAEO,SAAS,UAAU,EAAE,MAAM,EAAS;IACzC,qBACE,6PAAC,WAAD;;YACG,wBACC,6PAAC,QAAD;gBAAM,aAAU;0BACb,IAAA,4LAAK,EAAC;YACH;;;;;0BAER,6PAAC,MAAD;0BAAK,IAAA,4LAAK,EAAC;YAAY;;;;;;IAChB;;;;;AAEb",
+  "sourcesContent": [
+    "import React from 'react'\nimport { label } from './helper.js'\ntype Props = { active: boolean }\nexport function Multiline({ active }: Props) {\n  return (\n    <section>\n      {active && (\n        <span data-kind=\"active\">\n          {label('active')}\n        </span>\n      )}\n      <em>{label('tail')}</em>\n    </section>\n  )\n}\n"
+  ]
+}

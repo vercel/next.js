@@ -1,0 +1,2 @@
+import { expect, test } from 'vitest'
+test('constructor property coverage', () => { expect(1).toBe(1) })

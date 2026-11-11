@@ -1,0 +1,144 @@
+module.exports = [
+(()=>{"use strict";return[
+705, ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "Counter",
+    ()=>Counter,
+    "exercise",
+    ()=>exercise
+]);
+throw new Error("coverage-only source must never evaluate");
+function initial(value) {
+    return value;
+}
+class Counter {
+    value;
+    constructor(value = initial(3)){
+        this.value = value;
+    }
+    add(delta) {
+        this.value += delta;
+        return this.value;
+    }
+}
+function exercise() {
+    const counter = new Counter();
+    return [
+        counter.value,
+        counter.add(2)
+    ];
+}
+}),
+9265, ((__turbopack_context__) => {
+"use strict";
+
+// Explicit Node unit/browser-driver entry. Collection and imports share one
+// runtime; no React server condition or App Router renderer is installed here.
+__turbopack_context__.s([
+    "browserTesting",
+    ()=>browserTesting,
+    "initializeModuleImportTracking",
+    ()=>initializeModuleImportTracking,
+    "loadSetupModules",
+    ()=>loadSetupModules,
+    "loadTestModule",
+    ()=>loadTestModule,
+    "testRunner",
+    ()=>testRunner
+]);
+const testRunner = __turbopack_context__.r(8892);
+const browserTesting = __turbopack_context__.r(4395);
+async function loadTestModule() {
+    // eslint-disable-next-line @next/internal/typechecked-require
+    return __turbopack_context__.r(705);
+}
+async function loadSetupModules(setupFilesSequence = 'list') {
+    void setupFilesSequence // Referenced by the compiler-injected setup loaders.
+    ;
+    const setupLoaders = [];
+    if (setupFilesSequence === 'parallel') {
+        await Promise.all(setupLoaders.map((load)=>load()));
+    } else {
+        for (const load of setupLoaders)await load();
+    }
+}
+function initializeModuleImportTracking() {
+    return testRunner.createModuleImportTracker(__turbopack_context__);
+}
+}),
+4395, ((__turbopack_context__, module, exports) => {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+0 && (module.exports = {
+    browser: null,
+    initializeBrowserTesting: null
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: all[name]
+    });
+}
+_export(exports, {
+    browser: function() {
+        return browser;
+    },
+    initializeBrowserTesting: function() {
+        return initializeBrowserTesting;
+    }
+});
+let binding;
+// Retain only the actual C scope guard after revocation. A caught late call
+// must still reach C's originating-scope error sink during the worker's drain.
+let getOriginatingAttempt;
+function initializeBrowserTesting(options) {
+    if (binding) throw new Error('Next browser testing is already initialized');
+    const current = {
+        ...options,
+        fixtures: new WeakMap()
+    };
+    binding = current;
+    getOriginatingAttempt = options.getActiveAttempt;
+    return {
+        dispose () {
+            if (binding === current) binding = undefined;
+        }
+    };
+}
+function browser() {
+    const current = binding;
+    const attempt = getOriginatingAttempt == null ? void 0 : getOriginatingAttempt();
+    if (!current) {
+        throw new Error('Browser fixtures require an initialized Next browser test environment');
+    }
+    if (!attempt) {
+        throw new Error('Browser fixtures require an active Next test attempt');
+    }
+    attempt.signal.throwIfAborted();
+    let fixture = current.fixtures.get(attempt);
+    if (!fixture) {
+        fixture = current.createFixture(attempt);
+        current.fixtures.set(attempt, fixture);
+    }
+    return fixture;
+}
+}),
+]})(),
+7385, ((__turbopack_context__) => {
+
+__turbopack_context__.v((parentImport) => {
+    return Promise.all([
+  "server/chunks/packages_next_dist_experimental_testing_1g9l6aj3neqll._.js"
+].map((chunk) => __turbopack_context__.l(chunk))).then(() => {
+        return parentImport(2558);
+    });
+});
+}),
+];
+
+//# sourceMappingURL=_0v4a-wjvsuowt._.js.map

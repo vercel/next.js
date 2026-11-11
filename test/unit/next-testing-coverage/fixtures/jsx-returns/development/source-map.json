@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "sources": [
+    "/private/tmp/next-testing-parallel-20261019/coverage-jsx167/.next-test-jsx168-private03-return-development/subject.tsx"
+  ],
+  "names": [],
+  "mappings": ";;;;A;A;A;;;A,I,+K,E,gD;I,I,iL,E,I,uM,E;Q,M;I,G,K,C,Q,C,K,C,Q,E,I,C;I,I,iL,E,I,uM,E;Q,M;I,G,K,C,Y,E,I,C;A;;;;;A;;;;A,S,M,K;I,O,Q;A;;;;;A;;;;;AACA;;;AAEO,SAAS,gBAAgB,EAAE,IAAI,EAAS;IAC7C,qBACE,6PAAC,KAAD;QAAG,aAAW;kBACZ,cAAA,6PAAC,QAAD;sBAAO,IAAA,2LAAK,EAAC;QAAY;;;;;IACxB;;;;;AAEP",
+  "sourcesContent": [
+    "import React from 'react'\nimport { label } from './helper.js'\ntype Props = { name: string }\nexport function MultilineReturn({ name }: Props): React.ReactElement {\n  return (\n    <p data-name={name}>\n      <span>{label(name)}</span>\n    </p>\n  )\n}\n"
+  ]
+}

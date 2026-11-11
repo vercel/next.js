@@ -1,0 +1,34 @@
+module.exports = [
+"[project]/.next-test-constructor-literal-arguments200-actual14-executed-development/subject.ts [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "Counter",
+    ()=>Counter,
+    "exercise",
+    ()=>exercise
+]);
+function initial(value) {
+    return value;
+}
+class Counter {
+    value;
+    constructor(value = initial(3)){
+        this.value = value;
+    }
+    add(delta) {
+        this.value += delta;
+        return this.value;
+    }
+}
+function exercise() {
+    const counter = new Counter();
+    return [
+        counter.value,
+        counter.add(2)
+    ];
+}
+}),
+];
+
+//# sourceMappingURL=1lht_ctor-literal-arguments200-actual14-executed-development_subject_ts_13t64iuk-7xrj._.js.map

@@ -1,0 +1,3 @@
+import { expect, test } from 'vitest'
+import { exercise } from './subject.ts'
+test('constructor property coverage', () => { expect(exercise()).toEqual([3, 5]) })

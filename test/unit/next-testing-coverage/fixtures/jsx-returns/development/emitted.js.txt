@@ -1,0 +1,60 @@
+(()=>{"use strict";module.exports = [
+"[project]/.next-test-jsx168-private03-return-development/contract.case.mjs [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/packages/next/dist/experimental/testing/vitest.js [next-test-node] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$jsx168$2d$private03$2d$return$2d$development$2f$subject$2e$tsx__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/.next-test-jsx168-private03-return-development/subject.tsx [next-test-node] (ecmascript)");
+;
+;
+(0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["test"])('renders a parenthesized multiline JSX return', ()=>{
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$jsx168$2d$private03$2d$return$2d$development$2f$subject$2e$tsx__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["MultilineReturn"])({
+        name: 'first'
+    }).props.children.props.children).toBe('first!');
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$jsx168$2d$private03$2d$return$2d$development$2f$subject$2e$tsx__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["MultilineReturn"])({
+        name: 'second'
+    }).props['data-name']).toBe('second');
+});
+}),
+"[project]/.next-test-jsx168-private03-return-development/helper.js [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "label",
+    ()=>label
+]);
+function label(value) {
+    return value + '!';
+}
+}),
+"[project]/.next-test-jsx168-private03-return-development/subject.tsx [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "MultilineReturn",
+    ()=>MultilineReturn
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$react$40$19$2e$3$2e$0$2d$canary$2d$b618bbb4$2d$20261007$2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/.pnpm/react@19.3.0-canary-b618bbb4-20261007/node_modules/react/jsx-dev-runtime.js [next-test-node] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$jsx168$2d$private03$2d$return$2d$development$2f$helper$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/.next-test-jsx168-private03-return-development/helper.js [next-test-node] (ecmascript)");
+;
+;
+function MultilineReturn({ name }) {
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$react$40$19$2e$3$2e$0$2d$canary$2d$b618bbb4$2d$20261007$2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+        "data-name": name,
+        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$react$40$19$2e$3$2e$0$2d$canary$2d$b618bbb4$2d$20261007$2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+            children: (0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$jsx168$2d$private03$2d$return$2d$development$2f$helper$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["label"])(name)
+        }, void 0, false, {
+            fileName: "[project]/.next-test-jsx168-private03-return-development/subject.tsx",
+            lineNumber: 7,
+            columnNumber: 7
+        }, this)
+    }, void 0, false, {
+        fileName: "[project]/.next-test-jsx168-private03-return-development/subject.tsx",
+        lineNumber: 6,
+        columnNumber: 5
+    }, this);
+}
+}),
+];})()
+
+//# sourceMappingURL=_next-test-jsx168-private03-return-development_0_nrlsymm_rng._.js.map

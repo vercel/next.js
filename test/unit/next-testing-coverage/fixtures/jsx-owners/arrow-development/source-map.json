@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "sources": [
+    "/private/tmp/next-testing-parallel-20261019/tooling-editor143/.next-test-jsx144-arrow-development/helper.js",
+    "/private/tmp/next-testing-parallel-20261019/tooling-editor143/.next-test-jsx144-arrow-development/subject.tsx"
+  ],
+  "names": [],
+  "mappings": ";;;;A;A;A;;;A,I,+K,E,yC;I,I,iL,E,I,+K,E;Q,M;I,G,K,E,O,C;Q,a;Q,U;I;I,I,iL,E,I,+K,E;Q,M;I,G,K,C,Q,E,I,C;A;;;;;A;;;;AAAO,SAAS,MAAM,KAAK;IAAI,OAAO,QAAQ;AAAI;;;;;A;;;;;ACClD;;;AAEO,MAAM,QAAQ,CAAC,EAAE,IAAI,EAAS,iBACnC,6PAAC,KAAD;QAAG,aAAW;kBAAO,IAAA,6KAAK,EAAC;IAAS",
+  "sourcesContent": [
+    "export function label(value) { return value + '!' }\n",
+    "import React from 'react'\nimport { label } from './helper.js'\ntype Props = { name: string }\nexport const Arrow = ({ name }: Props): React.ReactElement => (\n  <p data-name={name}>{label(name)}</p>\n)\n"
+  ]
+}

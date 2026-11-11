@@ -1464,6 +1464,12 @@ importers:
       '@vercel/turbopack-ecmascript-runtime':
         specifier: '*'
         version: link:../../turbopack/crates/turbopack-ecmascript-runtime/js
+      '@vitest/istanbul-lib-coverage':
+        specifier: 1.0.2
+        version: 1.0.2
+      '@vitest/istanbul-lib-report':
+        specifier: 1.0.2
+        version: 1.0.2
       acorn:
         specifier: 8.14.0
         version: 8.14.0
@@ -1476,6 +1482,9 @@ importers:
       assert:
         specifier: 2.0.0
         version: 2.0.0
+      ast-v8-to-istanbul:
+        specifier: 1.0.7
+        version: 1.0.7
       async-retry:
         specifier: 1.2.3
         version: 1.2.3
