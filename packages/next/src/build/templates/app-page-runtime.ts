@@ -46,7 +46,10 @@ import {
   type OpaqueFallbackRouteParams,
 } from '../../server/request/fallback-params' with { 'turbopack-transition': 'next-server-utility' }
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton' with { 'turbopack-transition': 'next-server-utility' }
-import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  shouldDisableProgressiveLoading,
+  shouldServeStreamingMetadata,
+} from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths' with { 'turbopack-transition': 'next-server-utility' }
 import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app' with { 'turbopack-transition': 'next-server-utility' }
 import { getServerActionRequestMetadata } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
@@ -607,18 +610,26 @@ export function createAppPageEntrypoint({
       ? true
       : shouldServeStreamingMetadata(userAgent, nextConfig.htmlLimitedBots)
 
+    const disableProgressiveLoading = shouldDisableProgressiveLoading(
+      userAgent,
+      nextConfig.experimental
+    )
+
     // A PPR shell has already closed its head before the dynamic render resumes.
     // Blocking metadata resolved during the resume would therefore be emitted
     // after the head, where HTML-limited bots cannot observe it. Bypass the
     // shell so blocking metadata is included in the initial document head.
-    const shouldForceDynamicPPRRender =
-      isRoutePPREnabled && !serveStreamingMetadata
+    // Non-JS bots bypass prerendered content entirely: it was rendered with
+    // progressive loading, which their JS-less rendering would never reveal.
+    const shouldForceDynamicRender =
+      (isRoutePPREnabled && !serveStreamingMetadata) ||
+      disableProgressiveLoading
 
     const isSSG = Boolean(
       (prerenderInfo ||
         isPrerendered ||
         prerenderManifest.routes[normalizedSrcPage]) &&
-        !shouldForceDynamicPPRRender
+        !shouldForceDynamicRender
     )
 
     // In development, we always want to generate dynamic HTML.
@@ -972,6 +983,7 @@ export function createAppPageEntrypoint({
             postponed,
             allowEmptyStaticShell,
             serveStreamingMetadata,
+            disableProgressiveLoading,
             supportsDynamicResponse:
               renderOperation === 'render' &&
               (typeof postponed === 'string' || supportsDynamicResponse),
@@ -1287,7 +1299,8 @@ export function createAppPageEntrypoint({
           // PPR, preserve the existing behavior for built-in bots.
           if (
             fallbackMode === FallbackMode.PRERENDER &&
-            (isRoutePPREnabled ? !serveStreamingMetadata : Boolean(botType))
+            ((isRoutePPREnabled ? !serveStreamingMetadata : Boolean(botType)) ||
+              disableProgressiveLoading)
           ) {
             fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
           }

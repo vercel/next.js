@@ -5,7 +5,7 @@ const NON_JS_BOT =
 const HTML_LIMITED_BOT = 'Twitterbot/1.0'
 
 describe('non-js-bots', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -13,19 +13,32 @@ describe('non-js-bots', () => {
     ['/large-boundary', 'app'],
     ['/ssr-large', 'pages'],
   ])('%s', (route, marker) => {
-    it('hides large boundaries from non-JS bots', async () => {
+    it('shows large boundaries to non-JS bots when enabled', async () => {
+      // Resolved-config gate conditions do not see env-forced values in
+      // adapter deploy jobs, so read the job env directly.
+      const disableProgressiveLoadingForNonJsBots =
+        process.env
+          .__NEXT_EXPERIMENTAL_DISABLE_PROGRESSIVE_LOADING_FOR_NON_JS_BOTS ===
+        'true'
       const browser = await next.browser(route, {
         userAgent: NON_JS_BOT,
         disableJavaScript: true,
         waitUntil: 'load',
       })
-        const element = await browser.waitForElementByCss(
-          `[data-testid="marker-${marker}-start"]`,
-          { state: 'attached' }
-        )
-      // FIXME: non-JS bots should see the boundary content; it is currently
-      // only revealed by client JS.
-      expect(await element.evaluate((el: Element) => el.checkVisibility())).toBe(false)
+      const start = await browser.waitForElementByCss(
+        `[data-testid="marker-${marker}-start"]`,
+        { state: 'attached' }
+      )
+      expect(await start.evaluate((el: Element) => el.checkVisibility())).toBe(
+        disableProgressiveLoadingForNonJsBots
+      )
+      const end = await browser.waitForElementByCss(
+        `[data-testid="marker-${marker}-end"]`,
+        { state: 'attached' }
+      )
+      expect(await end.evaluate((el: Element) => el.checkVisibility())).toBe(
+        disableProgressiveLoadingForNonJsBots
+      )
     })
 
     it('reveals large boundaries only with JavaScript for regular browsers', async () => {
@@ -37,7 +50,9 @@ describe('non-js-bots', () => {
         `[data-testid="marker-${marker}-start"]`,
         { state: 'attached' }
       )
-      expect(await element.evaluate((el: Element) => el.checkVisibility())).toBe(false)
+      expect(
+        await element.evaluate((el: Element) => el.checkVisibility())
+      ).toBe(false)
     })
 
     it('reveals large boundaries only with JavaScript for JS-capable bots', async () => {
@@ -46,16 +61,24 @@ describe('non-js-bots', () => {
         disableJavaScript: true,
         waitUntil: 'load',
       })
-        const element = await browser.waitForElementByCss(
-          `[data-testid="marker-${marker}-start"]`,
-          { state: 'attached' }
-        )
-      expect(await element.evaluate((el: Element) => el.checkVisibility())).toBe(false)
+      const element = await browser.waitForElementByCss(
+        `[data-testid="marker-${marker}-start"]`,
+        { state: 'attached' }
+      )
+      expect(
+        await element.evaluate((el: Element) => el.checkVisibility())
+      ).toBe(false)
     })
   })
 
   describe('prerendered routes', () => {
-    it('hides prerendered boundaries from non-JS bots (app)', async () => {
+    it('shows prerendered boundaries to non-JS bots when enabled (app)', async () => {
+      // Resolved-config gate conditions do not see env-forced values in
+      // adapter deploy jobs, so read the job env directly.
+      const disableProgressiveLoadingForNonJsBots =
+        process.env
+          .__NEXT_EXPERIMENTAL_DISABLE_PROGRESSIVE_LOADING_FOR_NON_JS_BOTS ===
+        'true'
       const browser = await next.browser('/static-large-boundary', {
         userAgent: NON_JS_BOT,
         disableJavaScript: true,
@@ -65,13 +88,16 @@ describe('non-js-bots', () => {
         '[data-testid="marker-app-start"]',
         { state: 'attached' }
       )
-      // FIXME: the boundary content should be visible without JavaScript.
-      expect(await start.evaluate((el: Element) => el.checkVisibility())).toBe(false)
+      expect(await start.evaluate((el: Element) => el.checkVisibility())).toBe(
+        disableProgressiveLoadingForNonJsBots
+      )
       const end = await browser.waitForElementByCss(
         '[data-testid="marker-app-end"]',
         { state: 'attached' }
       )
-      expect(await end.evaluate((el: Element) => el.checkVisibility())).toBe(false)
+      expect(await end.evaluate((el: Element) => el.checkVisibility())).toBe(
+        disableProgressiveLoadingForNonJsBots
+      )
     })
 
     it('reveals prerendered boundaries only with JavaScript for regular browsers (app)', async () => {
@@ -83,21 +109,71 @@ describe('non-js-bots', () => {
         '[data-testid="marker-app-start"]',
         { state: 'attached' }
       )
-      expect(await element.evaluate((el: Element) => el.checkVisibility())).toBe(false)
+      expect(
+        await element.evaluate((el: Element) => el.checkVisibility())
+      ).toBe(false)
     })
 
-    it('hides prerendered boundaries from non-JS bots (pages)', async () => {
+    it('shows prerendered boundaries to non-JS bots when enabled (pages)', async () => {
+      // Resolved-config gate conditions do not see env-forced values in
+      // adapter deploy jobs, so read the job env directly.
+      const disableProgressiveLoadingForNonJsBots =
+        process.env
+          .__NEXT_EXPERIMENTAL_DISABLE_PROGRESSIVE_LOADING_FOR_NON_JS_BOTS ===
+        'true'
       const browser = await next.browser('/static-large', {
         userAgent: NON_JS_BOT,
         disableJavaScript: true,
         waitUntil: 'load',
       })
-      const element = await browser.waitForElementByCss(
+      // FIXME: pages SSG routes on Vercel are served from the CDN without
+      // honoring the bypass rule, so crawlers still get the chunked artifact.
+      const expected = disableProgressiveLoadingForNonJsBots && !isNextDeploy
+      const start = await browser.waitForElementByCss(
         '[data-testid="marker-pages-start"]',
         { state: 'attached' }
       )
-      // FIXME: the boundary content should be visible without JavaScript.
-      expect(await element.evaluate((el: Element) => el.checkVisibility())).toBe(false)
+      expect(await start.evaluate((el: Element) => el.checkVisibility())).toBe(
+        expected
+      )
+      const end = await browser.waitForElementByCss(
+        '[data-testid="marker-pages-end"]',
+        { state: 'attached' }
+      )
+      expect(await end.evaluate((el: Element) => el.checkVisibility())).toBe(
+        expected
+      )
+    })
+
+    it('shows prerendered boundaries to non-JS bots when enabled (pages, getStaticPaths)', async () => {
+      // Resolved-config gate conditions do not see env-forced values in
+      // adapter deploy jobs, so read the job env directly.
+      const disableProgressiveLoadingForNonJsBots =
+        process.env
+          .__NEXT_EXPERIMENTAL_DISABLE_PROGRESSIVE_LOADING_FOR_NON_JS_BOTS ===
+        'true'
+      const browser = await next.browser('/dynamic-large/1', {
+        userAgent: NON_JS_BOT,
+        disableJavaScript: true,
+        waitUntil: 'load',
+      })
+      // FIXME: pages SSG routes on Vercel are served from the CDN without
+      // honoring the bypass rule, so crawlers still get the chunked artifact.
+      const expected = disableProgressiveLoadingForNonJsBots && !isNextDeploy
+      const start = await browser.waitForElementByCss(
+        '[data-testid="marker-pages-start"]',
+        { state: 'attached' }
+      )
+      expect(await start.evaluate((el: Element) => el.checkVisibility())).toBe(
+        expected
+      )
+      const end = await browser.waitForElementByCss(
+        '[data-testid="marker-pages-end"]',
+        { state: 'attached' }
+      )
+      expect(await end.evaluate((el: Element) => el.checkVisibility())).toBe(
+        expected
+      )
     })
 
     it('reveals prerendered boundaries only with JavaScript for regular browsers (pages)', async () => {
@@ -109,29 +185,36 @@ describe('non-js-bots', () => {
         '[data-testid="marker-pages-start"]',
         { state: 'attached' }
       )
-      expect(await element.evaluate((el: Element) => el.checkVisibility())).toBe(false)
+      expect(
+        await element.evaluate((el: Element) => el.checkVisibility())
+      ).toBe(false)
     })
   })
 
   describe('/slow-boundary', () => {
-    it('shows pending fallbacks to non-JS bots', async () => {
+    it('shows resolved content to non-JS bots when enabled', async () => {
+      // Resolved-config gate conditions do not see env-forced values in
+      // adapter deploy jobs, so read the job env directly.
+      const disableProgressiveLoadingForNonJsBots =
+        process.env
+          .__NEXT_EXPERIMENTAL_DISABLE_PROGRESSIVE_LOADING_FOR_NON_JS_BOTS ===
+        'true'
       const browser = await next.browser('/slow-boundary', {
         userAgent: NON_JS_BOT,
         disableJavaScript: true,
         waitUntil: 'load',
       })
-      const fallback = await browser.waitForElementByCss(
-        '[data-testid="slow-fallback-marker"]',
-        { state: 'attached' }
-      )
-      // FIXME: non-JS bots should receive the resolved content, not a
-      // fallback that only client JS replaces.
-      expect(await fallback.evaluate((el: Element) => el.checkVisibility())).toBe(true)
       const content = await browser.waitForElementByCss(
         '[data-testid="slow-content-marker"]',
         { state: 'attached' }
       )
-      expect(await content.evaluate((el: Element) => el.checkVisibility())).toBe(false)
+      expect(
+        await content.evaluate((el: Element) => el.checkVisibility())
+      ).toBe(disableProgressiveLoadingForNonJsBots)
+      // The fallback never renders for non-JS bots when enabled.
+      expect(
+        await browser.hasElementByCss('[data-testid="slow-fallback-marker"]')
+      ).toBe(!disableProgressiveLoadingForNonJsBots)
     })
 
     it('shows pending fallbacks to regular browsers', async () => {
@@ -143,7 +226,9 @@ describe('non-js-bots', () => {
         '[data-testid="slow-fallback-marker"]',
         { state: 'attached' }
       )
-      expect(await fallback.evaluate((el: Element) => el.checkVisibility())).toBe(true)
+      expect(
+        await fallback.evaluate((el: Element) => el.checkVisibility())
+      ).toBe(true)
     })
   })
 })

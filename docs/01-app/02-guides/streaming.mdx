@@ -680,6 +680,8 @@ HTML-limited bots and crawlers need metadata to be available in the `<head>` of 
 
 You can customize which bots receive blocking metadata with the [`htmlLimitedBots`](/docs/app/api-reference/config/next-config-js/htmlLimitedBots) configuration option. See the [`loading.js` SEO section](/docs/app/api-reference/file-conventions/loading#seo) for more details.
 
+AI crawlers and agents that fetch pages without executing JavaScript never see content that client JS would reveal, such as Suspense boundaries streamed into hidden `<div>` elements. When you opt in with `experimental.disableProgressiveLoadingForNonJsBots`, Next.js detects these bots by their user agent, customizable with the [`nonJsBots`](/docs/app/api-reference/config/next-config-js/nonJsBots) configuration option, and renders a complete document instead: the page is rendered dynamically, after every Suspense boundary resolves, with each boundary inlined at its position rather than streamed as a hidden outline.
+
 #### Cache Components
 
 With [Cache Components](/docs/app/getting-started/caching), visitors and DOM-capable crawlers receive the prerendered shell immediately, and dynamic content streams in as it resolves. HTML-limited bots skip the prerendered shell and render the page dynamically so metadata can be placed in the `<head>`. Once the metadata resolves, the remaining page content can still stream.
