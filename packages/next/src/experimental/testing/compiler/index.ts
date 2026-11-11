@@ -65,6 +65,10 @@ import { writeDevRequestManifests } from '../../../server/lib/router-utils/write
 import { formatIssue } from '../../../shared/lib/turbopack/utils'
 import { loadTestCompilerConfig, validateTestProfile } from './watch-options'
 import { withCompilerTransforms } from './transform-config'
+import {
+  withIstanbulInstrumentation,
+  withIstanbulTypeScriptInstrumentation,
+} from './istanbul-config'
 import { assertTransformSource } from './transform-hooks'
 import { buildCoverageMetadata, readArtifactFile } from '../coverage/artifact'
 import { isNodeHarnessProfile } from '../coverage/node-harness'
@@ -88,6 +92,7 @@ import type {
   TestProfile,
   TestCompilerSessionOptions,
 } from '../contracts'
+
 export type NativeTsConfigParentSelection = Pick<
   NativeTsConfigRequest,
   'version' | 'id' | 'revision' | 'profile' | 'source'
@@ -108,16 +113,9 @@ export type SessionNativeTsConfigCompilation =
       value: CompiledCoverageSource
     }>
 type NativeRole = NativeTsConfigRequest['role']
-type NativeLeaseState = {
-  disposed: boolean
-}
-type NativeOperationState = {
-  aborted: boolean
-}
-type NativeInventory = readonly {
-  path: string
-  contentHash: string
-}[]
+type NativeLeaseState = { disposed: boolean }
+type NativeOperationState = { aborted: boolean }
+type NativeInventory = readonly { path: string; contentHash: string }[]
 interface NativeEmission {
   artifact: CompiledNodeTestArtifact
   request: NativeTsConfigRequest
@@ -145,11 +143,7 @@ const nativeSealedFacts = new WeakMap<
   {
     identity: object
     request: NativeTsConfigRequest
-    compiler: {
-      entryId: string
-      revision: string
-      rootDir: string
-    }
+    compiler: { entryId: string; revision: string; rootDir: string }
     reference: NativeTsConfigInputsReference
     inventory: NativeInventory
   }
@@ -407,11 +401,7 @@ export async function assertSealedSessionNativeTsConfigInputs(options: {
   fact: ParentNativeTsConfigFact
   expected: {
     request: NativeTsConfigRequest
-    compiler: {
-      entryId: string
-      revision: string
-      rootDir: string
-    }
+    compiler: { entryId: string; revision: string; rootDir: string }
   }
   signal: AbortSignal
 }) {
@@ -434,6 +424,7 @@ export async function assertSealedSessionNativeTsConfigInputs(options: {
   })
   signal.throwIfAborted()
 }
+
 declare const nativeRuntimeGrantBrand: unique symbol
 /** Private parent authority; visible data or serialization cannot recreate it. */
 export interface SessionNativeRuntimeConversionGrant {
@@ -451,6 +442,7 @@ const nativeRuntimeGrants = new WeakMap<
   SessionNativeRuntimeConversionGrant,
   NativeRuntimeGrant
 >()
+
 function assertNativeRuntimeOriginal(
   issue: NativeIssue,
   fact: ParentNativeTsConfigFact,
@@ -488,6 +480,7 @@ function assertNativeRuntimeOriginal(
   signal.throwIfAborted()
   assertNativeIssueLive(issue)
 }
+
 /** Start only from the actual wrapper and the original fact for that emission. */
 export async function prepareSessionNativeRuntimeConversion(options: {
   compilation: SessionNativeTsConfigCompilation
@@ -554,6 +547,7 @@ export async function prepareSessionNativeRuntimeConversion(options: {
   })
   return grant
 }
+
 /** Live checks retain the original detached state, never a replacement Session. */
 export function assertSessionNativeRuntimeConversion(
   grant: SessionNativeRuntimeConversionGrant,
@@ -578,6 +572,7 @@ export function assertSessionNativeRuntimeConversion(
     signal
   )
 }
+
 /** Current observations never replace or Session-register the original fact. */
 export async function sealSessionNativeRuntimeConversion(
   grant: SessionNativeRuntimeConversionGrant,
@@ -604,6 +599,7 @@ export async function sealSessionNativeRuntimeConversion(
     throw error
   }
 }
+
 /** Cleanup is idempotent and cannot create or transfer authority. */
 export function retireSessionNativeRuntimeConversion(
   grant: SessionNativeRuntimeConversionGrant
@@ -616,6 +612,7 @@ export function retireSessionNativeRuntimeConversion(
     nativeRuntimeGrants.delete(grant)
   }
 }
+
 declare const nativeCompilerSourceGrantBrand: unique symbol
 /** Private compile-only authority; runtime conversion grants remain separate. */
 export interface SessionNativeCompilerSourceConversionGrant {
@@ -634,6 +631,7 @@ const nativeCompilerSourceGrants = new WeakMap<
   SessionNativeCompilerSourceConversionGrant,
   NativeCompilerSourceGrant
 >()
+
 function assertNativeCompilerSourceOriginal(
   issue: NativeIssue,
   value: CompiledCoverageSource,
@@ -697,6 +695,7 @@ function assertNativeCompilerSourceOriginal(
   signal.throwIfAborted()
   assertNativeIssueLive(issue)
 }
+
 /** Source preparation never grants runtime or zero-conversion permission. */
 export async function prepareSessionNativeCompilerSourceConversion(options: {
   compilation: SessionNativeTsConfigCompilation
@@ -758,6 +757,7 @@ export async function prepareSessionNativeCompilerSourceConversion(options: {
   })
   return grant
 }
+
 export function assertSessionNativeCompilerSourceConversion(
   grant: SessionNativeCompilerSourceConversionGrant,
   value: CompiledCoverageSource,
@@ -782,6 +782,7 @@ export function assertSessionNativeCompilerSourceConversion(
     signal
   )
 }
+
 /** Temporary observations never replace or Session-register the original fact. */
 export async function sealSessionNativeCompilerSourceConversion(
   grant: SessionNativeCompilerSourceConversionGrant,
@@ -810,6 +811,7 @@ export async function sealSessionNativeCompilerSourceConversion(
     throw error
   }
 }
+
 export function retireSessionNativeCompilerSourceConversion(
   grant: SessionNativeCompilerSourceConversionGrant
 ): void {
@@ -821,6 +823,7 @@ export function retireSessionNativeCompilerSourceConversion(
     nativeCompilerSourceGrants.delete(grant)
   }
 }
+
 /** Paths returned by native emission must remain inside the published closure. */
 function artifactPath(root: string, path: string): string {
   const target = resolve(root, path)
@@ -830,6 +833,7 @@ function artifactPath(root: string, path: string): string {
   }
   return target
 }
+
 /**
  * Owns the native graph and immutable artifacts until dispose. Callers must await
  * all execution processes before disposing the compiler session.
@@ -862,11 +866,37 @@ export async function createTestCompilerSession(
     )
   const configuredCompilerAliases = options.compilerAliases
   const configuredCompilerTransforms = options.compilerTransforms
+  const istanbulInstrumentation =
+    options.istanbulInstrumentation === undefined
+      ? undefined
+      : structuredClone(options.istanbulInstrumentation)
+  const readIstanbulInstrumentation = options.readIstanbulInstrumentation
+  const prepareIstanbulTypeScript = options.prepareIstanbulTypeScript
+  const preparingIstanbulTypeScript =
+    typeof prepareIstanbulTypeScript === 'function'
+  if (
+    prepareIstanbulTypeScript !== undefined &&
+    (!preparingIstanbulTypeScript || !istanbulInstrumentation)
+  )
+    throw new Error(
+      'Typed Istanbul preparation requires its actual instrumentation Session.'
+    )
+  if (
+    (istanbulInstrumentation?.metadata?.importedOnly === true ||
+      preparingIstanbulTypeScript) !==
+      (typeof readIstanbulInstrumentation === 'function') ||
+    (readIstanbulInstrumentation !== undefined &&
+      typeof readIstanbulInstrumentation !== 'function')
+  )
+    throw new Error(
+      'Loaded Istanbul compilation requires its explicit local metadata reader.'
+    )
   const configuredArtifactAllocator = options.allocateArtifact
   if (
     configuredTestingDefaultConfiguration !== undefined &&
     (configuredCompilerAliases !== undefined ||
-      configuredCompilerTransforms !== undefined)
+      configuredCompilerTransforms !== undefined ||
+      istanbulInstrumentation !== undefined)
   ) {
     throw new Error(
       'ERR_NEXT_TEST_DEFAULT_CONFIGURATION: compiler aliases and transforms are unavailable'
@@ -876,6 +906,7 @@ export async function createTestCompilerSession(
     configuredCompilerEnvKeys !== undefined ||
     configuredCompilerAliases !== undefined ||
     configuredCompilerTransforms !== undefined ||
+    istanbulInstrumentation !== undefined ||
     configuredArtifactAllocator !== undefined
   const importCoverageRequest = options.nativeImportCoverageRoles
   if (
@@ -919,6 +950,16 @@ export async function createTestCompilerSession(
           configuredTestingDefaultConfiguration
         )
   const { dir } = loaded
+  if (istanbulInstrumentation) {
+    const { assertIstanbulMetadata } = await import(
+      '../coverage/istanbul-capture.js'
+    )
+    await assertIstanbulMetadata(
+      istanbulInstrumentation.metadata,
+      dir,
+      new AbortController().signal
+    )
+  }
   // Assertion and inline-snapshot locations need maps in the isolated test
   // artifact even when the application's production build omits them.
   const testConfig =
@@ -938,7 +979,19 @@ export async function createTestCompilerSession(
     profile,
     configuredCompilerTransforms
   )
-  const config = configured
+  const config = preparingIstanbulTypeScript
+    ? withIstanbulTypeScriptInstrumentation(
+        configured,
+        dir,
+        profile,
+        istanbulInstrumentation!
+      )
+    : withIstanbulInstrumentation(
+        configured,
+        dir,
+        profile,
+        istanbulInstrumentation
+      )
   if (configuredTestingDefaultConfiguration !== undefined) {
     assertTestingDefaultConfigurationEnvironment(
       configuredTestingDefaultConfiguration
@@ -975,6 +1028,9 @@ export async function createTestCompilerSession(
       'Next test output is already owned by another compiler or application server.'
     )
   const outputLock = acquiredLock
+  let closeIstanbulTypeScriptOptions: (() => void) | undefined
+  let typedInitializationFailure = false
+  let typedProjectCleanupFailed = false
   const compilation = await (async () => {
     try {
       const buildId = dev
@@ -987,11 +1043,9 @@ export async function createTestCompilerSession(
             previewProps: await generatePreviewKeys({ isBuild: true, distDir }),
           }
       let nodejsDefineEnvKeys: readonly string[] | undefined
+      let typedEncryptionKey: string | undefined
       let nativeProjectPaths:
-        | Readonly<{
-            rootPath: string
-            projectPath: string
-          }>
+        | Readonly<{ rootPath: string; projectPath: string }>
         | undefined
       const project = dev
         ? await (async () => {
@@ -1006,6 +1060,8 @@ export async function createTestCompilerSession(
                 : {}),
             })
             nativeProjectPaths = result.nativeProjectPaths
+            if (preparingIstanbulTypeScript)
+              typedEncryptionKey = result.encryptionKey
             if (configuredCompilerEnvKeys) {
               if (
                 !Array.isArray(result.nodejsDefineEnvKeys) ||
@@ -1032,6 +1088,7 @@ export async function createTestCompilerSession(
               isBuild: true,
               distDir,
             })
+            if (preparingIstanbulTypeScript) typedEncryptionKey = encryptionKey
             const projectOptions = createProductionProjectOptions({
               dir,
               distDir,
@@ -1074,6 +1131,61 @@ export async function createTestCompilerSession(
                 return result.value
               })
           })()
+      if (prepareIstanbulTypeScript) {
+        try {
+          const { createIstanbulTypeScriptOptionsGetter } = await import(
+            './istanbul-typescript-options.js'
+          )
+          const actualOptions = createIstanbulTypeScriptOptionsGetter(
+            loaded,
+            distDir,
+            typedEncryptionKey!,
+            profile.mode
+          )
+          closeIstanbulTypeScriptOptions = actualOptions.close
+          const metadata = await prepareIstanbulTypeScript(
+            actualOptions.getOptions
+          )
+          if (
+            !metadata ||
+            metadata.version !== 1 ||
+            !Array.isArray(metadata.sources) ||
+            (metadata.importedOnly === true) !==
+              (istanbulInstrumentation!.metadata.importedOnly === true) ||
+            (Object.hasOwn(metadata, 'importedOnly') &&
+              metadata.importedOnly !== true)
+          )
+            throw new Error(
+              'Typed Istanbul preparation omitted its actual service metadata.'
+            )
+          await (
+            await import('../coverage/istanbul-capture.js')
+          ).assertIstanbulMetadata(
+            {
+              ...metadata,
+              sources: metadata.sources.filter(
+                (mappedSource) => !mappedSource.typeScriptSource
+              ),
+            },
+            dir,
+            new AbortController().signal
+          )
+          istanbulInstrumentation!.metadata = structuredClone(metadata)
+        } catch (error) {
+          typedInitializationFailure = true
+          closeIstanbulTypeScriptOptions?.()
+          try {
+            await project.shutdown()
+          } catch (cleanup) {
+            typedProjectCleanupFailed = true
+            throw new AggregateError(
+              [error, cleanup],
+              'Typed Istanbul preparation and project cleanup failed.'
+            )
+          }
+          throw error
+        }
+      }
       return {
         buildId,
         fsChecker,
@@ -1082,6 +1194,18 @@ export async function createTestCompilerSession(
         nodejsDefineEnvKeys,
       }
     } catch (error) {
+      if (typedInitializationFailure) {
+        if (typedProjectCleanupFailed) throw error
+        try {
+          await outputLock.unlock()
+        } catch (cleanup) {
+          throw new AggregateError(
+            [error, cleanup],
+            'Typed Istanbul preparation and output cleanup failed.'
+          )
+        }
+        throw error
+      }
       await outputLock.unlock()
       throw error
     }
@@ -1095,6 +1219,7 @@ export async function createTestCompilerSession(
   let pending: Promise<unknown> = Promise.resolve()
   let disposal: Promise<void> | undefined
   let compilationShutdown: Promise<void> | undefined
+
   async function compileEntry(
     entry: TestEntry,
     signal: AbortSignal,
@@ -1104,18 +1229,40 @@ export async function createTestCompilerSession(
     coverage: CompileTestOptions['coverage'],
     cohortEntries?: readonly TestEntry[],
     dependencyPlan = false,
-    sourceAnalysis?: {
-      file: string
-      sha256: string
-      revision: string
-    },
+    sourceAnalysis?: { file: string; sha256: string; revision: string },
     runtimeConfigurationImports?: CompileTestOptions['runtimeConfigurationImports'],
     nativeContext?: NativeCompileContext
   ) {
     signal.throwIfAborted()
-    if ((coverage?.kind === 'node-istanbul') !== false)
+    if (
+      (coverage?.kind === 'node-istanbul') !==
+      (istanbulInstrumentation !== undefined)
+    )
       throw new Error(
         'Istanbul compilation requires its matching instrumentation request and descriptor.'
+      )
+    if (
+      istanbulInstrumentation &&
+      ((!/\.(?:js|mjs|ts|mts)$/.test(entry.file) &&
+        !(
+          sourceAnalysis &&
+          preparingIstanbulTypeScript &&
+          /\.[jt]sx$/.test(entry.file)
+        )) ||
+        entry.inSource ||
+        entry.typecheck ||
+        entry.executionEnvironment ||
+        cohortEntries ||
+        dependencyPlan ||
+        (sourceAnalysis &&
+          (!preparingIstanbulTypeScript ||
+            !/\.(?:ts|mts|[jt]sx)$/.test(entry.file) ||
+            setupFiles.length ||
+            snapshotSerializers.length)) ||
+        nativeContext)
+    )
+      throw new Error(
+        'Private Istanbul compilation requires one ordinary isolated JavaScript runtime entry.'
       )
     if (
       configuredCompilerTransforms &&
@@ -1145,7 +1292,9 @@ export async function createTestCompilerSession(
       (coverage.version !== 1 ||
         (profile.browserClient
           ? coverage.kind !== 'browser-v8' || profile.environment !== 'browser'
-          : coverage.kind !== 'node-line' || profile.environment !== 'node'))
+          : (coverage.kind !== 'node-line' &&
+              coverage.kind !== 'node-istanbul') ||
+            profile.environment !== 'node'))
     ) {
       throw new Error(
         'Coverage requires an explicit Node or Browser Mode profile'
@@ -1332,6 +1481,25 @@ export async function createTestCompilerSession(
     )
       throw new Error(
         'Client Browser Mode currently requires one isolated runtime file with list-ordered setup and without setup coverage, serializers or custom realms.'
+      )
+    const potentialTypedRuntimeConfiguration =
+      preparingIstanbulTypeScript && coverage?.kind === 'node-istanbul'
+        ? runtimeConfigurationImports
+        : undefined
+    if (potentialTypedRuntimeConfiguration)
+      runtimeConfigurationImports = undefined
+    if (
+      istanbulInstrumentation &&
+      profile.mode === 'production' &&
+      !/\.(?:js|mjs)$/.test(entry.file) &&
+      !(
+        sourceAnalysis &&
+        preparingIstanbulTypeScript &&
+        /\.(?:ts|mts|[jt]sx)$/.test(entry.file)
+      )
+    )
+      throw new Error(
+        'Production Istanbul requires ordinary Node JS/MJS test entries.'
       )
     const file = projectFile(entry.file)
     const source = await readFile(entry.file)
@@ -1532,6 +1700,7 @@ export async function createTestCompilerSession(
       nativeRequest?.revision ??
       sourceAnalysis?.revision ??
       runtimeConfigurationImports?.entry.revision ??
+      potentialTypedRuntimeConfiguration?.entry.revision ??
       randomUUID()
     const allocation = configuredArtifactAllocator
       ? await Reflect.apply(configuredArtifactAllocator, options, [
@@ -1673,11 +1842,7 @@ export async function createTestCompilerSession(
       const clientDescriptor = profile.browserClient
         ? await readClientDescriptor(staging, output.entryPath, files, nativeId)
         : undefined
-      let route:
-        | (CompiledTestRoute & {
-            metadataPath: string
-          })
-        | undefined
+      let route: (CompiledTestRoute & { metadataPath: string }) | undefined
       if (profile.route !== undefined) {
         const metadataPath = `server/next-test/${nativeId}.route.json`
         if (!files.includes(metadataPath))
@@ -1735,11 +1900,7 @@ export async function createTestCompilerSession(
       }
       const mockMetadataPath = `server/next-test/${nativeId}.metadata.json`
       let moduleMocking: CompiledTestArtifact['moduleMocking']
-      let moduleCache:
-        | {
-            version: 1
-          }
-        | undefined
+      let moduleCache: { version: 1 } | undefined
       let dynamicModuleMocking:
         | {
             version: 1
@@ -1947,10 +2108,7 @@ export async function createTestCompilerSession(
               'CommonJS named-import spies require isolated development Node without setup, serializers, coverage or custom realms'
             )
           let productionSourceMetadata:
-            | {
-                path: string
-                sha256: string
-              }
+            | { path: string; sha256: string }
             | undefined
           if (productionStaticFactory) {
             const path = `server/next-test/${nativeId}.source.json`
@@ -2031,6 +2189,13 @@ export async function createTestCompilerSession(
         throw new Error(
           'Production source coverage does not yet support module mocks.'
         )
+      if (
+        istanbulInstrumentation &&
+        (moduleMocking || moduleCache || dynamicModuleMocking)
+      )
+        throw new Error(
+          'Private Istanbul instrumentation cannot yet combine with mock or module cache compiler helpers.'
+        )
       const importRoles = nativeImportCoverageRoles
         ? await readImportCoverageProof(
             staging,
@@ -2051,16 +2216,20 @@ export async function createTestCompilerSession(
         !moduleMocking &&
         !moduleCache &&
         !dynamicModuleMocking
-      const nativeHarness = isolatedNodeV8Harness
-        ? await readIstanbulHarnessCoverage({
-            entryPath: output.entryPath,
-            files,
-            projectDir: dir,
-            setupFiles,
-            snapshotSerializers,
-            signal,
-            readArtifact: (path) => readArtifactFile(staging, path),
-          })
+      const nativeHarness =
+        istanbulInstrumentation || isolatedNodeV8Harness
+          ? await readIstanbulHarnessCoverage({
+              entryPath: output.entryPath,
+              files,
+              projectDir: dir,
+              setupFiles,
+              snapshotSerializers,
+              signal,
+              readArtifact: (path) => readArtifactFile(staging, path),
+            })
+          : undefined
+      const istanbulHarness = istanbulInstrumentation
+        ? nativeHarness
         : undefined
       const nodeHarness =
         isolatedNodeV8Harness && nativeHarness
@@ -2083,9 +2252,57 @@ export async function createTestCompilerSession(
             includeEntrySource: !!sourceAnalysis,
             setupFiles,
             syntheticSources: moduleMocking?.coverage,
+            ...(istanbulHarness ? { istanbulHarness } : {}),
             ...(nodeHarness ? { nodeHarness } : {}),
           })
         : undefined
+      let istanbulMetadata = istanbulInstrumentation?.metadata
+      if (
+        istanbulMetadata &&
+        (istanbulMetadata.importedOnly || preparingIstanbulTypeScript)
+      ) {
+        if (!coverageMetadata)
+          throw new Error(
+            'Loaded Istanbul metadata requires its actual emitted coverage closure.'
+          )
+        const sourceFiles = [
+          ...new Set(
+            Object.values(coverageMetadata.sources).flatMap((mappedSource) =>
+              mappedSource ? [mappedSource.file] : []
+            )
+          ),
+        ].sort()
+        istanbulMetadata = structuredClone(
+          readIstanbulInstrumentation!(sourceFiles)
+        )
+        if (
+          (istanbulMetadata.importedOnly === true) !==
+            (istanbulInstrumentation!.metadata.importedOnly === true) ||
+          istanbulMetadata.sources.some(
+            (mappedSource) =>
+              (istanbulMetadata!.importedOnly ||
+                mappedSource.typeScriptSource) &&
+              !sourceFiles.includes(mappedSource.file)
+          )
+        )
+          throw new Error(
+            'Loaded Istanbul metadata escaped this artifact source closure.'
+          )
+        await (
+          await import('../coverage/istanbul-capture.js')
+        ).assertIstanbulMetadata(
+          preparingIstanbulTypeScript
+            ? {
+                ...istanbulMetadata,
+                sources: istanbulMetadata.sources.filter(
+                  (mappedSource) => !mappedSource.typeScriptSource
+                ),
+              }
+            : istanbulMetadata,
+          dir,
+          signal
+        )
+      }
       signal.throwIfAborted()
       const publishedSourceHash = createHash('sha256')
         .update(await readFile(entry.file))
@@ -2160,6 +2377,11 @@ export async function createTestCompilerSession(
           ? {
               coverage: {
                 ...coverageMetadata,
+                ...(istanbulInstrumentation
+                  ? {
+                      istanbul: structuredClone(istanbulMetadata!),
+                    }
+                  : {}),
                 ...(sourceAnalysis
                   ? {
                       sourceAnalysis: {
@@ -2170,7 +2392,13 @@ export async function createTestCompilerSession(
                     }
                   : {}),
                 ...(sourcePreservation ? { sourcePreservation } : {}),
-                ...(importRoles ? { importRoles } : {}),
+                ...(importRoles &&
+                (!istanbulMetadata ||
+                  istanbulMetadata.sources.some((mappedSource) =>
+                    /\.[jt]sx$/.test(mappedSource.file)
+                  ))
+                  ? { importRoles }
+                  : {}),
               },
             }
           : {}),
@@ -2299,6 +2527,45 @@ export async function createTestCompilerSession(
                   }
                 : {}),
             }
+      if (
+        potentialTypedRuntimeConfiguration &&
+        (istanbulMetadata?.sources.some(
+          (mappedSource) => mappedSource.typeScriptSource
+        ) ||
+          (!istanbulInstrumentation!.metadata.importedOnly &&
+            istanbulInstrumentation!.metadata.sources.some(
+              (mappedSource) => mappedSource.typeScriptSource
+            )))
+      ) {
+        runtimeConfigurationImports = potentialTypedRuntimeConfiguration
+        if (
+          !runtimeConfigurationImports.entry.revision ||
+          runtimeConfigurationImports.entry.id !== entry.id ||
+          runtimeConfigurationImports.entry.file !== entry.file ||
+          runtimeConfigurationImports.entry.sha256 !== sourceHash ||
+          sourceAnalysis ||
+          cohortEntries
+        )
+          throw new Error(
+            'Typed Istanbul runtime configuration lost its original parent request.'
+          )
+        assertConfigurationImportObservation(
+          runtimeConfigurationImports.authorization.configFile
+        )
+        runtimeConfigurationGraph = await assertConfigurationImportFiles(
+          await loaded.configurationImports,
+          runtimeConfigurationImports.authorization.configFile,
+          signal
+        )
+      }
+      if (
+        istanbulMetadata?.sources.some(
+          (mappedSource) => mappedSource.typeScriptSource
+        )
+      )
+        await (
+          await import('../coverage/istanbul-capture.js')
+        ).assertIstanbulMetadata(istanbulMetadata, dir, signal, artifact)
       if (runtimeConfigurationImports && runtimeConfigurationGraph) {
         assertConfigurationImportObservation(
           runtimeConfigurationImports.authorization.configFile
@@ -2405,22 +2672,31 @@ export async function createTestCompilerSession(
       throw error
     }
   }
+
   // Release native watches/cache handles before another owner starts the normal
   // application server. Published revisions remain leased until dispose().
   function shutdownCompilation(): Promise<void> {
     closing = true
     return (compilationShutdown ??= (async () => {
+      if (closeIstanbulTypeScriptOptions) {
+        try {
+          await pending
+          await compilation.project.shutdown()
+          await outputLock.unlock()
+        } finally {
+          closeIstanbulTypeScriptOptions()
+        }
+        return
+      }
       await pending
       await compilation.project.shutdown()
       // Failed native shutdown retains the lock until process exit.
       await outputLock.unlock()
     })())
   }
+
   function compileCoverageSourceOperation(
-    source: {
-      file: string
-      sha256: string
-    },
+    source: { file: string; sha256: string },
     {
       signal,
       revision,
@@ -2452,7 +2728,8 @@ export async function createTestCompilerSession(
         (!/\.[cm]?ts$/.test(selected.file) &&
           !(
             (nativeImportCoverageRoles === true ||
-              browserCoverageDeclarations) &&
+              browserCoverageDeclarations ||
+              preparingIstanbulTypeScript) &&
             /\.[jt]sx$/.test(selected.file)
           )) ||
         /\.d\.(?:[cm]?ts|tsx)$/.test(selected.file) ||
@@ -2486,7 +2763,11 @@ export async function createTestCompilerSession(
         [],
         {
           version: 1,
-          kind: browserCoverageDeclarations ? 'browser-v8' : 'node-line',
+          kind: preparingIstanbulTypeScript
+            ? 'node-istanbul'
+            : browserCoverageDeclarations
+              ? 'browser-v8'
+              : 'node-line',
         },
         undefined,
         false,
@@ -2519,6 +2800,7 @@ export async function createTestCompilerSession(
     pending = result.catch(() => {})
     return result
   }
+
   function newNativeCompileContext(
     role: NativeRole,
     selection: NativeTsConfigParentSelection,
@@ -2542,6 +2824,7 @@ export async function createTestCompilerSession(
     nativeSignalDetachers.add(operation.detach)
     return { role, selection: selected, operation: operation.state }
   }
+
   return {
     /** Actual source selected by the ordinary Next configuration loader. */
     ...(config.configFile ? { configurationFile: config.configFile } : {}),
@@ -2582,10 +2865,7 @@ export async function createTestCompilerSession(
     },
     /** Compile exact source bytes in this effective profile; no source evaluation. */
     compileCoverageSource(
-      source: {
-        file: string
-        sha256: string
-      },
+      source: { file: string; sha256: string },
       {
         signal,
         revision,
@@ -2608,10 +2888,7 @@ export async function createTestCompilerSession(
       args: {
         selection: NativeTsConfigParentSelection
         signal: AbortSignal
-        coverage: {
-          version: 1
-          kind: 'node-line'
-        }
+        coverage: { version: 1; kind: 'node-line' }
         runtimeConfigurationImports?: CompileTestOptions['runtimeConfigurationImports']
       }
     ): Promise<SessionNativeTsConfigCompilation> {
@@ -2662,10 +2939,7 @@ export async function createTestCompilerSession(
     },
     /** Private actual compile-only operation; it never evaluates the source. */
     async compileCoverageSourceWithNativeTsConfigInputs(
-      source: {
-        file: string
-        sha256: string
-      },
+      source: { file: string; sha256: string },
       args: {
         selection: NativeTsConfigParentSelection
         signal: AbortSignal
