@@ -123,6 +123,8 @@ export const viewport = {
 
 > **Good to know**: The `viewport` meta tag is automatically set, and manual configuration is usually unnecessary as the default is sufficient. However, the information is provided for completeness.
 
+Next.js sets `width: 'device-width'` and `initialScale: 1` by default. A `viewport` export or `generateViewport` return value overrides only the fields it provides.
+
 ```tsx filename="layout.tsx | page.tsx" switcher
 import type { Viewport } from 'next'
 
@@ -151,6 +153,35 @@ export const viewport = {
 <meta
   name="viewport"
   content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+/>
+```
+
+### `viewportFit`
+
+`viewportFit` sets the `viewport-fit` value in the viewport meta tag. It accepts `'auto'`, `'contain'`, or `'cover'`.
+
+Use `'cover'` to fill the device display. Use CSS [safe area inset variables](https://developer.mozilla.org/docs/Web/CSS/env#parameters) to keep content clear of display cutouts.
+
+```tsx filename="layout.tsx | page.tsx" switcher
+import type { Viewport } from 'next'
+
+export const viewport: Viewport = {
+  viewportFit: 'cover',
+}
+```
+
+```jsx filename="layout.jsx | page.jsx" switcher
+export const viewport = {
+  viewportFit: 'cover',
+}
+```
+
+The default `width` and `initialScale` values are retained:
+
+```html filename="<head> output" hideLineNumbers
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1, viewport-fit=cover"
 />
 ```
 
