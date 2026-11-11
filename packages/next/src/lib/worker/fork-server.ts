@@ -30,6 +30,13 @@ import { readJsonLines, writeJsonLine } from './json-line-channel'
  */
 export const WORKER_CHANNEL_FD_ENV = '__NEXT_PRIVATE_WORKER_CHANNEL_FD'
 
+/**
+ * How long to wait, after a worker exited, for the rest of its messages
+ * before reporting the exit. The message pipe normally closes right when the
+ * worker exits, unless a process the worker started inherited it.
+ */
+const EXIT_DRAIN_TIMEOUT = 1000
+
 export type WorkerChannelName = 'message' | 'stdout' | 'stderr'
 
 /** Messages from the main process to the fork server */
@@ -60,12 +67,13 @@ export interface ForkServerSpawnOptions {
 /**
  * A worker process spawned by the fork server. Implements the subset of the
  * `ChildProcess` API that the worker pool uses, so the pool handles it like a
- * forked worker: `send()`, `kill()`, `stdout`/`stderr` and the `message`,
- * `exit` and `error` events.
+ * forked worker: `send()`, `kill()`, `pid`, `stdout`/`stderr` and the
+ * `message`, `exit` and `error` events.
  *
  * Spawning is asynchronous: messages sent before the worker's message pipe
  * arrives are queued, and a kill before its pid is known is applied once it
- * is.
+ * is. If the fork server is lost before it spawned the worker, the worker is
+ * forked from the current process instead.
  */
 export class ForkServerWorkerProcess extends EventEmitter {
   readonly stdout = new PassThrough()
@@ -73,16 +81,25 @@ export class ForkServerWorkerProcess extends EventEmitter {
   pid: number | undefined
 
   private _channel: Socket | undefined
+  private _forked: ChildProcess | undefined
   private _pendingMessages: unknown[] | undefined = []
   private _pendingKillSignal: NodeJS.Signals | undefined
-  private _exited = false
+  private _settled = false
 
-  constructor(private readonly _onSettled: () => void) {
+  /** @internal */
+  constructor(
+    private readonly _modulePath: string,
+    private readonly _options: ForkServerSpawnOptions,
+    private readonly _onSettled: () => void
+  ) {
     super()
   }
 
   /** Same signature as `ChildProcess.send()`; the callback is never called with an error. */
   send(message: unknown, callback?: (error: Error | null) => void): boolean {
+    if (this._forked) {
+      return this._forked.send(message as any, callback ?? (() => {}))
+    }
     if (this._pendingMessages) {
       this._pendingMessages.push(message)
     } else if (this._channel && !this._channel.destroyed) {
@@ -93,7 +110,10 @@ export class ForkServerWorkerProcess extends EventEmitter {
   }
 
   kill(signal: NodeJS.Signals = 'SIGTERM'): boolean {
-    if (this._exited) return false
+    if (this._settled) return false
+    if (this._forked) {
+      return this._forked.kill(signal)
+    }
     if (this.pid === undefined) {
       this._pendingKillSignal = signal
       return true
@@ -106,6 +126,11 @@ export class ForkServerWorkerProcess extends EventEmitter {
     }
   }
 
+  /** Whether the fork server reported this worker as started */
+  get _isSpawned(): boolean {
+    return this.pid !== undefined
+  }
+
   /** @internal */
   _setPid(pid: number): void {
     this.pid = pid
@@ -116,6 +141,10 @@ export class ForkServerWorkerProcess extends EventEmitter {
 
   /** @internal */
   _setChannel(channel: WorkerChannelName, socket: Socket): void {
+    if (this._settled) {
+      socket.destroy()
+      return
+    }
     if (channel === 'stdout' || channel === 'stderr') {
       socket.pipe(this[channel])
       return
@@ -131,11 +160,25 @@ export class ForkServerWorkerProcess extends EventEmitter {
     }
   }
 
-  /** @internal */
+  /**
+   * The worker exited. Messages it wrote just before exiting may still be
+   * unread, so report the exit once its message pipe closed.
+   * @internal
+   */
   _exit(code: number | null, signal: string | null): void {
-    if (this._settle()) {
+    if (this._settled) return
+    this._settled = true
+    this._onSettled()
+    const channel = this._channel
+    if (!channel || channel.closed) {
       this.emit('exit', code, signal)
+      return
     }
+    const timer = setTimeout(() => channel.destroy(), EXIT_DRAIN_TIMEOUT)
+    channel.once('close', () => {
+      clearTimeout(timer)
+      this.emit('exit', code, signal)
+    })
   }
 
   /**
@@ -144,25 +187,47 @@ export class ForkServerWorkerProcess extends EventEmitter {
    * @internal
    */
   _spawnError(error: Error): void {
-    if (this._settle()) {
-      this.emit('error', error)
-    }
-  }
-
-  private _settle(): boolean {
-    if (this._exited) return false
-    this._exited = true
+    if (this._settled) return
+    this._settled = true
     this._channel?.destroy()
     this._onSettled()
-    return true
+    this.emit('error', error)
+  }
+
+  /**
+   * The fork server is gone before it started this worker: fork it from the
+   * current process instead, like the pool would without a fork server.
+   * @internal
+   */
+  _fallBackToFork(): void {
+    if (this._settled || this._forked) return
+    const child = fork(this._modulePath, [], { ...this._options, silent: true })
+    this._forked = child
+    this.pid = child.pid
+    child.stdout?.pipe(this.stdout)
+    child.stderr?.pipe(this.stderr)
+    child.on('message', (message) => this.emit('message', message))
+    child.on('exit', (code, signal) => {
+      this._settled = true
+      this.emit('exit', code, signal)
+    })
+    child.on('error', (error) => this.emit('error', error))
+    for (const message of this._pendingMessages ?? []) {
+      child.send(message as any, () => {})
+    }
+    this._pendingMessages = undefined
+    if (this._pendingKillSignal) {
+      child.kill(this._pendingKillSignal)
+    }
   }
 }
 
 export class ForkServer {
   private _helper: ChildProcess | undefined
+  /** Workers spawned (or being spawned) by the helper, by request id */
   private _workers = new Map<number, ForkServerWorkerProcess>()
   private _nextId = 0
-  private _shuttingDown = false
+  private _available = false
 
   private constructor() {}
 
@@ -194,11 +259,12 @@ export class ForkServer {
       serialization: 'json',
     })
     this._helper = helper
+    this._available = true
 
     helper.on('message', (message: ForkServerResponse, handle?: Socket) => {
       this._handleMessage(message, handle)
     })
-    // Failed to start or lost; `exit` follows for a started process.
+    // Failed to start, or lost.
     helper.on('error', () => this._handleHelperGone())
     helper.on('exit', () => this._handleHelperGone())
     helper.on('disconnect', () => this._handleHelperGone())
@@ -210,11 +276,12 @@ export class ForkServer {
 
   /** Whether new workers can be spawned through the fork server */
   get isAvailable(): boolean {
-    return (
-      !this._shuttingDown &&
-      this._helper !== undefined &&
-      this._helper.connected
-    )
+    return this._available
+  }
+
+  /** The fork server's process id */
+  get pid(): number | undefined {
+    return this._helper?.pid
   }
 
   /**
@@ -226,13 +293,18 @@ export class ForkServer {
     options: ForkServerSpawnOptions
   ): ForkServerWorkerProcess {
     const id = this._nextId++
-    const worker = new ForkServerWorkerProcess(() => {
+    const worker = new ForkServerWorkerProcess(modulePath, options, () => {
       this._workers.delete(id)
       this._updateRef()
     })
+
+    if (!this._available) {
+      worker._fallBackToFork()
+      return worker
+    }
+
     this._workers.set(id, worker)
     this._updateRef()
-
     const request: ForkServerRequest = {
       type: 'spawn',
       id,
@@ -243,7 +315,6 @@ export class ForkServer {
     }
     this._helper!.send(request, (error) => {
       if (error) {
-        // The helper is gone; `_handleHelperGone` settles the worker.
         this._handleHelperGone()
       }
     })
@@ -251,15 +322,16 @@ export class ForkServer {
   }
 
   /**
-   * Stop the fork server. Workers it spawned keep running until they are told
-   * to end, but their exits can no longer be reported, so shut down worker
+   * Stop the fork server. Workers it spawned and that are still running are
+   * killed, since their exits could no longer be reported; shut down worker
    * pools that use the fork server first.
    */
   shutdown(): void {
-    this._shuttingDown = true
+    this._available = false
     if (this._helper?.connected) {
       this._helper.disconnect()
     }
+    this._handleHelperGone()
   }
 
   private _handleMessage(message: ForkServerResponse, handle?: Socket): void {
@@ -282,9 +354,9 @@ export class ForkServer {
         worker._exit(message.code, message.signal)
         break
       case 'error': {
-        const error: NodeJS.ErrnoException = new Error(message.message)
-        error.code = message.code
-        if (worker.pid === undefined) {
+        if (!worker._isSpawned) {
+          const error: NodeJS.ErrnoException = new Error(message.message)
+          error.code = message.code
           worker._spawnError(error)
         }
         // Otherwise the worker is running (the helper never signals or
@@ -297,16 +369,23 @@ export class ForkServer {
   }
 
   /**
-   * The helper is gone, so the exits of the workers it spawned can't be
-   * observed anymore. Kill them and report them as killed; the pool handles
-   * that like a crash and spawns replacements with `fork()`.
+   * The helper is gone. Workers it hadn't started yet are forked from this
+   * process instead. The exits of the workers it did start can't be observed
+   * anymore, so they are killed and reported as killed; the pool handles that
+   * like a crash, and its replacements are forked from this process.
    */
   private _handleHelperGone(): void {
-    if (this._helper === undefined) return
-    this._shuttingDown = true
-    for (const worker of [...this._workers.values()]) {
-      worker.kill('SIGKILL')
-      worker._exit(null, 'SIGKILL')
+    this._available = false
+    const workers = [...this._workers.values()]
+    this._workers.clear()
+    this._updateRef()
+    for (const worker of workers) {
+      if (worker._isSpawned) {
+        worker.kill('SIGKILL')
+        worker._exit(null, 'SIGKILL')
+      } else {
+        worker._fallBackToFork()
+      }
     }
   }
 
