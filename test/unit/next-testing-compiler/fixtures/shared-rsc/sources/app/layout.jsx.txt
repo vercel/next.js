@@ -1,0 +1,6 @@
+import { headers } from 'next/headers'
+
+export default async function Layout({ children }) {
+  const request = await headers()
+  return <html><body><main data-layout="actual-layout" data-layout-language={request.get('accept-language')}>{children}</main></body></html>
+}

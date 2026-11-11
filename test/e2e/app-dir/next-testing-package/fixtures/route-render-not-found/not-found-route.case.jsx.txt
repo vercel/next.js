@@ -1,0 +1,16 @@
+import {test,expect} from 'next/experimental/testing/vitest'
+import {rsc} from 'next/experimental/testing/rsc'
+import {completedRequests} from './app/[tenant]/missing/[...slug]/state'
+import {routeRow} from './row.mjs'
+import expected from './expected.json'
+for(const variant of ['missing','following'])for(const format of ['html','flight']){
+ test(`${variant} HTTP-access fallback as ${format}`,async()=>{
+  const request=variant+'-'+format
+  const url=new URL('/acme/missing/alpha/c?tag=one&tag=two&unicode=%E2%9C%93'+(variant==='missing'?'&missing=1':'')+(format==='flight'?'&_rsc=':''),'http://localhost')
+  const result=await rsc.renderRoute({cacheScope:'file',format,url:url.href,headers:{'x-route-request':request,'x-route-proof':'request-value',cookie:'route-session=session-value'}})
+  expect(result.headers['content-type']).toBe(result.contentType)
+  const row=routeRow({variant,format,url,status:result.status,contentType:result.contentType??null,body:result.body,after:completedRequests.at(-1)})
+  console.log('FULL_ROUTE_NOT_FOUND '+JSON.stringify(row))
+  expect(row).toEqual(expected.find(value=>value.variant===variant&&value.format===format))
+ })
+}

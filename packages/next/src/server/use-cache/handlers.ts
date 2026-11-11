@@ -1,5 +1,6 @@
 import { createDefaultCacheHandler } from '../lib/cache-handlers/default'
 import type { CacheHandler } from '../lib/cache-handlers/types'
+import type { TagManifestEntry } from '../lib/incremental-cache/tags-manifest.external'
 import {
   createTieredCacheHandler,
   type CacheReadWriteHandler,
@@ -59,7 +60,10 @@ const reference: typeof globalThis & {
  * @param cacheMaxMemorySize - The maximum memory size of the cache in bytes, if
  *  not provided, the default memory size will be used.
  */
-export function initializeCacheHandlers(cacheMaxMemorySize: number): void {
+export function initializeCacheHandlers(
+  cacheMaxMemorySize: number,
+  tags?: Map<string, TagManifestEntry>
+): void {
   // If the cache handlers have already been initialized, don't do it again.
   if (reference[handlersMapSymbol]) {
     debug?.('cache handlers already initialized')
@@ -90,7 +94,7 @@ export function initializeCacheHandlers(cacheMaxMemorySize: number): void {
       fallback = reference[handlersSymbol].DefaultCache
     } else {
       debug?.('setting "default" cache handler from default')
-      fallback = createDefaultCacheHandler(builtInSize)
+      fallback = createDefaultCacheHandler(builtInSize, tags)
       builtInHandlers.add(fallback)
     }
 
@@ -104,7 +108,7 @@ export function initializeCacheHandlers(cacheMaxMemorySize: number): void {
       handlersMap.set('remote', fallback)
     }
   } else {
-    const handler = createDefaultCacheHandler(builtInSize)
+    const handler = createDefaultCacheHandler(builtInSize, tags)
     builtInHandlers.add(handler)
 
     debug?.('setting "default" cache handler from default')
@@ -129,7 +133,8 @@ export function initializeCacheHandlers(cacheMaxMemorySize: number): void {
     // alias. Sized so it still caches under `cacheMaxMemorySize: 0` (otherwise
     // it would become the no-op stub and private reloads would miss).
     reference[privateHandlerSymbol] = createDefaultCacheHandler(
-      DEV_MEMORY_CACHE_SIZE
+      DEV_MEMORY_CACHE_SIZE,
+      tags
     )
 
     // Built-in front handlers, one per custom kind, and the tiered handlers

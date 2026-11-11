@@ -1,0 +1,2 @@
+import Provider from '../provider'
+export default async function Layout({children,params}) {const {tenant}=await params;return <div data-nested-layout={tenant}><Provider label={'nested:'+tenant}>{children}</Provider></div>}

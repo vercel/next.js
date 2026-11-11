@@ -1,6 +1,14 @@
 import type { CacheHandlerValue } from '.'
+import type { CacheControl } from '../cache-control'
+import type { TagManifestEntry } from './tags-manifest.external'
 import { CachedRouteKind } from '../../response-cache/types'
 import { LRUCache } from '../lru-cache'
+
+export interface IncrementalCacheState {
+  memoryCache: LRUCache<CacheHandlerValue> | undefined
+  tagsManifest: Map<string, TagManifestEntry>
+  cacheControls: Map<string, CacheControl>
+}
 
 let memoryCache: LRUCache<CacheHandlerValue> | undefined
 
@@ -22,41 +30,41 @@ function getSegmentDataSize(segmentData: Map<string, Buffer> | undefined) {
   return size
 }
 
+export function createMemoryCache(maxMemoryCacheSize: number) {
+  return new LRUCache<CacheHandlerValue>(maxMemoryCacheSize, function length(
+    { value },
+    cacheKey
+  ) {
+    let valueSize: number
+
+    if (!value) {
+      valueSize = 25
+    } else if (value.kind === CachedRouteKind.REDIRECT) {
+      valueSize = JSON.stringify(value.props).length
+    } else if (value.kind === CachedRouteKind.IMAGE) {
+      throw new Error('invariant image should not be incremental-cache')
+    } else if (value.kind === CachedRouteKind.FETCH) {
+      valueSize = JSON.stringify(value.data || '').length
+    } else if (value.kind === CachedRouteKind.APP_ROUTE) {
+      valueSize = value.body.length
+    } else if (value.kind === CachedRouteKind.APP_PAGE) {
+      // rough estimate of size of cache value
+      valueSize = Math.max(
+        1,
+        value.html.length +
+          getBufferSize(value.rscData) +
+          (value.postponed?.length || 0) +
+          getSegmentDataSize(value.segmentData)
+      )
+    } else {
+      valueSize =
+        value.html.length + (JSON.stringify(value.pageData)?.length || 0)
+    }
+
+    return cacheKey.length + valueSize
+  })
+}
+
 export function getMemoryCache(maxMemoryCacheSize: number) {
-  if (!memoryCache) {
-    memoryCache = new LRUCache(maxMemoryCacheSize, function length(
-      { value },
-      cacheKey
-    ) {
-      let valueSize: number
-
-      if (!value) {
-        valueSize = 25
-      } else if (value.kind === CachedRouteKind.REDIRECT) {
-        valueSize = JSON.stringify(value.props).length
-      } else if (value.kind === CachedRouteKind.IMAGE) {
-        throw new Error('invariant image should not be incremental-cache')
-      } else if (value.kind === CachedRouteKind.FETCH) {
-        valueSize = JSON.stringify(value.data || '').length
-      } else if (value.kind === CachedRouteKind.APP_ROUTE) {
-        valueSize = value.body.length
-      } else if (value.kind === CachedRouteKind.APP_PAGE) {
-        // rough estimate of size of cache value
-        valueSize = Math.max(
-          1,
-          value.html.length +
-            getBufferSize(value.rscData) +
-            (value.postponed?.length || 0) +
-            getSegmentDataSize(value.segmentData)
-        )
-      } else {
-        valueSize =
-          value.html.length + (JSON.stringify(value.pageData)?.length || 0)
-      }
-
-      return cacheKey.length + valueSize
-    })
-  }
-
-  return memoryCache
+  return (memoryCache ??= createMemoryCache(maxMemoryCacheSize))
 }

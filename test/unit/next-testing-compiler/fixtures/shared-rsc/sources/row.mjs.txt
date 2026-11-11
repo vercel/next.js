@@ -1,0 +1,12 @@
+export function sharedRouteRow({ status, contentType, body }) {
+  const match = body.match(/<pre id="shared-route-values">([^<]+)<\/pre>/)
+  if (!match) throw Error('Missing actual shared RSC route row')
+  const decode = value => value.replaceAll('&quot;', '"').replaceAll('&amp;', '&').replaceAll('&#x27;', "'").replaceAll('&lt;', '<').replaceAll('&gt;', '>')
+  return {
+    status,
+    contentType,
+    layout: body.match(/data-layout="([^"]+)"/)?.[1] ?? null,
+    layoutLanguage: body.match(/data-layout-language="([^"]+)"/)?.[1] ?? null,
+    subject: JSON.parse(decode(match[1])),
+  }
+}

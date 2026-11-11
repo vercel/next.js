@@ -1,0 +1,1 @@
+{"maxWorkers":1,"projects":[{"name":"renamed-rsc","mode":"development","environment":"rsc","route":"/proof/[id]","include":["route-other.case.jsx"],"isolate":true,"testTimeout":60000,"fileTimeout":120000}]}

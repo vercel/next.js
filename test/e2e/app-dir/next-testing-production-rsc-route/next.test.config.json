@@ -1,0 +1,101 @@
+{
+  "maxWorkers": 1,
+  "projects": [
+    {
+      "name": "development-route",
+      "environment": "rsc",
+      "mode": "development",
+      "route": "/[tenant]/reference/[...slug]",
+      "include": ["route.case.jsx", "encoded.case.jsx"],
+      "fileTimeout": 60000
+    },
+    {
+      "name": "production-route",
+      "environment": "rsc",
+      "mode": "production",
+      "route": "/[tenant]/reference/[...slug]",
+      "include": ["route.case.jsx", "encoded.case.jsx"],
+      "fileTimeout": 60000
+    },
+    {
+      "name": "development-route-render",
+      "environment": "rsc",
+      "mode": "development",
+      "route": "/[tenant]/ancestor/[...slug]",
+      "include": ["route-render.case.jsx"],
+      "fileTimeout": 60000
+    },
+    {
+      "name": "production-route-render",
+      "environment": "rsc",
+      "mode": "production",
+      "route": "/[tenant]/ancestor/[...slug]",
+      "include": ["route-render.case.jsx"],
+      "fileTimeout": 60000
+    },
+    {
+      "name": "development-route-render-encoded",
+      "environment": "rsc",
+      "mode": "development",
+      "route": "/[tenant]/ancestor/[...slug]",
+      "include": ["route-render-encoded.case.jsx"],
+      "fileTimeout": 60000
+    },
+    {
+      "name": "production-route-render-encoded",
+      "environment": "rsc",
+      "mode": "production",
+      "route": "/[tenant]/ancestor/[...slug]",
+      "include": ["route-render-encoded.case.jsx"],
+      "fileTimeout": 60000
+    },
+    {
+      "name": "development-route-render-redirect",
+      "environment": "rsc",
+      "mode": "development",
+      "route": "/[tenant]/redirect/[...slug]",
+      "include": ["route-render-redirect.case.jsx"],
+      "fileTimeout": 60000
+    },
+    {
+      "name": "production-route-render-redirect",
+      "environment": "rsc",
+      "mode": "production",
+      "route": "/[tenant]/redirect/[...slug]",
+      "include": ["route-render-redirect.case.jsx"],
+      "fileTimeout": 60000
+    },
+    {
+      "name": "development-parallel-default-root",
+      "environment": "rsc",
+      "mode": "development",
+      "route": "/[tenant]/panel",
+      "include": ["route-parallel-default-root.case.jsx"],
+      "fileTimeout": 60000
+    },
+    {
+      "name": "development-parallel-default-nested",
+      "environment": "rsc",
+      "mode": "development",
+      "route": "/[tenant]/panel/[item]",
+      "include": ["route-parallel-default-nested.case.jsx"],
+      "fileTimeout": 60000
+    },
+    {
+      "name": "production-parallel-default-root",
+      "environment": "rsc",
+      "mode": "production",
+      "route": "/[tenant]/panel",
+      "include": ["route-parallel-default-root.case.jsx"],
+      "fileTimeout": 60000
+    },
+    {
+      "name": "production-parallel-default-nested",
+      "environment": "rsc",
+      "mode": "production",
+      "route": "/[tenant]/panel/[item]",
+      "include": ["route-parallel-default-nested.case.jsx"],
+      "fileTimeout": 60000
+    }
+  ]
+}

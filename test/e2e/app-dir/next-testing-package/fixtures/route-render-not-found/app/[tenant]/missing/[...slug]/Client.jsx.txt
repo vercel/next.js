@@ -1,0 +1,4 @@
+'use client'
+import {useContext} from 'react'
+import {Scope} from '../../provider'
+export default function Client({outcome}) {return <span data-provider-context={useContext(Scope)}>{outcome}</span>}

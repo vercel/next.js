@@ -118,6 +118,8 @@ export interface RenderOptsPartial {
   isPossibleServerAction?: boolean
   setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
   setIsrStatus?: (key: string, value: boolean | undefined) => void
+  /** Optional caller-owned lifetime for non-cache dynamic React rendering. */
+  renderAbortSignal?: AbortSignal
   setReactDebugChannel?: (
     debugChannel: { readable: AnyStream },
     htmlRequestId: string,

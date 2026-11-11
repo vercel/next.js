@@ -4,6 +4,7 @@ import {
 } from '../../../server/config-testing-policy'
 import { withCompilerAliases } from './aliases'
 import { materializeExternalLayout } from './external-layout'
+import { createCompiledRouteRenderOpts } from './route-render'
 import { createHash, randomUUID } from 'crypto'
 import {
   mkdir,
@@ -13,6 +14,7 @@ import {
   lstat,
   readdir,
   readFile,
+  realpath,
   writeFile,
 } from 'fs/promises'
 import {
@@ -34,16 +36,20 @@ import { generatePreviewKeys } from '../../../build/preview-key-utils'
 import { generateEncryptionKeyBase64 } from '../../../server/app-render/encryption-utils-server'
 import loadCustomRoutes from '../../../lib/load-custom-routes'
 import { setupFsCheck } from '../../../server/lib/router-utils/filesystem'
+import { writeDevRequestManifests } from '../../../server/lib/router-utils/write-dev-request-manifests'
 import { formatIssue } from '../../../shared/lib/turbopack/utils'
 import { loadTestCompilerConfig, validateTestProfile } from './watch-options'
 import { withCompilerTransforms } from './transform-config'
 import { assertTransformSource } from './transform-hooks'
+import { validateCompiledTestRoute } from '../rsc/route'
 import { usesInSourceTestMarker } from '../in-source'
 import { readSourceDependencyAsset } from '../incremental/source-selection'
 import type {
   CompiledTestArtifact,
+  CompiledTestRoute,
   CompiledTestCohort,
   CompiledNodeTestArtifact,
+  CompiledRscTestArtifact,
   CompileTestOptions,
   TestEntry,
   TestProfile,
@@ -73,7 +79,9 @@ export async function createTestCompilerSession(
   if (
     configuredCompilerEnvKeys !== undefined &&
     (configuredCompilerEnvKeys !== true ||
-      !['development', 'production'].includes(profile.mode))
+      profile.environment !== 'node' ||
+      !['development', 'production'].includes(profile.mode) ||
+      profile.route !== undefined)
   )
     throw new Error(
       'Compiler env key capture requires an ordinary Node profile and explicit true.'
@@ -132,6 +140,13 @@ export async function createTestCompilerSession(
   if (bindings.isWasm) {
     throw new Error('Test compilation requires native Turbopack bindings')
   }
+  if (
+    profile.route !== undefined &&
+    (config.cacheComponents || config.output === 'export')
+  )
+    throw new Error(
+      'Route-aware RSC tests currently require dynamic Node rendering without Cache Components or output export'
+    )
   const distDir = resolve(dir, config.distDir)
   const dev = profile.mode === 'development'
   // Use the same output lock as normal Next servers/builds, including during
@@ -213,7 +228,9 @@ export async function createTestCompilerSession(
               rewrites: fsChecker.rewrites,
               clientRouterFilters: undefined,
               // Test bodies observe function names and native error text.
-              noMangling: true,
+              noMangling:
+                profile.environment === 'node' ||
+                profile.environment === 'browser',
               ...(configuredTestingDefaultConfiguration === undefined
                 ? {}
                 : {
@@ -280,7 +297,12 @@ export async function createTestCompilerSession(
       throw new Error(
         'Transform-only compiler plugins cannot yet combine with compiler helpers, setup files, serializers, coverage or shared cohorts.'
       )
-    if (dependencyPlan && cohortEntries)
+    if (
+      dependencyPlan &&
+      ((profile.environment !== 'node' &&
+        !(profile.environment === 'browser' && false)) ||
+        cohortEntries)
+    )
       throw new Error(
         'Dependency planning currently requires isolated Node entries'
       )
@@ -307,6 +329,13 @@ export async function createTestCompilerSession(
     if (cohortEntries) {
       if (
         !inputs.length ||
+        !(
+          (profile.environment === 'node' && profile.route === undefined) ||
+          (profile.environment === 'rsc' &&
+            profile.runtime === 'nodejs' &&
+            profile.bundler === 'turbopack' &&
+            profile.route !== undefined)
+        ) ||
         profile.mode !== 'development' ||
         setupFiles.length ||
         snapshotSerializers.length ||
@@ -352,7 +381,8 @@ export async function createTestCompilerSession(
       usesInSourceTestMarker(source.toString('utf8'), entry.file)
     if (
       (entry.inSource && entry.inSourceHash !== sourceHash) ||
-      (usesInSource && entry.executionEnvironment)
+      (usesInSource &&
+        (profile.environment !== 'node' || entry.executionEnvironment))
     ) {
       throw new Error(
         'In-source test discovery does not match the selected Node source bytes'
@@ -382,7 +412,7 @@ export async function createTestCompilerSession(
       snapshotSerializers,
       inSource: usesInSource,
       dependencyPlan,
-      runtimeEnv: dev,
+      runtimeEnv: profile.environment === 'node' && dev,
       ...(configuredCompilerAliases
         ? {
             aliasFinds: configuredCompilerAliases.entries.map(
@@ -390,7 +420,8 @@ export async function createTestCompilerSession(
             ),
           }
         : {}),
-      environment: 'node',
+      environment: profile.environment,
+      ...(profile.route !== undefined ? { route: profile.route } : {}),
     })
     signal.throwIfAborted()
     await mkdir(dirname(distDir), { recursive: true })
@@ -470,13 +501,36 @@ export async function createTestCompilerSession(
             'No runnable Node.js test artifact was emitted'
         )
       }
+      const manifestPage = `/__next_test__/${nativeId}/page`
+      const manifests =
+        profile.environment === 'rsc'
+          ? {
+              ...(await writeDevRequestManifests(
+                staging,
+                compilation.fsChecker.previewProps
+              )),
+              clientReference: `server/app${manifestPage}_client-reference-manifest.js`,
+              serverActions: `server/app${manifestPage}/server-reference-manifest.json`,
+              ...(profile.route !== undefined
+                ? {
+                    routeBuild: `server/app${manifestPage}/build-manifest.json`,
+                    routeFont: `server/app${manifestPage}/next-font-manifest.json`,
+                    routeLoadable: `server/app${manifestPage}/react-loadable-manifest.json`,
+                  }
+                : {}),
+            }
+          : undefined
       const files = [
         ...new Set([
           ...output.serverPaths.map((item) => item.path),
           ...output.clientPaths,
+          ...(manifests ? [manifests.previewProps, manifests.prerender] : []),
         ]),
       ].sort()
-      for (const required of [output.entryPath]) {
+      for (const required of [
+        output.entryPath,
+        ...Object.values(manifests ?? {}),
+      ]) {
         if (!files.includes(required))
           throw new Error(`Missing test artifact: ${required}`)
       }
@@ -501,6 +555,48 @@ export async function createTestCompilerSession(
           )
         }
       }
+      let route:
+        | (CompiledTestRoute & {
+            metadataPath: string
+          })
+        | undefined
+      if (profile.route !== undefined) {
+        const metadataPath = `server/next-test/${nativeId}.route.json`
+        if (!files.includes(metadataPath))
+          throw new Error('Missing native AppProject test route metadata')
+        const metadata: unknown = JSON.parse(
+          await readFile(artifactPath(staging, metadataPath), 'utf8')
+        )
+        validateCompiledTestRoute(metadata, profile)
+        if (
+          metadata.entry.file !== file ||
+          metadata.entry.sha256 !== sourceHash
+        )
+          throw new Error(
+            'Native RSC route entry source identity does not match compilation'
+          )
+        route = { ...metadata, metadataPath }
+      }
+      async function validateRouteSources() {
+        for (const routeSource of route?.sources ?? []) {
+          const path = artifactPath(dir, routeSource.file)
+          const canonicalRoot = await realpath(dir)
+          const canonicalSource = await realpath(path)
+          const sourceRelative = relative(canonicalRoot, canonicalSource)
+          if (
+            sourceRelative === '..' ||
+            sourceRelative.startsWith(`..${sep}`) ||
+            isAbsolute(sourceRelative) ||
+            createHash('sha256')
+              .update(await readFile(path))
+              .digest('hex') !== routeSource.sha256
+          )
+            throw new Error(
+              'AppProject route source changed or escaped the project during compilation'
+            )
+        }
+      }
+      await validateRouteSources()
       const cohortMetadataPath = `server/next-test/${nativeId}.cohort.json`
       if (cohortInputs) {
         if (!files.includes(cohortMetadataPath)) {
@@ -567,9 +663,11 @@ export async function createTestCompilerSession(
             Object.keys(metadata).some(
               (key) => key !== 'moduleCache' && key !== 'dynamicModuleMocking'
             ) ||
+            profile.environment !== 'node' ||
             profile.mode !== 'production' ||
             profile.runtime !== 'nodejs' ||
             profile.bundler !== 'turbopack' ||
+            profile.route !== undefined ||
             cohortInputs ||
             setupFiles.length ||
             snapshotSerializers.length ||
@@ -591,11 +689,13 @@ export async function createTestCompilerSession(
             Object.keys(metadata.moduleCache).length !== 1 ||
             Object.keys(metadata).length !== 2 ||
             metadata.dynamicModuleMocking !== undefined ||
+            profile.environment !== 'node' ||
             !['development', 'production'].includes(profile.mode) ||
             (profile.mode === 'production' &&
               (profile.runtime !== 'nodejs' ||
                 profile.bundler !== 'turbopack' ||
                 dependencyPlan)) ||
+            profile.route !== undefined ||
             cohortInputs ||
             setupFiles.length ||
             snapshotSerializers.length ||
@@ -620,7 +720,8 @@ export async function createTestCompilerSession(
             (nativeRuntimeMocks
               ? metadata.moduleMocking?.version !== 1 ||
                 Object.keys(metadata.moduleMocking).length !== 1
-              : metadata.moduleMocking)
+              : metadata.moduleMocking) ||
+            profile.environment !== 'node'
           )
             throw new Error(
               'Invalid native runtime module mock ownership metadata'
@@ -639,12 +740,14 @@ export async function createTestCompilerSession(
         if (metadata.moduleCache !== undefined) {
           const productionReset =
             profile.mode === 'production' &&
+            profile.route === undefined &&
             ((!metadata.moduleMocking && !metadata.dynamicModuleMocking) ||
               nativeRuntimeMocks ||
               productionOriginalCommonJsRequireReset ||
               productionCompiledRuntimeMocks)
           if (
             metadata.moduleCache?.version !== 1 ||
+            profile.environment !== 'node' ||
             (profile.mode !== 'development' && !productionReset) ||
             cohortInputs ||
             (metadata.moduleMocking &&
@@ -665,9 +768,12 @@ export async function createTestCompilerSession(
         } else {
           const productionStaticFactory =
             profile.mode === 'production' &&
+            (profile.environment === 'node' ||
+              (profile.environment === 'browser' && false)) &&
             metadata.moduleMocking?.productionStaticFactory === 1 &&
             metadata.moduleMocking?.coverage === undefined &&
             metadata.moduleMocking?.cjsNamedSpy === undefined &&
+            !profile.route &&
             !setupFiles.length &&
             !snapshotSerializers.length &&
             !cohortInputs &&
@@ -675,16 +781,24 @@ export async function createTestCompilerSession(
             !entry.executionEnvironment &&
             true
           if (
-            (!['node', 'rsc'].includes('node') && !productionStaticFactory) ||
+            (!['node', 'rsc'].includes(profile.environment) &&
+              !productionStaticFactory) ||
             (profile.mode !== 'development' && !productionStaticFactory) ||
             (profile.mode !== 'production' &&
               metadata.moduleMocking?.productionStaticFactory !== undefined) ||
+            (profile.environment === 'rsc' &&
+              (profile.route !== undefined ||
+                setupFiles.length ||
+                snapshotSerializers.length ||
+                entry.executionEnvironment ||
+                usesInSource)) ||
             metadata.moduleMocking?.version !== 1
           )
             throw new Error('Invalid compiled module mocking metadata')
           if (
             metadata.moduleMocking.setupInputs !== undefined &&
             (metadata.moduleMocking.setupInputs !== 1 ||
+              profile.environment !== 'node' ||
               profile.mode !== 'development' ||
               !setupFiles.length ||
               cohortInputs ||
@@ -694,6 +808,7 @@ export async function createTestCompilerSession(
           if (
             metadata.moduleMocking.cjsNamedSpy !== undefined &&
             (metadata.moduleMocking.cjsNamedSpy !== 1 ||
+              profile.environment !== 'node' ||
               profile.mode !== 'development' ||
               cohortInputs ||
               setupFiles.length ||
@@ -809,6 +924,7 @@ export async function createTestCompilerSession(
             }))
           )
         : undefined
+      await validateRouteSources()
       await rename(staging, rootDir)
       published = true
       directories.delete(staging)
@@ -853,30 +969,100 @@ export async function createTestCompilerSession(
         },
         diagnostics,
       }
-      const artifact: CompiledTestArtifact = {
-        ...common,
-        kind: 'node',
-        ...(configuredCompilerEnvKeys && !dependencyPlan && !cohortInputs
+      const artifact: CompiledTestArtifact =
+        profile.environment === 'rsc'
           ? {
-              compilerEnvKeys: {
-                version: 1 as const,
-                names: compilation.nodejsDefineEnvKeys!,
+              ...common,
+              kind: 'rsc',
+              profile: { ...profile, environment: 'rsc' },
+              ...(cohortInputs
+                ? {
+                    cohort: {
+                      version: 1 as const,
+                      index: 0,
+                      metadataPath: cohortMetadataPath,
+                      outputs: cohortOutputs!,
+                      entries: cohortInputs,
+                    },
+                  }
+                : {}),
+              manifestPage,
+              ...(route ? { route } : {}),
+              manifests: manifests!,
+              requestContext: {
+                mode: profile.mode,
+                buildId: compilation.buildId,
+                deploymentId: config.deploymentId ?? '',
+                incrementalCache: {
+                  cacheMaxMemorySize: config.cacheMaxMemorySize,
+                  allowedRevalidateHeaderKeys:
+                    config.experimental.allowedRevalidateHeaderKeys,
+                  fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
+                  isrFlushToDisk: Boolean(config.experimental.isrFlushToDisk),
+                  customHandlersConfigured: Boolean(
+                    config.cacheHandler ||
+                      Object.values(config.cacheHandlers ?? {}).some(Boolean)
+                  ),
+                },
+                renderOpts: {
+                  cacheLifeProfiles: config.cacheLife,
+                  staticPageGenerationTimeout:
+                    config.staticPageGenerationTimeout,
+                  cacheComponents: config.cacheComponents ?? false,
+                  validationLevel:
+                    config.experimental.instantInsights.validationLevel,
+                  assetPrefix: config.assetPrefix,
+                  experimental: {
+                    authInterrupts: !!config.experimental.authInterrupts,
+                    useCacheTimeout: config.experimental.useCacheTimeout,
+                    durableUseCacheEntries: Boolean(
+                      config.experimental.durableUseCacheEntries
+                    ),
+                  },
+                },
+                ...(route
+                  ? {
+                      routeRenderOpts: createCompiledRouteRenderOpts(
+                        config,
+                        profile.mode
+                      ),
+                    }
+                  : {}),
               },
             }
-          : {}),
-        ...(cohortInputs
-          ? {
-              cohort: {
-                version: 1 as const,
-                index: 0,
-                metadataPath: cohortMetadataPath,
-                outputs: cohortOutputs!,
-                entries: cohortInputs,
-              },
+          : {
+              ...common,
+              kind: 'node',
+              ...(configuredCompilerEnvKeys && !dependencyPlan && !cohortInputs
+                ? {
+                    compilerEnvKeys: {
+                      version: 1 as const,
+                      names: compilation.nodejsDefineEnvKeys!,
+                    },
+                  }
+                : {}),
+              ...(cohortInputs
+                ? {
+                    cohort: {
+                      version: 1 as const,
+                      index: 0,
+                      metadataPath: cohortMetadataPath,
+                      outputs: cohortOutputs!,
+                      entries: cohortInputs,
+                    },
+                  }
+                : {}),
+              profile: { ...profile, environment: profile.environment },
+              ...(profile.environment === 'browser'
+                ? {
+                    applicationServer: {
+                      mode: profile.mode,
+                      distDir,
+                      lockDistDir: Boolean(config.experimental.lockDistDir),
+                    },
+                  }
+                : {}),
             }
-          : {}),
-        profile: { ...profile, environment: 'node' },
-      }
       signal.throwIfAborted()
       return artifact
     } catch (error) {
@@ -960,7 +1146,10 @@ export async function createTestCompilerSession(
           serializers,
           inputs
         )
-        if (artifact.kind !== 'node' || !artifact.cohort) {
+        if (
+          (artifact.kind !== 'node' && artifact.kind !== 'rsc') ||
+          !artifact.cohort
+        ) {
           throw new Error(
             'Shared test cohort compilation did not produce Node cohort identity'
           )
@@ -969,7 +1158,10 @@ export async function createTestCompilerSession(
         return {
           version: 1 as const,
           artifacts: cohort.entries.map(
-            (input, index): CompiledNodeTestArtifact => ({
+            (
+              input,
+              index
+            ): CompiledNodeTestArtifact | CompiledRscTestArtifact => ({
               ...artifact,
               entryId: input.entryId,
               sourceHash: input.sourceHash,
