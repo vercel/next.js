@@ -23,6 +23,7 @@ use crate::{
         KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, KEY_DELETED_REF_SIZE, KeyBlockLayout,
         MEDIUM_VALUE_REF_SIZE, SMALL_VALUE_REF_SIZE, key_block_table_stride,
     },
+    writeback::start_writeback,
 };
 
 /// Size of the per-block header on disk: 4 bytes uncompressed_size + 4 bytes CRC32 checksum.
@@ -1167,6 +1168,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         };
 
         let file = file.into_inner()?;
+        start_writeback(&file);
         self.preserve_file = true;
         Ok((meta, file))
     }

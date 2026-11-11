@@ -35,6 +35,7 @@ mod static_sorted_file_builder;
 mod value_block_count_tracker;
 mod value_buf;
 mod write_batch;
+mod writeback;
 
 #[cfg(test)]
 mod tests;
