@@ -27,7 +27,7 @@ use crate::{
 
 #[cfg(not(miri))]
 #[derive(Clone, Copy)]
-struct RayonParallelScheduler;
+pub(crate) struct RayonParallelScheduler;
 
 #[cfg(not(miri))]
 impl ParallelScheduler for RayonParallelScheduler {

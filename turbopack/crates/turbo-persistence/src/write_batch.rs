@@ -27,6 +27,7 @@ use crate::{
     parallel_scheduler::ParallelScheduler,
     shard::ShardBits,
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, write_static_stored_file},
+    writeback::start_writeback,
 };
 
 /// A newly created database file (meta, SST, or blob), carrying its on-disk size so commit can sum
@@ -519,6 +520,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         let mut file = File::create(&file)?;
         file.write_all(&buffer)?;
         file.flush()?;
+        start_writeback(&file);
         Ok(NewFile { seq, file, size })
     }
 
@@ -562,6 +564,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                     &path,
                     MetaEntryFlags::FRESH,
                     self.family_configs[usize_from_u32(family)].compression,
+                    self.parallel_scheduler.clone(),
                 )
             })
             .with_context(|| format!("Unable to write SST file {seq:08}.sst"))?;

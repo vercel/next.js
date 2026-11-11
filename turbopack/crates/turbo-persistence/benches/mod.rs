@@ -1295,6 +1295,7 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 &sst_path,
                 MetaEntryFlags::FRESH,
                 Compression::Lz4,
+                SerialScheduler,
             )
             .unwrap();
 

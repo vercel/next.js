@@ -11,6 +11,7 @@
 
 mod arc_bytes;
 pub(crate) mod be;
+mod block_writer;
 mod collector;
 mod collector_entry;
 mod compaction;
@@ -35,6 +36,7 @@ mod static_sorted_file_builder;
 mod value_block_count_tracker;
 mod value_buf;
 mod write_batch;
+mod writeback;
 
 #[cfg(test)]
 mod tests;

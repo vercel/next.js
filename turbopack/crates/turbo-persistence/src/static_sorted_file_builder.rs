@@ -12,9 +12,11 @@ use fs_err::File;
 
 use crate::{
     Compression,
-    compression::{Compressor, checksum_block},
+    block_writer::BlockWriter,
+    compression::checksum_block,
     constants::{MAX_INLINE_VALUE_SIZE, MAX_SMALL_VALUE_SIZE, MIN_SMALL_VALUE_BLOCK_SIZE},
     meta_file::MetaEntryFlags,
+    parallel_scheduler::{ParallelScheduler, SerialScheduler},
     static_sorted_file::{
         BLOB_VALUE_REF_SIZE, BLOCK_TYPE_INDEX, FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, FixedRegions,
         KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
@@ -23,6 +25,7 @@ use crate::{
         KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, KEY_DELETED_REF_SIZE, KeyBlockLayout,
         MEDIUM_VALUE_REF_SIZE, SMALL_VALUE_REF_SIZE, key_block_table_stride,
     },
+    writeback::start_writeback,
 };
 
 /// Size of the per-block header on disk: 4 bytes uncompressed_size + 4 bytes CRC32 checksum.
@@ -345,14 +348,16 @@ pub struct StaticSortedFileBuilderMeta<'a> {
 /// [`StreamingSstWriter::add`].
 ///
 /// This is a convenience wrapper around [`StreamingSstWriter`] for callers that already have all
-/// entries in memory.
+/// entries in memory. Blocks are compressed in parallel on `scheduler`, see
+/// [`StreamingSstWriter::new_with_scheduler`].
 // TODO: Consider adding a variant that takes ownership (Vec<E> or drain iterator)
 // to free entry memory as blocks are written.
-pub fn write_static_stored_file<E: Entry>(
+pub fn write_static_stored_file<E: Entry, S: ParallelScheduler>(
     entries: &[E],
     file: &Path,
     flags: MetaEntryFlags,
     compression: Compression,
+    scheduler: S,
 ) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
     debug_assert!(
         entries
@@ -360,7 +365,13 @@ pub fn write_static_stored_file<E: Entry>(
             .map(|e| (e.key_hash(), e.key_bytes()))
             .is_sorted()
     );
-    let mut writer = StreamingSstWriter::new(file, flags, entries.len() as u64, compression)?;
+    let mut writer = StreamingSstWriter::new_with_scheduler(
+        file,
+        flags,
+        entries.len() as u64,
+        compression,
+        scheduler,
+    )?;
     for entry in entries {
         if let Err(err) = writer.add(entry) {
             writer.cancel();
@@ -368,77 +379,6 @@ pub fn write_static_stored_file<E: Entry>(
         }
     }
     writer.close()
-}
-
-// ---------------------------------------------------------------------------
-// Block I/O helpers (free functions for borrow-checker friendliness)
-// ---------------------------------------------------------------------------
-
-/// Writes a raw (already-formatted) block to the file. Returns the block index assigned.
-///
-/// `uncompressed_size` is the original uncompressed size of the block data, or `0` if the block
-/// is stored uncompressed.
-fn write_raw_block_to_file(
-    file: &mut BufWriter<File>,
-    block_offsets: &mut Vec<u32>,
-    uncompressed_size: u32,
-    checksum: u32,
-    block: &[u8],
-) -> Result<u16> {
-    let block_index: u16 = block_offsets
-        .len()
-        .try_into()
-        .expect("Block index overflow");
-
-    let len: u32 = (block.len() + BLOCK_HEADER_SIZE).try_into().unwrap();
-    let offset = block_offsets
-        .last()
-        .copied()
-        .unwrap_or_default()
-        .checked_add(len)
-        .expect("Block offset overflow");
-    block_offsets.push(offset);
-
-    file.write_u32::<BE>(uncompressed_size)
-        .context("Failed to write uncompressed size")?;
-    file.write_u32::<BE>(checksum)
-        .context("Failed to write checksum")?;
-    file.write_all(block)
-        .context("Failed to write block data")?;
-    Ok(block_index)
-}
-
-/// Writes a block to the file, optionally compressing it. Returns the block index assigned.
-fn write_block_to_file(
-    file: &mut BufWriter<File>,
-    compress_buffer: &mut Vec<u8>,
-    block_offsets: &mut Vec<u32>,
-    block: &[u8],
-    try_compress: bool,
-    compressor: &mut Compressor,
-) -> Result<u16> {
-    let (uncompressed_size, data_to_write): (u32, &[u8]) = if try_compress {
-        compressor.compress_into_buffer(block, compress_buffer)?;
-        // Same threshold as LevelDB/RocksDB: require at least 12.5% savings.
-        if compress_buffer.len() < block.len() - (block.len() / 8) {
-            (block.len().try_into().unwrap(), compress_buffer)
-        } else {
-            (0, block)
-        }
-    } else {
-        (0, block)
-    };
-
-    // Checksum is computed on the on-disk data (after compression).
-    let checksum = checksum_block(data_to_write);
-
-    write_raw_block_to_file(
-        file,
-        block_offsets,
-        uncompressed_size,
-        checksum,
-        data_to_write,
-    )
 }
 
 // ---------------------------------------------------------------------------
@@ -550,16 +490,19 @@ struct PendingEntry<E> {
 ///
 /// The SST reader is block-index-addressed (not file-position-addressed), so interleaving block
 /// types is fully compatible.
-pub struct StreamingSstWriter<E: Entry> {
+///
+/// Block indices are assigned in submission order, but blocks may be compressed and written in
+/// batches, in parallel on the scheduler `S` (see [`BlockWriter`]). The file contents don't depend
+/// on the scheduler.
+pub struct StreamingSstWriter<E: Entry, S: ParallelScheduler = SerialScheduler> {
     // File I/O. Wrapped in Option so close() can take ownership without a partial-move
     // compile error (partial moves are forbidden when the type has a Drop impl).
     file: Option<BufWriter<File>>,
     file_path: PathBuf,
     /// Whether close() successfully finalized the SST, so Drop must preserve the file.
     preserve_file: bool,
-    compress_buffer: Vec<u8>,
-    block_offsets: Vec<u32>,
-    compressor: Compressor,
+    /// Assigns block indices, compresses the blocks and writes them to `file`.
+    blocks: BlockWriter<S>,
 
     /// Pending key entries waiting to be flushed as key blocks.
     ///
@@ -636,7 +579,8 @@ pub struct StreamingSstWriter<E: Entry> {
 }
 
 impl<E: Entry> StreamingSstWriter<E> {
-    /// Creates a new streaming SST writer.
+    /// Creates a new streaming SST writer that compresses and writes each block on the calling
+    /// thread.
     ///
     /// `max_entry_count` is used to pre-allocate buffers and estimate block counts.
     pub fn new(
@@ -645,9 +589,27 @@ impl<E: Entry> StreamingSstWriter<E> {
         max_entry_count: u64,
         compression: Compression,
     ) -> Result<Self> {
+        Self::new_with_scheduler(file, flags, max_entry_count, compression, SerialScheduler)
+    }
+}
+
+impl<E: Entry, S: ParallelScheduler> StreamingSstWriter<E, S> {
+    /// Creates a new streaming SST writer that compresses blocks in parallel on `scheduler`.
+    ///
+    /// Blocks are buffered in a bounded queue and compressed in batches, so a single large file
+    /// can use idle threads. With a single-threaded scheduler every block is compressed and
+    /// written when it's submitted.
+    ///
+    /// `max_entry_count` is used to pre-allocate buffers and estimate block counts.
+    pub fn new_with_scheduler(
+        file: &Path,
+        flags: MetaEntryFlags,
+        max_entry_count: u64,
+        compression: Compression,
+        scheduler: S,
+    ) -> Result<Self> {
         let file_path = file.to_owned();
         let file = BufWriter::with_capacity(FILE_WRITE_BUFFER_SIZE, File::create(file)?);
-        let compressor = Compressor::new(compression)?;
 
         // Estimate number of key blocks based on max entry count.
         // Each key block holds up to MAX_KEY_BLOCK_ENTRIES entries.
@@ -666,9 +628,12 @@ impl<E: Entry> StreamingSstWriter<E> {
             file: Some(file),
             file_path,
             preserve_file: false,
-            compress_buffer: Vec::with_capacity(MIN_SMALL_VALUE_BLOCK_SIZE + MAX_SMALL_VALUE_SIZE),
-            block_offsets: Vec::with_capacity(estimated_total_blocks),
-            compressor,
+            blocks: BlockWriter::new(
+                compression,
+                scheduler,
+                estimated_total_blocks,
+                MIN_SMALL_VALUE_BLOCK_SIZE + MAX_SMALL_VALUE_SIZE,
+            )?,
             pending_keys: VecDeque::with_capacity(entries_per_value_block),
             first_pending_small_index: 0,
             #[cfg(debug_assertions)]
@@ -710,7 +675,7 @@ impl<E: Entry> StreamingSstWriter<E> {
     /// index. Uses the exact count of blocks already written plus a conservative estimate of
     /// blocks still needed for pending entries and the index.
     fn has_block_index_capacity(&self) -> bool {
-        let blocks_written = self.block_offsets.len();
+        let blocks_written = self.blocks.block_count();
         // Blocks still needed:
         // - 1 pending small value block (if buffer is non-empty)
         // - key blocks for pending entries (upper bound from both entry count and byte size)
@@ -751,15 +716,10 @@ impl<E: Entry> StreamingSstWriter<E> {
         let value_ref = match entry.value() {
             EntryValue::Medium { value } => {
                 self.total_value_size += value.len();
-                let block_index = write_block_to_file(
-                    self.file.as_mut().unwrap(),
-                    &mut self.compress_buffer,
-                    &mut self.block_offsets,
-                    value,
-                    true,
-                    &mut self.compressor,
-                )
-                .context("Failed to write value block")?;
+                let block_index = self
+                    .blocks
+                    .write_block(self.file.as_mut().unwrap(), value, true)
+                    .context("Failed to write value block")?;
                 ValueRef::Medium { block_index }
             }
             EntryValue::MediumRaw {
@@ -770,14 +730,15 @@ impl<E: Entry> StreamingSstWriter<E> {
                 // Note: tracks compressed block size (not uncompressed) unlike EntryValue::Medium.
                 // Both are acceptable approximations of disk usage for is_full() thresholds.
                 self.total_value_size += block.len();
-                let block_index = write_raw_block_to_file(
-                    self.file.as_mut().unwrap(),
-                    &mut self.block_offsets,
-                    uncompressed_size,
-                    checksum,
-                    block,
-                )
-                .context("Failed to write compressed value block")?;
+                let block_index = self
+                    .blocks
+                    .write_raw_block(
+                        self.file.as_mut().unwrap(),
+                        uncompressed_size,
+                        checksum,
+                        block,
+                    )
+                    .context("Failed to write compressed value block")?;
                 ValueRef::Medium { block_index }
             }
             EntryValue::Small { value } => {
@@ -934,15 +895,14 @@ impl<E: Entry> StreamingSstWriter<E> {
             return Ok(());
         }
 
-        let block_index = write_block_to_file(
-            self.file.as_mut().unwrap(),
-            &mut self.compress_buffer,
-            &mut self.block_offsets,
-            &self.pending_small_value_block,
-            true,
-            &mut self.compressor,
-        )
-        .context("Failed to write small value block")?;
+        let block_index = self
+            .blocks
+            .write_block(
+                self.file.as_mut().unwrap(),
+                &self.pending_small_value_block,
+                true,
+            )
+            .context("Failed to write small value block")?;
 
         // Resolve all PendingSmall entries for this block in-place.
         // Only scan from first_pending_small_index -- entries before it are guaranteed
@@ -1052,15 +1012,10 @@ impl<E: Entry> StreamingSstWriter<E> {
             builder.finish();
         }
 
-        let block_index = write_block_to_file(
-            self.file.as_mut().unwrap(),
-            &mut self.compress_buffer,
-            &mut self.block_offsets,
-            &self.key_buffer,
-            try_compress,
-            &mut self.compressor,
-        )
-        .context("Failed to write key block")?;
+        let block_index = self
+            .blocks
+            .write_block(self.file.as_mut().unwrap(), &self.key_buffer, try_compress)
+            .context("Failed to write key block")?;
         self.key_block_boundaries.push((first_hash, block_index));
 
         Ok(())
@@ -1103,26 +1058,23 @@ impl<E: Entry> StreamingSstWriter<E> {
             }
         }
         let index_checksum = checksum_block(&index_buf);
-        write_raw_block_to_file(
-            &mut file,
-            &mut self.block_offsets,
-            0,
-            index_checksum,
-            &index_buf,
-        )
-        .context("Failed to write index block")?;
+        // Writes the queued blocks first, so the index block stays the last block.
+        let block_offsets = self
+            .blocks
+            .finish(&mut file, 0, index_checksum, &index_buf)
+            .context("Failed to write index block")?;
 
         // Write block offset table
-        for offset in &self.block_offsets {
+        for offset in block_offsets {
             file.write_u32::<BE>(*offset)
                 .context("Failed to write block offset")?;
         }
 
-        let block_count: u16 = self
-            .block_offsets
+        let block_count: u16 = block_offsets
             .len()
             .try_into()
             .expect("Block count overflow");
+        let last_block_end = block_offsets.last().copied().unwrap_or_default() as u64;
 
         // Build AMQF from collected hashes using sorted Builder insertion.
         // Hashes are already sorted by key_hash (SST invariant), but fingerprints
@@ -1151,7 +1103,6 @@ impl<E: Entry> StreamingSstWriter<E> {
 
         // Compute file size from block offsets rather than calling stream_position()
         // (which requires a flush + seek).
-        let last_block_end = self.block_offsets.last().copied().unwrap_or_default() as u64;
         let offset_table_size = block_count as u64 * size_of::<u32>() as u64;
         let file_size = last_block_end + offset_table_size;
 
@@ -1167,6 +1118,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         };
 
         let file = file.into_inner()?;
+        start_writeback(&file);
         self.preserve_file = true;
         Ok((meta, file))
     }
@@ -1222,7 +1174,7 @@ impl<E: Entry> StreamingSstWriter<E> {
     }
 }
 
-impl<E: Entry> Drop for StreamingSstWriter<E> {
+impl<E: Entry, S: ParallelScheduler> Drop for StreamingSstWriter<E, S> {
     fn drop(&mut self) {
         if !self.preserve_file {
             self.discard_partial_file();
@@ -2092,6 +2044,106 @@ mod tests {
         writer.close().unwrap();
     }
 
+    /// Entries covering every block kind, with compressible and incompressible values, and enough
+    /// data to fill the parallel compression queue many times. Some medium values are larger than
+    /// the queue's per-block limit, so they are written around the queue.
+    #[cfg(not(miri))]
+    fn parallel_compression_entries() -> Vec<TestEntry> {
+        let mut state = 0x2545_f491_4f6c_dd1du64;
+        let mut random_bytes = |len: usize| {
+            (0..len)
+                .map(|_| {
+                    state ^= state << 13;
+                    state ^= state >> 7;
+                    state ^= state << 17;
+                    state as u8
+                })
+                .collect::<Vec<_>>()
+        };
+        let mut entries = Vec::new();
+        for i in 0..6000usize {
+            let key = format!("key-{i:06}");
+            let key = key.as_bytes();
+            let compressible = format!("value {i} ").repeat(1 + i % 400).into_bytes();
+            entries.push(match i % 12 {
+                0 => TestEntry::inline(key, &(i as u32).to_be_bytes()),
+                1 => TestEntry::medium(key, &format!("medium {i} ").repeat(1000).into_bytes()),
+                2 => TestEntry::small(key, &random_bytes(1 + i % MAX_SMALL_VALUE_SIZE)),
+                3 => TestEntry::medium(key, &random_bytes(5000 + i)),
+                4 => TestEntry::medium_raw(key, &random_bytes(100 + i % 1000)),
+                5 => TestEntry::blob(key, i as u32),
+                6 => TestEntry::deleted(key),
+                _ => TestEntry::small(key, &compressible[..compressible.len().min(4000)]),
+            });
+        }
+        for i in 0..3usize {
+            let key = format!("huge-{i}");
+            entries.push(TestEntry::medium(
+                key.as_bytes(),
+                &format!("huge medium value {i} ")
+                    .repeat(20_000)
+                    .into_bytes(),
+            ));
+        }
+        sort_entries(&mut entries);
+        entries
+    }
+
+    /// Compressing blocks in parallel must produce exactly the same file as compressing each block
+    /// on submission.
+    #[cfg(not(miri))]
+    #[test]
+    fn parallel_compression_writes_identical_file() -> Result<()> {
+        let entries = parallel_compression_entries();
+        for compression in [Compression::Lz4, Compression::Zstd3] {
+            let dir = tempfile::tempdir()?;
+            let serial_path = dir.path().join("00000001.sst");
+            let (serial_meta, _) = write_static_stored_file(
+                &entries,
+                &serial_path,
+                MetaEntryFlags::FRESH,
+                compression,
+                SerialScheduler,
+            )?;
+            let parallel_path = dir.path().join("00000002.sst");
+            let (parallel_meta, _) = write_static_stored_file(
+                &entries,
+                &parallel_path,
+                MetaEntryFlags::FRESH,
+                compression,
+                crate::tests::RayonParallelScheduler,
+            )?;
+
+            assert!(
+                std::fs::read(&serial_path)? == std::fs::read(&parallel_path)?,
+                "{compression:?}: parallel compression changed the file contents"
+            );
+            assert_eq!(serial_meta.block_count, parallel_meta.block_count);
+            assert_eq!(serial_meta.size, parallel_meta.size);
+            assert_eq!(serial_meta.amqf, parallel_meta.amqf);
+            assert_eq!(serial_meta.entries, parallel_meta.entries);
+            assert_eq!(serial_meta.tombstones, parallel_meta.tombstones);
+            // Many queue flushes, so the test exercises the batched path.
+            assert!(parallel_meta.block_count > 1000);
+
+            let sst = StaticSortedFile::open(
+                dir.path(),
+                StaticSortedFileMetaData {
+                    sequence_number: 2,
+                    block_count: parallel_meta.block_count,
+                },
+                compression,
+                crate::mmap_access_mode(),
+            )?;
+            let kc = make_cache();
+            let vc = make_cache();
+            for entry in &entries {
+                assert_lookup(&sst, entry, &kc, &vc)?;
+            }
+        }
+        Ok(())
+    }
+
     #[test]
     fn write_static_stored_file_matches_streaming() -> Result<()> {
         let dir = tempfile::tempdir()?;
@@ -2117,6 +2169,7 @@ mod tests {
             &batch_path,
             MetaEntryFlags::default(),
             Compression::Lz4,
+            SerialScheduler,
         )?;
 
         // Write via streaming API

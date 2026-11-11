@@ -14,6 +14,7 @@ use turbo_tasks::{
     macro_helpers::NativeFunction,
     panic_hooks::{PanicHookGuard, register_panic_hook},
     parallel,
+    scope_bounded::scope_bounded,
 };
 
 use crate::{
@@ -262,82 +263,89 @@ impl TurboBackingStorage {
 
         {
             let span = tracing::trace_span!("update task data");
-            let mut snapshot_meta =
-                parallel::map_collect_owned::<_, _, Result<Vec<_>>>(snapshots, |shard: I| {
-                    let _span = span.clone().entered();
-                    let mut max_new_task_id = 0;
-                    let mut data_items = 0;
-                    let mut meta_items = 0;
-                    let mut task_cache_items = 0;
-                    for item in shard {
-                        match item {
-                            SnapshotItem::Put {
-                                task_id,
-                                meta,
-                                data,
-                                task_type_hash,
-                                ..
-                            } => {
-                                let key = IntKey::new(*task_id);
-                                let key = key.as_ref();
-                                if let Some(meta) = meta {
-                                    batch.put(
-                                        KeySpace::TaskMeta,
-                                        WriteBuffer::Borrowed(key),
-                                        WriteBuffer::Owned(meta),
-                                    )?;
-                                    meta_items += 1;
-                                }
-                                if let Some(data) = data {
-                                    batch.put(
-                                        KeySpace::TaskData,
-                                        WriteBuffer::Borrowed(key),
-                                        WriteBuffer::Owned(data),
-                                    )?;
-                                    data_items += 1;
-                                }
-                                // Register the task type only for new tasks.
-                                if let Some(task_type_hash) = task_type_hash {
-                                    batch.put(
-                                        KeySpace::TaskCache,
-                                        WriteBuffer::Borrowed(&task_type_hash),
-                                        WriteBuffer::Borrowed(key),
-                                    )?;
-                                    task_cache_items += 1;
-                                    max_new_task_id = max_new_task_id.max(*task_id);
-                                }
+            let write_shards = |shards: Vec<I>| -> Result<SnapshotMeta> {
+                let _span = span.clone().entered();
+                let mut max_new_task_id = 0;
+                let mut data_items = 0;
+                let mut meta_items = 0;
+                let mut task_cache_items = 0;
+                for item in shards.into_iter().flatten() {
+                    match item {
+                        SnapshotItem::Put {
+                            task_id,
+                            meta,
+                            data,
+                            task_type_hash,
+                            ..
+                        } => {
+                            let key = IntKey::new(*task_id);
+                            let key = key.as_ref();
+                            if let Some(meta) = meta {
+                                batch.put(
+                                    KeySpace::TaskMeta,
+                                    WriteBuffer::Borrowed(key),
+                                    WriteBuffer::Owned(meta),
+                                )?;
+                                meta_items += 1;
                             }
-                            SnapshotItem::Delete {
-                                task_id,
-                                task_type_hash,
-                            } => {
-                                let key = IntKey::new(*task_id);
-                                let key = key.as_ref();
-                                batch.delete(KeySpace::TaskMeta, WriteBuffer::Borrowed(key))?;
-                                batch.delete(KeySpace::TaskData, WriteBuffer::Borrowed(key))?;
-                                // TaskCache is MultiValue, delete just this id from the bucket.
-                                batch.delete_value(
+                            if let Some(data) = data {
+                                batch.put(
+                                    KeySpace::TaskData,
+                                    WriteBuffer::Borrowed(key),
+                                    WriteBuffer::Owned(data),
+                                )?;
+                                data_items += 1;
+                            }
+                            // Register the task type only for new tasks.
+                            if let Some(task_type_hash) = task_type_hash {
+                                batch.put(
                                     KeySpace::TaskCache,
-                                    WriteBuffer::Borrowed(&task_type_hash[..]),
+                                    WriteBuffer::Borrowed(&task_type_hash),
                                     WriteBuffer::Borrowed(key),
                                 )?;
+                                task_cache_items += 1;
+                                max_new_task_id = max_new_task_id.max(*task_id);
                             }
                         }
+                        SnapshotItem::Delete {
+                            task_id,
+                            task_type_hash,
+                        } => {
+                            let key = IntKey::new(*task_id);
+                            let key = key.as_ref();
+                            batch.delete(KeySpace::TaskMeta, WriteBuffer::Borrowed(key))?;
+                            batch.delete(KeySpace::TaskData, WriteBuffer::Borrowed(key))?;
+                            // TaskCache is MultiValue, delete just this id from the bucket.
+                            batch.delete_value(
+                                KeySpace::TaskCache,
+                                WriteBuffer::Borrowed(&task_type_hash[..]),
+                                WriteBuffer::Borrowed(key),
+                            )?;
+                        }
                     }
-                    Ok(SnapshotMeta {
-                        data_items,
-                        meta_items,
-                        task_cache_items,
-                        // The on-disk byte totals aren't known until the batch is committed
-                        // below; they're filled in from `CommitStats` after `batch.commit()`.
-                        bytes_written: 0,
-                        bytes_deleted: 0,
-                        max_next_task_id: max_new_task_id,
-                    })
-                })?
-                .into_iter()
-                .reduce(|t1, t2| t1.merge(t2))
-                .unwrap_or_default();
+                }
+                Ok(SnapshotMeta {
+                    data_items,
+                    meta_items,
+                    task_cache_items,
+                    // The on-disk byte totals aren't known until the batch is committed
+                    // below; they're filled in from `CommitStats` after `batch.commit()`.
+                    bytes_written: 0,
+                    bytes_deleted: 0,
+                    max_next_task_id: max_new_task_id,
+                })
+            };
+            let write_shards = &write_shards;
+            let jobs = into_jobs(snapshots);
+            let mut snapshot_meta = scope_bounded(jobs.len(), |scope| {
+                for job in jobs {
+                    scope.spawn(move || write_shards(job));
+                }
+            })
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
+            .reduce(|t1, t2| t1.merge(t2))
+            .unwrap_or_default();
 
             let span = tracing::trace_span!("flush task data");
             parallel::try_for_each(
@@ -464,6 +472,30 @@ impl TurboBackingStorage {
 
     pub(crate) fn has_unrecoverable_write_error(&self) -> bool {
         self.inner.database.has_unrecoverable_write_error()
+    }
+}
+
+/// How many jobs per thread [`TurboBackingStorage::save_snapshot`] splits the snapshot shards into.
+///
+/// Encoding and writing the tasks of the shards is most of the work of persisting. The amount of
+/// data per shard varies, and threads pick jobs from a shared queue, so the job a thread picks last
+/// decides when it finishes: with a few large jobs per thread, most threads sit idle while the last
+/// ones complete. Many small jobs keep that tail short, at a negligible scheduling cost.
+const SNAPSHOT_JOBS_PER_THREAD: usize = 32;
+
+/// Splits the snapshot shards into consecutive groups, see [`SNAPSHOT_JOBS_PER_THREAD`].
+fn into_jobs<T>(shards: Vec<T>) -> Vec<Vec<T>> {
+    let threads = parallel::available_parallelism().map_or(4, |count| count.get());
+    let job_count = (threads * SNAPSHOT_JOBS_PER_THREAD).clamp(1, shards.len().max(1));
+    let job_size = shards.len().div_ceil(job_count).max(1);
+    let mut shards = shards.into_iter();
+    let mut jobs = Vec::with_capacity(job_count);
+    loop {
+        let job = shards.by_ref().take(job_size).collect::<Vec<_>>();
+        if job.is_empty() {
+            return jobs;
+        }
+        jobs.push(job);
     }
 }
 
