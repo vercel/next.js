@@ -1,0 +1,56 @@
+---
+title: No top-level `await` in MCP modules
+---
+
+> Prevent top-level `await` in `@next/mcp` tool and route modules, which delays every cold start of the MCP route.
+
+## Why This Error Occurred
+
+The `@next/next/no-top-level-await-in-mcp` ESLint rule warns when a file that defines an MCP tool with `defineTool`, or an MCP route with `mcpRoute`, uses `await` (or `for await`) at the top level. Type-only imports do not classify a file as a tool or route module.
+
+An MCP route loads its tool modules when it starts, so top-level `await` in any of them holds up the route's first response on every cold start. The same code also runs during `next build`, when Next.js loads route modules.
+
+```ts filename="app/mcp/tools/get_flags.ts"
+import { defineTool } from '@next/mcp/tools'
+import { z } from 'zod'
+
+// Blocks every cold start of the MCP route.
+const flags = await fetch('https://flags.example.com').then((res) => res.json())
+
+export default defineTool({
+  description: 'Read feature flags.',
+  inputSchema: z.object({}),
+  execute: () => flags,
+})
+```
+
+## Possible Ways to Fix It
+
+The rule provides warnings, not automatic fixes or editor suggestions. Move the work manually to where it is needed: into `execute()` in a tool, or into the auth function or tool that needs it in a route module. Preserve initialization order so dependent work still waits for setup to finish. To share a result across calls and avoid repeating setup or constructing a client on every call, cache the promise on first use:
+
+```ts filename="app/mcp/tools/get_flags.ts"
+import { defineTool } from '@next/mcp/tools'
+import { z } from 'zod'
+
+let flags: Promise<unknown> | undefined
+
+export default defineTool({
+  description: 'Read feature flags.',
+  inputSchema: z.object({}),
+  execute: () =>
+    (flags ??= fetch('https://flags.example.com')
+      .then((res) => res.json())
+      .catch((error) => {
+        flags = undefined // retry on the next call instead of caching the failure
+        throw error
+      })),
+})
+```
+
+Moving `await` into a helper is not enough if module-scope code still invokes that helper: the work still starts when the module loads, even if nothing awaits it there. Call the helper only when the request or tool execution needs it. Likewise, a lazy-imported module with top-level setup is deferred only if its first import happens on that request or execution path, not at module scope.
+
+When setup depends on other initialization, preserve that sequence rather than running dependent operations in parallel. If you also replace static imports with `import()`, preserve import attributes and live export semantics, and move parameter default expressions into function bodies while preserving when and in what order defaults run. See [`defer-mcp-tool-imports`](/docs/messages/defer-mcp-tool-imports) for migration guidance.
+
+## Useful Links
+
+- [`defer-mcp-tool-imports`](/docs/messages/defer-mcp-tool-imports)

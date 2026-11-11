@@ -1,0 +1,107 @@
+---
+title: Defer imports that only an MCP tool's `execute()` uses
+---
+
+> Load modules that only an `@next/mcp` tool’s `execute()` uses with `await import()`, so they do not lengthen the MCP route’s cold start.
+
+## Why This Error Occurred
+
+The `@next/next/defer-mcp-tool-imports` ESLint rule warns when a file that defines an MCP tool with `defineTool` imports a module at the top level, but only uses it inside `execute()`, or inside helper functions that only `execute()` calls. It also warns about module-scope setup, such as constructing an SDK client, that only `execute()` uses. Type-only imports do not classify a file as a tool module.
+
+An MCP route loads every tool module when it starts, because `tools/list` needs each tool's description and input schema. Everything a tool file does at the top level therefore runs on every cold start of the route, even for requests that never call that tool. One tool that imports a cloud SDK or a database client slows down every tool on the server.
+
+```ts filename="app/mcp/tools/upload_file.ts"
+import { defineTool } from '@next/mcp/tools'
+import { z } from 'zod'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { db } from '@/lib/db'
+
+// Runs on every cold start, only so execute() can use it.
+const s3 = new S3Client({})
+
+export default defineTool({
+  description: 'Upload a file.',
+  inputSchema: z.object({ name: z.string(), body: z.string() }),
+  async execute({ name, body }) {
+    await s3.send(
+      new PutObjectCommand({ Bucket: 'files', Key: name, Body: body })
+    )
+    return db.file.create({ data: { name } })
+  },
+})
+```
+
+## Possible Ways to Fix It
+
+Keep the description, schemas, and their dependencies at the top level of a tool file. Load dependencies used only during execution inside `execute()` with `await import()`, or inside a helper called only during execution. Move clients into a shared module that is first imported during execution, so it constructs them on first import and reuses them for later calls:
+
+```ts filename="lib/s3.ts"
+import { S3Client } from '@aws-sdk/client-s3'
+
+export const s3 = new S3Client({})
+```
+
+```ts filename="app/mcp/tools/upload_file.ts"
+import { defineTool } from '@next/mcp/tools'
+import { z } from 'zod'
+
+export default defineTool({
+  description: 'Upload a file.',
+  inputSchema: z.object({ name: z.string(), body: z.string() }),
+  async execute({ name, body }) {
+    const [{ s3 }, { PutObjectCommand }, { db }] = await Promise.all([
+      import('@/lib/s3'),
+      import('@aws-sdk/client-s3'),
+      import('@/lib/db'),
+    ])
+    await s3.send(
+      new PutObjectCommand({ Bucket: 'files', Key: name, Body: body })
+    )
+    return db.file.create({ data: { name } })
+  },
+})
+```
+
+Load modules with `Promise.all` only when their initialization is independent. If one module's setup must finish before another starts, keep that order with sequential imports.
+
+The rule provides warnings, not automatic fixes or editor suggestions. Review each warning and move the code manually, preserving its behavior:
+
+- Preserve import attributes. For example, replace `import config from './config.json' with { type: 'json' }` with `const { default: config } = await import('./config.json', { with: { type: 'json' } })`.
+- Preserve live export semantics. Destructuring the result of `import()` captures the current value rather than a live binding. For mutable exports, keep the module namespace, such as `const state = await import('@/lib/state')`, and read `state.current` whenever the latest value is needed.
+- Preserve initialization order and client reuse. Do not construct a new client on every call if the original code shared one. Ensure any required setup still completes before the client is used.
+- Check module-scope callers. Lazy-importing inside a helper does not defer module-scope setup that invokes that helper. Move the setup and its invocation into the execution path too, caching a result or promise when it must be shared across calls.
+
+If an imported value is used in a parameter default expression, move that expression into the function body before lazy-loading its dependency. `await` is not allowed in parameter initializers. Preserve default-argument semantics: evaluate the default only for a missing or `undefined` argument, not for `null` or other falsy values, and preserve the order of dependent defaults and side effects. For example:
+
+```ts filename="lib/read-record.ts"
+export async function readRecord(id?: string) {
+  if (id === undefined) {
+    const { getDefaultId } = await import('@/lib/default-id')
+    id = getDefaultId()
+  }
+  const { db } = await import('@/lib/db')
+  return db.record.findUnique({ where: { id } })
+}
+```
+
+This preserves the default evaluation condition of `id = getDefaultId()` without loading its dependency when an ID is provided. Review more complex defaults, including destructuring, before moving them.
+
+The rule conservatively leaves imports unchanged when they are also used by tool metadata, such as `description`, `inputSchema`, or `outputSchema`, or by `approval`. Approval callbacks run at tool-call time, not when the module loads, but dependencies they share with `execute()` are still excluded from warnings. Review those dependencies separately if you want to defer them safely.
+
+Type-only imports, side-effect imports, `next`, `@next/mcp`, `zod`, and Node.js built-in modules are also excluded. To allow more modules, pass `allow`:
+
+```js filename="eslint.config.mjs"
+export default [
+  {
+    rules: {
+      '@next/next/defer-mcp-tool-imports': ['warn', { allow: ['@/lib/flags'] }],
+    },
+  },
+]
+```
+
+The rule sees one file at a time. It cannot tell a small helper module from one that pulls in a database client, and it cannot tell when another module, such as the route's auth function, already loads the same dependency eagerly. In that case deferring it saves nothing.
+
+## Useful Links
+
+- [Dynamic `import()`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Operators/import)
