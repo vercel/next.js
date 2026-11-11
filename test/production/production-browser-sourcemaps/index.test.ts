@@ -45,6 +45,8 @@ async function validateSourceMapForChunk(
     }
     return
   }
+  // Source map upload tools pair `<chunk>.js.map` with `<chunk>.js` by name
+  expect(sourceMappingURL).toBe(`${path.basename(file)}.map`)
   const mapPath = path.join(path.dirname(jsFilePath), sourceMappingURL)
   if ((await fs.pathExists(mapPath)) !== productionBrowserSourceMaps) {
     throw new Error(`Source map presence mismatch for ${jsFilePath}.`)

@@ -152,9 +152,8 @@ impl EcmascriptBuildNodeRuntimeChunk {
         let this = self.await?;
         Ok(SourceMapAsset::new(
             Vc::upcast(*this.chunking_context),
-            self.ident_for_path(),
             Vc::upcast(self),
-            rcstr!(".js"),
+            Vc::upcast(self),
         ))
     }
 }

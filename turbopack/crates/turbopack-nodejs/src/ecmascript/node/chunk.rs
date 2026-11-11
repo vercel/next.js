@@ -50,14 +50,8 @@ impl EcmascriptBuildNodeChunk {
         let this = self.await?;
         Ok(SourceMapAsset::new(
             Vc::upcast(*this.chunking_context),
-            this.chunk
-                .ident()
-                .owned()
-                .await?
-                .with_modifier(modifier())
-                .into_vc(),
             Vc::upcast(self),
-            rcstr!(".js"),
+            Vc::upcast(self),
         ))
     }
 }

@@ -16,7 +16,9 @@ use turbo_tasks_fs::{
     File, FileContent,
     rope::{Rope, RopeBuilder},
 };
-use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash128};
+use turbo_tasks_hash::{
+    DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash128,
+};
 
 use crate::{
     code_builder::source_map_sections::Mappings,
@@ -445,6 +447,42 @@ impl Code {
         } else {
             None
         })
+    }
+
+    /// Hashes this code to name a content-hashed chunk. Chunks return this from
+    /// [`Asset::content_hash`](crate::asset::Asset::content_hash).
+    ///
+    /// The emitted chunk ends with a `sourceMappingURL` comment pointing to its source map, which
+    /// is named after the chunk (`<chunk>.map`). Hashing the emitted content would make the chunk's
+    /// name depend on itself, so this hashes what the emitted content is derived from instead: the
+    /// code, whether a debug id is added, and the emitted source map. Hashing the source map gives
+    /// the chunk and its source map new names when only the source map changes.
+    #[turbo_tasks::function]
+    pub async fn chunk_content_hash(
+        self: ResolvedVc<Self>,
+        emitted_source_map_ty: Option<SourceMapType>,
+        salt: Vc<RcStr>,
+        algorithm: HashAlgorithm,
+    ) -> Result<Vc<Option<RcStr>>> {
+        let code = self.await?;
+        let source_map = match emitted_source_map_ty {
+            Some(ty) if code.should_emit_source_map(Some(ty))? => {
+                Some(self.generate_source_map(ty).await?)
+            }
+            _ => None,
+        };
+        let source_map = source_map.as_deref().and_then(|map| match map {
+            FileContent::Content(file) => Some(file.content()),
+            FileContent::NotFound => None,
+        });
+        Ok(Vc::cell(Some(
+            deterministic_hash(
+                &salt.await?,
+                (&code.code, code.should_generate_debug_id, source_map),
+                algorithm,
+            )
+            .into(),
+        )))
     }
 }
 

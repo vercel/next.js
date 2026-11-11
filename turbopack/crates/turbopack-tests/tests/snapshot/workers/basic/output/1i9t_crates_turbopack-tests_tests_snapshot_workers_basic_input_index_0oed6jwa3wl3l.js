@@ -2707,4 +2707,4 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_workers_basic_input_index_0oed6jwa3wl3l.js.map
+//# sourceMappingURL=1i9t_crates_turbopack-tests_tests_snapshot_workers_basic_input_index_0oed6jwa3wl3l.js.map

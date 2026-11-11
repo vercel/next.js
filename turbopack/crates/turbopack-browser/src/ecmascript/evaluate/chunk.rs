@@ -4,9 +4,10 @@ use anyhow::Result;
 use either::Either;
 use indoc::writedoc;
 use serde::Serialize;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -273,9 +274,8 @@ impl EcmascriptBrowserEvaluateChunk {
         let this = self.await?;
         Ok(SourceMapAsset::new(
             Vc::upcast(*this.chunking_context),
-            self.ident_for_path(),
             Vc::upcast(self),
-            rcstr!(".js"),
+            Vc::upcast(self),
         ))
     }
 }
@@ -338,6 +338,22 @@ impl Asset for EcmascriptBrowserEvaluateChunk {
             ))
             .cell(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    async fn content_hash(
+        self: Vc<Self>,
+        salt: Vc<RcStr>,
+        algorithm: HashAlgorithm,
+    ) -> Result<Vc<Option<RcStr>>> {
+        let emitted_source_map_ty = *self
+            .await?
+            .chunking_context
+            .emitted_source_map_type()
+            .await?;
+        Ok(self
+            .code()
+            .chunk_content_hash(emitted_source_map_ty, salt, algorithm))
     }
 }
 
