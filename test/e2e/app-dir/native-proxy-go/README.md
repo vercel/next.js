@@ -31,6 +31,10 @@ Background work after the HTTP response is not an invocation-lifetime API.
 with a `Set-Cookie` header, it does not update `cookies()` in the current render.
 Go proxies do not yet provide a `NextResponse.cookies`-style helper.
 
+Go keeps the request Host in `r.Host`, outside `r.Header`. When cloning headers
+for `OverrideRequestHeaders`, explicitly set `headers.Set("Host", r.Host)` if
+the downstream request should retain Host.
+
 The root fixture is a proxy-only application. `src-fixture` also has a Go route
 handler to exercise continuation, rewrite and header override interoperability.
 

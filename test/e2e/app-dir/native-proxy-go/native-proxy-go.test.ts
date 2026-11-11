@@ -5,6 +5,7 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import { spawn } from 'child_process'
 import { once } from 'events'
+import { request } from 'http'
 
 // Hosted tests require the Go proxy adapter and builder releases (see README.md).
 // @force-gate turbopack && !deploy
@@ -259,6 +260,52 @@ describe('native-proxy-go with skipProxyUrlNormalize', () => {
 // @force-gate turbopack && !deploy
 describe('native-proxy-go in src with Go route handlers', () => {
   const { next } = nextTestSetup({ files: join(__dirname, 'src-fixture') })
+
+  it.each(['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])(
+    'forwards %s bodies to Go routes after continuation, overrides and rewrites',
+    async (method) => {
+      const body = JSON.stringify({ message: 'ordinary request body' })
+      for (const path of [
+        '/native-proxy/native',
+        '/native-proxy/native?override=1',
+        '/native-proxy/rewrite',
+      ]) {
+        const response = await next.fetch(path, { method, body })
+        expect(response.status).toBe(200)
+        expect(await response.json()).toEqual({ method, body })
+        expect((await next.fetch('/native-proxy/native')).status).toBe(200)
+
+        // Explicit client chunking exercises framing even without an override.
+        const chunked = await new Promise<{ status: number; body: string }>(
+          (resolve, reject) => {
+            const req = request(
+              next.url + path,
+              {
+                method,
+                headers: { 'transfer-encoding': 'chunked' },
+              },
+              (res) => {
+                const chunks: Buffer[] = []
+                res.on('data', (chunk) => chunks.push(chunk))
+                res.once('error', reject)
+                res.on('end', () =>
+                  resolve({
+                    status: res.statusCode!,
+                    body: Buffer.concat(chunks).toString(),
+                  })
+                )
+              }
+            )
+            req.once('error', reject)
+            req.end(body)
+          }
+        )
+        expect(chunked.status).toBe(200)
+        expect(JSON.parse(chunked.body)).toEqual({ method, body })
+        expect((await next.fetch('/native-proxy/native')).status).toBe(200)
+      }
+    }
+  )
 
   it('runs src/proxy.go before a Go handler', async () => {
     // goRoutes alone enables the proxy, with an all-paths matcher by default.

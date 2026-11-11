@@ -71,6 +71,16 @@ export function proxyNativeRequest(
         ? raw
         : value
   }
+  // Header overrides can remove Content-Length. Transfer-Encoding is hop-by-hop,
+  // so regenerate framing for the admitted body instead of relying on Node's
+  // method-specific defaults (DELETE and OPTIONS do not default to chunking).
+  if (
+    headers['content-length'] === undefined &&
+    (rawValues['transfer-encoding'] ||
+      rawValues['content-length']?.some((value) => Number(value) > 0))
+  ) {
+    headers['transfer-encoding'] = 'chunked'
+  }
   headers['x-next-internal-go-token'] = target.token
   return new Promise<void>((resolve, reject) => {
     const upstream = request({
