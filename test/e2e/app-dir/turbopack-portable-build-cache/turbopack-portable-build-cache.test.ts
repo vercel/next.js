@@ -1,11 +1,16 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import fs from 'fs/promises'
+import os from 'os'
 import path from 'path'
-import {
-  executedFunctionNames,
-  readTaskExecutions,
-  type TaskExecution,
-} from './turbo-tasks-trace'
+
+/** One entry of the `NEXT_TURBOPACK_TASK_STATISTICS` JSON, per function. */
+interface TaskFunctionStatistics {
+  cache_hit: number
+  cache_miss: number
+  /** Includes re-executions of invalidated tasks, which count as cache hits. */
+  executions: number
+}
+type TaskStatistics = Record<string, TaskFunctionStatistics>
 
 // Always install with pnpm's hoisted linker, so the package layout (and with it
 // which symlinks are resolved) doesn't depend on the Node.js version. This is
@@ -13,26 +18,30 @@ import {
 // uses on affected versions anyway.
 const hoistedInstall = { 'pnpm-workspace.yaml': 'nodeLinker: hoisted\n' }
 
-// The names of the functions that executed, with all `NextConfig` getters
+// The names of the functions that executed, with all `NextConfig` methods
 // collapsed into a single `NextConfig::*` entry. They all depend on the same
-// config cell and re-execute together. Which getters are read also depends on
+// config cell and re-execute together. Which ones are called also depends on
 // the build mode (e.g. Cache Components), which would make the snapshots
 // mode-dependent.
-function functionNames(executions: TaskExecution[]): string[] {
+function executedFunctions(stats: TaskStatistics): string[] {
   return [
     ...new Set(
-      executedFunctionNames(executions).map((name) =>
-        name.startsWith('NextConfig::') ? 'NextConfig::*' : name
-      )
+      Object.entries(stats)
+        .filter(([, s]) => s.executions > 0)
+        .map(([name]) => name.replace(/::NextConfig::\w+$/, '::NextConfig::*'))
     ),
   ].sort()
+}
+
+function totalExecutions(stats: TaskStatistics): number {
+  return Object.values(stats).reduce((sum, s) => sum + s.executions, 0)
 }
 
 // The Turbopack filesystem cache for `next build` should be portable: moving
 // the project to another directory must not invalidate it.
 //
-// Every build runs with `NEXT_TURBOPACK_TRACING=turbo-tasks`, which records a
-// span for every turbo-tasks function execution. A function that executes in a
+// Every build writes turbo-tasks statistics (`NEXT_TURBOPACK_TASK_STATISTICS`),
+// which count how often each function executed. A function that executes in a
 // warm build was not served from the cache. The snapshots list the functions
 // that execute in a warm build:
 //   - in the same directory (baseline), and
@@ -58,42 +67,42 @@ describe('turbopack-portable-build-cache', () => {
     })
 
     it('reuses the build cache after moving the project', async () => {
-      const coldExecutions = (await tracedBuild(next)).executions
-      // Sanity check that the trace contains task executions at all, so empty
-      // snapshots below mean "fully cached", not "nothing was traced".
-      expect(coldExecutions.length).toBeGreaterThan(10_000)
+      const cold = await buildWithTaskStatistics(next)
+      // Sanity check that the statistics count executions at all, so empty
+      // snapshots below mean "fully cached", not "nothing was counted".
+      expect(totalExecutions(cold.stats)).toBeGreaterThan(10_000)
 
-      const sameDirExecutions = (await tracedBuild(next)).executions
-      expect(functionNames(sameDirExecutions)).toMatchInlineSnapshot(`
+      const sameDir = await buildWithTaskStatistics(next)
+      expect(executedFunctions(sameDir.stats)).toMatchInlineSnapshot(`
        [
-         "<DiskFileSystem as FileSystem>::raw_read_dir",
-         "<DiskFileSystem as FileSystem>::read",
-         "ProjectContainer::project",
-         "emit_all_output_assets_once_with_issues_operation",
-         "get_all_written_entrypoints_with_issues_operation",
-         "project_root_path_operation",
-         "uppercase_env_map",
+         "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks_fs::FileSystem>::raw_read_dir",
+         "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks_fs::FileSystem>::read",
+         "next_api::project::ProjectContainer::project",
+         "next_api::project::project_root_path_operation",
+         "next_napi_bindings::next_api::project::emit_all_output_assets_once_with_issues_operation",
+         "next_napi_bindings::next_api::project::get_all_written_entrypoints_with_issues_operation",
+         "turbo_tasks_env::uppercase_env_map",
        ]
       `)
 
       await moveProject(next, next.testDir)
-      const movedExecutions = (await tracedBuild(next)).executions
-      expect(functionNames(movedExecutions)).toMatchInlineSnapshot(`
+      const moved = await buildWithTaskStatistics(next)
+      expect(executedFunctions(moved.stats)).toMatchInlineSnapshot(`
        [
-         "<DiskFileSystem as FileSystem>::raw_read_dir",
-         "<DiskFileSystem as FileSystem>::read",
-         "<DiskFileSystem as FileSystem>::write",
-         "<DiskFileSystem as turbo_tasks :: ValueToString>::to_string",
-         "<NftJsonAsset as Asset>::content",
-         "<ServerNftJsonAsset as Asset>::content",
-         "DiskFileSystem::new_internal",
-         "NextConfig::*",
-         "ProjectContainer::project",
-         "emit_all_output_assets_once_with_issues_operation",
-         "get_all_written_entrypoints_with_issues_operation",
-         "inner_entrypoints_without_collectibles_operation",
-         "project_root_path_operation",
-         "uppercase_env_map",
+         "<next_api::next_server_nft::ServerNftJsonAsset as dyn turbopack_core::asset::Asset>::content",
+         "<next_api::nft_json::NftJsonAsset as dyn turbopack_core::asset::Asset>::content",
+         "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks::display::ValueToString>::to_string",
+         "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks_fs::FileSystem>::raw_read_dir",
+         "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks_fs::FileSystem>::read",
+         "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks_fs::FileSystem>::write",
+         "next_api::operation::entrypoints_without_collectibles_operation_turbo_tasks_function_inline::{{closure}}::inner_entrypoints_without_collectibles_operation",
+         "next_api::project::ProjectContainer::project",
+         "next_api::project::project_root_path_operation",
+         "next_core::next_config::NextConfig::*",
+         "next_napi_bindings::next_api::project::emit_all_output_assets_once_with_issues_operation",
+         "next_napi_bindings::next_api::project::get_all_written_entrypoints_with_issues_operation",
+         "turbo_tasks_env::uppercase_env_map",
+         "turbo_tasks_fs::disk::DiskFileSystem::new_internal",
        ]
       `)
     }, 600_000)
@@ -187,54 +196,54 @@ describe('turbopack-portable-build-cache', () => {
     }
 
     it('reuses the build cache after moving the project', async () => {
-      const cold = await tracedBuild(next)
+      const cold = await buildWithTaskStatistics(next)
       await expectAllFeatures(cold.cliOutput)
-      // Sanity check that the trace contains task executions at all, so empty
-      // snapshots below mean "fully cached", not "nothing was traced".
-      expect(cold.executions.length).toBeGreaterThan(10_000)
+      // Sanity check that the statistics count executions at all, so empty
+      // snapshots below mean "fully cached", not "nothing was counted".
+      expect(totalExecutions(cold.stats)).toBeGreaterThan(10_000)
 
-      const sameDir = await tracedBuild(next)
-      expect(functionNames(sameDir.executions)).toMatchInlineSnapshot(`
+      const sameDir = await buildWithTaskStatistics(next)
+      expect(executedFunctions(sameDir.stats)).toMatchInlineSnapshot(`
        [
-         "<DiskFileSystem as FileSystem>::raw_read_dir",
-         "<DiskFileSystem as FileSystem>::read",
-         "<DiskFileSystem as FileSystem>::read_link",
-         "<EnvMap as ProcessEnv>::read_all",
-         "ProjectContainer::project",
-         "common_node_env",
-         "create_evaluate_pool_assets_operation",
-         "emit_all_output_assets_once_with_issues_operation",
-         "get_all_written_entrypoints_with_issues_operation",
-         "project_root_path_operation",
-         "uppercase_env_map",
+         "<turbo_tasks_env::EnvMap as dyn turbo_tasks_env::ProcessEnv>::read_all",
+         "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks_fs::FileSystem>::raw_read_dir",
+         "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks_fs::FileSystem>::read",
+         "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks_fs::FileSystem>::read_link",
+         "next_api::project::ProjectContainer::project",
+         "next_api::project::project_root_path_operation",
+         "next_napi_bindings::next_api::project::emit_all_output_assets_once_with_issues_operation",
+         "next_napi_bindings::next_api::project::get_all_written_entrypoints_with_issues_operation",
+         "turbo_tasks_env::uppercase_env_map",
+         "turbopack_node::evaluate::common_node_env",
+         "turbopack_node::evaluate::create_evaluate_pool_assets_operation",
        ]
       `)
 
       await moveProject(next, workspaceRoot())
-      const moved = await tracedBuild(next)
+      const moved = await buildWithTaskStatistics(next)
       await expectAllFeatures(moved.cliOutput)
-      expect(functionNames(moved.executions)).toMatchInlineSnapshot(`
+      expect(executedFunctions(moved.stats)).toMatchInlineSnapshot(`
        [
-         "<DiskFileSystem as FileSystem>::raw_read_dir",
-         "<DiskFileSystem as FileSystem>::read",
-         "<DiskFileSystem as FileSystem>::read_link",
-         "<DiskFileSystem as FileSystem>::write",
-         "<DiskFileSystem as turbo_tasks :: ValueToString>::to_string",
-         "<EnvMap as ProcessEnv>::read_all",
-         "<NftJsonAsset as Asset>::content",
-         "<ServerNftJsonAsset as Asset>::content",
-         "DiskFileSystem::new_internal",
-         "NextConfig::*",
-         "ProjectContainer::project",
-         "common_node_env",
-         "create_evaluate_pool_assets_operation",
-         "emit_all_output_assets_once_with_issues_operation",
-         "evaluate_webpack_loader",
-         "get_all_written_entrypoints_with_issues_operation",
-         "get_evaluate_pool",
-         "inner_entrypoints_without_collectibles_operation",
-         "project_root_path_operation",
-         "uppercase_env_map",
+         "<next_api::next_server_nft::ServerNftJsonAsset as dyn turbopack_core::asset::Asset>::content",
+         "<next_api::nft_json::NftJsonAsset as dyn turbopack_core::asset::Asset>::content",
+         "<turbo_tasks_env::EnvMap as dyn turbo_tasks_env::ProcessEnv>::read_all",
+         "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks::display::ValueToString>::to_string",
+         "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks_fs::FileSystem>::raw_read_dir",
+         "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks_fs::FileSystem>::read",
+         "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks_fs::FileSystem>::read_link",
+         "<turbo_tasks_fs::disk::DiskFileSystem as dyn turbo_tasks_fs::FileSystem>::write",
+         "next_api::operation::entrypoints_without_collectibles_operation_turbo_tasks_function_inline::{{closure}}::inner_entrypoints_without_collectibles_operation",
+         "next_api::project::ProjectContainer::project",
+         "next_api::project::project_root_path_operation",
+         "next_core::next_config::NextConfig::*",
+         "next_napi_bindings::next_api::project::emit_all_output_assets_once_with_issues_operation",
+         "next_napi_bindings::next_api::project::get_all_written_entrypoints_with_issues_operation",
+         "turbo_tasks_env::uppercase_env_map",
+         "turbo_tasks_fs::disk::DiskFileSystem::new_internal",
+         "turbopack_node::evaluate::common_node_env",
+         "turbopack_node::evaluate::create_evaluate_pool_assets_operation",
+         "turbopack_node::evaluate::get_evaluate_pool",
+         "turbopack_node::transforms::webpack::evaluate_webpack_loader",
        ]
       `)
     }, 600_000)
@@ -242,7 +251,6 @@ describe('turbopack-portable-build-cache', () => {
 })
 
 const env = {
-  NEXT_TURBOPACK_TRACING: 'turbo-tasks',
   // Persist even tiny snapshots so the test doesn't depend on the
   // minimum-compilation-time threshold.
   TURBO_ENGINE_IGNORE_DIRTY: '1',
@@ -260,17 +268,26 @@ const env = {
 
 type Next = ReturnType<typeof nextTestSetup>['next']
 
-async function tracedBuild(
+async function buildWithTaskStatistics(
   next: Next
-): Promise<{ cliOutput: string; executions: TaskExecution[] }> {
-  const { exitCode, cliOutput } = await next.build({ env })
-  if (exitCode !== 0) {
-    throw new Error(`next build exited with ${exitCode}:\n${cliOutput}`)
+): Promise<{ cliOutput: string; stats: TaskStatistics }> {
+  // Outside of the project, so it isn't moved with it.
+  const statsDir = await fs.mkdtemp(path.join(os.tmpdir(), 'task-statistics-'))
+  const statsPath = path.join(statsDir, 'task-statistics.json')
+  try {
+    const { exitCode, cliOutput } = await next.build({
+      env: { ...env, NEXT_TURBOPACK_TASK_STATISTICS: statsPath },
+    })
+    if (exitCode !== 0) {
+      throw new Error(`next build exited with ${exitCode}:\n${cliOutput}`)
+    }
+    const stats: TaskStatistics = JSON.parse(
+      await fs.readFile(statsPath, 'utf8')
+    )
+    return { cliOutput, stats }
+  } finally {
+    await fs.rm(statsDir, { recursive: true, force: true })
   }
-  const executions = await readTaskExecutions(
-    path.join(next.testDir, '.next-profiles', 'trace-turbopack.bin')
-  )
-  return { cliOutput, executions }
 }
 
 /**
