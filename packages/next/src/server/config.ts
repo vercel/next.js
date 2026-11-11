@@ -484,7 +484,7 @@ function assignDefaultsAndValidate(
   if (result.experimental.goRoutes) {
     if (result.output) {
       throw new Error(
-        'Native Go routes and proxies do not support standalone or static export output'
+        '`route.go` and `proxy.go` do not support standalone or static export output'
       )
     }
   }
