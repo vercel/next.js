@@ -161,7 +161,10 @@ import { NextRequestHint } from './web/adapter'
 import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segment-prefix-rsc'
-import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
+import {
+  shouldDisableProgressiveLoading,
+  shouldServeStreamingMetadata,
+} from './lib/streaming-metadata'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import { decodePathParams } from './lib/router-utils/decode-path-params'
 import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
@@ -2237,6 +2240,10 @@ export default abstract class Server<
         serveStreamingMetadata: shouldServeStreamingMetadata(
           ua,
           this.nextConfig.htmlLimitedBots
+        ),
+        disableProgressiveLoading: shouldDisableProgressiveLoading(
+          partialContext.req.headers['user-agent'],
+          this.nextConfig.experimental
         ),
       },
     }

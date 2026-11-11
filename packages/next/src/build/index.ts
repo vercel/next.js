@@ -219,6 +219,7 @@ import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
+import { NON_JS_BOT_UA_RE_STRING } from '../shared/lib/router/utils/non-js-bots'
 import type { UseCacheTrackerKey } from './webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
 
 import { turbopackBuild } from './turbopack-build'
@@ -3567,6 +3568,12 @@ export default async function build(
             // complete user-agent strings.
             const htmlLimitedBotsBypassRegexString = `.*(?:${htmlLimitedBotsRegexString}).*`
 
+            // nonJsBots has been converted to a string during loadConfig. The
+            // configured pattern replaces the default non-JS bot pattern.
+            const nonJsBotsBypassRegexString = `.*(?:${
+              config.experimental.nonJsBots || NON_JS_BOT_UA_RE_STRING
+            }).*`
+
             // this flag is used to selectively bypass the static cache and invoke the lambda directly
             // to enable server actions on static routes
             const bypassFor: RouteHas[] = [
@@ -3576,6 +3583,19 @@ export default async function build(
                 key: 'content-type',
                 value: 'multipart/form-data;.*',
               },
+              // When enabled, non-JS bots never receive prerendered content:
+              // the progressive reveal in the artifact would never run
+              // without JavaScript, so every prerendered route bypasses the
+              // static cache for them and renders dynamically.
+              ...(config.experimental.disableProgressiveLoadingForNonJsBots
+                ? [
+                    {
+                      type: 'header' as const,
+                      key: 'user-agent',
+                      value: nonJsBotsBypassRegexString,
+                    },
+                  ]
+                : []),
               // For PPR routes, bypass the shell for user agents configured
               // to receive blocking metadata and produce a dynamic render.
               ...(isRoutePPREnabled

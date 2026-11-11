@@ -111,6 +111,7 @@ export interface RenderOptsPartial {
   nextFontManifest?: DeepReadonly<NextFontManifest>
   botType?: 'dom' | 'html' | undefined
   serveStreamingMetadata?: boolean
+  disableProgressiveLoading?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
   cacheLifeProfiles: import('../config-shared').ResolvedCacheLifeProfiles
   staticPageGenerationTimeout: number

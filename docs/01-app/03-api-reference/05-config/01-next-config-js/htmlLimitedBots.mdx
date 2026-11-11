@@ -32,6 +32,8 @@ Next.js includes a default list of HTML limited bots, including:
 
 See the full list [here](https://github.com/vercel/next.js/blob/canary/packages/next/src/shared/lib/router/utils/html-bots.ts).
 
+> **Good to know:** `htmlLimitedBots` covers bots that support JavaScript and only need blocking metadata. For AI crawlers and agents that do not execute JavaScript at all, use the experimental [`nonJsBots`](/docs/app/api-reference/config/next-config-js/nonJsBots) option, which also disables progressive loading of Suspense boundaries.
+
 Specifying a `htmlLimitedBots` config will override the Next.js' default list. However, this is advanced behavior, and the default should be sufficient for most cases.
 
 ```ts filename="next.config.ts" switcher

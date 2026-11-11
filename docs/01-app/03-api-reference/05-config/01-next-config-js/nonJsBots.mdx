@@ -1,0 +1,138 @@
+---
+title: nonJsBots
+description: Specify which user agents (AI crawlers and agents that fetch raw HTML without executing JavaScript) receive fully inlined HTML instead of progressively streamed content.
+version: canary
+related:
+  links:
+    - app/api-reference/config/next-config-js/htmlLimitedBots
+    - app/api-reference/functions/generate-metadata
+---
+
+The `experimental.nonJsBots` config option defines the user agents Next.js treats as non-JS bots: AI crawlers and agents (for example `GPTBot` or `ClaudeBot`) that fetch raw HTML without executing JavaScript. When `experimental.disableProgressiveLoadingForNonJsBots` is enabled, requests from matching user agents bypass prerendered content and are rendered dynamically, with every Suspense boundary inlined at its position.
+
+```ts filename="next.config.ts" highlight={5,6} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    disableProgressiveLoadingForNonJsBots: true,
+    nonJsBots: /GPTBot|ClaudeBot|MyCrawler/,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" highlight={3,4} switcher
+module.exports = {
+  experimental: {
+    disableProgressiveLoadingForNonJsBots: true,
+    nonJsBots: /GPTBot|ClaudeBot|MyCrawler/,
+  },
+}
+```
+
+## Reference
+
+| Option      | Type     | Description                                                                                                                        |
+| ----------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `nonJsBots` | `RegExp` | User agents considered non-JS bots. Defaults to a list of known AI crawlers and agents. Setting a value replaces the default list. |
+
+Matching is always case-insensitive; flags on the expression are not supported.
+
+When a request's User Agent matches `nonJsBots` and `experimental.disableProgressiveLoadingForNonJsBots` is `true`:
+
+- The request bypasses prerendered content (PPR shells and statically prerendered pages) and renders dynamically. Prerendered artifacts are progressively chunked, which a JS-less client would never fully reveal.
+- The render waits for all Suspense boundaries to resolve. Pending fallbacks are not sent.
+- Progressive chunking is disabled. Every completed Suspense boundary is inlined at its position in the document instead of being outlined into a hidden `<div>` that client JavaScript reveals later.
+- The dynamically rendered response is not shared-cacheable (no `s-maxage`).
+
+This applies to the App Router and Pages Router, in both the Node.js and Edge runtimes.
+
+### Default list
+
+The default list covers known AI crawlers and agents, including:
+
+- OpenAI (`GPTBot`, `OAI-SearchBot`, `ChatGPT-User`)
+- Anthropic (`ClaudeBot`, `Claude-User`, `Claude-SearchBot`, `anthropic-ai`)
+- Perplexity (`PerplexityBot`, `Perplexity-User`), Meta, Amazon, Cohere, Mistral, DeepSeek, Moonshot, and others
+
+See the full list [here](https://github.com/vercel/next.js/blob/canary/packages/next/src/shared/lib/router/utils/non-js-bots.ts).
+
+Deliberately excluded:
+
+- Crawlers that render JavaScript (`Googlebot`, `Bingbot`, `Applebot`). Google AI Overviews and Copilot grounding ride on those crawlers.
+- Agentic browsers that drive a real browser (`Claude-Agent`, `ChatGPT Agent`, `GoogleAgent-Mariner`, `Manus-User`).
+- `Google-Extended` and `Applebot-Extended`, which are robots.txt tokens and are never sent as user agents.
+- The [`htmlLimitedBots`](/docs/app/api-reference/config/next-config-js/htmlLimitedBots) list. Those bots execute JavaScript and keep the progressive reveal.
+
+Setting `nonJsBots` replaces the default list. To extend it, include the default entries in your expression.
+
+## Good to know
+
+- `nonJsBots` has no effect unless `experimental.disableProgressiveLoadingForNonJsBots` is enabled.
+- Requests with an empty or unusually long User Agent header never match. The expression is not evaluated for them.
+- Matching requests render dynamically even for fully prerendered routes, so their responses bypass the shared cache.
+- `htmlLimitedBots` is a separate option: it controls blocking versus [streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata) for bots that execute JavaScript. The two lists serve different purposes.
+
+## Examples
+
+### Inlined HTML for AI crawlers
+
+Enable the flag and keep the default list. Known AI crawlers receive the complete document with all Suspense boundaries resolved and inlined:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    disableProgressiveLoadingForNonJsBots: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+module.exports = {
+  experimental: {
+    disableProgressiveLoadingForNonJsBots: true,
+  },
+}
+```
+
+Browsers and JS-capable bots such as `Googlebot` continue to receive the progressively streamed document.
+
+### Custom user agent list
+
+A custom expression replaces the default list. Matching is always case-insensitive:
+
+```ts filename="next.config.ts" highlight={4} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    disableProgressiveLoadingForNonJsBots: true,
+    nonJsBots: /MyCrawler|InternalAgent/,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" highlight={3} switcher
+module.exports = {
+  experimental: {
+    disableProgressiveLoadingForNonJsBots: true,
+    nonJsBots: /MyCrawler|InternalAgent/,
+  },
+}
+```
+
+With this configuration, `MyCrawler` and `InternalAgent` receive inlined HTML, while default entries such as `ClaudeBot` no longer match and keep the progressive document.
+
+## Version History
+
+| Version   | Changes                   |
+| --------- | ------------------------- |
+| `v16.5.0` | `nonJsBots` option added. |
