@@ -102,6 +102,91 @@ describe('native route runtime', () => {
   })
 
   it.each([
+    { status: 600, compressed: false },
+    { status: 999, compressed: false },
+    { status: 600, compressed: true },
+  ])(
+    'rejects native middleware status $status (gzip: $compressed) without losing worker cleanup',
+    async ({ status, compressed }) => {
+      const child = Object.assign(new EventEmitter(), {
+        stdout: new PassThrough(),
+        stdin: new PassThrough(),
+        exitCode: null as number | null,
+        kill: jest.fn(),
+      })
+      const stdinEnd = jest.spyOn(child.stdin, 'end')
+      const manager = new NativeRouteManager(__dirname, false)
+      const server = http.createServer((req, res) => {
+        if (req.url === '/retire') manager.reconcile(new Set())
+        const payload = compressed
+          ? gzipSync(Buffer.from('response'))
+          : Buffer.from('response')
+        if (compressed) res.setHeader('content-encoding', 'gzip')
+        res.writeHead(req.url === '/healthy' ? 200 : status, {
+          'content-length': payload.length,
+        })
+        res.end(payload)
+      })
+      await new Promise<void>((resolve) =>
+        server.listen(0, '127.0.0.1', resolve)
+      )
+      const port = (server.address() as import('net').AddressInfo).port
+      const spawn = jest
+        .spyOn(childProcess, 'spawn')
+        .mockImplementation((_, __, options) => {
+          const token = options!.env!.__NEXT_GO_TOKEN!
+          setImmediate(() =>
+            child.stdout.write(`\x1eNEXT_GO_READY:${token}:${port}\n`)
+          )
+          return child as unknown as childProcess.ChildProcess
+        })
+      jest.spyOn(fs, 'readFile').mockResolvedValue(
+        JSON.stringify({
+          executable: 'worker',
+          goos: process.platform === 'win32' ? 'windows' : process.platform,
+          goarch:
+            process.arch === 'x64'
+              ? 'amd64'
+              : process.arch === 'ia32'
+                ? '386'
+                : process.arch,
+        })
+      )
+      const invoke = (pathname: string) =>
+        manager.invokeMiddleware(
+          'middleware.native.json',
+          new Request(`https://public.example${pathname}`)
+        )
+      try {
+        await expect(invoke('/invalid')).rejects.toThrow(
+          'init["status"] must be in the range of 200 to 599'
+        )
+        const following = await invoke('/healthy')
+        expect(following.status).toBe(200)
+        expect(await following.text()).toBe('response')
+        expect(spawn).toHaveBeenCalledTimes(1)
+        expect(stdinEnd).not.toHaveBeenCalled()
+
+        await expect(invoke('/retire')).rejects.toThrow(
+          'init["status"] must be in the range of 200 to 599'
+        )
+        // Allow the destroyed response's close event to run as well as catch.
+        await new Promise<void>((resolve) => setImmediate(resolve))
+        expect(stdinEnd).toHaveBeenCalledTimes(1)
+      } finally {
+        child.exitCode = 0
+        child.emit('exit', 0)
+        child.stdout.destroy()
+        child.stdin.destroy()
+        await manager.close()
+        await new Promise<void>((resolve, reject) =>
+          server.close((error) => (error ? reject(error) : resolve()))
+        )
+      }
+    }
+  )
+
+  it.each([
     ['POST', 'identity'],
     ['PUT', 'identity'],
     ['PATCH', 'identity'],

@@ -341,25 +341,25 @@ export class NativeRouteManager {
         response.once('close', finish)
         response.once('error', finish)
         response.once('end', finish)
-        const responseHeaders = new Headers()
-        for (let i = 0; i < response.rawHeaders.length; i += 2) {
-          const name = response.rawHeaders[i]
-          if (
-            /^(connection|transfer-encoding|keep-alive|content-length|content-encoding)$/i.test(
-              name
-            )
-          )
-            continue
-          responseHeaders.append(name, response.rawHeaders[i + 1])
-        }
-        const status = response.statusCode || 502
-        const noBody =
-          req.method === 'HEAD' ||
-          [204, 205, 304].includes(status) ||
-          responseHeaders.has('x-middleware-next') ||
-          responseHeaders.has('x-middleware-rewrite') ||
-          (status >= 300 && status < 400 && responseHeaders.has('location'))
         try {
+          const responseHeaders = new Headers()
+          for (let i = 0; i < response.rawHeaders.length; i += 2) {
+            const name = response.rawHeaders[i]
+            if (
+              /^(connection|transfer-encoding|keep-alive|content-length|content-encoding)$/i.test(
+                name
+              )
+            )
+              continue
+            responseHeaders.append(name, response.rawHeaders[i + 1])
+          }
+          const status = response.statusCode || 502
+          const noBody =
+            req.method === 'HEAD' ||
+            [204, 205, 304].includes(status) ||
+            responseHeaders.has('x-middleware-next') ||
+            responseHeaders.has('x-middleware-rewrite') ||
+            (status >= 300 && status < 400 && responseHeaders.has('location'))
           if (noBody) response.resume()
           resolve(
             new Response(
