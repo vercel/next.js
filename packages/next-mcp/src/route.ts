@@ -16,6 +16,7 @@ import {
   type AuthFn,
   type SessionAuthContext,
 } from './vendor/eve/auth'
+import type { McpSkills } from './skills'
 import type { AnyToolDefinition } from './vendor/eve/tool-definition'
 import { logUnexpectedError } from './vendor/eve/tool-errors'
 
@@ -55,6 +56,12 @@ export interface McpRouteOptions {
   readonly allowedHosts?: readonly string[]
   /** Maximum POST body size in bytes. Defaults to 1 MiB. */
   readonly maxRequestBodySize?: number
+  /**
+   * Agent Skills to serve alongside the tools, from `@next/mcp/skills`:
+   * `skills: skillsFromDirectory(path.join(process.cwd(), "skills"))`.
+   * Skills sit behind the same `auth` as tools.
+   */
+  readonly skills?: McpSkills
 }
 
 type RouteHandler = (request: Request) => Promise<Response>
@@ -131,6 +138,16 @@ export function mcpRoute(options: McpRouteOptions): McpRouteHandlers {
     fail('`maxRequestBodySize` must be a positive number of bytes.')
   }
 
+  const skills = options.skills
+  if (
+    skills !== undefined &&
+    (typeof skills !== 'object' ||
+      skills === null ||
+      typeof skills.extension?.attach !== 'function')
+  ) {
+    fail('`skills` must come from `skillsFromDirectory` in "@next/mcp/skills".')
+  }
+
   const location = resolveCanonicalLocation(routeName, options)
 
   if (auth.some(isNoneAuth)) {
@@ -146,13 +163,21 @@ export function mcpRoute(options: McpRouteOptions): McpRouteHandlers {
     const server = new McpServer(
       { name: options.name, version: options.version },
       {
-        capabilities: { tools: { listChanged: false } },
+        // Servers are per request and never send notifications, so nothing
+        // may advertise listChanged (the skills extension would by default).
+        capabilities: {
+          tools: { listChanged: false },
+          ...(skills === undefined
+            ? {}
+            : { resources: { listChanged: false } }),
+        },
         ...(options.instructions === undefined
           ? {}
           : { instructions: options.instructions }),
       }
     )
     for (const tool of tools) registerTool(server, tool, current, request)
+    skills?.extension.attach(server)
     return server
   }
 

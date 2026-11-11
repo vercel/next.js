@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import http from 'node:http'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
@@ -269,5 +270,130 @@ describe('@next/mcp', () => {
     expect(next.cliOutput).toContain(
       'mcpRoute("next-mcp-e2e-public") is a public MCP server'
     )
+  })
+
+  describe('skills', () => {
+    const sha256 = (bytes: Buffer) =>
+      `sha256:${createHash('sha256').update(bytes).digest('hex')}`
+
+    const call = async (method: string, params: object = {}, path = '/mcp') =>
+      (await rpc(path, { jsonrpc: '2.0', id: 1, method, params }, TOKEN)).json
+
+    it('declares the skills extension without listChanged', async () => {
+      const { result } = await call('initialize', {
+        protocolVersion: '2025-06-18',
+        capabilities: {},
+        clientInfo: { name: 'e2e', version: '1' },
+      })
+      expect(result.capabilities).toMatchObject({
+        tools: { listChanged: false },
+        resources: { listChanged: false },
+        extensions: {
+          'io.modelcontextprotocol/skills': { directoryRead: true },
+        },
+      })
+    })
+
+    it('lists every valid skill with a complete manifest', async () => {
+      const { result } = await call('skills/list')
+      const rollDice = result.skills.find(
+        (skill: { uri: string }) => skill.uri === 'skill://roll-dice/SKILL.md'
+      )
+      expect(result.skills.map((skill: { uri: string }) => skill.uri)).toEqual([
+        'skill://release-notes/SKILL.md',
+        'skill://roll-dice/SKILL.md',
+      ])
+      expect(rollDice.frontmatter).toEqual({
+        name: 'roll-dice',
+        description:
+          'Roll dice for tabletop games with the roll_dice tool, and explain the odds.',
+        license: 'MIT',
+        metadata: { version: '1.0' },
+      })
+      expect(rollDice.resources.map((r: { uri: string }) => r.uri)).toEqual([
+        'skill://roll-dice/SKILL.md',
+        'skill://roll-dice/assets/d20.png',
+        'skill://roll-dice/assets/d20.svg',
+        'skill://roll-dice/references/ODDS.md',
+        'skill://roll-dice/scripts/roll.py',
+      ])
+      // The skill whose name does not match its folder is skipped.
+      await retry(() => {
+        expect(next.cliOutput).toContain(
+          'frontmatter name "not-broken" must match the last path segment "broken"'
+        )
+      })
+    })
+
+    it('serves every file with the bytes its digest promises', async () => {
+      const { result } = await call('skills/get', {
+        uri: 'skill://roll-dice/SKILL.md',
+      })
+      for (const entry of result.skill.resources) {
+        const read = await call('resources/read', { uri: entry.uri })
+        const [content] = read.result.contents
+        const bytes =
+          content.blob !== undefined
+            ? Buffer.from(content.blob, 'base64')
+            : Buffer.from(content.text, 'utf8')
+        expect({
+          uri: entry.uri,
+          digest: sha256(bytes),
+          size: bytes.length,
+        }).toEqual({ uri: entry.uri, digest: entry.digest, size: entry.size })
+        if (entry.uri.endsWith('.png')) {
+          expect(content).toMatchObject({ mimeType: 'image/png' })
+          expect(content.blob).toBeDefined()
+        }
+      }
+    })
+
+    it('lists skill directories', async () => {
+      const { result } = await call('resources/directory/read', {
+        uri: 'skill://roll-dice',
+      })
+      expect(
+        result.resources.map((r: { name: string; mimeType: string }) => [
+          r.name,
+          r.mimeType,
+        ])
+      ).toEqual([
+        ['SKILL.md', 'text/markdown'],
+        ['assets', 'inode/directory'],
+        ['references', 'inode/directory'],
+        ['scripts', 'inode/directory'],
+      ])
+    })
+
+    it('does not serve skills or files outside a served manifest', async () => {
+      const unknown = await call('skills/get', {
+        uri: 'skill://broken/SKILL.md',
+      })
+      expect(unknown.error.code).toBe(-32602)
+      const unlisted = await call('resources/read', {
+        uri: 'skill://broken/SKILL.md',
+      })
+      expect(unlisted.error.code).toBe(-32602)
+    })
+
+    // localDev() admits local callers under next dev, so only production can
+    // show the route's auth applying to skills.
+    if (!isNextDev) {
+      it('puts skills behind the route auth', async () => {
+        const { res } = await rpc('/mcp', {
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'skills/list',
+        })
+        expect(res.status).toBe(401)
+      })
+    }
+
+    it('skips skills with a file over maxFileSize', async () => {
+      const { result } = await call('skills/list', {}, '/small-skills-mcp')
+      expect(result.skills.map((skill: { uri: string }) => skill.uri)).toEqual([
+        'skill://release-notes/SKILL.md',
+      ])
+    })
   })
 })
