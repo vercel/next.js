@@ -61,7 +61,14 @@ describe('error-ignored-frames', () => {
     await waitForRedbox(browser)
 
     const defaultStack = await getRedboxCallStack(browser)
-    if (isTurbopack) {
+    if (process.env.__NEXT_ENABLE_REACT_COMPILER === 'true') {
+      expect(defaultStack).toMatchInlineSnapshot(`
+       [
+         "_PageInvokeCallback app/interleaved/page.tsx (7:11)",
+         "Page app/interleaved/page.tsx (6:36)",
+       ]
+      `)
+    } else if (isTurbopack) {
       expect(defaultStack).toMatchInlineSnapshot(`
        [
          "<unknown> app/interleaved/page.tsx (7:11)",

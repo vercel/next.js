@@ -406,8 +406,8 @@ importers:
         specifier: 3.0.1
         version: 3.0.1
       babel-plugin-react-compiler:
-        specifier: 0.0.0-experimental-1371fcb-20260227
-        version: 0.0.0-experimental-1371fcb-20260227
+        specifier: 0.0.0-experimental-ff4e0fd-20260324
+        version: 0.0.0-experimental-ff4e0fd-20260324
       browserslist:
         specifier: 4.28.1
         version: 4.28.1
@@ -827,7 +827,7 @@ importers:
         version: 0.554.0(react@19.3.0-canary-e84e1492-20261031)
       next:
         specifier: 16.4.0-canary.31
-        version: 16.4.0-canary.31(@babel/core@7.26.10(supports-color@9.4.0))(@opentelemetry/api@1.4.1)(@playwright/test@1.61.0)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@0.0.0-experimental-1371fcb-20260227)(react-dom@19.3.0-canary-e84e1492-20261031(react@19.3.0-canary-e84e1492-20261031))(react@19.3.0-canary-e84e1492-20261031)(sass@1.54.0)
+        version: 16.4.0-canary.31(@babel/core@7.26.10(supports-color@9.4.0))(@opentelemetry/api@1.4.1)(@playwright/test@1.61.0)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@0.0.0-experimental-ff4e0fd-20260324)(react-dom@19.3.0-canary-e84e1492-20261031(react@19.3.0-canary-e84e1492-20261031))(react@19.3.0-canary-e84e1492-20261031)(sass@1.54.0)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.3.0-canary-e84e1492-20261031(react@19.3.0-canary-e84e1492-20261031))(react@19.3.0-canary-e84e1492-20261031)
@@ -1581,8 +1581,8 @@ importers:
         specifier: 10.0.0
         version: 10.0.0(@babel/core@7.26.10(supports-color@9.4.0))(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.24))(esbuild@0.25.9)(uglify-js@3.17.4))
       babel-plugin-react-compiler:
-        specifier: 0.0.0-experimental-1371fcb-20260227
-        version: 0.0.0-experimental-1371fcb-20260227
+        specifier: 0.0.0-experimental-ff4e0fd-20260324
+        version: 0.0.0-experimental-ff4e0fd-20260324
       babel-plugin-transform-define:
         specifier: 2.0.0
         version: 2.0.0
@@ -8495,8 +8495,8 @@ packages:
     peerDependencies:
       '@babel/core': 7.26.10
 
-  babel-plugin-react-compiler@0.0.0-experimental-1371fcb-20260227:
-    resolution: {integrity: sha512-3aaR0dYDsvkrcRYS+unNgo+KG+eXyIOzG8Ja6YsdVxvTZRSqyeuAfhE6qbKOmnnUeWYcoDgHYdZh37H4RRWwsQ==}
+  babel-plugin-react-compiler@0.0.0-experimental-ff4e0fd-20260324:
+    resolution: {integrity: sha512-WDLg0xygAG79VfkkMt0vRe1QVvMbflPkBXqnE+b3Yj3tpMIYF85yd0CWmz88JR1UQgG5xE7bDhz9IhR1mq9gRQ==}
 
   babel-plugin-transform-async-to-promises@0.8.15:
     resolution: {integrity: sha512-fDXP68ZqcinZO2WCiimCL9zhGjGXOnn3D33zvbh+yheZ/qOrNVVDDIBtAaM3Faz8TRvQzHiRKsu3hfrBAhEncQ==}
@@ -25626,7 +25626,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  babel-plugin-react-compiler@0.0.0-experimental-1371fcb-20260227:
+  babel-plugin-react-compiler@0.0.0-experimental-ff4e0fd-20260324:
     dependencies:
       '@babel/types': 7.27.0
 
@@ -33298,7 +33298,7 @@ snapshots:
 
   next-tick@1.0.0: {}
 
-  next@16.4.0-canary.31(@babel/core@7.26.10(supports-color@9.4.0))(@opentelemetry/api@1.4.1)(@playwright/test@1.61.0)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@0.0.0-experimental-1371fcb-20260227)(react-dom@19.3.0-canary-e84e1492-20261031(react@19.3.0-canary-e84e1492-20261031))(react@19.3.0-canary-e84e1492-20261031)(sass@1.54.0):
+  next@16.4.0-canary.31(@babel/core@7.26.10(supports-color@9.4.0))(@opentelemetry/api@1.4.1)(@playwright/test@1.61.0)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@0.0.0-experimental-ff4e0fd-20260324)(react-dom@19.3.0-canary-e84e1492-20261031(react@19.3.0-canary-e84e1492-20261031))(react@19.3.0-canary-e84e1492-20261031)(sass@1.54.0):
     dependencies:
       '@next/env': 16.4.0-canary.31
       '@swc/helpers': 0.5.23
@@ -33319,7 +33319,7 @@ snapshots:
       '@next/swc-win32-x64-msvc': 16.4.0-canary.31
       '@opentelemetry/api': 1.4.1
       '@playwright/test': 1.61.0
-      babel-plugin-react-compiler: 0.0.0-experimental-1371fcb-20260227
+      babel-plugin-react-compiler: 0.0.0-experimental-ff4e0fd-20260324
       sass: 1.54.0
       sharp: 0.35.4(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))
     transitivePeerDependencies:

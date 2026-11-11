@@ -317,7 +317,23 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
         it('should show a collapsed redbox with a sync access error', async () => {
           const browser = await next.browser(`${pathname}?foo=test`)
 
-          await expect(browser).toDisplayCollapsedRedbox(`
+          await expect(browser).toDisplayCollapsedRedbox(
+            process.env.__NEXT_ENABLE_REACT_COMPILER === 'true'
+              ? `
+             {
+               "description": "A searchParam property was accessed directly with \`searchParams.foo\`. \`searchParams\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+               "environmentLabel": null,
+               "label": "Console Error",
+               "source": "app/sync-client-search/page.tsx (23:40) @ SearchParamsReadingComponent
+             > 23 |   const fooParam = (searchParams as any).foo
+                  |                                        ^",
+               "stack": [
+                 "SearchParamsReadingComponent app/sync-client-search/page.tsx (23:40)",
+                 "Page app/sync-client-search/page.tsx (12:7)",
+               ],
+             }
+            `
+              : `
              {
                "description": "A searchParam property was accessed directly with \`searchParams.foo\`. \`searchParams\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                "environmentLabel": null,
@@ -330,7 +346,8 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
                  "Page app/sync-client-search/page.tsx (12:7)",
                ],
              }
-            `)
+            `
+          )
         })
       }
     })
@@ -971,7 +988,23 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
         it('should show a collapsed redbox with a sync access error', async () => {
           const browser = await next.browser(`${pathname}/test`)
 
-          await expect(browser).toDisplayCollapsedRedbox(`
+          await expect(browser).toDisplayCollapsedRedbox(
+            process.env.__NEXT_ENABLE_REACT_COMPILER === 'true'
+              ? `
+             {
+               "description": "A param property was accessed directly with \`params.slug\`. \`params\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+               "environmentLabel": null,
+               "label": "Console Error",
+               "source": "app/sync-client-params/[slug]/page.tsx (20:38) @ ParamsReadingComponent
+             > 20 |       <span id="param">{String(params.slug)}</span>
+                  |                                      ^",
+               "stack": [
+                 "ParamsReadingComponent app/sync-client-params/[slug]/page.tsx (20:38)",
+                 "Page app/sync-client-params/[slug]/page.tsx (11:7)",
+               ],
+             }
+            `
+              : `
              {
                "description": "A param property was accessed directly with \`params.slug\`. \`params\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                "environmentLabel": null,
@@ -984,7 +1017,8 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
                  "Page app/sync-client-params/[slug]/page.tsx (11:7)",
                ],
              }
-            `)
+            `
+          )
         })
       }
     })

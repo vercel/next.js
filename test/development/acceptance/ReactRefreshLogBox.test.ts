@@ -17,6 +17,10 @@ describe('ReactRefreshLogBox', () => {
   })
 
   test('should strip whitespace correctly with newline', async () => {
+    const onClickName =
+      process.env.__NEXT_ENABLE_REACT_COMPILER === 'true'
+        ? '_PageAOnClick'
+        : 'onClick'
     await using sandbox = await createSandbox(next)
     const { browser, session } = sandbox
 
@@ -47,11 +51,11 @@ describe('ReactRefreshLogBox', () => {
          "description": "idk",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (8:27) @ onClick
+         "source": "index.js (8:27) @ ${onClickName}
        >  8 |                     throw new Error('idk')
             |                           ^",
          "stack": [
-           "onClick index.js (8:27)",
+           "${onClickName} index.js (8:27)",
          ],
        }
       `)
@@ -61,11 +65,11 @@ describe('ReactRefreshLogBox', () => {
          "description": "idk",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (8:27) @ onClick
+         "source": "index.js (8:27) @ ${onClickName}
        >  8 |                     throw new Error('idk')
             |                           ^",
          "stack": [
-           "onClick index.js (8:27)",
+           "${onClickName} index.js (8:27)",
          ],
        }
       `)
@@ -786,6 +790,10 @@ describe('ReactRefreshLogBox', () => {
   })
 
   test('logbox: anchors links in error messages', async () => {
+    const boomName =
+      process.env.__NEXT_ENABLE_REACT_COMPILER === 'true'
+        ? '_IndexBoom'
+        : 'Index.useCallback[boom]'
     await using sandbox = await createSandbox(next)
     const { browser, session } = sandbox
 
@@ -816,11 +824,11 @@ describe('ReactRefreshLogBox', () => {
          "description": "end https://nextjs.org",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (5:11) @ Index.useCallback[boom]
+         "source": "index.js (5:11) @ ${boomName}
        > 5 |     throw new Error('end https://nextjs.org')
            |           ^",
          "stack": [
-           "Index.useCallback[boom] index.js (5:11)",
+           "${boomName} index.js (5:11)",
          ],
        }
       `)
@@ -830,11 +838,11 @@ describe('ReactRefreshLogBox', () => {
          "description": "end https://nextjs.org",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (5:11) @ Index.useCallback[boom]
+         "source": "index.js (5:11) @ ${boomName}
        > 5 |     throw new Error('end https://nextjs.org')
            |           ^",
          "stack": [
-           "Index.useCallback[boom] index.js (5:11)",
+           "${boomName} index.js (5:11)",
          ],
        }
       `)
@@ -867,11 +875,11 @@ describe('ReactRefreshLogBox', () => {
          "description": "https://nextjs.org start",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (5:11) @ Index.useCallback[boom]
+         "source": "index.js (5:11) @ ${boomName}
        > 5 |     throw new Error('https://nextjs.org start')
            |           ^",
          "stack": [
-           "Index.useCallback[boom] index.js (5:11)",
+           "${boomName} index.js (5:11)",
          ],
        }
       `)
@@ -881,11 +889,11 @@ describe('ReactRefreshLogBox', () => {
          "description": "https://nextjs.org start",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (5:11) @ Index.useCallback[boom]
+         "source": "index.js (5:11) @ ${boomName}
        > 5 |     throw new Error('https://nextjs.org start')
            |           ^",
          "stack": [
-           "Index.useCallback[boom] index.js (5:11)",
+           "${boomName} index.js (5:11)",
          ],
        }
       `)
@@ -918,11 +926,11 @@ describe('ReactRefreshLogBox', () => {
          "description": "middle https://nextjs.org end",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (5:11) @ Index.useCallback[boom]
+         "source": "index.js (5:11) @ ${boomName}
        > 5 |     throw new Error('middle https://nextjs.org end')
            |           ^",
          "stack": [
-           "Index.useCallback[boom] index.js (5:11)",
+           "${boomName} index.js (5:11)",
          ],
        }
       `)
@@ -932,11 +940,11 @@ describe('ReactRefreshLogBox', () => {
          "description": "middle https://nextjs.org end",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (5:11) @ Index.useCallback[boom]
+         "source": "index.js (5:11) @ ${boomName}
        > 5 |     throw new Error('middle https://nextjs.org end')
            |           ^",
          "stack": [
-           "Index.useCallback[boom] index.js (5:11)",
+           "${boomName} index.js (5:11)",
          ],
        }
       `)
@@ -969,11 +977,11 @@ describe('ReactRefreshLogBox', () => {
          "description": "multiple https://nextjs.org links http://example.com",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (5:11) @ Index.useCallback[boom]
+         "source": "index.js (5:11) @ ${boomName}
        > 5 |     throw new Error('multiple https://nextjs.org links http://example.com')
            |           ^",
          "stack": [
-           "Index.useCallback[boom] index.js (5:11)",
+           "${boomName} index.js (5:11)",
          ],
        }
       `)
@@ -983,11 +991,11 @@ describe('ReactRefreshLogBox', () => {
          "description": "multiple https://nextjs.org links http://example.com",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (5:11) @ Index.useCallback[boom]
+         "source": "index.js (5:11) @ ${boomName}
        > 5 |     throw new Error('multiple https://nextjs.org links http://example.com')
            |           ^",
          "stack": [
-           "Index.useCallback[boom] index.js (5:11)",
+           "${boomName} index.js (5:11)",
          ],
        }
       `)
@@ -1020,11 +1028,11 @@ describe('ReactRefreshLogBox', () => {
          "description": "multiple https://nextjs.org links (http://example.com)",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (5:11) @ Index.useCallback[boom]
+         "source": "index.js (5:11) @ ${boomName}
        > 5 |     throw new Error('multiple https://nextjs.org links (http://example.com)')
            |           ^",
          "stack": [
-           "Index.useCallback[boom] index.js (5:11)",
+           "${boomName} index.js (5:11)",
          ],
        }
       `)
@@ -1034,11 +1042,11 @@ describe('ReactRefreshLogBox', () => {
          "description": "multiple https://nextjs.org links (http://example.com)",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (5:11) @ Index.useCallback[boom]
+         "source": "index.js (5:11) @ ${boomName}
        > 5 |     throw new Error('multiple https://nextjs.org links (http://example.com)')
            |           ^",
          "stack": [
-           "Index.useCallback[boom] index.js (5:11)",
+           "${boomName} index.js (5:11)",
          ],
        }
       `)

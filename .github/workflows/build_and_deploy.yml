@@ -40,6 +40,7 @@ env:
   # Run GitHub Actions JS with Node.js 24 to avoid deprecation warnings
   # (needed until actions/checkout, actions/setup-node, etc. all default to node24)
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  __NEXT_ENABLE_REACT_COMPILER: 'true'
 
 jobs:
   deploy-target:

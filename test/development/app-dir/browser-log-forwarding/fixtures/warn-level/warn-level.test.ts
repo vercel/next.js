@@ -29,9 +29,16 @@ describe('browser-log-forwarding warn level', () => {
       )
       .join('\n')
 
-    expect(browserLogs).toMatchInlineSnapshot(`
-     "[browser] browser warn: this is a warning message (app/page.tsx:9:13)
-     [browser] browser error: this is an error message "
-    `)
+    if (process.env.__NEXT_ENABLE_REACT_COMPILER === 'true') {
+      expect(browserLogs).toMatchInlineSnapshot(`
+       "[browser] browser warn: this is a warning message (app/page.tsx:9:12)
+       [browser] browser error: this is an error message "
+      `)
+    } else {
+      expect(browserLogs).toMatchInlineSnapshot(`
+       "[browser] browser warn: this is a warning message (app/page.tsx:9:13)
+       [browser] browser error: this is an error message "
+      `)
+    }
   })
 })

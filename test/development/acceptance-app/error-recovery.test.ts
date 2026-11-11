@@ -217,7 +217,21 @@ describe('Error recovery app', () => {
         `
     )
 
-    if (isTurbopack) {
+    if (isTurbopack && process.env.__NEXT_ENABLE_REACT_COMPILER === 'true') {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "description": "Error evaluating Node.js code",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/client/page.js
+       Error: Error evaluating Node.js code
+       SyntaxError: <FIXME-project-root>/app/client/page.js: Unexpected token (2:27)
+       > 2 |   return <p>Hello world</p>
+           |                            ^",
+         "stack": [],
+       }
+      `)
+    } else if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
          "description": "Expected '}', got '<eof>'",
@@ -289,6 +303,10 @@ describe('Error recovery app', () => {
   })
 
   test('can recover from a event handler error', async () => {
+    const incrementName =
+      process.env.__NEXT_ENABLE_REACT_COMPILER === 'true'
+        ? 'Index[increment]'
+        : 'Index.useCallback[increment]'
     await using sandbox = await createSandbox(next)
     const { browser, session } = sandbox
 
@@ -332,11 +350,11 @@ describe('Error recovery app', () => {
          "description": "oops",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (7:11) @ Index.useCallback[increment]
+         "source": "index.js (7:11) @ ${incrementName}
        >  7 |     throw new Error('oops')
             |           ^",
          "stack": [
-           "Index.useCallback[increment] index.js (7:11)",
+           "${incrementName} index.js (7:11)",
            "button <anonymous>",
            "Index index.js (12:7)",
            "Page app/page.js (4:10)",
@@ -349,11 +367,11 @@ describe('Error recovery app', () => {
          "description": "oops",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (7:11) @ Index.useCallback[increment]
+         "source": "index.js (7:11) @ ${incrementName}
        >  7 |     throw new Error('oops')
             |           ^",
          "stack": [
-           "Index.useCallback[increment] index.js (7:11)",
+           "${incrementName} index.js (7:11)",
            "button <anonymous>",
            "Index index.js (12:7)",
            "Page app/page.js (4:10)",

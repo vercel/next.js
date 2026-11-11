@@ -122,6 +122,10 @@ describe('pages/ error recovery', () => {
   })
 
   test('logbox: can recover from a event handler error', async () => {
+    const incrementName =
+      process.env.__NEXT_ENABLE_REACT_COMPILER === 'true'
+        ? 'Index[increment]'
+        : 'Index.useCallback[increment]'
     await using sandbox = await createSandbox(next)
     const { browser, session } = sandbox
 
@@ -159,11 +163,11 @@ describe('pages/ error recovery', () => {
        "description": "oops",
        "environmentLabel": null,
        "label": "Runtime Error",
-       "source": "index.js (7:11) @ Index.useCallback[increment]
+       "source": "index.js (7:11) @ ${incrementName}
      >  7 |     throw new Error('oops')
           |           ^",
        "stack": [
-         "Index.useCallback[increment] index.js (7:11)",
+         "${incrementName} index.js (7:11)",
        ],
      }
     `)

@@ -231,14 +231,25 @@ describe('non-root-project-monorepo', () => {
                |       ^
              2 |"
           `)
-          expect(await getRedboxCallStack(browser)).toMatchInlineSnapshot(`
-           [
-             "module evaluation app/separate-file.ts (1:7)",
-             "innerArrowFunction app/source-maps-ssr/page.tsx (15:28)",
-             "innerFunction app/source-maps-ssr/page.tsx (12:3)",
-             "Page app/source-maps-ssr/page.tsx (6:5)",
-           ]
-          `)
+          if (process.env.__NEXT_ENABLE_REACT_COMPILER === 'true') {
+            expect(await getRedboxCallStack(browser)).toMatchInlineSnapshot(`
+             [
+               "module evaluation app/separate-file.ts (1:7)",
+               "innerArrowFunction app/source-maps-ssr/page.tsx (15:34)",
+               "innerFunction app/source-maps-ssr/page.tsx (12:3)",
+               "Page app/source-maps-ssr/page.tsx (6:5)",
+             ]
+            `)
+          } else {
+            expect(await getRedboxCallStack(browser)).toMatchInlineSnapshot(`
+             [
+               "module evaluation app/separate-file.ts (1:7)",
+               "innerArrowFunction app/source-maps-ssr/page.tsx (15:28)",
+               "innerFunction app/source-maps-ssr/page.tsx (12:3)",
+               "Page app/source-maps-ssr/page.tsx (6:5)",
+             ]
+            `)
+          }
         } else if (isRspack) {
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
            "app/separate-file.ts (1:7) @ eval
@@ -294,14 +305,25 @@ describe('non-root-project-monorepo', () => {
                |       ^
              2 |"
           `)
-          expect(await getRedboxCallStack(browser)).toMatchInlineSnapshot(`
-           [
-             "module evaluation app/separate-file.ts (1:7)",
-             "innerArrowFunction app/source-maps-client/page.tsx (16:28)",
-             "innerFunction app/source-maps-client/page.tsx (13:3)",
-             "effectCallback app/source-maps-client/page.tsx (7:5)",
-           ]
-          `)
+          if (process.env.__NEXT_ENABLE_REACT_COMPILER === 'true') {
+            expect(await getRedboxCallStack(browser)).toMatchInlineSnapshot(`
+             [
+               "module evaluation app/separate-file.ts (1:7)",
+               "innerArrowFunction app/source-maps-client/page.tsx (16:34)",
+               "innerFunction app/source-maps-client/page.tsx (13:3)",
+               "effectCallback app/source-maps-client/page.tsx (7:5)",
+             ]
+            `)
+          } else {
+            expect(await getRedboxCallStack(browser)).toMatchInlineSnapshot(`
+             [
+               "module evaluation app/separate-file.ts (1:7)",
+               "innerArrowFunction app/source-maps-client/page.tsx (16:28)",
+               "innerFunction app/source-maps-client/page.tsx (13:3)",
+               "effectCallback app/source-maps-client/page.tsx (7:5)",
+             ]
+            `)
+          }
         } else if (isRspack) {
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
            "app/separate-file.ts (1:7) @ eval

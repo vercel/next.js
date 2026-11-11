@@ -92,7 +92,7 @@ describe('ReactRefreshLogBox app', () => {
            |       ^",
          "stack": [
            "module evaluation index.js (3:7)",
-           "module evaluation app/page.js (2:1)",
+           "module evaluation app/page.js (2:${process.env.__NEXT_ENABLE_REACT_COMPILER === 'true' ? 33 : 1})",
          ],
        }
       `)
@@ -580,6 +580,10 @@ describe('ReactRefreshLogBox app', () => {
   })
 
   it('logbox: anchors links in error messages', async () => {
+    const boomName =
+      process.env.__NEXT_ENABLE_REACT_COMPILER === 'true'
+        ? '_IndexBoom'
+        : 'Index.useCallback[boom]'
     await using sandbox = await createSandbox(next)
     const { browser, session } = sandbox
 
@@ -608,11 +612,11 @@ describe('ReactRefreshLogBox app', () => {
        "description": "end https://nextjs.org",
        "environmentLabel": null,
        "label": "Runtime Error",
-       "source": "index.js (5:11) @ Index.useCallback[boom]
+       "source": "index.js (5:11) @ ${boomName}
      > 5 |     throw new Error('end https://nextjs.org')
          |           ^",
        "stack": [
-         "Index.useCallback[boom] index.js (5:11)",
+         "${boomName} index.js (5:11)",
          "button <anonymous>",
          "Index index.js (9:7)",
          "Page app/page.js (4:10)",
@@ -667,11 +671,11 @@ describe('ReactRefreshLogBox app', () => {
        "description": "https://nextjs.org start",
        "environmentLabel": null,
        "label": "Runtime Error",
-       "source": "index.js (5:11) @ Index.useCallback[boom]
+       "source": "index.js (5:11) @ ${boomName}
      > 5 |     throw new Error('https://nextjs.org start')
          |           ^",
        "stack": [
-         "Index.useCallback[boom] index.js (5:11)",
+         "${boomName} index.js (5:11)",
          "button <anonymous>",
          "Index index.js (9:7)",
          "Page app/page.js (4:10)",
@@ -725,11 +729,11 @@ describe('ReactRefreshLogBox app', () => {
        "description": "middle https://nextjs.org end",
        "environmentLabel": null,
        "label": "Runtime Error",
-       "source": "index.js (5:11) @ Index.useCallback[boom]
+       "source": "index.js (5:11) @ ${boomName}
      > 5 |     throw new Error('middle https://nextjs.org end')
          |           ^",
        "stack": [
-         "Index.useCallback[boom] index.js (5:11)",
+         "${boomName} index.js (5:11)",
          "button <anonymous>",
          "Index index.js (9:7)",
          "Page app/page.js (4:10)",
@@ -783,11 +787,11 @@ describe('ReactRefreshLogBox app', () => {
        "description": "multiple https://nextjs.org links http://example.com",
        "environmentLabel": null,
        "label": "Runtime Error",
-       "source": "index.js (5:11) @ Index.useCallback[boom]
+       "source": "index.js (5:11) @ ${boomName}
      > 5 |     throw new Error('multiple https://nextjs.org links http://example.com')
          |           ^",
        "stack": [
-         "Index.useCallback[boom] index.js (5:11)",
+         "${boomName} index.js (5:11)",
          "button <anonymous>",
          "Index index.js (9:7)",
          "Page app/page.js (4:10)",
