@@ -877,7 +877,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     appPaths,
     allNormalizedAppPaths: allNormalizedAppPathsOption,
     pagePath,
-    pageExtensions,
+    pageExtensions: pageExtensionsOption,
     rootDir,
     tsconfigPath,
     isDev,
@@ -920,10 +920,13 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     relatedModules: [],
   }
 
-  const extensions =
-    typeof pageExtensions === 'string'
-      ? [pageExtensions]
-      : pageExtensions.map((extension) => `.${extension}`)
+  // The loader options arrive through a query string, where an array with a
+  // single entry comes back as a plain string.
+  const pageExtensions: PageExtensions =
+    typeof pageExtensionsOption === 'string'
+      ? [pageExtensionsOption]
+      : pageExtensionsOption
+  const extensions = pageExtensions.map((extension) => `.${extension}`)
 
   const normalizedAppPaths =
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
