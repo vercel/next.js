@@ -41,7 +41,7 @@ allowBuilds:
 #   temporary fixture dirs in `file://./scripts/install-native.mjs`
 # - `file://./test/lib/pnpm-security-settings.js` reads and copies these values for
 #   isolated test dirs
-blockExoticSubdeps: true
+blockExoticSubdeps: false
 minimumReleaseAge: 2880 # 48 hrs
 minimumReleaseAgeExclude:
   - '@mswjs/interceptors@0.42.6'
@@ -79,9 +79,9 @@ overrides:
   '@types/react-dom': 19.2.4
   '@types/retry': 0.12.0
   jest-snapshot: 30.0.0-alpha.6
-  react: 'npm:react@19.3.0-canary-e84e1492-20261031'
-  react-dom: 'npm:react-dom@19.3.0-canary-e84e1492-20261031'
-  react-is: 'npm:react-is@19.3.0-canary-e84e1492-20261031'
+  react: 'https://jpiex5y1kvkdo4dw.public.blob.vercel-storage.com/preview-tarballs/facebook/react/925ee4a8257406b5c42e5250a3e5089c159200b4/canary/react.tgz'
+  react-dom: 'https://jpiex5y1kvkdo4dw.public.blob.vercel-storage.com/preview-tarballs/facebook/react/925ee4a8257406b5c42e5250a3e5089c159200b4/canary/react-dom.tgz'
+  react-is: 'https://jpiex5y1kvkdo4dw.public.blob.vercel-storage.com/preview-tarballs/facebook/react/925ee4a8257406b5c42e5250a3e5089c159200b4/canary/react-is.tgz'
   scheduler: 'npm:scheduler@0.28.0-canary-e84e1492-20261031'
 
 packageExtensions:
