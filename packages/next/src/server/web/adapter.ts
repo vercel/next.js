@@ -246,6 +246,12 @@ export async function adapter(
     },
   })
 
+  if (params.skipProxyUrlNormalize) {
+    // NextRequest otherwise normalizes using the user-bundled environment flag,
+    // which is unavailable when native proxies load the adapter directly.
+    Object.defineProperty(request, 'url', { value: normalizeURL.toString() })
+  }
+
   if (params.request.requestMeta) {
     setRequestMeta(request, params.request.requestMeta)
   }

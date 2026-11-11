@@ -233,29 +233,53 @@ describe('native-proxy-go', () => {
   }
 })
 
-// Inspecting the build ID and patching config before startup require a local build.
-// @force-gate turbopack && start
-describe('native-proxy-go with skipProxyUrlNormalize', () => {
-  const { next } = nextTestSetup({ files: __dirname, skipStart: true })
+// Hosted tests require the Go proxy adapter and builder releases (see README.md).
+// @force-gate turbopack && !deploy
+describe.each([false, true])(
+  'native-proxy-go with i18n and skipProxyUrlNormalize: %s',
+  (skipProxyUrlNormalize) => {
+    const { next } = nextTestSetup({ files: __dirname, skipStart: true })
 
-  beforeAll(async () => {
-    const config = await next.readFile('next.config.ts')
-    await next.patchFile(
-      'next.config.ts',
-      config.replace(
-        'experimental: {',
-        'skipProxyUrlNormalize: true, experimental: {'
+    beforeAll(async () => {
+      const config = await next.readFile('next.config.ts')
+      await next.patchFile(
+        'next.config.ts',
+        config.replace(
+          'experimental: {',
+          `skipProxyUrlNormalize: ${skipProxyUrlNormalize},
+        i18n: { locales: ['en', 'fr'], defaultLocale: 'en' },
+        experimental: {`
+        )
       )
-    )
-    await next.start()
-  })
+      await next.start()
+    })
 
-  it('preserves the original data-request URL', async () => {
-    const path = `/_next/data/${next.buildId}/native-proxy/inspect.json?from=data`
-    const response = await next.fetch(path)
-    expect(response.headers.get('x-go-url')).toBe(path)
-  })
-})
+    it.each(['', '/en', '/fr'])(
+      'handles the locale prefix "%s"',
+      async (prefix) => {
+        const path = `${prefix}/protected?from=locale`
+        const response = await next.fetch(path)
+        expect(response.status).toBe(200)
+        expect(response.headers.get('x-go-url')).toBe(
+          !skipProxyUrlNormalize && prefix === '/en'
+            ? '/protected?from=locale'
+            : path
+        )
+      }
+    )
+
+    // The build ID and Pages data endpoint require a local production build.
+    // @force-gate start
+    it('handles the original locale-prefixed data-request URL', async () => {
+      const path = `/_next/data/${next.buildId}/en/protected.json?from=data`
+      const response = await next.fetch(path)
+      expect(response.status).toBe(200)
+      expect(response.headers.get('x-go-url')).toBe(
+        skipProxyUrlNormalize ? path : '/protected?from=data'
+      )
+    })
+  }
+)
 
 // @force-gate turbopack && !deploy
 describe('native-proxy-go in src with Go route handlers', () => {
