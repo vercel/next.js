@@ -49,6 +49,9 @@ describe('eslint-config-next', () => {
          "@next/next:@next/eslint-plugin-next",
        ],
        "rules": {
+         "@next/next/defer-mcp-tool-imports": [
+           1,
+         ],
          "@next/next/google-font-display": [
            1,
          ],
@@ -110,6 +113,9 @@ describe('eslint-config-next', () => {
            1,
          ],
          "@next/next/no-title-in-document-head": [
+           1,
+         ],
+         "@next/next/no-top-level-await-in-mcp": [
            1,
          ],
          "@next/next/no-typos": [

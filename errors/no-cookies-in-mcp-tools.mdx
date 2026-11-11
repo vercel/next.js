@@ -17,12 +17,12 @@ Identify the caller with `ctx.session.auth.current`, which holds the identity th
 ```ts filename="app/mcp/tools/list_events.ts"
 import { defineTool } from '@next/mcp/tools'
 import { z } from 'zod'
-import { db } from '@/lib/db'
 
 export default defineTool({
   description: 'List the signed-in user’s events.',
   inputSchema: z.object({}),
   async execute(_input, ctx) {
+    const { db } = await import('@/lib/db')
     const owner = ctx.session.auth.current!.principalId
     return { events: await db.event.findMany({ where: { owner } }) }
   },
