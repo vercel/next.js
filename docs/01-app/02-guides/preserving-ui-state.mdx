@@ -549,7 +549,7 @@ function VideoPlayer({ src }: { src: string }) {
 
 When the component becomes visible again, Effects re-run and playback position is preserved since the DOM node was never removed.
 
-### Distinguishing first mount from re-show
+### Tracking whether an Effect has run before
 
 Effects run on every hide-to-visible transition, not just the initial mount. A ref can record whether an Effect has run before:
 
