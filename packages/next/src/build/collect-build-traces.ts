@@ -47,7 +47,9 @@ function shouldIgnore(
   serverIgnoreFn: (file: string) => boolean,
   reasons: NodeFileTraceReasons,
   cachedIgnoreFiles: Map<string, boolean>,
-  children: Set<string> = new Set()
+  children: Set<string> = new Set(),
+  unresolvedRouteModuleFiles: ReadonlySet<string> = new Set(),
+  routeModuleId?: string
 ) {
   if (cachedIgnoreFiles.has(file)) {
     return cachedIgnoreFiles.get(file)
@@ -70,6 +72,8 @@ function shouldIgnore(
   let allParentsIgnored = true
 
   for (const parent of reason.parents.values()) {
+    if (unresolvedRouteModuleFiles.has(file) && parent === routeModuleId)
+      continue
     if (!children.has(parent)) {
       children.add(parent)
       if (
@@ -78,7 +82,9 @@ function shouldIgnore(
           serverIgnoreFn,
           reasons,
           cachedIgnoreFiles,
-          children
+          children,
+          unresolvedRouteModuleFiles,
+          routeModuleId
         )
       ) {
         allParentsIgnored = false
@@ -89,6 +95,53 @@ function shouldIgnore(
 
   cachedIgnoreFiles.set(file, allParentsIgnored)
   return allParentsIgnored
+}
+
+/** Recognize the route module's unresolved project-file glob edge. */
+export function isUnresolvedRouteModuleReference(
+  filePath: string,
+  projectDir: string,
+  distDir: string,
+  nextPackageDir: string,
+  routeModuleId: string,
+  reason: { type: string[]; parents: Set<string> } | undefined
+): boolean {
+  if (
+    !reason ||
+    reason.type.length !== 1 ||
+    (reason.type[0] !== 'asset' && reason.type[0] !== 'dependency') ||
+    !reason.parents.has(routeModuleId)
+  ) {
+    return false
+  }
+
+  const projectRelative = path.relative(projectDir, filePath)
+  if (
+    projectRelative === '..' ||
+    projectRelative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(projectRelative) ||
+    projectRelative.split(path.sep).includes('node_modules')
+  ) {
+    return false
+  }
+
+  const nextRelative = path.relative(nextPackageDir, filePath)
+  if (
+    nextRelative !== '..' &&
+    !nextRelative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(nextRelative)
+  ) {
+    return false
+  }
+
+  // Manifests are inside the actual output directory. Configured cache handlers
+  // are explicit trace roots, and their assets retain their own parent reasons.
+  const relative = path.relative(distDir, filePath)
+  return (
+    relative === '..' ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  )
 }
 
 export async function collectBuildTraces({
@@ -381,6 +434,29 @@ export async function collectBuildTraces({
           fileList.add(file)
         }
 
+        const routeModuleId = path.relative(
+          outputFileTracingRoot,
+          require.resolve('next/dist/server/route-modules/route-module')
+        )
+        const nextPackageDir = path.dirname(
+          require.resolve('next/package.json')
+        )
+        const unresolvedRouteModuleFiles = new Set<string>()
+        for (const file of fileList) {
+          if (
+            isUnresolvedRouteModuleReference(
+              path.join(outputFileTracingRoot, file),
+              dir,
+              distDir,
+              nextPackageDir,
+              routeModuleId,
+              reasons.get(file)
+            )
+          ) {
+            unresolvedRouteModuleFiles.add(file)
+          }
+        }
+
         const parentFilesMap = getFilesMapFromReasons(fileList, reasons)
         const cachedLookupIgnore = new Map<string, boolean>()
         const cachedLookupIgnoreMinimal = new Map<string, boolean>()
@@ -409,7 +485,10 @@ export async function collectBuildTraces({
                   reasons,
                   tracedFiles === minimalServerTracedFiles
                     ? cachedLookupIgnoreMinimal
-                    : cachedLookupIgnore
+                    : cachedLookupIgnore,
+                  new Set(),
+                  unresolvedRouteModuleFiles,
+                  routeModuleId
                 )
               ) {
                 tracedFiles.add(
@@ -475,7 +554,10 @@ export async function collectBuildTraces({
                     curFile,
                     routeIgnoreFn,
                     reasons,
-                    cachedLookupIgnoreRoutes
+                    cachedLookupIgnoreRoutes,
+                    new Set(),
+                    unresolvedRouteModuleFiles,
+                    routeModuleId
                   )
                 ) {
                   const filePath = path.join(outputFileTracingRoot, curFile)

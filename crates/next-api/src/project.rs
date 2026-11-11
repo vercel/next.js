@@ -98,9 +98,9 @@ use turbopack_ecmascript::async_chunk::proxy::{
 };
 #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
 use turbopack_node::child_process_backend;
-use turbopack_node::execution_context::ExecutionContext;
 #[cfg(feature = "worker_pool")]
 use turbopack_node::worker_threads_backend;
+use turbopack_node::{NodeBackend, execution_context::ExecutionContext};
 use turbopack_nodejs::{NodeJsChunkingContext, fs::NodeModulesPathMatcher};
 
 pub use crate::additional_roots::AdditionalRootConfig;
@@ -1336,16 +1336,6 @@ impl Project {
     pub(super) async fn execution_context(self: Vc<Self>) -> Result<Vc<ExecutionContext>> {
         let node_root = self.node_root().owned().await?;
         let next_mode = self.next_mode().await?;
-        let strategy = *self
-            .next_config()
-            .turbopack_plugin_runtime_strategy()
-            .await?;
-        let node_backend = match strategy {
-            #[cfg(feature = "worker_pool")]
-            TurbopackPluginRuntimeStrategy::WorkerThreads => worker_threads_backend(),
-            #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
-            TurbopackPluginRuntimeStrategy::ChildProcesses => child_process_backend(),
-        };
 
         let node_execution_chunking_context = Vc::upcast(
             NodeJsChunkingContext::builder(
@@ -1371,8 +1361,24 @@ impl Project {
             self.project_path().owned().await?,
             node_execution_chunking_context,
             self.env(),
-            node_backend,
+            self.node_backend(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn node_backend(self: Vc<Self>) -> Result<Vc<Box<dyn NodeBackend>>> {
+        let strategy = *self
+            .next_config()
+            .turbopack_plugin_runtime_strategy()
+            .await?;
+        let node_backend = match strategy {
+            #[cfg(feature = "worker_pool")]
+            TurbopackPluginRuntimeStrategy::WorkerThreads => worker_threads_backend(),
+            #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
+            TurbopackPluginRuntimeStrategy::ChildProcesses => child_process_backend(),
+        };
+
+        Ok(node_backend)
     }
 
     #[turbo_tasks::function]

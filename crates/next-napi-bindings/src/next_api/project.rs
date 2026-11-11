@@ -75,6 +75,7 @@ use turbopack_core::{
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
 };
 use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, Issue, ResourceIdentifier};
+use turbopack_node::NodeBackend;
 use turbopack_trace_utils::{
     exit::{ExitHandler, ExitReceiver},
     filter_layer::FilterLayer,
@@ -875,9 +876,40 @@ pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<()> {
     let tt = project.turbopack_ctx.turbo_tasks();
+    let container = project.container;
+    let node_backend = turbo_tasks::run(tt.pin(), async move {
+        #[turbo_tasks::function(operation, root)]
+        fn shutdown_project_fs(container: ResolvedVc<ProjectContainer>) -> Vc<DiskFileSystem> {
+            container.project().project_fs()
+        }
+        shutdown_project_fs(container)
+            .read_strongly_consistent()
+            .await?
+            .stop_watching()
+            .await;
+        #[turbo_tasks::function(operation, root)]
+        fn shutdown_node_backend(
+            container: ResolvedVc<ProjectContainer>,
+        ) -> Vc<Box<dyn NodeBackend>> {
+            container.project().node_backend()
+        }
+        shutdown_node_backend(container)
+            .resolve()
+            .strongly_consistent()
+            .await?
+            .into_trait_ref()
+            .await
+    })
+    .await
+    .map_err(|error| {
+        napi::Error::from_reason(format!("Failed to stop project watcher: {error:#}"))
+    })?;
     tt.stop_and_wait().await;
+    let shutdown_result = node_backend.shutdown().await;
     run_exit_handlers(&project.exit_receiver).await;
-    Ok(())
+    shutdown_result.map_err(|error| {
+        napi::Error::from_reason(format!("Failed to close loader resources: {error:#}"))
+    })
 }
 
 #[napi(object, object_from_js = false)]

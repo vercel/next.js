@@ -1,15 +1,19 @@
 import { Worker } from 'worker_threads'
 
+const registeredBindings = new WeakSet<typeof import('./generated-native')>()
+
 const loaderWorkers: Record<string, Map<number, Worker>> = {}
 
 function getPoolId(cwd: string, filename: string) {
   return `${cwd}:${filename}`
 }
 
-export async function runLoaderWorkerPool(
+export function runLoaderWorkerPool(
   bindings: typeof import('./generated-native'),
   bindingPath: string
 ) {
+  if (registeredBindings.has(bindings)) return
+
   bindings.registerWorkerScheduler(
     (creation) => {
       const {
@@ -33,7 +37,7 @@ export async function runLoaderWorkerPool(
 
       workers.set(worker.threadId, worker)
     },
-    (termination) => {
+    async (termination) => {
       const {
         options: { filename, cwd },
         workerId,
@@ -41,8 +45,12 @@ export async function runLoaderWorkerPool(
 
       const poolId = getPoolId(cwd, filename)
       const workers = loaderWorkers[poolId]
-      workers.get(workerId)?.terminate()
-      workers.delete(workerId)
+      const worker = workers?.get(workerId)
+      if (worker) {
+        await worker.terminate()
+        workers.delete(workerId)
+      }
     }
   )
+  registeredBindings.add(bindings)
 }
