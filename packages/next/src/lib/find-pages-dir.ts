@@ -4,12 +4,12 @@ import path from 'path'
 export function findDir(dir: string, name: 'pages' | 'app'): string | null {
   // prioritize ./${name} over ./src/${name}
   let curDir = path.join(dir, name)
-  if (fs.existsSync(curDir)) return curDir
-  if (fs.statSync(curDir, { throwIfNoEntry: false })?.isDirectory()) return curDir
+  if (fs.statSync(curDir, { throwIfNoEntry: false })?.isDirectory())
+    return curDir
 
   curDir = path.join(dir, 'src', name)
-  if (fs.existsSync(curDir)) return curDir
-  if (fs.statSync(curDir, { throwIfNoEntry: false })?.isDirectory()) return curDir
+  if (fs.statSync(curDir, { throwIfNoEntry: false })?.isDirectory())
+    return curDir
 
   return null
 }
