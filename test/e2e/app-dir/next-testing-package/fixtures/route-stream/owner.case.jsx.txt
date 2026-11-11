@@ -1,0 +1,107 @@
+import { expect, test } from 'next/experimental/testing/vitest'
+import { rsc } from 'next/experimental/testing/rsc'
+import { createServer } from 'node:http'
+import { ownerAfter, afterErrors } from './app/[tenant]/stream-owner/[...slug]/state'
+import { responseRow, initialDocumentReady } from './owner-row.mjs'
+import expected from './expected.json'
+
+function leaves(error, seen = new Set()) {
+  if (seen.has(error)) return []
+  seen.add(error)
+  if (error && typeof error === 'object') {
+    if (Array.isArray(error.errors)) return error.errors.flatMap(value => leaves(value, seen))
+    if ('cause' in error) return leaves(error.cause, seen)
+  }
+  return [error]
+}
+async function readAll(reader, decoder, body = '') {
+  for (;;) {
+    const chunk = await reader.read()
+    if (chunk.done) return body + decoder.decode()
+    body += decoder.decode(chunk.value, { stream: true })
+  }
+}
+for (const group of ['cancel', 'after']) {
+  for (const kind of group === 'cancel' ? ['native', 'explicit'] : ['held', 'rejected']) {
+    for (const format of ['html', 'flight']) {
+      test(`${group} ${kind} actual AppPage ${format} ownership`, async () => {
+        const request = group + '-' + kind + '-' + format
+        let enter
+        const entered = new Promise(resolve => { enter = resolve })
+        let held
+        const barrier = createServer((req, res) => { held = res; enter() })
+        await new Promise((resolve, reject) => { barrier.once('error', reject); barrier.listen(0, '127.0.0.1', resolve) })
+        const urlFor = query => new URL('/acme/stream-owner/alpha/c?tag=one&tag=two&unicode=%E2%9C%93' + query + (format === 'flight' ? '&_rsc=' : ''), 'http://localhost')
+        const headersFor = id => ({ 'x-route-request': id, 'x-route-proof': 'request-value', cookie: 'route-session=session-value' })
+        const url = urlFor(group === 'cancel' ? '&redirect=temporary' : kind === 'rejected' ? '&after=reject' : '')
+        const headers = { ...headersFor(request), [group === 'cancel' ? 'x-late-barrier' : 'x-after-barrier']: 'http://127.0.0.1:' + barrier.address().port + '/' + request }
+        let handle
+        let reader
+        let following
+        let followingReader
+        try {
+          handle = await rsc.renderRouteStream({ cacheScope: 'file', format, url: url.href, headers })
+          let completed = false
+          const completion = handle.completed.then(value => { completed = true; return { value } }, error => { completed = true; return { error } })
+          const response = await handle.response
+          reader = handle.stream.getReader()
+          const decoder = new TextDecoder()
+          let body = ''
+          if (group === 'cancel') {
+            while (!initialDocumentReady(body, format)) {
+              const chunk = await reader.read()
+              expect(chunk.done).toBe(false)
+              body += decoder.decode(chunk.value, { stream: true })
+            }
+            await entered
+            expect(completed).toBe(false)
+            expect(ownerAfter.some(value => value.request === request)).toBe(false)
+            const reason = new Error('Actual owned ' + kind + ' stream cancellation')
+            if (kind === 'native') {
+              await reader.cancel(reason)
+              expect(await reader.read()).toEqual({ value: undefined, done: true })
+            } else {
+              await handle.dispose(reason)
+              await expect(reader.read()).rejects.toBe(reason)
+            }
+            expect(await completion).toEqual({ value: { status: 'aborted', reason } })
+          } else {
+            body = await readAll(reader, decoder)
+            await entered
+            expect(completed).toBe(false)
+            expect(ownerAfter.some(value => value.request === request)).toBe(false)
+            held.writeHead(200, { 'content-type': 'text/plain' })
+            held.end('release')
+            const outcome = await completion
+            if (kind === 'rejected') {
+              expect(leaves(outcome.error)).toContain(afterErrors.get(request))
+              expect(afterErrors.get(request)?.message).toBe('Owned real AppPage after failure')
+            } else expect(outcome).toEqual({ value: { status: 'completed' } })
+          }
+          const followingId = 'following-' + request
+          const followUrl = urlFor('')
+          following = await rsc.renderRouteStream({ cacheScope: 'file', format, url: followUrl.href, headers: headersFor(followingId) })
+          const followingResponse = await following.response
+          followingReader = following.stream.getReader()
+          const followingBody = await readAll(followingReader, new TextDecoder())
+          expect(await following.completed).toEqual({ status: 'completed' })
+          const row = { group, kind, format, response: responseRow({ ...response, body }, format, url, group === 'cancel'), after: ownerAfter.find(value => value.request === request), following: responseRow({ ...followingResponse, body: followingBody }, format, followUrl), followingAfter: ownerAfter.find(value => value.request === followingId), barrier: { held: true, released: group === 'after' } }
+          console.log('LIVE_STREAM_OWNER ' + JSON.stringify(row))
+          expect(row).toEqual(expected.find(value => value.group === group && value.kind === kind && value.format === format))
+        } finally {
+          if (held && !held.writableEnded && !held.destroyed) { held.writeHead(200); held.end('release') }
+          try { if (following) await following.dispose() }
+          finally {
+            followingReader?.releaseLock()
+            try { if (handle) await handle.dispose() }
+            finally {
+              reader?.releaseLock()
+              await new Promise((resolve, reject) => barrier.close(error => error ? reject(error) : resolve()))
+              expect(barrier.listening).toBe(false)
+            }
+          }
+        }
+      })
+    }
+  }
+}

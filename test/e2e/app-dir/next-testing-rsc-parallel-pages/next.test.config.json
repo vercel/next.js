@@ -1,0 +1,36 @@
+{
+  "projects": [
+    {
+      "name": "development-parallel-pages-root",
+      "environment": "rsc",
+      "mode": "development",
+      "route": "/[tenant]/panel",
+      "include": ["route-parallel-pages-root.case.jsx"],
+      "fileTimeout": 60000
+    },
+    {
+      "name": "development-parallel-pages-nested",
+      "environment": "rsc",
+      "mode": "development",
+      "route": "/[tenant]/panel/[item]",
+      "include": ["route-parallel-pages-nested.case.jsx"],
+      "fileTimeout": 60000
+    },
+    {
+      "name": "production-parallel-pages-root",
+      "environment": "rsc",
+      "mode": "production",
+      "route": "/[tenant]/panel",
+      "include": ["route-parallel-pages-root.case.jsx"],
+      "fileTimeout": 60000
+    },
+    {
+      "name": "production-parallel-pages-nested",
+      "environment": "rsc",
+      "mode": "production",
+      "route": "/[tenant]/panel/[item]",
+      "include": ["route-parallel-pages-nested.case.jsx"],
+      "fileTimeout": 60000
+    }
+  ]
+}

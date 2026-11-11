@@ -241,7 +241,8 @@ export function renderToNodeFlightStream(
   _ComponentMod: FlightComponentMod,
   _payload: FlightPayload,
   _clientModules: FlightClientModules,
-  _opts: FlightRenderOptions
+  _opts: FlightRenderOptions,
+  _ownedDebugAbortSignal?: AbortSignal
 ): AnyStream {
   throw new Error('not implemented')
 }

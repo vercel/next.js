@@ -1,0 +1,16 @@
+export function responseRow(response, format, url, cancelled = false) {
+  const { body, headers, status } = response
+  const id = cancelled ? 'late-values' : 'ancestor-values'
+  const value = format === 'html' ? body.match(new RegExp('<div id="' + id + '">([^<]+)<\\/div>')) : body.match(new RegExp('"id":"' + id + '","children":("(?:[^"\\\\]|\\\\.)*")'))
+  if (!value) throw new Error('Actual response omitted request facts')
+  const subject = format === 'html' ? JSON.parse(value[1].replaceAll('&quot;', '"')) : JSON.parse(JSON.parse(value[1]))
+  return { pathname: url.pathname, search: url.search, status, contentType: headers['content-type'] ?? null, location: headers.location ?? null, subject, rootLayout: format === 'html' ? body.includes('data-root-layout="acme"') : body.includes('"data-root-layout":"acme"'), nestedLayout: format === 'html' ? body.includes('data-nested-layout="acme"') : body.includes('"data-nested-layout":"acme"'), provider: format === 'html' ? body.includes('data-provider-context="acme"') : body.includes('"label":"acme"'), fallback: body.includes(format === 'html' ? 'id="late-pending"' : '"id":"late-pending"'), redirectDigest: body.match(/NEXT_REDIRECT;[^"\\\n<]*/)?.[0] ?? null, refresh: body.match(/<meta[^>]*http-equiv="refresh"[^>]*content="([^"]*)"/)?.[1] ?? null }
+}
+export function initialDocumentReady(body, format) {
+  const root = format === 'html' ? 'data-root-layout="acme"' : '"data-root-layout":"acme"'
+  const nested = format === 'html' ? 'data-nested-layout="acme"' : '"data-nested-layout":"acme"'
+  const provider = format === 'html' ? 'data-provider-context="acme"' : '"label":"acme"'
+  const values = format === 'html' ? 'id="late-values"' : '"id":"late-values"'
+  const fallback = format === 'html' ? 'id="late-pending"' : '"id":"late-pending"'
+  return [root,nested,provider,values,fallback].every(value => body.includes(value))
+}

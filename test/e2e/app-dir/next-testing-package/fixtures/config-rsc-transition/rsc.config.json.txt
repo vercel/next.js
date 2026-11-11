@@ -1,0 +1,1 @@
+{"maxWorkers":1,"projects":[{"name":"transition","mode":"development","environment":"rsc","route":"/proof/[id]","include":["route.case.jsx"],"isolate":true,"testTimeout":60000,"fileTimeout":120000}]}

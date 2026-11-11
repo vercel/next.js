@@ -1,0 +1,2 @@
+export const requests=new Map()
+export const completedRequests=[]

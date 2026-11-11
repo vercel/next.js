@@ -202,10 +202,8 @@ import {
   type InstantValidationHoleKind,
 } from './dynamic-rendering'
 import { logBuildDebugHint } from './blocking-route-messages'
-import {
-  ClientComponentLoadTracker,
-  wrapClientComponentLoader,
-} from '../client-component-renderer-logger'
+import { ClientComponentLoadTracker } from '../client-component-renderer-logger'
+import { installGlobalModuleLoadingHandlers } from './install-module-loading'
 import { isNodeNextRequest, isNodeNextResponse } from '../base-http/helpers'
 import { waitForResponseToFinish } from './wait-for-response'
 import {
@@ -287,11 +285,7 @@ import isError, { getProperError } from '../../lib/is-error'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
 import type { ParsedRequestHeaders } from '../route-modules/app-page/parse-request-headers'
 import { executeRevalidates } from '../revalidation-utils'
-import {
-  trackPendingChunkLoad,
-  trackPendingImport,
-  trackPendingModules,
-} from './module-loading/track-module-loading.external'
+import { trackPendingModules } from './module-loading/track-module-loading.external'
 import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
 import { normalizeConventionFilePath } from './segment-explorer-path'
@@ -858,12 +852,13 @@ async function generateDynamicFlightRenderResult(
   // non-Cache-Components dev RSC path; unlike the Cache Components staged path
   // it has no detached validation, so the render is the only work to cancel.
   const requestAbortSignal =
-    process.env.__NEXT_DEV_SERVER &&
+    renderOpts.renderAbortSignal ??
+    (process.env.__NEXT_DEV_SERVER &&
     renderOpts.experimental.serverComponentsHmrCancellation === true &&
     requestStore.isHmrRefresh === true &&
     isNodeNextResponse(ctx.res)
       ? signalFromNodeResponse(ctx.res.originalResponse)
-      : undefined
+      : undefined)
 
   if (process.env.__NEXT_USE_NODE_STREAMS) {
     const debugChannel = setReactDebugChannel && createNodeDebugChannel()
@@ -893,7 +888,8 @@ async function generateDynamicFlightRenderResult(
         filterStackFrame,
         debugChannel: debugChannel?.serverSide,
         signal: requestAbortSignal,
-      }
+      },
+      renderOpts.renderAbortSignal
     )
 
     return new FlightRenderResult(
@@ -2483,78 +2479,6 @@ function ErrorApp<T>({
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type BinaryStreamOf<T> = AnyStream
 
-/**
- * Extracted to a separate function to prevent V8 from retaining the entire
- * the render initialization scope through globalThis.__next_require__.
- * V8 shares a single Context object per scope for all closures; by creating
- * these closures in their own function scope, the globalThis references only
- * retain `instrumented` and `cacheComponents`, not request-specific data like
- * req/res/workStore.
- */
-function installGlobalModuleLoadingHandlers(
-  ComponentMod: AppPageModule,
-  cacheComponents: boolean
-) {
-  const instrumented = wrapClientComponentLoader(ComponentMod)
-
-  // When we are prerendering if there is a cacheSignal for tracking
-  // cache reads we track calls to `loadChunk` and `require`. This allows us
-  // to treat chunk/module loading with similar semantics as cache reads to avoid
-  // module loading from causing a prerender to abort too early.
-  const shouldTrackModuleLoading = () => {
-    if (!cacheComponents) {
-      return false
-    }
-    if (process.env.__NEXT_DEV_SERVER) {
-      return true
-    }
-    const workUnitStore = workUnitAsyncStorage.getStore()
-
-    if (!workUnitStore) {
-      return false
-    }
-
-    switch (workUnitStore.type) {
-      case 'prerender':
-      case 'prerender-client':
-      case 'validation-client':
-      case 'prerender-runtime':
-      case 'cache':
-      case 'private-cache':
-        return true
-      case 'prerender-legacy':
-      case 'request':
-      case 'unstable-cache':
-      case 'build-time-generator':
-        return false
-      default:
-        workUnitStore satisfies never
-    }
-  }
-
-  // @ts-expect-error
-  globalThis.__next_require__ = (
-    ...args: Parameters<typeof instrumented.require>
-  ) => {
-    const exportsOrPromise = instrumented.require(...args)
-    if (shouldTrackModuleLoading()) {
-      trackPendingImport(exportsOrPromise)
-    }
-    return exportsOrPromise
-  }
-
-  // @ts-expect-error
-  globalThis.__next_chunk_load__ = (
-    ...args: Parameters<typeof instrumented.loadChunk>
-  ) => {
-    const loadingChunk = instrumented.loadChunk(...args)
-    if (shouldTrackModuleLoading()) {
-      trackPendingChunkLoad(loadingChunk)
-    }
-    return loadingChunk
-  }
-}
-
 type PreparedAppPageRender = {
   req: BaseNextRequest
   ctx: AppRenderContext
@@ -4078,7 +4002,9 @@ async function renderToStream(
                 filterStackFrame,
                 onError: serverComponentsErrorHandler,
                 debugChannel: debugChannel?.serverSide,
-              }
+                signal: renderOpts.renderAbortSignal,
+              },
+              renderOpts.renderAbortSignal
             )
           )
         } else {
@@ -4120,6 +4046,7 @@ async function renderToStream(
                 filterStackFrame,
                 onError: serverComponentsErrorHandler,
                 debugChannel: debugChannel?.serverSide,
+                signal: renderOpts.renderAbortSignal,
               }
             )
           )
@@ -4508,7 +4435,9 @@ async function renderToStream(
             {
               filterStackFrame,
               onError: serverComponentsErrorHandler,
-            }
+              signal: renderOpts.renderAbortSignal,
+            },
+            renderOpts.renderAbortSignal
           )
 
           if (reactServerResult === null) {
@@ -4600,6 +4529,7 @@ async function renderToStream(
             {
               filterStackFrame,
               onError: serverComponentsErrorHandler,
+              signal: renderOpts.renderAbortSignal,
             }
           )
 

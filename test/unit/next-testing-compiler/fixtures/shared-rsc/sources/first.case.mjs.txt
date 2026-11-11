@@ -1,0 +1,23 @@
+import { test, expect } from 'next/experimental/testing/vitest'
+import { rsc } from 'next/experimental/testing/rsc'
+import { sharedRouteRow } from './row.mjs'
+
+test('first shared RSC file retains its actual request and shared module', async () => {
+  const result = await rsc.renderRoute({ cacheScope: 'file', format: 'html', url: 'http://localhost/shared/one?label=first', headers: { 'accept-language': 'en', cookie: 'scope=one' } })
+  const row = sharedRouteRow(result)
+  expect(row).toEqual({
+    status: 200,
+    contentType: 'text/html; charset=utf-8',
+    layout: 'actual-layout',
+    layoutLanguage: 'en',
+    subject: {
+      version: expect.any(String),
+      count: 1,
+      id: 'one',
+      label: 'first',
+      language: 'en',
+      cookie: 'one',
+    },
+  })
+  console.log('SHARED_RSC_ROW ' + JSON.stringify({ file: 'first', row }))
+})
