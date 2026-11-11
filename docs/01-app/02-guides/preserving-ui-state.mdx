@@ -32,7 +32,7 @@ When a user navigates away and returns, Activity preserves the open/closed state
 
 **When to reset it:** A dropdown menu or popover triggered by a button click. These are transient interactions, not persistent view state. Returning to a page with a dropdown already open is not user friendly.
 
-To reset transient open/closed state, close it in a `useLayoutEffect` cleanup function:
+For UI controlled by React state, reset that state in a `useLayoutEffect` cleanup when Activity hides the component:
 
 ```tsx highlight={8-13}
 'use client'
@@ -67,7 +67,7 @@ function SettingsDropdown() {
 }
 ```
 
-When Activity hides this component, the cleanup function runs and resets `isOpen`. When the page becomes visible again, the dropdown is closed. Using `useLayoutEffect` ensures the cleanup runs synchronously before the component is hidden, avoiding any flash of stale state.
+The cleanup resets `isOpen` before Activity hides the component, so the dropdown is closed when the user returns.
 
 You can also use `Link`'s [`onNavigate`](/docs/app/api-reference/components/link#onnavigate) callback to close dropdowns immediately when a navigation link is clicked.
 
@@ -266,16 +266,14 @@ If you use [`useActionState`](https://react.dev/reference/react/useActionState),
 
 For uncontrolled inputs, a callback ref can call [`form.reset()`](https://developer.mozilla.org/docs/Web/API/HTMLFormElement/reset) when Activity hides the component. This restores the inputs to their default values:
 
-```tsx highlight={6-8}
+```tsx highlight={3-5}
 'use client'
 
-import { useCallback } from 'react'
+function resetOnHide(form: HTMLFormElement | null) {
+  return () => form?.reset()
+}
 
 function ContactForm() {
-  const resetOnHide = useCallback((form: HTMLFormElement | null) => {
-    return () => form?.reset()
-  }, [])
-
   return (
     <form ref={resetOnHide}>
       <input name="email" />
@@ -286,7 +284,7 @@ function ContactForm() {
 }
 ```
 
-`useCallback` keeps the ref callback stable. An inline callback would also run its cleanup whenever the component re-renders, resetting fields while the user is editing. `form.reset()` does not reset React state. For controlled inputs, reset the state passed to `value` or `checked`, as in the examples above.
+Defining the callback outside the component keeps it stable across re-renders. `form.reset()` does not reset React state. For controlled inputs, reset the state passed to `value` or `checked`, as in the examples above.
 
 </details>
 
@@ -360,7 +358,7 @@ function PageWithStyles() {
 }
 ```
 
-When Activity hides the component, the cleanup sets `media="not all"`, which disables the stylesheet. When visible again, the effect re-runs and resets `media` to enable it.
+When Activity hides the component, the cleanup sets `media="not all"`, which disables the stylesheet. When visible again, the Effect re-runs and resets `media` to enable it.
 
 ### The `:has` selector
 
@@ -515,7 +513,7 @@ The Server Component starts fetching comments immediately and passes the promise
 
 ### Effect and media cleanup
 
-When Activity hides content, React runs effect cleanup functions just like it does on unmount. This means timers, subscriptions, and media playback pause automatically if you have proper cleanup:
+When Activity hides content, React runs Effect cleanup functions as it does on unmount. This means timers, subscriptions, and media playback pause automatically if you have proper cleanup:
 
 ```tsx
 'use client'
@@ -555,11 +553,11 @@ function VideoPlayer({ src }: { src: string }) {
 }
 ```
 
-When the component becomes visible again, effects re-run and playback position is preserved since the DOM node was never removed.
+When the component becomes visible again, Effects re-run and playback position is preserved since the DOM node was never removed.
 
 ### Distinguishing first mount from re-show
 
-Effects run on every hide-to-visible transition, not just the initial mount. If you need to distinguish the first mount from subsequent visibility changes, use a ref:
+Effects run on every hide-to-visible transition, not just the initial mount. A ref can record whether an Effect has run before:
 
 ```tsx
 'use client'
@@ -567,14 +565,14 @@ Effects run on every hide-to-visible transition, not just the initial mount. If 
 import { useEffect, useRef } from 'react'
 
 function TrackedComponent() {
-  const hasMountedRef = useRef(false)
+  const hasRunRef = useRef(false)
 
   useEffect(() => {
-    if (!hasMountedRef.current) {
-      hasMountedRef.current = true
-      console.log('First mount')
+    if (!hasRunRef.current) {
+      hasRunRef.current = true
+      console.log('Effect ran for the first time')
     } else {
-      console.log('Became visible again')
+      console.log('Effect ran again')
     }
   }, [])
 
@@ -582,7 +580,7 @@ function TrackedComponent() {
 }
 ```
 
-The ref persists across hide/show cycles (refs aren't cleaned up), so `hasMountedRef.current` stays `true` after the first mount. Each time Activity becomes visible, the Effect runs again, but now it takes the `else` branch.
+The ref persists across hide/show cycles. In development, [Strict Mode runs an extra setup and cleanup cycle](https://react.dev/reference/react/StrictMode#fixing-bugs-found-by-re-running-effects-in-development), so the `else` branch can also run on initial mount. This records whether the Effect has run before, not whether navigation occurred. Make setup and cleanup safe to repeat.
 
 ## Examples
 
