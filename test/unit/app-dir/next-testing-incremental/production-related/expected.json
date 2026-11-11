@@ -1,0 +1,51 @@
+{
+  "alpha": {
+    "cases": [
+      {
+        "name": "alpha production consumer",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "rows": [
+      {
+        "name": "alpha",
+        "value": 1
+      }
+    ]
+  },
+  "beta": {
+    "cases": [
+      {
+        "name": "beta production consumer",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "rows": [
+      {
+        "name": "beta",
+        "value": 2
+      }
+    ]
+  },
+  "unrelated": {
+    "cases": [],
+    "rows": []
+  },
+  "changed": {
+    "cases": [
+      {
+        "name": "beta production consumer",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "rows": [
+      {
+        "name": "beta",
+        "value": 2
+      }
+    ]
+  }
+}

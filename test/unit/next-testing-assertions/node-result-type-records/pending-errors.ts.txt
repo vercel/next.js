@@ -1,0 +1,4 @@
+import type { TestResultPending } from 'vitest/node'
+const result: TestResultPending = { state: 'pending', errors: [{ message: 'wrong' }] }
+declare function test(name: string, body: () => void): void
+test('type authoring', () => {})

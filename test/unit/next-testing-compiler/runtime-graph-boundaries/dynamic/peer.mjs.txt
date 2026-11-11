@@ -1,0 +1,1 @@
+export const peer=1;export function load(){return import('./other.mjs')}

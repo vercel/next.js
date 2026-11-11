@@ -1,0 +1,20 @@
+import { test, expect, vi } from 'vitest'
+import { initialType, currentType, currentMarker } from './source.mjs'
+
+test('observes typeof window after a real global stub', () => {
+  expect(initialType).toBe('undefined')
+  vi.stubGlobal('window', { marker: 'authored-window' })
+  try {
+    expect(currentType()).toBe('object')
+    expect(currentMarker()).toBe('authored-window')
+    console.log('WINDOW_RAW:' + JSON.stringify({ stage: 'stubbed', initialType, currentType: currentType(), marker: currentMarker() }))
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
+test('restores authored window branches after the stub is removed', () => {
+  expect(currentType()).toBe('undefined')
+  expect(currentMarker()).toBe(null)
+  console.log('WINDOW_RAW:' + JSON.stringify({ stage: 'restored', initialType, currentType: currentType(), marker: currentMarker() }))
+})

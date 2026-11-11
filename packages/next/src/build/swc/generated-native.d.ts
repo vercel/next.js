@@ -88,9 +88,10 @@ export declare function endpointServerChangedSubscribe(
   func: (err: Error, value: TurbopackResult<undefined>) => void
 ): { __napiType: 'RootTask' }
 
-export declare function endpointWriteToDisk(endpoint: {
-  __napiType: 'Endpoint'
-}): Promise<TurbopackResult<NapiWrittenEndpoint>>
+export declare function endpointWriteToDisk(
+  endpoint: { __napiType: 'Endpoint' },
+  snapshotDirectory?: RcStr | undefined | null
+): Promise<TurbopackResult<NapiWrittenEndpoint>>
 
 export declare function expandNextJsTemplate(
   content: Buffer,
@@ -384,6 +385,8 @@ export interface NapiProject {
 }
 
 export interface NapiProjectOptions {
+  /** Private development-only fixture registration. */
+  browserFixtureHost?: RcStr
   /**
    * An absolute root path (Unix or Windows path) from which all files must be nested under.
    * Trying to access a file outside this root will fail, so think of this as a chroot.
@@ -594,6 +597,9 @@ export declare function projectActivateLazyChunk(
   chunkPath: RcStr
 ): Promise<boolean>
 
+/** Explicit private App Page fixtures in a normal production build. */
+export declare function projectBrowserFixtureProductionVersion(): number
+
 export declare function projectClientHmrChunkNamesSubscribe(
   project: { __napiType: 'Project' },
   func: (err: Error, value: TurbopackResult<HmrChunkNames>) => void
@@ -695,6 +701,69 @@ export declare function projectOnExit(project: {
 export declare function projectShutdown(project: {
   __napiType: 'Project'
 }): Promise<void>
+
+/** Create an explicit test endpoint without adding it to application routes. */
+export declare function projectTestEntry(
+  project: { __napiType: 'Project' },
+  file: RcStr,
+  id: RcStr,
+  environment: RcStr,
+  setupFiles?: Array<RcStr> | undefined | null,
+  snapshotSerializers?: Array<RcStr> | undefined | null,
+  cohortFiles?: Array<RcStr> | undefined | null,
+  runtimeEnv?: boolean | undefined | null,
+  route?: RcStr | undefined | null,
+  dependencyPlan?: boolean | undefined | null,
+  browserClient?: boolean | undefined | null,
+  sourceCoverage?: boolean | undefined | null,
+  aliasFinds?: Array<RcStr> | undefined | null,
+  importCoverageRoles?: boolean | undefined | null,
+  tsconfigInputRevision?: RcStr | undefined | null,
+  browserSourceCoverage?: boolean | undefined | null,
+  preserveCoverageSources?: boolean | undefined | null
+): Promise<{ __napiType: 'Endpoint' }>
+
+/** Raw query/fragment admission for parent-owned string alias plans. */
+export declare function projectTestEntryAliasVersion(): number
+
+/** Actual compiler-created browser test realm, distinct from Node browser drivers. */
+export declare function projectTestEntryBrowserClientVersion(): number
+
+/** Typed compiler certificates for generated browser bookkeeping scripts. */
+export declare function projectTestEntryBrowserCoverageVersion(): number
+
+/** Explicit source-preserving production Browser coverage, separate from Node. */
+export declare function projectTestEntryBrowserSourceCoverageVersion(): number
+
+/** Shared immutable Node cohort ABI; older bindings ignore appended arguments. */
+export declare function projectTestEntryCohortVersion(): number
+
+/** Compiler-owned module and affecting-source identities for selection planning. */
+export declare function projectTestEntryDependenciesVersion(): number
+
+/** Native-owned, post-composition import initializer coverage descriptors. */
+export declare function projectTestEntryImportCoverageVersion(): number
+
+/** Native AST substitution for the current explicit Node test entry only. */
+export declare function projectTestEntryInSourceVersion(): number
+
+/** Preserve development Node coverage sources without the production coverage mode. */
+export declare function projectTestEntryPreserveCoverageSourcesVersion(): number
+
+/** Real AppProject route/loader-tree metadata for explicit development RSC entries. */
+export declare function projectTestEntryRouteVersion(): number
+
+/** Runtime-mutable user environment in explicit development Node tests. */
+export declare function projectTestEntryRuntimeEnvVersion(): number
+
+/** Explicit feature negotiation: older bindings ignore additional NAPI arguments. */
+export declare function projectTestEntrySetupVersion(): number
+
+/** Explicit source-preserving coverage compilation, independent of runtime mode. */
+export declare function projectTestEntrySourceCoverageVersion(): number
+
+/** Actual native TypeScript option/discovery/resolve input observations. */
+export declare function projectTestEntryTsConfigInputsVersion(): number
 
 export declare function projectTraceSource(
   project: { __napiType: 'Project' },

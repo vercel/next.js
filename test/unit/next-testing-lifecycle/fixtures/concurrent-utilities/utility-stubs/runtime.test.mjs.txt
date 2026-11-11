@@ -1,0 +1,36 @@
+import { test, afterAll, vi } from 'vitest'
+const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
+const key = '__next_testing_concurrent_utility_20261031', env = 'NEXT_TEST_CONCURRENT_UTILITY_20261031'
+const original = Object.getOwnPropertyDescriptor(globalThis, key), originalEnv = process.env[env]
+Object.defineProperty(globalThis, key, { value: 'root', configurable: true, enumerable: false, writable: false })
+process.env[env] = 'root'
+const gate = () => { let release; const promise = new Promise(resolve => { release = resolve }); return { promise, release } }
+const aReady = gate(), bReady = gate(), restored = gate(), bDone = gate()
+const row = kind => emit({kind,global:globalThis[key],env:process.env[env],descriptor:Object.getOwnPropertyDescriptor(globalThis,key)})
+test.concurrent('first shared utility writer', async ({ signal }) => {
+  signal.addEventListener('abort', () => { aReady.release(); bReady.release(); restored.release(); bDone.release() }, {once:true})
+  try {
+    const globalSelf = vi.stubGlobal(key, 'A'), envSelf = vi.stubEnv(env, 'A')
+    row('A-stub'); emit({kind:'A-fluent',globalSelf:globalSelf===vi,envSelf:envSelf===vi}); aReady.release()
+    await bReady.promise
+    row('A-observes-B')
+    vi.unstubAllGlobals(); vi.unstubAllEnvs(); row('A-restored'); restored.release()
+    await bDone.promise
+    row('A-done')
+  } finally { aReady.release(); restored.release() }
+})
+test.concurrent('second shared utility writer', async ({ signal }) => {
+  signal.addEventListener('abort', () => { aReady.release(); bReady.release(); restored.release(); bDone.release() }, {once:true})
+  try {
+    await aReady.promise; row('B-observes-A')
+    vi.stubGlobal(key, 'B'); vi.stubEnv(env, 'B'); row('B-stub'); bReady.release()
+    await restored.promise; row('B-observes-restore')
+    vi.unstubAllGlobals(); vi.unstubAllEnvs(); row('B-repeated-restore'); bDone.release()
+  } finally { bReady.release(); bDone.release() }
+})
+afterAll(() => {
+  row('afterAll')
+  vi.unstubAllGlobals(); vi.unstubAllEnvs()
+  if (original) Object.defineProperty(globalThis,key,original); else delete globalThis[key]
+  if (originalEnv===undefined) delete process.env[env]; else process.env[env]=originalEnv
+})

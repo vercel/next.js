@@ -1,0 +1,53 @@
+{
+  "reference": "unpatched Vitest5.0.4 actual guarded local-temp Node26.12.1",
+  "configSource": "import{appendFileSync}from'node:fs'\nconst log=(kind,fields={})=>appendFileSync(process.env.DATE_NOW_TRACE,JSON.stringify({realm:'config',kind,...fields})+'\\n')\nconst now=new Date(1700000000123);\nconst fakeTimers={toFake:['Date','setTimeout','clearTimeout']};\nlet reads=0;Object.defineProperty(fakeTimers,'now',{enumerable:true,get(){log('now-getter',{receiver:this===fakeTimers,read:++reads});return (reads===2?(()=>{throw new RangeError('second now read failed')})():now)}});\nexport default{test:{include:['clock.test.js','clock.test.mjs'],fileParallelism:false,maxWorkers:1,cache:false,testTimeout:5000,hookTimeout:5000,fakeTimers}}\n",
+  "configSHA256": "6406a50d4e074f7aae15f78eb5db18026e0cfffeb64ab836355e646b2f7d29b8",
+  "bodies": {
+    "clock.test.js": "import{test,vi}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst file=\"js\"\ntest('project clock '+file,()=>{\n const row={realm:'body',kind:'clock',file,clockError:null};\n try{vi.useFakeTimers();row.initial=Date.now();row.date=new Date().getTime();let timer=null;setTimeout(()=>{timer=Date.now()},25);vi.advanceTimersByTime(25);row.after=Date.now();row.timer=timer;row.mocked=vi.getMockedSystemTime()?.getTime()??null;vi.useRealTimers();row.restored=!vi.isFakeTimers();vi.useFakeTimers();row.reinstalled=Date.now()}catch(error){row.clockError={name:error?.name??null,message:error?.message??String(error)}}finally{vi.useRealTimers();row.finallyRestored=!vi.isFakeTimers();appendFileSync(process.env.DATE_NOW_TRACE,JSON.stringify(row)+'\\n')}\n})\n",
+    "clock.test.mjs": "import{test,vi}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst file=\"mjs\"\ntest('project clock '+file,()=>{\n const row={realm:'body',kind:'clock',file,clockError:null};\n try{vi.useFakeTimers();row.initial=Date.now();row.date=new Date().getTime();let timer=null;setTimeout(()=>{timer=Date.now()},25);vi.advanceTimersByTime(25);row.after=Date.now();row.timer=timer;row.mocked=vi.getMockedSystemTime()?.getTime()??null;vi.useRealTimers();row.restored=!vi.isFakeTimers();vi.useFakeTimers();row.reinstalled=Date.now()}catch(error){row.clockError={name:error?.name??null,message:error?.message??String(error)}}finally{vi.useRealTimers();row.finallyRestored=!vi.isFakeTimers();appendFileSync(process.env.DATE_NOW_TRACE,JSON.stringify(row)+'\\n')}\n})\n"
+  },
+  "bodySHA256": {
+    "clock.test.js": "0293f2b7a011431458f5a0e029a7e9c5cbb4881d37cdf420ea9f48aed03187b7",
+    "clock.test.mjs": "4f552303dcddaceee45d42f4393f4eccee3e5e120666570bfa763ff204c2abbf"
+  },
+  "genuine": {
+    "development": {
+      "status": 1,
+      "rows": [
+        {
+          "realm": "config",
+          "kind": "now-getter",
+          "receiver": true,
+          "read": 1
+        },
+        {
+          "realm": "config",
+          "kind": "now-getter",
+          "receiver": true,
+          "read": 2
+        }
+      ],
+      "report": null,
+      "cases": []
+    },
+    "production": {
+      "status": 1,
+      "rows": [
+        {
+          "realm": "config",
+          "kind": "now-getter",
+          "receiver": true,
+          "read": 1
+        },
+        {
+          "realm": "config",
+          "kind": "now-getter",
+          "receiver": true,
+          "read": 2
+        }
+      ],
+      "report": null,
+      "cases": []
+    }
+  }
+}

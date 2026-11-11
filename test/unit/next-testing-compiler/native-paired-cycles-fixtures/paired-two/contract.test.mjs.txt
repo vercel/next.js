@@ -1,0 +1,129 @@
+import { test, expect, vi } from 'vitest'
+
+vi.mock('next-test-pair2-a', () => {
+  globalThis.__pair2StaticA = (globalThis.__pair2StaticA ?? 0) + 1
+  return {
+    value: 5,
+    phase: 'static-a',
+    fn(value) {
+      return ['static-a', value]
+    },
+  }
+})
+vi.mock('next-test-pair2-b', () => {
+  globalThis.__pair2StaticB = (globalThis.__pair2StaticB ?? 0) + 1
+  return {
+    value: 6,
+    phase: 'static-b',
+    fn(value) {
+      return ['static-b', value]
+    },
+  }
+})
+import * as staticA from 'next-test-pair2-a'
+import * as staticB from 'next-test-pair2-b'
+test('keeps two independent native static runtime actual reset and unmock targets', async () => {
+  let callsA = 0,
+    callsB = 0,
+    originalA,
+    originalB
+  const beforeA = await import('next-test-pair2-a'),
+    beforeB = await import('next-test-pair2-b')
+  vi.doMock('next-test-pair2-a', async (original) => {
+    callsA++
+    originalA = await original()
+    return {
+      value: 73,
+      phase: 'runtime-a',
+      fn(value) {
+        return ['runtime-a', value]
+      },
+    }
+  })
+  vi.doMock('next-test-pair2-b', async (original) => {
+    callsB++
+    originalB = await original()
+    return {
+      value: 74,
+      phase: 'runtime-b',
+      fn(value) {
+        return ['runtime-b', value]
+      },
+    }
+  })
+  const runtimeA = await import('next-test-pair2-a'),
+    runtimeB = await import('next-test-pair2-b'),
+    actualA = await vi.importActual('next-test-pair2-a'),
+    actualB = await vi.importActual('next-test-pair2-b')
+  vi.resetModules()
+  const resetA = await import('next-test-pair2-a'),
+    resetB = await import('next-test-pair2-b'),
+    actualAfterA = await vi.importActual('next-test-pair2-a'),
+    actualAfterB = await vi.importActual('next-test-pair2-b')
+  vi.doUnmock('next-test-pair2-a')
+  const unmockA = await import('next-test-pair2-a'),
+    stillB = await import('next-test-pair2-b')
+  vi.doUnmock('next-test-pair2-b')
+  const unmockB = await import('next-test-pair2-b')
+  const A = [
+      staticA,
+      beforeA,
+      runtimeA,
+      actualA,
+      resetA,
+      actualAfterA,
+      unmockA,
+    ],
+    B = [
+      staticB,
+      beforeB,
+      runtimeB,
+      actualB,
+      resetB,
+      actualAfterB,
+      stillB,
+      unmockB,
+    ]
+  expect(A.map((x) => x.value)).toEqual([5, 5, 73, 20, 73, 20, 20])
+  expect(B.map((x) => x.value)).toEqual([6, 6, 74, 22, 74, 22, 74, 22])
+  expect(beforeA).toBe(staticA)
+  expect(beforeB).toBe(staticB)
+  expect(resetA).toBe(runtimeA)
+  expect(resetB).toBe(runtimeB)
+  expect(stillB).toBe(runtimeB)
+  expect(originalA).toBe(actualA)
+  expect(originalB).toBe(actualB)
+  expect(actualAfterA).not.toBe(actualA)
+  expect(actualAfterA.default).toBe(actualA.default)
+  expect(actualAfterA.fn).toBe(actualA.fn)
+  expect(unmockA).toBe(actualAfterA)
+  expect(actualAfterB).toBe(actualB)
+  expect(unmockB).toBe(actualB)
+  expect(new Set(A).size).toBe(4)
+  expect(new Set(B).size).toBe(3)
+  expect(new Set([...A, ...B]).size).toBe(7)
+  expect(new Set(A.map((x) => x.fn)).size).toBe(3)
+  expect(new Set(B.map((x) => x.fn)).size).toBe(3)
+  expect(new Set([...A, ...B].map((x) => x.fn)).size).toBe(6)
+  for (const value of [...A, ...B]) {
+    expect(value.fn('named')).toEqual([value.phase, 'named'])
+    expect(value.fn.length).toBe(1)
+  }
+  for (const value of [
+    actualA,
+    actualAfterA,
+    unmockA,
+    actualB,
+    actualAfterB,
+    unmockB,
+  ]) {
+    expect(value.default.fn).toBe(value.fn)
+    expect(value.default.fn('default')).toEqual([value.phase, 'default'])
+  }
+  expect(callsA).toBe(1)
+  expect(callsB).toBe(1)
+  expect(globalThis.__pair2OriginalA).toBe(1)
+  expect(globalThis.__pair2OriginalB).toBe(1)
+  expect(globalThis.__pair2StaticA).toBe(1)
+  expect(globalThis.__pair2StaticB).toBe(1)
+})

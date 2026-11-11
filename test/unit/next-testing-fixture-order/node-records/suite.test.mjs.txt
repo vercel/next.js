@@ -1,0 +1,56 @@
+import { test, expect } from 'vitest'
+const groups = Object.create(null)
+function record(group, phase) {
+  const row = { group, phase }
+  ;(groups[group] ||= []).push(row)
+  console.log('FIXTURE_ORDER_ROW ' + JSON.stringify(row))
+}
+const phases = (group) => groups[group].map((row) => row.phase)
+const selected = test.extend({
+  first: async ({}, use) => { record('selected', 'first-in'); await use('first'); record('selected', 'first-out') },
+  automatic: [async ({}, use) => { record('selected', 'auto-in'); await use('automatic'); record('selected', 'auto-out') }, { auto: true }],
+  second: async ({}, use) => { record('selected', 'second-in'); await use('second'); record('selected', 'second-out') },
+  unused: async ({}, use) => { throw new Error('An unused fixture was started') },
+})
+selected('registration order precedes reversed callback parameters', ({ second, first }) => {
+  record('selected', 'body', { first, second })
+  expect(phases('selected')).toEqual(['first-in', 'auto-in', 'second-in', 'body'])
+})
+const dependency = test.extend({
+  wanted: async ({}, use) => { record('dependency', 'wanted-in'); await use('wanted'); record('dependency', 'wanted-out') },
+  automatic: [async ({ later }, use) => { record('dependency', 'auto-in', later); await use('automatic'); record('dependency', 'auto-out') }, { auto: true }],
+  later: async ({}, use) => { record('dependency', 'later-in'); await use('later'); record('dependency', 'later-out') },
+  unused: async ({}, use) => { throw new Error('An unused dependency fixture was started') },
+})
+dependency('actual dependency DFS precedes its selected auto consumer', ({ wanted, automatic }) => {
+  record('dependency', 'body', { wanted, automatic })
+  expect(phases('dependency')).toEqual(['wanted-in', 'later-in', 'auto-in', 'body'])
+})
+const counts = { worker: 0, file: 0, auto: 0 }
+const scoped = test.extend({
+  workerValue: [async ({}, use) => { const count = ++counts.worker; record('scoped', 'worker-in', count); await use(count); record('scoped', 'worker-out', count) }, { scope: 'worker' }],
+  fileValue: [async ({}, use) => { const count = ++counts.file; record('scoped', 'file-in', count); await use(count); record('scoped', 'file-out', count) }, { scope: 'file' }],
+  automatic: [async ({}, use) => { const count = ++counts.auto; record('scoped', 'auto-in', count); await use(count); record('scoped', 'auto-out', count) }, { auto: true }],
+})
+scoped('scoped registrations precede test auto despite reversed request order', ({ fileValue, workerValue, automatic }) => {
+  record('scoped', 'first-body', { workerValue, fileValue, automatic })
+  expect({ workerValue, fileValue, automatic }).toEqual({ workerValue: 1, fileValue: 1, automatic: 1 })
+  expect(phases('scoped')).toEqual(['worker-in', 'file-in', 'auto-in', 'first-body'])
+})
+scoped('scoped values are reused while actual test cleanup joins each attempt', ({ fileValue, workerValue, automatic }) => {
+  record('scoped', 'second-body', { workerValue, fileValue, automatic })
+  expect({ workerValue, fileValue, automatic }).toEqual({ workerValue: 1, fileValue: 1, automatic: 2 })
+  expect(phases('scoped')).toEqual(['worker-in', 'file-in', 'auto-in', 'first-body', 'auto-out', 'auto-in', 'second-body'])
+})
+const base = test.extend({
+  value: async ({}, use) => { record('override', 'parent-in'); await use(1); record('override', 'parent-out') },
+  automatic: [async ({ value }, use) => { record('override', 'auto-in', value); await use(value); record('override', 'auto-out') }, { auto: true }],
+})
+const override = base.extend({
+  value: async ({ value }, use) => { record('override', 'child-in', value); await use(value + 1); record('override', 'child-out') },
+})
+override('same-name parent and child precede their later automatic consumer', ({ automatic, value }) => {
+  record('override', 'body', { automatic, value })
+  expect({ automatic, value }).toEqual({ automatic: 2, value: 2 })
+  expect(phases('override')).toEqual(['parent-in', 'child-in', 'auto-in', 'body'])
+})

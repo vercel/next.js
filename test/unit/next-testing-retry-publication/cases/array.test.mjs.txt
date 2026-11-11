@@ -1,0 +1,11 @@
+import { test, expect } from 'vitest'
+
+const metadata = [42, { value: 7 }]
+const retry = { count: 0, metadata }
+
+test('array metadata', { retry }, () => {
+  expect(retry.metadata).toBe(metadata)
+  expect(metadata).toHaveLength(2)
+  metadata.push(99)
+  expect(metadata).toHaveLength(3)
+})

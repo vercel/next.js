@@ -1,0 +1,8 @@
+import { test as base, expect } from 'vitest'
+const label = 'ordinary-array'
+const definition = [48, { ordinary: true }]
+const expected = definition
+const owned = base.extend({ value: definition })
+owned(label, ({ value }) => {
+  expect(value).toBe(expected)
+})

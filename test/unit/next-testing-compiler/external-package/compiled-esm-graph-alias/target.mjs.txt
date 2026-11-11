@@ -1,0 +1,1 @@
+import {peer} from './configured-peer.mjs';globalThis.__ws2AliasRoot=(globalThis.__ws2AliasRoot??0)+1;export const evaluation=globalThis.__ws2AliasRoot;export {peer};

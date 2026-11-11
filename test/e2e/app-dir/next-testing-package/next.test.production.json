@@ -1,0 +1,29 @@
+{
+  "compatibility": "vitest",
+  "projects": [
+    {
+      "name": "production-node",
+      "environment": "node",
+      "mode": "production",
+      "include": ["production/node-*.case.*"],
+      "testTimeout": 60000,
+      "fileTimeout": 180000
+    },
+    {
+      "name": "production-rsc",
+      "environment": "rsc",
+      "mode": "production",
+      "include": ["production/rsc.case.*"],
+      "testTimeout": 60000,
+      "fileTimeout": 180000
+    },
+    {
+      "name": "production-browser",
+      "environment": "browser",
+      "mode": "production",
+      "include": ["production/browser.case.*"],
+      "testTimeout": 60000,
+      "fileTimeout": 180000
+    }
+  ]
+}

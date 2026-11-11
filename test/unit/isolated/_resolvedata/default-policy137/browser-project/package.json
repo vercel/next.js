@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "browserslist": [
+    "extends browserslist-config-policy137"
+  ]
+}

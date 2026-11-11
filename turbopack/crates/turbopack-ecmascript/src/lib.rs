@@ -14,6 +14,7 @@ pub mod async_chunk;
 pub mod bytes_source_transform;
 pub mod chunk;
 pub mod chunk_list;
+pub mod cjs_reset_export;
 pub mod code_gen;
 mod collect_module;
 mod directive;
@@ -27,6 +28,7 @@ mod merged_module;
 pub mod minify;
 pub mod module_canonicalization;
 pub mod module_fragments;
+mod native_import_coverage;
 pub mod parse;
 mod path_visitor;
 pub mod references;
@@ -37,6 +39,7 @@ pub mod single_file_ecmascript_output;
 pub mod source_map;
 pub(crate) mod static_code;
 mod swc_comments;
+mod test_declaration_source_map;
 pub mod text;
 pub mod text_source_transform;
 pub mod transform;
@@ -76,7 +79,7 @@ use swc_core::{
             Program, Script, SourceMapperExt, Stmt,
         },
         codegen::{Emitter, text_writer::JsWriter},
-        utils::StmtLikeInjector,
+        utils::{StmtLikeInjector, private_ident},
         visit::{VisitMut, VisitMutWith, VisitMutWithAstPath, VisitWith},
     },
     quote,
@@ -100,7 +103,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    reference::ModuleReferences,
+    reference::{ModuleReference, ModuleReferences},
     reference_type::InnerAssets,
     resolve::{FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json},
     source::Source,
@@ -121,7 +124,7 @@ use crate::{
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
     directive::parse_module_turbopack_directives,
     merged_module::MergedEcmascriptModule,
-    parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
+    parse::{IdentCollector, ParseResult, generate_js_source_map, parse_with_module_grammar},
     path_visitor::{ApplyVisitors, Visitors},
     references::{
         analyze_ecmascript_module,
@@ -129,12 +132,12 @@ use crate::{
         esm::{UrlRewriteBehavior, base::EsmAssetReferences, export},
         exports::compute_ecmascript_module_exports,
     },
-    side_effect_optimization::reference::EcmascriptModulePartReference,
     swc_comments::{CowComments, ImmutableComments},
     transform::{remove_directives, remove_shebang},
 };
 pub use crate::{
     references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER},
+    side_effect_optimization::reference::EcmascriptModulePartReference,
     static_code::StaticEcmascriptCode,
     swc_comments::swc_comments_to_single_threaded,
     transform::{
@@ -205,6 +208,14 @@ pub enum TypeofWindow {
     Undefined,
 }
 
+/// Optional runtime that materializes an import.meta.env object from native defaults.
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone)]
+pub struct ImportMetaEnvRuntime {
+    pub request: RcStr,
+    pub export: RcStr,
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct EcmascriptOptions {
@@ -218,6 +229,9 @@ pub struct EcmascriptOptions {
     /// This allows to construct url depends on the different building context,
     /// e.g. SSR, CSR, or Node.js.
     pub url_rewrite_behavior: Option<UrlRewriteBehavior>,
+    /// Private Node-test filesystem URLs are evaluated against the authored source.
+    /// The analyzer additionally requires the actual working-directory filesystem.
+    pub test_source_file_urls: bool,
     /// External imports should used `__turbopack_import__` instead of
     /// `__turbopack_require__` and become async module references.
     pub import_externals: bool,
@@ -261,6 +275,19 @@ pub struct EcmascriptOptions {
     pub cross_module_constants: bool,
     /// Whether dynamic import targets are compiled after their runtime proxy is activated.
     pub lazy_compilation: bool,
+    /// Use Promise-driven generators for async continuations, including module wrappers.
+    pub lower_async_to_generator: bool,
+    /// Exact private authoring source; ordinary application modules leave this absent.
+    pub test_declaration_call_adapter: Option<ResolvedVc<Box<dyn Source>>>,
+    /// Private Node-test admission for direct, resolved injected CommonJS writes.
+    /// Ordinary application and Browser contexts leave this disabled.
+    pub test_injected_commonjs_exports: bool,
+    /// Native browser-test creator pass selected; not a public config value.
+    pub browser_creator_scope: bool,
+    /// Selected Browser test entry with an ESM import contract.
+    pub browser_test_entry: Option<ResolvedVc<FileSystemPath>>,
+    /// Runtime module/export supplying mutable import.meta.env values, when configured.
+    pub import_meta_env_runtime: Option<ResolvedVc<ImportMetaEnvRuntime>>,
 }
 
 #[turbo_tasks::value(task_input)]
@@ -497,6 +524,13 @@ pub trait EcmascriptAnalyzableExt {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Vc<EcmascriptModuleContent>;
+
+    fn module_content_with_graph(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_graph: Vc<ModuleGraph>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Vc<EcmascriptModuleContent>;
 }
 
 impl<T> EcmascriptAnalyzableExt for T
@@ -512,6 +546,41 @@ where
         let own_options = analyzable.module_content_options(chunking_context, async_module_info);
         EcmascriptModuleContent::new(own_options)
     }
+
+    fn module_content_with_graph(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_graph: Vc<ModuleGraph>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Vc<EcmascriptModuleContent> {
+        let analyzable = Vc::upcast_non_strict::<Box<dyn EcmascriptAnalyzable>>(self);
+        let own_options = analyzable.module_content_options(chunking_context, async_module_info);
+        module_content_with_graph(own_options, module_graph)
+    }
+}
+
+#[turbo_tasks::function]
+async fn module_content_with_graph(
+    options: Vc<EcmascriptModuleContentOptions>,
+    module_graph: Vc<ModuleGraph>,
+) -> Result<Vc<EcmascriptModuleContent>> {
+    let mut options = (*options.await?).clone();
+    let module = ResolvedVc::upcast(options.module);
+    // Namespace publication belongs to the actual module, independently of its
+    // async classification. In particular, a synchronous leaf has no async info.
+    let info = module_graph.referenced_async_modules(*module).await?;
+    if let Some(graph) = info.runtime_import_demands {
+        for certificate in &graph.await?.namespaces {
+            if certificate.await?.module == module {
+                anyhow::ensure!(
+                    options.runtime_namespace.is_none(),
+                    "Public namespace has duplicate actual certificates"
+                );
+                options.runtime_namespace = Some(*certificate);
+            }
+        }
+    }
+    Ok(EcmascriptModuleContent::new(options.cell()))
 }
 
 impl EcmascriptModuleAsset {
@@ -585,8 +654,15 @@ impl EcmascriptModuleAsset {
                 .owned()
                 .await?
                 .unwrap_or_else(|| rcstr!("development"));
-            crate::parse::parse_from_rope(rope, self.source, self.ty, self.transforms, node_env)
-                .await
+            crate::parse::parse_from_rope_with_module_grammar(
+                rope,
+                self.source,
+                self.ty,
+                self.transforms,
+                node_env,
+                self.parse_as_browser_module().await?,
+            )
+            .await
         }
         .await;
         match result {
@@ -652,11 +728,17 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
         let this = self.await?;
 
         let parsed = this.parse().await?;
+        let options = this.options.await?;
+        let specified_module_type = if this.is_browser_test_entry().await? {
+            this.resolved_module_type().await?.module_type
+        } else {
+            options.specified_module_type
+        };
 
         Ok(EcmascriptModuleContent::new_without_analysis(
             parsed,
             self.ident(),
-            this.options.await?.specified_module_type,
+            specified_module_type,
             generate_source_map,
         ))
     }
@@ -693,6 +775,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             // Derived from this module's own `ImportMap` during code generation.
             export_registration_mode: None,
             async_module_info,
+            runtime_namespace: None,
         }
         .cell())
     }
@@ -840,6 +923,56 @@ async fn compute_ecmascript_module_side_effects(
 }
 
 impl EcmascriptModuleAsset {
+    /// Creator instrumentation needs the resolved ESM grammar even when the
+    /// source contains no import/export. Keep all other parsing unchanged.
+    async fn parse_as_browser_module(&self) -> Result<bool> {
+        let options = self.options.await?;
+        if !options.browser_creator_scope {
+            return Ok(false);
+        }
+        Ok(matches!(
+            self.resolved_module_type().await?.module_type,
+            SpecifiedModuleType::EcmaScript
+        ))
+    }
+
+    async fn is_browser_test_entry(&self) -> Result<bool> {
+        let options = self.options.await?;
+        if !options.browser_creator_scope {
+            return Ok(false);
+        }
+        let Some(target) = options.browser_test_entry else {
+            return Ok(false);
+        };
+        Ok(&*target.await? == &self.origin_path)
+    }
+
+    async fn resolved_module_type(&self) -> Result<ReadRef<ModuleTypeResult>> {
+        let options = self.options.await?;
+        let resolved = match options.specified_module_type {
+            SpecifiedModuleType::EcmaScript => {
+                ModuleTypeResult::new(SpecifiedModuleType::EcmaScript).await?
+            }
+            SpecifiedModuleType::CommonJs => {
+                ModuleTypeResult::new(SpecifiedModuleType::CommonJs).await?
+            }
+            SpecifiedModuleType::Automatic => {
+                determine_module_type_for_directory(self.origin_path.parent()).await?
+            }
+        };
+        if self.is_browser_test_entry().await?
+            && !matches!(resolved.module_type, SpecifiedModuleType::EcmaScript)
+        {
+            return ModuleTypeResult {
+                module_type: SpecifiedModuleType::EcmaScript,
+                referenced_package_json: resolved.referenced_package_json.clone(),
+            }
+            .cell()
+            .await;
+        }
+        Ok(resolved)
+    }
+
     pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
         analyze_ecmascript_module(self, None)
     }
@@ -854,7 +987,7 @@ impl EcmascriptModuleAsset {
             .owned()
             .await?
             .unwrap_or_else(|| rcstr!("development"));
-        Ok(parse(
+        Ok(parse_with_module_grammar(
             *self.source,
             self.ty,
             *self.transforms,
@@ -863,24 +996,13 @@ impl EcmascriptModuleAsset {
             // warnings instead.
             !options.analyze_mode.is_codegen,
             options.inline_helpers,
+            self.parse_as_browser_module().await?,
         ))
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) async fn determine_module_type(self: Vc<Self>) -> Result<ReadRef<ModuleTypeResult>> {
-        let this = self.await?;
-
-        match this.options.await?.specified_module_type {
-            SpecifiedModuleType::EcmaScript => {
-                return ModuleTypeResult::new(SpecifiedModuleType::EcmaScript).await;
-            }
-            SpecifiedModuleType::CommonJs => {
-                return ModuleTypeResult::new(SpecifiedModuleType::CommonJs).await;
-            }
-            SpecifiedModuleType::Automatic => {}
-        }
-
-        determine_module_type_for_directory(this.origin_path.parent()).await
+        self.await?.resolved_module_type().await
     }
 }
 
@@ -973,7 +1095,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     async fn chunk_item_content(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        _module_graph: Vc<ModuleGraph>,
+        module_graph: Vc<ModuleGraph>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
@@ -983,7 +1105,8 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
         );
         async {
             let async_module_options = self.get_async_module().module_options(async_module_info);
-            let content = self.module_content(chunking_context, async_module_info);
+            let content =
+                self.module_content_with_graph(chunking_context, module_graph, async_module_info);
             EcmascriptChunkItemContent::new(content, chunking_context, async_module_options)
                 .to_resolved()
                 .await
@@ -1068,6 +1191,11 @@ pub struct EcmascriptModuleContentOptions {
     /// there is no `ImportMap` to classify them from.
     export_registration_mode: Option<ExportRegistrationMode>,
     async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
+    runtime_namespace: Option<
+        ResolvedVc<
+            turbopack_core::module_graph::runtime_import_demands::RuntimeImportNamespaceCertificate,
+        >,
+    >,
 }
 
 /// Generate the code of a processed virtual module under the identity of the module in the
@@ -1105,6 +1233,7 @@ impl EcmascriptModuleContentOptions {
         &self,
         scope_hoisting_context: ScopeHoistingContext<'_>,
         eval_context: &EvalContext,
+        globals: &Globals,
     ) -> Result<(Vec<CodeGeneration>, ReadRef<CodeGens>)> {
         // Don't read `parsed` here again, it will cause a recomputation as `process_parse_result`
         // has consumed the cell already.
@@ -1125,6 +1254,23 @@ impl EcmascriptModuleContentOptions {
         async {
             let async_module_ref = async_module.await?;
             let esm_references_ref = esm_references.await?;
+            let demand_graph = if let Some(info) = async_module_info {
+                info.await?.runtime_import_demands
+            } else {
+                None
+            };
+            let namespace_order = if let Some(certificate) = self.runtime_namespace {
+                let certificate = certificate.await?;
+                anyhow::ensure!(
+                    certificate.module == ResolvedVc::upcast(*module),
+                    "Public namespace certificate must retain its actual chunk-content owner"
+                );
+                if certificate.kind == turbopack_core::module_graph::runtime_import_demands::RuntimeImportNamespaceKind::Esm {
+                    Some(certificate.export_order.clone())
+                } else { None }
+            } else {
+                None
+            };
             // The export registration is computed first: when it can spell the whole module's
             // exports as one compact call, it also performs those imports, and reports which
             // references it subsumed so they don't emit them a second time.
@@ -1141,6 +1287,7 @@ impl EcmascriptModuleContentOptions {
                             export_registration_mode
                                 .map(|_| (part_references.as_ref(), esm_references_ref.as_ref())),
                             async_module_info.is_some(),
+                            namespace_order.as_deref(),
                         )
                         .await?;
                     (Some(code_gen), subsumed)
@@ -1148,22 +1295,74 @@ impl EcmascriptModuleContentOptions {
                     (None, Default::default())
                 };
 
-            let additional_code_gens = [
-                if let Some(async_module) = &*async_module_ref {
-                    Some(
-                        async_module
-                            .code_generation(
-                                async_module_info.map(|info| *info),
-                                **references,
-                                **chunking_context,
-                            )
-                            .await?,
+            let async_code_gens = if let Some(async_module) = &*async_module_ref {
+                Some(
+                    async_module
+                        .code_generation(
+                            async_module_info.map(|info| *info),
+                            **references,
+                            part_references,
+                            **chunking_context,
+                        )
+                        .await?,
+                )
+            } else {
+                None
+            };
+            let (before_static_demands, async_code_gen) = async_code_gens
+                .map(|generated| {
+                    (
+                        Some(generated.before_static_demands),
+                        Some(generated.after_imports),
                     )
-                } else {
-                    None
-                },
-                exports_code_gen,
-            ];
+                })
+                .unwrap_or_default();
+            let commonjs_publication = if let Some(certificate) = self.runtime_namespace {
+                let certificate = certificate.await?;
+                if certificate.kind == turbopack_core::module_graph::runtime_import_demands::RuntimeImportNamespaceKind::CommonJsCallable {
+                    anyhow::ensure!(certificate.export_order.is_empty() && matches!(*exports.await?, EcmascriptExports::CommonJs(_)), "Callable namespace must retain its CommonJS export kind");
+                    let actual = ResolvedVc::try_downcast_type::<EcmascriptModuleAsset>(ResolvedVc::upcast::<Box<dyn Module>>(*module)).context("Callable namespace requires its exact full owner")?;
+                    let proof = cjs_reset_export::commonjs_callable_publication_certificate(*actual).await?;
+                    let analysis = actual.analyze().await?;
+                    anyhow::ensure!(proof.module == actual && proof.shape == cjs_reset_export::CommonJsResetExportShape::FunctionBinding && analysis.successful
+                        && !analysis.code_generation.await?.code_gens.iter().any(|code| matches!(code, code_gen::CodeGen::DynamicExpression(_)))
+                        && turbopack_core::reference::primary_chunkable_referenced_modules(Vc::upcast(*actual), false, false).await?.is_empty(),
+                        "Callable namespace must retain its exact successful leaf publication proof");
+                    let finish = GLOBALS.set(globals, || private_ident!("__turbopack_publish_commonjs__"));
+                    let interop_default = !actual.source().ident().await?.path.path.ends_with(".mjs");
+                    let prepare = quote!("var $finish = $prepare($interop_default);" as Stmt,
+                        finish = finish.clone(),
+                        prepare: Expr = runtime_functions::TURBOPACK_COMMONJS_PUBLICATION.unmapped_expr(),
+                        interop_default: Expr = Expr::Lit(ast::Lit::Bool(ast::Bool { span: DUMMY_SP, value: interop_default })));
+                    let publish = quote!("if ($finish) $finish();" as Stmt, finish = finish);
+                    Some(CodeGeneration {
+                        hoisted_stmts: vec![CodeGenerationHoistedStmt::new(rcstr!("commonjs callable namespace preparation"), prepare)],
+                        late_stmts: vec![CodeGenerationHoistedStmt::new(rcstr!("commonjs callable namespace publication"), publish)],
+                        ..Default::default()
+                    })
+                } else if certificate.kind == turbopack_core::module_graph::runtime_import_demands::RuntimeImportNamespaceKind::CommonJsLeafPromise {
+                    anyhow::ensure!(certificate.export_order.is_empty() && matches!(*exports.await?, EcmascriptExports::CommonJs(_)), "Promise namespace must retain its CommonJS export kind");
+                    let actual = ResolvedVc::try_downcast_type::<EcmascriptModuleAsset>(ResolvedVc::upcast::<Box<dyn Module>>(*module)).context("Promise namespace requires its exact full owner")?;
+                    let analysis = actual.analyze().await?;
+                    anyhow::ensure!(analysis.successful
+                        && !analysis.code_generation.await?.code_gens.iter().any(|code| matches!(code, code_gen::CodeGen::DynamicExpression(_)))
+                        && turbopack_core::reference::primary_chunkable_referenced_modules(Vc::upcast(*actual), false, false).await?.is_empty(),
+                        "Promise namespace must retain its exact successful leaf publication proof");
+                    let finish = GLOBALS.set(globals, || private_ident!("__turbopack_publish_commonjs_promise__"));
+                    let interop_default = !actual.source().ident().await?.path.path.ends_with(".mjs");
+                    let prepare = quote!("var $finish = $prepare($interop_default, true);" as Stmt,
+                        finish = finish.clone(),
+                        prepare: Expr = runtime_functions::TURBOPACK_COMMONJS_PUBLICATION.unmapped_expr(),
+                        interop_default: Expr = Expr::Lit(ast::Lit::Bool(ast::Bool { span: DUMMY_SP, value: interop_default })));
+                    let publish = quote!("if ($finish) $finish();" as Stmt, finish = finish);
+                    Some(CodeGeneration {
+                        hoisted_stmts: vec![CodeGenerationHoistedStmt::new(rcstr!("commonjs promise namespace preparation"), prepare)],
+                        late_stmts: vec![CodeGenerationHoistedStmt::new(rcstr!("commonjs promise namespace publication"), publish)],
+                        ..Default::default()
+                    })
+                } else { None }
+            } else { None };
+            let additional_code_gens = [async_code_gen, exports_code_gen, commonjs_publication];
 
             let part_code_gens = part_references
                 .iter()
@@ -1177,13 +1376,114 @@ impl EcmascriptModuleContentOptions {
                 .try_join()
                 .await?;
 
-            let esm_code_gens = esm_references_ref
+            let demand_edges = if let Some(graph) = demand_graph {
+                graph
+                    .await?
+                    .iter()
+                    .map(|edge| async move { edge.await })
+                    .try_join()
+                    .await?
+            } else {
+                Vec::new()
+            };
+            let native_edges = if let Some(graph) = demand_graph {
+                graph
+                    .await?
+                    .native_imports
+                    .iter()
+                    .map(async |edge| edge.await)
+                    .try_join()
+                    .await?
+            } else {
+                Vec::new()
+            };
+            let mut ordered_references = esm_references_ref.iter().copied().collect::<Vec<_>>();
+            for native in &native_edges {
+                if let Some(part) = native.via_part {
+                    let part = part.await?;
+                    anyhow::ensure!(
+                        native.owner == ResolvedVc::upcast(*module)
+                            && part_references
+                                .iter()
+                                .any(|reference| ResolvedVc::upcast(*reference) == part.reference),
+                        "Native prerequisite must retain its actual facade part reference"
+                    );
+                    let resolved = part.reference.resolve_reference().await?;
+                    anyhow::ensure!(
+                        resolved.primary_modules().await?.as_slice() == [part.module]
+                            && part.module.references().await?.contains(&native.reference),
+                        "Native prerequisite must retain its actual locals owner and native \
+                         reference"
+                    );
+                    let resolved = native.reference.resolve_reference().await?;
+                    anyhow::ensure!(
+                        resolved.primary_modules().await?.as_slice() == [native.target],
+                        "Native prerequisite must retain its exact native provider"
+                    );
+                    let reference = ResolvedVc::try_downcast_type::<
+                        crate::references::esm::EsmAssetReference,
+                    >(native.reference)
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("Native prerequisite requires its actual ESM reference")
+                    })?;
+                    if !ordered_references.contains(&reference) {
+                        ordered_references.push(reference);
+                    }
+                }
+            }
+
+            if !demand_edges.is_empty() || !native_edges.is_empty() {
+                let mut positioned = Vec::new();
+                for reference in ordered_references {
+                    let span = reference
+                        .await?
+                        .issue_source
+                        .to_swc_offsets()
+                        .await?
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "Ordered runtime imports require actual source positions"
+                            )
+                        })?;
+                    for source_order in demand_edges
+                        .iter()
+                        .filter(|edge| edge.reference == ResolvedVc::upcast(reference))
+                        .map(|edge| edge.source_order)
+                        .chain(
+                            native_edges
+                                .iter()
+                                .filter(|edge| edge.reference == ResolvedVc::upcast(reference))
+                                .map(|edge| edge.source_order),
+                        )
+                    {
+                        anyhow::ensure!(
+                            source_order == span.0,
+                            "Runtime import order must retain its actual reference span"
+                        );
+                    }
+                    positioned.push((span, reference));
+                }
+                positioned.sort_by_key(|(span, _)| *span);
+                ordered_references = positioned
+                    .into_iter()
+                    .map(|(_, reference)| reference)
+                    .collect();
+            }
+            let esm_code_gens = ordered_references
                 .iter()
                 .map(|r| {
+                    let demand = demand_edges
+                        .iter()
+                        .find(|edge| edge.reference == ResolvedVc::upcast(*r));
                     r.code_generation(
                         **chunking_context,
                         scope_hoisting_context,
                         &subsumed_imports,
+                        demand.map(|edge| &**edge),
+                        native_edges
+                            .iter()
+                            .find(|edge| edge.reference == ResolvedVc::upcast(*r))
+                            .map(|edge| &**edge),
                     )
                 })
                 .try_join()
@@ -1208,6 +1508,7 @@ impl EcmascriptModuleContentOptions {
             anyhow::Ok((
                 part_code_gens
                     .into_iter()
+                    .chain(before_static_demands)
                     .chain(esm_code_gens)
                     .chain(additional_code_gens.into_iter().flatten())
                     .chain(code_gens)
@@ -1370,6 +1671,8 @@ impl EcmascriptModuleContent {
                     original_source_maps,
                 ),
                 minify: *options.chunking_context.minify_type().await?,
+                native_import_coverage: Vec::new(),
+                test_declaration_calls: Vec::new(),
                 scope_hoisting_syntax_contexts: None,
             };
 
@@ -1944,6 +2247,8 @@ struct CodeGenResult {
     strict: bool,
     original_source_map: CodeGenResultOriginalSourceMap,
     minify: MinifyType,
+    native_import_coverage: Vec<native_import_coverage::NativeImportCoverageRole>,
+    test_declaration_calls: Vec<test_declaration_source_map::OwnedCall>,
     #[allow(clippy::type_complexity)]
     /// (Map<Module, corresponding context for imports>, `eval_context.imports.exports_ids`)
     scope_hoisting_syntax_contexts: Option<(
@@ -2010,6 +2315,7 @@ async fn process_parse_result(
                                 Either::Left(e) => e,
                                 Either::Right(e) => e,
                             },
+                            globals,
                         )
                         .await?;
 
@@ -2066,6 +2372,7 @@ async fn process_parse_result(
                                 Either::Left(e) => e,
                                 Either::Right(e) => e,
                             },
+                            globals,
                         )
                         .await?;
                     (code_gens, Some(ast_paths), None, None)
@@ -2078,7 +2385,7 @@ async fn process_parse_result(
                 trailing: Default::default(),
             };
 
-            let early_hoisted_count = process_content_with_code_gens(
+            let (early_hoisted_count, native_import_coverage, test_declaration_calls) = process_content_with_code_gens(
                 &mut program,
                 globals,
                 ast_paths.as_deref().map(|p| &p.ast_paths),
@@ -2172,9 +2479,18 @@ async fn process_parse_result(
                     extra_comments,
                 },
                 is_esm,
-                strict,
+                // Vite's compiled CJS evaluator publishes functions from a strict factory.
+                // Keep actual require-side/unmarked factories under their existing mode.
+                strict: strict || if let Some(options) = options {
+                    if let Some(certificate) = options.runtime_namespace {
+                        let certificate = certificate.await?;
+                        certificate.kind == turbopack_core::module_graph::runtime_import_demands::RuntimeImportNamespaceKind::CommonJsCallable
+                    } else { false }
+                } else { false },
                 original_source_map: CodeGenResultOriginalSourceMap::Single(original_source_map),
                 minify,
+                native_import_coverage,
+                test_declaration_calls,
                 scope_hoisting_syntax_contexts: retain_syntax_context
                     // TODO ideally don't clone here
                     .map(|(_, ctxts, _, export_contexts)| (ctxts, export_contexts.into_owned())),
@@ -2214,6 +2530,8 @@ async fn process_parse_result(
                         strict: false,
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
                         minify: MinifyType::NoMinify,
+                        native_import_coverage: Vec::new(),
+                test_declaration_calls: Vec::new(),
                         scope_hoisting_syntax_contexts: None,
                     }
                 }
@@ -2243,6 +2561,8 @@ async fn process_parse_result(
                         strict: false,
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
                         minify: MinifyType::NoMinify,
+                        native_import_coverage: Vec::new(),
+                test_declaration_calls: Vec::new(),
                         scope_hoisting_syntax_contexts: None,
                     }
                 }
@@ -2358,8 +2678,37 @@ async fn emit_content(
         original_source_map,
         minify,
         scope_hoisting_syntax_contexts: _,
+        native_import_coverage,
+        test_declaration_calls,
     } = content;
 
+    let owned_imports = if native_import_coverage.is_empty() {
+        Vec::new()
+    } else {
+        if !matches!(minify, MinifyType::NoMinify) {
+            bail!("Native import coverage roles cannot survive minification");
+        }
+        let CodeGenResultSourceMap::Single { source_map } = &source_map else {
+            bail!("Native import coverage roles require a single unmerged source map");
+        };
+        native_import_coverage::prepare_native_import_coverage(
+            &program,
+            source_map,
+            native_import_coverage,
+        )?
+    };
+    let test_call_maps = match (&source_map, &minify) {
+        (CodeGenResultSourceMap::Single { source_map }, MinifyType::NoMinify)
+            if !test_declaration_calls.is_empty() =>
+        {
+            test_declaration_source_map::prepare_call_mappings(
+                &program,
+                source_map,
+                &test_declaration_calls,
+            )
+        }
+        _ => Default::default(),
+    };
     let generate_source_map = source_map.is_some();
 
     // Collect identifier names for source maps before emitting
@@ -2378,6 +2727,7 @@ async fn emit_content(
     let mut mappings = vec![];
 
     let source_map = Arc::new(source_map);
+    let removed_comments;
 
     {
         let mut wr = JsWriter::new(
@@ -2393,14 +2743,28 @@ async fn emit_content(
 
         let comments = comments.consumable();
 
-        let mut emitter = Emitter {
-            cfg: swc_core::ecma::codegen::Config::default(),
-            cm: source_map.clone(),
-            comments: Some(&comments as &dyn Comments),
-            wr,
+        if test_call_maps.is_empty() {
+            let mut emitter = Emitter {
+                cfg: swc_core::ecma::codegen::Config::default(),
+                cm: source_map.clone(),
+                comments: Some(&comments as &dyn Comments),
+                wr,
+            };
+            emitter.emit_program(&program)?;
+        } else {
+            let mut emitter = Emitter {
+                cfg: swc_core::ecma::codegen::Config::default(),
+                cm: source_map.clone(),
+                comments: Some(&comments as &dyn Comments),
+                wr: test_declaration_source_map::CallParenWriter::new(wr, test_call_maps),
+            };
+            emitter.emit_program(&program)?;
+        }
+        removed_comments = if generate_source_map {
+            comments.remaining_comment_spans()?
+        } else {
+            Vec::new()
         };
-
-        emitter.emit_program(&program)?;
         // Drop the AST eagerly so we don't keep it in memory while generating source maps
         drop(program);
     }
@@ -2427,11 +2791,22 @@ async fn emit_content(
             ),
             true,
             source_map_names,
+            &removed_comments,
         )?)
     } else {
         None
     };
 
+    let source_map = if owned_imports.is_empty() {
+        source_map
+    } else {
+        let roles = native_import_coverage::emitted_native_import_coverage(&bytes, owned_imports)?;
+        Some(
+            source_map
+                .context("Native import coverage source map is absent")?
+                .with_native_test_import_coverage_roles(serde_json::to_vec(&roles)?.into()),
+        )
+    };
     Ok(EcmascriptModuleContent {
         inner_code: bytes.into(),
         source_map,
@@ -2449,24 +2824,34 @@ fn process_content_with_code_gens(
     globals: &Globals,
     trie: Option<&AstPathTrie>,
     code_gens: &mut Vec<CodeGeneration>,
-) -> usize {
+) -> (
+    usize,
+    Vec<native_import_coverage::NativeImportCoverageRole>,
+    Vec<test_declaration_source_map::OwnedCall>,
+) {
     let mut visitors = Vec::new();
     let mut root_visitors = Vec::new();
+    let mut call_captures = Vec::new();
     let mut early_hoisted_stmts = FxIndexMap::default();
     let mut hoisted_stmts = FxIndexMap::default();
     let mut early_late_stmts = FxIndexMap::default();
     let mut late_stmts = FxIndexMap::default();
     for code_gen in code_gens {
-        for CodeGenerationHoistedStmt { key, stmt } in code_gen.hoisted_stmts.drain(..) {
-            hoisted_stmts.entry(key).or_insert(stmt);
+        if let Some(captured) = &code_gen.test_declaration_calls {
+            call_captures.push(captured.clone());
         }
-        for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_hoisted_stmts.drain(..) {
+        for statement in code_gen.hoisted_stmts.drain(..) {
+            hoisted_stmts
+                .entry(statement.key.clone())
+                .or_insert(statement);
+        }
+        for CodeGenerationHoistedStmt { key, stmt, .. } in code_gen.early_hoisted_stmts.drain(..) {
             early_hoisted_stmts.insert(key.clone(), stmt);
         }
-        for CodeGenerationHoistedStmt { key, stmt } in code_gen.late_stmts.drain(..) {
+        for CodeGenerationHoistedStmt { key, stmt, .. } in code_gen.late_stmts.drain(..) {
             late_stmts.insert(key.clone(), stmt);
         }
-        for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_late_stmts.drain(..) {
+        for CodeGenerationHoistedStmt { key, stmt, .. } in code_gen.early_late_stmts.drain(..) {
             early_late_stmts.insert(key.clone(), stmt);
         }
         for (path, visitor) in &code_gen.visitors {
@@ -2494,6 +2879,10 @@ fn process_content_with_code_gens(
         }
     });
 
+    let native_import_coverage = hoisted_stmts
+        .values()
+        .filter_map(|statement| statement.native_import_coverage.clone())
+        .collect();
     let early_hoisted_count = early_hoisted_stmts.len();
     match program {
         Program::Module(ast::Module { body, .. }) => {
@@ -2501,7 +2890,7 @@ fn process_content_with_code_gens(
                 0..0,
                 early_hoisted_stmts
                     .into_values()
-                    .chain(hoisted_stmts.into_values())
+                    .chain(hoisted_stmts.into_values().map(|statement| statement.stmt))
                     .map(ModuleItem::Stmt),
             );
             body.extend(
@@ -2516,7 +2905,7 @@ fn process_content_with_code_gens(
                 0..0,
                 early_hoisted_stmts
                     .into_values()
-                    .chain(hoisted_stmts.into_values()),
+                    .chain(hoisted_stmts.into_values().map(|statement| statement.stmt)),
             );
             body.extend(
                 early_late_stmts
@@ -2525,7 +2914,17 @@ fn process_content_with_code_gens(
             );
         }
     };
-    early_hoisted_count
+    let test_declaration_calls = call_captures
+        .into_iter()
+        .flat_map(|captured| {
+            std::mem::take(&mut *captured.lock().expect("test declaration mapping capture"))
+        })
+        .collect();
+    (
+        early_hoisted_count,
+        native_import_coverage,
+        test_declaration_calls,
+    )
 }
 
 /// Like `hygiene`, but only renames the Atoms without clearing all SyntaxContexts
@@ -3156,6 +3555,55 @@ fn encode_module_into_comment_span(
     )
     .unwrap();
     comment
+}
+
+impl CodeGenResultCommentsConsumable<'_> {
+    fn remaining_comment_spans(&self) -> Result<Vec<Span>> {
+        match self {
+            Self::Single {
+                comments,
+                extra_comments,
+            } => {
+                let mut spans = comments.remaining_comment_spans();
+                for comments in [&extra_comments.leading, &extra_comments.trailing] {
+                    for entry in comments.iter() {
+                        spans.extend(entry.value().iter().map(|comment| comment.span));
+                    }
+                }
+                Ok(spans)
+            }
+            Self::ScopeHoisting {
+                modules_header_width,
+                lookup_table,
+                comments,
+            } => {
+                let mut spans = Vec::new();
+                for (module, comments) in comments.iter().enumerate() {
+                    for span in comments.remaining_comment_spans()? {
+                        if span.is_dummy() {
+                            continue;
+                        }
+                        spans.push(Span::new(
+                            CodeGenResultComments::encode_bytepos(
+                                *modules_header_width,
+                                module as u32,
+                                span.lo,
+                                lookup_table.clone(),
+                            )?,
+                            CodeGenResultComments::encode_bytepos(
+                                *modules_header_width,
+                                module as u32,
+                                span.hi,
+                                lookup_table.clone(),
+                            )?,
+                        ));
+                    }
+                }
+                Ok(spans)
+            }
+            Self::Empty => Ok(Vec::new()),
+        }
+    }
 }
 
 impl Comments for CodeGenResultCommentsConsumable<'_> {

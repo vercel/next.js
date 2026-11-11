@@ -1,0 +1,5 @@
+globalThis.ws2ColdRuntimeEvaluations = (globalThis.ws2ColdRuntimeEvaluations ?? 0) + 1
+globalThis.ws2ColdRuntimeEvents.push('original:' + globalThis.ws2ColdRuntimeEvaluations)
+export const evaluation = globalThis.ws2ColdRuntimeEvaluations
+export const value = 29
+export default { evaluation }

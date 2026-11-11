@@ -2,6 +2,7 @@ use std::fmt::{Display, Formatter};
 
 use swc_core::{
     atoms::atom,
+    common::{BytePos, Span},
     ecma::ast::{Expr, MemberExpr, MemberProp},
 };
 use turbo_rcstr::rcstr;
@@ -15,6 +16,17 @@ pub struct TurbopackRuntimeFunctionShortcut {
 impl TurbopackRuntimeFunctionShortcut {
     pub const fn new(full: &'static str, shortcut: &'static str) -> Self {
         Self { full, shortcut }
+    }
+
+    /// Start an explicitly source-less native operation in the emitted map.
+    pub fn unmapped_expr(&self) -> Expr {
+        let mut object = swc_core::ecma::ast::Ident::from(atom!("__turbopack_context__"));
+        object.span = Span::new(BytePos::PLACEHOLDER, BytePos::PLACEHOLDER);
+        Expr::Member(MemberExpr {
+            obj: Box::new(Expr::Ident(object)),
+            prop: MemberProp::Ident(self.shortcut.into()),
+            ..Default::default()
+        })
     }
 
     pub fn bound(&self) -> String {
@@ -74,6 +86,7 @@ pub const TURBOPACK_ESM: &TurbopackRuntimeFunctionShortcut = make_shortcut!("s")
 pub const TURBOPACK_ESM_REEXPORT: &TurbopackRuntimeFunctionShortcut = make_shortcut!("S");
 pub const TURBOPACK_EXPORT_VALUE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("v");
 pub const TURBOPACK_EXPORT_URL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("q");
+pub const TURBOPACK_COMMONJS_PUBLICATION: &TurbopackRuntimeFunctionShortcut = make_shortcut!("p");
 pub const TURBOPACK_EXPORT_NAMESPACE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("n");
 pub const TURBOPACK_CACHE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("c");
 pub const TURBOPACK_MODULES: &TurbopackRuntimeFunctionShortcut = make_shortcut!("M");

@@ -34,7 +34,8 @@ import type {
   NodeJsPartialHmrUpdate,
   ServerHmrVersion,
 } from '../../build/swc/types'
-import { createDefineEnv, getBindingsSync } from '../../build/swc'
+import { getBindingsSync } from '../../build/swc'
+import { createDevTurbopackProject } from '../../build/swc/dev-project'
 import * as Log from '../../build/output/log'
 import {
   BLOCKED_PAGES,
@@ -96,7 +97,6 @@ import {
   createBinaryHmrMessageData,
   FAST_REFRESH_RUNTIME_RELOAD,
 } from './messages'
-import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-server'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { ModernSourceMapPayload } from '../lib/source-maps'
@@ -106,7 +106,6 @@ import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { setBundlerFindSourceMapURLImplementation } from '../lib/source-maps'
 import {
   formatIssue,
-  isFileSystemCacheEnabledForDev,
   isWellKnownError,
   ModuleBuildError,
   processIssues,
@@ -121,12 +120,9 @@ import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { DeferredEmit } from '../../shared/lib/turbopack/deferred-emit'
-import { getSupportedBrowsers } from '../../build/get-supported-browsers'
 import { printBuildErrors } from '../../build/print-build-errors'
 import { getStrictRouteMatchingDefaultWarning } from '../lib/router-utils/strict-route-matching-config'
 import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
-import { normalizePath } from '../../lib/normalize-path'
-import { seedTurbopackCacheIfNeeded } from '../../lib/turbopack-cache-seed'
 import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
@@ -463,11 +459,6 @@ export async function createHotReloaderTurbopack(
     )
   }
 
-  const hasRewrites =
-    opts.fsChecker.rewrites.afterFiles.length > 0 ||
-    opts.fsChecker.rewrites.beforeFiles.length > 0 ||
-    opts.fsChecker.rewrites.fallback.length > 0
-
   const hotReloaderSpan = trace('hot-reloader', undefined, {
     version: process.env.__NEXT_VERSION as string,
   })
@@ -481,81 +472,13 @@ export async function createHotReloaderTurbopack(
   const fileLogger = getFileLogger()
   fileLogger.initialize(distDir, mcpServerEnabled)
 
-  const encryptionKey = await generateEncryptionKeyBase64({
-    isBuild: false,
+  const { project, encryptionKey } = await createDevTurbopackProject({
+    projectPath,
+    nextConfig,
     distDir,
+    fsChecker: opts.fsChecker,
+    serverFastRefresh,
   })
-
-  // TODO: Implement
-  let clientRouterFilters: any
-  if (nextConfig.experimental.clientRouterFilter) {
-    // TODO this need to be set correctly for filesystem cache to work
-  }
-
-  const supportedBrowsers = getSupportedBrowsers(projectPath, dev)
-  const currentNodeJsVersion = process.versions.node
-
-  const rootPath =
-    opts.nextConfig.turbopack?.root ||
-    opts.nextConfig.outputFileTracingRoot ||
-    projectPath
-
-  if (nextConfig.experimental.turbopackSeedCacheFromWorktree) {
-    seedTurbopackCacheIfNeeded({
-      projectDir: projectPath,
-      distDir,
-    })
-  }
-
-  const projectResult = await bindings.turbo.createProject(
-    {
-      rootPath,
-      projectPath: normalizePath(relative(rootPath, projectPath) || '.'),
-      distDir,
-      nextConfig: opts.nextConfig,
-      watch: {
-        enable: dev,
-        pollIntervalMs: nextConfig.watchOptions?.pollIntervalMs,
-      },
-      dev,
-      env: process.env as Record<string, string>,
-      defineEnv: createDefineEnv({
-        isTurbopack: true,
-        clientRouterFilters,
-        config: nextConfig,
-        dev,
-        distDir,
-        projectPath,
-        fetchCacheKeyPrefix: opts.nextConfig.experimental.fetchCacheKeyPrefix,
-        hasRewrites,
-        // TODO: Implement
-        middlewareMatchers: undefined,
-        rewrites: opts.fsChecker.rewrites,
-      }),
-      buildId,
-      encryptionKey,
-      previewProps: opts.fsChecker.previewProps,
-      browserslistQuery: supportedBrowsers.join(', '),
-      noMangling: false,
-      writeRoutesHashesManifest: false,
-      currentNodeJsVersion,
-      isPersistentCachingEnabled: isFileSystemCacheEnabledForDev(
-        opts.nextConfig
-      ),
-      nextVersion: process.env.__NEXT_VERSION as string,
-      serverHmr: serverFastRefresh,
-    },
-    {
-      turbopackMemoryEviction:
-        opts.nextConfig.experimental.turbopackMemoryEvictionMode,
-      gc: opts.nextConfig.experimental.turbopackGcOptions,
-      isShortSession: false,
-    }
-  )
-  for (const issue of projectResult.issues) {
-    printNonFatalIssue(issue)
-  }
-  const project = projectResult.value
   backgroundLogCompilationEvents(project, {
     eventTypes: [
       'StartupCacheInvalidationEvent',

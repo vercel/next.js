@@ -1,0 +1,91 @@
+{
+  "status": 0,
+  "rows": [
+    {
+      "kind": "A-set-two",
+      "returned": true
+    },
+    {
+      "kind": "B-set-three",
+      "returned": true
+    },
+    {
+      "kind": "A-install",
+      "same": true,
+      "fake": true
+    },
+    {
+      "kind": "A-loop-limit",
+      "ticks": 3,
+      "error": {
+        "name": "Error",
+        "message": "Aborting after running 3 timers, assuming an infinite loop!"
+      }
+    },
+    {
+      "kind": "A-clear",
+      "same": true,
+      "pending": 0
+    },
+    {
+      "kind": "A-real",
+      "fake": false
+    },
+    {
+      "kind": "B-reset",
+      "returned": true
+    },
+    {
+      "kind": "B-default-limit",
+      "ticks": 4,
+      "pending": 0,
+      "fake": true
+    },
+    {
+      "kind": "B-real",
+      "fake": false
+    },
+    {
+      "kind": "afterAll",
+      "fake": false
+    }
+  ],
+  "cases": [
+    {
+      "name": "clock observes sibling config mutation",
+      "state": "passed"
+    },
+    {
+      "name": "clock reset restores initial shared defaults",
+      "state": "passed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "caseCallbacks": [
+    {
+      "name": "clock reset restores initial shared defaults",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "clock observes sibling config mutation",
+      "state": "passed",
+      "errors": []
+    }
+  ],
+  "rawErrorCount": 0,
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "e3fe528b84aa1be75ce3675dca96c930389eb72a96976ff3dff5722a700c18e3",
+  "undefinedErrorPayloads": []
+}

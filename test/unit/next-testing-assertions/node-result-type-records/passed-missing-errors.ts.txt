@@ -1,0 +1,4 @@
+import type { TestResultPassed } from 'vitest/node'
+const result: TestResultPassed = { state: 'passed' }
+declare function test(name: string, body: () => void): void
+test('type authoring', () => {})

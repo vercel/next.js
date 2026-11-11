@@ -1,0 +1,12 @@
+[
+  {
+    "phase": "case",
+    "name": "first",
+    "passed": true
+  },
+  {
+    "phase": "case",
+    "name": "second",
+    "passed": true
+  }
+]

@@ -1,0 +1,84 @@
+import { test, expect, vi } from 'vitest'
+
+vi.mock('next-test-ownthis', function () {
+  function declared(value = this.phase) {
+    return { phase: this.phase, value, self: this }
+  }
+  return {
+    value: 5,
+    phase: 'static-own',
+    method(value = this.phase) {
+      return { phase: this.phase, value, self: this }
+    },
+    expression: function (value = this.phase) {
+      return { phase: this.phase, value, self: this }
+    },
+    declaration: declared,
+    arrowInside(value = this.phase) {
+      return (() => ({ phase: this.phase, value, self: this }))()
+    },
+    ['computed'](value = this.phase) {
+      return { phase: this.phase, value, self: this }
+    },
+  }
+})
+
+import * as own from 'next-test-ownthis'
+test('measures nested callable dynamic this without changing factory receiver', async () => {
+  for (const [key, name] of [
+    ['method', 'method'],
+    ['expression', 'expression'],
+    ['declaration', 'declared'],
+    ['arrowInside', 'arrowInside'],
+    ['computed', 'computed'],
+  ]) {
+    const trace = []
+    const receiver = {
+      get phase() {
+        trace.push(this === receiver)
+        return 'borrowed-phase'
+      },
+    }
+    const fn = own[key]
+    const result = Reflect.apply(fn, receiver, [])
+    const namespaceResult = Reflect.apply(fn, own, ['named-value'])
+    expect(fn.name).toBe(name)
+    expect(fn.length).toBe(0)
+    expect(result.phase).toBe('borrowed-phase')
+    expect(result.value).toBe('borrowed-phase')
+    expect(result.self).toBe(receiver)
+    expect(namespaceResult.phase).toBe('static-own')
+    expect(namespaceResult.value).toBe('named-value')
+    expect(namespaceResult.self).toBe(own)
+    expect(trace).toEqual([true, true])
+  }
+  const actual = await vi.importActual('next-test-ownthis')
+  vi.doMock('next-test-ownthis', () => ({
+    value: 73,
+    phase: 'runtime',
+    method() {
+      return null
+    },
+    expression() {
+      return null
+    },
+    declaration() {
+      return null
+    },
+    arrowInside() {
+      return null
+    },
+    computed() {
+      return null
+    },
+  }))
+  const runtime = await import('next-test-ownthis')
+  vi.doUnmock('next-test-ownthis')
+  const unmocked = await import('next-test-ownthis')
+  expect(own.value).toBe(5)
+  expect(actual.value).toBe(20)
+  expect(runtime.value).toBe(73)
+  expect(unmocked.value).toBe(20)
+  expect(unmocked).toBe(actual)
+  expect(runtime).not.toBe(own)
+})

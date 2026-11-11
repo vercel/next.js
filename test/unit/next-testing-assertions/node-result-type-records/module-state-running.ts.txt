@@ -1,0 +1,4 @@
+import type { TestModuleState } from 'vitest/node'
+const state: TestModuleState = 'running'
+declare function test(name: string, body: () => void): void
+test('type authoring', () => {})

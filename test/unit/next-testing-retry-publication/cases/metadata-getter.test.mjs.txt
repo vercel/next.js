@@ -1,0 +1,17 @@
+import { test, expect } from 'vitest'
+
+let reads = 0
+const metadata = {
+  get value() {
+    reads++
+    return 42
+  },
+}
+const retry = { count: 0, metadata }
+
+test('nested getter publication', { retry }, () => {
+  expect(reads).toBe(1)
+  expect(typeof Object.getOwnPropertyDescriptor(metadata, 'value').get).toBe(
+    'function'
+  )
+})

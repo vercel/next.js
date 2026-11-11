@@ -1,0 +1,22 @@
+import fs from 'node:fs'
+import { describe } from 'vitest'
+const mode = 'collector-multiple'
+const collector = { api: { describe } }
+const failure = new Error('same actual callback cause across distinct stages')
+const observedFD = fs.openSync(process.env.NEXT_SUITE_RETURN_OBSERVATION, 'w')
+const before = Object.getOwnPropertyDescriptors(failure)
+let callbacks = 0
+const pending = undefined
+    const register = () =>
+      collector.api.describe('actual rejected factory', async () => {
+        callbacks++
+        if (pending) await pending
+        else await Promise.resolve()
+        throw mode === 'collector-undefined' ? undefined : failure
+      })
+register()
+if (mode === 'collector-multiple') register()
+process.once('exit', () => {
+  const after = Object.getOwnPropertyDescriptors(failure)
+  fs.writeSync(observedFD, JSON.stringify({ callbacks, rawErrorFieldsUnchanged: Reflect.ownKeys(before).every(key => Object.is(before[key].value, after[key]?.value)), message: failure.message }, null, 2) + '\n')
+})

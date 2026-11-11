@@ -13,9 +13,11 @@ use turbo_tasks_fs::{DiskFileSystem, FileSystemPath};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
+    ScopeHoistingContext,
     ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
+    references::esm::EsmAssetReference,
     runtime_functions::{TURBOPACK_MODULE, TURBOPACK_RESOLVE_FILE_URL},
 };
 
@@ -33,6 +35,7 @@ pub struct ImportMetaBinding {
     mode: RcStr,
     base_url: RcStr,
     is_ssr: bool,
+    env_runtime: Option<(ResolvedVc<EsmAssetReference>, RcStr)>,
 }
 
 impl ImportMetaBinding {
@@ -42,6 +45,7 @@ impl ImportMetaBinding {
         mode: RcStr,
         base_url: RcStr,
         is_ssr: bool,
+        env_runtime: Option<(ResolvedVc<EsmAssetReference>, RcStr)>,
     ) -> Self {
         ImportMetaBinding {
             path,
@@ -49,6 +53,7 @@ impl ImportMetaBinding {
             mode,
             base_url,
             is_ssr,
+            env_runtime,
         }
     }
 
@@ -56,6 +61,7 @@ impl ImportMetaBinding {
         &self,
         _trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
         let root_path = chunking_context.root_path().await?;
         // A module from another disk filesystem (such as an additional root) isn't inside the root
@@ -103,35 +109,52 @@ impl ImportMetaBinding {
         let is_ssr: Expr = self.is_ssr.into();
         let base_url: Expr = self.base_url.as_str().into();
 
+        let defaults = quote!(
+            "{ DEV: $is_dev, PROD: $is_prod, MODE: $mode, BASE_URL: $base_url, SSR: $is_ssr }" as Expr,
+            is_dev: Expr = is_dev,
+            is_prod: Expr = is_prod,
+            mode: Expr = mode,
+            base_url: Expr = base_url,
+            is_ssr: Expr = is_ssr,
+        );
+        let env = if let Some((reference, export)) = &self.env_runtime {
+            let getter = reference
+                .get_referenced_asset()
+                .await?
+                .get_ident(
+                    chunking_context,
+                    Some(export.clone()),
+                    scope_hoisting_context,
+                )
+                .await?
+                .ok_or_else(|| {
+                    anyhow::anyhow!("import.meta.env runtime export could not be resolved")
+                })?
+                .as_expr(DUMMY_SP, true);
+            quote!("$getter($defaults)" as Expr, getter: Expr = getter, defaults: Expr = defaults)
+        } else {
+            defaults
+        };
+
         // [NOTE] url property is lazy-evaluated, as it should be computed once
         // turbopack_runtime injects a function to calculate an absolute path.
         let stmt = if hmr_enabled {
             // turbopackHot exposes the HMR API (equivalent to module.hot in CJS).
             let turbopack_module: Expr = TURBOPACK_MODULE.into();
             quote!(
-                "var $name = { get url() { return $path }, env: { DEV: $is_dev, PROD: \
-                 $is_prod, MODE: $mode, BASE_URL: $base_url, SSR: $is_ssr }, get turbopackHot() { \
+                "var $name = { get url() { return $path }, env: $env, get turbopackHot() { \
                  return $m.hot } };" as Stmt,
                 name = meta_ident(),
                 path: Expr = path,
-                is_dev: Expr = is_dev,
-                is_prod: Expr = is_prod,
-                mode: Expr = mode,
-                base_url: Expr = base_url,
-                is_ssr: Expr = is_ssr,
+                env: Expr = env,
                 m: Expr = turbopack_module,
             )
         } else {
             quote!(
-                "var $name = { get url() { return $path }, env: { DEV: $is_dev, PROD: \
-                 $is_prod, MODE: $mode, BASE_URL: $base_url, SSR: $is_ssr } };" as Stmt,
+                "var $name = { get url() { return $path }, env: $env };" as Stmt,
                 name = meta_ident(),
                 path: Expr = path,
-                is_dev: Expr = is_dev,
-                is_prod: Expr = is_prod,
-                mode: Expr = mode,
-                base_url: Expr = base_url,
-                is_ssr: Expr = is_ssr,
+                env: Expr = env,
             )
         };
 
@@ -181,7 +204,7 @@ impl From<ImportMetaRef> for CodeGen {
 
 /// URL encodes special chars that would appear in the "pathname" portion.
 /// https://github.com/nodejs/node/blob/3bed5f11e039153eff5cbfd9513b8f55fd53fc43/lib/internal/url.js#L1513-L1526
-fn encode_path(path: &'_ str) -> Cow<'_, str> {
+pub fn encode_path(path: &'_ str) -> Cow<'_, str> {
     let mut encoded = String::new();
     let mut start = 0;
     for (i, c) in path.char_indices() {

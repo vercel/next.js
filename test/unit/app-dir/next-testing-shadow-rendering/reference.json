@@ -1,0 +1,467 @@
+{
+  "sourceSHA256": "fc8f25d2a68f99325f61f99638390b512697b4f37effc788afd7f374a0da7be6",
+  "models": {
+    "development": {
+      "rows": [
+        {
+          "value": {
+            "kind": "hydration-layout",
+            "server": {
+              "value": "server",
+              "labelTargetsField": true,
+              "output": "layout:server:0"
+            },
+            "retained": true,
+            "rows": [
+              {
+                "event": "mounted",
+                "prefix": "layout"
+              },
+              {
+                "event": "change",
+                "trusted": true,
+                "currentTargetIsField": true,
+                "value": "typed"
+              },
+              {
+                "event": "click",
+                "trusted": true
+              },
+              {
+                "event": "unmounted",
+                "prefix": "layout"
+              }
+            ],
+            "errors": [],
+            "childrenAfterUnmount": 0
+          },
+          "task": "hydrates a nested provider and layout before trusted controlled input"
+        },
+        {
+          "value": {
+            "kind": "portal-layout",
+            "retained": true,
+            "rows": [
+              {
+                "event": "mounted"
+              },
+              {
+                "event": "portal-click",
+                "trusted": true,
+                "currentTargetIsButton": true
+              },
+              {
+                "event": "layout-bubble"
+              },
+              {
+                "event": "unmounted"
+              }
+            ],
+            "hostChildren": 0,
+            "portalChildren": 0
+          },
+          "task": "preserves portal context and state across provider rerender and cleanup"
+        },
+        {
+          "value": {
+            "kind": "shadow-react",
+            "rows": [
+              {
+                "event": "mounted"
+              },
+              {
+                "event": "change",
+                "trusted": true,
+                "currentTargetIsField": true,
+                "value": "typed-shadow"
+              },
+              {
+                "event": "outside-input",
+                "targetIsHost": true,
+                "pathStartsWithField": true,
+                "trusted": true,
+                "composed": true
+              },
+              {
+                "event": "click"
+              },
+              {
+                "event": "unmounted"
+              }
+            ],
+            "childrenAfterUnmount": 0
+          },
+          "task": "dispatches trusted controlled input through an open shadow React root"
+        },
+        {
+          "value": {
+            "kind": "nested-shadow-selectors",
+            "initialIdentity": true,
+            "replacementIdentity": true,
+            "firstDisconnected": true,
+            "firstValue": "first",
+            "replacementValue": "native-replacement",
+            "outsideValue": "outside",
+            "all": ["first", "second"],
+            "zero": 0,
+            "strict": {
+              "name": "Error",
+              "message": "strict mode violation: getByRole('region', { name: 'Shadow scope' }).getByRole('button', { name: 'Duplicate' }) resolved to 2 elements:\n    1) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).first()\n    2) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).nth(1)\n"
+            }
+          },
+          "task": "resolves scoped nested shadow locators and replacement nodes with native selector semantics"
+        }
+      ],
+      "cases": [
+        {
+          "name": "hydrates a nested provider and layout before trusted controlled input",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "preserves portal context and state across provider rerender and cleanup",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "dispatches trusted controlled input through an open shadow React root",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "resolves scoped nested shadow locators and replacement nodes with native selector semantics",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "caseFinals": [
+        {
+          "name": "hydrates a nested provider and layout before trusted controlled input",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        },
+        {
+          "name": "preserves portal context and state across provider rerender and cleanup",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        },
+        {
+          "name": "dispatches trusted controlled input through an open shadow React root",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        },
+        {
+          "name": "resolves scoped nested shadow locators and replacement nodes with native selector semantics",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        }
+      ],
+      "moduleFinals": [
+        {
+          "state": "passed",
+          "errors": []
+        }
+      ],
+      "runFinals": [
+        {
+          "reason": "passed",
+          "errors": [],
+          "rawUnhandled": [],
+          "files": [
+            {
+              "state": "passed",
+              "tests": [
+                {
+                  "name": "hydrates a nested provider and layout before trusted controlled input",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                },
+                {
+                  "name": "preserves portal context and state across provider rerender and cleanup",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                },
+                {
+                  "name": "dispatches trusted controlled input through an open shadow React root",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                },
+                {
+                  "name": "resolves scoped nested shadow locators and replacement nodes with native selector semantics",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "standardFiles": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ],
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 4,
+        "numPassedTests": 4,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "success": true,
+      "exit": 0
+    },
+    "production": {
+      "rows": [
+        {
+          "value": {
+            "kind": "hydration-layout",
+            "server": {
+              "value": "server",
+              "labelTargetsField": true,
+              "output": "layout:server:0"
+            },
+            "retained": true,
+            "rows": [
+              {
+                "event": "mounted",
+                "prefix": "layout"
+              },
+              {
+                "event": "change",
+                "trusted": true,
+                "currentTargetIsField": true,
+                "value": "typed"
+              },
+              {
+                "event": "click",
+                "trusted": true
+              },
+              {
+                "event": "unmounted",
+                "prefix": "layout"
+              }
+            ],
+            "errors": [],
+            "childrenAfterUnmount": 0
+          },
+          "task": "hydrates a nested provider and layout before trusted controlled input"
+        },
+        {
+          "value": {
+            "kind": "portal-layout",
+            "retained": true,
+            "rows": [
+              {
+                "event": "mounted"
+              },
+              {
+                "event": "portal-click",
+                "trusted": true,
+                "currentTargetIsButton": true
+              },
+              {
+                "event": "layout-bubble"
+              },
+              {
+                "event": "unmounted"
+              }
+            ],
+            "hostChildren": 0,
+            "portalChildren": 0
+          },
+          "task": "preserves portal context and state across provider rerender and cleanup"
+        },
+        {
+          "value": {
+            "kind": "shadow-react",
+            "rows": [
+              {
+                "event": "mounted"
+              },
+              {
+                "event": "change",
+                "trusted": true,
+                "currentTargetIsField": true,
+                "value": "typed-shadow"
+              },
+              {
+                "event": "outside-input",
+                "targetIsHost": true,
+                "pathStartsWithField": true,
+                "trusted": true,
+                "composed": true
+              },
+              {
+                "event": "click"
+              },
+              {
+                "event": "unmounted"
+              }
+            ],
+            "childrenAfterUnmount": 0
+          },
+          "task": "dispatches trusted controlled input through an open shadow React root"
+        },
+        {
+          "value": {
+            "kind": "nested-shadow-selectors",
+            "initialIdentity": true,
+            "replacementIdentity": true,
+            "firstDisconnected": true,
+            "firstValue": "first",
+            "replacementValue": "native-replacement",
+            "outsideValue": "outside",
+            "all": ["first", "second"],
+            "zero": 0,
+            "strict": {
+              "name": "Error",
+              "message": "strict mode violation: getByRole('region', { name: 'Shadow scope' }).getByRole('button', { name: 'Duplicate' }) resolved to 2 elements:\n    1) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).first()\n    2) <button>Duplicate</button> aka getByRole('button', { name: 'Duplicate', exact: false }).nth(1)\n"
+            }
+          },
+          "task": "resolves scoped nested shadow locators and replacement nodes with native selector semantics"
+        }
+      ],
+      "cases": [
+        {
+          "name": "hydrates a nested provider and layout before trusted controlled input",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "preserves portal context and state across provider rerender and cleanup",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "dispatches trusted controlled input through an open shadow React root",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "resolves scoped nested shadow locators and replacement nodes with native selector semantics",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "caseFinals": [
+        {
+          "name": "hydrates a nested provider and layout before trusted controlled input",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        },
+        {
+          "name": "preserves portal context and state across provider rerender and cleanup",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        },
+        {
+          "name": "dispatches trusted controlled input through an open shadow React root",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        },
+        {
+          "name": "resolves scoped nested shadow locators and replacement nodes with native selector semantics",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        }
+      ],
+      "moduleFinals": [
+        {
+          "state": "passed",
+          "errors": []
+        }
+      ],
+      "runFinals": [
+        {
+          "reason": "passed",
+          "errors": [],
+          "rawUnhandled": [],
+          "files": [
+            {
+              "state": "passed",
+              "tests": [
+                {
+                  "name": "hydrates a nested provider and layout before trusted controlled input",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                },
+                {
+                  "name": "preserves portal context and state across provider rerender and cleanup",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                },
+                {
+                  "name": "dispatches trusted controlled input through an open shadow React root",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                },
+                {
+                  "name": "resolves scoped nested shadow locators and replacement nodes with native selector semantics",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "standardFiles": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ],
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 4,
+        "numPassedTests": 4,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "success": true,
+      "exit": 0
+    }
+  }
+}

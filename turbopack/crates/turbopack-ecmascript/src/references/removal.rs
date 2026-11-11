@@ -6,7 +6,7 @@ use swc_core::{
     atoms::Atom,
     base::SwcComments,
     common::{
-        DUMMY_SP, Span, Spanned,
+        BytePos, DUMMY_SP, Span, Spanned,
         comments::{Comment, CommentKind, Comments},
         util::take::Take,
     },
@@ -83,7 +83,9 @@ impl AstModifier for UnreachableModifier {
         }
 
         *stmt = Stmt::Block(BlockStmt {
-            span,
+            // Codegen maps the closing brace at hi - 1. Keep it inside the
+            // reserved comment range even for the first synthetic span.
+            span: span.with_hi(span.hi + BytePos(1)),
             stmts: replacement,
             ..Default::default()
         });
@@ -351,5 +353,91 @@ fn collect_idents(pat: &Pat, idents: &mut Vec<Ident>) {
         Pat::Invalid(_) | Pat::Expr(_) => {
             // ignore
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use swc_core::{
+        atoms::Atom,
+        base::SwcComments,
+        common::{
+            FileName, GLOBALS, Globals, SourceMap, Span, source_map::DefaultSourceMapGenConfig,
+        },
+        ecma::{
+            ast::{BlockStmt, Stmt},
+            codegen::{Emitter, text_writer::JsWriter},
+            parser::{Parser, StringInput, Syntax},
+        },
+    };
+
+    use super::UnreachableModifier;
+    use crate::code_gen::AstModifier;
+
+    #[test]
+    fn hoisted_unreachable_block_has_no_synthetic_source_coordinates() {
+        GLOBALS.set(&Globals::new(), || {
+            let source_map: Arc<SourceMap> = Default::default();
+            let source = source_map.new_source_file(
+                FileName::Custom("unreachable.js".into()).into(),
+                "var event = makeEvent();\n",
+            );
+            let mut parser = Parser::new(
+                Syntax::Es(Default::default()),
+                StringInput::from(&*source),
+                None,
+            );
+            let mut script = parser.parse_script().expect("valid input");
+            let mut removed = Stmt::Block(BlockStmt {
+                span: Span::new(source.start_pos, source.end_pos),
+                stmts: std::mem::take(&mut script.body),
+                ..Default::default()
+            });
+            let comments = SwcComments::default();
+            UnreachableModifier {
+                comment_replacement: Atom::from("TURBOPACK unreachable"),
+                comments: comments.clone(),
+            }
+            .visit_mut_stmt(&mut removed);
+            script.body.push(removed);
+
+            let mut output = Vec::new();
+            let mut mappings = Vec::new();
+            {
+                let mut emitter = Emitter {
+                    cfg: Default::default(),
+                    cm: source_map.clone(),
+                    comments: Some(&comments),
+                    wr: JsWriter::new(source_map.clone(), "\n", &mut output, Some(&mut mappings)),
+                };
+                emitter
+                    .emit_script(&script)
+                    .expect("emit removed statement");
+            }
+            let output = String::from_utf8(output).expect("JavaScript text");
+            assert!(output.contains("TURBOPACK unreachable"));
+            assert!(output.contains("var event;"));
+            assert!(!output.contains("makeEvent()"));
+            assert!(mappings.iter().any(|(position, _)| {
+                source.start_pos <= *position && *position < source.end_pos
+            }));
+            for (position, generated) in &mappings {
+                assert!(
+                    position.is_dummy()
+                        || position.is_reserved_for_comments()
+                        || (source.start_pos <= *position && *position <= source.end_pos),
+                    "synthetic mapping leaked at {generated:?}: {position:?}"
+                );
+            }
+            let map = source_map.build_source_map(&mappings, None, DefaultSourceMapGenConfig);
+            for token in map.tokens() {
+                if token.has_source() {
+                    assert_eq!(token.get_src_line(), 0);
+                    assert!(token.get_src_col() <= 23);
+                }
+            }
+        });
     }
 }

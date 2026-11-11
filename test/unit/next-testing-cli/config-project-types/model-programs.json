@@ -1,0 +1,512 @@
+[
+  {
+    "name": "model-plugins-empty",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[]}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-plugins-falsy",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[false,null,undefined]}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-plugin-name-only",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p'}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-plugin-transform",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform(code,id,options){const c:string=code;const f:string=id;const s:boolean|undefined=options?.ssr;this.warn('warn');this.addWatchFile('/tmp/input');return c+f}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-plugin-async",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',async transform(code){return {code,map:null}}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-plugin-map",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform(code){return {code,map:{version:3,names:[],sources:['x.ts'],mappings:''}}}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-plugin-nested",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[[{name:'p',transform(code){return code}}]]}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-plugin-promise",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[Promise.resolve({name:'p'})]}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-plugin-bad-name",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:1}]}\n",
+    "accepted": false
+  },
+  {
+    "name": "model-plugin-bad-result",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform(){return 1}}]}\n",
+    "accepted": false
+  },
+  {
+    "name": "model-plugin-unknown-field",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',madeUp:true}]}\n",
+    "accepted": false
+  },
+  {
+    "name": "model-plugin-load-gap",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',load(id){return id}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-plugin-context-resolve-gap",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform(code){this.resolve('x');return code}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-plugin-transform-object-gap",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform:{order:'pre',handler(code){return code}}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-plugin-log-object-gap",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform(code){this.warn({message:'warn'});return code}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-server-core",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{port:3000,strictPort:true,host:'localhost'}}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-server-host-bool",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{host:true}}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-server-bad-port",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{port:'3000'}}\n",
+    "accepted": false
+  },
+  {
+    "name": "model-server-unknown",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{madeUp:true}}\n",
+    "accepted": false
+  },
+  {
+    "name": "model-server-hmr-gap",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{hmr:false}}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-server-headers-gap",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{headers:{'x-example':'yes'}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-browser-enabled",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{enabled:true}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-browser-optional-enabled",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{headless:true}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-browser-viewport",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{enabled:true,viewport:{width:800,height:600}}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-browser-instances",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{enabled:true,instances:[{browser:'chromium',name:'C'},{browser:'firefox'},{browser:'webkit'}]}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-browser-other-name",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{enabled:true,instances:[{browser:'other-engine'}]}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-browser-partial-viewport",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{enabled:true,viewport:{width:800}}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "model-browser-bad-enabled",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{enabled:'yes'}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "model-browser-bad-engine",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{enabled:true,instances:[{browser:1}]}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "model-browser-unknown",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{enabled:true,madeUp:true}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "model-browser-ui-gap",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{enabled:true,ui:true}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-browser-instance-headless-gap",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{enabled:true,instances:[{browser:'chromium',headless:true}]}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "model-browser-locators-gap",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{enabled:true,locators:{testIdAttribute:'data-id'}}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "extended-server-hmr-object",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{hmr:{protocol:'ws',host:'localhost',port:3001,clientPort:3002,path:'/hmr',timeout:1000,overlay:true}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "extended-server-bad-hmr",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{hmr:{overlay:1}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "extended-server-header-number",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{headers:{'x-value':1}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "extended-server-header-array",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{headers:{'set-cookie':['a','b']}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "extended-server-bad-header",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{headers:{'x-value':true}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "extended-server-extra-hmr",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{hmr:{madeUp:true}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "extended-browser-locators-fields",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{enabled:true,locators:{testIdAttribute:'data-test',exact:false,errorFormat:'html'}}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "extended-browser-bad-locators",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{locators:{errorFormat:'bad'}}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "extended-browser-instance-viewport",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{instances:[{browser:'chromium',viewport:{width:640,height:480}}]}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "extended-browser-instance-bad-headless",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{instances:[{browser:'chromium',headless:'yes'}]}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "extended-browser-instance-locators",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{instances:[{browser:'chromium',locators:{exact:true}}]}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "extended-browser-bad-ui",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{ui:'yes'}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "extended-plugin-annotated-load",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',load(id:string){return id}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "extended-plugin-annotated-resolve",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform(this:{resolve:(id:string)=>Promise<unknown>},code:string){this.resolve('x');return code}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "extended-plugin-annotated-log",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform(this:{warn:(message:{message:string})=>void},code:string){this.warn({message:'x'});return code}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "extended-plugin-annotated-transform-object",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform:{order:'pre',handler(code:string){return code}}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "contract-resolve-result",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',async transform(code){const result=await this.resolve('x');if(result){const id:string=result.id;const external:boolean|'absolute'=result.external;const side:boolean|'no-treeshake'|null=result.moduleSideEffects;return code+id+external+side}return code}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "contract-resolve-bad-id",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform(code){this.resolve(1);return code}}]}\n",
+    "accepted": false
+  },
+  {
+    "name": "contract-load-context",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',load(id,options){this.addWatchFile('/tmp/file');const ssr:boolean|undefined=options?.ssr;return id+ssr}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "contract-object-hook-bad-order",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform:{order:'bad',handler(code){return code}}}]}\n",
+    "accepted": false
+  },
+  {
+    "name": "contract-warn-structured",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform(code){this.warn({message:'warning',code:'TEST'});return code}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "contract-warn-bad-number",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform(code){this.warn(1);return code}}]}\n",
+    "accepted": false
+  },
+  {
+    "name": "contract-error-string",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform(code){if(!code)this.error('missing');return code}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "contract-object-hook-return-bad",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform:{handler(){return 1}}}]}\n",
+    "accepted": false
+  },
+  {
+    "name": "edge-load-warn-position",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',load(id){this.warn('x',1);return id}}]}\n",
+    "accepted": false
+  },
+  {
+    "name": "edge-transform-warn-position",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform(code){this.warn('x',1);return code}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "edge-load-error-position",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',load(id){if(!id)this.error('x',1);return id}}]}\n",
+    "accepted": false
+  },
+  {
+    "name": "edge-transform-error-position",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform(code){if(!code)this.error('x',1);return code}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "edge-warn-function",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform(code){this.warn(()=>({message:'x'}));return code}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "edge-warn-missing-message",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform(code){this.warn({code:'X'});return code}}]}\n",
+    "accepted": false
+  },
+  {
+    "name": "edge-resolve-bad-options",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',transform(code){this.resolve('x',undefined,{madeUp:true});return code}}]}\n",
+    "accepted": false
+  },
+  {
+    "name": "root-base",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {base:'/prefix/'}\n",
+    "accepted": true
+  },
+  {
+    "name": "server-proxy",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{proxy:{'/api':'http://localhost:3000'}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "browser-provider",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{enabled:true,provider:{name:'custom',options:{}}}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "browser-details-panel",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{enabled:true,detailsPanelPosition:'bottom'}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "plugin-apply",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',apply:'serve'}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "plugin-build-start",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',buildStart(){}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "base-number",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {base:3}\n",
+    "accepted": false
+  },
+  {
+    "name": "proxy-options",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{proxy:{'/api':{target:'http://localhost:3000',changeOrigin:true,ws:true,rewrite:path=>path.replace(/^\\/api/,''),bypass(req,res,options){const url:string|undefined=req.url;const target=options.target;if(res)res.setHeader('x-owned','yes');return url?.includes('skip')?false:undefined}}}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "proxy-url",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{proxy:{'/api':{target:new URL('http://localhost'),forward:{host:'localhost',port:3001,protocol:'http:'},cookieDomainRewrite:{'*':''},cookiePathRewrite:false,headers:{'x-owned':['one','two']}}}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "proxy-target-object",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{proxy:{'/api':{target:{host:'localhost',port:3000,key:'owned',pfx:Buffer.from('owned')},buffer:new (require('node:stream').PassThrough)(),proxyTimeout:1000,timeout:2000}}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "proxy-target-number",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{proxy:{'/api':{target:3}}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "proxy-port-string",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{proxy:{'/api':{target:{host:'localhost',port:'3000'}}}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "proxy-change-origin-number",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{proxy:{'/api':{changeOrigin:3}}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "proxy-rewrite-number",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{proxy:{'/api':{rewrite:path=>3}}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "proxy-cookie-boolean",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{proxy:{'/api':{cookieDomainRewrite:true}}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "proxy-header-number",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{proxy:{'/api':{headers:{'x-owned':3}}}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "proxy-unknown-option",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{proxy:{'/api':{madeUp:true}}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "proxy-bypass-async",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{proxy:{'/api':{async bypass(req,res,options){return req.url?.includes('owned')?true:undefined}}}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "proxy-bypass-sync-true",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{proxy:{'/api':{bypass(){return true}}}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "proxy-bypass-number",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {server:{proxy:{'/api':{bypass(){return 3}}}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "browser-details-right",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{detailsPanelPosition:'right'}}}\n",
+    "accepted": true
+  },
+  {
+    "name": "browser-details-left",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {test:{browser:{detailsPanelPosition:'left'}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "plugin-apply-build",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',apply:'build',enforce:'pre'}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "plugin-apply-predicate",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',apply(config,env){const base:string|undefined=config.base;const watch:boolean|undefined=config.test?.watch;const command:'build'|'serve'=env.command;return base!==undefined||watch===true||command==='build'}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "plugin-apply-number",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',apply:3}]}\n",
+    "accepted": false
+  },
+  {
+    "name": "plugin-apply-string-return",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',apply(){return 'serve'}}]}\n",
+    "accepted": false
+  },
+  {
+    "name": "plugin-enforce-number",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',enforce:3}]}\n",
+    "accepted": false
+  },
+  {
+    "name": "plugin-build-context",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',buildStart(options){this.addWatchFile(options.cwd);this.warn('owned');const input:string[]|{[name:string]:string}=options.input;const platform:'node'|'browser'|'neutral'|undefined=options.platform;const shim:boolean=options.shimMissingExports;const context:string=options.context;void[input,platform,shim,context]}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "plugin-build-async",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',async buildStart(options){await this.resolve('owned',options.cwd,{skipSelf:true});this.warn(()=>({message:'owned',code:'OWNED'}))}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "plugin-build-object",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',buildStart:{order:'pre',async handler(options){this.addWatchFile(options.cwd)}}}]}\n",
+    "accepted": true
+  },
+  {
+    "name": "plugin-build-string",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',buildStart:'owned'}]}\n",
+    "accepted": false
+  },
+  {
+    "name": "plugin-build-wrong-order",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',buildStart:{order:'first',handler(){}}}]}\n",
+    "accepted": false
+  },
+  {
+    "name": "plugin-build-wrong-input",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',buildStart(options:{cwd:number}){}}]}\n",
+    "accepted": false
+  },
+  {
+    "name": "plugin-build-async-number",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: UserWorkspaceConfig = {plugins:[{name:'p',async buildStart(){return 3}}]}\n",
+    "accepted": false
+  },
+  {
+    "name": "root-browser-model",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: TestUserConfig = {browser:{headless:true,detailsPanelPosition:'right',instances:[{browser:'custom-engine',headless:false,viewport:{width:640,height:480},locators:{exact:true}}]}}\n",
+    "accepted": true
+  },
+  {
+    "name": "root-browser-invalid-model",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nexport const result: TestUserConfig = {browser:{viewport:{width:640}}}\n",
+    "accepted": false
+  },
+  {
+    "name": "strict-model-keys-and-browser-relationship",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\ntype Equal<A,B>=(<T>()=>T extends A?1:2) extends (<T>()=>T extends B?1:2)?true:false\ntype Check<T extends true>=T\ntype RootKeys=Check<Equal<string extends keyof UserWorkspaceConfig?true:false,false>>\ntype Browser=Check<Equal<TestUserConfig['browser'],NonNullable<UserWorkspaceConfig['test']>['browser']>>\nexport const result:UserWorkspaceConfig={}\n",
+    "accepted": true
+  },
+  {
+    "name": "named-project-composition",
+    "source": "import type { UserWorkspaceConfig, TestUserConfig, TestProjectConfiguration, TestProjectInlineConfiguration, UserProjectConfigExport } from 'vitest/config'\nconst project:UserWorkspaceConfig={base:'/owned/',plugins:[{name:'owned',transform(code){this.warn('owned');return code}}],server:{proxy:{'/owned':'http://localhost:3000'}},test:{browser:{detailsPanelPosition:'bottom'}}}\nconst inline:TestProjectInlineConfiguration={...project,extends:false}\nconst exports:UserProjectConfigExport[]=[project,Promise.resolve(project),env=>({...project,mode:env.mode})]\nexport const result:TestProjectConfiguration[]=[inline,Promise.resolve(project),env=>({...project,mode:env.mode})]\nvoid exports\n",
+    "accepted": true
+  }
+]

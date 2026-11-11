@@ -306,6 +306,8 @@ pub struct BrowserChunkingContext {
     root_path: FileSystemPath,
     /// The strategy to use for generating source map source uris
     source_map_source_type: SourceMapSourceType,
+    /// Only the explicit source-preserving Browser test clone issues import roles.
+    native_browser_import_coverage_roles: bool,
     /// This path is used to compute the url to request chunks from
     output_root: FileSystemPath,
     /// The relative path from the output_root to the root_path.
@@ -431,6 +433,7 @@ impl BrowserChunkingContext {
                 client_roots: Default::default(),
                 chunk_root_path,
                 source_map_source_type: SourceMapSourceType::TurbopackUri,
+                native_browser_import_coverage_roles: false,
                 asset_root_path,
                 asset_root_paths: Default::default(),
                 chunk_base_path: None,
@@ -547,6 +550,20 @@ impl BrowserChunkingContext {
 
 #[turbo_tasks::value_impl]
 impl BrowserChunkingContext {
+    /// Only explicit test source coverage retains original range denominators.
+    #[turbo_tasks::function]
+    pub fn with_source_coverage(&self) -> Vc<Self> {
+        let mut context = self.clone();
+        context.minify_type = MinifyType::NoMinify;
+        context.enable_module_merging = false;
+        context.export_usage = None;
+        context.unused_references = None;
+        context.source_maps_type = SourceMapsType::Full;
+        context.source_map_source_type = SourceMapSourceType::AbsoluteFileUri;
+        context.native_browser_import_coverage_roles = true;
+        context.cell()
+    }
+
     #[turbo_tasks::function]
     pub fn current_chunk_method(&self) -> Vc<CurrentChunkMethod> {
         self.current_chunk_method.cell()
@@ -847,6 +864,11 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     fn source_map_source_type(&self) -> Vc<SourceMapSourceType> {
         self.source_map_source_type.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn native_browser_import_coverage_roles(&self) -> Vc<bool> {
+        Vc::cell(self.native_browser_import_coverage_roles)
     }
 
     #[turbo_tasks::function]

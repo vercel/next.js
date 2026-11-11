@@ -1,0 +1,21 @@
+{
+  "name": "next-testing-migration-smoke",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "next test . --run --project node-dev",
+    "test:production": "next test . --run --project node-production",
+    "test:ci": "next test . --run --project node-dev --reporter json",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "typescript": "6.0.2",
+    "@types/node": "20.17.7",
+    "@types/react": "19.2.18"
+  }
+}

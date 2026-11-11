@@ -147,7 +147,9 @@ pub async fn get_next_server_transforms_rules(
 
             false
         }
-        ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => false,
+        ServerContextType::Test
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation { .. } => false,
     };
 
     if is_app_dir {
@@ -242,7 +244,7 @@ pub async fn get_next_server_internal_transforms_rules(
             // Apply next/font transforms to foreign code
             rules.push(get_next_font_transform_rule(mdx_rs).await?);
         }
-        ServerContextType::PagesApi { .. } => {}
+        ServerContextType::Test | ServerContextType::PagesApi { .. } => {}
         ServerContextType::AppSSR { .. } => {
             rules.push(get_next_font_transform_rule(mdx_rs).await?);
         }

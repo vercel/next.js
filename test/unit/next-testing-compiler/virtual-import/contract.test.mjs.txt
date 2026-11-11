@@ -1,0 +1,47 @@
+import { expect, test, vi } from 'vitest'
+vi.mock('ws2-import-mock-absent-package', () => ({
+  value: 73,
+  default: { source: 'virtual-import' },
+}))
+vi.mock('ws2-import-mock-absent-async-package', async () => ({
+  value: await Promise.resolve(91),
+}))
+vi.mock('@ws2/import-mock-absent/subpath', () => ({ value: 117 }))
+import * as staticNamespace from 'ws2-import-mock-absent-package'
+import {
+  value as consumerValue,
+  fallback as consumerDefault,
+} from './consumer.mjs'
+function row(value) {
+  console.log('WS2_VIRTUAL_IMPORT_RAW:' + JSON.stringify(value))
+}
+
+test('shares a registered missing bare factory with importMock and graph consumers', async () => {
+  const mocked = await vi.importMock('ws2-import-mock-absent-package')
+  const again = await vi.importMock('ws2-import-mock-absent-package')
+  const dynamic = await import('ws2-import-mock-absent-package')
+  expect(mocked.value).toBe(73)
+  expect(consumerValue).toBe(73)
+  expect(mocked).toBe(again)
+  expect(mocked).not.toBe(staticNamespace)
+  expect(mocked).not.toBe(dynamic)
+  expect(mocked.default).toBe(consumerDefault)
+  expect(dynamic.value).toBe(73)
+  row({ name: 'bare-helper', value: mocked.value })
+})
+test('awaits a registered missing async factory through importMock', async () => {
+  const first = await vi.importMock('ws2-import-mock-absent-async-package')
+  const second = await vi.importMock('ws2-import-mock-absent-async-package')
+  expect(first.value).toBe(91)
+  expect(first).toBe(second)
+  row({ name: 'async-helper', value: first.value })
+})
+test('shares a scoped missing factory with importMock and later imports', async () => {
+  const mocked = await vi.importMock('@ws2/import-mock-absent/subpath')
+  expect(Reflect.set(mocked, 'value', 118)).toBe(true)
+  const dynamic = await import('@ws2/import-mock-absent/subpath')
+  expect(mocked.value).toBe(118)
+  expect(dynamic.value).toBe(118)
+  expect(mocked).not.toBe(dynamic)
+  row({ name: 'scoped-helper', value: dynamic.value })
+})

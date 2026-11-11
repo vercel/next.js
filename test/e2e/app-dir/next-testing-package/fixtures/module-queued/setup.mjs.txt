@@ -1,0 +1,2 @@
+import{appendFileSync}from'node:fs'
+appendFileSync(process.env.QUEUED_TRACE,JSON.stringify({actor:'author',event:'setup'})+'\n')

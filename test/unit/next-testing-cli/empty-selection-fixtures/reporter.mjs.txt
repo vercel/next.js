@@ -1,0 +1,28 @@
+import { appendFileSync } from 'node:fs'
+const trace = row => appendFileSync(process.env.EMPTY_TRACE, JSON.stringify(row) + '\n')
+const error = value => ({ name: value?.name, message: value?.message, type: value?.type })
+export default class EmptyReporter {
+  onInit(context) {
+    trace({ kind: 'init' })
+    context.onClose(() => trace({ kind: 'close' }))
+  }
+  get onTestRunStart() {
+    trace({ kind: 'get-start' })
+    if (process.env.EMPTY_MODE === 'start-getter') throw new Error('empty start getter sentinel')
+    return function (specifications) {
+      trace({ kind: 'start', argc: arguments.length, receiver: this instanceof EmptyReporter, specifications: specifications.map(spec => ({ moduleId: spec.moduleId, pool: spec.pool, project: spec.project.name })) })
+      if (process.env.EMPTY_MODE === 'start-throw') throw new Error('empty start throw sentinel')
+      if (process.env.EMPTY_MODE === 'start-reject') return Promise.reject(new Error('empty start rejection sentinel'))
+    }
+  }
+  onTestModuleQueued(module) { trace({ kind: 'queued', id: module.id }) }
+  get onTestRunEnd() {
+    trace({ kind: 'get-end' })
+    if (process.env.EMPTY_MODE === 'end-getter') throw new Error('empty end getter sentinel')
+    return function (modules, errors, reason) {
+      trace({ kind: 'end', argc: arguments.length, receiver: this instanceof EmptyReporter, modules: modules.map(module => module.id), errors: errors.map(error), reason })
+      if (process.env.EMPTY_MODE === 'end-throw') throw new Error('empty end throw sentinel')
+      if (process.env.EMPTY_MODE === 'end-reject') return Promise.reject(new Error('empty end rejection sentinel'))
+    }
+  }
+}

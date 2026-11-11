@@ -26,3 +26,8 @@ turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
 next-taskless = { workspace = true }
 
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true }
+turbo-tasks-backend = { workspace = true }

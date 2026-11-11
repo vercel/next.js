@@ -1,0 +1,66 @@
+{
+  "status": 1,
+  "rows": [
+    {
+      "kind": "lexical-body"
+    },
+    {
+      "kind": "physical-body",
+      "parent": "lexical",
+      "sameTask": true
+    },
+    {
+      "kind": "afterAll",
+      "parent": "lexical",
+      "parentIsLexical": true,
+      "physicalContainsTask": true,
+      "lexicalContainsTask": false,
+      "physicalState": "fail",
+      "lexicalState": "pass"
+    }
+  ],
+  "cases": [
+    {
+      "name": "lexical lexically owned success",
+      "state": "passed"
+    },
+    {
+      "name": "lexical physically owned failure",
+      "state": "failed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 3,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 2,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 2,
+    "numPassedTests": 1,
+    "numFailedTests": 1,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": false
+  },
+  "caseCallbacks": [
+    {
+      "name": "lexically owned success",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "physically owned failure",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "Error",
+          "message": "expected any number of assertion, but got none",
+          "hasStack": true
+        }
+      ]
+    }
+  ],
+  "rawErrorCount": 0,
+  "undefinedErrorPayloads": [],
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "aaab8305e798057589ec3fb572da408bf9b5a7098968de2cca2bb84d1624b9cc"
+}

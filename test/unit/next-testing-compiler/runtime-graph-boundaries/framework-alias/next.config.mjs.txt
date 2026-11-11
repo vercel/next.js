@@ -1,0 +1,1 @@
+import {createRequire} from 'node:module';import path from 'node:path';const require=createRequire(import.meta.url);export default {turbopack:{resolveAlias:{'./peer.mjs':'./'+path.relative(process.cwd(),require.resolve('next/dist/experimental/testing/mocking/dynamic.js')).split(path.sep).join('/')}}}

@@ -1,0 +1,15 @@
+import { appendFileSync } from 'node:fs'
+import { test, chai } from 'vitest'
+const emit = row => appendFileSync(process.env.CONTRACT_ROWS, `${JSON.stringify(row)}\n`)
+let installationError
+try {
+  chai.use(namespace => {
+    const equal = Object.getOwnPropertyDescriptor(namespace.Assertion.prototype, 'equal')
+    namespace.Assertion.addMethod('collectionDescriptor199', function(expected) { return equal.value.call(this, expected) })
+  })
+} catch(error) { installationError = error; emit({ phase: 'collection', error: { name: error.name, message: error.message } }) }
+for(const name of ['first', 'second']) test(`collected descriptor plugin ${name}`, () => {
+  if(installationError) throw installationError
+  chai.expect(name).collectionDescriptor199(name)
+  emit({ phase: 'case', name, passed: true })
+})

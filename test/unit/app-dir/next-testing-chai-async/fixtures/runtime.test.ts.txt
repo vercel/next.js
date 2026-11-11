@@ -1,0 +1,25 @@
+import { chai, expect, test } from 'vitest'
+const pluginRows = []
+chai.Assertion.addMethod('nextAsyncSubject', async function (expected) {
+  pluginRows.push({ phase: 'before', subject: chai.util.flag(this, 'object') })
+  await Promise.resolve()
+  const subject = chai.util.flag(this, 'object')
+  pluginRows.push({ phase: 'after', subject })
+  this.assert(subject === expected, 'expected #{this} to async equal #{exp}', 'expected #{this} not to async equal #{exp}', expected, subject)
+  return this
+})
+for (const useProxy of [true, false]) for (const kind of ['raw', 'global', 'local', 'constructor']) for (const proxified of [false, true]) for (const succeeds of [true, false]) {
+  test(`${useProxy}-${kind}-${proxified}-${succeeds}`, async (context) => {
+    const previous = chai.config.useProxy
+    chai.config.useProxy = useProxy
+    try {
+      const input = kind === 'raw' ? chai.expect(1) : kind === 'global' ? expect(1) : kind === 'local' ? context.expect(1) : new chai.Assertion(1)
+      const assertion = proxified ? chai.util.proxify(input) : input
+      const beforeCalls = expect.getState().assertionCalls
+      let result, caught
+      try { result = await assertion.nextAsyncSubject(succeeds ? 1 : 2) } catch (error) { caught = error }
+      console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify({ useProxy, kind, proxified, succeeds, proxiesDifferent: assertion !== input, beforeCalls, afterCalls: expect.getState().assertionCalls, returnedKind: typeof result, sameInput: result === input, sameProxified: result === assertion, pluginRows: pluginRows.splice(0), error: caught ? { name: caught.name, message: caught.message } : null }))
+      if (caught) throw caught
+    } finally { chai.config.useProxy = previous }
+  })
+}

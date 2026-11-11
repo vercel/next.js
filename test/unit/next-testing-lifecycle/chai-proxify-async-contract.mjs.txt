@@ -1,0 +1,45 @@
+import assert from 'node:assert/strict'
+import { appendFileSync } from 'node:fs'
+import { chai, expect, test } from 'vitest'
+
+function record(label, value) {
+  appendFileSync(process.env.NEXT_TESTING_CHAI141_EVIDENCE, JSON.stringify({ label, value }) + '\n')
+}
+
+test('proxify keeps genuine resolves inputs usable', async () => {
+  const tracked = expect(Promise.resolve(31)).resolves
+  const raw = chai.expect(Promise.resolve(32)).resolves
+  const trackedProxy = chai.util.proxify(tracked)
+  const rawProxy = chai.util.proxify(raw)
+  record('resolves-input-created', {
+    trackedDifferent: trackedProxy !== tracked,
+    rawDifferent: rawProxy !== raw,
+    calls: expect.getState().assertionCalls,
+  })
+  await trackedProxy.equal(31)
+  await rawProxy.equal(32)
+  record('resolves-input-completed', { calls: expect.getState().assertionCalls })
+  const previous = chai.config.useProxy
+  try {
+    chai.config.useProxy = false
+    record('resolves-input-disabled', { trackedSame: chai.util.proxify(tracked) === tracked, rawSame: chai.util.proxify(raw) === raw })
+  } finally {
+    chai.config.useProxy = previous
+  }
+})
+
+test('proxify keeps genuine rejects inputs usable', async () => {
+  const tracked = expect(Promise.reject('tracked')).rejects
+  const raw = chai.expect(Promise.reject('raw')).rejects
+  const trackedProxy = chai.util.proxify(tracked)
+  const rawProxy = chai.util.proxify(raw)
+  record('rejects-input-created', {
+    trackedDifferent: trackedProxy !== tracked,
+    rawDifferent: rawProxy !== raw,
+    calls: expect.getState().assertionCalls,
+  })
+  await trackedProxy.equal('tracked')
+  await rawProxy.equal('raw')
+  record('rejects-input-completed', { calls: expect.getState().assertionCalls })
+  assert.equal(expect.getState().assertionCalls, 1)
+})

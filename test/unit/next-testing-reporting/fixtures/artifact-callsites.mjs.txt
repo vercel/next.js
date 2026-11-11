@@ -1,0 +1,17 @@
+import { test, recordArtifact as record } from 'vitest'
+import * as vitest from 'vitest'
+import { writeFileSync } from 'node:fs'
+test('artifact callsites', async ({ task }) => {
+  const alias = record
+  const values = []
+  values.push(await record(task, { type: 'probe:direct' }))
+  values.push(await alias(task, { type: 'probe:alias' }))
+  values.push(await vitest.recordArtifact(task, { type: 'probe:namespace' }))
+  values.push(await record(
+    task, { type: 'probe:multiline' }
+  ))
+  values.push(await vitest['recordArtifact'](task, { type: 'probe:computed' }))
+  values.push(await (record)(task, { type: 'probe:parenthesized' }))
+  values.push(await record?.(task, { type: 'probe:optional' }))
+  writeFileSync(new URL('./locations.json', import.meta.url), JSON.stringify(values.map(({ type, location }) => ({ type, location })), null, 2) + '\n')
+})
