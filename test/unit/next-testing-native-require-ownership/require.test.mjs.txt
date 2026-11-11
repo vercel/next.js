@@ -1,0 +1,30 @@
+import { test, expect, vi } from 'vitest'
+import { createRequire } from 'node:module'
+import { appendFileSync } from 'node:fs'
+const require = createRequire(import.meta.url)
+const counts = vi.hoisted(() => ({ path: 0, os: 0 }))
+vi.mock('node:path', () => { counts.path++; return { basename: () => 'unused-path-mock' } })
+const row = (name, value) => appendFileSync(process.env.NEXT_MOCK_REQUIRE_ROWS, JSON.stringify({ name, ...value })+'\n')
+test('a static mock leaves a CommonJS builtin require original and lazy', () => {
+ const value = require('node:path')
+ expect(value.basename('/one/two')).toBe('two')
+ expect(counts.path).toBe(0)
+ row('unused-static-require', { value: value.basename('/one/two'), factoryCalls: counts.path, stableAlias: value === require('path') })
+})
+test('runtime mocking changes ESM import while CommonJS require stays original', async () => {
+ vi.doMock('node:os', () => { counts.os++; return { platform: () => 'runtime-platform' } })
+ const value = require('node:os'), before = counts.os
+ expect(value.platform()).toBe(process.platform)
+ const mocked = await import('node:os')
+ expect(mocked.platform()).toBe('runtime-platform')
+ row('runtime-native-require', { requireValue: value.platform(), importedValue: mocked.platform(), before, factoryCalls: counts.os, stableAlias: value === require('os') })
+})
+test('module reset retains the actual required builtin object', async () => {
+ const before = require('node:os')
+ vi.resetModules()
+ const after = require('node:os'), imported = await import('node:os')
+ expect(after).toBe(before)
+ expect(after.platform()).toBe(process.platform)
+ expect(imported.platform()).toBe('runtime-platform')
+ row('reset-native-require', { originalObjectHeld: before === after, requireValue: after.platform(), importedValue: imported.platform(), factoryCalls: counts.os, unusedPathCalls: counts.path })
+})

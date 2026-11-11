@@ -1,0 +1,1 @@
+{"name":"ws2-genuine-external","main":"index.cjs"}

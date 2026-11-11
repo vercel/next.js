@@ -255,6 +255,8 @@ pub struct NodeJsChunkingContext {
     /// Whether the runtime chunk is shared with other module graphs using this context.
     /// See [`NodeJsChunkingContextBuilder::shared_runtime_chunk`].
     shared_runtime_chunk: bool,
+    native_test_import_coverage_roles: bool,
+    native_test_commonjs_promise_namespaces: bool,
 }
 
 impl NodeJsChunkingContext {
@@ -301,6 +303,8 @@ impl NodeJsChunkingContext {
                 asset_content_hashing: ContentHashing::Direct { length: 13 },
                 hash_salt: ResolvedVc::cell(RcStr::default()),
                 shared_runtime_chunk: false,
+                native_test_import_coverage_roles: false,
+                native_test_commonjs_promise_namespaces: false,
             },
         }
     }
@@ -308,6 +312,44 @@ impl NodeJsChunkingContext {
 
 #[turbo_tasks::value_impl]
 impl NodeJsChunkingContext {
+    /// Precise source coverage retains original function and statement boundaries.
+    /// Runtime conditions, resolution and transforms are owned by the caller.
+    #[turbo_tasks::function]
+    pub fn with_source_coverage(&self) -> Vc<Self> {
+        let mut context = self.clone();
+        context.minify_type = MinifyType::NoMinify;
+        context.enable_module_merging = false;
+        context.export_usage = None;
+        context.unused_references = None;
+        context.source_maps_type = SourceMapsType::Full;
+        context.source_map_source_type = SourceMapSourceType::AbsoluteFileUri;
+        context.cell()
+    }
+
+    /// A private test entry opts in explicitly; do not change code or source-map options.
+    #[turbo_tasks::function]
+    pub fn with_native_test_import_coverage_roles(&self) -> Result<Vc<Self>> {
+        if self.minify_type != MinifyType::NoMinify || self.enable_module_merging {
+            bail!("Native import coverage roles require unminified, unmerged Node test output");
+        }
+        let mut context = self.clone();
+        context.native_test_import_coverage_roles = true;
+        Ok(context.cell())
+    }
+
+    /// Only an actual Node test graph with certified leaf Promise owners opts in.
+    #[turbo_tasks::function]
+    pub fn with_native_test_commonjs_promise_namespaces(&self) -> Vc<Self> {
+        let mut context = self.clone();
+        context.native_test_commonjs_promise_namespaces = true;
+        context.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn native_test_commonjs_promise_namespaces(&self) -> Vc<bool> {
+        Vc::cell(self.native_test_commonjs_promise_namespaces)
+    }
+
     /// Returns the kind of runtime to include in output chunks.
     ///
     /// This is defined directly on `NodeJsChunkingContext` so it is zero-cost
@@ -393,6 +435,10 @@ impl NodeJsChunkingContext {
 
 #[turbo_tasks::value_impl]
 impl ChunkingContext for NodeJsChunkingContext {
+    #[turbo_tasks::function]
+    fn native_test_import_coverage_roles(&self) -> Vc<bool> {
+        Vc::cell(self.native_test_import_coverage_roles)
+    }
     #[turbo_tasks::function]
     fn name(&self) -> Vc<RcStr> {
         Vc::cell(rcstr!("unknown"))

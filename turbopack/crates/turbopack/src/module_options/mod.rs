@@ -244,6 +244,14 @@ impl ModuleOptions {
                     enable_import_as_bytes,
                     source_maps: ecmascript_source_maps,
                     inline_helpers,
+                    lower_async_to_generator,
+                    test_declaration_call_adapter,
+                    test_injected_commonjs_exports,
+                    test_source_file_urls,
+                    browser_creator_scope,
+                    browser_coverage_jsx_imports,
+                    browser_test_entry,
+                    import_meta_env_runtime,
                     infer_module_side_effects,
                     cjs_tree_shaking,
                     mangle_export_names,
@@ -328,6 +336,7 @@ impl ModuleOptions {
                 refresh: jsx.react_refresh,
                 import_source: ResolvedVc::cell(jsx.import_source.clone()),
                 runtime: ResolvedVc::cell(jsx.runtime.clone()),
+                capture_browser_jsx_imports: browser_coverage_jsx_imports,
             });
         }
 
@@ -343,6 +352,13 @@ impl ModuleOptions {
             enable_typeof_window_inlining,
             enable_exports_info_inlining,
             inline_helpers,
+            lower_async_to_generator,
+            test_declaration_call_adapter,
+            test_injected_commonjs_exports,
+            test_source_file_urls,
+            browser_creator_scope,
+            browser_test_entry,
+            import_meta_env_runtime,
             infer_module_side_effects,
             cjs_tree_shaking,
             mangle_export_names,
@@ -767,14 +783,32 @@ impl ModuleOptions {
             // TypeScript.
             let ts_preprocess = ResolvedVc::cell(
                 extra_preprocess
+                    .clone()
                     .into_iter()
                     .chain(decorators_transform.clone())
                     .chain(std::iter::once(EcmascriptInputTransform::TypeScript {
                         use_define_for_class_fields: options.use_define_for_class_fields,
                         verbatim_module_syntax: options.verbatim_module_syntax,
+                        preserve_jsx_imports: false,
                     }))
                     .collect(),
             );
+
+            let tsx_preprocess = if browser_coverage_jsx_imports {
+                ResolvedVc::cell(
+                    extra_preprocess
+                        .into_iter()
+                        .chain(decorators_transform.clone())
+                        .chain(std::iter::once(EcmascriptInputTransform::TypeScript {
+                            use_define_for_class_fields: options.use_define_for_class_fields,
+                            verbatim_module_syntax: options.verbatim_module_syntax,
+                            preserve_jsx_imports: true,
+                        }))
+                        .collect(),
+                )
+            } else {
+                ts_preprocess
+            };
 
             rules.extend([
                 ModuleRule::new_all(
@@ -791,7 +825,7 @@ impl ModuleOptions {
                 ModuleRule::new_all(
                     RuleCondition::ResourcePathEndsWith(".tsx".to_string()),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                        preprocess: ts_preprocess,
+                        preprocess: tsx_preprocess,
                         main,
                         postprocess,
                         tsx: true,

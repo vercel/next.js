@@ -1,3 +1,32 @@
+import type {
+  CustomCoverageRequest,
+  CustomCoverageCompletion,
+} from './coverage/custom-types'
+import type { TestTagDefinition, TestArtifact } from './runner/tasks'
+import type {
+  ResultEvent,
+  FileResult,
+  SerializedDiagnostic,
+} from './reporting/events'
+import type {
+  CoverageArtifactMetadata,
+  MockCoverageSources,
+  CoverageCapture,
+} from './coverage/types'
+import type { WorkStoreContext } from '../../server/async-storage/work-store'
+import type { NextConfigComplete } from '../../server/config-shared'
+import type { RenderOptsPartial } from '../../server/app-render/types'
+import type { SnapshotUpdate, SnapshotUpdateMode } from './assertions/snapshots'
+import type {
+  IstanbulCoverageCapture,
+  IstanbulInstrumentationDescriptor,
+} from './coverage/istanbul-types'
+
+export type TestRecordEvent = Extract<
+  ResultEvent,
+  { type: 'test-annotation' | 'test-artifact' }
+>
+
 /** Requested Next compilation context, not a replacement compiler configuration. */
 export interface TestProfile {
   id: string
@@ -34,3 +63,498 @@ export interface TestEntry {
   file: string
   profile: TestProfile
 }
+
+/** The first coverage protocol is opt-in and deliberately narrower than profiles. */
+export interface TestCoverageRequest {
+  version: 1
+  kind: 'node-line' | 'browser-v8' | 'node-istanbul'
+}
+
+export type TestCoverageCompletion<Data = CoverageCapture> = {
+  version: 1
+  runId: string
+  entryId: string
+  revision: string
+  /** Actual authorized file slots; V8 admits settled collection errors only. */
+  settledFileErrors?: readonly {
+    index: number
+    diagnostic: SerializedDiagnostic
+  }[]
+} & (
+  | { complete: true; data: Data }
+  | { complete: false; error: SerializedDiagnostic }
+)
+
+export type IstanbulCoverageCompletion =
+  TestCoverageCompletion<IstanbulCoverageCapture> & {
+    /** Actual authored afterAll failures, authorized only after real disposal. */
+    settledSuiteErrors?: readonly { suiteId: string; index: number }[]
+  }
+/** Shared IPC; suite-error observations remain Istanbul-only. */
+export type AnyTestCoverageCompletion = TestCoverageCompletion<
+  CoverageCapture | IstanbulCoverageCapture
+> &
+  Pick<IstanbulCoverageCompletion, 'settledSuiteErrors'>
+
+/** Explicit source registration, never an arbitrary browser-supplied module path. */
+export interface RegisteredBrowserFixture {
+  id: string
+  /** Absolute, real, project-contained source file after discovery. */
+  module: string
+  exportName: string
+  /** Explicit default layout module; omission keeps the standalone fixture root. */
+  layout?: string
+}
+
+/** Private host registration, passed only to the owned development app compiler. */
+export interface BrowserFixtureHost {
+  routePrefix: string
+  fixtures: readonly RegisteredBrowserFixture[]
+}
+
+/** Compiler inputs; setup order is part of the immutable entry identity. */
+export interface CompiledSourceDependencies {
+  version: 1
+  kind: 'native-module-sources'
+  complete: boolean
+  entry: { file: string; sha256: string }
+  files: { file: string; sha256: string }[]
+}
+
+export interface CompileTestOptions {
+  /** Compile-only planner request; never a runtime execution option. */
+  dependencyPlan?: boolean
+  setupFilesSequence?: 'list' | 'parallel'
+  signal: AbortSignal
+  coverage?: TestCoverageRequest
+  /** Absolute, project-contained filenames in declared execution order. */
+  snapshotSerializers?: readonly string[]
+  setupFiles?: readonly string[]
+}
+
+/** Allocated before emission so an outer watch owner can reclaim crash leftovers. */
+export interface TestCompilerSessionOptions {
+  /** Private opt-in to names from the actual Node define-env map; no Native authority. */
+  compilerEnvKeys?: true
+  /** Internal extra refusals only; never native/client/transport authority. */
+  testingDefaultConfiguration?: import('../../server/config-testing-policy').TestingDefaultConfiguration
+  /** Private producer qualification only; not a public config or capability claim. */
+  nativeImportCoverageRoles?: boolean
+  /** Private actual Browser declaration analysis; never a Node analysis permission. */
+  browserCoverageDeclarations?: true
+  /** Validated config data translated into the actual Next resolver. */
+  compilerAliases?: import('./compiler/aliases').CompilerAliases
+  /** Exact retained executable configuration realm; never a public config value. */
+  compilerTransforms?: import('./compiler/transform-broker').CompilerTransformDescriptor
+  /** Distinct built-in JS coverage lane; never a user transform permission. */
+  istanbulInstrumentation?: IstanbulInstrumentationDescriptor
+  /** Local service snapshot of this artifact's actual emitted source closure. */
+  readIstanbulInstrumentation?: (
+    sourceFiles: readonly string[]
+  ) => import('./coverage/istanbul-types').IstanbulInstrumentationMetadata
+  /** Local typed-only initialization after the actual project/config/lock exist. */
+  prepareIstanbulTypeScript?: (
+    getOptions: import('./coverage/istanbul-types').IstanbulTypeScriptOptionsGetter
+  ) => Promise<
+    import('./coverage/istanbul-types').IstanbulInstrumentationMetadata
+  >
+  /** Caller retains deletion ownership through every worker and compiler shutdown. */
+  allocateArtifact?: (parentDir: string) => Promise<{
+    stagingDir: string
+    rootDir: string
+  }>
+}
+
+/** Serializable options for the runtime-owned incremental cache constructor. */
+export interface CompiledTestIncrementalCacheConfig {
+  cacheMaxMemorySize: NextConfigComplete['cacheMaxMemorySize']
+  allowedRevalidateHeaderKeys: NextConfigComplete['experimental']['allowedRevalidateHeaderKeys']
+  fetchCacheKeyPrefix: NextConfigComplete['experimental']['fetchCacheKeyPrefix']
+  isrFlushToDisk: boolean
+  /** Based on configured handler values, not the presence of the default object. */
+  customHandlersConfigured: boolean
+}
+
+/**
+ * Serializable metadata from the compiler's resolved Next configuration.
+ * Request inputs, route-derived modes, lifecycle callbacks, and cache instances
+ * remain owned by the emitted runtime; this is not a complete WorkStoreContext.
+ */
+export interface CompiledTestRequestContext {
+  /** Actual resolved compiler mode, also used by request/cache runtime setup. */
+  mode: TestProfile['mode']
+  buildId: WorkStoreContext['buildId']
+  deploymentId: WorkStoreContext['deploymentId']
+  /** Request/cache execution must reject absent metadata or unsupported handlers. */
+  incrementalCache?: CompiledTestIncrementalCacheConfig
+  renderOpts: Pick<
+    WorkStoreContext['renderOpts'],
+    | 'cacheLifeProfiles'
+    | 'staticPageGenerationTimeout'
+    | 'cacheComponents'
+    | 'validationLevel'
+    | 'assetPrefix'
+  > & {
+    experimental: Pick<
+      WorkStoreContext['renderOpts']['experimental'],
+      'authInterrupts' | 'useCacheTimeout' | 'durableUseCacheEntries'
+    >
+  }
+  /** Actual resolved application options for the explicit full-route renderer. */
+  routeRenderOpts?: CompiledTestRouteRenderOpts
+}
+
+/** The remaining normal AppPage render options that cross the compiler boundary. */
+export type CompiledTestRouteRenderOpts = Pick<
+  RenderOptsPartial,
+  | 'basePath'
+  | 'trailingSlash'
+  | 'images'
+  | 'crossOrigin'
+  | 'enableTainting'
+  | 'reactMaxHeadersLength'
+  | 'nextConfigOutput'
+  | 'partialPrefetching'
+  | 'serverActions'
+  | 'logServerFunctions'
+> & {
+  clientAssetToken: string
+  htmlLimitedBots: NextConfigComplete['htmlLimitedBots']
+  /** Actual development option controlling AppPage's separate debug channel. */
+  reactDebugChannel: boolean
+  experimental: Omit<
+    RenderOptsPartial['experimental'],
+    | 'isRoutePPREnabled'
+    | 'authInterrupts'
+    | 'useCacheTimeout'
+    | 'durableUseCacheEntries'
+  >
+}
+
+/** Common immutable closure; v1 artifacts are deliberately not accepted by v2 hosts. */
+interface CompiledTestArtifactBase<
+  Environment extends TestProfile['environment'],
+> {
+  version: 2
+  /** Exact emitted script/map identities, produced only on explicit request. */
+  coverage?: CoverageArtifactMetadata
+  entryId: string
+  profile: TestProfile & { environment: Environment }
+  revision: string
+  /** Exact entry source bytes observed when this immutable revision was emitted. */
+  sourceHash?: string
+  rootDir: string
+  /** Emitted entry path relative to rootDir. */
+  entryPath: string
+  files: string[]
+  diagnostics: SerializedDiagnostic[]
+  /** Exact ordered compiler inputs. Absent means legacy no-setup compilation. */
+  snapshotSerializers?: readonly string[]
+  setupFiles?: readonly string[]
+  /** Compiler-issued graph bridge; never inferred from a user execution option. */
+  moduleMocking?: {
+    version: 1
+    /** Native static-export and direct named-import ownership certificate. */
+    cjsNamedSpy?: 1
+    /** Captured CommonJS original with separately resettable importing modules. */
+    originalCommonJsRequireReset?: 1
+    /** Ordered native setup/spec plans share actual module-cache identities. */
+    setupInputs?: 1
+    /** Native factory-only production plan and its immutable source/output closure. */
+    productionStaticFactory?: {
+      version: 1
+      metadata: { path: string; sha256: string }
+      sourceMetadata: { path: string; sha256: string }
+      outputs: readonly { path: string; sha256: string }[]
+    }
+    coverage?: MockCoverageSources & {
+      nativeMetadata: { path: string; sha256: string }
+    }
+  }
+  /** Explicit compile-only native source and resolver dependency evidence. */
+  sourceDependencies?: CompiledSourceDependencies
+  /** Actual native server emission hashes, not a complete source dependency graph. */
+  dependencyEvidence?: {
+    kind: 'emitted-output'
+    complete: false
+    serverOutputs: readonly {
+      /** Relative to rootDir, also present in artifact.files. */
+      path: string
+      contentHash: string
+    }[]
+  }
+}
+
+/** Facts emitted from the actual selected AppProject loader tree. */
+export interface CompiledTestRoute {
+  version: 1
+  pathname: string
+  page: string
+  runtime: 'nodejs'
+  basePath: string
+  rootParamNames: string[]
+  config: {
+    dynamic: 'auto' | 'force-dynamic' | 'force-static' | 'error'
+    dynamicParams: boolean
+    revalidate: false | number | 'force-cache'
+    fetchCache:
+      | 'auto'
+      | 'default-cache'
+      | 'only-cache'
+      | 'force-cache'
+      | 'default-no-store'
+      | 'only-no-store'
+      | 'force-no-store'
+  }
+  entry: { file: string; sha256: string }
+  sources: { file: string; sha256: string }[]
+}
+
+export interface CompiledRscTestArtifact
+  extends CompiledTestArtifactBase<'rsc'> {
+  kind: 'rsc'
+  /** Ordered native roots may retain one actual AppPage graph. */
+  cohort?: CompiledTestCohortIdentity
+  /** Native sidecar retained in the immutable output closure. */
+  route?: CompiledTestRoute & { metadataPath: string }
+  manifestPage: string
+  /** Manifest paths relative to the immutable rootDir. Never embed preview keys. */
+  manifests: {
+    clientReference: string
+    serverActions: string
+    /** Both additional manifests are required for request/cache execution. */
+    previewProps?: string
+    prerender?: string
+    /** Actual native AppProject manifests for full-route rendering. */
+    routeBuild?: string
+    routeFont?: string
+    routeLoadable?: string
+  }
+  /** Request rendering must reject absent metadata, never fabricate defaults. */
+  requestContext?: CompiledTestRequestContext
+}
+
+/** Ordered compiler-owned roots sharing one module graph and immutable emission. */
+export interface CompiledTestCohortIdentity {
+  version: 1
+  /** Numeric dispatch into the compiler-created entry; never a runtime path. */
+  index: number
+  /** Native order evidence, present in the immutable artifact files. */
+  metadataPath: string
+  /** Exact bytes of every emitted file, including shared helper chunks and maps. */
+  outputs: readonly { path: string; sha256: string }[]
+  entries: readonly {
+    entryId: string
+    /** Normalized project-relative source path. */
+    file: string
+    sourceHash: string
+  }[]
+}
+
+export interface CompiledTestCohort {
+  version: 1
+  artifacts: readonly (CompiledNodeTestArtifact | CompiledRscTestArtifact)[]
+}
+
+/** Node units and Node browser-e2e drivers have no RSC manifests or request state. */
+export interface CompiledNodeTestArtifact
+  extends CompiledTestArtifactBase<'node' | 'browser'> {
+  /** Actual compiler key names only, requested for ordinary executable Node env. */
+  compilerEnvKeys?: { version: 1; names: readonly string[] }
+  kind: 'node'
+  /** Native-issued actual module-ID manifest, never a public reset option. */
+  moduleCache?: { version: 1 }
+  /** Native-issued dynamic target IDs and entry ownership, separate from static mocks. */
+  dynamicModuleMocking?: {
+    version: 1
+    staticMocks?: 1
+    nativeOriginalInitial?: 1
+    /** Native-validated single local runtime target in ordinary production Node. */
+    productionCompiled?: 1
+  }
+  /** Present only for a compiler-created shared Node worker cohort. */
+  cohort?: CompiledTestCohortIdentity
+  /** Browser drivers only: resolved evidence required before app-server startup. */
+  applicationServer?: {
+    mode: TestProfile['mode']
+    lockDistDir: boolean
+    /** Resolved absolute application output directory; required for production. */
+    distDir?: string
+  }
+}
+
+/** A real client graph; the entry path is its native descriptor, never Node code. */
+export interface CompiledBrowserClientTestArtifact
+  extends CompiledTestArtifactBase<'browser'> {
+  sourceHash: string
+  kind: 'browser'
+  client: {
+    version: 1
+    asyncScope?: 'promise-continuations-v1'
+    creatorScope?: 'synchronous-source-v1'
+    creatorPromiseRoute?: 'native-engine-v1'
+    /** Canonical selected source bound to the native sidecar's raw SHA256. */
+    sourceFile: string
+    scripts: readonly string[]
+    styles: readonly string[]
+    /** Exact SHA256 of every emitted regular file, including scripts and maps. */
+    outputs: readonly { path: string; sha256: string }[]
+  }
+}
+
+/** A retains this complete immutable closure until the execution process closes. */
+export type CompiledTestArtifact =
+  | CompiledRscTestArtifact
+  | CompiledNodeTestArtifact
+  | CompiledBrowserClientTestArtifact
+
+export interface CollectedTestCase {
+  id: string
+  name: string
+}
+
+/** Collection facts have no execution outcome or invented source location. */
+export interface TestFileCollection {
+  version: 1
+  entryId: string
+  revision: string
+  cases: CollectedTestCase[]
+}
+
+export type TestExecutionResult = FileResult & {
+  /** Private runtime data; closed cache publication requires separate owner proof. */
+  moduleExecution?: import('./execution/completed-module').ModuleExecutionResult
+  /** Parent broker scheduling acknowledgment; never a worker execution event. */
+  notExecuted?: true
+  /** Direct Browser owner only, after delivered cancellation and clean closure. */
+  closedUserCancellation?: true
+  /** Available only after successful collection and authoritative cleanup. */
+  collection?: TestFileCollection
+}
+
+/** Actual Browser Mode runtime engine; independent of compiler profiles. */
+export type TestBrowserEngine = 'chromium' | 'firefox' | 'webkit'
+
+export interface BrowserViewport {
+  width: number
+  height: number
+}
+
+export interface ExecuteTestOptions {
+  /** Private one-shot JUnit observation of actual cached suite failures. */
+  captureJUnitSuiteTasks?: true
+  /** Issued only by the actual one-shot CLI owner for bounded V8 restoration. */
+  captureOneShotV8CollectionRestoration?: true
+  /** Private isolated one-shot snapshot preparation, never a public config key. */
+  preparePublicSnapshots?: true
+  /** Actual private preparation occurrence; forwarded independently of task facts. */
+  onSnapshotPreparationFailure?: (
+    failure: import('./execution/snapshot-preparation').SnapshotPreparationFailure
+  ) => void | Promise<void>
+  /** Actual one-shot read-only V8 snapshot completion owner. */
+  captureOneShotV8ReadOnlySnapshots?: true
+  /** Private opt-in actual fulfilled module timing and selection provenance. */
+  captureCompletedModuleResult?: true
+  /** Opt-in live reporter snapshots from actual logical-case producers. */
+  captureTaskResults?: boolean
+  /** Requested actual module collection observation; never a coverage certificate. */
+  captureModuleCollected?: true
+  /** Actual prepared root pack; requires the positive one-shot snapshot owner. */
+  captureModuleStart?: true
+  /** Actual logical case preparation; absent for legacy task snapshots. */
+  captureCaseReady?: true
+  /** Actual Node suite and traditional hook-group observations. */
+  captureSuiteEvents?: true
+  captureHookEvents?: true
+  /** Parent-owned concurrent record RPC; never a serializable callback. */
+  captureTestRecords?: true
+  onTestRecord?: (event: TestRecordEvent) => Promise<TestArtifact | undefined>
+  /** Address for an explicitly requested inspector on this file worker. */
+  inspect?: string
+  /** Pause the explicitly inspected file worker before entry evaluation. */
+  inspectBrk?: boolean
+  collectOnly?: boolean
+  runId: string
+  coverage?: TestCoverageRequest
+  /** Parent-only callback, awaited after authoritative worker exit and cleanup. */
+  onCoverage?: (completion: TestCoverageCompletion) => Promise<void>
+  /** Private actual Istanbul counter consumer, after the same cleanup barrier. */
+  onIstanbulCoverage?: (completion: IstanbulCoverageCompletion) => Promise<void>
+  customCoverage?: CustomCoverageRequest
+  /** Parent-only opaque payload consumer after authoritative worker cleanup. */
+  onCustomCoverage?: (completion: CustomCoverageCompletion) => Promise<void>
+  /** Await the provider's suite hook before the file collector stops. */
+  onCustomCoverageSuite?: (
+    completion: CustomCoverageCompletion
+  ) => Promise<void>
+  /** Actual configured application directory; never the artifact directory. */
+  projectDir: string
+  entry: TestEntry
+  snapshotSerializers?: string[]
+  setupFiles: string[]
+  /** Legacy explicit-all request. A mode, when supplied, owns this run's policy. */
+  updateSnapshots?: boolean
+  snapshotUpdateMode?: SnapshotUpdateMode
+  snapshotFormat?: import('./snapshot-format').SnapshotFormat
+  /** Parent-only staging callback; the outer resource owner authorizes commit. */
+  onSnapshotUpdates?: (file: string, updates: SnapshotUpdate[]) => Promise<void>
+  testNamePattern?: string | RegExp
+  tags?: readonly TestTagDefinition[]
+  strictTags?: boolean
+  attachmentsDir?: string
+  globals?: boolean
+  includeTaskLocation?: boolean
+  fakeTimers?: import('./assertions/utilities').FakeTimerOptions
+  clearMocks?: boolean
+  mockReset?: boolean
+  restoreMocks?: boolean
+  unstubGlobals?: boolean
+  unstubEnvs?: boolean
+  maxConcurrency?: number
+  retry?: import('./runner/collector').TestOptions['retry']
+  bail?: number
+  allowOnly?: boolean
+  passWithNoTests?: boolean
+  sequence?: import('./runner/sequence').TestSequenceOptions
+  provide?: Record<string, unknown>
+  env?: Record<string, string>
+  /** Resolved viewport for Browser Mode clients, independent of app drivers. */
+  browserViewport?: BrowserViewport
+  /** Authored Browser locator formatting data, carried without enum coercion. */
+  browserLocatorErrorFormat?: unknown
+  /** Initial Browser TestId selector attribute; omission keeps the default. */
+  browserLocatorTestIdAttribute?: string
+  /** Explicit actual Browser client launch mode. */
+  browserHeadless?: boolean
+  /** Normalized enabled-client instance; omission preserves Chromium. */
+  browserEngine?: TestBrowserEngine
+  testTimeout: number
+  hookTimeout: number
+  /** Outer process deadline, independent of the case/hook timeout. */
+  fileTimeout: number
+  /** Parent-only scheduling cancellation; never aborts the file's lifetime. */
+  userCancelSignal?: AbortSignal
+  signal: AbortSignal
+  onEvent(event: ResultEvent): void
+  /** Parent callback delivery, awaited before an actual environment tears down. */
+  onConsoleDrain?: () => Promise<void>
+  browser?: {
+    wsEndpoint: string
+    baseURL: string
+    /** Absolute parent-retained attachment root; B allocates safe attempt subdirs. */
+    outputDir: string
+    componentHost?: { routePrefix: string; fixtureIds: readonly string[] }
+  }
+}
+
+/** B owns fresh processes and returns only after the file process has closed. */
+export type ExecuteTest = (
+  artifact: CompiledTestArtifact,
+  options: ExecuteTestOptions
+) => Promise<TestExecutionResult>
+
+/** One parent-owned process executes the compiler-issued ordered cohort. */
+export type ExecuteTestCohort = (
+  cohort: CompiledTestCohort,
+  options: readonly ExecuteTestOptions[]
+) => Promise<readonly TestExecutionResult[]>

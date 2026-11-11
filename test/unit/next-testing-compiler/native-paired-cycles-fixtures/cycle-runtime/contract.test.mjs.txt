@@ -1,0 +1,73 @@
+import { test, expect, vi } from 'vitest'
+
+vi.mock('next-test-native-cycle2', () => {
+  globalThis.__nativeCycle2Static = (globalThis.__nativeCycle2Static ?? 0) + 1
+  return {
+    value: 5,
+    phase: 'static-cycle',
+    fn(value) {
+      return ['static-cycle', value]
+    },
+  }
+})
+
+import * as staticCycle from 'next-test-native-cycle2'
+test('retains actual external CommonJS cycle across static runtime actual reset and unmock', async () => {
+  let calls = 0,
+    original
+  const before = await import('next-test-native-cycle2')
+  vi.doMock('next-test-native-cycle2', async (importOriginal) => {
+    calls++
+    original = await importOriginal()
+    return {
+      value: 73,
+      phase: 'runtime-cycle',
+      fn(value) {
+        return ['runtime-cycle', value]
+      },
+    }
+  })
+  const runtime = await import('next-test-native-cycle2'),
+    actual = await vi.importActual('next-test-native-cycle2')
+  vi.resetModules()
+  const afterReset = await import('next-test-native-cycle2'),
+    actualAfter = await vi.importActual('next-test-native-cycle2')
+  vi.doUnmock('next-test-native-cycle2')
+  const unmocked = await import('next-test-native-cycle2')
+  const values = [
+    staticCycle,
+    before,
+    runtime,
+    actual,
+    afterReset,
+    actualAfter,
+    unmocked,
+  ]
+  expect(values.map((value) => value.value)).toEqual([5, 5, 73, 30, 73, 30, 30])
+  expect(before).toBe(staticCycle)
+  expect(afterReset).toBe(runtime)
+  expect(original).toBe(actual)
+  expect(actualAfter).not.toBe(actual)
+  expect(actualAfter.default).toBe(actual.default)
+  expect(actualAfter.fn).toBe(actual.fn)
+  expect(unmocked).toBe(actualAfter)
+  expect(new Set(values).size).toBe(4)
+  expect(new Set(values.map((value) => value.fn)).size).toBe(3)
+  expect(staticCycle.fn('named')).toEqual(['static-cycle', 'named'])
+  expect(runtime.fn('named')).toEqual(['runtime-cycle', 'named'])
+  for (const value of [actual, actualAfter, unmocked]) {
+    const root = value.default,
+      dependency = root.dependency
+    expect(root.evaluation).toBe(1)
+    expect(dependency.evaluation).toBe(1)
+    expect(dependency.root).toBe(root)
+    expect(dependency.root.fn).toBe(value.fn)
+    expect(dependency.rootHadFunctionDuringCycle).toBe(false)
+    expect(value.fn('named')).toEqual(['original-cycle', 'named', 1, true])
+    expect(root.fn('default')).toEqual(['original-cycle', 'default', 1, true])
+  }
+  expect(calls).toBe(1)
+  expect(globalThis.__nativeCycle2Root).toBe(1)
+  expect(globalThis.__nativeCycle2Dependency).toBe(1)
+  expect(globalThis.__nativeCycle2Static).toBe(1)
+})

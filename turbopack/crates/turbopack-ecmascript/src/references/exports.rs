@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
 use rustc_hash::FxHashSet;
 use swc_core::{
-    common::source_map::SmallPos,
+    common::{GLOBALS, source_map::SmallPos},
     ecma::ast::{Expr, Ident, ImportDecl, MemberProp, Program, Stmt},
 };
 use tracing::Instrument;
@@ -14,9 +14,13 @@ use turbopack_core::{
 };
 
 use crate::{
-    EcmascriptModuleAsset, EcmascriptParsable, ModuleTypeResult, SpecifiedModuleType,
-    analyzer::imports::{ImportAnnotations, ImportedSymbol},
-    chunk::EcmascriptExports,
+    AnalyzeMode, EcmascriptModuleAsset, EcmascriptParsable, ModuleTypeResult, SpecifiedModuleType,
+    analyzer::{
+        Bump,
+        graph::{EvalContext, create_graph},
+        imports::{ImportAnnotations, ImportedSymbol},
+    },
+    chunk::{CjsStaticExports, EcmascriptExports},
     module_fragments::{part_of_module, split_module},
     parse::ParseResult,
     references::{
@@ -55,6 +59,7 @@ pub async fn compute_ecmascript_module_exports(
     let parsed = parsed.await?;
     let ParseResult::Ok {
         program,
+        globals,
         eval_context,
         ..
     } = &*parsed
@@ -194,6 +199,19 @@ pub async fn compute_ecmascript_module_exports(
                 .cell();
 
                 EcmascriptExports::EsmExports(esm_exports.to_resolved().await?)
+            } else if read_test_injected_commonjs_exports_role(
+                program,
+                globals,
+                eval_context,
+                specified_type,
+                options.test_injected_commonjs_exports,
+                raw_module.compile_time_info,
+            )
+            .await?
+            {
+                // Retain the specified ESM grammar, strictness and `this` semantics.
+                // Only its actual injected CommonJS write supplies the export value.
+                EcmascriptExports::CommonJs(None)
             } else if specified_type == SpecifiedModuleType::EcmaScript {
                 match detect_dynamic_export(program) {
                     DetectedDynamicExportType::CommonJs => {
@@ -258,6 +276,181 @@ pub async fn compute_ecmascript_module_exports(
         esm_evaluation_reference_idxs: esm_evaluation_reference_idxs.into_boxed_slice(),
     }
     .cell())
+}
+
+/// Read the actual post-transform CommonJS export analysis without changing
+/// execution options. Consumers must treat `None` as an uncertified namespace.
+/// The disposable graph's effects/codegens are never returned or emitted.
+pub async fn read_static_cjs_exports(
+    module: ResolvedVc<EcmascriptModuleAsset>,
+) -> Result<Option<CjsStaticExports>> {
+    let parsed = module.failsafe_parse().await?;
+    let ParseResult::Ok {
+        program,
+        eval_context,
+        globals,
+        ..
+    } = &*parsed
+    else {
+        return Ok(None);
+    };
+    let raw_module = module.await?;
+    let mode = raw_module.options.await?.analyze_mode;
+    let supports_block_scoping = *raw_module
+        .compile_time_info
+        .environment()
+        .runtime_versions()
+        .supports_block_scoping()
+        .await?;
+    let specified_type = module.determine_module_type().await?.module_type;
+    Ok(GLOBALS.set(globals, || {
+        project_static_cjs_exports(
+            program,
+            eval_context,
+            mode,
+            supports_block_scoping,
+            specified_type,
+        )
+    }))
+}
+
+fn project_static_cjs_exports(
+    program: &Program,
+    eval_context: &EvalContext,
+    mode: AnalyzeMode,
+    supports_block_scoping: bool,
+    specified_type: SpecifiedModuleType,
+) -> Option<CjsStaticExports> {
+    if !mode.is_codegen || !eval_context.is_cjs(specified_type) {
+        return None;
+    }
+    let arena = Bump::default();
+    // Scope-hoisting enables the existing collector in this temporary analysis.
+    // No module/context options are mutated; require narrowing is disabled and
+    // every effect, binding and suggested export-drop codegen is discarded.
+    create_graph(
+        &arena,
+        program,
+        eval_context,
+        mode,
+        supports_block_scoping,
+        specified_type,
+        false,
+        true,
+    )
+    .cjs_static_exports
+}
+
+/// Both export classification and identifier replacement consult the same real
+/// compile-time authority. A configured global/member definition wins as a whole.
+pub(crate) async fn read_test_injected_commonjs_exports_role(
+    program: &Program,
+    globals: &swc_core::common::Globals,
+    eval_context: &EvalContext,
+    specified_type: SpecifiedModuleType,
+    enabled: bool,
+    compile_time_info: ResolvedVc<turbopack_core::compile_time_info::CompileTimeInfo>,
+) -> Result<bool> {
+    if !GLOBALS.set(globals, || {
+        uses_test_injected_commonjs_exports(program, eval_context, specified_type, enabled)
+    }) {
+        return Ok(false);
+    }
+    let info = compile_time_info.await?;
+    let defines = info.defines.owned().await?;
+    let free_vars = info.free_var_references.owned().await?;
+    Ok(!defines.keys().chain(free_vars.keys()).any(|key| {
+        matches!(key.first(), Some(
+            turbopack_core::compile_time_info::DefinableNameSegment::Name(name)
+            | turbopack_core::compile_time_info::DefinableNameSegment::Call(name)
+        ) if name == "module" || name == "exports")
+    }))
+}
+
+/// A private Node-test producer role, based on the resolved post-transform AST.
+/// Keep ESM grammar/strictness and ignore names that belong to local bindings.
+/// Mixed modules and other CommonJS globals keep their ordinary compiler path.
+pub(crate) fn uses_test_injected_commonjs_exports(
+    program: &Program,
+    eval_context: &EvalContext,
+    specified_type: SpecifiedModuleType,
+    enabled: bool,
+) -> bool {
+    use swc_core::{
+        common::Span,
+        ecma::{
+            ast::{AssignOp, AssignTarget, Callee, SimpleAssignTarget},
+            visit::{Visit, VisitWith},
+        },
+    };
+
+    use crate::analyzer::cjs_ast::{is_global, is_module_dot_exports};
+
+    if !enabled
+        || specified_type != SpecifiedModuleType::EcmaScript
+        || eval_context.is_esm(SpecifiedModuleType::Automatic)
+    {
+        return false;
+    }
+    let statements = match program {
+        Program::Script(script) => script.body.iter().collect::<Vec<_>>(),
+        Program::Module(module) => {
+            let mut statements = Vec::with_capacity(module.body.len());
+            for item in &module.body {
+                let Some(statement) = item.as_stmt() else {
+                    return false;
+                };
+                statements.push(statement);
+            }
+            statements
+        }
+    };
+    let mut writes = Vec::new();
+    for statement in statements {
+        if let Stmt::Expr(statement) = statement
+            && let Expr::Assign(assignment) = &*statement.expr
+            && assignment.op == AssignOp::Assign
+            && let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assignment.left
+            && is_module_dot_exports(member, eval_context.unresolved_mark)
+            && let Expr::Ident(identifier) = crate::utils::unparen(&member.obj)
+        {
+            writes.push(identifier.span);
+        }
+    }
+    // Do not emulate aliasing, repeated assignments or nested writes here.
+    let [write] = writes.as_slice() else {
+        return false;
+    };
+    struct ResolvedBindings {
+        unresolved: swc_core::common::Mark,
+        write: Span,
+        invalid: bool,
+    }
+    impl Visit for ResolvedBindings {
+        fn visit_ident(&mut self, identifier: &Ident) {
+            if is_global(identifier, "module", self.unresolved) {
+                self.invalid |= identifier.span != self.write;
+            } else if ["exports", "require", "eval"]
+                .iter()
+                .any(|name| is_global(identifier, name, self.unresolved))
+            {
+                self.invalid = true;
+            }
+        }
+        fn visit_call_expr(&mut self, call: &swc_core::ecma::ast::CallExpr) {
+            if matches!(call.callee, Callee::Import(_)) {
+                self.invalid = true;
+            }
+            call.visit_children_with(self);
+        }
+    }
+    let mut bindings = ResolvedBindings {
+        unresolved: eval_context.unresolved_mark,
+        write: *write,
+        invalid: false,
+    };
+    program.visit_with(&mut bindings);
+    !bindings.invalid
 }
 
 #[derive(Debug)]
@@ -377,4 +570,238 @@ pub fn is_turbopack_helper_import(import: &ImportDecl) -> bool {
 
 pub fn is_swc_helper_import(import: &ImportDecl) -> bool {
     import.src.value.starts_with("@swc/helpers/")
+}
+
+#[cfg(test)]
+mod static_cjs_export_projection_tests {
+    use swc_core::{
+        common::{FileName, GLOBALS, Globals, Mark, SourceMap},
+        ecma::{
+            ast::EsVersion, parser::parse_file_as_program, transforms::base::resolver,
+            visit::VisitMutWith,
+        },
+    };
+
+    use crate::{
+        AnalyzeMode, SpecifiedModuleType, analyzer::graph::EvalContext, chunk::CjsStaticExports,
+        references::exports::project_static_cjs_exports,
+    };
+
+    fn project(source: &str, mode: AnalyzeMode) -> Option<CjsStaticExports> {
+        GLOBALS.set(&Globals::new(), || {
+            let cm = SourceMap::default();
+            let file = cm.new_source_file(
+                FileName::Custom("implementation.cjs".into()).into(),
+                source.to_owned(),
+            );
+            let mut errors = Vec::new();
+            let mut program = parse_file_as_program(
+                &file,
+                Default::default(),
+                EsVersion::latest(),
+                None,
+                &mut errors,
+            )
+            .unwrap();
+            assert!(errors.is_empty());
+            let unresolved = Mark::new();
+            let top_level = Mark::new();
+            program.visit_mut_with(&mut resolver(unresolved, top_level, false));
+            let context = EvalContext::new(
+                Some(&program),
+                unresolved,
+                top_level,
+                Default::default(),
+                None,
+            );
+            project_static_cjs_exports(
+                &program,
+                &context,
+                mode,
+                true,
+                SpecifiedModuleType::CommonJs,
+            )
+        })
+    }
+
+    #[test]
+    fn cjs_projection_retains_native_names_and_interop_without_emitting_codegen() {
+        let names = project(
+            "const implementation=()=>42;exports.arbitrary=implementation;module.exports.\
+             other=implementation",
+            AnalyzeMode::code_generation(),
+        )
+        .unwrap();
+        assert_eq!(
+            names
+                .export_names
+                .iter()
+                .map(|name| name.as_str())
+                .collect::<Vec<_>>(),
+            ["arbitrary", "other"]
+        );
+        assert!(!names.has_es_module);
+        let replaced = project(
+            "module.exports={first:()=>1,second:()=>2}",
+            AnalyzeMode::code_generation(),
+        )
+        .unwrap();
+        assert_eq!(replaced.export_names.len(), 2);
+        let interop = project(
+            "exports.__esModule=true;exports.arbitrary=()=>42",
+            AnalyzeMode::code_generation(),
+        )
+        .unwrap();
+        assert!(interop.has_es_module);
+        assert!(
+            project(
+                "exports.arbitrary=()=>42",
+                AnalyzeMode::tracing_import_only()
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn cjs_projection_preserves_unknown_getter_nested_and_escape_taints() {
+        for source in [
+            "exports[name]=()=>42",
+            "exports['arbitrary']=()=>42",
+            "Object.defineProperty(exports,'arbitrary',{get(){return ()=>42}})",
+            "exports.arbitrary=()=>42;exports.change=()=>{exports.arbitrary=()=>43}",
+            "if(flag){exports.arbitrary=()=>42}",
+            "exports.arbitrary=()=>42;globalThis.escaped=exports",
+            "module.exports={...unknown}",
+        ] {
+            assert!(
+                project(source, AnalyzeMode::code_generation()).is_none(),
+                "{source}"
+            );
+        }
+        let shadowed = project(
+            "const exports={};exports.arbitrary=()=>42",
+            AnalyzeMode::code_generation(),
+        )
+        .unwrap();
+        assert!(shadowed.export_names.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod injected_commonjs_export_role_tests {
+    use swc_core::{
+        common::{FileName, GLOBALS, Globals, Mark, SourceMap},
+        ecma::{
+            ast::EsVersion, parser::parse_file_as_program, transforms::base::resolver,
+            visit::VisitMutWith,
+        },
+    };
+
+    use crate::{
+        SpecifiedModuleType, analyzer::graph::EvalContext,
+        references::exports::uses_test_injected_commonjs_exports,
+    };
+
+    fn role(source: &str, enabled: bool, specified: SpecifiedModuleType) -> bool {
+        GLOBALS.set(&Globals::new(), || {
+            let cm = SourceMap::default();
+            let file = cm.new_source_file(
+                FileName::Custom("implementation.mjs".into()).into(),
+                source.to_owned(),
+            );
+            let mut errors = Vec::new();
+            let mut program = parse_file_as_program(
+                &file,
+                Default::default(),
+                EsVersion::latest(),
+                None,
+                &mut errors,
+            )
+            .unwrap();
+            assert!(errors.is_empty());
+            let unresolved = Mark::new();
+            let top_level = Mark::new();
+            program.visit_mut_with(&mut resolver(unresolved, top_level, false));
+            let context = EvalContext::new(
+                Some(&program),
+                unresolved,
+                top_level,
+                Default::default(),
+                None,
+            );
+            assert!(context.is_esm(SpecifiedModuleType::EcmaScript));
+            uses_test_injected_commonjs_exports(&program, &context, specified, enabled)
+        })
+    }
+
+    #[test]
+    fn injected_commonjs_role_requires_private_option_and_preserves_specified_mode() {
+        let source = "module.exports=Promise.resolve(1)";
+        assert!(role(source, true, SpecifiedModuleType::EcmaScript));
+        assert!(!role(source, false, SpecifiedModuleType::EcmaScript));
+        assert!(!role(source, true, SpecifiedModuleType::CommonJs));
+        assert!(!role(source, true, SpecifiedModuleType::Automatic));
+    }
+
+    #[test]
+    fn injected_commonjs_role_reads_actual_direct_unresolved_binding() {
+        for source in [
+            "const value=Promise.resolve(1);module.exports=value",
+            "const value=Promise.resolve(1);Object.freeze(value);module.exports=value",
+            "const value=Promise.resolve(1);Object.defineProperty(value,'then',{get(){throw \
+             Error('authored')}});module.exports=value",
+            "const moduleName='module';const \
+             exportsName='exports';module.exports=Promise.resolve(1)",
+            "function local(module){module.exports=1};module.exports=Promise.resolve(1)",
+        ] {
+            assert!(
+                role(source, true, SpecifiedModuleType::EcmaScript),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn injected_commonjs_role_keeps_local_shadowing_and_real_esm_exports() {
+        for source in [
+            "const module={};module.exports=Promise.resolve(1)",
+            "let module={};module.exports=Promise.resolve(1)",
+            "function local(module){module.exports=1};local({})",
+            "const exports={};exports.default=Promise.resolve(1)",
+            "import module from './module.mjs';module.exports=Promise.resolve(1)",
+            "export const named=1;module.exports=Promise.resolve(1)",
+            "export default 1;module.exports=Promise.resolve(1)",
+            "export {};module.exports=Promise.resolve(1)",
+            "const text='module.exports=Promise.resolve(1)'",
+        ] {
+            assert!(
+                !role(source, true, SpecifiedModuleType::EcmaScript),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    fn injected_commonjs_role_excludes_unmeasured_global_and_dependency_forms() {
+        for source in [
+            "module['exports']=Promise.resolve(1)",
+            "module.exports ||= Promise.resolve(1)",
+            "module.exports=1;module.exports=Promise.resolve(1)",
+            "const alias=module;module.exports=Promise.resolve(1)",
+            "module.exports=Promise.resolve(module.exports)",
+            "function assign(){module.exports=Promise.resolve(1)};assign()",
+            "if(flag)module.exports=Promise.resolve(1)",
+            "exports.default=Promise.resolve(1)",
+            "module.exports=Promise.resolve(1);exports.foo=1",
+            "const value=require('./dependency.cjs');module.exports=value",
+            "const value=import('./dependency.mjs');module.exports=value",
+            "const value=await Promise.resolve(1);module.exports=value",
+            "eval('module.exports=1');module.exports=Promise.resolve(1)",
+        ] {
+            assert!(
+                !role(source, true, SpecifiedModuleType::EcmaScript),
+                "{source}"
+            );
+        }
+    }
 }

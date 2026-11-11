@@ -1,0 +1,210 @@
+import { test, expect, vi } from 'vitest'
+
+test('acyclic runtime factory retains original graph and held references across reset', async () => {
+  const before = await import('./acyclic/target.mjs')
+  await import('./acyclic/peer.mjs')
+  before.token.count = 3
+  before.peer.count = 4
+  let calls = 0
+  let actual
+  vi.doMock('./acyclic/target.mjs', async (importOriginal) => {
+    calls++
+    actual = await importOriginal()
+    return { token: actual.token, peer: actual.peer, read: actual.read }
+  })
+  const first = await import('./acyclic/target.mjs')
+  expect(await import('./acyclic/target.mjs')).toBe(first)
+  vi.resetModules()
+  expect(await import('./acyclic/target.mjs')).toBe(first)
+  await import('./acyclic/peer.mjs')
+  vi.doUnmock('./acyclic/target.mjs')
+  const released = await import('./acyclic/target.mjs')
+  released.token.count = 7
+  released.peer.count = 8
+  expect(calls).toBe(1)
+  expect(actual).toBe(before)
+  expect(first).not.toBe(before)
+  expect(first.token).toBe(before.token)
+  expect(first.read()).toEqual([3, 4])
+  expect(released.read()).toEqual([7, 8])
+  expect(released.peer).not.toBe(before.peer)
+  expect(globalThis.__ws2Graph['acyclic-root']).toBe(2)
+  expect(globalThis.__ws2Graph['acyclic-peer']).toBe(2)
+})
+
+test('cycle runtime factory retains original graph and held references across reset', async () => {
+  const before = await import('./cycle/target.mjs')
+  await import('./cycle/peer.mjs')
+  before.token.count = 3
+  before.peer.count = 4
+  let calls = 0
+  let actual
+  vi.doMock('./cycle/target.mjs', async (importOriginal) => {
+    calls++
+    actual = await importOriginal()
+    return {
+      token: actual.token,
+      peer: actual.peer,
+      read: actual.read,
+      getRoot: actual.getRoot,
+    }
+  })
+  const first = await import('./cycle/target.mjs')
+  expect(await import('./cycle/target.mjs')).toBe(first)
+  vi.resetModules()
+  expect(await import('./cycle/target.mjs')).toBe(first)
+  await import('./cycle/peer.mjs')
+  vi.doUnmock('./cycle/target.mjs')
+  const released = await import('./cycle/target.mjs')
+  released.token.count = 7
+  released.peer.count = 8
+  expect(calls).toBe(1)
+  expect(actual).toBe(before)
+  expect(first.token).toBe(before.token)
+  expect(first.read()).toEqual([3, 4, 3])
+  expect(released.read()).toEqual([7, 8, 3])
+  expect(released.peer).not.toBe(before.peer)
+  expect(globalThis.__ws2Graph['cycle-root']).toBe(2)
+  expect(globalThis.__ws2Graph['cycle-peer']).toBe(2)
+})
+
+test('diamond original graph deduplicates a shared dependency through factory reset and unmock', async () => {
+  let calls = 0
+  vi.doMock('./diamond/target.mjs', async (importOriginal) => {
+    calls++
+    const actual = await importOriginal()
+    return { left: actual.left, right: actual.right, read: actual.read }
+  })
+  const first = await import('./diamond/target.mjs')
+  first.left.count = 9
+  vi.resetModules()
+  expect(await import('./diamond/target.mjs')).toBe(first)
+  vi.doUnmock('./diamond/target.mjs')
+  const released = await import('./diamond/target.mjs')
+  const shared = await import('./diamond/shared.mjs')
+  expect(calls).toBe(1)
+  expect(first.left).toBe(first.right)
+  expect(first.read()).toEqual([0, 9, 9, true])
+  expect(released.left).toBe(released.right)
+  expect(released.left).toBe(shared.shared)
+  expect(released.left).not.toBe(first.left)
+  expect(released.read()).toEqual([0, 0, 0, true])
+  expect(globalThis.__ws2Graph['diamond-shared']).toBe(2)
+})
+
+test('held graph runtime factory pending imports use actual original and retain successful mock across reset', async () => {
+  let release
+  const gate = new Promise((resolve) => {
+    release = resolve
+  })
+  let calls = 0
+  let actual
+  vi.doMock('./pending/target.mjs', async (importOriginal) => {
+    calls++
+    await gate
+    actual = await importOriginal()
+    return { token: actual.token, peer: actual.peer, read: actual.read }
+  })
+  const pending = import('./pending/target.mjs')
+  await vi.waitFor(() => expect(calls).toBe(1))
+  const overlap = await import('./pending/target.mjs')
+  overlap.token.count = 5
+  overlap.peer.count = 6
+  release()
+  const first = await pending
+  vi.resetModules()
+  expect(await import('./pending/target.mjs')).toBe(first)
+  vi.doUnmock('./pending/target.mjs')
+  const released = await import('./pending/target.mjs')
+  expect(calls).toBe(1)
+  expect(actual).toBe(overlap)
+  expect(first).not.toBe(overlap)
+  expect(first.token).toBe(overlap.token)
+  expect(first.read()).toEqual([5, 6])
+  expect(released.read()).toEqual([0, 0])
+  expect(released.peer).not.toBe(overlap.peer)
+  expect(globalThis.__ws2Graph['pending-root']).toBe(2)
+  expect(globalThis.__ws2Graph['pending-peer']).toBe(2)
+})
+
+test('graph runtime failures retry with original graph identity and reset cache boundaries', async () => {
+  const cause = new Error('graph factory failed')
+  let calls = 0
+  const originals = []
+  let failing = true
+  vi.doMock('./retry/target.mjs', async (importOriginal) => {
+    calls++
+    const actual = await importOriginal()
+    originals.push(actual)
+    if (failing) throw cause
+    return { token: actual.token }
+  })
+  const first = await import('./retry/target.mjs').catch((error) => error)
+  const second = await import('./retry/target.mjs').catch((error) => error)
+  vi.resetModules()
+  const third = await import('./retry/target.mjs').catch((error) => error)
+  vi.doUnmock('./retry/target.mjs')
+  const released = await import('./retry/target.mjs')
+  expect(calls).toBe(3)
+  expect(first.cause).toBe(cause)
+  expect(second.cause).toBe(cause)
+  expect(third.cause).toBe(cause)
+  expect(first).not.toBe(second)
+  expect(second).not.toBe(third)
+  expect(originals[0]).toBe(originals[1])
+  expect(originals[2]).not.toBe(originals[1])
+  expect(released).toBe(originals[2])
+  expect(globalThis.__ws2Graph['retry-root']).toBe(2)
+  expect(globalThis.__ws2Graph['retry-peer']).toBe(2)
+  failing = false
+})
+
+test('unused graph runtime registration does not evaluate factory or dependency closure', () => {
+  let calls = 0
+  vi.doMock('./unused/target.mjs', () => {
+    calls++
+    return { token: 'mock' }
+  })
+  vi.doUnmock('./unused/target.mjs')
+  vi.resetModules()
+  expect(calls).toBe(0)
+  expect(globalThis.__ws2Graph?.['unused-root']).toBeUndefined()
+  expect(globalThis.__ws2Graph?.['unused-peer']).toBeUndefined()
+})
+
+test('conditional graph factory failures recover to the exact successful exports across reset', async () => {
+  const cause = new Error('conditional graph failure')
+  let calls = 0
+  let failing = true
+  const originals = []
+  vi.doMock('./recovery/target.mjs', async (importOriginal) => {
+    calls++
+    const actual = await importOriginal()
+    originals.push(actual)
+    if (failing) throw cause
+    return { token: actual.token, peer: actual.peer, read: actual.read }
+  })
+  const first = await import('./recovery/target.mjs').catch((error) => error)
+  const second = await import('./recovery/target.mjs').catch((error) => error)
+  failing = false
+  const recovered = await import('./recovery/target.mjs')
+  expect(await import('./recovery/target.mjs')).toBe(recovered)
+  recovered.token.count = 12
+  recovered.peer.count = 13
+  vi.resetModules()
+  expect(await import('./recovery/target.mjs')).toBe(recovered)
+  vi.doUnmock('./recovery/target.mjs')
+  const released = await import('./recovery/target.mjs')
+  expect(calls).toBe(3)
+  expect(first).not.toBe(second)
+  expect(first.cause).toBe(cause)
+  expect(second.cause).toBe(cause)
+  expect(originals[1]).toBe(originals[0])
+  expect(originals[2]).toBe(originals[0])
+  expect(recovered.token).toBe(originals[2].token)
+  expect(released.token).not.toBe(recovered.token)
+  expect(recovered.read()).toEqual([12, 13])
+  expect(released.read()).toEqual([0, 0])
+  expect(globalThis.__ws2Graph['recovery-root']).toBe(2)
+  expect(globalThis.__ws2Graph['recovery-peer']).toBe(2)
+})

@@ -1,0 +1,11 @@
+import { test, expect } from 'vitest'
+import { page } from 'vitest/browser'
+
+test('actual viewport width boundary zero', async () => {
+  expect([innerWidth, innerHeight]).toEqual([414, 896])
+  const operation = page.viewport(0, 480)
+  expect(operation).toBeInstanceOf(Promise)
+  expect(Object.prototype.toString.call(operation)).toBe('[object Promise]')
+  expect(await operation).toBeUndefined()
+  expect([innerWidth, innerHeight]).toEqual([0, 480])
+})

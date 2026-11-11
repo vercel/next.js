@@ -1,0 +1,383 @@
+[
+  {
+    "profile": "all-skip",
+    "source": "import{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ntest.skip('skipped',()=>record('BODY'))\n",
+    "expected": {
+      "collected": "skipped",
+      "tasks": [
+        {
+          "type": "test",
+          "name": "skipped",
+          "mode": "skip",
+          "collected": "skipped"
+        }
+      ],
+      "counts": {
+        "suites": 1,
+        "passedSuites": 1,
+        "pendingSuites": 0,
+        "tests": 1,
+        "passedTests": 0,
+        "pendingTests": 1,
+        "todoTests": 0
+      },
+      "authoredEvents": ["module-enter"]
+    }
+  },
+  {
+    "profile": "all-todo",
+    "source": "import{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ntest.todo('todo')\n",
+    "expected": {
+      "collected": "skipped",
+      "tasks": [
+        {
+          "type": "test",
+          "name": "todo",
+          "mode": "todo",
+          "collected": "skipped"
+        }
+      ],
+      "counts": {
+        "suites": 1,
+        "passedSuites": 1,
+        "pendingSuites": 0,
+        "tests": 1,
+        "passedTests": 0,
+        "pendingTests": 0,
+        "todoTests": 1
+      },
+      "authoredEvents": ["module-enter"]
+    }
+  },
+  {
+    "profile": "skip-todo",
+    "source": "import{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ntest.skip('skipped',()=>record('BODY'));test.todo('todo')\n",
+    "expected": {
+      "collected": "skipped",
+      "tasks": [
+        {
+          "type": "test",
+          "name": "skipped",
+          "mode": "skip",
+          "collected": "skipped"
+        },
+        {
+          "type": "test",
+          "name": "todo",
+          "mode": "todo",
+          "collected": "skipped"
+        }
+      ],
+      "counts": {
+        "suites": 1,
+        "passedSuites": 1,
+        "pendingSuites": 0,
+        "tests": 2,
+        "passedTests": 0,
+        "pendingTests": 1,
+        "todoTests": 1
+      },
+      "authoredEvents": ["module-enter"]
+    }
+  },
+  {
+    "profile": "mixed",
+    "source": "import{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ntest('runs',()=>record('BODY'));test.skip('skipped',()=>record('BAD_BODY'));test.todo('todo')\n",
+    "expected": {
+      "collected": "pending",
+      "ended": "passed",
+      "tasks": [
+        {
+          "type": "test",
+          "name": "runs",
+          "mode": "run",
+          "collected": "pending",
+          "ended": "passed"
+        },
+        {
+          "type": "test",
+          "name": "skipped",
+          "mode": "skip",
+          "collected": "skipped"
+        },
+        {
+          "type": "test",
+          "name": "todo",
+          "mode": "todo",
+          "collected": "skipped"
+        }
+      ],
+      "counts": {
+        "suites": 1,
+        "passedSuites": 1,
+        "pendingSuites": 0,
+        "tests": 3,
+        "passedTests": 1,
+        "pendingTests": 1,
+        "todoTests": 1
+      },
+      "authoredEvents": ["module-enter", "before-all", "BODY", "after-all"]
+    }
+  },
+  {
+    "profile": "nested-all-skip",
+    "source": "import{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe('group',()=>{test.skip('skipped',()=>record('BODY'));test.todo('todo')})\n",
+    "expected": {
+      "collected": "skipped",
+      "tasks": [
+        {
+          "type": "suite",
+          "name": "group",
+          "mode": "skip",
+          "collected": "skipped",
+          "children": [
+            {
+              "type": "test",
+              "name": "skipped",
+              "mode": "skip",
+              "collected": "skipped"
+            },
+            {
+              "type": "test",
+              "name": "todo",
+              "mode": "todo",
+              "collected": "skipped"
+            }
+          ]
+        }
+      ],
+      "counts": {
+        "suites": 2,
+        "passedSuites": 2,
+        "pendingSuites": 0,
+        "tests": 2,
+        "passedTests": 0,
+        "pendingTests": 1,
+        "todoTests": 1
+      },
+      "authoredEvents": ["module-enter"]
+    }
+  },
+  {
+    "profile": "nested-mixed",
+    "source": "import{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe('group',()=>{test('runs',()=>record('BODY'));test.skip('skipped',()=>record('BAD_BODY'));test.todo('todo')})\n",
+    "expected": {
+      "collected": "pending",
+      "ended": "passed",
+      "tasks": [
+        {
+          "type": "suite",
+          "name": "group",
+          "mode": "run",
+          "collected": "pending",
+          "ended": "passed",
+          "children": [
+            {
+              "type": "test",
+              "name": "runs",
+              "mode": "run",
+              "collected": "pending",
+              "ended": "passed"
+            },
+            {
+              "type": "test",
+              "name": "skipped",
+              "mode": "skip",
+              "collected": "skipped"
+            },
+            {
+              "type": "test",
+              "name": "todo",
+              "mode": "todo",
+              "collected": "skipped"
+            }
+          ]
+        }
+      ],
+      "counts": {
+        "suites": 2,
+        "passedSuites": 2,
+        "pendingSuites": 0,
+        "tests": 3,
+        "passedTests": 1,
+        "pendingTests": 1,
+        "todoTests": 1
+      },
+      "authoredEvents": ["module-enter", "before-all", "BODY", "after-all"]
+    }
+  },
+  {
+    "profile": "skipped-describe",
+    "source": "import{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('group',()=>{test('under skip',()=>record('BODY'));test.todo('retained todo')})\n",
+    "expected": {
+      "collected": "skipped",
+      "tasks": [
+        {
+          "type": "suite",
+          "name": "group",
+          "mode": "skip",
+          "collected": "skipped",
+          "children": [
+            {
+              "type": "test",
+              "name": "under skip",
+              "mode": "skip",
+              "collected": "skipped"
+            },
+            {
+              "type": "test",
+              "name": "retained todo",
+              "mode": "todo",
+              "collected": "skipped"
+            }
+          ]
+        }
+      ],
+      "counts": {
+        "suites": 2,
+        "passedSuites": 2,
+        "pendingSuites": 0,
+        "tests": 2,
+        "passedTests": 0,
+        "pendingTests": 1,
+        "todoTests": 1
+      },
+      "authoredEvents": ["module-enter"]
+    }
+  },
+  {
+    "profile": "todo-describe",
+    "source": "import{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.todo('group')\n",
+    "expected": {
+      "collected": "skipped",
+      "tasks": [
+        {
+          "type": "suite",
+          "name": "group",
+          "mode": "todo",
+          "collected": "skipped",
+          "children": []
+        }
+      ],
+      "counts": {
+        "suites": 2,
+        "passedSuites": 1,
+        "pendingSuites": 1,
+        "tests": 0,
+        "passedTests": 0,
+        "pendingTests": 0,
+        "todoTests": 0
+      },
+      "authoredEvents": ["module-enter"]
+    }
+  },
+  {
+    "profile": "all-skip-file-auto",
+    "source": "import{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\nconst scoped=test.extend({resource:[async({},use)=>{record('fixture-setup');await use(1);record('fixture-dispose')},{scope:'file',auto:true}]});scoped.skip('skipped',()=>record('BODY'))\n",
+    "expected": {
+      "collected": "skipped",
+      "tasks": [
+        {
+          "type": "test",
+          "name": "skipped",
+          "mode": "skip",
+          "collected": "skipped"
+        }
+      ],
+      "counts": {
+        "suites": 1,
+        "passedSuites": 1,
+        "pendingSuites": 0,
+        "tests": 1,
+        "passedTests": 0,
+        "pendingTests": 1,
+        "todoTests": 0
+      },
+      "authoredEvents": ["module-enter"]
+    }
+  },
+  {
+    "profile": "excluded-nested-empty",
+    "source": "import{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit empty',()=>{})})})\n",
+    "expected": {
+      "collected": "skipped",
+      "tasks": [
+        {
+          "type": "suite",
+          "name": "outer",
+          "mode": "skip",
+          "collected": "skipped",
+          "children": [
+            {
+              "type": "suite",
+              "name": "explicit todo",
+              "mode": "todo",
+              "collected": "skipped",
+              "children": [
+                {
+                  "type": "suite",
+                  "name": "implicit empty",
+                  "mode": "run",
+                  "collected": "pending",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "counts": {
+        "suites": 4,
+        "passedSuites": 3,
+        "pendingSuites": 1,
+        "tests": 0,
+        "passedTests": 0,
+        "pendingTests": 0,
+        "todoTests": 0
+      },
+      "authoredEvents": ["module-enter"]
+    }
+  },
+  {
+    "profile": "todo-skip-empty",
+    "source": "import{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.todo('outer',()=>{describe.skip('explicit skip',()=>{describe('implicit empty',()=>{})})})\n",
+    "expected": {
+      "collected": "skipped",
+      "tasks": [
+        {
+          "type": "suite",
+          "name": "outer",
+          "mode": "todo",
+          "collected": "skipped",
+          "children": [
+            {
+              "type": "suite",
+              "name": "explicit skip",
+              "mode": "skip",
+              "collected": "skipped",
+              "children": [
+                {
+                  "type": "suite",
+                  "name": "implicit empty",
+                  "mode": "run",
+                  "collected": "pending",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "counts": {
+        "suites": 4,
+        "passedSuites": 3,
+        "pendingSuites": 1,
+        "tests": 0,
+        "passedTests": 0,
+        "pendingTests": 0,
+        "todoTests": 0
+      },
+      "authoredEvents": ["module-enter"]
+    }
+  }
+]

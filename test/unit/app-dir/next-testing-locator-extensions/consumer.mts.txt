@@ -1,0 +1,31 @@
+import { locators, page, type BrowserLocators, type BrowserPage, type Locator, type LocatorSelectors } from 'vitest/browser'
+
+declare module 'vitest/browser' {
+  interface LocatorSelectors {
+    getByContractCSS(selector: string): Locator
+    keepContractLocator(value: Locator): Locator
+  }
+}
+const api: BrowserLocators = locators
+const registration: void = api.extend({
+  getByContractCSS(selector) {
+    const value: string = selector
+    const receiver: BrowserPage | Locator = this
+    void receiver
+    return 'css=' + value
+  },
+  keepContractLocator(value) { return value },
+})
+const retained: Locator = page.getByRole('button')
+const throughPage: Locator = page.getByContractCSS('button')
+const throughLocator: Locator = retained.getByContractCSS('span')
+const exact: Locator = page.keepContractLocator(retained)
+const selectors: LocatorSelectors = locators.createElementLocators(document.body)
+const fromElement: Locator = selectors.getByContractCSS('button')
+// @ts-expect-error extension argument remains a string
+page.getByContractCSS(1)
+// @ts-expect-error returned locator argument remains a Locator
+retained.keepContractLocator('button')
+// @ts-expect-error extension value must be a callable implementation
+locators.extend({ getByContractCSS: 1 })
+void [registration, throughPage, throughLocator, exact, fromElement]

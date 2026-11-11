@@ -314,6 +314,17 @@ impl From<Code> for CodeBuilder {
 
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for Code {
+    #[turbo_tasks::function]
+    async fn native_test_import_coverage_roles(self: ResolvedVc<Self>) -> Result<Vc<FileContent>> {
+        let debug_id = self.debug_id().owned().await?;
+        let sections = self
+            .await?
+            .native_test_import_coverage_sections_ref(debug_id.is_some())?;
+        if sections.is_empty() {
+            return Ok(FileContent::NotFound.cell());
+        }
+        Ok(FileContent::Content(File::from(serde_json::to_vec(&sections)?)).cell())
+    }
     /// Generates the source map out of all the pushed Original code.
     /// The SourceMap v3 spec has a "sectioned" source map specifically designed
     /// for concatenation in post-processing steps. This format consists of
@@ -353,6 +364,52 @@ impl Code {
 }
 
 impl Code {
+    /// Traverse only typed native-owned fields. Raw/nested vendor JSON is never inspected.
+    pub fn native_test_import_coverage_sections_ref(
+        &self,
+        debug_id: bool,
+    ) -> Result<Vec<serde_json::Value>> {
+        let mut position = SourcePos::new(u32::from(debug_id));
+        let mut previous = 0;
+        let mut after_cr = false;
+        let bytes = self.code.to_bytes();
+        let mut sections = Vec::new();
+        for (at, map) in self.mappings.iter() {
+            // The private receipt needs actual JavaScript UTF16 columns. Keep
+            // ordinary map serialization unchanged: SourcePos::update currently
+            // counts a non-BMP character as one column. Retain CRLF state across
+            // section boundaries rather than counting a split pair twice.
+            for ch in std::str::from_utf8(&bytes[previous..*at])?.chars() {
+                match ch {
+                    '\r' | '\n' | '\u{2028}' | '\u{2029}' => {
+                        if ch != '\n' || !after_cr {
+                            position.line = position.line.checked_add(1).ok_or_else(|| {
+                                anyhow::anyhow!("Native coverage line exceeds source-map range")
+                            })?;
+                        }
+                        position.column = 0;
+                    }
+                    _ => {
+                        position.column = position
+                            .column
+                            .checked_add(ch.len_utf16() as u32)
+                            .ok_or_else(|| {
+                                anyhow::anyhow!("Native coverage column exceeds source-map range")
+                            })?;
+                    }
+                }
+                after_cr = ch == '\r';
+            }
+            previous = *at;
+            if let Some(SectionMap::Structured(map)) = map
+                && let Some(roles) = map.native_test_import_coverage_roles()
+            {
+                sections.push(serde_json::json!({"offset":position,"data":serde_json::from_slice::<serde_json::Value>(&roles.to_bytes())?}));
+            }
+        }
+        Ok(sections)
+    }
+
     /// Generates a source map from the code's mappings.
     #[instrument(level = "trace", name = "Code::generate_source_map", skip_all)]
     pub fn generate_source_map_ref(&self, debug_id: Option<RcStr>) -> Rope {
@@ -407,5 +464,106 @@ impl Code {
         } else {
             SourceMap::sections_to_rope(sections, debug_id)
         }
+    }
+}
+
+#[cfg(test)]
+mod native_import_coverage_tests {
+    use super::*;
+
+    #[test]
+    fn typed_roles_follow_utf16_section_offsets_without_changing_code_or_maps() -> Result<()> {
+        let map = StructuredSourceMap::from_json(&Rope::from(
+            r#"{"version":3,"sources":["a.js"],"sourcesContent":["v;"],"names":[],"mappings":"AAAA"}"#,
+        ))?;
+        let owned = map
+            .clone()
+            .with_native_test_import_coverage_roles(Rope::from(
+                r#"{"version":1,"moduleEnd":{"line":0,"column":2},"roles":[]}"#,
+            ));
+        assert_eq!(map.to_rope(), owned.to_rope());
+        let mut baseline = CodeBuilder::new(true, false);
+        baseline += "😀 ";
+        baseline.push_source(&Rope::from("v;"), Some(map));
+        let baseline = baseline.build();
+        let mut native = CodeBuilder::new(true, false);
+        native += "😀 ";
+        native.push_source(&Rope::from("v;"), Some(owned));
+        let native = native.build();
+        assert_eq!(baseline.source_code(), native.source_code());
+        assert_eq!(
+            baseline.generate_source_map_ref(None),
+            native.generate_source_map_ref(None)
+        );
+        let mut wrapper = CodeBuilder::new(true, false);
+        wrapper += "//root\r\n  ";
+        wrapper.push_code(&native);
+        let code = wrapper.build();
+        let sections = code.native_test_import_coverage_sections_ref(false)?;
+        assert_eq!(sections.len(), 1);
+        assert_eq!(
+            sections[0]["offset"],
+            serde_json::json!({"line":1,"column":5})
+        );
+        assert_eq!(
+            code.native_test_import_coverage_sections_ref(true)?[0]["offset"],
+            serde_json::json!({"line":2,"column":5})
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn typed_roles_retain_crlf_state_across_sections() -> Result<()> {
+        let map = StructuredSourceMap::from_json(&Rope::from(
+            r#"{"version":3,"sources":[],"names":[],"mappings":""}"#,
+        ))?
+        .with_native_test_import_coverage_roles(Rope::from(
+            r#"{"version":1,"moduleEnd":{"line":0,"column":2},"roles":[]}"#,
+        ));
+        let mut builder = CodeBuilder::new(true, false);
+        builder += "//😀\r";
+        builder.push_source(&Rope::from("\n//😀\u{2028}"), Some(map.clone()));
+        builder += "é ";
+        builder.push_source(&Rope::from("v;"), Some(map));
+        let code = builder.build();
+        let sections = code.native_test_import_coverage_sections_ref(false)?;
+        assert_eq!(sections.len(), 2);
+        assert_eq!(
+            sections[0]["offset"],
+            serde_json::json!({"line":1,"column":0})
+        );
+        assert_eq!(
+            sections[1]["offset"],
+            serde_json::json!({"line":2,"column":2})
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn raw_and_nested_vendor_fields_never_confer_native_authority() -> Result<()> {
+        for input in [
+            r#"{"version":3,"sources":[],"names":[],"mappings":"","x_turbopackNativeImportCoverage":{"version":1}}"#,
+            r#"{"version":3,"sections":[{"offset":{"line":0,"column":0},"map":{"version":3,"sources":[],"names":[],"mappings":"","x_turbopackNativeImportCoverage":{"version":1}}}]}"#,
+        ] {
+            let raw = Rope::from(input);
+            let mut code = CodeBuilder::new(true, false);
+            code.push_source(&Rope::from("v;"), Some(raw.clone()));
+            let code = code.build();
+            assert_eq!(code.generate_source_map_ref(None), raw);
+            assert!(
+                code.native_test_import_coverage_sections_ref(false)?
+                    .is_empty()
+            );
+            let external = StructuredSourceMap::from_json(&raw)?;
+            assert!(external.native_test_import_coverage_roles().is_none());
+            let mut code = CodeBuilder::new(true, false);
+            code.push_source(&Rope::from("v;"), Some(external));
+            assert!(
+                code.build()
+                    .native_test_import_coverage_sections_ref(false)?
+                    .is_empty()
+            );
+        }
+        Ok(())
     }
 }

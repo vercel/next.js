@@ -1,0 +1,21 @@
+import { expect, test } from 'vitest'
+import { appendFileSync } from 'node:fs'
+import { url } from 'node:inspector'
+
+test('configured inspection observes the actual test worker', () => {
+  const actual = url()
+  const address = actual === undefined ? undefined : new URL(actual)
+  const row = {
+    enabled: actual !== undefined,
+    host: address?.hostname ?? null,
+    port: address ? Number(address.port) : null,
+  }
+  appendFileSync(process.env.NEXT_INSPECT_TRACE, JSON.stringify(row) + '\n')
+  expect(row.enabled).toBe(process.env.NEXT_INSPECT_EXPECT === '1')
+  if (row.enabled) {
+    expect(row.port).toBe(Number(process.env.NEXT_INSPECT_PORT))
+    expect(actual).toMatch(/^ws:\/\//)
+  } else {
+    expect(actual).toBeUndefined()
+  }
+})

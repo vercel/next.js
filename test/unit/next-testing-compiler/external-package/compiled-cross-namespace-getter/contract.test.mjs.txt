@@ -1,0 +1,77 @@
+import { test, expect, vi } from 'vitest'
+test('only compiler published getters swallow early reads while authored getters and function bodies retain raw errors', async () => {
+  let peer
+  const calls = [0, 0]
+  vi.doMock('./target.mjs', () => {
+    calls[0]++
+    return {
+      value: 7,
+      read: () => 7,
+    }
+  })
+  vi.doUnmock('./target.mjs')
+  vi.doMock('./peer.mjs', async (original) => {
+    calls[1]++
+    peer = await original()
+    return {
+      read: peer.read,
+    }
+  })
+  const mock = await import('./peer.mjs')
+  const root = await import('./target.mjs')
+  const raw = new Error('redefined namespace getter')
+  const defined = Reflect.defineProperty(root, 'value', {
+    get: () => {
+      throw raw
+    },
+    configurable: true,
+    enumerable: true,
+  })
+  const capture = (read) => {
+    try {
+      return {
+        value: read(),
+      }
+    } catch (error) {
+      return {
+        name: error.name,
+        message: error.message,
+        raw: error === raw,
+      }
+    }
+  }
+  const results = {
+    direct: capture(() => root.value),
+    published: capture(() => peer.value),
+    publishedGetter: capture(() =>
+      Object.getOwnPropertyDescriptor(peer, 'value').get()
+    ),
+    body: capture(() => peer.read()),
+    mockBody: capture(() => mock.read()),
+    local: capture(() => root.read()),
+  }
+  vi.resetModules()
+  vi.doUnmock('./peer.mjs')
+  const fresh = await import('./peer.mjs')
+  expect(calls).toEqual([0, 1])
+  expect(defined).toBe(true)
+  for (const result of [results.direct, results.body, results.mockBody]) {
+    expect(result).toEqual({ name: 'Error', message: raw.message, raw: true })
+  }
+  expect(results.published).toEqual({ value: undefined })
+  expect(results.publishedGetter).toEqual({ value: undefined })
+  expect(results.local).toEqual({ value: 0 })
+  expect(capture(() => root.value)).toEqual({
+    name: 'Error',
+    message: raw.message,
+    raw: true,
+  })
+  expect(capture(() => peer.value)).toEqual({ value: undefined })
+  expect(capture(() => peer.read())).toEqual({
+    name: 'Error',
+    message: raw.message,
+    raw: true,
+  })
+  expect([fresh.value, fresh.read()]).toEqual([0, 0])
+  expect(fresh).not.toBe(peer)
+})

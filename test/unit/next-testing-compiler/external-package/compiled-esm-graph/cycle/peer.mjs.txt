@@ -1,0 +1,3 @@
+import {getRoot} from './target.mjs';
+globalThis.__ws2Graph ??= {};globalThis.__ws2Graph['cycle-peer']=(globalThis.__ws2Graph['cycle-peer']??0)+1;export const evaluation=globalThis.__ws2Graph['cycle-peer'];
+export const peer={kind:'peer',count:0};export function readRoot(){return getRoot().count}

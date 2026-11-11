@@ -1,0 +1,147 @@
+{
+  "status": 0,
+  "rows": [
+    {
+      "kind": "A-stub",
+      "global": "A",
+      "env": "A",
+      "descriptor": {
+        "value": "A",
+        "writable": true,
+        "enumerable": true,
+        "configurable": true
+      }
+    },
+    {
+      "kind": "A-fluent",
+      "globalSelf": true,
+      "envSelf": true
+    },
+    {
+      "kind": "B-observes-A",
+      "global": "A",
+      "env": "A",
+      "descriptor": {
+        "value": "A",
+        "writable": true,
+        "enumerable": true,
+        "configurable": true
+      }
+    },
+    {
+      "kind": "B-stub",
+      "global": "B",
+      "env": "B",
+      "descriptor": {
+        "value": "B",
+        "writable": true,
+        "enumerable": true,
+        "configurable": true
+      }
+    },
+    {
+      "kind": "A-observes-B",
+      "global": "B",
+      "env": "B",
+      "descriptor": {
+        "value": "B",
+        "writable": true,
+        "enumerable": true,
+        "configurable": true
+      }
+    },
+    {
+      "kind": "A-restored",
+      "global": "root",
+      "env": "root",
+      "descriptor": {
+        "value": "root",
+        "writable": false,
+        "enumerable": false,
+        "configurable": true
+      }
+    },
+    {
+      "kind": "B-observes-restore",
+      "global": "root",
+      "env": "root",
+      "descriptor": {
+        "value": "root",
+        "writable": false,
+        "enumerable": false,
+        "configurable": true
+      }
+    },
+    {
+      "kind": "B-repeated-restore",
+      "global": "root",
+      "env": "root",
+      "descriptor": {
+        "value": "root",
+        "writable": false,
+        "enumerable": false,
+        "configurable": true
+      }
+    },
+    {
+      "kind": "A-done",
+      "global": "root",
+      "env": "root",
+      "descriptor": {
+        "value": "root",
+        "writable": false,
+        "enumerable": false,
+        "configurable": true
+      }
+    },
+    {
+      "kind": "afterAll",
+      "global": "root",
+      "env": "root",
+      "descriptor": {
+        "value": "root",
+        "writable": false,
+        "enumerable": false,
+        "configurable": true
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "first shared utility writer",
+      "state": "passed"
+    },
+    {
+      "name": "second shared utility writer",
+      "state": "passed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "caseCallbacks": [
+    {
+      "name": "second shared utility writer",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "first shared utility writer",
+      "state": "passed",
+      "errors": []
+    }
+  ],
+  "rawErrorCount": 0,
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "46fcf2fc1c838aff36fb8e20d1a009e39a7837dfa790fe418f2d70e3f4db6d12",
+  "undefinedErrorPayloads": []
+}

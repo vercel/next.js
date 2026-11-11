@@ -1,0 +1,11 @@
+import { test } from 'vitest'
+import { appendFileSync, existsSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+const file = 'a'
+test('file a obeys the selected file scheduler', async () => {
+  const record = phase => appendFileSync(process.env.FILE_PARALLELISM_TRACE, JSON.stringify({ file, phase }) + '\n')
+  record('start')
+  writeFileSync(join(process.env.FILE_PARALLELISM_MARKERS, file), 'started')
+  while (!existsSync(process.env.FILE_PARALLELISM_GATE)) await new Promise(resolve => setTimeout(resolve, 10))
+  record('end')
+})

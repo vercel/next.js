@@ -1,0 +1,21 @@
+import { test, expect, afterAll, vi } from 'vitest'
+const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
+function register(name, captured, live, { explicit = false, fails = false, retry = 0 } = {}) {
+  vi.setConfig({expect:{requireAssertions:captured}})
+  let attempt = 0
+  const declaration = fails ? test.fails : test
+  declaration(name, {retry}, () => {
+    vi.setConfig({expect:{requireAssertions:live}})
+    if (explicit) expect.hasAssertions()
+    const state = expect.getState(), error = state.isExpectingAssertionsError
+    emit({kind:name,attempt:++attempt,isExpectingAssertions:state.isExpectingAssertions,assertionCalls:state.assertionCalls,errorState:error===null?'null':error===undefined?'undefined':error.name})
+  })
+}
+register('registered on and remains on', true, true)
+register('registered off and enabled live', false, true)
+register('registered on and disabled live', true, false)
+register('explicit hasAssertions retains priority', false, true, {explicit:true})
+register('expected live undefined failure', false, true, {fails:true})
+register('retry retains original uncaptured value', false, true, {retry:1})
+vi.resetConfig()
+afterAll(() => { vi.resetConfig(); emit({kind:'afterAll'}) })

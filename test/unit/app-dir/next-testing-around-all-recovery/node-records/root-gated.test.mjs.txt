@@ -1,0 +1,72 @@
+import assert from 'node:assert/strict'
+import { aroundAll, beforeAll, afterAll, describe, expect, test } from 'vitest'
+import { appendFileSync } from 'node:fs'
+const phase = process.env.AROUND_PHASE
+const followup = process.env.AROUND_FOLLOWUP
+let releaseSettled
+const settled = new Promise(resolve => { releaseSettled = resolve })
+const counts = { affectedSetup: 0, affectedBody: 0, affectedCleanup: 0, wrapper: 0, followingSetup: 0, followingBody: 0, followingCleanup: 0, rootCleanup: 0 }
+const row = (event) => appendFileSync(process.env.AROUND_TRACE, JSON.stringify({ event, counts: { ...counts } }) + '\n')
+describe('affected', () => {
+  aroundAll(async run => {
+    counts.wrapper++
+    row('wrapper-entry')
+    try {
+      if (phase === 'teardown') {
+        row('run-before')
+        await run()
+        row('run-after')
+      }
+      row('bounded-wait-entry')
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      row('bounded-wait-settled')
+      if (phase === 'setup') {
+        row('late-run-before')
+        await run()
+        row('late-run-after')
+      }
+    } catch (error) {
+      row('wrapper-caught-rethrown')
+      throw error
+    } finally {
+      row('wrapper-finally')
+      releaseSettled()
+    }
+  }, 100)
+  beforeAll(() => { counts.affectedSetup++; row('affected-beforeAll') })
+  afterAll(() => { counts.affectedCleanup++; row('affected-afterAll') })
+  test('body', () => {
+    counts.affectedBody++
+    assert.equal(expect.getState().assertionCalls, 0)
+    row('affected-body-before')
+    expect(true).toBe(true)
+    assert.equal(expect.getState().assertionCalls, 1)
+    row('affected-body-after')
+  })
+})
+describe('following', () => {
+  beforeAll(async () => {
+    counts.followingSetup++
+    row('following-beforeAll-entry')
+    row('following-beforeAll-returned')
+  })
+  afterAll(() => { counts.followingCleanup++; row('following-afterAll') })
+  test('body', () => {
+    counts.followingBody++
+    assert.equal(expect.getState().assertionCalls, 0)
+    row('following-body-before')
+    expect(true).toBe(true)
+    assert.equal(expect.getState().assertionCalls, 1)
+    row('following-body-after')
+  })
+})
+
+afterAll(async () => {
+  counts.rootCleanup++
+  row('root-afterAll-entry')
+  if (followup === 'root-gated') {
+    await settled
+    row('root-afterAll-settled')
+  }
+  row('root-afterAll-returned')
+})

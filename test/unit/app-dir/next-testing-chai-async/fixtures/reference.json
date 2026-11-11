@@ -1,0 +1,1193 @@
+{
+  "status": 1,
+  "rows": [
+    {
+      "useProxy": true,
+      "kind": "raw",
+      "proxified": false,
+      "succeeds": true,
+      "proxiesDifferent": false,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "object",
+      "sameInput": true,
+      "sameProxified": true,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": null
+    },
+    {
+      "useProxy": true,
+      "kind": "raw",
+      "proxified": false,
+      "succeeds": false,
+      "proxiesDifferent": false,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "undefined",
+      "sameInput": false,
+      "sameProxified": false,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": {
+        "name": "AssertionError",
+        "message": "expected 1 to async equal 2"
+      }
+    },
+    {
+      "useProxy": true,
+      "kind": "raw",
+      "proxified": true,
+      "succeeds": true,
+      "proxiesDifferent": true,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "object",
+      "sameInput": false,
+      "sameProxified": true,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": null
+    },
+    {
+      "useProxy": true,
+      "kind": "raw",
+      "proxified": true,
+      "succeeds": false,
+      "proxiesDifferent": true,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "undefined",
+      "sameInput": false,
+      "sameProxified": false,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": {
+        "name": "AssertionError",
+        "message": "expected 1 to async equal 2"
+      }
+    },
+    {
+      "useProxy": true,
+      "kind": "global",
+      "proxified": false,
+      "succeeds": true,
+      "proxiesDifferent": false,
+      "beforeCalls": 1,
+      "afterCalls": 1,
+      "returnedKind": "object",
+      "sameInput": true,
+      "sameProxified": true,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": null
+    },
+    {
+      "useProxy": true,
+      "kind": "global",
+      "proxified": false,
+      "succeeds": false,
+      "proxiesDifferent": false,
+      "beforeCalls": 1,
+      "afterCalls": 1,
+      "returnedKind": "undefined",
+      "sameInput": false,
+      "sameProxified": false,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": {
+        "name": "AssertionError",
+        "message": "expected 1 to async equal 2"
+      }
+    },
+    {
+      "useProxy": true,
+      "kind": "global",
+      "proxified": true,
+      "succeeds": true,
+      "proxiesDifferent": true,
+      "beforeCalls": 1,
+      "afterCalls": 1,
+      "returnedKind": "object",
+      "sameInput": false,
+      "sameProxified": true,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": null
+    },
+    {
+      "useProxy": true,
+      "kind": "global",
+      "proxified": true,
+      "succeeds": false,
+      "proxiesDifferent": true,
+      "beforeCalls": 1,
+      "afterCalls": 1,
+      "returnedKind": "undefined",
+      "sameInput": false,
+      "sameProxified": false,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": {
+        "name": "AssertionError",
+        "message": "expected 1 to async equal 2"
+      }
+    },
+    {
+      "useProxy": true,
+      "kind": "local",
+      "proxified": false,
+      "succeeds": true,
+      "proxiesDifferent": false,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "object",
+      "sameInput": true,
+      "sameProxified": true,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": null
+    },
+    {
+      "useProxy": true,
+      "kind": "local",
+      "proxified": false,
+      "succeeds": false,
+      "proxiesDifferent": false,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "undefined",
+      "sameInput": false,
+      "sameProxified": false,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": {
+        "name": "AssertionError",
+        "message": "expected 1 to async equal 2"
+      }
+    },
+    {
+      "useProxy": true,
+      "kind": "local",
+      "proxified": true,
+      "succeeds": true,
+      "proxiesDifferent": true,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "object",
+      "sameInput": false,
+      "sameProxified": true,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": null
+    },
+    {
+      "useProxy": true,
+      "kind": "local",
+      "proxified": true,
+      "succeeds": false,
+      "proxiesDifferent": true,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "undefined",
+      "sameInput": false,
+      "sameProxified": false,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": {
+        "name": "AssertionError",
+        "message": "expected 1 to async equal 2"
+      }
+    },
+    {
+      "useProxy": true,
+      "kind": "constructor",
+      "proxified": false,
+      "succeeds": true,
+      "proxiesDifferent": false,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "object",
+      "sameInput": true,
+      "sameProxified": true,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": null
+    },
+    {
+      "useProxy": true,
+      "kind": "constructor",
+      "proxified": false,
+      "succeeds": false,
+      "proxiesDifferent": false,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "undefined",
+      "sameInput": false,
+      "sameProxified": false,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": {
+        "name": "AssertionError",
+        "message": "expected 1 to async equal 2"
+      }
+    },
+    {
+      "useProxy": true,
+      "kind": "constructor",
+      "proxified": true,
+      "succeeds": true,
+      "proxiesDifferent": true,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "object",
+      "sameInput": false,
+      "sameProxified": true,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": null
+    },
+    {
+      "useProxy": true,
+      "kind": "constructor",
+      "proxified": true,
+      "succeeds": false,
+      "proxiesDifferent": true,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "undefined",
+      "sameInput": false,
+      "sameProxified": false,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": {
+        "name": "AssertionError",
+        "message": "expected 1 to async equal 2"
+      }
+    },
+    {
+      "useProxy": false,
+      "kind": "raw",
+      "proxified": false,
+      "succeeds": true,
+      "proxiesDifferent": false,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "object",
+      "sameInput": true,
+      "sameProxified": true,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": null
+    },
+    {
+      "useProxy": false,
+      "kind": "raw",
+      "proxified": false,
+      "succeeds": false,
+      "proxiesDifferent": false,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "undefined",
+      "sameInput": false,
+      "sameProxified": false,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": {
+        "name": "AssertionError",
+        "message": "expected 1 to async equal 2"
+      }
+    },
+    {
+      "useProxy": false,
+      "kind": "raw",
+      "proxified": true,
+      "succeeds": true,
+      "proxiesDifferent": false,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "object",
+      "sameInput": true,
+      "sameProxified": true,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": null
+    },
+    {
+      "useProxy": false,
+      "kind": "raw",
+      "proxified": true,
+      "succeeds": false,
+      "proxiesDifferent": false,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "undefined",
+      "sameInput": false,
+      "sameProxified": false,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": {
+        "name": "AssertionError",
+        "message": "expected 1 to async equal 2"
+      }
+    },
+    {
+      "useProxy": false,
+      "kind": "global",
+      "proxified": false,
+      "succeeds": true,
+      "proxiesDifferent": false,
+      "beforeCalls": 1,
+      "afterCalls": 1,
+      "returnedKind": "object",
+      "sameInput": true,
+      "sameProxified": true,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": null
+    },
+    {
+      "useProxy": false,
+      "kind": "global",
+      "proxified": false,
+      "succeeds": false,
+      "proxiesDifferent": false,
+      "beforeCalls": 1,
+      "afterCalls": 1,
+      "returnedKind": "undefined",
+      "sameInput": false,
+      "sameProxified": false,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": {
+        "name": "AssertionError",
+        "message": "expected 1 to async equal 2"
+      }
+    },
+    {
+      "useProxy": false,
+      "kind": "global",
+      "proxified": true,
+      "succeeds": true,
+      "proxiesDifferent": false,
+      "beforeCalls": 1,
+      "afterCalls": 1,
+      "returnedKind": "object",
+      "sameInput": true,
+      "sameProxified": true,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": null
+    },
+    {
+      "useProxy": false,
+      "kind": "global",
+      "proxified": true,
+      "succeeds": false,
+      "proxiesDifferent": false,
+      "beforeCalls": 1,
+      "afterCalls": 1,
+      "returnedKind": "undefined",
+      "sameInput": false,
+      "sameProxified": false,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": {
+        "name": "AssertionError",
+        "message": "expected 1 to async equal 2"
+      }
+    },
+    {
+      "useProxy": false,
+      "kind": "local",
+      "proxified": false,
+      "succeeds": true,
+      "proxiesDifferent": false,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "object",
+      "sameInput": true,
+      "sameProxified": true,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": null
+    },
+    {
+      "useProxy": false,
+      "kind": "local",
+      "proxified": false,
+      "succeeds": false,
+      "proxiesDifferent": false,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "undefined",
+      "sameInput": false,
+      "sameProxified": false,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": {
+        "name": "AssertionError",
+        "message": "expected 1 to async equal 2"
+      }
+    },
+    {
+      "useProxy": false,
+      "kind": "local",
+      "proxified": true,
+      "succeeds": true,
+      "proxiesDifferent": false,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "object",
+      "sameInput": true,
+      "sameProxified": true,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": null
+    },
+    {
+      "useProxy": false,
+      "kind": "local",
+      "proxified": true,
+      "succeeds": false,
+      "proxiesDifferent": false,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "undefined",
+      "sameInput": false,
+      "sameProxified": false,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": {
+        "name": "AssertionError",
+        "message": "expected 1 to async equal 2"
+      }
+    },
+    {
+      "useProxy": false,
+      "kind": "constructor",
+      "proxified": false,
+      "succeeds": true,
+      "proxiesDifferent": false,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "object",
+      "sameInput": true,
+      "sameProxified": true,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": null
+    },
+    {
+      "useProxy": false,
+      "kind": "constructor",
+      "proxified": false,
+      "succeeds": false,
+      "proxiesDifferent": false,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "undefined",
+      "sameInput": false,
+      "sameProxified": false,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": {
+        "name": "AssertionError",
+        "message": "expected 1 to async equal 2"
+      }
+    },
+    {
+      "useProxy": false,
+      "kind": "constructor",
+      "proxified": true,
+      "succeeds": true,
+      "proxiesDifferent": false,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "object",
+      "sameInput": true,
+      "sameProxified": true,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": null
+    },
+    {
+      "useProxy": false,
+      "kind": "constructor",
+      "proxified": true,
+      "succeeds": false,
+      "proxiesDifferent": false,
+      "beforeCalls": 0,
+      "afterCalls": 0,
+      "returnedKind": "undefined",
+      "sameInput": false,
+      "sameProxified": false,
+      "pluginRows": [
+        {
+          "phase": "before",
+          "subject": 1
+        },
+        {
+          "phase": "after",
+          "subject": 1
+        }
+      ],
+      "error": {
+        "name": "AssertionError",
+        "message": "expected 1 to async equal 2"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "true-raw-false-true",
+      "state": "passed"
+    },
+    {
+      "name": "true-raw-false-false",
+      "state": "failed"
+    },
+    {
+      "name": "true-raw-true-true",
+      "state": "passed"
+    },
+    {
+      "name": "true-raw-true-false",
+      "state": "failed"
+    },
+    {
+      "name": "true-global-false-true",
+      "state": "passed"
+    },
+    {
+      "name": "true-global-false-false",
+      "state": "failed"
+    },
+    {
+      "name": "true-global-true-true",
+      "state": "passed"
+    },
+    {
+      "name": "true-global-true-false",
+      "state": "failed"
+    },
+    {
+      "name": "true-local-false-true",
+      "state": "passed"
+    },
+    {
+      "name": "true-local-false-false",
+      "state": "failed"
+    },
+    {
+      "name": "true-local-true-true",
+      "state": "passed"
+    },
+    {
+      "name": "true-local-true-false",
+      "state": "failed"
+    },
+    {
+      "name": "true-constructor-false-true",
+      "state": "passed"
+    },
+    {
+      "name": "true-constructor-false-false",
+      "state": "failed"
+    },
+    {
+      "name": "true-constructor-true-true",
+      "state": "passed"
+    },
+    {
+      "name": "true-constructor-true-false",
+      "state": "failed"
+    },
+    {
+      "name": "false-raw-false-true",
+      "state": "passed"
+    },
+    {
+      "name": "false-raw-false-false",
+      "state": "failed"
+    },
+    {
+      "name": "false-raw-true-true",
+      "state": "passed"
+    },
+    {
+      "name": "false-raw-true-false",
+      "state": "failed"
+    },
+    {
+      "name": "false-global-false-true",
+      "state": "passed"
+    },
+    {
+      "name": "false-global-false-false",
+      "state": "failed"
+    },
+    {
+      "name": "false-global-true-true",
+      "state": "passed"
+    },
+    {
+      "name": "false-global-true-false",
+      "state": "failed"
+    },
+    {
+      "name": "false-local-false-true",
+      "state": "passed"
+    },
+    {
+      "name": "false-local-false-false",
+      "state": "failed"
+    },
+    {
+      "name": "false-local-true-true",
+      "state": "passed"
+    },
+    {
+      "name": "false-local-true-false",
+      "state": "failed"
+    },
+    {
+      "name": "false-constructor-false-true",
+      "state": "passed"
+    },
+    {
+      "name": "false-constructor-false-false",
+      "state": "failed"
+    },
+    {
+      "name": "false-constructor-true-true",
+      "state": "passed"
+    },
+    {
+      "name": "false-constructor-true-false",
+      "state": "failed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 0,
+    "numFailedTestSuites": 1,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 32,
+    "numPassedTests": 16,
+    "numFailedTests": 16,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": false
+  },
+  "caseCallbacks": [
+    {
+      "name": "true-raw-false-true",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "true-raw-false-false",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "AssertionError",
+          "message": "expected 1 to async equal 2",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "true-raw-true-true",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "true-raw-true-false",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "AssertionError",
+          "message": "expected 1 to async equal 2",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "true-global-false-true",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "true-global-false-false",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "AssertionError",
+          "message": "expected 1 to async equal 2",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "true-global-true-true",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "true-global-true-false",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "AssertionError",
+          "message": "expected 1 to async equal 2",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "true-local-false-true",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "true-local-false-false",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "AssertionError",
+          "message": "expected 1 to async equal 2",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "true-local-true-true",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "true-local-true-false",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "AssertionError",
+          "message": "expected 1 to async equal 2",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "true-constructor-false-true",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "true-constructor-false-false",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "AssertionError",
+          "message": "expected 1 to async equal 2",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "true-constructor-true-true",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "true-constructor-true-false",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "AssertionError",
+          "message": "expected 1 to async equal 2",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "false-raw-false-true",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "false-raw-false-false",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "AssertionError",
+          "message": "expected 1 to async equal 2",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "false-raw-true-true",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "false-raw-true-false",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "AssertionError",
+          "message": "expected 1 to async equal 2",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "false-global-false-true",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "false-global-false-false",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "AssertionError",
+          "message": "expected 1 to async equal 2",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "false-global-true-true",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "false-global-true-false",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "AssertionError",
+          "message": "expected 1 to async equal 2",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "false-local-false-true",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "false-local-false-false",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "AssertionError",
+          "message": "expected 1 to async equal 2",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "false-local-true-true",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "false-local-true-false",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "AssertionError",
+          "message": "expected 1 to async equal 2",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "false-constructor-false-true",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "false-constructor-false-false",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "AssertionError",
+          "message": "expected 1 to async equal 2",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "false-constructor-true-true",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "false-constructor-true-false",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "AssertionError",
+          "message": "expected 1 to async equal 2",
+          "hasStack": true
+        }
+      ]
+    }
+  ],
+  "source": "runtime.test.ts.txt",
+  "bodySHA256": "d90b16d1f32182ffcd8c0f6aed2890094c5ad6e226fcd63f6faa91b3c34957b8",
+  "undefinedErrorPayloads": [],
+  "rawErrorCount": 0
+}

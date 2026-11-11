@@ -1,0 +1,9 @@
+import type { TestResult, TestResultPassed, TestResultPending, TestResultFailed, TestResultSkipped } from 'vitest/node'
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false
+type Check<T extends true> = T
+type Passed = Check<Equal<Extract<TestResult, { state: 'passed' }>, TestResultPassed>>
+type Failed = Check<Equal<Extract<TestResult, { state: 'failed' }>, TestResultFailed>>
+type Pending = Check<Equal<Extract<TestResult, { state: 'pending' }>, TestResultPending>>
+type Skipped = Check<Equal<Extract<TestResult, { state: 'skipped' }>, TestResultSkipped>>
+declare function test(name: string, body: () => void): void
+test('type authoring', () => {})

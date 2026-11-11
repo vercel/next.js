@@ -1,0 +1,60 @@
+import assert from 'node:assert/strict'
+import { afterAll, beforeEach, expect, test } from 'vitest'
+const contexts = []
+const trace = []
+const taskReads = new WeakMap()
+beforeEach(function ({}) {
+  const context = arguments[0]
+  const descriptor = Object.getOwnPropertyDescriptor(context, 'task')
+  let reads = 0
+  taskReads.set(context, () => reads)
+  Object.defineProperty(context, 'task', { configurable: true, enumerable: descriptor.enumerable, get() { reads++; return descriptor.value } })
+})
+const emit = (phase, value) => {
+  if (phase === 'primary-setup') assert.deepEqual(value, { hasTask: true, fromPrimary: 'primary' })
+  if (phase === 'derived-setup') assert.deepEqual(value, { sameContext: true, task: true, primary: 'primary' })
+  if (phase === 'before') assert.deepEqual(value, { primary: true, derived: true, task: true, fromPrimary: 'primary', fromDerived: 'derived' })
+  if (phase === 'after') assert.deepEqual(value, { primary: true, derived: true, body: contexts.length === 1 ? 'first' : 'second', before: 'before' })
+  if (phase === 'derived-cleanup') assert.deepEqual(value, { body: contexts.length === 1 ? 'first' : 'second', after: 'after' })
+  if (phase === 'primary-cleanup') assert.deepEqual(value, { body: contexts.length === 1 ? 'first' : 'second', after: 'after', derived: 'derived' })
+  if (phase === 'summary') assert.deepEqual(value.taskReads, [6, 6])
+  trace.push(phase)
+  console.log('FIXTURE_CONTEXT_ROW ' + JSON.stringify({ phase }))
+}
+const owned = test.extend({
+  primary: async function ({ task }, use) {
+    const context = arguments[0]
+    contexts.push(context)
+    context.fromPrimary = 'primary'
+    emit('primary-setup', { hasTask: context.task === task, fromPrimary: context.fromPrimary })
+    await use({ context, task })
+    emit('primary-cleanup', { body: context.fromBody, after: context.fromAfter, derived: context.fromDerived })
+  },
+  derived: async function ({ primary }, use) {
+    const context = arguments[0]
+    context.fromDerived = 'derived'
+    emit('derived-setup', { sameContext: context === primary.context, task: context.task === primary.task, primary: context.fromPrimary })
+    await use({ context, primary })
+    emit('derived-cleanup', { body: context.fromBody, after: context.fromAfter })
+  },
+})
+owned.beforeEach(function ({ primary, derived, task }) {
+  const context = arguments[0]
+  const value = { primary: primary.context === context, derived: derived.context === context, task: primary.task === task, fromPrimary: context.fromPrimary, fromDerived: context.fromDerived }
+  emit('before', value)
+  context.fromBefore = 'before'
+})
+owned.afterEach(function ({ primary, derived }) {
+  const context = arguments[0]
+  const value = { primary: primary.context === context, derived: derived.context === context, body: context.fromBody, before: context.fromBefore }
+  emit('after', value)
+  context.fromAfter = 'after'
+})
+for (const name of ['first', 'second']) owned(name, function ({ primary, derived, task }) {
+  const context = arguments[0]
+  context.fromBody = name
+  const value = { name, primary: primary.context === context, derived: derived.context === context, task: primary.task === task && derived.context.task === task, fromPrimary: context.fromPrimary, fromDerived: context.fromDerived, fromBefore: context.fromBefore }
+  emit('body', value)
+  expect(value).toEqual({ name, primary: true, derived: true, task: true, fromPrimary: 'primary', fromDerived: 'derived', fromBefore: 'before' })
+})
+afterAll(() => { const value = { contexts: contexts.length, distinct: contexts[0] !== contexts[1], traceLength: trace.length, taskReads: contexts.map(context => taskReads.get(context)?.()) }; emit('summary', value); expect(value.contexts).toBe(2); expect(value.distinct).toBe(true); expect(value.traceLength).toBe(14) })

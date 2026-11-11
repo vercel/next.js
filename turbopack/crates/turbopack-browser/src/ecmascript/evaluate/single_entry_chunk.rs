@@ -161,4 +161,9 @@ impl GenerateSourceMap for EcmascriptBrowserSingleEntryChunk {
     fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.code().generate_source_map()
     }
+
+    #[turbo_tasks::function]
+    fn native_test_import_coverage_roles(self: Vc<Self>) -> Vc<FileContent> {
+        self.code().native_test_import_coverage_roles()
+    }
 }

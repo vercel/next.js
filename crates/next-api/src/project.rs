@@ -58,6 +58,7 @@ use turbopack::{
     ModuleAssetContext, evaluate_context::node_build_environment, externals_tracing_module_context,
     global_module_ids::get_global_module_id_strategy, transition::TransitionOptions,
 };
+use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME,
     changed::content_changed,
@@ -288,6 +289,8 @@ impl DebugBuildPathsRouteKeys {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectOptions {
+    /// Private, immutable registration supplied only by the owned fixture server.
+    pub browser_fixture_host: Option<RcStr>,
     /// An [canonicalized][std::fs::canonicalize] root path (Unix or Windows path) from which all
     /// files must be nested under. Trying to access a file outside this root will fail, so think
     /// of this as a weak chroot. E.g. `/home/user/projects/my-repo`.
@@ -915,6 +918,7 @@ impl ProjectContainer {
         let project_file_system;
         let output_file_system;
         let additional_roots;
+        let browser_fixture_host;
         {
             let options = self.options_state.get();
             let options = options
@@ -950,12 +954,15 @@ impl ProjectContainer {
             project_file_system = file_systems.project_file_system;
             output_file_system = file_systems.output_file_system;
             additional_roots = self.additional_roots_state.get().iter().cloned().collect();
+            browser_fixture_host = options.browser_fixture_host.clone();
         }
 
         let root_path = ResolvedVc::cell(root_path_str);
         let dist_dir = next_config.dist_dir().owned().await?;
         let dist_dir_root = next_config.dist_dir_root().owned().await?;
         Ok(Project {
+            test_entry: None,
+            browser_fixture_host,
             root_path,
             project_path,
             watch,
@@ -1019,6 +1026,9 @@ impl ProjectContainer {
 #[derive(Clone)]
 #[turbo_tasks::value]
 pub struct Project {
+    browser_fixture_host: Option<RcStr>,
+    /// Only explicit test consumers set this; ordinary application projects never do.
+    pub(crate) test_entry: Option<ResolvedVc<crate::testing::TestEntryOptions>>,
     /// An absolute root path (Windows or Unix path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
     /// E.g. `/home/user/projects/my-repo`.
@@ -1160,6 +1170,18 @@ impl Issue for ConflictIssue {
 
 #[turbo_tasks::value_impl]
 impl Project {
+    #[turbo_tasks::function]
+    pub(crate) fn with_test_entry(
+        &self,
+        entry: ResolvedVc<crate::testing::TestEntryOptions>,
+    ) -> Vc<Self> {
+        Self {
+            test_entry: Some(entry),
+            ..self.clone()
+        }
+        .cell()
+    }
+
     #[turbo_tasks::function]
     pub async fn app_project(self: Vc<Self>) -> Result<Vc<OptionAppProject>> {
         let app_dir = find_app_dir(self.project_path().owned().await?).await?;
@@ -1519,6 +1541,13 @@ impl Project {
 
     #[turbo_tasks::function]
     pub async fn get_all_endpoints(self: Vc<Self>, app_dir_only: bool) -> Result<Vc<Endpoints>> {
+        if let Some(entry) = self.await?.test_entry {
+            return Ok(Vc::cell(vec![
+                crate::testing::test_endpoint(self, *entry)
+                    .to_resolved()
+                    .await?,
+            ]));
+        }
         let mut endpoints = Vec::new();
         for (_key, group) in self.get_all_endpoint_groups(app_dir_only).await?.iter() {
             for entry in group.primary.iter() {
@@ -1542,6 +1571,9 @@ impl Project {
             .try_join()
             .await?;
 
+        if self.await?.test_entry.is_some() {
+            return Ok(GraphEntries::concatenate(endpoint_entries).cell());
+        }
         let result = GraphEntries::concatenate(
             endpoint_entries
                 .into_iter()
@@ -1703,7 +1735,7 @@ impl Project {
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
         let css_url_suffix = self.next_config().asset_suffix_path();
         let turbopack_chunking = self.next_config().turbopack_chunking().await?;
-        Ok(get_client_chunking_context(ClientChunkingContextOptions {
+        let context = get_client_chunking_context(ClientChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
             client_root: self.client_relative_path().owned().await?,
@@ -1747,7 +1779,16 @@ impl Project {
             chunking_max_merge_chunk_size: turbopack_chunking.max_merge_chunk_size,
             chunking_min_component_chunk_size: turbopack_chunking.min_component_chunk_size,
             generate_component_chunks: self.next_config().turbopack_generate_component_chunks(),
-        }))
+        });
+        if *self.browser_source_coverage().await? {
+            let concrete = ResolvedVc::try_downcast_type::<BrowserChunkingContext>(
+                context.to_resolved().await?,
+            )
+            .context("Browser source coverage requires its actual Browser chunking context")?;
+            Ok(Vc::upcast(concrete.with_source_coverage()))
+        } else {
+            Ok(context)
+        }
     }
 
     #[turbo_tasks::function]
@@ -2131,6 +2172,25 @@ impl Project {
             );
         }
 
+        if let Some(host) = &this.browser_fixture_host {
+            let app = app_project
+                .await?
+                .as_ref()
+                .copied()
+                .context("Registered browser fixtures require an App Router project")?;
+            for (pathname, route) in crate::testing_fixture::fixture_routes(*app, host.clone())
+                .await?
+                .iter()
+            {
+                if routes.insert(pathname.clone(), route.clone()).is_some() {
+                    bail!(
+                        "Registered browser fixture conflicts with an application route: \
+                         {pathname}"
+                    );
+                }
+            }
+        }
+
         for (pathname, page_route) in &pages_project.routes().await? {
             if debug_build_paths_route_keys
                 .as_ref()
@@ -2385,6 +2445,123 @@ impl Project {
             config,
             runtime,
         )))
+    }
+
+    /// Explicit Browser Mode uses real client resolution without a Node process binding.
+    #[turbo_tasks::function]
+    pub(crate) async fn client_test_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+        Ok(crate::testing_client::context(*self.to_resolved().await?))
+    }
+
+    /// Only an explicit compiler-owned coverage entry retains source denominators.
+    #[turbo_tasks::function]
+    pub(crate) async fn source_coverage(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(match self.test_entry {
+            Some(entry) => entry.await?.source_coverage,
+            None => false,
+        }))
+    }
+
+    /// This opt-in never enables the separate Node coverage proof or endpoint.
+    #[turbo_tasks::function]
+    pub(crate) async fn browser_source_coverage(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(match self.test_entry {
+            Some(entry) => entry.await?.browser_source_coverage,
+            None => false,
+        }))
+    }
+
+    /// Explicit test coverage modes retain sources without changing their runtime.
+    #[turbo_tasks::function]
+    pub(crate) async fn preserve_test_sources(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(match self.test_entry {
+            Some(entry) => {
+                let entry = entry.await?;
+                entry.source_coverage
+                    || entry.browser_source_coverage
+                    || entry.preserve_coverage_sources
+            }
+            None => false,
+        }))
+    }
+
+    /// A non-RSC Node module context for explicit unit and browser-driver specs.
+    #[turbo_tasks::function]
+    pub(crate) async fn node_test_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+        let alias_finds = if let Some(entry) = self.await?.test_entry {
+            entry.await?.alias_finds.clone()
+        } else {
+            Vec::new()
+        };
+        let native_probe = if let Some(entry) = self.await?.test_entry {
+            if entry.await?.tsconfig_input_revision.is_some() {
+                let project_path = self.project_path().owned().await?;
+                Some(turbopack_core::resolve::tsconfig_provenance::NativeTsConfigProbeContext {
+                    filesystem_root: self.project_root_path().owned().await?,
+                    project_path: project_path.clone(),
+                    consumer: turbopack_core::resolve::tsconfig_provenance::NativeTsConfigConsumer::TypeScript,
+                    configured_path: None,
+                    consumer_path: project_path.clone(),
+                    lookup_path: project_path,
+                    request: rcstr!("native-options"),
+                    chain_index: 0,
+                    attempt_index: 0,
+                }.resolved_cell())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let source_file_urls = if let Some(entry) = self.await?.test_entry {
+            crate::testing::test_entry_source_file_urls(&*entry.await?)
+        } else {
+            false
+        };
+        Ok(ModuleAssetContext::new(
+            TransitionOptions::default().cell(),
+            self.server_compile_time_info(),
+            crate::testing::test_module_options_context(
+                crate::testing_tsconfig_inputs::module_options_context(
+                    native_probe,
+                    self.project_path().owned().await?,
+                    self.execution_context(),
+                    ServerContextType::Test,
+                    self.next_mode(),
+                    self.next_config(),
+                    NextRuntime::NodeJs,
+                    self.encryption_key(),
+                    self.server_compile_time_info().environment(),
+                    self.client_compile_time_info().environment(),
+                    false,
+                ),
+                *self.preserve_test_sources().await?,
+                *crate::testing::test_authoring_source(self.project_path().owned().await?, false)
+                    .to_resolved()
+                    .await?,
+                true,
+                source_file_urls,
+            ),
+            crate::testing_aliases::alias_resolve_options_context(
+                crate::testing::test_resolve_options_context(
+                    crate::testing_tsconfig_inputs::resolve_options_context(
+                        get_server_resolve_options_context(
+                            self.project_path().owned().await?,
+                            ServerContextType::Test,
+                            self.next_mode(),
+                            self.next_config(),
+                            self.execution_context(),
+                            None,
+                        ),
+                        native_probe.map(|context| *context),
+                    ),
+                    self.project_path().owned().await?,
+                    true,
+                ),
+                alias_finds,
+            ),
+            Layer::new_with_user_friendly_name(rcstr!("next-test-node"), rcstr!("Node Test")),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -2773,10 +2950,11 @@ impl Project {
     /// Compute the used exports for each module.
     #[turbo_tasks::function]
     pub async fn export_usage(self: Vc<Self>) -> Result<Vc<OptionBindingUsageInfo>> {
-        if *self
-            .next_config()
-            .turbopack_remove_unused_exports(self.next_mode())
-            .await?
+        if !*self.preserve_test_sources().await?
+            && *self
+                .next_config()
+                .turbopack_remove_unused_exports(self.next_mode())
+                .await?
         {
             Ok(Vc::cell(Some(
                 self.binding_usage_info().to_resolved().await?,
@@ -2789,10 +2967,11 @@ impl Project {
     /// Compute the unused references that were removed (inner graph tree shaking).
     #[turbo_tasks::function]
     pub async fn unused_references(self: Vc<Self>) -> Result<Vc<UnusedReferences>> {
-        if *self
-            .next_config()
-            .turbopack_remove_unused_imports(self.next_mode())
-            .await?
+        if !*self.preserve_test_sources().await?
+            && *self
+                .next_config()
+                .turbopack_remove_unused_imports(self.next_mode())
+                .await?
         {
             Ok(self.binding_usage_info().unused_references())
         } else {
@@ -2913,10 +3092,11 @@ async fn whole_app_module_graph_operation(
 
         let base = ModuleGraph::from_graphs(vec![base_single_module_graph], None);
 
-        let turbopack_remove_unused_imports = *project
-            .next_config()
-            .turbopack_remove_unused_imports(next_mode)
-            .await?;
+        let turbopack_remove_unused_imports = !*project.preserve_test_sources().await?
+            && *project
+                .next_config()
+                .turbopack_remove_unused_imports(next_mode)
+                .await?;
 
         let base = if turbopack_remove_unused_imports {
             // TODO suboptimal that we do compute_binding_usage_info twice (once for the base

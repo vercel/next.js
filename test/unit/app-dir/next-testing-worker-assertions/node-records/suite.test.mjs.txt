@@ -1,0 +1,54 @@
+import assert from 'node:assert/strict'
+import { test, expect } from 'vitest'
+const profile = process.env.WORKER_FIXTURE_PROFILE
+if (!['pass', 'setup-assert', 'setup-throw', 'cleanup-assert'].includes(profile)) throw new Error('An explicit worker fixture profile is required')
+const counts = { setup: 0, cleanup: 0, body: 0 }
+const explicitFailure = new Error('actual worker setup failure')
+let firstFailure
+const row = (phase) => console.log('WORKER_ASSERTION_ROW ' + JSON.stringify({ phase, counts: { ...counts } }))
+function record(phase) {
+  const state = expect.getState()
+  const calls = phase === 'setup-before' ? 0 : phase === 'setup-after' ? 1
+    : phase === 'body-before' ? (profile === 'pass' && counts.body === 1 ? 1 : 0)
+    : phase === 'body-after' ? (profile === 'pass' && counts.body === 1 ? 2 : 1)
+    : phase === 'cleanup-before' ? 1 : 2
+  assert.equal(state.assertionCalls, calls)
+  assert.equal(state.expectedAssertionsNumber, null)
+  assert.equal(state.isExpectingAssertions, false)
+  assert.equal(state.currentTestName, counts.body === 2 || counts.setup === 2 ? 'second' : 'first')
+  row(phase)
+}
+function reject(phase, action) {
+  try { action() }
+  catch (error) {
+    if (profile === 'setup-throw') assert.equal(error, explicitFailure)
+    if (profile === 'setup-assert' && firstFailure) assert.notEqual(error, firstFailure)
+    if (!firstFailure) firstFailure = error
+    row(phase)
+    throw error
+  }
+}
+const extended = test.extend({
+  workerValue: [async ({}, use) => {
+    counts.setup++
+    row('setup-entry')
+    if (profile === 'setup-throw') reject('setup-error', () => { throw explicitFailure })
+    if (profile !== 'cleanup-assert') {
+      record('setup-before')
+      reject('setup-error', () => expect(1).toBe(profile === 'setup-assert' ? 2 : 1))
+      record('setup-after')
+    }
+    await use('worker')
+    counts.cleanup++
+    row('cleanup-entry')
+    record('cleanup-before')
+    reject('cleanup-error', () => expect(1).toBe(profile === 'cleanup-assert' ? 2 : 1))
+    record('cleanup-after')
+  }, { scope: 'worker' }],
+})
+for (const name of ['first', 'second']) extended(name, ({ workerValue }) => {
+  counts.body++
+  record('body-before')
+  expect(workerValue).toBe('worker')
+  record('body-after')
+})

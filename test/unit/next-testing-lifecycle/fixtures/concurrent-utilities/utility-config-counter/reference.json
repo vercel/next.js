@@ -1,0 +1,73 @@
+{
+  "status": 1,
+  "rows": [
+    {
+      "kind": "A-set",
+      "returned": true
+    },
+    {
+      "kind": "B-return-without-assertions"
+    },
+    {
+      "kind": "B-finished"
+    },
+    {
+      "kind": "A-reset",
+      "returned": true
+    },
+    {
+      "kind": "afterAll"
+    }
+  ],
+  "cases": [
+    {
+      "name": "config writer resets after sibling finalization",
+      "state": "passed"
+    },
+    {
+      "name": "sibling observes live required assertion config",
+      "state": "failed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 0,
+    "numFailedTestSuites": 1,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 2,
+    "numPassedTests": 1,
+    "numFailedTests": 1,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": false
+  },
+  "caseCallbacks": [
+    {
+      "name": "sibling observes live required assertion config",
+      "state": "failed",
+      "errors": [
+        {
+          "message": "undefined",
+          "hasStack": false
+        }
+      ]
+    },
+    {
+      "name": "config writer resets after sibling finalization",
+      "state": "passed",
+      "errors": []
+    }
+  ],
+  "rawErrorCount": 0,
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "235f1b02502b9268ec222e83889c8047a9964a9c32da4bbbce139576934173a3",
+  "undefinedErrorPayloads": [
+    {
+      "caseName": "sibling observes live required assertion config",
+      "error": {
+        "message": "undefined",
+        "stacks": []
+      }
+    }
+  ]
+}

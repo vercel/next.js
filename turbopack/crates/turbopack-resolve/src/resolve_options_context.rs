@@ -9,6 +9,7 @@ use turbopack_core::{
     resolve::{
         options::{ConditionValue, ImportMap, ResolvedMap},
         plugin::{AfterResolvePlugin, BeforeResolvePlugin},
+        tsconfig_provenance::NativeTsConfigProbeContext,
     },
 };
 
@@ -27,6 +28,8 @@ pub enum TsConfigHandling {
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
 pub struct ResolveOptionsContext {
+    /// Private actual-consumer observations; only explicit native Node test contexts enable this.
+    pub native_tsconfig_probe: Option<ResolvedVc<NativeTsConfigProbeContext>>,
     /// - Overrides `options.node_externals`
     /// - Appends `environment.resolve_conditions`
     /// - Overrides `options.extensions`

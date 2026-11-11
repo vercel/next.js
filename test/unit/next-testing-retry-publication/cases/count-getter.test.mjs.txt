@@ -1,0 +1,13 @@
+import { test, expect } from 'vitest'
+
+let reads = 0
+const retry = {
+  get count() {
+    reads++
+    return 1
+  },
+}
+
+test('count publication', { retry }, () => {
+  expect(reads).toBe(2)
+})

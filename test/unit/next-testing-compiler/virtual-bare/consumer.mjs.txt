@@ -1,0 +1,1 @@
+export {value,default as fallback} from 'ws2-completely-absent-package'

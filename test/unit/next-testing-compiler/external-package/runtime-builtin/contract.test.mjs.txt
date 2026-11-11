@@ -1,0 +1,159 @@
+import { test, expect, vi } from 'vitest'
+import * as staticOriginal from 'node:os'
+
+test('runtime native builtin registration unregistration and reset identity', async () => {
+  const before = await import('node:os')
+  const beforeAlias = await import('os')
+  let calls = 0
+  let value = 73
+  vi.doMock('node:os', async (importOriginal) => {
+    calls++
+    const original = await importOriginal()
+    return {
+      value,
+      original: typeof original.platform,
+      sameOriginal: original === before,
+    }
+  })
+  const first = await import('os')
+  value = 81
+  const second = await import('node:os')
+  vi.resetModules()
+  const afterMockReset = await import('os')
+  vi.doUnmock('os')
+  const released = await import('node:os')
+  vi.resetModules()
+  const afterOriginalReset = await import('os')
+  vi.doMock('os', () => ({ value: 91 }))
+  const replacement = await import('node:os')
+  vi.doUnmock('node:os')
+  const final = await import('os')
+
+  expect(staticOriginal).toBe(before)
+  expect(beforeAlias).toBe(before)
+  expect(typeof before.platform).toBe('function')
+  expect(first.value).toBe(73)
+  expect(first.original).toBe('function')
+  expect(first.sameOriginal).toBe(true)
+  expect(second).toBe(first)
+  expect(afterMockReset).toBe(first)
+  expect(calls).toBe(1)
+  expect(typeof released.platform).toBe('function')
+  expect(released).not.toBe(before)
+  expect(afterOriginalReset).not.toBe(before)
+  expect(final).not.toBe(before)
+  expect(released.default).toBe(before.default)
+  expect(released.platform).toBe(before.platform)
+  expect(replacement.value).toBe(91)
+  expect(replacement).not.toBe(first)
+})
+
+test('runtime native builtin registration without reset', async () => {
+  const before = await import('node:os')
+  let calls = 0
+  vi.doMock('node:os', async (importOriginal) => {
+    calls++
+    return { value: 73, sameOriginal: (await importOriginal()) === before }
+  })
+  const mocked = await import('node:os')
+  vi.doUnmock('node:os')
+  const released = await import('node:os')
+  vi.doMock('node:os', () => ({ value: 91 }))
+  const replaced = await import('node:os')
+  vi.doUnmock('node:os')
+
+  expect(mocked.value).toBe(73)
+  expect(mocked.sameOriginal).toBe(true)
+  expect(calls).toBe(1)
+  expect(released).toBe(before)
+  expect(replaced.value).toBe(91)
+  expect(replaced).not.toBe(mocked)
+  expect(await import('os')).toBe(before)
+})
+
+test('runtime native builtin caches a failed factory across reset and can unregister', async () => {
+  const original = await import('node:os')
+  const failure = new Error('ws2 native runtime factory failure')
+  let calls = 0
+  vi.doMock('node:os', () => {
+    calls++
+    throw failure
+  })
+  const first = await import('node:os').catch((error) => error)
+  const second = await import('node:os').catch((error) => error)
+  vi.resetModules()
+  const third = await import('node:os').catch((error) => error)
+  vi.doUnmock('node:os')
+  const released = await import('node:os')
+
+  expect(calls).toBe(3)
+  for (const error of [first, second, third]) {
+    expect(error).toBeInstanceOf(Error)
+    expect(error.cause).toBe(failure)
+  }
+  expect(first).not.toBe(second)
+  expect(first).not.toBe(third)
+  expect(released).not.toBe(original)
+})
+
+test('runtime native unused registration retains compiler IDs without evaluating originals', () => {
+  vi.doMock('ws2-native-runtime-unused', () => {
+    globalThis.ws2UnusedNativeFactories =
+      (globalThis.ws2UnusedNativeFactories ?? 0) + 1
+    return { value: 1 }
+  })
+  vi.doUnmock('ws2-native-runtime-unused')
+  expect(globalThis.ws2UnusedNativeEvaluations ?? 0).toBe(0)
+  expect(globalThis.ws2UnusedNativeFactories ?? 0).toBe(0)
+})
+
+for (const rejected of [false, true]) {
+  test(`runtime native builtin pending ${rejected ? 'REJECT' : 'RESOLVE'} imports and later cache`, async () => {
+    const heldOriginal = await import('node:os')
+    let release
+    const held = new Promise((resolve, reject) => {
+      release = rejected ? reject : resolve
+    })
+    const failure = new Error('ws2 pending native failure')
+    let calls = 0
+    vi.doMock('node:os', async () => {
+      const index = ++calls
+      await held
+      return { value: 73, index }
+    })
+    const firstPending = import('node:os').catch((error) => error)
+    const secondPending = import('os').catch((error) => error)
+    try {
+      await vi.waitFor(() => expect(calls).toBe(2), {
+        timeout: 1000,
+        interval: 10,
+      })
+    } catch {}
+    const callsWhileHeld = calls
+    release(rejected ? failure : undefined)
+    const first = await firstPending
+    const second = await secondPending
+    const later = await import('node:os').catch((error) => error)
+    vi.resetModules()
+    const afterReset = await import('node:os').catch((error) => error)
+    vi.doUnmock('node:os')
+
+    expect(callsWhileHeld).toBe(1)
+    expect(second).toBe(heldOriginal)
+    if (rejected) {
+      expect(calls).toBe(3)
+      for (const error of [first, later, afterReset]) {
+        expect(error).toBeInstanceOf(Error)
+        expect(error.cause).toBe(failure)
+      }
+      expect(later).not.toBe(first)
+      expect(afterReset).not.toBe(later)
+    } else {
+      expect(calls).toBe(1)
+      expect(first.value).toBe(73)
+      expect(first.index).toBe(1)
+      expect(later).toBe(first)
+      expect(afterReset).toBe(later)
+    }
+  })
+}

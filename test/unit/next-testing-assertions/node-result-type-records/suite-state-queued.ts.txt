@@ -1,0 +1,4 @@
+import type { TestSuiteState } from 'vitest/node'
+const state: TestSuiteState = 'queued'
+declare function test(name: string, body: () => void): void
+test('type authoring', () => {})

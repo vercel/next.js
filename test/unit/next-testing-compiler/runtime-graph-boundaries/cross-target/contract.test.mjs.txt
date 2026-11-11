@@ -1,0 +1,8 @@
+import {test,expect,vi} from 'vitest'
+test('cross-target factory startup is required by an original dependency edge',async()=>{
+ console.log('WS2_GRAPH_BOUNDARY_BODY');let roots=0;let peers=0
+ vi.doMock('./target.mjs',async importOriginal=>{roots++;const actual=await importOriginal();return {read:actual.read}})
+ vi.doMock('./peer.mjs',()=>{peers++;return {value:'mock-peer'}})
+ const root=await import('./target.mjs');const peer=await import('./peer.mjs')
+ console.log('WS2_EXTERNAL_GRAPH_CROSS_TARGET:'+JSON.stringify({calls:[roots,peers],values:[root.read(),peer.value]}));expect(root.read()).toBe('mock-peer');expect(peers).toBe(1)
+})

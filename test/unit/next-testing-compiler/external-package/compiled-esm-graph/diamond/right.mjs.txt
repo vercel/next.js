@@ -1,0 +1,3 @@
+import {shared} from './shared.mjs';
+globalThis.__ws2Graph ??= {};globalThis.__ws2Graph['diamond-right']=(globalThis.__ws2Graph['diamond-right']??0)+1;export const evaluation=globalThis.__ws2Graph['diamond-right'];
+export const right=shared;

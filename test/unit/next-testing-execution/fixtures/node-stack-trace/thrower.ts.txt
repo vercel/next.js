@@ -1,0 +1,28 @@
+const counts = { name: 0, message: 0 }
+class ObservedError extends Error {}
+export function capture() {
+  const original = new ObservedError('authored original error')
+  Object.defineProperties(original, {
+    name: {
+      configurable: true,
+      get() { counts.name++; return 'ObservedError' },
+    },
+    message: {
+      configurable: true,
+      get() { counts.message++; return 'authored original error' },
+    },
+  })
+  return { original, counts }
+}
+export function resetCounts() { counts.name = counts.message = 0 }
+
+function recordOrigin() {
+  const origin = new Error('declaration original')
+  Error.captureStackTrace(origin, recordOrigin)
+  return origin
+}
+export function declaration() {
+  return recordOrigin()
+}
+export function separators() {  const one = 1   const two = one + 1   return new Error('actual separators ' + two)
+}

@@ -1,0 +1,87 @@
+import { test, expect, vi } from 'vitest'
+vi.mock('ws2-genuine-external-original', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    value: 73,
+    original: actual,
+  }
+})
+vi.mock('ws2-genuine-external-esm', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    value: 74,
+    original: actual,
+  }
+})
+import * as common from 'ws2-genuine-external-original'
+import * as esm from 'ws2-genuine-external-esm'
+import * as conditional from 'ws2-external-conditions'
+test('loads a mocked real CJS package through literal importActual', async () => {
+  const first = await vi.importActual('ws2-genuine-external-original')
+  const second = await vi.importActual('ws2-genuine-external-original')
+  {
+    const observed = {
+      mockValue: common.value,
+      value: first.value,
+      defaultValue: first.default.value,
+      same: first === second,
+      lazyOriginal: first === common.original,
+      objectIdentity: first.object === first.default.object,
+    }
+    expect(observed.mockValue).toBe(73)
+    expect(observed.value).toBe(19)
+    expect(observed.defaultValue).toBe(19)
+    expect(observed.same).toBe(true)
+    expect(observed.lazyOriginal).toBe(true)
+    expect(observed.objectIdentity).toBe(true)
+  }
+  expect(first.value).toBe(19)
+  expect(first).toBe(common.original)
+})
+test('loads a mocked real ESM package through literal importActual', async () => {
+  const first = await vi.importActual('ws2-genuine-external-esm')
+  const second = await vi.importActual('ws2-genuine-external-esm')
+  {
+    const observed = {
+      mockValue: esm.value,
+      value: first.value,
+      defaultValue: first.default.value,
+      same: first === second,
+      lazyOriginal: first === esm.original,
+    }
+    expect(observed.mockValue).toBe(74)
+    expect(observed.value).toBe(37)
+    expect(observed.defaultValue).toBe(41)
+    expect(observed.same).toBe(true)
+    expect(observed.lazyOriginal).toBe(true)
+  }
+  expect(first.value).toBe(37)
+  expect(first).toBe(esm.original)
+})
+test('shares the actual native conditional import target with ordinary imports', async () => {
+  const first = await vi.importActual('ws2-external-conditions')
+  const second = await vi.importActual('ws2-external-conditions')
+  const dynamic = await import('ws2-external-conditions')
+  {
+    const observed = {
+      branch: first.branch,
+      object: first.object,
+      default: first.default,
+      same: first === second,
+      staticIdentity: first === conditional,
+      dynamicIdentity: first === dynamic,
+    }
+    expect(observed.branch).toBe('native-import')
+    expect(observed.object).toEqual({
+      value: 47,
+    })
+    expect(observed.default).toEqual({
+      value: 53,
+    })
+    expect(observed.same).toBe(true)
+    expect(observed.staticIdentity).toBe(true)
+    expect(observed.dynamicIdentity).toBe(true)
+  }
+  expect(first.branch).toBe('native-import')
+  expect(first).toBe(conditional)
+})

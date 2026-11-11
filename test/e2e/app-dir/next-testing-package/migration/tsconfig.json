@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": false,
+    "allowJs": true,
+    "checkJs": true,
+    "target": "ES2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "types": ["node", "next/experimental/testing/vitest-global"]
+  },
+  "include": ["tests/**/*", "setup.ts", "shared-matchers.js", "matchers.d.ts"]
+}

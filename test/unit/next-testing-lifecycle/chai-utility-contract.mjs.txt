@@ -1,0 +1,93 @@
+import { appendFileSync } from 'node:fs'
+import { chai, expect, test } from 'vitest'
+
+function record(label, value) {
+  appendFileSync(process.env.NEXT_TESTING_CHAI141_EVIDENCE, JSON.stringify({ label, value }) + '\n')
+}
+function outcome(callback) {
+  try { return { threw: false, value: callback() } }
+  catch (error) { return { threw: true, name: error.name, message: error.message } }
+}
+function observe(label, callback) {
+  const result = outcome(callback)
+  record(label, { ...result, calls: expect.getState().assertionCalls })
+}
+
+test('addLengthGuard keeps the exact user function and native mutation trace', () => {
+  observe('length-guard', () => {
+    function sample(value) { return value }
+    const returned = chai.util.addLengthGuard(sample, 'sample', false)
+    const descriptor = Object.getOwnPropertyDescriptor(sample, 'length')
+    const ordinary = outcome(() => sample.length)
+    function chainable() {}
+    chai.util.addLengthGuard(chainable, 'chainable', true)
+    const chain = outcome(() => chainable.length)
+    const trace = []
+    const proxy = new Proxy(function userCallback(value) { return value }, {
+      defineProperty(target, key, descriptor) { trace.push(['defineProperty', key, typeof descriptor.get, descriptor.configurable ?? null, descriptor.enumerable ?? null]); return Reflect.defineProperty(target, key, descriptor) },
+      get() { throw new Error('unexpected helper get trap') },
+      getPrototypeOf() { throw new Error('unexpected helper prototype trap') },
+    })
+    const proxyResult = chai.util.addLengthGuard(proxy, 'proxy', false)
+    const fixed = function fixed() {}
+    Object.defineProperty(fixed, 'length', { configurable: false })
+    const fixedResult = outcome(() => chai.util.addLengthGuard(fixed, 'fixed', false))
+    return { returnedSame: returned === sample, callResult: sample(17), name: sample.name, descriptor: { getter: typeof descriptor.get, setter: typeof descriptor.set, enumerable: descriptor.enumerable, configurable: descriptor.configurable }, ordinary, chain, proxyReturnedSame: proxyResult === proxy, trace, fixedResult }
+  })
+})
+
+test('proxify reflects genuine user and assertion behavior', () => {
+  observe('proxify', () => {
+    const target = { marker: 1 }
+    const proxy = chai.util.proxify(target)
+    const marker = proxy.marker
+    const typo = outcome(() => proxy.mraker)
+    const named = chai.util.proxify({ marker: 1 }, 'named')
+    const namedMissing = outcome(() => named.missing)
+    const trace = []
+    const object = { value: 3 }
+    const payload = new Proxy(object, {
+      has(target, key) { trace.push(['has', key]); return Reflect.has(target, key) },
+      get(target, key) { trace.push(['get', key]); return Reflect.get(target, key) },
+      set(target, key, value) { trace.push(['set', key]); return Reflect.set(target, key, value) },
+    })
+    const traced = chai.util.proxify(payload)
+    const tracedValue = traced.value
+    const before = chai.config.useProxy
+    let disabledSame
+    try { chai.config.useProxy = false; disabledSame = chai.util.proxify(target) === target }
+    finally { chai.config.useProxy = before }
+    const assertion = chai.util.proxify(chai.expect(1))
+    assertion.equal(1)
+    return { different: proxy !== target, marker, flagFunction: typeof target.__flags.ssfi, typo, namedMissing, tracedValue, trace, disabledSame, assertionWorked: true }
+  })
+})
+
+test('events reports real plugin payload and EventTarget identities', () => {
+  observe('events', () => {
+    const events = chai.util.events
+    let utilityEvents
+    chai.use((_chai, util) => { utilityEvents = util.events })
+    const seen = []
+    const callbacks = new Map()
+    const listener = function (event) {
+      const value = { type: event.type, name: event.name, callbackSame: event.fn === callbacks.get(event.type), eventIsEvent: event instanceof Event, targetSame: event.target === events, currentTargetSame: event.currentTarget === events, listenerThisSame: this === events, hasChainingBehavior: typeof event.chainingBehavior, calls: expect.getState().assertionCalls }
+      record('plugin-event', value)
+      seen.push(value)
+    }
+    const methods = ['addMethod', 'addProperty', 'addChainableMethod']
+    try {
+      for (const name of methods) events.addEventListener(name, listener)
+      const method = function () { return this }
+      const property = function () { return this }
+      const chainable = function () { return this }
+      callbacks.set('addMethod', method); callbacks.set('addProperty', property); callbacks.set('addChainableMethod', chainable)
+      chai.Assertion.addMethod('chai145EventMethod', method)
+      chai.Assertion.addProperty('chai145EventProperty', property)
+      chai.Assertion.addChainableMethod('chai145EventChain', chainable, function () {})
+    } finally {
+      for (const name of methods) events.removeEventListener(name, listener)
+    }
+    return { stable: events === chai.util.events, samePluginUtility: utilityEvents === events, eventTarget: events instanceof EventTarget, prototypeSame: Object.getPrototypeOf(events) === EventTarget.prototype, seen: seen.length }
+  })
+})

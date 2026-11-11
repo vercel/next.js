@@ -1,0 +1,5 @@
+import { test } from 'vitest'
+import { appendFileSync } from 'node:fs'
+test('an existing file excluded by the actual CLI filter', () => {
+  appendFileSync(process.env.EMPTY_TRACE, JSON.stringify({ kind: 'body' }) + '\n')
+})

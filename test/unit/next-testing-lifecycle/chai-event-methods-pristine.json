@@ -1,0 +1,79 @@
+{
+  "methods": {
+    "addEventListener": {
+      "name": "addEventListener",
+      "length": 2,
+      "own": null,
+      "prototype": {
+        "valueType": "function",
+        "writable": true,
+        "enumerable": true,
+        "configurable": true
+      }
+    },
+    "removeEventListener": {
+      "name": "removeEventListener",
+      "length": 2,
+      "own": null,
+      "prototype": {
+        "valueType": "function",
+        "writable": true,
+        "enumerable": true,
+        "configurable": true
+      }
+    },
+    "dispatchEvent": {
+      "name": "dispatchEvent",
+      "length": 1,
+      "own": null,
+      "prototype": {
+        "valueType": "function",
+        "writable": true,
+        "enumerable": true,
+        "configurable": true
+      }
+    }
+  },
+  "missing": [
+    {
+      "key": "addEventListener",
+      "args": [],
+      "threw": true,
+      "name": "TypeError",
+      "message": "The \"type\" and \"listener\" arguments must be specified",
+      "code": "ERR_MISSING_ARGS"
+    },
+    {
+      "key": "addEventListener",
+      "args": ["x"],
+      "threw": true,
+      "name": "TypeError",
+      "message": "The \"type\" and \"listener\" arguments must be specified",
+      "code": "ERR_MISSING_ARGS"
+    },
+    {
+      "key": "removeEventListener",
+      "args": [],
+      "threw": true,
+      "name": "TypeError",
+      "message": "The \"type\" and \"listener\" arguments must be specified",
+      "code": "ERR_MISSING_ARGS"
+    },
+    {
+      "key": "removeEventListener",
+      "args": ["x"],
+      "threw": true,
+      "name": "TypeError",
+      "message": "The \"type\" and \"listener\" arguments must be specified",
+      "code": "ERR_MISSING_ARGS"
+    },
+    {
+      "key": "dispatchEvent",
+      "args": [],
+      "threw": true,
+      "name": "TypeError",
+      "message": "The \"event\" argument must be specified",
+      "code": "ERR_MISSING_ARGS"
+    }
+  ]
+}

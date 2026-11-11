@@ -1,0 +1,8 @@
+import { test as base, expect } from 'vitest'
+const label = 'long-injected'
+const definition = [43, { scope: 'test', injected: true }, 'tail']
+const expected = 0
+const owned = base.extend({ value: definition })
+owned(label, ({ value }) => {
+  expect(value).toBe(expected)
+})

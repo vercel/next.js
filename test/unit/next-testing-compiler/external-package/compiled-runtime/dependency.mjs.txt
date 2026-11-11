@@ -1,0 +1,4 @@
+globalThis.ws2CompiledRuntimeEvaluations = (globalThis.ws2CompiledRuntimeEvaluations ?? 0) + 1
+export const evaluation = globalThis.ws2CompiledRuntimeEvaluations
+export const value = 19
+export default { value }

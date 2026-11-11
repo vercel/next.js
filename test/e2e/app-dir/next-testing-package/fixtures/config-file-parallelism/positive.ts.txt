@@ -1,0 +1,6 @@
+import type { TestUserConfig, UserWorkspaceConfig, TestProjectConfiguration } from 'vitest/config'
+const root: TestUserConfig = { maxWorkers: 2, fileParallelism: false }
+const enabled: TestUserConfig = { fileParallelism: true }
+const child: UserWorkspaceConfig = { test: { fileParallelism: false } }
+const inline: TestProjectConfiguration = { extends: true, test: { fileParallelism: true } }
+export { root, enabled, child, inline }

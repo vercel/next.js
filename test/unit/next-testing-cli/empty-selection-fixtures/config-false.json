@@ -1,0 +1,9 @@
+{
+  "test": {
+    "name": "empty-contract",
+    "include": ["missing.test.mjs"],
+    "maxWorkers": 1,
+    "fileParallelism": false,
+    "passWithNoTests": false
+  }
+}

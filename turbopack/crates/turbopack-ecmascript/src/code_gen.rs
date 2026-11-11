@@ -18,6 +18,7 @@ use crate::{
     ScopeHoistingContext,
     ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    native_import_coverage::NativeImportCoverageRole,
     references::{
         amd::AmdDefineWithDependenciesCodeGen,
         cjs::{
@@ -47,6 +48,8 @@ use crate::{
 
 #[derive(Default)]
 pub struct CodeGeneration {
+    /// Filled only by the resolved isolated-test adapter's direct-call modifier.
+    pub test_declaration_calls: Option<crate::test_declaration_source_map::CapturedCalls>,
     /// ast nodes matching the span will be visitor by the visitor
     pub visitors: Vec<(AstPathId, Box<dyn AstModifier>)>,
     pub hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
@@ -117,11 +120,16 @@ impl CodeGeneration {
 pub struct CodeGenerationHoistedStmt {
     pub key: RcStr,
     pub stmt: Stmt,
+    pub(crate) native_import_coverage: Option<NativeImportCoverageRole>,
 }
 
 impl CodeGenerationHoistedStmt {
     pub fn new(key: RcStr, stmt: Stmt) -> Self {
-        CodeGenerationHoistedStmt { key, stmt }
+        CodeGenerationHoistedStmt {
+            key,
+            stmt,
+            native_import_coverage: None,
+        }
     }
 }
 
@@ -225,13 +233,25 @@ impl CodeGen {
             Self::CollectReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::ConstantValueCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::DynamicExpression(v) => v.code_generation(trie, ctx).await,
-            Self::EsmBindings(v) => v.code_generation(trie, ctx, scope_hoisting_context).await,
+            Self::EsmBindings(v) => {
+                let adapter = if let Some(module) =
+                    ResolvedVc::try_downcast_type::<crate::EcmascriptModuleAsset>(module)
+                {
+                    module.await?.options.await?.test_declaration_call_adapter
+                } else {
+                    None
+                };
+                v.code_generation(trie, ctx, scope_hoisting_context, adapter)
+                    .await
+            }
             Self::EsmModuleItem(v) => v.code_generation(trie, ctx).await,
             Self::ExportsInfoBinding(v) => v.code_generation(trie, ctx, module, exports).await,
             Self::ExportsInfoRef(v) => v.code_generation(trie, ctx).await,
             Self::CjsExportsDropCodeGen(v) => v.code_generation(trie, ctx, module, exports).await,
             Self::IdentReplacement(v) => v.code_generation(trie, ctx).await,
-            Self::ImportMetaBinding(v) => v.code_generation(trie, ctx).await,
+            Self::ImportMetaBinding(v) => {
+                v.code_generation(trie, ctx, scope_hoisting_context).await
+            }
             Self::ImportMetaRef(v) => v.code_generation(trie, ctx).await,
             Self::MemberReplacement(v) => v.code_generation(trie, ctx).await,
             Self::RemovalCodeGen(v) => v.code_generation(trie, ctx).await,

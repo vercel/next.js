@@ -1,0 +1,18 @@
+import { test, expect } from 'vitest'
+import * as common from 'ws2-genuine-external-original'
+import * as esm from 'ws2-genuine-external-esm'
+import consumer from './control-consumer.cjs'
+
+test('loads real external package controls without mocking', () => {
+  expect(common.value).toBe(19)
+  expect(common.default.value).toBe(19)
+  expect(esm.value).toBe(37)
+  expect(esm.default.value).toBe(41)
+})
+
+test('preserves external imports and CommonJS consumer identity', async () => {
+  const dynamic = await import('ws2-genuine-external-original')
+  expect(dynamic).toBe(common)
+  expect(consumer).toBe(common.default)
+  expect(consumer.fn).toBe(common.fn)
+})

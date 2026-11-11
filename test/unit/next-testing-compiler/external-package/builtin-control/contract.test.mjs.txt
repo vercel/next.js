@@ -1,0 +1,19 @@
+import { test, expect } from 'vitest'
+import * as fs from 'fs'
+import * as prefixedFs from 'node:fs'
+import * as os from 'node:os'
+
+test('preserves builtin imports across request spellings', async () => {
+  const dynamic = await import('node:fs')
+  expect(fs).toBe(prefixedFs)
+  expect(fs).toBe(dynamic)
+  expect(fs.default.readFileSync).toBe(fs.readFileSync)
+  expect(typeof fs.readFileSync).toBe('function')
+})
+
+test('preserves an ordinary prefixed builtin import', async () => {
+  const dynamic = await import('os')
+  expect(os).toBe(dynamic)
+  expect(os.default.platform).toBe(os.platform)
+  expect(typeof os.platform).toBe('function')
+})

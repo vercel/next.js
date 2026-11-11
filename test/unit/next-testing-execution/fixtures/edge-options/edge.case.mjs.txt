@@ -1,0 +1,26 @@
+import { test, expect } from 'vitest'
+
+test('ignored environment options retain real Edge execution', async () => {
+  const event = new FetchEvent('fetch', { request: new Request('https://example.test/edge/item') })
+  event.respondWith(Promise.resolve(new Response('real-edge-response', { status: 201 })))
+  const response = await event.response
+  const fetched = await fetch('data:text/plain,actual-data-fetch')
+  const match = new URLPattern({ pathname: '/edge/:value' }).exec('https://example.test/edge/item')
+  const row = {
+    edge: EdgeRuntime,
+    ignoredInitialCode: typeof globalThis.__edgeOptionSentinel,
+    functionCode: Function('return 7')(),
+    response: { status: response.status, text: await response.text() },
+    request: event.request.url,
+    fetched: await fetched.text(),
+    matched: match.pathname.groups.value,
+    buffer: Buffer.from('edge').toString('hex'),
+    mode: process.env.NODE_ENV,
+  }
+  expect(row.edge).toBe('edge-runtime')
+  expect(row.ignoredInitialCode).toBe('undefined')
+  expect(row.response).toEqual({ status: 201, text: 'real-edge-response' })
+  expect(row.fetched).toBe('actual-data-fetch')
+  expect(row.matched).toBe('item')
+  console.log('EDGE_OPTION_ROW ' + JSON.stringify(row))
+})

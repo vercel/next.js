@@ -1,0 +1,193 @@
+import { test, expect, vi } from 'vitest'
+
+test('compiled runtime factories retry failed user evaluations with fresh wrappers and exact cause', async () => {
+  const before = await import('./dependency.mjs')
+  const failure = new Error('owned compiled factory rejection')
+  let calls = 0
+  let shouldFail = true
+  vi.doMock('./dependency.mjs', () => {
+    calls++
+    if (shouldFail) throw failure
+    return { value: 73 }
+  })
+  const first = await import('./dependency.mjs').catch((error) => error)
+  const second = await import('./dependency.mjs').catch((error) => error)
+  vi.resetModules()
+  const third = await import('./dependency.mjs').catch((error) => error)
+  expect(calls).toBe(3)
+  for (const error of [first, second, third]) {
+    expect(error).not.toBe(failure)
+    expect(error.cause).toBe(failure)
+    expect(error.message).toMatch(/error when mocking a module/)
+  }
+  expect(second).not.toBe(first)
+  expect(third).not.toBe(first)
+  expect(third).not.toBe(second)
+  vi.doUnmock('./dependency.mjs')
+  const released = await import('./dependency.mjs')
+  expect(released).not.toBe(before)
+  expect(before.value).toBe(19)
+  expect(released.value).toBe(19)
+  expect(released.evaluation).toBe(before.evaluation + 1)
+  shouldFail = false
+})
+
+test('compiled runtime pending RESOLVE consumers retain original and registration identities', async () => {
+  const original = await import('./dependency.mjs')
+  let release
+  const gate = new Promise((resolve) => {
+    release = resolve
+  })
+  let calls = 0
+  vi.doMock('./dependency.mjs', async () => {
+    const index = ++calls
+    await gate
+    return { value: 73, index }
+  })
+  const firstPending = import('./dependency.mjs').catch((error) => error)
+  let second
+  const secondPending = import('./dependency.mjs').then(
+    (value) => {
+      second = value
+    },
+    (error) => {
+      second = error
+    }
+  )
+  try {
+    await vi.waitFor(() => expect(second).toBe(original), {
+      timeout: 1000,
+      interval: 10,
+    })
+    expect(calls).toBe(1)
+  } finally {
+    release()
+  }
+  const first = await firstPending
+  await secondPending
+  const later = await import('./dependency.mjs')
+  vi.resetModules()
+  const afterReset = await import('./dependency.mjs')
+  expect(first.value).toBe(73)
+  expect(first.index).toBe(1)
+  expect(first).not.toBe(second)
+  expect(later).toBe(first)
+  expect(afterReset).toBe(first)
+  expect(calls).toBe(1)
+  vi.doUnmock('./dependency.mjs')
+  const released = await import('./dependency.mjs')
+  expect(original.value).toBe(19)
+  expect(released.value).toBe(19)
+  expect(released).not.toBe(original)
+  expect(released.evaluation).toBe(original.evaluation + 1)
+})
+
+test('compiled runtime pending REJECT consumers retain original and registration identities', async () => {
+  const original = await import('./dependency.mjs')
+  const failure = new Error('held compiled factory rejection')
+  let release
+  const gate = new Promise((_, reject) => {
+    release = reject
+  })
+  let calls = 0
+  vi.doMock('./dependency.mjs', async () => {
+    const index = ++calls
+    await gate
+    return { value: 73, index }
+  })
+  const firstPending = import('./dependency.mjs').catch((error) => error)
+  let second
+  const secondPending = import('./dependency.mjs').then(
+    (value) => {
+      second = value
+    },
+    (error) => {
+      second = error
+    }
+  )
+  try {
+    await vi.waitFor(() => expect(second).toBe(original), {
+      timeout: 1000,
+      interval: 10,
+    })
+    expect(calls).toBe(1)
+  } finally {
+    release(failure)
+  }
+  const first = await firstPending
+  await secondPending
+  const later = await import('./dependency.mjs').catch((error) => error)
+  vi.resetModules()
+  const afterReset = await import('./dependency.mjs').catch((error) => error)
+  expect(calls).toBe(3)
+  for (const error of [first, later, afterReset]) {
+    expect(error).not.toBe(failure)
+    expect(error.cause).toBe(failure)
+    expect(error.message).toMatch(/error when mocking a module/)
+  }
+  expect(later).not.toBe(first)
+  expect(afterReset).not.toBe(first)
+  expect(afterReset).not.toBe(later)
+  vi.doUnmock('./dependency.mjs')
+  const released = await import('./dependency.mjs')
+  expect(original.value).toBe(19)
+  expect(released.value).toBe(19)
+  expect(released).not.toBe(original)
+  expect(released.evaluation).toBe(original.evaluation + 1)
+})
+
+test('compiled pending factory imports a cold original without duplicate factory evaluation', async () => {
+  globalThis.ws2ColdRuntimeEvents = []
+  let release
+  const gate = new Promise((resolve) => {
+    release = resolve
+  })
+  let calls = 0
+  vi.doMock('./cold-dependency.mjs', async () => {
+    calls++
+    globalThis.ws2ColdRuntimeEvents.push('factory:' + calls)
+    await gate
+    return { value: 79 }
+  })
+  const firstPending = import('./cold-dependency.mjs').catch((error) => error)
+  let second
+  const secondPending = import('./cold-dependency.mjs').then(
+    (value) => {
+      second = value
+    },
+    (error) => {
+      second = error
+    }
+  )
+  try {
+    await vi.waitFor(() => expect(second?.value).toBe(29), {
+      timeout: 1000,
+      interval: 10,
+    })
+    expect(globalThis.ws2ColdRuntimeEvaluations).toBe(1)
+    expect(calls).toBe(1)
+  } finally {
+    release()
+  }
+  const first = await firstPending
+  await secondPending
+  const later = await import('./cold-dependency.mjs')
+  vi.resetModules()
+  const afterReset = await import('./cold-dependency.mjs')
+  expect(first.value).toBe(79)
+  expect(first).not.toBe(second)
+  expect(later).toBe(first)
+  expect(afterReset).toBe(first)
+  expect(calls).toBe(1)
+  vi.doUnmock('./cold-dependency.mjs')
+  const released = await import('./cold-dependency.mjs')
+  expect(released.value).toBe(29)
+  expect(released).not.toBe(second)
+  expect(second.evaluation).toBe(1)
+  expect(released.evaluation).toBe(2)
+  expect(globalThis.ws2ColdRuntimeEvents).toEqual([
+    'factory:1',
+    'original:1',
+    'original:2',
+  ])
+})

@@ -1,0 +1,5 @@
+import type { TestResultSkipped } from 'vitest/node'
+declare const result: TestResultSkipped
+result.note = 'changed'
+declare function test(name: string, body: () => void): void
+test('type authoring', () => {})

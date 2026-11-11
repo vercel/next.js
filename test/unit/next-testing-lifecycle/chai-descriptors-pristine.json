@@ -1,0 +1,104 @@
+[
+  {
+    "key": "assert",
+    "descriptor": {
+      "keys": ["value", "writable", "enumerable", "configurable"],
+      "configurable": true,
+      "enumerable": false,
+      "writable": true,
+      "valueType": "function",
+      "getType": "undefined",
+      "setType": "undefined"
+    }
+  },
+  {
+    "key": "equal",
+    "descriptor": {
+      "keys": ["value", "writable", "enumerable", "configurable"],
+      "configurable": true,
+      "enumerable": true,
+      "writable": true,
+      "valueType": "function",
+      "getType": "undefined",
+      "setType": "undefined"
+    }
+  },
+  {
+    "key": "not",
+    "descriptor": {
+      "keys": ["get", "set", "enumerable", "configurable"],
+      "configurable": true,
+      "enumerable": false,
+      "writable": null,
+      "valueType": null,
+      "getType": "function",
+      "setType": "undefined"
+    }
+  },
+  {
+    "key": "to",
+    "descriptor": {
+      "keys": ["get", "set", "enumerable", "configurable"],
+      "configurable": true,
+      "enumerable": false,
+      "writable": null,
+      "valueType": null,
+      "getType": "function",
+      "setType": "undefined"
+    }
+  },
+  {
+    "key": "absent199",
+    "descriptor": null
+  },
+  {
+    "plugin": "method-and-property",
+    "passed": true
+  },
+  {
+    "id": "identities",
+    "distinctDescriptors": true,
+    "sameMethod": true,
+    "sameDirectMethod": true,
+    "sameGetter": true,
+    "symbolAbsent": true,
+    "constructor": {
+      "keys": ["value", "writable", "enumerable", "configurable"],
+      "configurable": true,
+      "enumerable": false,
+      "writable": true,
+      "valueType": "function",
+      "getType": "undefined",
+      "setType": "undefined"
+    }
+  },
+  {
+    "id": "custom-accessor",
+    "before": 0,
+    "descriptor": {
+      "keys": ["get", "set", "enumerable", "configurable"],
+      "configurable": true,
+      "enumerable": false,
+      "writable": null,
+      "valueType": null,
+      "getType": "function",
+      "setType": "undefined"
+    }
+  },
+  {
+    "id": "custom-accessor",
+    "after": 1
+  },
+  {
+    "id": "local-descriptor-mutation",
+    "fresh": {
+      "keys": ["value", "writable", "enumerable", "configurable"],
+      "configurable": true,
+      "enumerable": true,
+      "writable": true,
+      "valueType": "function",
+      "getType": "undefined",
+      "setType": "undefined"
+    }
+  }
+]

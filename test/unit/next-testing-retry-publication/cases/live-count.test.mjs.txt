@@ -1,0 +1,14 @@
+import { test, expect } from 'vitest'
+
+let reads = 0
+let attempts = 0
+const retry = {
+  get count() {
+    return ++reads === 1 ? 0 : 2
+  },
+}
+
+test('worker live retry count', { retry }, () => {
+  expect(reads).toBe(2)
+  expect(++attempts).toBe(3)
+})
