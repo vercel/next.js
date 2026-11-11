@@ -501,7 +501,9 @@ export const metadata = {
 
 ### `openGraph`
 
-`openGraph` configures [Open Graph metadata](https://ogp.me/) for a page. Start with the page's title, description, URL, and media:
+`openGraph` configures [Open Graph metadata](https://ogp.me/) for a page. Image URLs can be absolute, or relative when [`metadataBase`](#metadatabase) is set. Use absolute URLs for audio and video.
+
+Start with the page's title, description, URL, and media:
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -839,7 +841,9 @@ export const metadata = {
 
 ### `twitter`
 
-`twitter` configures Twitter Card metadata. Set `card` to choose the card type. For example, use `'summary_large_image'` for a card with a large image:
+`twitter` configures Twitter Card metadata. Image URLs can be absolute, or relative when [`metadataBase`](#metadatabase) is set.
+
+Set `card` to choose the card type. For example, use `'summary_large_image'` for a card with a large image:
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
