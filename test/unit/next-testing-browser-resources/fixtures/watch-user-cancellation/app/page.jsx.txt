@@ -1,0 +1,1 @@
+export default function Page(){return <p>Actual Browser watch control</p>}

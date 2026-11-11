@@ -1,0 +1,32 @@
+import { test, beforeEach, afterEach, afterAll } from 'vitest'
+
+const rows = []
+let heldTask, heldContext
+beforeEach(context => {
+  heldTask = context.task
+  heldContext = context
+  context.expect(context.task.context).toBe(context)
+  rows.push({ stage: 'beforeEach' })
+})
+afterEach(context => {
+  context.expect(context).toBe(heldContext)
+  context.expect(context.task).toBe(heldTask)
+  rows.push({ stage: 'afterEach' })
+})
+afterAll(() => console.log('TASK_BROWSER_IDENTITY:' + JSON.stringify(rows)))
+
+test('actual browser task and context identity', async context => {
+  context.expect(context).toBe(heldContext)
+  context.expect(context.task).toBe(heldTask)
+  rows.push({ stage: 'body' })
+  await context.expect(Promise.resolve(17)).resolves.toBe(17)
+  context.expect(context.task).toBe(heldTask)
+  rows.push({ stage: 'awaited' })
+  context.onTestFinished(function(payload) {
+    context.expect(payload).toBe(context)
+    context.expect(payload.task).toBe(heldTask)
+    context.expect(this).toBeUndefined()
+    context.expect(arguments.length).toBe(1)
+    rows.push({ stage: 'finished' })
+  }, 0)
+})

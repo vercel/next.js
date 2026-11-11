@@ -3270,6 +3270,121 @@ it('normalizes only artifact locations from retained source while leaving annota
   }
 })
 
+it('maps Browser artifact callees with the standalone parser and preserves Node syntax support', async () => {
+  const {
+    getClientArtifactLocation,
+  } = require('next/dist/experimental/testing/client/artifact-location')
+  const {
+    mapArtifactCallLocation,
+  } = require('next/dist/experimental/testing/reporting/artifact-location')
+  const source = await readFile(
+    join(__dirname, 'fixtures/artifact-callsites.mjs.txt'),
+    'utf8'
+  )
+  const expected = JSON.parse(
+    await readFile(
+      join(__dirname, 'fixtures/artifact-callsites-pristine.json'),
+      'utf8'
+    )
+  )
+  const error = new Error('original raw stack')
+  const rawStack =
+    'Error: original raw stack\n    at http://localhost/selected.js:1:1'
+  error.stack = rawStack
+  for (const content of [source, source.replace(/\n/g, '\r\n')]) {
+    const lines = content.split(/\r?\n/)
+    const actual = expected.map((row: any) => {
+      const mapped = {
+        file: 'calls.test.mjs',
+        line: row.location.line,
+        column:
+          row.type === 'probe:optional'
+            ? lines[row.location.line - 1].indexOf('?.') + 1
+            : lines[row.location.line - 1].lastIndexOf('(') + 1,
+      }
+      return {
+        type: row.type,
+        location: getClientArtifactLocation(error, {
+          mapLocation: () => mapped,
+          getSourceContent: () => content,
+        }),
+      }
+    })
+    expect(actual).toEqual(expected)
+  }
+  const typed = 'const input: unknown = recordArtifact(task, {})'
+  const mapped = {
+    file: 'calls.test.ts',
+    line: 1,
+    column: typed.indexOf('(') + 1,
+  }
+  expect(
+    getClientArtifactLocation(error, {
+      mapLocation: () => mapped,
+      getSourceContent: () => typed,
+    })
+  ).toEqual(mapped)
+  expect(mapArtifactCallLocation(typed, mapped.file, mapped)).toEqual({
+    ...mapped,
+    column: typed.indexOf('recordArtifact') + 1,
+  })
+  const jsx = 'const element = <div />; recordArtifact(task, {})'
+  const jsxMapped = {
+    file: 'calls.test.jsx',
+    line: 1,
+    column: jsx.indexOf('(') + 1,
+  }
+  expect(
+    getClientArtifactLocation(error, {
+      mapLocation: () => jsxMapped,
+      getSourceContent: () => jsx,
+    })
+  ).toEqual(jsxMapped)
+  expect(mapArtifactCallLocation(jsx, jsxMapped.file, jsxMapped)).toEqual({
+    ...jsxMapped,
+    column: jsx.indexOf('recordArtifact') + 1,
+  })
+  for (const content of [
+    'recordArtifact?.(task, {})',
+    'api?.recordArtifact(task, {})',
+  ]) {
+    const original = {
+      file: 'calls.test.mjs',
+      line: 1,
+      column: content.indexOf('recordArtifact') + 3,
+    }
+    expect(mapArtifactCallLocation(content, original.file, original)).toEqual(
+      original
+    )
+    expect(
+      getClientArtifactLocation(error, {
+        mapLocation: () => original,
+        getSourceContent: () => content,
+      })
+    ).toEqual(original)
+  }
+  const nested = 'api?.method(recordArtifact(task, {}))'
+  const nestedMapped = {
+    file: 'calls.test.mjs',
+    line: 1,
+    column: nested.lastIndexOf('(') + 1,
+  }
+  const nestedExpected = {
+    ...nestedMapped,
+    column: nested.indexOf('recordArtifact') + 1,
+  }
+  expect(
+    mapArtifactCallLocation(nested, nestedMapped.file, nestedMapped)
+  ).toEqual(nestedExpected)
+  expect(
+    getClientArtifactLocation(error, {
+      mapLocation: () => nestedMapped,
+      getSourceContent: () => nested,
+    })
+  ).toEqual(nestedExpected)
+  expect(error.stack).toBe(rawStack)
+})
+
 describe('live custom console reporter callbacks', () => {
   async function open(mode: string) {
     const root = await mkdtemp(join(tmpdir(), 'next-live-console-'))
@@ -5290,6 +5405,48 @@ it('retains exact selected declaration columns without artifact-call snapping', 
   }
 })
 
+it('maps actual Browser declaration frames including Gecko srcScript identities', () => {
+  const {
+    getClientDeclarationLocation,
+  } = require('next/dist/experimental/testing/client/declaration-location')
+  const frames: unknown[] = []
+  const mapper = {
+    mapLocation(frame: { file: string; line: number; column: number }) {
+      frames.push(frame)
+      if (frame.file !== 'http://localhost:1234/issued.js line 17 > srcScript')
+        throw new Error('unselected frame')
+      return { file: '/selected.test.mjs', line: 8, column: 5 }
+    },
+  }
+  const error = new Error('declaration')
+  error.stack =
+    'Error\ninternal@http://localhost:1234/runtime.js:2:3\n@http://localhost:1234/issued.js line 17 > srcScript:4:9'
+  expect(getClientDeclarationLocation(error, mapper)).toEqual({
+    line: 8,
+    column: 5,
+  })
+  expect(frames).toEqual([
+    { file: 'http://localhost:1234/runtime.js', line: 2, column: 3 },
+    {
+      file: 'http://localhost:1234/issued.js line 17 > srcScript',
+      line: 4,
+      column: 9,
+    },
+  ])
+  let reads = 0
+  Object.defineProperty(error, 'stack', {
+    get() {
+      reads++
+      return '    at declared (http://localhost:1234/issued.js line 17 > srcScript:4:9)'
+    },
+  })
+  expect(getClientDeclarationLocation(error, mapper)).toEqual({
+    line: 8,
+    column: 5,
+  })
+  expect(reads).toBe(1)
+})
+
 it('publishes actual collection locations while retaining mutable in-realm Tasks', async () => {
   const { createCollector } = await import(
     'next/dist/experimental/testing/runner/collector'
@@ -5500,6 +5657,26 @@ it('captures producer-owned locations across reporting module instances', async 
   } finally {
     updates.dispose()
   }
+})
+
+it('retains exact Browser intrinsic raw declarations and the existing closed-scope checks', () => {
+  const output = execFileSync(
+    process.execPath,
+    [join(__dirname, 'browser-declaration-scope.cjs')],
+    {
+      encoding: 'utf8',
+      timeout: 5000,
+    }
+  )
+  expect(JSON.parse(output)).toEqual({
+    cases: 5,
+    trace: ['raw', 1, 2, 3, 'child'],
+    exactIntrinsicIdentity: true,
+    realEachForAndSuite: true,
+    privateClosedGetApplyHeld: true,
+    frozenUnknownTargetGuarded: true,
+    guardCalls: 11,
+  })
 })
 
 it.each(['worker-only', 'mixed-cleanup', 'case-failed', 'cancelled'])(

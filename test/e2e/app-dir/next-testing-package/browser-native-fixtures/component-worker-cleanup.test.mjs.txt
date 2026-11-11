@@ -1,0 +1,8 @@
+import{test as base}from'vitest'
+import{page}from'vitest/browser'
+import{createElement}from'react'
+import{render}from'vitest-browser-react'
+const row=value=>console.log('BROWSER_NATIVE_FIXTURE:'+JSON.stringify(value))
+const test=base.extend({resource:[async({},use)=>{const resource={clicks:0};row({phase:'setup'});await use(resource);row({phase:'worker-cleanup-start',clicks:resource.clicks});await page.getByRole('button',{name:'Worker fixture component',exact:true}).click();row({phase:'worker-cleanup-end',clicks:resource.clicks})},{scope:'worker'}]})
+test('component fixture A',({resource,expect})=>{row({phase:'A',clicks:resource.clicks});expect(resource.clicks).toBe(0)})
+test('component fixture B',async({resource,expect})=>{await render(createElement('button',{onClick:()=>{resource.clicks++}},'Worker fixture component'));row({phase:'B-mounted',clicks:resource.clicks});expect(resource.clicks).toBe(0)})

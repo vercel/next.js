@@ -1,0 +1,64 @@
+{
+  "numTotalTestSuites": 1,
+  "numPassedTestSuites": 0,
+  "numFailedTestSuites": 1,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 2,
+  "numPassedTests": 1,
+  "numFailedTests": 1,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1792920911642,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "serial unconsumed action",
+          "status": "failed",
+          "title": "serial unconsumed action",
+          "duration": 2.100000023841858,
+          "failureMessages": [
+            "Error: The call was not awaited. This method is asynchronous and must be awaited; otherwise, the call will not start to avoid unhandled rejections.\n    at new d (http://localhost:63315/@fs/private/tmp/next-testing-run/integration/production-browser-mocks/reference/node_modules/@vitest/browser/dist/locators-BHr21v4S.js?v=40da9656:1:1405)\n    at new f (http://localhost:63315/@fs/private/tmp/next-testing-run/integration/production-browser-mocks/reference/node_modules/@vitest/browser/dist/locators-BHr21v4S.js?v=40da9656:1:2236)\n    at PlaywrightLocator.action (http://localhost:63315/@fs/private/tmp/next-testing-run/integration/production-browser-mocks/reference/node_modules/@vitest/browser/dist/locators-BHr21v4S.js?v=40da9656:4:14553)\n    at PlaywrightLocator.click (http://localhost:63315/@fs/private/tmp/next-testing-run/integration/production-browser-mocks/reference/node_modules/@vitest/browser/dist/locators-BHr21v4S.js?v=40da9656:4:10881)\n    at PlaywrightLocator.click (http://localhost:63315/@fs/private/tmp/next-testing-run/integration/production-browser-mocks/reference/node_modules/@vitest/browser-playwright/dist/locators.js:14:16)\n    at http://localhost:63315/private/tmp/next-testing-run/work-1/task-buffers/browser-concurrency-contract/native-actions/serial-behavior/.actual-native-actions-reference-i7ajx6wo/hooks.test.mjs?import&browserv=1792920911974:9:62\n    at http://localhost:63315/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=40da9656:4125:35\n    at http://localhost:63315/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=40da9656:5235:26\n    at http://localhost:63315/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=40da9656:5726:20\n    at new Promise (<anonymous>)"
+          ],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "serial following case continues",
+          "status": "passed",
+          "title": "serial following case continues",
+          "duration": 0,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1792920911979,
+      "endTime": 1792920911981.1,
+      "status": "failed",
+      "message": "",
+      "name": "/private/tmp/next-testing-run/work-1/task-buffers/browser-concurrency-contract/native-actions/serial-behavior/.actual-native-actions-reference-i7ajx6wo/hooks.test.mjs"
+    }
+  ]
+}

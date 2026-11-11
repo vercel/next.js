@@ -1,0 +1,29 @@
+import { expect, test, vi } from 'vitest'
+
+const fn = vi.fn(value => 'initial:' + value)
+const target = { method(value) { return 'original:' + value } }
+const original = target.method
+let spy
+function record(name, raw) { console.log('BROWSER_RESET_CONFIG_RAW ' + JSON.stringify({ name, raw })) }
+
+test('seeds shared mocks spies and globals for the next case', () => {
+  fn.mockImplementation(value => 'changed:' + value)
+  spy = vi.spyOn(target, 'method').mockImplementation(value => 'spy:' + value)
+  vi.stubGlobal('__NEXT_BROWSER_RESET_CONFIG__', 'kept')
+  const fnValue = fn('A')
+  const spyValue = target.method('A')
+  const raw = { fnValue, spyValue, fnCalls: fn.mock.calls.map(args => [...args]), spyCalls: spy.mock.calls.map(args => [...args]), methodIsSpy: target.method === spy, methodIsOriginal: target.method === original, globalValue: globalThis.__NEXT_BROWSER_RESET_CONFIG__ ?? null }
+  record('seed', raw)
+  expect(raw.fnCalls).toHaveLength(1)
+})
+
+test('observes configured reset behavior before the next test body', () => {
+  try {
+    const before = { fnCalls: fn.mock.calls.map(args => [...args]), spyCalls: spy.mock.calls.map(args => [...args]), methodIsSpy: target.method === spy, methodIsOriginal: target.method === original, globalValue: globalThis.__NEXT_BROWSER_RESET_CONFIG__ ?? null }
+    const fnValue = fn('B')
+    const spyValue = target.method('B')
+    const after = { fnValue, spyValue, fnCalls: fn.mock.calls.map(args => [...args]), spyCalls: spy.mock.calls.map(args => [...args]), methodIsSpy: target.method === spy, methodIsOriginal: target.method === original, globalValue: globalThis.__NEXT_BROWSER_RESET_CONFIG__ ?? null }
+    record('next-case', { before, after })
+    expect(after.fnCalls.length).toBeGreaterThan(0)
+  } finally { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.clearAllMocks() }
+})

@@ -1,0 +1,4 @@
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"created-action\",\"clicks\":0,\"tag\":\"[object Action]\",\"native\":false,\"trace\":[[\"get\",\"undefined\"],[\"set\",\"array\"],[\"get\",\"array\"]],\"guardName\":\"\",\"guardLength\":0}","browser":true,"time":1792920906927,"taskId":"81615230_0","type":"stdout","size":191}
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"one-click\",\"clicks\":1}","browser":true,"time":1792920906991,"taskId":"81615230_0","type":"stdout","size":54}
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"created-keyboard\",\"keydowns\":0,\"tag\":\"[object Promise]\",\"native\":false,\"ownNames\":[\"then\",\"catch\",\"finally\"],\"guardDelta\":1}","browser":true,"time":1792920906992,"taskId":"81615230_0","type":"stdout","size":156}
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"one-keyboard\",\"value\":\"a\",\"keydowns\":1}","browser":true,"time":1792920907026,"taskId":"81615230_0","type":"stdout","size":71}

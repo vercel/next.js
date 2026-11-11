@@ -1,0 +1,12 @@
+import { test, beforeAll, afterAll } from 'vitest'
+import { page, userEvent } from 'vitest/browser'
+const row = (phase, fields = {}) => console.log('BROWSER_HOOK_SEQUENCE:' + JSON.stringify({phase, ...fields}))
+let button, input, clicks = 0, keydowns = 0
+beforeAll(() => { button = document.createElement('button'); button.textContent = 'Serial target'; button.id = 'serial-target'; button.onclick = () => { clicks++ }; input = document.createElement('input'); input.id = 'serial-input'; input.onkeydown = () => { keydowns++ }; document.body.append(button,input) })
+afterAll(() => { button.remove(); input.remove() })
+test('serial unconsumed action', context => {
+  const before = context.task.onFinished?.length ?? 0
+  page.getByRole('button',{name:'Serial target',exact:true}).click()
+  row('unconsumed', {clicks,guardDelta:(context.task.onFinished?.length ?? 0)-before})
+})
+test('serial following case continues', () => { row('following-case', {clicks}) })

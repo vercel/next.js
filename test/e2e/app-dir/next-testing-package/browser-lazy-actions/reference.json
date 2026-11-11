@@ -1,0 +1,375 @@
+{
+  "version": 1,
+  "reference": "Vitest 5.0.4",
+  "scope": "Serial Chromium/Firefox Nodejs Browser development/production lazy Action shape, queue guard, consumption and original getter errors. Concurrent admission remains closed.",
+  "profiles": [
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "group": "shapes",
+      "label": "chromium-development-shapes",
+      "source": {
+        "path": "shapes.test.mjs.txt",
+        "sha256": "d292b1357cf02ba693227d3fbf84583ca10a8306c1fd2e72f7feee1d2eb52b09"
+      },
+      "projected": {
+        "path": "chromium-development-shapes/expected.json",
+        "sha256": "bb7322f1b89f40c5ac16966a15e4d3ba5f92885a363b7252e50e6ad6fafe3847"
+      },
+      "rawStandardReport": {
+        "path": "chromium-development-shapes/report.raw.json",
+        "sha256": "7273b40f7aa579f1f4f4d565ab6ad3e822b42493b1002cb612d9462e6844a1fa"
+      },
+      "rawConsole": {
+        "path": "chromium-development-shapes/console.raw.jsonl",
+        "sha256": "4100c4753031527a4ddd6669b5864b537288c035489ab7ace82129edacf7739e"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "group": "shapes",
+      "label": "chromium-production-shapes",
+      "source": {
+        "path": "shapes.test.mjs.txt",
+        "sha256": "d292b1357cf02ba693227d3fbf84583ca10a8306c1fd2e72f7feee1d2eb52b09"
+      },
+      "projected": {
+        "path": "chromium-production-shapes/expected.json",
+        "sha256": "bb7322f1b89f40c5ac16966a15e4d3ba5f92885a363b7252e50e6ad6fafe3847"
+      },
+      "rawStandardReport": {
+        "path": "chromium-production-shapes/report.raw.json",
+        "sha256": "076841d23164c8711d2d8efbc03feb419c9a1c029d9c8b29d70853d4852f8b31"
+      },
+      "rawConsole": {
+        "path": "chromium-production-shapes/console.raw.jsonl",
+        "sha256": "0171577703cdd3cf60dee086b11a72000575e32f75959a69beadce11e24ad173"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "group": "shapes",
+      "label": "firefox-development-shapes",
+      "source": {
+        "path": "shapes.test.mjs.txt",
+        "sha256": "d292b1357cf02ba693227d3fbf84583ca10a8306c1fd2e72f7feee1d2eb52b09"
+      },
+      "projected": {
+        "path": "firefox-development-shapes/expected.json",
+        "sha256": "98e385cf814da0e4b27a54e9eea0a2e1338494c1f9e095a5435927c0cf51a789"
+      },
+      "rawStandardReport": {
+        "path": "firefox-development-shapes/report.raw.json",
+        "sha256": "999aef8c3362fb044afcb7a1ffa2a71083c7cf88a275a62dbb766f92dde08d21"
+      },
+      "rawConsole": {
+        "path": "firefox-development-shapes/console.raw.jsonl",
+        "sha256": "a151eb373eb340a9c4d88f597a71c354430132d8009d629c92b4bda23a352b8b"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "group": "shapes",
+      "label": "firefox-production-shapes",
+      "source": {
+        "path": "shapes.test.mjs.txt",
+        "sha256": "d292b1357cf02ba693227d3fbf84583ca10a8306c1fd2e72f7feee1d2eb52b09"
+      },
+      "projected": {
+        "path": "firefox-production-shapes/expected.json",
+        "sha256": "98e385cf814da0e4b27a54e9eea0a2e1338494c1f9e095a5435927c0cf51a789"
+      },
+      "rawStandardReport": {
+        "path": "firefox-production-shapes/report.raw.json",
+        "sha256": "c71611f84ee802c656f621bbc0168c92ab6c5eb7547e9cc76a74d97407a25f81"
+      },
+      "rawConsole": {
+        "path": "firefox-production-shapes/console.raw.jsonl",
+        "sha256": "214be812fa0db404d0c0148df59b186e147af463ea21f5ba095a1b4366dbf098"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "group": "positive",
+      "label": "chromium-development-positive",
+      "source": {
+        "path": "positive.test.mjs.txt",
+        "sha256": "03d6b635a079183e72f25922e68a1a4098cde08aa55b51a10c276005eb3b8086"
+      },
+      "projected": {
+        "path": "chromium-development-positive/expected.json",
+        "sha256": "ea3a81d951be6eeee4c6de410dab50f779e143fcfa4fc7413c7c2643e6ca812b"
+      },
+      "rawStandardReport": {
+        "path": "chromium-development-positive/report.raw.json",
+        "sha256": "208893ad13e9eac4f99d28d53cb63845757ce1441e557cb1b497041f76f32111"
+      },
+      "rawConsole": {
+        "path": "chromium-development-positive/console.raw.jsonl",
+        "sha256": "98d94ee0043f624437f9ac08639ccf66d5452922df3408758b0fcb98cd79879a"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "group": "positive",
+      "label": "chromium-production-positive",
+      "source": {
+        "path": "positive.test.mjs.txt",
+        "sha256": "03d6b635a079183e72f25922e68a1a4098cde08aa55b51a10c276005eb3b8086"
+      },
+      "projected": {
+        "path": "chromium-production-positive/expected.json",
+        "sha256": "ea3a81d951be6eeee4c6de410dab50f779e143fcfa4fc7413c7c2643e6ca812b"
+      },
+      "rawStandardReport": {
+        "path": "chromium-production-positive/report.raw.json",
+        "sha256": "c7f09428b69863c24839f3cecb8a55f062634c7e73f9358448c6e0e8dac87d40"
+      },
+      "rawConsole": {
+        "path": "chromium-production-positive/console.raw.jsonl",
+        "sha256": "da99326dadbb44de5f13be05a00c449f28ea359b24e1d7619b42b22540139715"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "group": "positive",
+      "label": "firefox-development-positive",
+      "source": {
+        "path": "positive.test.mjs.txt",
+        "sha256": "03d6b635a079183e72f25922e68a1a4098cde08aa55b51a10c276005eb3b8086"
+      },
+      "projected": {
+        "path": "firefox-development-positive/expected.json",
+        "sha256": "ea3a81d951be6eeee4c6de410dab50f779e143fcfa4fc7413c7c2643e6ca812b"
+      },
+      "rawStandardReport": {
+        "path": "firefox-development-positive/report.raw.json",
+        "sha256": "4238bd652884d86198b02d5d14edf30d4ecb4f9768e2161a74efd12bcc7c2bb2"
+      },
+      "rawConsole": {
+        "path": "firefox-development-positive/console.raw.jsonl",
+        "sha256": "ae6f0369144eae3153d5abb78b6dac09d8b733a632e70e486f720e557ad0d14c"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "group": "positive",
+      "label": "firefox-production-positive",
+      "source": {
+        "path": "positive.test.mjs.txt",
+        "sha256": "03d6b635a079183e72f25922e68a1a4098cde08aa55b51a10c276005eb3b8086"
+      },
+      "projected": {
+        "path": "firefox-production-positive/expected.json",
+        "sha256": "ea3a81d951be6eeee4c6de410dab50f779e143fcfa4fc7413c7c2643e6ca812b"
+      },
+      "rawStandardReport": {
+        "path": "firefox-production-positive/report.raw.json",
+        "sha256": "bea5e8511cf266ba849edcd19c2be78f6257609073f211c7c37d10ecab471039"
+      },
+      "rawConsole": {
+        "path": "firefox-production-positive/console.raw.jsonl",
+        "sha256": "d06640963b599447afb1269e7765c424b6c789518e34c563f5e5473c397131c2"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "group": "getter",
+      "label": "chromium-development-getter",
+      "source": {
+        "path": "getter.test.mjs.txt",
+        "sha256": "1992a5980234741d96c4bf90170070b131a858884a945d8f1fa4c9d260dc909a"
+      },
+      "projected": {
+        "path": "chromium-development-getter/expected.json",
+        "sha256": "c075531b4b34cffa1745c6d0c589ef22cc3ff2de723f3760f0e720911cb1df63"
+      },
+      "rawStandardReport": {
+        "path": "chromium-development-getter/report.raw.json",
+        "sha256": "02fec1c82e59c8f2dd37d964f87f22b59fa75fcfdf5057dc22c71014c71df025"
+      },
+      "rawConsole": {
+        "path": "chromium-development-getter/console.raw.jsonl",
+        "sha256": "a1dc2ec19fb543052409c086fde1687f9beafb3f0c2ce2fbbcccef18058b0f3e"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "group": "getter",
+      "label": "chromium-production-getter",
+      "source": {
+        "path": "getter.test.mjs.txt",
+        "sha256": "1992a5980234741d96c4bf90170070b131a858884a945d8f1fa4c9d260dc909a"
+      },
+      "projected": {
+        "path": "chromium-production-getter/expected.json",
+        "sha256": "c075531b4b34cffa1745c6d0c589ef22cc3ff2de723f3760f0e720911cb1df63"
+      },
+      "rawStandardReport": {
+        "path": "chromium-production-getter/report.raw.json",
+        "sha256": "4b9d0985dd12424c53612cf883979a185ad88f167c226f3a5442e288fb2e4d8f"
+      },
+      "rawConsole": {
+        "path": "chromium-production-getter/console.raw.jsonl",
+        "sha256": "f006609b9ae1cef4982bf12ebd0b87ed40e3e2c77101117f0e56f08b75caa3a6"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "group": "getter",
+      "label": "firefox-development-getter",
+      "source": {
+        "path": "getter.test.mjs.txt",
+        "sha256": "1992a5980234741d96c4bf90170070b131a858884a945d8f1fa4c9d260dc909a"
+      },
+      "projected": {
+        "path": "firefox-development-getter/expected.json",
+        "sha256": "c075531b4b34cffa1745c6d0c589ef22cc3ff2de723f3760f0e720911cb1df63"
+      },
+      "rawStandardReport": {
+        "path": "firefox-development-getter/report.raw.json",
+        "sha256": "e396da2f489e56aad01cabac42518332329f04afd08c70d200d437cee6d50794"
+      },
+      "rawConsole": {
+        "path": "firefox-development-getter/console.raw.jsonl",
+        "sha256": "524cdfa74e1d5a13da3b93cd717630cd3a1e8d5285816f11f216973db57ca1ca"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "group": "getter",
+      "label": "firefox-production-getter",
+      "source": {
+        "path": "getter.test.mjs.txt",
+        "sha256": "1992a5980234741d96c4bf90170070b131a858884a945d8f1fa4c9d260dc909a"
+      },
+      "projected": {
+        "path": "firefox-production-getter/expected.json",
+        "sha256": "c075531b4b34cffa1745c6d0c589ef22cc3ff2de723f3760f0e720911cb1df63"
+      },
+      "rawStandardReport": {
+        "path": "firefox-production-getter/report.raw.json",
+        "sha256": "6b0b11fede3a0a890d165d1adcbc81f29232b275652ca8801cc9e10e41825825"
+      },
+      "rawConsole": {
+        "path": "firefox-production-getter/console.raw.jsonl",
+        "sha256": "720a69056a9b808d5a5f44e9e31849b140f90a4b48415ffcf6aa111b27fbcd23"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "development",
+      "group": "guard",
+      "label": "chromium-development-guard",
+      "source": {
+        "path": "guard.test.mjs.txt",
+        "sha256": "c4c3aad53962263949ef8ac68dba1090b1a624b1c52d94f62104b25a316fd970"
+      },
+      "projected": {
+        "path": "chromium-development-guard/expected.json",
+        "sha256": "d8b5229549af054c330818b9247cc32a476bad5abb9aadfaf33ebe8ede626aa3"
+      },
+      "rawStandardReport": {
+        "path": "chromium-development-guard/report.raw.json",
+        "sha256": "f3690ff4293ad565b24bfb1bc0a300fadd3f39f1f4e14893e04154731b1a3971"
+      },
+      "rawConsole": {
+        "path": "chromium-development-guard/console.raw.jsonl",
+        "sha256": "701bf49a14434492cbafc8809e39a9c89bb92100a63e1e63b1acb43099291f36"
+      },
+      "rawCaseErrors": {
+        "path": "chromium-development-guard/case-errors.raw.jsonl",
+        "sha256": "e80333c703f5e4d735f0d6d37223c21a95d186a4da6f8012ea24a30d6a04b81f"
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "production",
+      "group": "guard",
+      "label": "chromium-production-guard",
+      "source": {
+        "path": "guard.test.mjs.txt",
+        "sha256": "c4c3aad53962263949ef8ac68dba1090b1a624b1c52d94f62104b25a316fd970"
+      },
+      "projected": {
+        "path": "chromium-production-guard/expected.json",
+        "sha256": "e76f72cd0c0a6167c2777b8f62d55ce75fc7414823796cd0007a2f78b838e694"
+      },
+      "rawStandardReport": {
+        "path": "chromium-production-guard/report.raw.json",
+        "sha256": "ecbc667b3afc261eb6beda3601a4805e796e623841e3c179ecca3618cba61ad3"
+      },
+      "rawConsole": {
+        "path": "chromium-production-guard/console.raw.jsonl",
+        "sha256": "51af423ebe79bf8f56adbc941b748460e266e8858cc47bf904af00dc98c2493f"
+      },
+      "rawCaseErrors": {
+        "path": "chromium-production-guard/case-errors.raw.jsonl",
+        "sha256": "faa35151bea3aae9abc671f2d4c01d57e986af40b780ba0a9736bee9862ef5f1"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "development",
+      "group": "guard",
+      "label": "firefox-development-guard",
+      "source": {
+        "path": "guard.test.mjs.txt",
+        "sha256": "c4c3aad53962263949ef8ac68dba1090b1a624b1c52d94f62104b25a316fd970"
+      },
+      "projected": {
+        "path": "firefox-development-guard/expected.json",
+        "sha256": "b7f0ca4ef82ec696184f0eb201f544f2eba9f32b45dc75d262d3dc6c9042102d"
+      },
+      "rawStandardReport": {
+        "path": "firefox-development-guard/report.raw.json",
+        "sha256": "ae532f1538cad9634906205a14b9318c3787fee2b7e5f884ea778a843200e8ea"
+      },
+      "rawConsole": {
+        "path": "firefox-development-guard/console.raw.jsonl",
+        "sha256": "1a836fe89b5be53930ddd53832861a45b3e9f016d7f2e919babe1ec3731005ad"
+      },
+      "rawCaseErrors": {
+        "path": "firefox-development-guard/case-errors.raw.jsonl",
+        "sha256": "ceb188268a00561ff526d18b4193bae17886e2759b9f5cfc953f7d84da9d0eef"
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "production",
+      "group": "guard",
+      "label": "firefox-production-guard",
+      "source": {
+        "path": "guard.test.mjs.txt",
+        "sha256": "c4c3aad53962263949ef8ac68dba1090b1a624b1c52d94f62104b25a316fd970"
+      },
+      "projected": {
+        "path": "firefox-production-guard/expected.json",
+        "sha256": "d4e8ece82a3c28432fb7af23965567a5361e10a1730d7d8c34dea20f80901384"
+      },
+      "rawStandardReport": {
+        "path": "firefox-production-guard/report.raw.json",
+        "sha256": "26fb0a0f3df04971d17c034a50ced501e427b5b2e3d850e9ab4d5dcedcb6693f"
+      },
+      "rawConsole": {
+        "path": "firefox-production-guard/console.raw.jsonl",
+        "sha256": "1e9d0f58edc4873551112e7c9e4f9d91bd0b12fb27fa1d470d111c2818dae17c"
+      },
+      "rawCaseErrors": {
+        "path": "firefox-production-guard/case-errors.raw.jsonl",
+        "sha256": "78d6f4381fd1a3692faf28ff194e49d95775099639e2e5f32f54695554e2b56e"
+      }
+    }
+  ]
+}

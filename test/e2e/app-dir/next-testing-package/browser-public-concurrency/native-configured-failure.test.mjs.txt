@@ -1,0 +1,21 @@
+import{test}from'vitest'
+const concurrent=true,declared=false,failure=true
+const row=value=>console.log('BROWSER_CONCURRENCY:'+JSON.stringify(value))
+function gate(){let resolve;const promise=new Promise(value=>{resolve=value});return{promise,resolve}}
+const aStarted=gate(),bStarted=gate(),aFinal=gate(),active=new Set()
+const channel=new MessageChannel();channel.port1.onmessage=()=>{aFinal.resolve();channel.port1.close();channel.port2.close()}
+const add=(name,body)=>declared?test.concurrent(name,body):test(name,body)
+const finishCounts=()=>({a:Array.isArray(aContext?.task.onFinished)?aContext.task.onFinished.length:0,b:Array.isArray(bContext?.task.onFinished)?bContext.task.onFinished.length:0})
+let aContext,bContext
+import{page}from'vitest/browser'
+let clicksA=0,clicksB=0
+const makeA=()=>{const element=document.createElement('button');element.textContent='Concurrent owned A';element.onclick=()=>{clicksA++};document.body.append(element)}
+const release=document.createElement('button');release.textContent='Concurrent owned B';release.onclick=()=>{clicksB++;if(concurrent)makeA()};document.body.append(release);if(!concurrent)makeA()
+const aRequested=gate(),bNativeDone=gate()
+add('native A',async context=>{
+ aContext=context;active.add('A');row({phase:'A-start',active:[...active]});aStarted.resolve()
+ try{if(concurrent)await bStarted.promise;const action=page.getByRole('button',{name:'Concurrent owned A',exact:true}).click({timeout:2000});const result=Promise.resolve(action);row({phase:'A-requested',active:[...active],finished:finishCounts()});aRequested.resolve();await result;if(concurrent)await bNativeDone.promise;context.expect(clicksA).toBe(1);row({phase:'A-end',clicksA,clicksB,finished:finishCounts()});if(failure){const error=new Error('original native concurrent failure');error.stack='';throw error}}finally{active.delete('A');channel.port2.postMessage('A-final')}
+})
+add('native B',async context=>{
+ bContext=context;active.add('B');row({phase:'B-start',active:[...active]});bStarted.resolve();if(concurrent)await aRequested.promise;row({phase:'B-before-native',finished:finishCounts()});await page.getByRole('button',{name:'Concurrent owned B',exact:true}).click({timeout:2000});context.expect(clicksB).toBe(1);row({phase:'B-native-done',clicksA,clicksB,finished:finishCounts()});bNativeDone.resolve();if(concurrent)await aFinal.promise;row({phase:'B-end',clicksA,clicksB});active.delete('B')
+})

@@ -1,0 +1,11 @@
+import React, { useEffect, useState } from 'react'
+import styles from './counter.module.css'
+
+export function Counter({ label, onEffect }) {
+  const [count, setCount] = useState(0)
+  useEffect(() => {
+    onEffect('mount')
+    return () => onEffect('unmount')
+  }, [onEffect])
+  return <button className={styles.counter} onClick={() => setCount(value => value + 1)}>{label}: {count}</button>
+}

@@ -1,0 +1,88 @@
+{
+  "totals": {
+    "numTotalTests": 3,
+    "numPassedTests": 3,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0
+  },
+  "cases": [
+    {
+      "name": "an extracted named injector ignores its receiver",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "held injection observes mutations in the same open file",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "named injection shares the file provided values",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "files": [
+    {
+      "file": "provided.test.mjs",
+      "status": "passed",
+      "message": ""
+    }
+  ],
+  "rows": [
+    {
+      "name": "collection",
+      "raw": {
+        "answer": 42,
+        "label": "browser-data",
+        "enabled": false,
+        "empty": null,
+        "missingUndefined": true,
+        "count": 1
+      }
+    },
+    {
+      "name": "beforeAll",
+      "raw": {
+        "sameObject": true,
+        "count": 1
+      }
+    },
+    {
+      "name": "first",
+      "raw": {
+        "answer": 42,
+        "sameObject": true,
+        "sameHookObject": true,
+        "list": ["a", "b"],
+        "missingUndefined": true
+      }
+    },
+    {
+      "name": "second",
+      "raw": {
+        "count": 2,
+        "sameObject": true,
+        "missingUndefined": true
+      }
+    },
+    {
+      "name": "extracted",
+      "raw": {
+        "count": 2,
+        "sameObject": true,
+        "answer": 42
+      }
+    },
+    {
+      "name": "afterAll",
+      "raw": {
+        "sameObject": true,
+        "count": 2,
+        "heldSameObject": true
+      }
+    }
+  ],
+  "streams": ["stdout", "stdout", "stdout", "stdout", "stdout", "stdout"]
+}

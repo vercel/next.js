@@ -1,0 +1,3 @@
+import{test}from'./shared.mjs'
+const row=value=>console.log('BROWSER_FIXTURE:'+JSON.stringify(value))
+for(const suffix of ['A','B']){const name="b"+' '+suffix;test(name,({resource,expect})=>{expect(resource.closed).toBe(false);resource.history.push(name);row({phase:'body',name,id:resource.id,history:[...resource.history]});expect(resource.history.at(-1)).toBe(name)})}

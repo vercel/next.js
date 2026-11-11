@@ -1,0 +1,16 @@
+{
+  "full": "<section\n  data-testid=\"dom-utility\"\n>\n  <h2>\n    Hello \n    <span>\n      world\n    </span>\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+  "compact": "<section data-testid=\"dom-utility\"><h2>Hello <span>world</span></h2><button aria-label=\"Save\">go</button></section>",
+  "clippedDefaults": "<section\n  data-testid=\"...",
+  "compactWithDefaults": "<section data-testid=\"dom-utility\"><h2 … /><button … /></section>",
+  "button": "<button\n  aria-label=\"Save\"\n>\n  go\n</button>",
+  "environmentFull": "<div>\n  <span>\n    debug environment boundary content\n  </span>\n</div>",
+  "environmentLimited": "<div>\n  ...",
+  "getterDefaults": "<div>\n  configured getter boundary\n</div>",
+  "effectsHost": "<section\n  data-testid=\"effect-root\"\n>\n  <span>\n    middle node\n  </span>\n  <button>\n    last node\n  </button>\n</section>",
+  "effectsButton": "<button>\n  last node\n</button>",
+  "effectsMiddle": "<span>\n  middle node\n</span>",
+  "inheritedDefaults": "<section\n  data-test...",
+  "selectorError": "Cannot find element with locator: authored locator\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go\n\nHTML:\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+  "zeroHtmlError": "Cannot find element with locator: getByRole('button', { name: 'Missing' })\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go\n\nHTML:\n"
+}

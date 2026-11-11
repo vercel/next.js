@@ -1,0 +1,66 @@
+import React, { createContext, useContext, useState } from 'react'
+import { expect, test } from 'vitest'
+import { page, userEvent } from 'vitest/browser'
+import { cleanup, render, renderHook } from 'vitest-browser-react'
+import { Counter } from './Counter.jsx'
+
+const record = (name, row) => console.log('RENDERING_RAW ' + JSON.stringify({ name, row }))
+
+test('published React Browser helper renders rerenders and unmounts actual client components', async () => {
+  const effects = []
+  const onEffect = value => effects.push(value)
+  const view = await render(React.createElement(Counter, { label: 'Helper', onEffect }))
+  await expect.element(view.getByRole('button', { name: 'Helper: 0' })).toBeVisible()
+  await userEvent.click(view.getByRole('button', { name: 'Helper: 0' }))
+  await expect.element(view.getByRole('button', { name: 'Helper: 1' })).toBeVisible()
+  await view.rerender(React.createElement(Counter, { label: 'Rerendered', onEffect }))
+  await expect.element(view.getByRole('button', { name: 'Rerendered: 1' })).toBeVisible()
+  const button = view.container.querySelector('button')
+  const text = button.textContent
+  const color = getComputedStyle(button).color
+  expect(color).toBe('rgb(23, 45, 67)')
+  await view.unmount()
+  expect(effects).toEqual(['mount', 'unmount'])
+  expect(button.isConnected).toBe(false)
+  record('helper-component', { text, color, effects, connectedAfterUnmount: button.isConnected })
+})
+
+test('published Browser page render supports providers fragments and component cleanup', async () => {
+  expect(document.querySelector('button')).toBeNull()
+  const Context = createContext('missing')
+  const Wrapper = ({ children }) => React.createElement(Context.Provider, { value: 'provided' }, children)
+  const Child = () => React.createElement('button', null, useContext(Context))
+  const view = await page.render(React.createElement(Child), { wrapper: Wrapper })
+  await expect.element(view.getByRole('button', { name: 'provided' })).toBeVisible()
+  const text = view.asFragment().textContent
+  expect(text).toBe('provided')
+  await cleanup()
+  expect(document.querySelector('button')).toBeNull()
+  record('helper-provider', { text, remainingButtons: document.querySelectorAll('button').length })
+})
+
+test('published Browser renderHook exposes committed hook state and its own act helper', async () => {
+  const view = await renderHook(() => useState(3))
+  await expect.poll(() => view.result.current?.[0]).toBe(3)
+  await view.act(() => view.result.current[1](value => value + 2))
+  await expect.poll(() => view.result.current?.[0]).toBe(5)
+  const count = view.result.current[0]
+  await view.unmount()
+  record('helper-hook', { count, remainingButtons: document.querySelectorAll('button').length })
+})
+
+test('helper-rendered locators compose intersections and DOM ordered unions before native input', async () => {
+  const clicks = []
+  const view = await render(React.createElement('section', null,
+    React.createElement('button', { title: 'one', onClick: event => clicks.push(['One', event.isTrusted]) }, 'One'),
+    React.createElement('button', { title: 'two', onClick: event => clicks.push(['Two', event.isTrusted]) }, 'Two')))
+  const one = view.getByRole('button', { name: 'One' }).and(view.getByTitle('one'))
+  const union = view.getByRole('button', { name: 'Two' }).or(view.getByTitle('one'))
+  await expect.element(one).toHaveTextContent('One')
+  const ordered = union.elements().map(element => element.textContent)
+  expect(ordered).toEqual(['One', 'Two'])
+  expect(() => union.element()).toThrow()
+  await userEvent.click(union.first())
+  expect(clicks).toEqual([['One', true]])
+  record('helper-locators', { ordered, clicks })
+})

@@ -1,0 +1,77 @@
+{
+  "totals": {
+    "numTotalTests": 4,
+    "numPassedTests": 4,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "cases": [
+    {
+      "name": "inherits project time and selected timer methods",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "merges a partial call override with the project selection and loop limit",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "replaces the project toFake array while retaining the configured time",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "inherits native cancellation and permits an explicit per-call override",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "observations": {
+    "project-defaults": {
+      "fluent": true,
+      "atInstall": 1234,
+      "calls": [1244],
+      "now": 1244,
+      "pendingBefore": 1,
+      "pendingAfter": 0,
+      "timeoutFaked": true,
+      "intervalUnchanged": true,
+      "restored": true
+    },
+    "partial-override": {
+      "atInstall": 2345,
+      "calls": [2345, 2346, 2347],
+      "error": {
+        "name": "Error",
+        "message": "Aborting after running 3 timers, assuming an infinite loop!"
+      },
+      "pendingAfter": 1,
+      "timeoutFaked": true,
+      "intervalUnchanged": true
+    },
+    "array-override": {
+      "fluent": true,
+      "now": 1234,
+      "fake": true,
+      "dateReplaced": true,
+      "timeoutUnchanged": true,
+      "intervalUnchanged": true,
+      "count": 0
+    },
+    "native-cancellation": {
+      "rows": [
+        {
+          "override": "project",
+          "calls": 0,
+          "fake": true
+        },
+        {
+          "override": false,
+          "calls": 1,
+          "fake": true
+        }
+      ]
+    }
+  }
+}

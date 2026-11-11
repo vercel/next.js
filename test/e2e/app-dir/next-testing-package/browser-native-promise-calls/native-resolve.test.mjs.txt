@@ -1,0 +1,12 @@
+import{test,beforeAll,afterAll}from'vitest'
+import{page}from'vitest/browser'
+const row=fields=>console.log('BROWSER_HOOK_SEQUENCE:'+JSON.stringify(fields))
+let target,clicks=0
+beforeAll(()=>{target=document.createElement('button');target.textContent='Native resolve target';target.onclick=()=>{clicks++};document.body.append(target)})
+afterAll(()=>target.remove())
+test('direct native Promise resolve starts the SDK action exactly once',async()=>{
+ const action=page.getByRole('button',{name:'Native resolve target',exact:true}).click()
+ const promise=Promise.resolve(action),same=Promise.resolve(promise)===promise
+ await promise
+ row({group:'resolve',same,clicks,native:promise instanceof Promise,constructor:promise.constructor===Promise,prototype:Object.getPrototypeOf(promise)===Promise.prototype,ownNames:Object.getOwnPropertyNames(promise),ownSymbols:Object.getOwnPropertySymbols(promise).map(String)})
+})

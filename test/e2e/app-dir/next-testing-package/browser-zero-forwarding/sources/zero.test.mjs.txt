@@ -1,0 +1,23 @@
+import { test, afterAll } from 'vitest'
+const rows = []
+const row = (stage, value = {}) => rows.push({ stage, ...value })
+const failure = new Error('zero body synchronous retry control')
+failure.stack = ''
+let attempt = 0
+test('zero deadline preserves synchronous throw retry', { timeout: 0, retry: 1 }, context => {
+  row('retry-body', { attempt: ++attempt })
+  if (attempt === 1) throw failure
+  context.onTestFinished(() => row('retry-finished'), 0)
+})
+test('zero deadline reads the actual public queue', { timeout: 0 }, context => {
+  const queue = [Promise.resolve(7)]
+  let reads = 0
+  Object.defineProperty(context.task, 'promises', { configurable: true, get() { row('queue-get', { reads: ++reads }); return queue } })
+  context.onTestFinished(() => row('queue-finished', { reads }), 0)
+  row('queue-body')
+})
+test('zero deadline preserves raw body return observation', { timeout: 0 }, () => {
+  row('return-body')
+  return { get then() { row('body-then-get'); return undefined } }
+})
+afterAll(() => console.log('TASK_ZERO_BODY:' + JSON.stringify(rows)))

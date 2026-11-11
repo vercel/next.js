@@ -1,0 +1,159 @@
+import { test, expect } from 'vitest'
+import { page, utils } from 'vitest/browser'
+import expected from './dom-formatting.expected.json'
+const create = () => {
+  const host = document.createElement('section')
+  host.innerHTML = '<h2>Hello</h2><button aria-label="Save">go</button>'
+  document.body.append(host)
+  return host
+}
+
+test('preserves actual selector callback receiver before formatting', () => {
+  const host = create(),
+    calls = [],
+    selector = {
+      asLocator() {
+        calls.push({ kind: 'selector', receiver: this === selector })
+        return 'authored locator'
+      },
+    }
+  try {
+    utils.configurePrettyDOM({ highlight: false })
+    const error = utils.getElementError(selector, host)
+    expect(error instanceof Error).toBe(true)
+    expect(error.name).toBe('VitestBrowserElementError')
+    expect(calls).toEqual([{ kind: 'selector', receiver: true }])
+    expect(error.message).toBe(expected.selectorError)
+  } finally {
+    utils.configurePrettyDOM(undefined)
+    host.remove()
+  }
+})
+
+test('preserves the actual selector getter error before container or defaults reads', () => {
+  const host = create(),
+    calls = [],
+    error = new Error('authored-selector-getter'),
+    selector = {
+      get asLocator() {
+        calls.push('selector')
+        throw error
+      },
+    }
+  Object.defineProperty(host, 'outerHTML', {
+    configurable: true,
+    get() {
+      calls.push('outerHTML')
+      throw new Error('unexpected container read')
+    },
+  })
+  try {
+    utils.configurePrettyDOM({
+      get maxLength() {
+        calls.push('maxLength')
+        return 50
+      },
+    })
+    let caught
+    try {
+      utils.getElementError(selector, host)
+    } catch (e) {
+      caught = e
+    }
+    expect(caught).toBe(error)
+    expect(calls).toEqual(['selector'])
+  } finally {
+    utils.configurePrettyDOM(undefined)
+    host.remove()
+  }
+})
+
+test('formats actual ARIA before the authored HTML-default getter error', () => {
+  const host = create(),
+    button = host.querySelector('button'),
+    native = button.getAttribute,
+    calls = [],
+    error = new Error('authored-default-getter')
+  button.getAttribute = function (...args) {
+    calls.push('attribute:' + args[0])
+    return Reflect.apply(native, this, args)
+  }
+  try {
+    utils.configurePrettyDOM({
+      get maxLength() {
+        calls.push('maxLength')
+        throw error
+      },
+    })
+    let caught
+    try {
+      utils.getElementError('css=.missing', host)
+    } catch (e) {
+      caught = e
+    }
+    expect(caught).toBe(error)
+    expect(calls.indexOf('maxLength')).toBeGreaterThan(0)
+    expect(calls.some((v) => v.startsWith('attribute:'))).toBe(true)
+  } finally {
+    utils.configurePrettyDOM(undefined)
+    host.remove()
+  }
+})
+
+test('preserves actual container getter errors after ARIA and default selection', () => {
+  const host = create(),
+    calls = [],
+    error = new Error('authored-container-getter')
+  Object.defineProperty(host, 'outerHTML', {
+    configurable: true,
+    get() {
+      calls.push('outerHTML')
+      throw error
+    },
+  })
+  try {
+    utils.configurePrettyDOM({
+      get maxLength() {
+        calls.push('maxLength')
+        return 50
+      },
+    })
+    let caught
+    try {
+      utils.getElementError('css=.missing', host)
+    } catch (e) {
+      caught = e
+    }
+    expect(caught).toBe(error)
+    expect(calls).toEqual(['maxLength', 'outerHTML'])
+  } finally {
+    utils.configurePrettyDOM(undefined)
+    host.remove()
+  }
+})
+
+test('zero configured HTML retains real ARIA and avoids actual HTML getter reads', () => {
+  const host = create(),
+    calls = []
+  Object.defineProperty(host, 'outerHTML', {
+    configurable: true,
+    get() {
+      calls.push('outerHTML')
+      throw new Error('unexpected zero HTML read')
+    },
+  })
+  try {
+    utils.configurePrettyDOM({ maxLength: 0 })
+    const error = utils.getElementError(
+      page.getByRole('button', { name: 'Missing' }),
+      host
+    )
+    expect(error instanceof Error).toBe(true)
+    expect(calls).toEqual([])
+    expect(error.name).toBe('VitestBrowserElementError')
+    expect(error.message).toBe(expected.zeroHtmlError)
+  } finally {
+    utils.configurePrettyDOM(undefined)
+    host.remove()
+  }
+})

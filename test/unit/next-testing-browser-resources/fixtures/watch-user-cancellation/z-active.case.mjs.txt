@@ -1,0 +1,1 @@
+import{test,expect}from'vitest';import{gate}from'./subject.mjs';test('active owned HTTP body',async()=>{console.log('ACTIVE_FETCH_START '+gate);const response=await fetch(__NEXT_TEST_CONTROL_ORIGIN__+'/'+gate);expect(await response.text()).toBe('released');console.log('ACTIVE_FETCH_END '+gate)})

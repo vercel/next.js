@@ -3410,6 +3410,377 @@ describe('compiler-owned actual module cache reset', () => {
   })
 })
 
+describe('immutable client ownership admission', () => {
+  // This host runs saved client code in Node. Its real engine predicate stands
+  // in for the separately tested Chromium startup capability, before imports.
+  const { isPromise } = require('node:util/types')
+  const nativePrototype = Promise.prototype
+  const getPrototype = Object.getPrototypeOf
+  const brand = Symbol.for('next.test.engine-promise-brand.v1')
+  const previousBrand = Object.getOwnPropertyDescriptor(globalThis, brand)
+  // Node's EventTarget/MessagePort prototypes are shared across Jest realms.
+  // Saved browser code patches them, so restore the host before another suite
+  // starts a real Node loader worker with its internal event-listener options.
+  const hostProperties: [object, PropertyKey][] = [
+    [Promise.prototype, 'then'],
+    [EventTarget.prototype, 'addEventListener'],
+    [EventTarget.prototype, 'removeEventListener'],
+    [MessagePort.prototype, 'postMessage'],
+    [MessagePort.prototype, 'close'],
+    [MessagePort.prototype, 'onmessage'],
+    ...[
+      'MessageChannel',
+      'structuredClone',
+      'setTimeout',
+      'setInterval',
+      'queueMicrotask',
+      'requestAnimationFrame',
+      'requestIdleCallback',
+    ].map((key): [object, PropertyKey] => [globalThis, key]),
+  ]
+  const hostDescriptors = hostProperties.map(([target, key]) => ({
+    target,
+    key,
+    descriptor: Object.getOwnPropertyDescriptor(target, key),
+  }))
+  Object.defineProperty(globalThis, brand, {
+    configurable: true,
+    value(value: unknown) {
+      return !isPromise(value)
+        ? 0
+        : getPrototype(value) === nativePrototype
+          ? 1
+          : 2
+    },
+  })
+  afterAll(() => {
+    for (const { target, key, descriptor } of hostDescriptors.reverse()) {
+      if (descriptor) Object.defineProperty(target, key, descriptor)
+      else Reflect.deleteProperty(target, key)
+    }
+    if (previousBrand) Object.defineProperty(globalThis, brand, previousBrand)
+    else delete (globalThis as { [key: symbol]: unknown })[brand]
+  })
+  const {
+    validateSynchronousClient,
+  } = require('next/dist/experimental/testing/client/validate')
+  it.each(['retry', 'fixture', 'concurrent'])(
+    'rejects unsupported %s before executing any body',
+    async (mode) => {
+      const c = createCollector('client'),
+        body = jest.fn()
+      if (mode === 'retry') c.api.test('retry', { retry: { count: 1 } }, body)
+      else if (mode === 'fixture')
+        c.api.test.extend('value', body)('fixture', body)
+      else c.api.test.concurrent('concurrent', body)
+      await c.settle()
+      expect(() => validateSynchronousClient(c.close(), {})).toThrow(
+        /Browser Mode/
+      )
+      expect(body).not.toHaveBeenCalled()
+    }
+  )
+  it('declares serial case identities before executing any body', async () => {
+    const c = createCollector('client'),
+      body = jest.fn()
+    c.api.test('one', body)
+    c.api.describe('nested', () => c.api.test('two', body))
+    await c.settle()
+    expect(validateSynchronousClient(c.close(), {})).toEqual([
+      { type: 'suite', id: 'client', parentId: null, name: '', mode: 'run' },
+      {
+        type: 'test',
+        id: 'client/0',
+        parentId: 'client',
+        name: 'one',
+        mode: 'run',
+      },
+      {
+        type: 'suite',
+        id: 'client/1',
+        parentId: 'client',
+        name: 'nested',
+        mode: 'run',
+      },
+      {
+        type: 'test',
+        id: 'client/1/0',
+        parentId: 'client/1',
+        name: 'two',
+        mode: 'run',
+      },
+    ])
+    expect(body).not.toHaveBeenCalled()
+  })
+  it('admits asynchronous bodies, suite hooks and case cleanup within one owned page', async () => {
+    const c = createCollector('client')
+    c.api.beforeAll(async () => {})
+    c.api.afterAll(async () => {})
+    c.api.aroundAll(async (run) => run())
+    c.api.aroundEach(async (run) => run())
+    c.api.beforeEach(async () => {})
+    c.api.afterEach(async () => {})
+    c.api.test('async', async () => {})
+    await c.settle()
+    expect(() => validateSynchronousClient(c.close(), {})).not.toThrow()
+  })
+  it('uses its startup classifier after authored Symbol and prototype builtins change', async () => {
+    const client = require('next/dist/experimental/testing/client/async-context')
+    const helper = require('next/dist/experimental/testing/client/async-helper')
+    const attempt = client.createAsyncScope(
+      {
+        kind: 'attempt',
+        context: { id: 'builtin-mutation', name: 'mutation' },
+      },
+      () => {}
+    )
+    const symbolFor = Symbol.for
+    const getPrototypeOf = Object.getPrototypeOf
+    const observed: string[] = []
+    Symbol.for = (key) => {
+      observed.push(`Symbol.for:${key}`)
+      throw new Error('authored Symbol.for must not run')
+    }
+    Object.getPrototypeOf = () => {
+      observed.push('Object.getPrototypeOf')
+      throw new Error('authored getPrototypeOf must not run')
+    }
+    let result: unknown
+    try {
+      result = await attempt.run(() =>
+        helper._(function* () {
+          yield 0
+          const native = yield Promise.resolve(42)
+          class Subclass extends Promise<unknown> {}
+          const subclass = new Subclass((resolve) => resolve('subclass'))
+          Object.defineProperty(subclass, 'then', {
+            value(resolve: (value: string) => void) {
+              client.assertBrowserApiScope('assertion')
+              resolve('subclass')
+            },
+          })
+          return [native, yield subclass]
+        })()
+      )
+    } finally {
+      Symbol.for = symbolFor
+      Object.getPrototypeOf = getPrototypeOf
+      attempt.close()
+    }
+    expect(result).toEqual([42, 'subclass'])
+    expect(observed).toEqual([])
+  })
+  async function checkDeclarationSlots(client, collection) {
+    const { createDeclarationStorage } = client
+    const helper = require('next/dist/experimental/testing/client/async-helper')
+    const suites = createDeclarationStorage()
+    const nested = createDeclarationStorage()
+    let releaseFirst!: () => void, releaseSecond!: () => void
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve
+    })
+    const secondGate = new Promise<void>((resolve) => {
+      releaseSecond = resolve
+    })
+    const trace: string[] = []
+    let retained: ReturnType<typeof client.captureContinuationScope>
+    const first = collection.run(() =>
+      suites.run('first', () =>
+        helper._(function* () {
+          retained = client.captureContinuationScope()
+          trace.push(suites.getStore())
+          yield firstGate
+          trace.push(suites.getStore())
+          nested.run(42, () => {
+            expect(suites.getStore()).toBe('first')
+            expect(nested.getStore()).toBe(42)
+          })
+          expect(nested.getStore()).toBeUndefined()
+        })()
+      )
+    )
+    const second = collection.run(() =>
+      suites.run('second', () =>
+        helper._(function* () {
+          trace.push(suites.getStore())
+          yield secondGate
+          trace.push(suites.getStore())
+        })()
+      )
+    )
+    expect(suites.getStore()).toBeUndefined()
+    expect(collection.run(() => suites.getStore())).toBeUndefined()
+    releaseSecond()
+    await second
+    releaseFirst()
+    await first
+    expect(trace).toEqual(['first', 'second', 'second', 'first'])
+    return retained!
+  }
+  it('retains Promise origins and refuses collection work during a live attempt', async () => {
+    const client = require('next/dist/experimental/testing/client/async-context')
+    const failures: Error[] = []
+    const collection = client.createAsyncScope(
+      { kind: 'collection', context: { id: 'file', name: 'file' } },
+      (error: Error) => failures.push(error)
+    )
+    const retainedDeclarations = await checkDeclarationSlots(client, collection)
+    expect(failures).toEqual([])
+    let resume!: () => void
+    const helper = require('next/dist/experimental/testing/client/async-helper')
+    const pending = new Promise<void>((resolve) => {
+      resume = resolve
+    })
+    const intercepted = jest.fn(() => {
+      throw new Error('compiler continuation used an overridden then')
+    })
+    Object.defineProperty(pending, 'then', { value: intercepted })
+    const work = collection.run(() =>
+      helper._(function* () {
+        yield pending
+        expect(() => client.assertBrowserApiScope('assertion')).toThrow(
+          /closed collection/
+        )
+      })()
+    )
+    collection.close()
+    expect(() => retainedDeclarations.run(() => {})).not.toThrow()
+    expect(() =>
+      retainedDeclarations.run(() =>
+        client.createDeclarationStorage().getStore()
+      )
+    ).toThrow('Late Browser Mode API access from closed collection scope')
+    expect(failures).toHaveLength(1)
+    const owner = { id: 'attempt', name: 'case' }
+    const attempt = client.createAsyncScope(
+      { kind: 'attempt', context: owner },
+      (error: Error) => failures.push(error)
+    )
+    await attempt.run(() =>
+      Promise.resolve().then(() => {
+        client.invokeClientAttempt(owner, () =>
+          client.assertBrowserApiScope('assertion')
+        )
+        resume()
+        return work.then(() => {
+          expect(client.getOriginatingAttempt()).toBe(owner)
+          client.assertInternalAttemptOwner('attempt')
+        })
+      })
+    )
+    expect(intercepted).not.toHaveBeenCalled()
+    const observed: string[] = []
+    const thenable = {
+      get then() {
+        observed.push(`getter:${client.getOriginatingAttempt()?.id}`)
+        return (resolve: (value: string) => void) => {
+          observed.push(`then:${client.getOriginatingAttempt()?.id}`)
+          resolve('assimilated')
+        }
+      },
+    }
+    const abrupt = Promise.resolve('native')
+    Object.defineProperty(abrupt, 'constructor', {
+      get() {
+        throw new Error('constructor getter')
+      },
+    })
+    let finalReads = 0
+    const finalValue = {
+      get then() {
+        finalReads++
+        expect(client.getOriginatingAttempt()).toBe(owner)
+        return undefined
+      },
+    }
+    await expect(
+      attempt.run(() =>
+        helper._(function* () {
+          yield 0
+          expect(yield thenable).toBe('assimilated')
+          try {
+            yield abrupt
+            throw new Error('await lost its rejection')
+          } catch (error) {
+            expect(error.message).toBe('constructor getter')
+            expect(client.getOriginatingAttempt()).toBe(owner)
+          }
+          return finalValue
+        })()
+      )
+    ).resolves.toBe(finalValue)
+    expect(finalReads).toBe(1)
+    expect(observed).toEqual(['getter:attempt', 'then:attempt'])
+    const order: string[] = []
+    const ordered = attempt.run(() =>
+      helper._(function* () {
+        order.push('start')
+        yield Promise.resolve()
+        order.push('after-await')
+      })()
+    )
+    queueMicrotask(() => order.push('microtask'))
+    await ordered
+    expect(order).toEqual(['start', 'after-await', 'microtask'])
+    const returns: string[] = []
+    const returned = attempt.run(() =>
+      // eslint-disable-next-line require-yield -- Immediate return exercises async helper settlement before the next microtask.
+      helper._(function* () {
+        return 1
+      })()
+    )
+    returned.then(() => returns.push('fulfilled'))
+    queueMicrotask(() => returns.push('microtask'))
+    await returned
+    expect(returns).toEqual(['fulfilled', 'microtask'])
+    const AsyncGenerator =
+      require('next/dist/experimental/testing/client/async-generator')._
+    const generator = new AsyncGenerator(
+      (function* () {
+        expect(client.getOriginatingAttempt()).toBe(owner)
+        yield thenable
+        expect(client.getOriginatingAttempt()).toBe(owner)
+        return 'done'
+      })()
+    )
+    await expect(attempt.run(() => generator.next())).resolves.toEqual({
+      value: 'assimilated',
+      done: false,
+    })
+    await expect(attempt.run(() => generator.next())).resolves.toEqual({
+      value: 'done',
+      done: true,
+    })
+    const OverloadYield =
+      require('next/dist/experimental/testing/client/overload-yield')._
+    const ordinaryValue = { v: 'ordinary value', k: 0 }
+    const marked = new AsyncGenerator(
+      (function* () {
+        const value = yield new OverloadYield(Promise.resolve(1), 0)
+        expect(client.getOriginatingAttempt()).toBe(owner)
+        yield value
+        yield ordinaryValue
+      })()
+    )
+    await expect(attempt.run(() => marked.next())).resolves.toEqual({
+      value: 1,
+      done: false,
+    })
+    expect((await attempt.run(() => marked.next())).value).toBe(ordinaryValue)
+    await expect(attempt.run(() => marked.next())).resolves.toEqual({
+      value: undefined,
+      done: true,
+    })
+    const retained = attempt.run(() => client.captureAsyncScope())
+    attempt.close()
+    expect(() =>
+      retained.run(() => client.assertBrowserApiScope('assertion'))
+    ).toThrow(/closed attempt/)
+    expect(() => client.assertInternalAttemptOwner('attempt')).toThrow()
+    expect(failures).toHaveLength(3)
+  })
+})
+
 it('keeps internal raw Chai facts and original owner admission in a fresh process', async () => {
   await runFreshProcessTest(
     [
@@ -3457,6 +3828,273 @@ it('runs the literal Chai namespace contract and guarded plugin graph in a fresh
     }
   )
 }, 30000)
+
+// Synthetic creator-cell components exercise real private Scope state. The
+// local source fixture transform is the retained prototype, not the native pass;
+// native admission/placement is covered separately by Rust and browser controls.
+describe('Browser creator-cell ownership components', () => {
+  const vm = require('node:vm')
+  const ts = require('typescript')
+  const { transform } = require('./creator-scope-transform.cjs')
+  const hostProperties: [object, PropertyKey][] = [
+    [Promise.prototype, 'then'],
+    [EventTarget.prototype, 'addEventListener'],
+    [EventTarget.prototype, 'removeEventListener'],
+    [MessagePort.prototype, 'postMessage'],
+    [MessagePort.prototype, 'close'],
+    [MessagePort.prototype, 'onmessage'],
+    ...[
+      'MessageChannel',
+      'structuredClone',
+      'setTimeout',
+      'setInterval',
+      'queueMicrotask',
+      'requestAnimationFrame',
+      'requestIdleCallback',
+    ].map((key): [object, PropertyKey] => [globalThis, key]),
+  ]
+  let saved: {
+    target: object
+    key: PropertyKey
+    descriptor: PropertyDescriptor | undefined
+  }[] = []
+  let client: any
+  beforeAll(() => {
+    saved = hostProperties.map(([target, key]) => ({
+      target,
+      key,
+      descriptor: Object.getOwnPropertyDescriptor(target, key),
+    }))
+    client = require('next/dist/experimental/testing/client/async-context')
+  })
+  afterAll(() => {
+    for (const { target, key, descriptor } of saved.reverse()) {
+      if (descriptor) Object.defineProperty(target, key, descriptor)
+      else Reflect.deleteProperty(target, key)
+    }
+  })
+  const late: Error[] = []
+  function scope(id: string) {
+    const context = { id, name: id }
+    return {
+      context,
+      scope: client.createAsyncScope(
+        { kind: 'attempt', context },
+        (error: Error) => late.push(error)
+      ),
+    }
+  }
+  function moduleOf(source: string) {
+    const result = transform(source, '/component.mjs')
+    const output = ts.transpileModule(result.code, {
+      compilerOptions: {
+        target: ts.ScriptTarget.ES2020,
+        module: ts.ModuleKind.CommonJS,
+      },
+    }).outputText
+    const module = { exports: {} as any }
+    const run = vm.runInThisContext(
+      '(function(require,module,exports){' + output + '\n})'
+    )
+    run(
+      (id: string) => {
+        if (id === 'next/dist/experimental/testing/client/async-context')
+          return client
+        throw new Error('Unexpected component dependency ' + id)
+      },
+      module,
+      module.exports
+    )
+    return { exports: module.exports, result }
+  }
+  it('module NOOP neither creates authority nor erases an existing qualified caller', () => {
+    const token = client.captureCreatorScope(),
+      b = scope('noop-B')
+    const leave = client.enterCreatorScope(token)
+    expect(() => client.assertBrowserApiScope('assertion')).toThrow(
+      /requires its originating/
+    )
+    leave()
+    b.scope.run(() => {
+      const restore = client.enterCreatorScope(token)
+      try {
+        expect(client.getOriginatingAttempt()).toBe(b.context)
+      } finally {
+        restore()
+      }
+      expect(client.getOriginatingAttempt()).toBe(b.context)
+    })
+    b.scope.close()
+  })
+  it('creator A always wins over B and exact prior B is restored', () => {
+    const a = scope('live-A'),
+      b = scope('live-B'),
+      token = a.scope.run(() => client.captureCreatorScope())
+    b.scope.run(() => {
+      const restore = client.enterCreatorScope(token)
+      try {
+        expect(client.getOriginatingAttempt()).toBe(a.context)
+      } finally {
+        restore()
+      }
+      expect(client.getOriginatingAttempt()).toBe(b.context)
+    })
+    a.scope.close()
+    b.scope.close()
+  })
+  it('closed A remains a tombstone inside B while harmless work can settle', () => {
+    const a = scope('closed-A'),
+      b = scope('closed-B'),
+      token = a.scope.run(() => client.captureCreatorScope())
+    a.scope.close()
+    b.scope.run(() => {
+      const restore = client.enterCreatorScope(token)
+      try {
+        expect(42).toBe(42)
+        expect(() => client.assertBrowserApiScope('assertion')).toThrow(
+          /closed attempt scope "closed-A"/
+        )
+      } finally {
+        restore()
+      }
+      expect(client.getOriginatingAttempt()).toBe(b.context)
+    })
+    expect(late.at(-1)?.message).toContain('closed-A')
+    b.scope.close()
+  })
+  it('unknown, copied and hostile cells cannot select a scope or run getters', () => {
+    const a = scope('forged-A'),
+      original = a.scope.run(() => client.captureCreatorScope())
+    let traps = 0
+    const hostile = new Proxy(
+      {},
+      {
+        get() {
+          traps++
+          throw new Error('getter')
+        },
+        getPrototypeOf() {
+          traps++
+          throw new Error('prototype')
+        },
+      }
+    )
+    ;[{}, { ...original }, hostile].forEach((token) => {
+      expect(() => client.enterCreatorScope(token)).toThrow(
+        'Invalid Browser Mode creator cell'
+      )
+    })
+    expect(traps).toBe(0)
+    a.scope.close()
+  })
+  it('returned original functions preserve this, arguments, constructability, name and length', () => {
+    const a = scope('function-A'),
+      b = scope('function-B')
+    const { exports: m } = moduleOf(
+      `export function make(read) { return function named(first, ...rest) { return [read(), this, arguments.length, first, rest, new.target]; } }`
+    )
+    const fn = a.scope.run(() => m.make(() => client.getOriginatingAttempt())),
+      receiver = {}
+    expect(fn.name).toBe('named')
+    expect(fn.length).toBe(1)
+    expect(Object.hasOwn(fn, 'prototype')).toBe(true)
+    b.scope.run(() => {
+      const result = fn.call(receiver, 7, 8)
+      expect(result).toEqual([a.context, receiver, 2, 7, [8], undefined])
+      expect(client.getOriginatingAttempt()).toBe(b.context)
+    })
+    const constructed = new fn(1)
+    expect(constructed[5]).toBe(fn)
+    a.scope.close()
+    b.scope.close()
+  })
+  it('class method keeps HomeObject/super, method name/length and nonconstructability', () => {
+    const a = scope('class-A'),
+      b = scope('class-B')
+    const { exports: m } = moduleOf(
+      `export function make(read) { class Base { value(x) { return [this, x]; } } class Sub extends Base { value(x) { return [read(), super.value(x)]; } } return Sub; }`
+    )
+    const Sub = a.scope.run(() => m.make(() => client.getOriginatingAttempt())),
+      receiver = new Sub(),
+      method = Sub.prototype.value
+    expect(method.name).toBe('value')
+    expect(method.length).toBe(1)
+    expect(Object.hasOwn(method, 'prototype')).toBe(false)
+    expect(() => new method()).toThrow(TypeError)
+    b.scope.run(() => {
+      expect(receiver.value(9)).toEqual([a.context, [receiver, 9]])
+      expect(client.getOriginatingAttempt()).toBe(b.context)
+    })
+    a.scope.close()
+    b.scope.close()
+  })
+  it('class computed keys and getter body run once without extra property reads', () => {
+    const a = scope('key-A')
+    const trace: string[] = []
+    const { exports: m } = moduleOf(
+      `export function make(key, read) { class Value { get [key()]() { return read(); } } return Value; }`
+    )
+    const Value = a.scope.run(() =>
+      m.make(
+        () => {
+          trace.push('key')
+          return 'answer'
+        },
+        () => {
+          trace.push('body')
+          return client.getOriginatingAttempt()
+        }
+      )
+    )
+    expect(trace).toEqual(['key'])
+    expect(new Value().answer).toBe(a.context)
+    expect(trace).toEqual(['key', 'body'])
+    a.scope.close()
+  })
+  it('generated finally restores B after original abrupt completion and reentrancy', () => {
+    const a = scope('throw-A'),
+      b = scope('throw-B'),
+      reason = new Error('original reason')
+    const { exports: m } = moduleOf(
+      `export function make(run) { return function () { return run(); } }`
+    )
+    const fn = a.scope.run(() =>
+      m.make(() => {
+        expect(client.getOriginatingAttempt()).toBe(a.context)
+        throw reason
+      })
+    )
+    b.scope.run(() => {
+      expect(() => fn()).toThrow(reason)
+      expect(client.getOriginatingAttempt()).toBe(b.context)
+    })
+    a.scope.close()
+    b.scope.close()
+  })
+  it('unbraced returns create distinct cells on each actual evaluation', () => {
+    const a = scope('repeat-A'),
+      b = scope('repeat-B'),
+      c = scope('repeat-C')
+    const { exports: m } = moduleOf(
+      `export function make(yes, read) { if (yes) return function () { return read(); }; return null; }`
+    )
+    const first = a.scope.run(() =>
+        m.make(true, () => client.getOriginatingAttempt())
+      ),
+      second = b.scope.run(() =>
+        m.make(true, () => client.getOriginatingAttempt())
+      )
+    expect(first).not.toBe(second)
+    c.scope.run(() => {
+      expect(first()).toBe(a.context)
+      expect(second()).toBe(b.context)
+      expect(client.getOriginatingAttempt()).toBe(c.context)
+    })
+    a.scope.close()
+    b.scope.close()
+    c.scope.close()
+  })
+})
 
 it('runs literal upstream hidden Chai helpers with original construction ownership in a fresh process', async () => {
   await runFreshProcessTest(
@@ -3537,6 +4175,84 @@ it('matches genuine Chai static setting aliases in a fresh process', async () =>
     }
   )
 }, 30000)
+
+it('preserves Browser Chai namespace and should helper parity in a fresh process', async () => {
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      '--import',
+      require.resolve('tsx'),
+      join(__dirname, 'chai-browser-integration.ts'),
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_CHAI145_EVIDENCE',
+      prefix: 'next-chai-browser-',
+      tests: 1,
+    }
+  )
+}, 30000)
+
+it('preserves Browser global stubs and fluent vi parity in a fresh process', async () => {
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      '--import',
+      require.resolve('tsx'),
+      join(__dirname, 'browser-vi-integration.ts'),
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_CHAI145_EVIDENCE',
+      prefix: 'next-browser-vi-',
+      tests: 1,
+    }
+  )
+}, 30000)
+
+describe('Browser importMock file materialization', () => {
+  it('completes the genuine automocker from a closed test in its live afterAll file', async () => {
+    const promise = promisify(execFile)(
+      process.execPath,
+      [
+        '--import',
+        require.resolve('tsx'),
+        '--test-reporter=tap',
+        join(__dirname, 'browser-import-mock-integration.ts'),
+      ],
+      { env: { ...process.env }, maxBuffer: 8 * 1024 * 1024 }
+    )
+    let failure: any
+    const { stdout, stderr } = await promise.catch((error) => {
+      failure = error
+      return { stdout: error.stdout ?? '', stderr: error.stderr ?? '' }
+    })
+    const evidence = process.env.NEXT_TESTING_BROWSER_IMPORT_MOCK_EVIDENCE
+    if (evidence) {
+      const fs = require('node:fs') as typeof import('node:fs')
+      fs.mkdirSync(evidence, { recursive: true })
+      fs.writeFileSync(
+        join(evidence, 'browser-import-mock-child.json'),
+        JSON.stringify(
+          {
+            pid: promise.child.pid,
+            stdout,
+            stderr,
+            failure: failure && {
+              message: failure.message,
+              code: failure.code,
+              signal: failure.signal,
+            },
+          },
+          null,
+          2
+        )
+      )
+    }
+    if (failure) throw failure
+    expect(stdout).toContain('# pass 1')
+    expect(stdout).toContain('# fail 0')
+    expect(stderr).not.toContain('Error:')
+  })
+})
 
 it('records supplied tasks across completion with resolved artifact identity and retained files', async () => {
   const fs = await import('node:fs/promises')
@@ -3729,6 +4445,74 @@ it('resolves Node artifact attachment paths from cwd without an explicit project
     await fs.rm(directory, { recursive: true, force: true })
   }
 })
+it.each(['node', 'browser'] as const)(
+  'preserves actual %s real-wait and assertion lifetime behavior in a fresh process',
+  async (mode) => {
+    await runFreshProcessTest(
+      [
+        '--test-reporter=tap',
+        join(__dirname, 'browser-real-waits-integration.cjs'),
+        mode,
+      ],
+      {
+        evidenceEnv: 'NEXT_TESTING_WAITS_EVIDENCE',
+        prefix: `next-real-waits-${mode}-`,
+        tests: 1,
+        saveErrorMessage: 'Could not retain real-wait child output',
+      }
+    )
+  },
+  30000
+)
+
+it.each(['node', 'browser', 'browser-late'] as const)(
+  'preserves actual %s fake-clock algorithms and public fluent identity in a fresh process',
+  async (mode) => {
+    await runFreshProcessTest(
+      [
+        '--test-reporter=tap',
+        join(__dirname, 'browser-fake-timers-integration.cjs'),
+        mode,
+      ],
+      {
+        evidenceEnv: 'NEXT_TESTING_FAKE_TIMERS_EVIDENCE',
+        prefix: `next-fake-timers-${mode}-`,
+        tests: 1,
+        saveErrorMessage: 'Could not retain fake-timer child output',
+      }
+    )
+  },
+  30000
+)
+
+it('preserves genuine project fake-timer defaults and shallow per-call overrides in the Browser backend', async () => {
+  const mode = 'browser-project'
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      join(__dirname, 'browser-fake-timers-integration.cjs'),
+      mode,
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_FAKE_TIMERS_EVIDENCE',
+      prefix: `next-fake-timers-${mode}-`,
+      tests: 1,
+      saveErrorMessage: 'Could not retain fake-timer child output',
+    }
+  )
+}, 30000)
+
+it('reports real lifecycle durations across retained fake Date', async () => {
+  await runFreshProcessTest(
+    ['--test-reporter=tap', join(__dirname, 'lifecycle-real-clock.cjs')],
+    {
+      evidenceEnv: 'NEXT_TESTING_REAL_CLOCK_EVIDENCE',
+      prefix: 'next-lifecycle-clock-',
+      tests: 1,
+      saveErrorMessage: 'Could not retain lifecycle-clock child output',
+    }
+  )
+}, 30000)
 
 it('preserves the pinned zero-argument public next-timer surface', async () => {
   type PublicVi = typeof import('next/dist/experimental/testing/vitest').vi
@@ -3749,6 +4533,121 @@ it('preserves the pinned zero-argument public next-timer surface', async () => {
     }
   )
 }, 30000)
+
+it('preserves genuine mutable Browser clock configuration and saved project defaults', async () => {
+  type PublicVi = typeof import('next/dist/experimental/testing/vitest').vi
+  const voidConfigMethods: [
+    ReturnType<PublicVi['setConfig']> extends void ? true : false,
+    ReturnType<PublicVi['resetConfig']> extends void ? true : false,
+  ] = [true, true]
+  expect(voidConfigMethods).toEqual([true, true])
+  const mode = 'browser-runtime-config'
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      join(__dirname, 'browser-fake-timers-integration.cjs'),
+      mode,
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_FAKE_TIMERS_EVIDENCE',
+      prefix: `next-fake-timers-${mode}-`,
+      tests: 1,
+      saveErrorMessage: 'Could not retain fake-timer child output',
+    }
+  )
+}, 30000)
+
+test('publishes one test context through actual Node and Browser callback platforms', async () => {
+  const { mkdirSync, writeFileSync } = require('node:fs')
+  for (const mode of ['node', 'browser']) {
+    let stdout = ''
+    let stderr = ''
+    let failure: unknown
+    try {
+      ;({ stdout, stderr } = await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'browser-context-identity.cjs'),
+          mode,
+          require.resolve('next/dist/experimental/testing/runner'),
+        ],
+        { timeout: 20_000 }
+      ))
+    } catch (error) {
+      failure = error
+      stdout = (error as { stdout?: string }).stdout ?? ''
+      stderr = (error as { stderr?: string }).stderr ?? ''
+    }
+    const capture = process.env.NEXT_TESTING_BROWSER_CONTEXT_IDENTITY_EVIDENCE
+    if (capture) {
+      mkdirSync(capture, { recursive: true })
+      writeFileSync(join(capture, mode + '.stdout'), stdout)
+      writeFileSync(join(capture, mode + '.stderr'), stderr)
+    }
+    expect(stderr).toBe('')
+    if (failure) throw failure
+    const observed = JSON.parse(stdout.trim().split('\n').at(-1)!)
+    expect(observed.mode).toBe(mode)
+    expect(observed.groups).toHaveLength(3)
+    expect(observed.identityRecords).toBe(8)
+    expect(observed.cleaned).toBe(true)
+  }
+})
+
+it('uses the actual Browser env backend for literal subjects and preserves Node process.env behavior', () => {
+  const { spawnSync } =
+    require('node:child_process') as typeof import('node:child_process')
+  const { mkdirSync, writeFileSync } =
+    require('node:fs') as typeof import('node:fs')
+  for (const mode of ['node', 'browser']) {
+    const args = [
+      ...(mode === 'browser'
+        ? ['--experimental-vm-modules', '--disable-warning=ExperimentalWarning']
+        : []),
+      join(__dirname, 'browser-env-stubs.cjs'),
+      mode,
+    ]
+    const result = spawnSync(process.execPath, args, {
+      encoding: 'utf8',
+      timeout: 20_000,
+    })
+    const capture = process.env.NEXT_TESTING_BROWSER_ENV_EVIDENCE
+    if (capture) {
+      mkdirSync(capture, { recursive: true })
+      writeFileSync(join(capture, mode + '.stdout'), result.stdout ?? '')
+      writeFileSync(join(capture, mode + '.stderr'), result.stderr ?? '')
+      writeFileSync(
+        join(capture, mode + '.json'),
+        JSON.stringify({
+          pid: result.pid,
+          status: result.status,
+          signal: result.signal,
+          error: result.error?.message,
+        })
+      )
+    }
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.status).toBe(0)
+    expect(result.stderr).toBe('')
+    const observed = JSON.parse(result.stdout.trim().split('\n').at(-1)!)
+    if (mode === 'browser') {
+      expect(observed.rows).toEqual(
+        require('./browser-env-stubs-pristine.json').rows
+      )
+      expect(observed.completed).toEqual(
+        require('./browser-env-stubs-pristine.json').cases.map(
+          (test: any) => test.fullName
+        )
+      )
+      expect(observed.cleaned).toBe(true)
+    } else
+      expect(observed).toMatchObject({
+        originalNodeStringConversion: true,
+        restored: true,
+      })
+  }
+}, 45000)
 
 it('injects fixture values at registration with nullish fallback and lazy cleanup', async () => {
   const data = { label: 'provided' }
@@ -7153,6 +8052,31 @@ it('keeps private async assertion ownership separate from the public selected Ta
   ])
 }, 35000)
 
+it('admits actual Browser public task queues without Node body settlement authority', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [
+      join(__dirname, 'browser-public-capability.cjs'),
+      require.resolve('next/dist/experimental/testing/runner'),
+    ],
+    { timeout: 15000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    facts: [false, true].map((capture) => ({
+      capture,
+      stages: ['body', 'context', 'manual'],
+      privateCapability: {
+        awaitPublic: false,
+        consumePublic: true,
+        finished: true,
+        nativeBody: false,
+      },
+      nodeBodySettlementAbsent: true,
+    })),
+  })
+}, 20000)
+
 it('preserves public assertion state through suite hooks and resets each actual try', async () => {
   const { stdout, stderr } = await promisify(execFile)(
     process.execPath,
@@ -7425,6 +8349,43 @@ it('exposes the actual console selection Task privately while retaining metadata
     suiteTask: true,
     metadataOnly: true,
     selectionCleared: true,
+  })
+}, 20000)
+
+it('binds Browser native command queries and settlement to their exact original operation without reopening public scopes', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'browser-command-admission.cjs')],
+    { timeout: 15000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    exactPromiseIdentity: true,
+    trueClosedOriginRetained: true,
+    publicGuardsStillClosed: true,
+    callerRestored: true,
+    originalErrorAndAbortIdentity: true,
+    noNewAdmissionAfterClose: true,
+    hooksRemainLegacy: true,
+  })
+}, 20000)
+
+it('adopts private SDK actions at their actual static Promise call scopes without changing native intrinsics', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'promise-static-call.cjs')],
+    { timeout: 15000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    actualPrivateScopes: true,
+    constructorCarriesNoScope: true,
+    exactInterleavedStartAndSettlementOrigins: true,
+    nativeQueueIndependentOfAuthoredReplacement: true,
+    mutatedThenDelegatesOriginalIdentity: true,
+    rawGetterIdentityAndSingleRead: true,
+    closedScopeStillRefused: true,
+    staticIntrinsicsUnchanged: true,
   })
 }, 20000)
 
@@ -7771,6 +8732,53 @@ describe('normal SuiteAPI failed-load ownership', () => {
     },
     20000
   )
+})
+
+it.each([
+  'load-error',
+  'load-undefined',
+  'load-false',
+  'load-async',
+  'setup-error',
+  'mock-error',
+  'declaration-error',
+])(
+  'wraps only the actual Browser module import and preserves its original cause: %s',
+  async (group) => {
+    const { stdout } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'browser-suite-import-errors.cjs'),
+        join(__dirname, '../../..'),
+        group,
+      ],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(JSON.parse(stdout)).toEqual({
+      group,
+      exactLoadWrapperAndCause: true,
+      otherCollectionPhasesUnwrapped: true,
+      actualErrorFieldsHeld: true,
+      originalCleanupJoined: true,
+    })
+  },
+  20000
+)
+
+describe('empty suite lifecycle completion', () => {
+  it('runs every empty suite lifecycle before assigning local no-test failures', async () => {
+    const { stdout } = await promisify(execFile)(process.execPath, [
+      join(__dirname, 'empty-suite-lifecycle.cjs'),
+    ])
+    expect(JSON.parse(stdout)).toMatchObject({
+      scenarios: 16,
+      pathCases: 6,
+      emptySuitesPreserveDescendants: true,
+      hooksAndOriginalFailuresPreserved: true,
+      passWithNoTestsIncludesNestedSuites: true,
+      projectRelativeNoTestsFileName: true,
+    })
+  })
 })
 
 it.each([

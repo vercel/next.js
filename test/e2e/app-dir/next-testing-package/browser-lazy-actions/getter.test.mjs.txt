@@ -1,0 +1,14 @@
+import { test, beforeAll, afterAll } from 'vitest'
+import { page, userEvent } from 'vitest/browser'
+const row = (phase, fields = {}) => console.log('BROWSER_HOOK_SEQUENCE:' + JSON.stringify({phase, ...fields}))
+let button, input, clicks = 0, keydowns = 0
+beforeAll(() => { button = document.createElement('button'); button.textContent = 'Serial target'; button.id = 'serial-target'; button.onclick = () => { clicks++ }; input = document.createElement('input'); input.id = 'serial-input'; input.onkeydown = () => { keydowns++ }; document.body.append(button,input) })
+afterAll(() => { button.remove(); input.remove() })
+test('serial original getter failure', async context => {
+  const descriptor = Object.getOwnPropertyDescriptor(context.task,'onFinished')
+  const original = new Error('original serial getter'); original.stack = ''
+  Object.defineProperty(context.task,'onFinished',{configurable:true,get() { row('getter'); throw original }})
+  try { page.getByRole('button',{name:'Serial target',exact:true}).click(); row('unexpected-created') } catch(error) { row('constructor-error',{same:error===original,name:error.name,message:error.message,clicks}) } finally { if(descriptor)Object.defineProperty(context.task,'onFinished',descriptor);else delete context.task.onFinished }
+  await page.getByRole('button',{name:'Serial target',exact:true}).click()
+  row('after-restoration',{clicks})
+})

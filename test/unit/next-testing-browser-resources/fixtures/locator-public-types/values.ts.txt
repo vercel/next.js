@@ -1,0 +1,3 @@
+import { page } from 'vitest/browser'
+const locator = page.getByTestId('target-id')
+const value = locator.serialize(); const selector: string = value.selector; const name: string = value.locator; const string: string = locator.asLocator(); const text: string = locator.toString();

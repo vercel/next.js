@@ -1,0 +1,83 @@
+import { afterAll, expect, test, vi } from 'vitest'
+
+const originalDate = globalThis.Date
+const originalTimeout = globalThis.setTimeout
+const callbacks = []
+let contextA
+let localA
+
+function record(id, data) {
+  console.log('BROWSER_FAKE_TIMERS_RAW ' + JSON.stringify({ id, ...data }))
+}
+
+function state(localB) {
+  return {
+    common: expect.getState().assertionCalls,
+    localA: localA.getState().assertionCalls,
+    ...(localB ? { localB: localB.getState().assertionCalls } : {}),
+    commonName: expect.getState().currentTestName,
+    localName: localA.getState().currentTestName,
+  }
+}
+
+afterAll(() => {
+  const before = state()
+  vi.useRealTimers()
+  record('cleanup', {
+    before,
+    fake: vi.isFakeTimers(),
+    dateRestored: globalThis.Date === originalDate,
+    timeoutRestored: globalThis.setTimeout === originalTimeout,
+  })
+})
+
+test('A schedules fake callbacks with its held local expectation', (context) => {
+  contextA = context
+  localA = context.expect
+  localA.assertions(1)
+  localA('A').toBe('A')
+  vi.useFakeTimers({ now: 8000 })
+  setTimeout(() => {
+    const before = state()
+    expect('sync common').toBe('sync common')
+    localA('sync local').toBe('sync local')
+    callbacks.push('sync')
+    record('sync-callback', { before, after: state(), now: Date.now() })
+  }, 5)
+  setTimeout(async () => {
+    const before = state()
+    await Promise.resolve()
+    expect('async common').toBe('async common')
+    localA('async local').toBe('async local')
+    callbacks.push('async')
+    record('async-callback', { before, after: state(), now: Date.now() })
+  }, 10)
+  record('scheduled-A', {
+    state: state(),
+    now: Date.now(),
+    pending: vi.getTimerCount(),
+    fake: vi.isFakeTimers(),
+  })
+})
+
+test('B advances retained fake callbacks with live common and held local state', async (context) => {
+  expect.assertions(4)
+  expect('B').toBe('B')
+  const localB = context.expect
+  const before = state(localB)
+  const syncReturn = vi.advanceTimersByTime(5) === vi
+  const asyncReturn = (await vi.advanceTimersByTimeAsync(5)) === vi
+  record('advanced-B', {
+    before,
+    after: state(localB),
+    callbacks,
+    syncReturn,
+    asyncReturn,
+    differentContext: context !== contextA,
+    differentLocal: localB !== localA,
+    now: Date.now(),
+    pending: vi.getTimerCount(),
+    fake: vi.isFakeTimers(),
+  })
+  expect(callbacks).toEqual(['sync', 'async'])
+})

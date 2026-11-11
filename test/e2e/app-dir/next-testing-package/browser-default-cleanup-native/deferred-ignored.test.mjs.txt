@@ -1,0 +1,92 @@
+import { test as base } from 'vitest'
+import { page, userEvent } from 'vitest/browser'
+const row = value => console.log('BROWSER_NATIVE_FIXTURE:' + JSON.stringify(value))
+const variant = "final-repeated-captured"
+let reads = 0, calls = 0
+const pendingKind = 'ignored'
+let pendingNative, pendingTarget, pendingClicks = 0
+function installPendingTarget() {
+  if (pendingTarget) return
+  pendingTarget = document.createElement('button')
+  pendingTarget.dataset.testid = 'late-cleanup-target'
+  pendingTarget.textContent = 'late cleanup target'
+  pendingTarget.onclick = event => row({ phase: 'pending-native-effect', clicks: ++pendingClicks, shift: event.shiftKey, alt: event.altKey })
+  document.body.append(pendingTarget)
+  row({ phase: 'pending-native-target-ready' })
+}
+const failure = new Error('public default cleanup rejected')
+failure.name = 'DefaultCleanupWrapperError'
+failure.stack = ''
+document.addEventListener('keyup', event => row({ phase: 'native-keyup', key: event.key }))
+function install() {
+  const captured = userEvent.cleanup
+  Object.defineProperty(userEvent, 'cleanup', {
+    configurable: true,
+    get() {
+      row({ phase: 'method-read', read: ++reads, receiver: this === userEvent })
+      return function () {
+        const call = ++calls
+        row({ phase: 'method-call', call, receiver: this === userEvent })
+        return (async () => {
+          for (const originalCall of [1, 2]) {
+            row({ phase: 'captured-call', call, originalCall })
+            await Reflect.apply(captured, this, [])
+            row({ phase: 'captured-settled', call, originalCall })
+          }
+          row({ phase: 'pending-native-request', targetMissing: document.querySelector('[data-testid=late-cleanup-target]') === null })
+          pendingNative = page.getByTestId('late-cleanup-target').click()
+          pendingNative.then(() => row({ phase: 'pending-native-fulfilled' }), error => row({ phase: 'pending-native-rejected', name: error.name, message: error.message }))
+          if (pendingKind === 'awaited') {
+            queueMicrotask(installPendingTarget)
+            await pendingNative
+            row({ phase: 'pending-native-awaited' })
+          } else row({ phase: 'callback-returning-with-pending' })
+          if ((variant === 'final-repeated-captured' && call === 1) || (variant === 'before-attempt-rejection' && call === 2)) throw failure
+        })()
+      }
+    },
+  })
+}
+if (variant !== 'final-repeated-captured') install()
+const test = base.extend({ workerA: [async ({}, use) => {
+  const button = document.createElement('button')
+  button.dataset.testid = 'workerA'
+  button.textContent = 'workerA'
+  let clicks = 0, shifts = [], alts = []
+  button.onclick = event => { clicks++; shifts.push(event.shiftKey); alts.push(event.altKey) }
+  document.body.append(button)
+  row({ phase: 'setup' })
+  const resource = { click: () => page.getByTestId('workerA').click(), data: () => ({ clicks, shifts, alts }) }
+  await use(resource)
+  row({ phase: 'worker-start' })
+  if (pendingKind === 'ignored') installPendingTarget()
+  await pendingNative
+  row({ phase: 'worker-joined-pending-native', pendingClicks })
+  await resource.click()
+  row({ phase: 'worker-end', ...resource.data() })
+  pendingTarget.remove()
+  button.remove()
+}, { scope: 'worker' }] })
+test('public cleanup A', async ({ workerA, expect }) => {
+  row({ phase: 'A' })
+  expect(workerA.data().clicks).toBe(0)
+  if (variant !== 'final-repeated-captured') await userEvent.keyboard('{Shift>}')
+})
+test('public cleanup B', async ({ workerA, expect }) => {
+  row({ phase: 'B' })
+  if (variant === 'all-stages-success') {
+    await workerA.click()
+    row({ phase: 'B-click', ...workerA.data() })
+    expect(workerA.data().shifts).toEqual([false])
+    await userEvent.keyboard('{Alt>}')
+  } else if (variant === 'final-repeated-captured') {
+    await userEvent.keyboard('{Shift>}')
+    install()
+  }
+})
+if (variant === 'all-stages-success') test('public cleanup C', async ({ workerA, expect }) => {
+  row({ phase: 'C' })
+  await workerA.click()
+  row({ phase: 'C-click', ...workerA.data() })
+  expect(workerA.data().alts).toEqual([false, false])
+})

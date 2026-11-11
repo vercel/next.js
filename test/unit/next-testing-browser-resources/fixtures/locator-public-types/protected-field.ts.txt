@@ -1,0 +1,3 @@
+import { page } from 'vitest/browser'
+const locator = page.getByTestId('target-id')
+const value = locator._pwLocator; const other = locator._pwSelector;

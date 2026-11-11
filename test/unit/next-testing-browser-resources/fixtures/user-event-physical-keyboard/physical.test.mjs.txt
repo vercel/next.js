@@ -1,0 +1,266 @@
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import { flushSync } from 'react-dom'
+import { test, expect, beforeEach, afterEach } from 'vitest'
+import { userEvent } from 'vitest/browser'
+let mounted
+beforeEach(() => {
+  document.body.innerHTML = ''
+  mounted = undefined
+})
+afterEach(async () => {
+  await userEvent.cleanup()
+  if (mounted) flushSync(() => mounted.unmount())
+})
+function input() {
+  const el = document.createElement('input')
+  el.setAttribute('aria-label', 'entry')
+  document.body.append(el)
+  el.focus()
+  return el
+}
+function trace(el) {
+  const events = []
+  for (const type of ['keydown', 'keyup', 'input'])
+    el.addEventListener(type, (event) =>
+      events.push({
+        type,
+        key: event.key,
+        code: event.code,
+        location: event.location,
+        shift: event.shiftKey,
+        ctrl: event.ctrlKey,
+        alt: event.altKey,
+        meta: event.metaKey,
+        repeat: event.repeat,
+        trusted: event.isTrusted,
+      })
+    )
+  return events
+}
+function assertNativeEvents(events) {
+  expect(events.length).toBeGreaterThan(0)
+  expect(events.every((event) => event.trusted)).toBe(true)
+}
+test('physical alphanumeric descriptors retain key code and native text', async () => {
+  const el = input(),
+    events = trace(el)
+  await userEvent.keyboard('[KeyA][Digit1][keyB][digit2]')
+  assertNativeEvents(events)
+  expect(el.value).toBe('a1b2')
+  expect(
+    events
+      .filter((e) => e.type === 'keydown')
+      .map((e) => [e.key, e.code, e.location])
+  ).toEqual([
+    ['a', 'KeyA', 0],
+    ['1', 'Digit1', 0],
+    ['b', 'KeyB', 0],
+    ['2', 'Digit2', 0],
+  ])
+  expect([el.selectionStart, el.selectionEnd]).toEqual([4, 4])
+})
+test('physical left modifier holds across keyboard calls and releases', async () => {
+  const el = input(),
+    events = trace(el)
+  await userEvent.keyboard('[ShiftLeft>]')
+  await userEvent.keyboard('[KeyA]')
+  await userEvent.keyboard('[/ShiftLeft][KeyB]')
+  assertNativeEvents(events)
+  expect(el.value).toBe('ab')
+  expect(
+    events
+      .filter((e) => e.type === 'keydown' && e.key !== 'Shift')
+      .map((e) => e.shift)
+  ).toEqual([true, false])
+})
+test('physical right modifier follows the reference native key identity', async () => {
+  const el = input(),
+    events = trace(el)
+  await userEvent.keyboard('[ShiftRight>][KeyC][/ShiftRight]')
+  assertNativeEvents(events)
+  expect(el.value).toBe('c')
+  expect(
+    events
+      .filter((e) => e.key === 'Shift')
+      .map((e) => [e.type, e.code, e.location])
+  ).toEqual([
+    ['keydown', 'ShiftLeft', 1],
+    ['keyup', 'ShiftLeft', 1],
+  ])
+})
+test('physical editing descriptors preserve repeated native events and selection', async () => {
+  const el = input(),
+    events = trace(el)
+  await userEvent.type(el, 'abcd')
+  await userEvent.keyboard('[ArrowLeft>2/][Backspace>2/]')
+  assertNativeEvents(events)
+  expect(el.value).toBe('cd')
+  expect(
+    events
+      .filter(
+        (e) =>
+          e.type === 'keydown' && ['ArrowLeft', 'Backspace'].includes(e.key)
+      )
+      .map((e) => [e.key, e.repeat])
+  ).toEqual([
+    ['ArrowLeft', false],
+    ['ArrowLeft', true],
+    ['Backspace', false],
+    ['Backspace', true],
+  ])
+  expect([el.selectionStart, el.selectionEnd]).toEqual([0, 0])
+})
+test('physical and named descriptors share actual held key ownership', async () => {
+  const el = input(),
+    events = trace(el)
+  await userEvent.keyboard('{Shift>}')
+  await userEvent.keyboard('[KeyA][/ShiftRight]')
+  await userEvent.keyboard('{b>}')
+  await userEvent.keyboard('[/KeyB][KeyC]')
+  assertNativeEvents(events)
+  expect(el.value).toBe('abc')
+  expect(
+    events
+      .filter((e) => e.type === 'keydown' && e.key !== 'Shift')
+      .map((e) => e.shift)
+  ).toEqual([true, false, false])
+})
+test('setup keyboard owners retain independent physical-key cleanup state', async () => {
+  const el = input(),
+    events = trace(el),
+    first = userEvent.setup(),
+    second = userEvent.setup()
+  try {
+    await first.keyboard('[ShiftLeft>]')
+    await second.keyboard('[KeyA]')
+    await second.cleanup()
+    await first.cleanup()
+    await second.keyboard('[KeyB]')
+    assertNativeEvents(events)
+    expect(el.value).toBe('ab')
+    expect(
+      events
+        .filter((e) => e.type === 'keydown' && e.key !== 'Shift')
+        .map((e) => e.shift)
+    ).toEqual([true, false])
+  } finally {
+    await first.cleanup()
+    await second.cleanup()
+  }
+})
+test('physical brackets and space preserve escaped literal bracket input', async () => {
+  const el = input(),
+    events = trace(el)
+  await userEvent.keyboard('[[KeyA][BracketLeft][BracketRight][Space]')
+  assertNativeEvents(events)
+  expect(el.value).toBe('[KeyA][] ')
+})
+test('physical keyboard native input commits a controlled React render', async () => {
+  function App() {
+    const [value, setValue] = React.useState('')
+    return React.createElement(
+      'div',
+      null,
+      React.createElement('input', {
+        'aria-label': 'entry',
+        value,
+        onChange: (event) => setValue(event.target.value),
+      }),
+      React.createElement('output', null, value)
+    )
+  }
+  const container = document.createElement('div')
+  document.body.append(container)
+  mounted = createRoot(container)
+  flushSync(() => mounted.render(React.createElement(App)))
+  const el = container.querySelector('input'),
+    events = trace(el)
+  el.focus()
+  await userEvent.keyboard('[KeyA][Digit1][ArrowLeft][KeyB]')
+  assertNativeEvents(events)
+  expect(el.value).toBe('ab1')
+  expect(container.querySelector('output').textContent).toBe('ab1')
+})
+test('physical Control codes retain native modifier identity and named release ownership', async () => {
+  const el = input(),
+    events = trace(el),
+    callBoundaries = []
+  await userEvent.keyboard('[ControlLeft>]')
+  callBoundaries.push(events.length)
+  await userEvent.keyboard('[/ControlRight]')
+  callBoundaries.push(events.length)
+  await userEvent.keyboard('[ControlRight>]')
+  callBoundaries.push(events.length)
+  await userEvent.keyboard('[/ControlLeft]')
+  callBoundaries.push(events.length)
+  await userEvent.keyboard('{Control>}')
+  callBoundaries.push(events.length)
+  await userEvent.keyboard('[/ControlRight]')
+  callBoundaries.push(events.length)
+  assertNativeEvents(events)
+  expect(el.value).toBe('')
+  expect(callBoundaries).toEqual([1, 2, 3, 4, 5, 6])
+  expect(
+    events.map((e) => [e.type, e.key, e.code, e.location, e.ctrl])
+  ).toEqual(
+    Array.from({ length: 3 }, () => [
+      ['keydown', 'Control', 'ControlLeft', 1, true],
+      ['keyup', 'Control', 'ControlLeft', 1, false],
+    ]).flat()
+  )
+})
+test('physical Alt codes retain native modifier identity and named release ownership', async () => {
+  const el = input(),
+    events = trace(el),
+    callBoundaries = []
+  await userEvent.keyboard('[AltLeft>]')
+  callBoundaries.push(events.length)
+  await userEvent.keyboard('[/AltRight]')
+  callBoundaries.push(events.length)
+  await userEvent.keyboard('[AltRight>]')
+  callBoundaries.push(events.length)
+  await userEvent.keyboard('[/AltLeft]')
+  callBoundaries.push(events.length)
+  await userEvent.keyboard('{Alt>}')
+  callBoundaries.push(events.length)
+  await userEvent.keyboard('[/AltRight]')
+  callBoundaries.push(events.length)
+  assertNativeEvents(events)
+  expect(el.value).toBe('')
+  expect(callBoundaries).toEqual([1, 2, 3, 4, 5, 6])
+  expect(events.map((e) => [e.type, e.key, e.code, e.location, e.alt])).toEqual(
+    Array.from({ length: 3 }, () => [
+      ['keydown', 'Alt', 'AltLeft', 1, true],
+      ['keyup', 'Alt', 'AltLeft', 1, false],
+    ]).flat()
+  )
+})
+test('physical Meta codes retain native modifier identity and named release ownership', async () => {
+  const el = input(),
+    events = trace(el),
+    callBoundaries = []
+  await userEvent.keyboard('[MetaLeft>]')
+  callBoundaries.push(events.length)
+  await userEvent.keyboard('[/MetaRight]')
+  callBoundaries.push(events.length)
+  await userEvent.keyboard('[MetaRight>]')
+  callBoundaries.push(events.length)
+  await userEvent.keyboard('[/MetaLeft]')
+  callBoundaries.push(events.length)
+  await userEvent.keyboard('{Meta>}')
+  callBoundaries.push(events.length)
+  await userEvent.keyboard('[/MetaRight]')
+  callBoundaries.push(events.length)
+  assertNativeEvents(events)
+  expect(el.value).toBe('')
+  expect(callBoundaries).toEqual([1, 2, 3, 4, 5, 6])
+  expect(
+    events.map((e) => [e.type, e.key, e.code, e.location, e.meta])
+  ).toEqual(
+    Array.from({ length: 3 }, () => [
+      ['keydown', 'Meta', 'MetaLeft', 1, true],
+      ['keyup', 'Meta', 'MetaLeft', 1, false],
+    ]).flat()
+  )
+})

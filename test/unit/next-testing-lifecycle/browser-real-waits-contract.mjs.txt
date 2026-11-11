@@ -1,0 +1,88 @@
+import { expect, test, vi } from 'vitest'
+
+function observe(name, raw) {
+  console.log('BROWSER_WAITS_RAW ' + JSON.stringify({ case: name, raw }))
+}
+
+test('Browser real waits preserve immediate values and detached calls', async () => {
+  const waitFor = vi.waitFor
+  const waitUntil = vi.waitUntil
+  const value = { ready: true }
+  const values = await Promise.all([undefined, null, false, 0, ''].map(item => waitFor(() => item)))
+  let receiver
+  const returned = await waitUntil(function () { receiver = this; return value })
+  const raw = { kinds: values.map(item => item === undefined ? 'undefined' : item === null ? 'null' : typeof item), values: values.slice(1), objectIdentity: returned === value, callbackReceiverUndefined: receiver === undefined }
+  observe('immediate', raw)
+  expect(raw).toEqual({ kinds: ['undefined', 'null', 'boolean', 'number', 'string'], values: [null, false, 0, ''], objectIdentity: true, callbackReceiverUndefined: true })
+})
+
+test('Browser real waits distinguish retrying throws from falsy values', async () => {
+  let forCalls = 0
+  let untilCalls = 0
+  const marker = new TypeError('retry this callback')
+  const forValue = await vi.waitFor(() => { if (++forCalls < 3) throw marker; return 'for-ready' }, { interval: 1, timeout: 500 })
+  const untilValue = await vi.waitUntil(() => ++untilCalls < 3 ? false : 'until-ready', { interval: 1, timeout: 500 })
+  const raw = { forCalls, untilCalls, forValue, untilValue }
+  observe('retry', raw)
+  expect(raw).toEqual({ forCalls: 3, untilCalls: 3, forValue: 'for-ready', untilValue: 'until-ready' })
+})
+
+test('Browser real waits serialize pending async callbacks', async () => {
+  let calls = 0
+  let active = 0
+  let maximum = 0
+  const marker = new Error('async retry')
+  const value = await vi.waitFor(async () => {
+    const index = ++calls
+    maximum = Math.max(maximum, ++active)
+    await new Promise(resolve => setTimeout(resolve, 5))
+    active--
+    if (index < 3) throw marker
+    return 'async-ready'
+  }, { interval: 1, timeout: 500 })
+  let untilCalls = 0
+  const truthy = await vi.waitUntil(async () => ++untilCalls < 3 ? 0 : 7, { interval: 1, timeout: 500 })
+  const raw = { calls, active, maximum, value, untilCalls, truthy }
+  observe('async', raw)
+  expect(raw).toEqual({ calls: 3, active: 0, maximum: 1, value: 'async-ready', untilCalls: 3, truthy: 7 })
+})
+
+test('Browser real wait errors retain identity and synchronous rejection scheduling', async () => {
+  const forError = new TypeError('retained waitFor error')
+  const untilError = new RangeError('retained waitUntil error')
+  let forCalls = 0
+  let untilCalls = 0
+  let asyncCalls = 0
+  const caughtFor = await vi.waitFor(() => { forCalls++; throw forError }, { interval: 1, timeout: 10 }).catch(error => error)
+  const caughtUntil = await vi.waitUntil(() => { untilCalls++; throw untilError }, { interval: 1, timeout: 100 }).catch(error => error)
+  await vi.waitFor(() => { if (untilCalls < 2) throw new Error('waiting for the originally scheduled retry') }, { interval: 1, timeout: 500 })
+  const caughtAsync = await vi.waitUntil(async () => { asyncCalls++; throw untilError }, { interval: 1, timeout: 100 }).catch(error => error)
+  const raw = { forCalled: forCalls > 0, forIdentity: caughtFor === forError, untilIdentity: caughtUntil === untilError, asyncIdentity: caughtAsync === untilError, untilCalls, asyncCalls, errors: [caughtFor, caughtUntil, caughtAsync].map(error => ({ name: error.name, message: error.message })) }
+  observe('errors', raw)
+  expect(raw).toEqual({ forCalled: true, forIdentity: true, untilIdentity: true, asyncIdentity: true, untilCalls: 2, asyncCalls: 1, errors: [{ name: 'TypeError', message: 'retained waitFor error' }, { name: 'RangeError', message: 'retained waitUntil error' }, { name: 'RangeError', message: 'retained waitUntil error' }] })
+})
+
+test('Browser real waits retain numeric timeout and falsy rejection diagnostics', async () => {
+  let pendingCalls = 0
+  let falsyCalls = 0
+  const pendingError = await vi.waitFor(() => { pendingCalls++; return new Promise(() => {}) }, 10).catch(error => error)
+  const falsyError = await vi.waitUntil(() => { falsyCalls++; return false }, 10).catch(error => error)
+  const zeroError = await vi.waitUntil(() => { throw 0 }, { interval: 1, timeout: 10 }).catch(error => error)
+  const raw = { pendingCalls, falsyCalls, errors: [pendingError, falsyError, zeroError].map(error => ({ name: error.name, message: error.message })) }
+  observe('timeouts', raw)
+  expect(raw).toEqual({ pendingCalls: 1, falsyCalls: 1, errors: [{ name: 'Error', message: 'Timed out in waitFor!' }, { name: 'Error', message: 'Timed out in waitUntil!' }, { name: 'Error', message: 'Timed out in waitUntil!' }] })
+})
+
+test('Browser real waits preserve synchronous thenable callback scheduling', async () => {
+  let forCalls = 0
+  let untilCalls = 0
+  let receivers = 0
+  const forThenable = { then(resolve) { receivers += this === forThenable ? 1 : 0; resolve('for-thenable') } }
+  const untilThenable = { then(resolve) { receivers += this === untilThenable ? 1 : 0; resolve('until-thenable') } }
+  const forValue = await vi.waitFor(() => { forCalls++; return forThenable }, { interval: 1, timeout: 100 })
+  const untilValue = await vi.waitUntil(() => { untilCalls++; return untilThenable }, { interval: 1, timeout: 100 })
+  await vi.waitFor(() => { if (forCalls < 2 || untilCalls < 2) throw new Error('waiting for the original scheduled callbacks') }, { interval: 1, timeout: 500 })
+  const raw = { forValue, untilValue, forCalls, untilCalls, receivers }
+  observe('thenables', raw)
+  expect(raw).toEqual({ forValue: 'for-thenable', untilValue: 'until-thenable', forCalls: 2, untilCalls: 2, receivers: 4 })
+})

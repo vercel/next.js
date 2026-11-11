@@ -1,0 +1,27 @@
+import { test, beforeEach, afterAll } from 'vitest'
+
+const rows = []
+let heldContext
+beforeEach(context => { heldContext = context })
+test('zero deadline callbacks retain their context', { timeout: 0 }, context => {
+  context.expect(context).toBe(heldContext)
+  rows.push({ stage: 'body' })
+  const task = context.task
+  const queue = []
+  let reads = 0
+  Object.defineProperty(task, 'promises', {
+    configurable: true,
+    get() {
+      context.expect(context.task).toBe(task)
+      rows.push({ stage: 'queue-get', reads: ++reads })
+      return queue
+    },
+  })
+  context.onTestFinished(payload => {
+    context.expect(payload).toBe(context)
+    context.expect(payload.task).toBe(task)
+    context.expect(reads).toBe(2)
+    rows.push({ stage: 'finished' })
+  }, 0)
+})
+afterAll(() => console.log('ZERO_NATIVE_GUARD:' + JSON.stringify(rows)))

@@ -1,0 +1,15 @@
+import { recordArtifact, test } from 'vitest'
+test('observes the actual Browser invalid module-task error shape', async ({ task }) => {
+  const input = { type: 'probe:invalid-module', data: { value: 7 } }
+  let error
+  try { await recordArtifact(task.file, input) } catch (actual) { error = actual }
+  console.log('BROWSER_ARTIFACT_RAW ' + JSON.stringify({ name: 'invalid-module-error', raw: {
+    name: error?.name, message: error?.message, constructorName: error?.constructor?.name,
+    constructorIsError: error?.constructor === Error,
+    prototypeIsError: error && Object.getPrototypeOf(error) === Error.prototype,
+    instanceofError: error instanceof Error, keys: error && Object.keys(error),
+    ownKeys: error && Reflect.ownKeys(error).map(String), stackHead: error?.stack?.split('\n')[0],
+    code: error?.code, actual: error?.actual, expected: error?.expected, operator: error?.operator, generatedMessage: error?.generatedMessage,
+    inputLocation: input.location, taskCount: task.artifacts.length,
+  } }))
+})

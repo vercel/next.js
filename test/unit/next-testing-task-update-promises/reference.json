@@ -1,0 +1,439 @@
+{
+  "reference": "Actual pristine published vitest@5.0.4 with official Playwright1.64 Chromium1248; full raw fields retained. Constructor count and timer/frame interleaving are observed, not normalized or universally equated.",
+  "inputs": {
+    "locator-fill-ctor-order.test.mjs.txt": "24aca7f8f846550603f8b202936a8d1f5612a90175b2c237272e7bb082d24831",
+    "locator-fill-resolve-getter.test.mjs.txt": "8cfa97d4487e277fa73ebb2628981cd7125c61184df98550ca4b0a406aac1c16"
+  },
+  "models": {
+    "original": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "variant": "forwarded",
+              "events": 1,
+              "value": "filled",
+              "trace": [
+                {
+                  "event": "serialize",
+                  "receiver": true,
+                  "argsLength": 0
+                },
+                {
+                  "event": "after-create"
+                },
+                {
+                  "event": "constructor"
+                },
+                {
+                  "event": "field:selector",
+                  "receiver": true
+                },
+                {
+                  "event": "field:locator",
+                  "receiver": true
+                }
+              ],
+              "error": null
+            },
+            "task": "reads actual fill descriptor after RPC constructor forwarded"
+          },
+          {
+            "value": {
+              "variant": "veto",
+              "events": 0,
+              "value": "",
+              "trace": [
+                {
+                  "event": "serialize",
+                  "receiver": true,
+                  "argsLength": 0
+                },
+                {
+                  "event": "after-create"
+                },
+                {
+                  "event": "constructor"
+                }
+              ],
+              "error": {
+                "name": "ConstructorVeto",
+                "message": "actual RPC constructor veto",
+                "sameError": false
+              }
+            },
+            "task": "reads actual fill descriptor after RPC constructor veto"
+          }
+        ],
+        "cases": [
+          {
+            "name": "reads actual fill descriptor after RPC constructor forwarded",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "reads actual fill descriptor after RPC constructor veto",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "rawSource": "/Users/timneutkens/projects/next-testing-handoffs/work2-browser-fill-production-20261101/genuine-before26/development"
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "variant": "forwarded",
+              "events": 1,
+              "value": "filled",
+              "trace": [
+                {
+                  "event": "serialize",
+                  "receiver": true,
+                  "argsLength": 0
+                },
+                {
+                  "event": "after-create"
+                },
+                {
+                  "event": "constructor"
+                },
+                {
+                  "event": "field:selector",
+                  "receiver": true
+                },
+                {
+                  "event": "field:locator",
+                  "receiver": true
+                }
+              ],
+              "error": null
+            },
+            "task": "reads actual fill descriptor after RPC constructor forwarded"
+          },
+          {
+            "value": {
+              "variant": "veto",
+              "events": 0,
+              "value": "",
+              "trace": [
+                {
+                  "event": "serialize",
+                  "receiver": true,
+                  "argsLength": 0
+                },
+                {
+                  "event": "after-create"
+                },
+                {
+                  "event": "constructor"
+                }
+              ],
+              "error": {
+                "name": "ConstructorVeto",
+                "message": "actual RPC constructor veto",
+                "sameError": false
+              }
+            },
+            "task": "reads actual fill descriptor after RPC constructor veto"
+          }
+        ],
+        "cases": [
+          {
+            "name": "reads actual fill descriptor after RPC constructor forwarded",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "reads actual fill descriptor after RPC constructor veto",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "rawSource": "/Users/timneutkens/projects/next-testing-handoffs/work2-browser-fill-production-20261101/genuine-before26/production"
+      }
+    },
+    "getter": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "variant": "forwarded",
+              "events": 1,
+              "value": "filled",
+              "trace": [
+                {
+                  "event": "serialize",
+                  "receiver": true,
+                  "argsLength": 0
+                },
+                {
+                  "event": "after-create"
+                },
+                {
+                  "event": "constructor"
+                },
+                {
+                  "event": "field:selector",
+                  "receiver": true
+                },
+                {
+                  "event": "field:locator",
+                  "receiver": true
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 16
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 15
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 14
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 13
+                },
+                {
+                  "event": "constructor"
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 12
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 11
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 10
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 9
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 8
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 7
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 6
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 5
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 4
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 3
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 2
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 1
+                }
+              ],
+              "error": null
+            },
+            "task": "keeps task publication independent of an authored resolve getter forwarded"
+          },
+          {
+            "value": {
+              "variant": "veto",
+              "events": 0,
+              "value": "",
+              "trace": [
+                {
+                  "event": "serialize",
+                  "receiver": true,
+                  "argsLength": 0
+                },
+                {
+                  "event": "after-create"
+                },
+                {
+                  "event": "constructor"
+                }
+              ],
+              "error": {
+                "name": "ConstructorVeto",
+                "message": "actual RPC constructor veto",
+                "sameError": false
+              }
+            },
+            "task": "keeps task publication independent of an authored resolve getter veto"
+          }
+        ],
+        "cases": [
+          {
+            "name": "keeps task publication independent of an authored resolve getter forwarded",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "keeps task publication independent of an authored resolve getter veto",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "rawSource": "/Users/timneutkens/projects/next-testing-handoffs/work2-browser-fill-production-20261101/genuine-resolve-getter-before26/development"
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "variant": "forwarded",
+              "events": 1,
+              "value": "filled",
+              "trace": [
+                {
+                  "event": "serialize",
+                  "receiver": true,
+                  "argsLength": 0
+                },
+                {
+                  "event": "after-create"
+                },
+                {
+                  "event": "constructor"
+                },
+                {
+                  "event": "field:selector",
+                  "receiver": true
+                },
+                {
+                  "event": "field:locator",
+                  "receiver": true
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 16
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 15
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 14
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 13
+                },
+                {
+                  "event": "constructor"
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 12
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 11
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 10
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 9
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 8
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 7
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 6
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 5
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 4
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 3
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 2
+                },
+                {
+                  "event": "actual-frame",
+                  "remaining": 1
+                }
+              ],
+              "error": null
+            },
+            "task": "keeps task publication independent of an authored resolve getter forwarded"
+          },
+          {
+            "value": {
+              "variant": "veto",
+              "events": 0,
+              "value": "",
+              "trace": [
+                {
+                  "event": "serialize",
+                  "receiver": true,
+                  "argsLength": 0
+                },
+                {
+                  "event": "after-create"
+                },
+                {
+                  "event": "constructor"
+                }
+              ],
+              "error": {
+                "name": "ConstructorVeto",
+                "message": "actual RPC constructor veto",
+                "sameError": false
+              }
+            },
+            "task": "keeps task publication independent of an authored resolve getter veto"
+          }
+        ],
+        "cases": [
+          {
+            "name": "keeps task publication independent of an authored resolve getter forwarded",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "keeps task publication independent of an authored resolve getter veto",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "rawSource": "/Users/timneutkens/projects/next-testing-handoffs/work2-browser-fill-production-20261101/genuine-resolve-getter-before26/production"
+      }
+    }
+  }
+}

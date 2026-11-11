@@ -1,0 +1,1165 @@
+{
+  "reference": "Actual pristine published vitest@5.0.4, official Playwright1.64.0/Chromium1248, both modes. Complete authored/native-field, case/module/run/JSON projections retained. No raw stack/platform/general event parity claim.",
+  "inputs": {
+    "input-events.case.mjs.txt": "adb4a1d68c2b0a6700ec1c4baaf823395ca9473a32bd1511bf056e5c18cd23b0",
+    "signal-controls.case.mjs.txt": "2dbe172dca8d29a7cb3d29e1a2864dcddb845b69d852d0062b96013d366259c7"
+  },
+  "models": {
+    "input": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "kind": "input-fields",
+              "rows": [
+                {
+                  "event": "option",
+                  "name": "capture",
+                  "receiver": true
+                },
+                {
+                  "event": "option",
+                  "name": "once",
+                  "receiver": true
+                },
+                {
+                  "event": "option",
+                  "name": "passive",
+                  "receiver": true
+                },
+                {
+                  "event": "option",
+                  "name": "signal",
+                  "receiver": true
+                },
+                {
+                  "event": "function",
+                  "fields": {
+                    "type": "input",
+                    "constructor": "InputEvent",
+                    "receiverIsInput": true,
+                    "targetIsInput": true,
+                    "currentTargetIsInput": true,
+                    "trusted": true,
+                    "bubbles": true,
+                    "cancelable": false,
+                    "composed": true,
+                    "defaultPrevented": false,
+                    "phase": 2,
+                    "data": "first",
+                    "inputType": "insertText",
+                    "composing": false,
+                    "value": "first"
+                  }
+                },
+                {
+                  "event": "method-getter",
+                  "receiver": true
+                },
+                {
+                  "event": "object",
+                  "receiver": true,
+                  "fields": {
+                    "type": "input",
+                    "constructor": "InputEvent",
+                    "receiverIsInput": false,
+                    "targetIsInput": true,
+                    "currentTargetIsInput": true,
+                    "trusted": true,
+                    "bubbles": true,
+                    "cancelable": false,
+                    "composed": true,
+                    "defaultPrevented": false,
+                    "phase": 2,
+                    "data": "first",
+                    "inputType": "insertText",
+                    "composing": false,
+                    "value": "first"
+                  }
+                },
+                {
+                  "event": "property",
+                  "fields": {
+                    "type": "input",
+                    "constructor": "InputEvent",
+                    "receiverIsInput": true,
+                    "targetIsInput": true,
+                    "currentTargetIsInput": true,
+                    "trusted": true,
+                    "bubbles": true,
+                    "cancelable": false,
+                    "composed": true,
+                    "defaultPrevented": false,
+                    "phase": 2,
+                    "data": "first",
+                    "inputType": "insertText",
+                    "composing": false,
+                    "value": "first"
+                  }
+                },
+                {
+                  "event": "function",
+                  "fields": {
+                    "type": "input",
+                    "constructor": "InputEvent",
+                    "receiverIsInput": true,
+                    "targetIsInput": true,
+                    "currentTargetIsInput": true,
+                    "trusted": true,
+                    "bubbles": true,
+                    "cancelable": false,
+                    "composed": true,
+                    "defaultPrevented": false,
+                    "phase": 2,
+                    "data": "second",
+                    "inputType": "insertText",
+                    "composing": false,
+                    "value": "second"
+                  }
+                },
+                {
+                  "event": "method-getter",
+                  "receiver": true
+                },
+                {
+                  "event": "object",
+                  "receiver": true,
+                  "fields": {
+                    "type": "input",
+                    "constructor": "InputEvent",
+                    "receiverIsInput": false,
+                    "targetIsInput": true,
+                    "currentTargetIsInput": true,
+                    "trusted": true,
+                    "bubbles": true,
+                    "cancelable": false,
+                    "composed": true,
+                    "defaultPrevented": false,
+                    "phase": 2,
+                    "data": "second",
+                    "inputType": "insertText",
+                    "composing": false,
+                    "value": "second"
+                  }
+                },
+                {
+                  "event": "property",
+                  "fields": {
+                    "type": "input",
+                    "constructor": "InputEvent",
+                    "receiverIsInput": true,
+                    "targetIsInput": true,
+                    "currentTargetIsInput": true,
+                    "trusted": true,
+                    "bubbles": true,
+                    "cancelable": false,
+                    "composed": true,
+                    "defaultPrevented": false,
+                    "phase": 2,
+                    "data": "second",
+                    "inputType": "insertText",
+                    "composing": false,
+                    "value": "second"
+                  }
+                }
+              ],
+              "value": "second"
+            },
+            "task": "actual fill input fields and function/object/property receivers"
+          },
+          {
+            "value": {
+              "kind": "signal-true",
+              "rows": [
+                {
+                  "event": "removed"
+                },
+                {
+                  "event": "after-first-fill",
+                  "value": "removed"
+                },
+                {
+                  "event": "actual-abort",
+                  "reasonIsAbortError": true
+                },
+                {
+                  "event": "after-second-fill",
+                  "value": "aborted"
+                }
+              ],
+              "caught": null,
+              "value": "aborted"
+            },
+            "task": "uses actual signal state for native add/remove despite shadowed aborted true"
+          },
+          {
+            "value": {
+              "kind": "signal-throw",
+              "rows": [
+                {
+                  "event": "removed"
+                },
+                {
+                  "event": "after-first-fill",
+                  "value": "removed"
+                },
+                {
+                  "event": "actual-abort",
+                  "reasonIsAbortError": true
+                },
+                {
+                  "event": "after-second-fill",
+                  "value": "aborted"
+                }
+              ],
+              "caught": null,
+              "value": "aborted"
+            },
+            "task": "uses actual signal state for native add/remove despite shadowed aborted throw"
+          }
+        ],
+        "cases": [
+          {
+            "name": "actual fill input fields and function/object/property receivers",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "uses actual signal state for native add/remove despite shadowed aborted true",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "uses actual signal state for native add/remove despite shadowed aborted throw",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "actual fill input fields and function/object/property receivers",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "uses actual signal state for native add/remove despite shadowed aborted true",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "uses actual signal state for native add/remove despite shadowed aborted throw",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "actual fill input fields and function/object/property receivers",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "uses actual signal state for native add/remove despite shadowed aborted true",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "uses actual signal state for native add/remove despite shadowed aborted throw",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 3,
+          "numPassedTests": 3,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "kind": "input-fields",
+              "rows": [
+                {
+                  "event": "option",
+                  "name": "capture",
+                  "receiver": true
+                },
+                {
+                  "event": "option",
+                  "name": "once",
+                  "receiver": true
+                },
+                {
+                  "event": "option",
+                  "name": "passive",
+                  "receiver": true
+                },
+                {
+                  "event": "option",
+                  "name": "signal",
+                  "receiver": true
+                },
+                {
+                  "event": "function",
+                  "fields": {
+                    "type": "input",
+                    "constructor": "InputEvent",
+                    "receiverIsInput": true,
+                    "targetIsInput": true,
+                    "currentTargetIsInput": true,
+                    "trusted": true,
+                    "bubbles": true,
+                    "cancelable": false,
+                    "composed": true,
+                    "defaultPrevented": false,
+                    "phase": 2,
+                    "data": "first",
+                    "inputType": "insertText",
+                    "composing": false,
+                    "value": "first"
+                  }
+                },
+                {
+                  "event": "method-getter",
+                  "receiver": true
+                },
+                {
+                  "event": "object",
+                  "receiver": true,
+                  "fields": {
+                    "type": "input",
+                    "constructor": "InputEvent",
+                    "receiverIsInput": false,
+                    "targetIsInput": true,
+                    "currentTargetIsInput": true,
+                    "trusted": true,
+                    "bubbles": true,
+                    "cancelable": false,
+                    "composed": true,
+                    "defaultPrevented": false,
+                    "phase": 2,
+                    "data": "first",
+                    "inputType": "insertText",
+                    "composing": false,
+                    "value": "first"
+                  }
+                },
+                {
+                  "event": "property",
+                  "fields": {
+                    "type": "input",
+                    "constructor": "InputEvent",
+                    "receiverIsInput": true,
+                    "targetIsInput": true,
+                    "currentTargetIsInput": true,
+                    "trusted": true,
+                    "bubbles": true,
+                    "cancelable": false,
+                    "composed": true,
+                    "defaultPrevented": false,
+                    "phase": 2,
+                    "data": "first",
+                    "inputType": "insertText",
+                    "composing": false,
+                    "value": "first"
+                  }
+                },
+                {
+                  "event": "function",
+                  "fields": {
+                    "type": "input",
+                    "constructor": "InputEvent",
+                    "receiverIsInput": true,
+                    "targetIsInput": true,
+                    "currentTargetIsInput": true,
+                    "trusted": true,
+                    "bubbles": true,
+                    "cancelable": false,
+                    "composed": true,
+                    "defaultPrevented": false,
+                    "phase": 2,
+                    "data": "second",
+                    "inputType": "insertText",
+                    "composing": false,
+                    "value": "second"
+                  }
+                },
+                {
+                  "event": "method-getter",
+                  "receiver": true
+                },
+                {
+                  "event": "object",
+                  "receiver": true,
+                  "fields": {
+                    "type": "input",
+                    "constructor": "InputEvent",
+                    "receiverIsInput": false,
+                    "targetIsInput": true,
+                    "currentTargetIsInput": true,
+                    "trusted": true,
+                    "bubbles": true,
+                    "cancelable": false,
+                    "composed": true,
+                    "defaultPrevented": false,
+                    "phase": 2,
+                    "data": "second",
+                    "inputType": "insertText",
+                    "composing": false,
+                    "value": "second"
+                  }
+                },
+                {
+                  "event": "property",
+                  "fields": {
+                    "type": "input",
+                    "constructor": "InputEvent",
+                    "receiverIsInput": true,
+                    "targetIsInput": true,
+                    "currentTargetIsInput": true,
+                    "trusted": true,
+                    "bubbles": true,
+                    "cancelable": false,
+                    "composed": true,
+                    "defaultPrevented": false,
+                    "phase": 2,
+                    "data": "second",
+                    "inputType": "insertText",
+                    "composing": false,
+                    "value": "second"
+                  }
+                }
+              ],
+              "value": "second"
+            },
+            "task": "actual fill input fields and function/object/property receivers"
+          },
+          {
+            "value": {
+              "kind": "signal-true",
+              "rows": [
+                {
+                  "event": "removed"
+                },
+                {
+                  "event": "after-first-fill",
+                  "value": "removed"
+                },
+                {
+                  "event": "actual-abort",
+                  "reasonIsAbortError": true
+                },
+                {
+                  "event": "after-second-fill",
+                  "value": "aborted"
+                }
+              ],
+              "caught": null,
+              "value": "aborted"
+            },
+            "task": "uses actual signal state for native add/remove despite shadowed aborted true"
+          },
+          {
+            "value": {
+              "kind": "signal-throw",
+              "rows": [
+                {
+                  "event": "removed"
+                },
+                {
+                  "event": "after-first-fill",
+                  "value": "removed"
+                },
+                {
+                  "event": "actual-abort",
+                  "reasonIsAbortError": true
+                },
+                {
+                  "event": "after-second-fill",
+                  "value": "aborted"
+                }
+              ],
+              "caught": null,
+              "value": "aborted"
+            },
+            "task": "uses actual signal state for native add/remove despite shadowed aborted throw"
+          }
+        ],
+        "cases": [
+          {
+            "name": "actual fill input fields and function/object/property receivers",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "uses actual signal state for native add/remove despite shadowed aborted true",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "uses actual signal state for native add/remove despite shadowed aborted throw",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "actual fill input fields and function/object/property receivers",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "uses actual signal state for native add/remove despite shadowed aborted true",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "uses actual signal state for native add/remove despite shadowed aborted throw",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "actual fill input fields and function/object/property receivers",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "uses actual signal state for native add/remove despite shadowed aborted true",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "uses actual signal state for native add/remove despite shadowed aborted throw",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 3,
+          "numPassedTests": 3,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "controls": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "kind": "active",
+              "rows": [
+                {
+                  "event": "actual-realm",
+                  "foreignSignal": false
+                },
+                {
+                  "event": "input",
+                  "receiverIsInput": true,
+                  "currentTargetIsInput": true,
+                  "trusted": true,
+                  "value": "first-once"
+                },
+                {
+                  "event": "complete",
+                  "value": "actually-aborted"
+                }
+              ]
+            },
+            "task": "retains actual native signal receiver and listener lifecycle active"
+          },
+          {
+            "value": {
+              "kind": "already-aborted",
+              "rows": [
+                {
+                  "event": "actual-realm",
+                  "foreignSignal": false
+                },
+                {
+                  "event": "input",
+                  "receiverIsInput": true,
+                  "currentTargetIsInput": true,
+                  "trusted": true,
+                  "value": "new-unbound-listener"
+                },
+                {
+                  "event": "complete",
+                  "value": "new-once-removed"
+                }
+              ]
+            },
+            "task": "retains actual native signal receiver and listener lifecycle already-aborted"
+          },
+          {
+            "value": {
+              "kind": "foreign-active",
+              "rows": [
+                {
+                  "event": "actual-realm",
+                  "foreignSignal": true
+                },
+                {
+                  "event": "input",
+                  "receiverIsInput": true,
+                  "currentTargetIsInput": true,
+                  "trusted": true,
+                  "value": "first-once"
+                },
+                {
+                  "event": "complete",
+                  "value": "actually-aborted"
+                }
+              ]
+            },
+            "task": "retains actual native signal receiver and listener lifecycle foreign-active"
+          },
+          {
+            "value": {
+              "kind": "foreign-aborted",
+              "rows": [
+                {
+                  "event": "actual-realm",
+                  "foreignSignal": true
+                },
+                {
+                  "event": "input",
+                  "receiverIsInput": true,
+                  "currentTargetIsInput": true,
+                  "trusted": true,
+                  "value": "new-unbound-listener"
+                },
+                {
+                  "event": "complete",
+                  "value": "new-once-removed"
+                }
+              ]
+            },
+            "task": "retains actual native signal receiver and listener lifecycle foreign-aborted"
+          },
+          {
+            "value": {
+              "kind": "invalid",
+              "rows": [
+                {
+                  "event": "actual-realm",
+                  "foreignSignal": false
+                },
+                {
+                  "event": "native-error",
+                  "typeError": true,
+                  "name": "TypeError",
+                  "message": "Failed to execute 'addEventListener' on 'EventTarget': Failed to read the 'signal' property from 'AddEventListenerOptions': Failed to convert value to 'AbortSignal'."
+                },
+                {
+                  "event": "input",
+                  "receiverIsInput": true,
+                  "currentTargetIsInput": true,
+                  "trusted": true,
+                  "value": "valid-after-error"
+                },
+                {
+                  "event": "complete",
+                  "value": "removed-after-once"
+                }
+              ]
+            },
+            "task": "retains actual native signal receiver and listener lifecycle invalid"
+          }
+        ],
+        "cases": [
+          {
+            "name": "retains actual native signal receiver and listener lifecycle active",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "retains actual native signal receiver and listener lifecycle already-aborted",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "retains actual native signal receiver and listener lifecycle foreign-active",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "retains actual native signal receiver and listener lifecycle foreign-aborted",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "retains actual native signal receiver and listener lifecycle invalid",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "retains actual native signal receiver and listener lifecycle active",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "retains actual native signal receiver and listener lifecycle already-aborted",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "retains actual native signal receiver and listener lifecycle foreign-active",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "retains actual native signal receiver and listener lifecycle foreign-aborted",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "retains actual native signal receiver and listener lifecycle invalid",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "retains actual native signal receiver and listener lifecycle active",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "retains actual native signal receiver and listener lifecycle already-aborted",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "retains actual native signal receiver and listener lifecycle foreign-active",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "retains actual native signal receiver and listener lifecycle foreign-aborted",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "retains actual native signal receiver and listener lifecycle invalid",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 5,
+          "numPassedTests": 5,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "kind": "active",
+              "rows": [
+                {
+                  "event": "actual-realm",
+                  "foreignSignal": false
+                },
+                {
+                  "event": "input",
+                  "receiverIsInput": true,
+                  "currentTargetIsInput": true,
+                  "trusted": true,
+                  "value": "first-once"
+                },
+                {
+                  "event": "complete",
+                  "value": "actually-aborted"
+                }
+              ]
+            },
+            "task": "retains actual native signal receiver and listener lifecycle active"
+          },
+          {
+            "value": {
+              "kind": "already-aborted",
+              "rows": [
+                {
+                  "event": "actual-realm",
+                  "foreignSignal": false
+                },
+                {
+                  "event": "input",
+                  "receiverIsInput": true,
+                  "currentTargetIsInput": true,
+                  "trusted": true,
+                  "value": "new-unbound-listener"
+                },
+                {
+                  "event": "complete",
+                  "value": "new-once-removed"
+                }
+              ]
+            },
+            "task": "retains actual native signal receiver and listener lifecycle already-aborted"
+          },
+          {
+            "value": {
+              "kind": "foreign-active",
+              "rows": [
+                {
+                  "event": "actual-realm",
+                  "foreignSignal": true
+                },
+                {
+                  "event": "input",
+                  "receiverIsInput": true,
+                  "currentTargetIsInput": true,
+                  "trusted": true,
+                  "value": "first-once"
+                },
+                {
+                  "event": "complete",
+                  "value": "actually-aborted"
+                }
+              ]
+            },
+            "task": "retains actual native signal receiver and listener lifecycle foreign-active"
+          },
+          {
+            "value": {
+              "kind": "foreign-aborted",
+              "rows": [
+                {
+                  "event": "actual-realm",
+                  "foreignSignal": true
+                },
+                {
+                  "event": "input",
+                  "receiverIsInput": true,
+                  "currentTargetIsInput": true,
+                  "trusted": true,
+                  "value": "new-unbound-listener"
+                },
+                {
+                  "event": "complete",
+                  "value": "new-once-removed"
+                }
+              ]
+            },
+            "task": "retains actual native signal receiver and listener lifecycle foreign-aborted"
+          },
+          {
+            "value": {
+              "kind": "invalid",
+              "rows": [
+                {
+                  "event": "actual-realm",
+                  "foreignSignal": false
+                },
+                {
+                  "event": "native-error",
+                  "typeError": true,
+                  "name": "TypeError",
+                  "message": "Failed to execute 'addEventListener' on 'EventTarget': Failed to read the 'signal' property from 'AddEventListenerOptions': Failed to convert value to 'AbortSignal'."
+                },
+                {
+                  "event": "input",
+                  "receiverIsInput": true,
+                  "currentTargetIsInput": true,
+                  "trusted": true,
+                  "value": "valid-after-error"
+                },
+                {
+                  "event": "complete",
+                  "value": "removed-after-once"
+                }
+              ]
+            },
+            "task": "retains actual native signal receiver and listener lifecycle invalid"
+          }
+        ],
+        "cases": [
+          {
+            "name": "retains actual native signal receiver and listener lifecycle active",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "retains actual native signal receiver and listener lifecycle already-aborted",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "retains actual native signal receiver and listener lifecycle foreign-active",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "retains actual native signal receiver and listener lifecycle foreign-aborted",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "retains actual native signal receiver and listener lifecycle invalid",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "retains actual native signal receiver and listener lifecycle active",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "retains actual native signal receiver and listener lifecycle already-aborted",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "retains actual native signal receiver and listener lifecycle foreign-active",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "retains actual native signal receiver and listener lifecycle foreign-aborted",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "retains actual native signal receiver and listener lifecycle invalid",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "retains actual native signal receiver and listener lifecycle active",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "retains actual native signal receiver and listener lifecycle already-aborted",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "retains actual native signal receiver and listener lifecycle foreign-active",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "retains actual native signal receiver and listener lifecycle foreign-aborted",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "retains actual native signal receiver and listener lifecycle invalid",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 5,
+          "numPassedTests": 5,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    }
+  }
+}
