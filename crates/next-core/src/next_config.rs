@@ -10,7 +10,7 @@ use serde_json::Value as JsonValue;
 use turbo_esregex::{EsRegex, EsRegexSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, TryJoinIterExt, Vc,
+    FxIndexMap, NonLocalValue, OperationValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, Vc,
     debug::ValueDebugFormat,
 };
 use turbo_tasks_env::EnvMap;
@@ -58,9 +58,7 @@ use crate::{
 pub const DIST_PROFILES_DIR_NAME: &str = ".next-profiles";
 
 #[turbo_tasks::value(transparent)]
-pub struct ModularizeImports(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, ModularizeImportPackageConfig>,
-);
+pub struct ModularizeImports(OrderedAutoMap<String, ModularizeImportPackageConfig>);
 
 #[turbo_tasks::value(transparent)]
 #[derive(Clone, Debug)]
@@ -84,7 +82,7 @@ impl Default for CacheKinds {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct CacheHandlersMap(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RcStr>);
+pub struct CacheHandlersMap(OrderedAutoMap<RcStr, RcStr>);
 
 #[turbo_tasks::value(eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
@@ -102,9 +100,10 @@ pub struct NextConfig {
     /// custom path to a cache handler to use
     cache_handler: Option<RcStr>,
     #[bincode(with_serde)]
-    cache_handlers: Option<FxIndexMap<RcStr, RcStr>>,
-    #[bincode(with = "turbo_bincode::serde_self_describing")]
-    env: FxIndexMap<String, JsonValue>,
+    cache_handlers: Option<OrderedAutoMap<RcStr, RcStr>>,
+    /// See [`deserialize_env`].
+    #[serde(deserialize_with = "deserialize_env")]
+    env: OrderedAutoMap<RcStr, RcStr>,
     experimental: ExperimentalConfig,
     images: ImageConfig,
     page_extensions: Vec<RcStr>,
@@ -117,7 +116,7 @@ pub struct NextConfig {
     react_strict_mode: Option<bool>,
     transpile_packages: Option<Vec<RcStr>>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    modularize_imports: Option<FxIndexMap<String, ModularizeImportPackageConfig>>,
+    modularize_imports: Option<OrderedAutoMap<String, ModularizeImportPackageConfig>>,
     dist_dir: RcStr,
     dist_dir_root: RcStr,
     deployment_id: Option<RcStr>,
@@ -134,10 +133,12 @@ pub struct NextConfig {
     output: Option<OutputType>,
     turbopack: Option<TurbopackConfig>,
     production_browser_source_maps: bool,
-    #[bincode(with = "turbo_bincode::serde_self_describing")]
-    output_file_tracing_includes: Option<serde_json::Value>,
-    #[bincode(with = "turbo_bincode::serde_self_describing")]
-    output_file_tracing_excludes: Option<serde_json::Value>,
+    /// See [`deserialize_output_file_tracing_globs`].
+    #[serde(deserialize_with = "deserialize_output_file_tracing_globs")]
+    output_file_tracing_includes: Option<OrderedAutoMap<RcStr, Vec<RcStr>>>,
+    /// See [`deserialize_output_file_tracing_globs`].
+    #[serde(deserialize_with = "deserialize_output_file_tracing_globs")]
+    output_file_tracing_excludes: Option<OrderedAutoMap<RcStr, Vec<RcStr>>>,
     // TODO: This option is not respected, it uses Turbopack's root instead.
     output_file_tracing_root: Option<RcStr>,
 
@@ -485,9 +486,10 @@ pub enum RemotePatternProtocol {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct TurbopackConfig {
+    /// Ordered: rules are applied in config order, so reordering them changes which loaders run
+    /// and in which order.
     #[serde(default)]
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub rules: FxIndexMap<RcStr, RuleConfigCollection>,
+    pub rules: OrderedAutoMap<RcStr, RuleConfigCollection>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
@@ -1622,23 +1624,20 @@ impl Issue for InvalidLoaderRuleConditionIssue {
 
 #[turbo_tasks::value(transparent)]
 pub struct OutputFileTracingIncludesExcludes(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    FxIndexMap<ResolvedVc<Glob>, Vec<(RcStr, FileSystemPath)>>,
+    OrderedAutoMap<ResolvedVc<Glob>, Vec<(RcStr, FileSystemPath)>>,
 );
 
 impl OutputFileTracingIncludesExcludes {
     pub async fn parse(
         project_path: FileSystemPath,
-        value: &Option<serde_json::Value>,
+        value: &Option<OrderedAutoMap<RcStr, Vec<RcStr>>>,
     ) -> Result<OutputFileTracingIncludesExcludes> {
-        if let Some(value) = value
-            && let Some(map) = value.as_object()
-        {
+        if let Some(map) = value {
             Ok(OutputFileTracingIncludesExcludes(
                 map.iter()
                     .map(async |(route_pattern, file_patterns)| {
                         let route_pattern = Glob::new(
-                            RcStr::from(route_pattern.clone()),
+                            route_pattern.clone(),
                             GlobOptions {
                                 contains: true,
                                 ..Default::default()
@@ -1647,10 +1646,7 @@ impl OutputFileTracingIncludesExcludes {
                         .to_resolved()
                         .await?;
                         let file_patterns = file_patterns
-                            .as_array()
                             .iter()
-                            .flat_map(|pattern| pattern.iter())
-                            .filter_map(|pattern| pattern.as_str())
                             .map(|pattern_str| {
                                 let (glob, root) = relativize_glob(pattern_str, &project_path)?;
                                 Ok((RcStr::from(glob), root))
@@ -1664,9 +1660,58 @@ impl OutputFileTracingIncludesExcludes {
                     .collect(),
             ))
         } else {
-            Ok(OutputFileTracingIncludesExcludes(FxIndexMap::default()))
+            Ok(OutputFileTracingIncludesExcludes(Default::default()))
         }
     }
+}
+
+/// Deserializes `env`. The config schema expects `Record<string, string>`, but it only warns about
+/// other values, and the JS side stringifies them. Do the same here: strings are kept as they are
+/// (`to_string` would wrap them in quotes) and anything else becomes its JSON text.
+fn deserialize_env<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<OrderedAutoMap<RcStr, RcStr>, D::Error> {
+    let env = OrderedAutoMap::<String, JsonValue>::deserialize(deserializer)?;
+    Ok(env
+        .into_iter()
+        .map(|(key, value)| {
+            let value = match value {
+                JsonValue::String(value) => value.into(),
+                value => value.to_string().into(),
+            };
+            (key.into(), value)
+        })
+        .collect())
+}
+
+/// Deserializes `outputFileTracingIncludes`/`outputFileTracingExcludes`, a
+/// `Record<string, string[]>` from route patterns to file globs. The config schema only warns about
+/// other shapes, so they are ignored: a value that isn't an object counts as absent, and a route's
+/// globs that aren't strings (or aren't in an array) are skipped.
+fn deserialize_output_file_tracing_globs<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<OrderedAutoMap<RcStr, Vec<RcStr>>>, D::Error> {
+    let Some(JsonValue::Object(routes)) = Option::<JsonValue>::deserialize(deserializer)? else {
+        return Ok(None);
+    };
+    Ok(Some(
+        routes
+            .into_iter()
+            .map(|(route, globs)| {
+                let globs = match globs {
+                    JsonValue::Array(globs) => globs
+                        .into_iter()
+                        .filter_map(|glob| match glob {
+                            JsonValue::String(glob) => Some(glob.into()),
+                            _ => None,
+                        })
+                        .collect(),
+                    _ => Vec::new(),
+                };
+                (route.into(), globs)
+            })
+            .collect(),
+    ))
 }
 
 #[turbo_tasks::value_impl]
@@ -1739,26 +1784,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn env(&self) -> Vc<EnvMap> {
-        // The value expected for env is Record<String, String>, but config itself
-        // allows arbitrary object (https://github.com/vercel/next.js/blob/25ba8a74b7544dfb6b30d1b67c47b9cb5360cb4e/packages/next/src/server/config-schema.ts#L203)
-        // then stringifies it. We do the interop here as well.
-        let env = self
-            .env
-            .iter()
-            .map(|(k, v)| {
-                (
-                    k.as_str().into(),
-                    if let JsonValue::String(s) = v {
-                        // A string value is kept, calling `to_string` would wrap in to quotes.
-                        s.as_str().into()
-                    } else {
-                        v.to_string().into()
-                    },
-                )
-            })
-            .collect();
-
-        Vc::cell(env)
+        Vc::cell(self.env.clone())
     }
 
     #[turbo_tasks::function]
@@ -2317,7 +2343,7 @@ impl NextConfig {
         let mut cache_kinds = CacheKinds::default();
 
         if let Some(handlers) = self.cache_handlers.as_ref() {
-            cache_kinds.extend(handlers.keys().cloned());
+            cache_kinds.extend(handlers.iter().map(|(key, _)| key.clone()));
         }
 
         cache_kinds.cell()
@@ -2903,6 +2929,33 @@ pub fn lightningcss_feature_names_to_mask(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_env_and_output_file_tracing_deserialization() {
+        let config: NextConfig = serde_json::from_value(serde_json::json!({
+            "env": { "B": "two", "A": 1, "C": { "x": true } },
+            "outputFileTracingIncludes": { "/b": ["b/**", 1], "/a": "not-a-list" },
+            "outputFileTracingExcludes": "not-an-object",
+        }))
+        .unwrap();
+
+        let env: Vec<_> = config
+            .env
+            .iter()
+            .map(|(key, value)| (key.as_str(), value.as_str()))
+            .collect();
+        assert_eq!(env, [("B", "two"), ("A", "1"), ("C", r#"{"x":true}"#)]);
+
+        let includes: Vec<_> = config
+            .output_file_tracing_includes
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|(route, globs)| (route.as_str(), globs.iter().map(RcStr::as_str).collect()))
+            .collect();
+        assert_eq!(includes, [("/b", vec!["b/**"]), ("/a", vec![])]);
+        assert!(config.output_file_tracing_excludes.is_none());
+    }
 
     #[test]
     fn test_serde_rule_config_item_options() {

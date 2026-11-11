@@ -144,16 +144,31 @@ function handleLoading(
         }
       }
 
-      const heightModified =
-        img.height.toString() !== img.getAttribute('height')
-      const widthModified = img.width.toString() !== img.getAttribute('width')
+      // Compare the rendered box with the image's intrinsic proportions. The
+      // width and height props alone cannot tell a cropped or rounded image
+      // from a distorted one.
+      const { width, height, naturalWidth, naturalHeight } = img
       if (
-        (heightModified && !widthModified) ||
-        (!heightModified && widthModified)
+        img.getAttribute('data-nimg') !== 'fill' &&
+        width > 0 &&
+        height > 0 &&
+        naturalWidth > 0 &&
+        naturalHeight > 0 &&
+        // Other object-fit values crop or letterbox instead of distorting.
+        window.getComputedStyle(img).objectFit === 'fill'
       ) {
-        warnOnce(
-          `Image with src "${origSrc}" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.`
-        )
+        const renderedRatio = width / height
+        const intrinsicRatio = naturalWidth / naturalHeight
+        // Rendered dimensions are rounded to whole pixels and natural
+        // dimensions are truncated after density correction, so allow for
+        // that much error in each dimension.
+        const tolerance =
+          0.5 / width + 0.5 / height + 1 / naturalWidth + 1 / naturalHeight
+        if (Math.abs(renderedRatio / intrinsicRatio - 1) > tolerance) {
+          warnOnce(
+            `Image with src "${origSrc}" is rendered with a different aspect ratio than its intrinsic dimensions. Adjust the width and height props, or use CSS 'width: "auto"' or 'height: "auto"' to preserve the aspect ratio. Read more: https://nextjs.org/docs/app/api-reference/components/image#style`
+          )
+        }
       }
     }
   })
