@@ -30,7 +30,7 @@ When a user navigates away and returns, Activity preserves the open/closed state
 
 **When to keep it:** A sidebar with expanded sections, a FAQ accordion, or a filters panel. The user set up their view intentionally, and restoring it avoids re-doing that work.
 
-**When to reset it:** A dropdown menu or popover triggered by a button click, for example. These are transient interactions, not persistent view state. Returning to a page with a dropdown already open can be confusing.
+**When to reset it:** A dropdown menu or popover triggered by a button click. These are transient interactions, not persistent view state. Returning to a page with a dropdown already open is not user friendly.
 
 When React state should reset on hide, update it in a `useLayoutEffect` cleanup. For example, this dropdown closes when Activity hides the component:
 
@@ -117,17 +117,22 @@ To reset the open/closed state on hide, use a `useLayoutEffect` cleanup as in th
 
 If a dialog should open when visiting a particular URL, derive its state from a search parameter. For example, this dialog opens when the URL includes `?edit=true`:
 
-```tsx highlight={7-9,15-17,28,33}
+```tsx highlight={11,20-22,26-29,31,36}
 'use client'
 
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Suspense, useEffect, useRef } from 'react'
 
 function ProductTab() {
+  const router = useRouter()
+
   return (
-    <Suspense fallback={null}>
-      <ProductDialog />
-    </Suspense>
+    <>
+      <button onClick={() => router.push('?edit=true')}>Edit Product</button>
+      <Suspense fallback={null}>
+        <ProductDialog />
+      </Suspense>
+    </>
   )
 }
 
@@ -143,24 +148,20 @@ function ProductDialog() {
     }
   }, [isDialogOpen])
 
-  return (
-    <div>
-      <button onClick={() => router.push('?edit=true')}>Edit Product</button>
+  if (!isDialogOpen) return null
 
-      {isDialogOpen && (
-        <dialog open>
-          <input ref={inputRef} placeholder="Product name" />
-          <button onClick={() => router.replace('?', { scroll: false })}>
-            Close
-          </button>
-        </dialog>
-      )}
-    </div>
+  return (
+    <dialog open>
+      <input ref={inputRef} placeholder="Product name" />
+      <button onClick={() => router.replace('?', { scroll: false })}>
+        Close
+      </button>
+    </dialog>
   )
 }
 ```
 
-The [`Suspense` boundary](/docs/app/api-reference/functions/use-search-params#prerendering) lets the rest of the page prerender while the dialog reads the current search parameters.
+The trigger stays outside the [`Suspense` boundary](/docs/app/api-reference/functions/use-search-params#prerendering) so it can prerender while the dialog reads the search parameters. If the parent already provides an appropriate boundary, it can wrap `ProductDialog` there instead.
 
 Returning through a link without `?edit=true` closes the dialog. Browser back and forward navigation restore the URL for that history entry, so returning to a URL with `?edit=true` opens it again.
 
@@ -275,7 +276,9 @@ function ContactForm() {
 }
 ```
 
-Defining the callback outside the component keeps it stable across re-renders. `form.reset()` does not reset React state. For controlled inputs, reset the state passed to `value` or `checked`, as in the examples above.
+React runs the previous [ref callback’s cleanup](https://react.dev/reference/react-dom/components/common#ref-callback) when the callback changes. Defining `resetOnHide` outside the component keeps it stable, so a re-render does not unexpectedly reset the form.
+
+`form.reset()` does not reset React state. For controlled inputs, reset the state passed to `value` or `checked`, as in the examples above.
 
 </details>
 
