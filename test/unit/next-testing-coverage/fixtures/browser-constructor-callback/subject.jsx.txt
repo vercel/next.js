@@ -1,0 +1,8 @@
+import React from 'react'
+
+export function createSubject(value) {
+  const pending = new Promise((resolve) => resolve(value ? 'selected' : 'other'))
+  const request = fetch('data:text/plain,creator-coverage')
+  const element = <span>{value ? 'selected' : 'other'}</span>
+  return { element, pending, request }
+}

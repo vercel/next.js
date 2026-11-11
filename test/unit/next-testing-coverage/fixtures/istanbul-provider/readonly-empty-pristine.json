@@ -1,0 +1,227 @@
+{
+  "defaults": {
+    "exitCode": 1,
+    "reportOnFailure": true,
+    "sourceFiles": {
+      "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+      "setup.mjs": "",
+      "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+      "suite.test.mjs": "import {choose} from './subject.mjs'\nchoose(true)\n"
+    },
+    "snapshots": {
+      "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
+    },
+    "flags": [],
+    "expected": {
+      "passed": 0,
+      "failed": 0,
+      "pending": 0,
+      "cases": [],
+      "fileErrors": [
+        "Obsolete snapshots found when no snapshot update is expected."
+      ],
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 0,
+        "total": 0,
+        "unchecked": 1,
+        "uncheckedKeysByFile": [
+          {
+            "filePath": "<fixture>/suite.test.mjs",
+            "keys": ["first owned body 1"]
+          }
+        ],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      }
+    },
+    "rootErrors": [
+      {
+        "name": "Error",
+        "message": "Obsolete snapshots found when no snapshot update is expected.\n· first owned body 1\n"
+      }
+    ],
+    "coverage": {
+      "subject.mjs": {
+        "statements": [1, 1, 0, 0],
+        "functions": [1, 0],
+        "branches": [[1, 0]]
+      }
+    }
+  },
+  "rows": [
+    {
+      "name": "istanbul-empty-empty-import-no-obsolete-report-true",
+      "exitCode": 0,
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"passWithNoTests\":true}}\n",
+      "snapshots": {},
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "cases": [],
+        "fileErrors": [""],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "rootErrors": []
+    },
+    {
+      "name": "istanbul-empty-empty-import-original-report-false",
+      "reportOnFailure": false,
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false},\"passWithNoTests\":true}}\n",
+      "coverage": null
+    },
+    {
+      "name": "istanbul-empty-empty-import-original-report-true",
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"passWithNoTests\":true}}\n"
+    },
+    {
+      "name": "istanbul-empty-empty-import-removed-report-true",
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"passWithNoTests\":true}}\n",
+      "snapshots": {
+        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n\nexports[`removed owned body 1`] = `true`;\n"
+      },
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "cases": [],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "rootErrors": [
+        {
+          "name": "Error",
+          "message": "Obsolete snapshots found when no snapshot update is expected.\n· first owned body 1\n· removed owned body 1\n"
+        }
+      ]
+    },
+    {
+      "name": "v8-empty-empty-import-no-obsolete-report-true",
+      "exitCode": 0,
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"passWithNoTests\":true}}\n",
+      "snapshots": {},
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "cases": [],
+        "fileErrors": [""],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "rootErrors": []
+    },
+    {
+      "name": "v8-empty-empty-import-original-report-false",
+      "reportOnFailure": false,
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false},\"passWithNoTests\":true}}\n",
+      "coverage": null
+    },
+    {
+      "name": "v8-empty-empty-import-original-report-true",
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"passWithNoTests\":true}}\n"
+    },
+    {
+      "name": "v8-empty-empty-import-removed-report-true",
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"passWithNoTests\":true}}\n",
+      "snapshots": {
+        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n\nexports[`removed owned body 1`] = `true`;\n"
+      },
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "cases": [],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "rootErrors": [
+        {
+          "name": "Error",
+          "message": "Obsolete snapshots found when no snapshot update is expected.\n· first owned body 1\n· removed owned body 1\n"
+        }
+      ]
+    }
+  ]
+}

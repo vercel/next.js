@@ -1,0 +1,3 @@
+import { expect, test } from 'vitest'
+import { total } from './subject.ts'
+test('function-expression callbacks retain authored coverage', async () => { expect(await total([1, 2, 3])).toBe(12) })

@@ -1,0 +1,322 @@
+{
+  "defaults": {
+    "coverageMapPresent": true,
+    "coverageMap": {
+      "<PROJECT_ROOT>/fully.mjs": {
+        "$coverage": "range-tuples-v1",
+        "path": "<PROJECT_ROOT>/fully.mjs",
+        "statements": {
+          "0": [1, 31, 1, 47]
+        },
+        "functions": {
+          "0": {
+            "name": "fully",
+            "decl": [1, 16, 1, 21],
+            "loc": [1, 29, 1, null]
+          }
+        },
+        "branches": {},
+        "s": {
+          "0": 1
+        },
+        "f": {
+          "0": 1
+        },
+        "b": {}
+      },
+      "<PROJECT_ROOT>/subject.mjs": {
+        "$coverage": "range-tuples-v1",
+        "path": "<PROJECT_ROOT>/subject.mjs",
+        "statements": {
+          "0": [2, 2, 2, null],
+          "1": [2, 12, 2, null],
+          "2": [3, 2, 3, null],
+          "3": [6, 2, 6, null]
+        },
+        "functions": {
+          "0": {
+            "name": "choose",
+            "decl": [1, 16, 1, 22],
+            "loc": [1, 29, 4, null]
+          },
+          "1": {
+            "name": "unused",
+            "decl": [5, 16, 5, 22],
+            "loc": [5, 25, 7, null]
+          }
+        },
+        "branches": {
+          "0": {
+            "loc": [2, 2, 2, null],
+            "type": "if",
+            "locations": [
+              [2, 2, 2, null],
+              {
+                "start": {},
+                "end": {}
+              }
+            ]
+          }
+        },
+        "s": {
+          "0": 1,
+          "1": 1,
+          "2": 0,
+          "3": 0
+        },
+        "f": {
+          "0": 1,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 0]
+        }
+      },
+      "<PROJECT_ROOT>/unimported.mjs": {
+        "$coverage": "range-tuples-v1",
+        "path": "<PROJECT_ROOT>/unimported.mjs",
+        "statements": {
+          "0": [2, 2, 2, null],
+          "1": [2, 12, 2, null],
+          "2": [3, 2, 3, null],
+          "3": [6, 2, 6, null]
+        },
+        "functions": {
+          "0": {
+            "name": "choose",
+            "decl": [1, 16, 1, 22],
+            "loc": [1, 29, 4, null]
+          },
+          "1": {
+            "name": "unused",
+            "decl": [5, 16, 5, 22],
+            "loc": [5, 25, 7, null]
+          }
+        },
+        "branches": {
+          "0": {
+            "loc": [2, 2, 2, null],
+            "type": "if",
+            "locations": [
+              [2, 2, 2, null],
+              {
+                "start": {},
+                "end": {}
+              }
+            ]
+          }
+        },
+        "s": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0
+        },
+        "f": {
+          "0": 0,
+          "1": 0
+        },
+        "b": {
+          "0": [0, 0]
+        }
+      }
+    }
+  },
+  "rows": [
+    {
+      "name": "baseline"
+    },
+    {
+      "name": "configured-disabled",
+      "coverageMapPresent": false,
+      "omit": ["coverageMap"]
+    },
+    {
+      "name": "configured-istanbul-cli-v8",
+      "coverageMap": {
+        "<PROJECT_ROOT>/subject.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "<PROJECT_ROOT>/subject.mjs",
+          "statements": {
+            "0": [2, 2, 2, null],
+            "1": [2, 12, 2, null],
+            "2": [3, 2, 3, null],
+            "3": [6, 2, 6, null]
+          },
+          "functions": {
+            "0": {
+              "name": "choose",
+              "decl": [1, 16, 1, 22],
+              "loc": [1, 29, 4, null],
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": [5, 16, 5, 22],
+              "loc": [5, 25, 7, null],
+              "line": 5
+            }
+          },
+          "branches": {
+            "0": {
+              "loc": [2, 2, 2, null],
+              "type": "if",
+              "locations": [
+                [2, 2, 2, null],
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        },
+        "<PROJECT_ROOT>/fully.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "<PROJECT_ROOT>/fully.mjs",
+          "statements": {
+            "0": [1, 31, 1, 47]
+          },
+          "functions": {
+            "0": {
+              "name": "fully",
+              "decl": [1, 16, 1, 21],
+              "loc": [1, 29, 1, null],
+              "line": 1
+            }
+          },
+          "branches": {},
+          "s": {
+            "0": 1
+          },
+          "f": {
+            "0": 1
+          },
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 1,
+            "lastStatement": 1,
+            "seen": {
+              "f:1:16:1:21": 0,
+              "s:1:31:1:47": 0
+            },
+            "fnNames": {}
+          }
+        },
+        "<PROJECT_ROOT>/unimported.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "<PROJECT_ROOT>/unimported.mjs",
+          "statements": {
+            "0": [2, 2, 2, null],
+            "1": [2, 12, 2, null],
+            "2": [3, 2, 3, null],
+            "3": [6, 2, 6, null]
+          },
+          "functions": {
+            "0": {
+              "name": "choose",
+              "decl": [1, 16, 1, 22],
+              "loc": [1, 29, 4, null],
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": [5, 16, 5, 22],
+              "loc": [5, 25, 7, null],
+              "line": 5
+            }
+          },
+          "branches": {
+            "0": {
+              "loc": [2, 2, 2, null],
+              "type": "if",
+              "locations": [
+                [2, 2, 2, null],
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 0,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "empty-include",
+      "coverageMap": {}
+    },
+    {
+      "name": "all-excluded",
+      "coverageMap": {}
+    },
+    {
+      "name": "stdout-none"
+    },
+    {
+      "name": "failure-default"
+    },
+    {
+      "name": "failure-report-on-failure"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+/** @jsxRuntime classic */
+import React from 'react'
+type Input = { active: boolean; label: string }
+function Badge({children}: {children:string}) { return <b>{children}</b> }
+export function Card({ active, label }: Input) {
+  return <Badge>{label}</Badge>
+}
+export const Unused = () => <i />

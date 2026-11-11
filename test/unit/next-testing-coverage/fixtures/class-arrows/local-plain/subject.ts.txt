@@ -1,0 +1,6 @@
+const offset: number = 2;
+function prefix(value: number): number { return value + 1; }
+export class Reader {
+  read(value: number): number { return prefix(value) + offset; }
+}
+export function exercise(value: number): number { return new Reader().read(value); }

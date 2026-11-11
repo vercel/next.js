@@ -1,0 +1,6 @@
+import { expect, test } from 'vitest'
+import { Basic } from './subject.jsx'
+test('renders imported helper values', () => {
+  expect(Basic({ name: 'first' }).props).toEqual({ 'data-label': 'first', children: 'first!' })
+  expect(Basic({ name: 'second' }).props.children).toBe('second!')
+})

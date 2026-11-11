@@ -1,0 +1,8 @@
+export const actions = {
+  double: (value: number) => value * 2,
+  asyncValue: async (value: number) => { return value + 1 },
+  constant: () => 5,
+}
+export async function run(value: number) {
+  return actions.double(value) + await actions.asyncValue(value) + actions.constant()
+}

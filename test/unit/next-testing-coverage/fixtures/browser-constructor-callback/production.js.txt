@@ -1,0 +1,63 @@
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([typeof document === "object" ? document.currentScript : undefined,
+864, ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "createSubject",
+    ()=>createSubject
+]);
+var __TURBOPACK__imported__module__960__ = __turbopack_context__.i(960);
+var __TURBOPACK__imported__module__7171__ = __turbopack_context__.i(7171);
+var __TURBOPACK__imported__module__3438__ = __turbopack_context__.i(3438);
+;
+;
+;
+function createSubject(value) {
+    const pending = (0, __TURBOPACK__imported__module__7171__["bindNativePromiseConstructor"])(Promise)((resolve)=>resolve(value ? 'selected' : 'other'));
+    const request = (0, __TURBOPACK__imported__module__7171__["bindNativeFetchCall"])(fetch)('data:text/plain,creator-coverage');
+    const element = /*#__PURE__*/ (0, __TURBOPACK__imported__module__960__["jsx"])("span", {
+        children: value ? 'selected' : 'other'
+    });
+    return {
+        element,
+        pending,
+        request
+    };
+}
+}),
+446, ((__turbopack_context__, module, exports) => {
+"use strict";
+
+/**
+ * @license React
+ * react-jsx-runtime.production.js
+ *
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment");
+function jsxProd(type, config, maybeKey) {
+    var key = null;
+    void 0 !== maybeKey && (key = "" + maybeKey);
+    void 0 !== config.key && (key = "" + config.key);
+    if ("key" in config) {
+        maybeKey = {};
+        for(var propName in config)"key" !== propName && (maybeKey[propName] = config[propName]);
+    } else maybeKey = config;
+    config = maybeKey.ref;
+    return {
+        $$typeof: REACT_ELEMENT_TYPE,
+        type: type,
+        key: key,
+        ref: void 0 !== config ? config : null,
+        props: maybeKey
+    };
+}
+exports.Fragment = REACT_FRAGMENT_TYPE;
+exports.jsx = jsxProd;
+exports.jsxs = jsxProd;
+}),
+]);})()
+
+//# sourceMappingURL=1izzj4lg28x37.js.map

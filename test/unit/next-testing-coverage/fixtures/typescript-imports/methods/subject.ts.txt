@@ -1,0 +1,12 @@
+import { prefix, offset } from './helper.ts'
+export class Counter {
+  declare total: number;
+  constructor(value: number) { this.total = value; }
+  read(delta: number): number { return this.total + delta; }
+  static combine(value: number): number { return value * 2; }
+  method(delta: number): number { return this.total + delta; }
+}
+export function exercise(value: number): number {
+  const counter = new Counter(prefix(value));
+  return counter.read(offset) + Counter.combine(value) + counter.method(offset);
+}

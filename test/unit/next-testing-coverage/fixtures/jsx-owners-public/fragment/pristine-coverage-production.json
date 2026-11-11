@@ -1,0 +1,95 @@
+{
+  "helper.js": {
+    "$coverage": "range-tuples-v1",
+    "path": "helper.js",
+    "statements": {
+      "0": [1, 31, 1, 49]
+    },
+    "functions": {
+      "0": {
+        "name": "label",
+        "decl": [1, 16, 1, 21],
+        "loc": [1, 29, 1, null],
+        "line": 1
+      }
+    },
+    "branches": {},
+    "s": {
+      "0": 5
+    },
+    "f": {
+      "0": 5
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:1:16:1:21": 0,
+        "s:1:31:1:49": 0
+      },
+      "fnNames": {}
+    }
+  },
+  "subject.tsx": {
+    "$coverage": "range-tuples-v1",
+    "path": "subject.tsx",
+    "statements": {
+      "0": [5, 2, 5, null],
+      "1": [7, 13, 10, null],
+      "2": [8, 2, 10, null]
+    },
+    "functions": {
+      "0": {
+        "name": "Fragment",
+        "decl": [4, 16, 4, 25],
+        "loc": [4, 50, 6, null],
+        "line": 4
+      },
+      "1": {
+        "name": "(anonymous_1)",
+        "decl": [7, 13, 7, 22],
+        "loc": [8, 2, 10, null],
+        "line": 8
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [5, 12, 5, 49],
+        "type": "binary-expr",
+        "locations": [
+          [5, 12, 5, 22],
+          [5, 22, 5, 49]
+        ],
+        "line": 5
+      }
+    },
+    "s": {
+      "0": 2,
+      "1": 1,
+      "2": 2
+    },
+    "f": {
+      "0": 2,
+      "1": 2
+    },
+    "b": {
+      "0": [2, 1]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 2,
+      "lastStatement": 3,
+      "seen": {
+        "f:4:16:4:25": 0,
+        "s:5:2:5:Infinity": 0,
+        "b:5:12:5:22:5:22:5:49": 0,
+        "s:7:13:10:Infinity": 1,
+        "f:7:13:7:22": 1,
+        "s:8:2:10:Infinity": 2
+      },
+      "fnNames": {}
+    }
+  }
+}

@@ -1,0 +1,607 @@
+{
+  "defaults": {
+    "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"allowOnly\":true,\"coverage\":{\"enabled\":false}}}\n",
+    "exitCode": 0,
+    "snapshots": {},
+    "effects": "active\n",
+    "actualCaseStarts": 1,
+    "expected": {
+      "passed": 0,
+      "failed": 0,
+      "pending": 0,
+      "todo": 0,
+      "cases": [["outer excluded", "pending", []]],
+      "fileErrors": [""],
+      "fileStates": ["passed"],
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 0,
+        "total": 0,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      }
+    },
+    "declarations": [["excluded", "only", "pending"]],
+    "taskStates": [["excluded", "pending"]],
+    "lifecycle": [
+      ["collected", "pending"],
+      ["module-end", "passed"],
+      ["run-end", "passed"]
+    ]
+  },
+  "rows": [
+    {
+      "name": "development-simple-active",
+      "mode": "development",
+      "variant": "simple-active",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,describe} from 'vitest'\nimport fs from 'node:fs'\nconst effect=x=>fs.appendFileSync(process.env.ACTUAL_FOCUS_EFFECTS,x+'\\n')\ntest.only('active',()=>effect('active'))\n"
+      },
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "cases": [["active", "passed", []]],
+        "fileErrors": [""],
+        "fileStates": ["passed"],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "declarations": [["active", "run", "pending"]],
+      "taskStates": [["active", "passed"]]
+    },
+    {
+      "name": "development-active-under-skip",
+      "mode": "development",
+      "variant": "active-under-skip",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,describe} from 'vitest'\nimport fs from 'node:fs'\nconst effect=x=>fs.appendFileSync(process.env.ACTUAL_FOCUS_EFFECTS,x+'\\n')\ntest.only('active',()=>effect('active'));describe.skip('outer',()=>test.only('excluded',()=>effect('BAD')))\n"
+      },
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "cases": [
+          ["active", "passed", []],
+          ["outer excluded", "pending", []]
+        ],
+        "fileErrors": [""],
+        "fileStates": ["passed"],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "declarations": [
+        ["active", "run", "pending"],
+        ["excluded", "only", "pending"]
+      ],
+      "taskStates": [
+        ["active", "passed"],
+        ["excluded", "pending"]
+      ]
+    },
+    {
+      "name": "development-active-under-todo-suite",
+      "mode": "development",
+      "variant": "active-under-todo-suite",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,describe} from 'vitest'\nimport fs from 'node:fs'\nconst effect=x=>fs.appendFileSync(process.env.ACTUAL_FOCUS_EFFECTS,x+'\\n')\ntest.only('active',()=>effect('active'));describe.todo('outer',()=>describe.only('inner',()=>test('excluded',()=>effect('BAD'))))\n"
+      },
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "cases": [
+          ["active", "passed", []],
+          ["outer inner excluded", "pending", []]
+        ],
+        "fileErrors": [""],
+        "fileStates": ["passed"],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "declarations": [
+        ["active", "run", "pending"],
+        ["excluded", "run", "pending"]
+      ],
+      "taskStates": [
+        ["active", "passed"],
+        ["excluded", "pending"]
+      ]
+    },
+    {
+      "name": "development-only-under-skip",
+      "mode": "development",
+      "variant": "only-under-skip",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,describe} from 'vitest'\nimport fs from 'node:fs'\nconst effect=x=>fs.appendFileSync(process.env.ACTUAL_FOCUS_EFFECTS,x+'\\n')\ndescribe.skip('outer',()=>test.only('excluded',()=>effect('BAD')))\n"
+      },
+      "effects": "",
+      "actualCaseStarts": 0,
+      "lifecycle": [
+        ["collected", "skipped"],
+        ["module-end", "skipped"],
+        ["run-end", "passed"]
+      ]
+    },
+    {
+      "name": "development-only-under-todo",
+      "mode": "development",
+      "variant": "only-under-todo",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,describe} from 'vitest'\nimport fs from 'node:fs'\nconst effect=x=>fs.appendFileSync(process.env.ACTUAL_FOCUS_EFFECTS,x+'\\n')\ndescribe.todo('outer',()=>test.only('excluded',()=>effect('BAD')))\n"
+      },
+      "effects": "",
+      "actualCaseStarts": 0,
+      "lifecycle": [
+        ["collected", "skipped"],
+        ["module-end", "skipped"],
+        ["run-end", "passed"]
+      ]
+    },
+    {
+      "name": "development-skip-todo-only",
+      "mode": "development",
+      "variant": "skip-todo-only",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,describe} from 'vitest'\nimport fs from 'node:fs'\nconst effect=x=>fs.appendFileSync(process.env.ACTUAL_FOCUS_EFFECTS,x+'\\n')\ndescribe.skip('outer',()=>describe.todo('opposite',()=>test.only('excluded',()=>effect('BAD'))))\n"
+      },
+      "effects": "",
+      "actualCaseStarts": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "cases": [["outer opposite excluded", "pending", []]],
+        "fileErrors": [""],
+        "fileStates": ["passed"],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "lifecycle": [
+        ["collected", "skipped"],
+        ["module-end", "skipped"],
+        ["run-end", "passed"]
+      ]
+    },
+    {
+      "name": "development-todo-skip-only",
+      "mode": "development",
+      "variant": "todo-skip-only",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,describe} from 'vitest'\nimport fs from 'node:fs'\nconst effect=x=>fs.appendFileSync(process.env.ACTUAL_FOCUS_EFFECTS,x+'\\n')\ndescribe.todo('outer',()=>describe.skip('opposite',()=>describe.only('focused',()=>test('excluded',()=>effect('BAD')))))\n"
+      },
+      "effects": "",
+      "actualCaseStarts": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "cases": [["outer opposite focused excluded", "pending", []]],
+        "fileErrors": [""],
+        "fileStates": ["passed"],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "declarations": [["excluded", "run", "pending"]],
+      "lifecycle": [
+        ["collected", "skipped"],
+        ["module-end", "skipped"],
+        ["run-end", "passed"]
+      ]
+    },
+    {
+      "name": "development-active-suite",
+      "mode": "development",
+      "variant": "active-suite",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,describe} from 'vitest'\nimport fs from 'node:fs'\nconst effect=x=>fs.appendFileSync(process.env.ACTUAL_FOCUS_EFFECTS,x+'\\n')\ndescribe.only('active suite',()=>test('active',()=>effect('active')));test('unselected',()=>effect('BAD'))\n"
+      },
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 1,
+        "todo": 0,
+        "cases": [
+          ["active suite active", "passed", []],
+          ["unselected", "skipped", []]
+        ],
+        "fileErrors": [""],
+        "fileStates": ["passed"],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "declarations": [
+        ["active", "run", "pending"],
+        ["unselected", "skip", "skipped"]
+      ],
+      "taskStates": [
+        ["active", "passed"],
+        ["unselected", "skipped"]
+      ]
+    },
+    {
+      "name": "production-simple-active",
+      "mode": "production",
+      "variant": "simple-active",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,describe} from 'vitest'\nimport fs from 'node:fs'\nconst effect=x=>fs.appendFileSync(process.env.ACTUAL_FOCUS_EFFECTS,x+'\\n')\ntest.only('active',()=>effect('active'))\n"
+      },
+      "config": "export default {\"test\":{\"mode\":\"production\",\"include\":[\"suite.test.mjs\"],\"allowOnly\":true,\"coverage\":{\"enabled\":false}}}\n",
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "cases": [["active", "passed", []]],
+        "fileErrors": [""],
+        "fileStates": ["passed"],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "declarations": [["active", "run", "pending"]],
+      "taskStates": [["active", "passed"]]
+    },
+    {
+      "name": "production-active-under-skip",
+      "mode": "production",
+      "variant": "active-under-skip",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,describe} from 'vitest'\nimport fs from 'node:fs'\nconst effect=x=>fs.appendFileSync(process.env.ACTUAL_FOCUS_EFFECTS,x+'\\n')\ntest.only('active',()=>effect('active'));describe.skip('outer',()=>test.only('excluded',()=>effect('BAD')))\n"
+      },
+      "config": "export default {\"test\":{\"mode\":\"production\",\"include\":[\"suite.test.mjs\"],\"allowOnly\":true,\"coverage\":{\"enabled\":false}}}\n",
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "cases": [
+          ["active", "passed", []],
+          ["outer excluded", "pending", []]
+        ],
+        "fileErrors": [""],
+        "fileStates": ["passed"],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "declarations": [
+        ["active", "run", "pending"],
+        ["excluded", "only", "pending"]
+      ],
+      "taskStates": [
+        ["active", "passed"],
+        ["excluded", "pending"]
+      ]
+    },
+    {
+      "name": "production-active-under-todo-suite",
+      "mode": "production",
+      "variant": "active-under-todo-suite",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,describe} from 'vitest'\nimport fs from 'node:fs'\nconst effect=x=>fs.appendFileSync(process.env.ACTUAL_FOCUS_EFFECTS,x+'\\n')\ntest.only('active',()=>effect('active'));describe.todo('outer',()=>describe.only('inner',()=>test('excluded',()=>effect('BAD'))))\n"
+      },
+      "config": "export default {\"test\":{\"mode\":\"production\",\"include\":[\"suite.test.mjs\"],\"allowOnly\":true,\"coverage\":{\"enabled\":false}}}\n",
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "cases": [
+          ["active", "passed", []],
+          ["outer inner excluded", "pending", []]
+        ],
+        "fileErrors": [""],
+        "fileStates": ["passed"],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "declarations": [
+        ["active", "run", "pending"],
+        ["excluded", "run", "pending"]
+      ],
+      "taskStates": [
+        ["active", "passed"],
+        ["excluded", "pending"]
+      ]
+    },
+    {
+      "name": "production-only-under-skip",
+      "mode": "production",
+      "variant": "only-under-skip",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,describe} from 'vitest'\nimport fs from 'node:fs'\nconst effect=x=>fs.appendFileSync(process.env.ACTUAL_FOCUS_EFFECTS,x+'\\n')\ndescribe.skip('outer',()=>test.only('excluded',()=>effect('BAD')))\n"
+      },
+      "config": "export default {\"test\":{\"mode\":\"production\",\"include\":[\"suite.test.mjs\"],\"allowOnly\":true,\"coverage\":{\"enabled\":false}}}\n",
+      "effects": "",
+      "actualCaseStarts": 0,
+      "lifecycle": [
+        ["collected", "skipped"],
+        ["module-end", "skipped"],
+        ["run-end", "passed"]
+      ]
+    },
+    {
+      "name": "production-only-under-todo",
+      "mode": "production",
+      "variant": "only-under-todo",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,describe} from 'vitest'\nimport fs from 'node:fs'\nconst effect=x=>fs.appendFileSync(process.env.ACTUAL_FOCUS_EFFECTS,x+'\\n')\ndescribe.todo('outer',()=>test.only('excluded',()=>effect('BAD')))\n"
+      },
+      "config": "export default {\"test\":{\"mode\":\"production\",\"include\":[\"suite.test.mjs\"],\"allowOnly\":true,\"coverage\":{\"enabled\":false}}}\n",
+      "effects": "",
+      "actualCaseStarts": 0,
+      "lifecycle": [
+        ["collected", "skipped"],
+        ["module-end", "skipped"],
+        ["run-end", "passed"]
+      ]
+    },
+    {
+      "name": "production-skip-todo-only",
+      "mode": "production",
+      "variant": "skip-todo-only",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,describe} from 'vitest'\nimport fs from 'node:fs'\nconst effect=x=>fs.appendFileSync(process.env.ACTUAL_FOCUS_EFFECTS,x+'\\n')\ndescribe.skip('outer',()=>describe.todo('opposite',()=>test.only('excluded',()=>effect('BAD'))))\n"
+      },
+      "config": "export default {\"test\":{\"mode\":\"production\",\"include\":[\"suite.test.mjs\"],\"allowOnly\":true,\"coverage\":{\"enabled\":false}}}\n",
+      "effects": "",
+      "actualCaseStarts": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "cases": [["outer opposite excluded", "pending", []]],
+        "fileErrors": [""],
+        "fileStates": ["passed"],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "lifecycle": [
+        ["collected", "skipped"],
+        ["module-end", "skipped"],
+        ["run-end", "passed"]
+      ]
+    },
+    {
+      "name": "production-todo-skip-only",
+      "mode": "production",
+      "variant": "todo-skip-only",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,describe} from 'vitest'\nimport fs from 'node:fs'\nconst effect=x=>fs.appendFileSync(process.env.ACTUAL_FOCUS_EFFECTS,x+'\\n')\ndescribe.todo('outer',()=>describe.skip('opposite',()=>describe.only('focused',()=>test('excluded',()=>effect('BAD')))))\n"
+      },
+      "config": "export default {\"test\":{\"mode\":\"production\",\"include\":[\"suite.test.mjs\"],\"allowOnly\":true,\"coverage\":{\"enabled\":false}}}\n",
+      "effects": "",
+      "actualCaseStarts": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "cases": [["outer opposite focused excluded", "pending", []]],
+        "fileErrors": [""],
+        "fileStates": ["passed"],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "declarations": [["excluded", "run", "pending"]],
+      "lifecycle": [
+        ["collected", "skipped"],
+        ["module-end", "skipped"],
+        ["run-end", "passed"]
+      ]
+    },
+    {
+      "name": "production-active-suite",
+      "mode": "production",
+      "variant": "active-suite",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,describe} from 'vitest'\nimport fs from 'node:fs'\nconst effect=x=>fs.appendFileSync(process.env.ACTUAL_FOCUS_EFFECTS,x+'\\n')\ndescribe.only('active suite',()=>test('active',()=>effect('active')));test('unselected',()=>effect('BAD'))\n"
+      },
+      "config": "export default {\"test\":{\"mode\":\"production\",\"include\":[\"suite.test.mjs\"],\"allowOnly\":true,\"coverage\":{\"enabled\":false}}}\n",
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 1,
+        "todo": 0,
+        "cases": [
+          ["active suite active", "passed", []],
+          ["unselected", "skipped", []]
+        ],
+        "fileErrors": [""],
+        "fileStates": ["passed"],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "declarations": [
+        ["active", "run", "pending"],
+        ["unselected", "skip", "skipped"]
+      ],
+      "taskStates": [
+        ["active", "passed"],
+        ["unselected", "skipped"]
+      ]
+    }
+  ]
+}

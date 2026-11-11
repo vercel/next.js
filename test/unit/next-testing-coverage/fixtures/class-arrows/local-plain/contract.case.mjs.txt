@@ -1,0 +1,3 @@
+import { expect, test } from 'vitest'
+import { Reader, exercise } from './subject.ts'
+test('erased class declaration', () => { expect(exercise(0)).toBe(3); expect(exercise(2)).toBe(5); expect(Object.hasOwn(new Reader(), 'value')).toBe(false); })

@@ -1,0 +1,1 @@
+export function choose(value){return value?1:2}

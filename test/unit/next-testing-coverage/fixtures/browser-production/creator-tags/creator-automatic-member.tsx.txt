@@ -1,0 +1,8 @@
+import React from 'react'
+type Input = { active: boolean; label: string }
+class Badge extends React.Component<{label:string}> { render(){ return <b>{this.props.label}</b> } }
+const parts = {Badge}
+export function Card({ active, label }: Input) {
+  return <section>{active ? <parts.Badge label={label} /> : <parts.Badge label="fallback" />}</section>
+}
+export const Unused = () => <i />

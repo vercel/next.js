@@ -1,0 +1,121 @@
+{
+  "scope": "Report-only conditional JSX child token contract. Actual same-Session SWC input and initial instrumenter declarations; only temporary fixture path canonicalized. Expected report is unchanged genuine Vitest5.0.4/Istanbul5.0.4. No compiler/execution permission is issued by this fixture.",
+  "file": "<fixture>/subject.tsx",
+  "authoredSource": "export type Input = boolean\nexport function choose(value: Input) {\n  return <section data-state={value ? 'yes' : 'no'}><span>{value ? 'hit' : 'miss'}</span><span>fixed</span></section>\n}\nexport function unused() { return <span>unused</span> }\n",
+  "emittedSource": "import { jsxDEV as _jsxDEV } from \"react/jsx-dev-runtime\";\nexport function choose(value) {\n    return /*#__PURE__*/ _jsxDEV(\"section\", {\n        \"data-state\": value ? 'yes' : 'no',\n        children: [\n            /*#__PURE__*/ _jsxDEV(\"span\", {\n                children: value ? 'hit' : 'miss'\n            }, void 0, false, {\n                fileName: \"<fixture>/subject.tsx\",\n                lineNumber: 3,\n                columnNumber: 53\n            }, this),\n            /*#__PURE__*/ _jsxDEV(\"span\", {\n                children: \"fixed\"\n            }, void 0, false, {\n                fileName: \"<fixture>/subject.tsx\",\n                lineNumber: 3,\n                columnNumber: 90\n            }, this)\n        ]\n    }, void 0, true, {\n        fileName: \"<fixture>/subject.tsx\",\n        lineNumber: 3,\n        columnNumber: 10\n    }, this);\n}\nexport function unused() {\n    return /*#__PURE__*/ _jsxDEV(\"span\", {\n        children: \"unused\"\n    }, void 0, false, {\n        fileName: \"<fixture>/subject.tsx\",\n        lineNumber: 5,\n        columnNumber: 35\n    }, this);\n}\n",
+  "rawCoverage": {
+    "$coverage": "range-tuples-v1",
+    "path": "<fixture>/subject.tsx",
+    "statements": {
+      "0": [3, 4, 25, 13],
+      "1": [28, 4, 34, 13]
+    },
+    "functions": {
+      "0": {
+        "name": "choose",
+        "decl": [2, 16, 2, 22],
+        "loc": [2, 30, 26, 1],
+        "line": 2
+      },
+      "1": {
+        "name": "unused",
+        "decl": [27, 16, 27, 22],
+        "loc": [27, 25, 35, 1],
+        "line": 27
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [4, 22, 4, 42],
+        "type": "cond-expr",
+        "locations": [
+          [4, 30, 4, 35],
+          [4, 38, 4, 42]
+        ],
+        "line": 4
+      },
+      "1": {
+        "loc": [7, 26, 7, 48],
+        "type": "cond-expr",
+        "locations": [
+          [7, 34, 7, 39],
+          [7, 42, 7, 48]
+        ],
+        "line": 7
+      }
+    },
+    "s": {
+      "0": 0,
+      "1": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0
+    },
+    "b": {
+      "0": [0, 0],
+      "1": [0, 0]
+    },
+    "inputSourceMap": {
+      "version": 3,
+      "sources": ["<fixture>/subject.tsx"],
+      "sourcesContent": [
+        "export type Input = boolean\nexport function choose(value: Input) {\n  return <section data-state={value ? 'yes' : 'no'}><span>{value ? 'hit' : 'miss'}</span><span>fixed</span></section>\n}\nexport function unused() { return <span>unused</span> }\n"
+      ],
+      "names": ["choose", "value", "section", "data-state", "span", "unused"],
+      "mappings": ";AACA,OAAO,SAASA,OAAOC,KAAY;IACjC,qBAAO,QAACC;QAAQC,cAAYF,QAAQ,QAAQ;;0BAAM,QAACG;0BAAMH,QAAQ,QAAQ;;;;;;0BAAc,QAACG;0BAAK;;;;;;;;;;;;AAC/F;AACA,OAAO,SAASC;IAAW,qBAAO,QAACD;kBAAK;;;;;;AAAc"
+    }
+  },
+  "expectedReport": {
+    "<fixture>/subject.tsx": {
+      "$coverage": "range-tuples-v1",
+      "path": "<fixture>/subject.tsx",
+      "statements": {
+        "0": [3, 2, 3, null],
+        "1": [5, 27, 5, 54]
+      },
+      "functions": {
+        "0": {
+          "name": "choose",
+          "decl": [2, 16, 2, 23],
+          "loc": [2, 37, 4, null]
+        },
+        "1": {
+          "name": "unused",
+          "decl": [5, 16, 5, 25],
+          "loc": [5, 25, 5, null]
+        }
+      },
+      "branches": {
+        "0": {
+          "loc": [3, 30, 3, 52],
+          "type": "cond-expr",
+          "locations": [
+            [3, 38, 3, 46],
+            [3, 46, 3, 52]
+          ]
+        },
+        "1": {
+          "loc": [3, 59, 3, 88],
+          "type": "cond-expr",
+          "locations": [
+            [3, 67, 3, 75],
+            [3, 75, 3, 88]
+          ]
+        }
+      },
+      "s": {
+        "0": 0,
+        "1": 0
+      },
+      "f": {
+        "0": 0,
+        "1": 0
+      },
+      "b": {
+        "0": [0, 0],
+        "1": [0, 0]
+      }
+    }
+  }
+}

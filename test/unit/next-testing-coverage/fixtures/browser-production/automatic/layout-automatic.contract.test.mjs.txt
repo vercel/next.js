@@ -1,0 +1,3 @@
+import { expect, test } from 'vitest'
+import { Card } from './layout-automatic.tsx'
+test('automatic JSX has no unrelated authored React owner', () => { expect(Card({ active: true }).props.children).toBe('yes'); expect(Card({ active: false }).props.children).toBe('no') })

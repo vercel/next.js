@@ -1,0 +1,24 @@
+{
+  "nativeSHA256": "79264e4b6cbcaa07e2df3270c47bb90c3813ec12ed0ed5d990e13f99b2bec2e5",
+  "actualSidecar": {
+    "version": 1,
+    "kind": "node-test-harness",
+    "entryPath": "server/next-test/0a94a05ff4e30efb9565d209d9bf7578bedaca5997104e8465e1f076f487f4b6.js",
+    "sources": [
+      {
+        "kind": "snapshot-serializers",
+        "source": "file:///private/tmp/next-testing-work-3/.next-harness-inventory-yusOal/__next_test_snapshot_serializers__.mjs",
+        "code": "import { expect } from 'vitest';\nconst serializer_0 = await import(\"./serializer.mjs\");\nexpect.addSnapshotSerializer(serializer_0.default);\n",
+        "serializers": ["./serializer.mjs"]
+      },
+      {
+        "kind": "setup",
+        "source": "file:///private/tmp/next-testing-work-3/.next-harness-inventory-yusOal/setup.mjs.next-test-setup.mjs",
+        "code": "import * as setup from 'INNER_TEST_SETUP_SUBJECT' with { \"turbopack-chunking-type\": \"shared\" };\nexport { setup };\n",
+        "setup": "file:///private/tmp/next-testing-work-3/.next-harness-inventory-yusOal/setup.mjs"
+      }
+    ]
+  },
+  "actualProject": "/private/tmp/next-testing-work-3/.next-harness-inventory-yusOal",
+  "notARecreatedFactory": true
+}

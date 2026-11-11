@@ -1,0 +1,342 @@
+{
+  "defaults": {
+    "sourceFiles": {
+      "subject.mjs": {
+        "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+      },
+      "setup.mjs": {
+        "source": "import {beforeEach} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeEach Array first')\nconst second=new Error('actual beforeEach Array second')\nconst failures=[first,second]\nbeforeEach(async()=>{await Promise.resolve();choose(false);throw failures})\n",
+        "sha256": "67ee7353605145c687a295e548d3432c74d12b4034eb7b70adc5eb4f5749e46e"
+      },
+      "serializer.mjs": {
+        "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+      },
+      "suite.test.mjs": {
+        "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
+        "sha256": "054e054db9e97ce68126a737c4d533b46529f7b96d5ef604894c61d5b5156b19"
+      }
+    },
+    "expectedErrorMessages": [
+      "actual beforeEach Array first",
+      "actual beforeEach Array second"
+    ],
+    "coverage": {
+      "subject.mjs": {
+        "statements": [2, 0, 2, 0],
+        "functions": [2, 0],
+        "branches": [[0, 2]]
+      }
+    },
+    "reportFiles": [
+      "coverage-final.json",
+      "coverage-summary.json",
+      "lcov.info"
+    ],
+    "setupErrorLines": [
+      [3, 4],
+      [3, 4]
+    ]
+  },
+  "rows": [
+    {
+      "name": "beforeeach-array-async-no-snapshots",
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "snapshots": {},
+      "exitCode": 1,
+      "independentAfterEach": false,
+      "expectedErrorsPerCase": 2,
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 0,
+        "numFailedTests": 2,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-cH8L9C/suite.test.mjs",
+            "status": "failed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "first owned body",
+                "status": "failed",
+                "title": "first owned body",
+                "failureMessages": [
+                  "Error: actual beforeEach Array first",
+                  "Error: actual beforeEach Array second"
+                ]
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "second owned body",
+                "status": "failed",
+                "title": "second owned body",
+                "failureMessages": [
+                  "Error: actual beforeEach Array first",
+                  "Error: actual beforeEach Array second"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "beforeeach-array-async-no-snapshots-report-false",
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false}}}\n",
+      "snapshots": {},
+      "exitCode": 1,
+      "independentAfterEach": false,
+      "expectedErrorsPerCase": 2,
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 0,
+        "numFailedTests": 2,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-FViCRO/suite.test.mjs",
+            "status": "failed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "first owned body",
+                "status": "failed",
+                "title": "first owned body",
+                "failureMessages": [
+                  "Error: actual beforeEach Array first",
+                  "Error: actual beforeEach Array second"
+                ]
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "second owned body",
+                "status": "failed",
+                "title": "second owned body",
+                "failureMessages": [
+                  "Error: actual beforeEach Array first",
+                  "Error: actual beforeEach Array second"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "reportFiles": []
+    },
+    {
+      "name": "beforeeach-array-sync-no-snapshots",
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+        },
+        "setup.mjs": {
+          "source": "import {beforeEach} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeEach Array first')\nconst second=new Error('actual beforeEach Array second')\nconst failures=[first,second]\nbeforeEach(()=>{choose(false);throw failures})\n",
+          "sha256": "4682823c25f515ad3c3538271c6052294f1e6c4485828cedc450d8af9e2006cc"
+        },
+        "serializer.mjs": {
+          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
+          "sha256": "054e054db9e97ce68126a737c4d533b46529f7b96d5ef604894c61d5b5156b19"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "snapshots": {},
+      "exitCode": 1,
+      "independentAfterEach": false,
+      "expectedErrorsPerCase": 2,
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 0,
+        "numFailedTests": 2,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-wXARzF/suite.test.mjs",
+            "status": "failed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "first owned body",
+                "status": "failed",
+                "title": "first owned body",
+                "failureMessages": [
+                  "Error: actual beforeEach Array first",
+                  "Error: actual beforeEach Array second"
+                ]
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "second owned body",
+                "status": "failed",
+                "title": "second owned body",
+                "failureMessages": [
+                  "Error: actual beforeEach Array first",
+                  "Error: actual beforeEach Array second"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "beforeeach-array-sync-no-snapshots-report-false",
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+        },
+        "setup.mjs": {
+          "source": "import {beforeEach} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeEach Array first')\nconst second=new Error('actual beforeEach Array second')\nconst failures=[first,second]\nbeforeEach(()=>{choose(false);throw failures})\n",
+          "sha256": "4682823c25f515ad3c3538271c6052294f1e6c4485828cedc450d8af9e2006cc"
+        },
+        "serializer.mjs": {
+          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
+          "sha256": "054e054db9e97ce68126a737c4d533b46529f7b96d5ef604894c61d5b5156b19"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false}}}\n",
+      "snapshots": {},
+      "exitCode": 1,
+      "independentAfterEach": false,
+      "expectedErrorsPerCase": 2,
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 0,
+        "numFailedTests": 2,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-FphFUn/suite.test.mjs",
+            "status": "failed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "first owned body",
+                "status": "failed",
+                "title": "first owned body",
+                "failureMessages": [
+                  "Error: actual beforeEach Array first",
+                  "Error: actual beforeEach Array second"
+                ]
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "second owned body",
+                "status": "failed",
+                "title": "second owned body",
+                "failureMessages": [
+                  "Error: actual beforeEach Array first",
+                  "Error: actual beforeEach Array second"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "reportFiles": []
+    }
+  ]
+}

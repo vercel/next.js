@@ -1,0 +1,6 @@
+import React from 'react'
+type Flag = { active: boolean }
+export function choose({ active }: Flag) {
+  return active ? 'yes' : 'no'
+}
+export function unused() { return 7 }

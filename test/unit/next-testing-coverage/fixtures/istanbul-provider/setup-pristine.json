@@ -1,0 +1,496 @@
+{
+  "defaults": {
+    "fail": false,
+    "actualCLI": true,
+    "exitCode": 0,
+    "allOwnersJoined": true,
+    "wholeCasesAndCoverage": false,
+    "sourceFiles": {
+      "subject.mjs": {
+        "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+      },
+      "setup.mjs": {
+        "source": "import {beforeEach} from 'vitest'\nimport {choose} from './subject.mjs'\nglobalThis.setupValue = choose(false)\nbeforeEach(() => { globalThis.hookValue = choose(false) })\n",
+        "sha256": "4b64a1cb27945a3689d3024d24a1027d16032cd4343773a1d66787c52f7fd756"
+      },
+      "serializer.mjs": {
+        "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+      },
+      "suite.test.mjs": {
+        "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
+        "sha256": "d28e995802f2729f4e167674c9cc7acf3c98d97b36302b94a680bf421a47ca2c"
+      }
+    },
+    "snapshots": {
+      "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
+    },
+    "coverage": {
+      "subject.mjs": {
+        "statements": [5, 1, 4, 0],
+        "functions": [5, 0],
+        "branches": [[1, 4]]
+      }
+    },
+    "reportFiles": ["coverage-final.json", "coverage-summary.json", "lcov.info"]
+  },
+  "rows": [
+    {
+      "name": "combined",
+      "setup": true,
+      "serializer": true,
+      "explicit": true,
+      "snapshot": true,
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+        },
+        "setup.mjs": {
+          "source": "import {beforeEach} from 'vitest'\nimport {choose} from './subject.mjs'\nglobalThis.setupValue = choose(false)\nbeforeEach(() => { globalThis.hookValue = choose(false) })\n",
+          "sha256": "4b64a1cb27945a3689d3024d24a1027d16032cd4343773a1d66787c52f7fd756"
+        },
+        "serializer.mjs": {
+          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
+          "sha256": "054e054db9e97ce68126a737c4d533b46529f7b96d5ef604894c61d5b5156b19"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": true,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 1,
+          "total": 1,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-AkN0Zc/suite.test.mjs",
+            "status": "passed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "first owned body",
+                "status": "passed",
+                "title": "first owned body",
+                "failureMessages": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "second owned body",
+                "status": "passed",
+                "title": "second owned body",
+                "failureMessages": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "combined-case-failure",
+      "setup": true,
+      "serializer": true,
+      "explicit": true,
+      "fail": true,
+      "exitCode": 1,
+      "snapshot": true,
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+        },
+        "setup.mjs": {
+          "source": "import {beforeEach} from 'vitest'\nimport {choose} from './subject.mjs'\nglobalThis.setupValue = choose(false)\nbeforeEach(() => { globalThis.hookValue = choose(false) })\n",
+          "sha256": "4b64a1cb27945a3689d3024d24a1027d16032cd4343773a1d66787c52f7fd756"
+        },
+        "serializer.mjs": {
+          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n  expect(value).toBe(99)\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
+          "sha256": "3a76e42343ee450905e669fecf6cbd5491b5e75205463ef58dc5530f7d0776b0"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 1,
+        "numFailedTests": 1,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 1,
+          "total": 1,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-z8qsQN/suite.test.mjs",
+            "status": "failed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "first owned body",
+                "status": "failed",
+                "title": "first owned body",
+                "failureMessages": [
+                  "AssertionError: expected 1 to be 99 // Object.is equality"
+                ]
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "second owned body",
+                "status": "passed",
+                "title": "second owned body",
+                "failureMessages": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "serializer-explicit",
+      "setup": false,
+      "serializer": true,
+      "explicit": true,
+      "snapshot": true,
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": true,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 1,
+          "total": 1,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-kvrD52/suite.test.mjs",
+            "status": "passed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "first owned body",
+                "status": "passed",
+                "title": "first owned body",
+                "failureMessages": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "second owned body",
+                "status": "passed",
+                "title": "second owned body",
+                "failureMessages": []
+              }
+            ]
+          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [2, 1, 1, 0],
+          "functions": [2, 0],
+          "branches": [[1, 1]]
+        }
+      }
+    },
+    {
+      "name": "serializer-imported",
+      "setup": false,
+      "serializer": true,
+      "explicit": false,
+      "snapshot": true,
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": true,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 1,
+          "total": 1,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-GNWKSe/suite.test.mjs",
+            "status": "passed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "first owned body",
+                "status": "passed",
+                "title": "first owned body",
+                "failureMessages": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "second owned body",
+                "status": "passed",
+                "title": "second owned body",
+                "failureMessages": []
+              }
+            ]
+          }
+        ]
+      },
+      "coverage": {
+        "serializer.mjs": {
+          "statements": [1, 1],
+          "functions": [1, 1],
+          "branches": []
+        },
+        "subject.mjs": {
+          "statements": [2, 1, 1, 0],
+          "functions": [2, 0],
+          "branches": [[1, 1]]
+        }
+      }
+    },
+    {
+      "name": "setup-explicit",
+      "setup": true,
+      "serializer": false,
+      "explicit": true,
+      "snapshot": false,
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+        },
+        "setup.mjs": {
+          "source": "import {beforeEach} from 'vitest'\nimport {choose} from './subject.mjs'\nglobalThis.setupValue = choose(false)\nbeforeEach(() => { globalThis.hookValue = choose(false) })\n",
+          "sha256": "4b64a1cb27945a3689d3024d24a1027d16032cd4343773a1d66787c52f7fd756"
+        },
+        "serializer.mjs": {
+          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect(value).toBe(1)\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
+          "sha256": "f615623b4ac07657534cadd3c6a81ddc4138aa5d33a037f77f9b978a4dee7827"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "snapshots": {},
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": true,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-Xrhxrf/suite.test.mjs",
+            "status": "passed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "first owned body",
+                "status": "passed",
+                "title": "first owned body",
+                "failureMessages": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "second owned body",
+                "status": "passed",
+                "title": "second owned body",
+                "failureMessages": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "setup-imported",
+      "setup": true,
+      "serializer": false,
+      "explicit": false,
+      "snapshot": false,
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+        },
+        "setup.mjs": {
+          "source": "import {beforeEach} from 'vitest'\nimport {choose} from './subject.mjs'\nglobalThis.setupValue = choose(false)\nbeforeEach(() => { globalThis.hookValue = choose(false) })\n",
+          "sha256": "4b64a1cb27945a3689d3024d24a1027d16032cd4343773a1d66787c52f7fd756"
+        },
+        "serializer.mjs": {
+          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect(value).toBe(1)\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
+          "sha256": "f615623b4ac07657534cadd3c6a81ddc4138aa5d33a037f77f9b978a4dee7827"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "snapshots": {},
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": true,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-cqZxxJ/suite.test.mjs",
+            "status": "passed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "first owned body",
+                "status": "passed",
+                "title": "first owned body",
+                "failureMessages": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "second owned body",
+                "status": "passed",
+                "title": "second owned body",
+                "failureMessages": []
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "notQualified": [
+    "snapshot updates with coverage",
+    "setup failure publication",
+    "other profiles/languages/user transforms"
+  ]
+}

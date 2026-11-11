@@ -2717,6 +2717,64 @@ it.each(['setup', 'setup-error', 'setup-dispose-error'])(
   }
 )
 
+it.each(['missing', 'order', 'parallel', 'coverage'])(
+  'refuses Browser setup %s before evaluating an artifact',
+  async (mode) => {
+    const profile = {
+      id: 'setup-browser',
+      environment: 'browser',
+      mode: 'development',
+      runtime: 'nodejs',
+      bundler: 'turbopack',
+      browserClient: true,
+    }
+    const setupFiles = ['/project/setup-one.mjs', '/project/setup-two.mjs']
+    const entry = { id: 'entry', file: '/project/setup.test.mjs', profile }
+    const artifact = {
+      version: 2,
+      kind: 'browser',
+      entryId: entry.id,
+      revision: 'revision',
+      profile,
+      setupFiles,
+      client: {
+        sourceFile: entry.file,
+        asyncScope: 'promise-continuations-v1',
+        creatorScope: 'synchronous-source-v1',
+        creatorPromiseRoute: 'native-engine-v1',
+      },
+    }
+    const { executeClient } = jest.requireActual(
+      'next/dist/experimental/testing/client/execute'
+    )
+    const onEvent = jest.fn()
+    await expect(
+      executeClient(artifact, {
+        entry,
+        setupFiles:
+          mode === 'missing'
+            ? []
+            : mode === 'order'
+              ? [...setupFiles].reverse()
+              : setupFiles,
+        sequence: { setupFiles: mode === 'parallel' ? 'parallel' : 'list' },
+        ...(mode === 'coverage'
+          ? {
+              coverage: { version: 1, kind: 'browser-v8' },
+              onCoverage() {},
+            }
+          : {}),
+        onEvent,
+      })
+    ).rejects.toThrow(
+      mode === 'missing' || mode === 'order'
+        ? 'Compiled setup files do not match the requested setup order'
+        : /parallel setup|setup coverage/
+    )
+    expect(onEvent).not.toHaveBeenCalled()
+  }
+)
+
 it('transports Browser env settings and configures the actual runtime before authored load', async () => {
   const modules = [
     'next/dist/experimental/testing/client/server',
@@ -3599,6 +3657,52 @@ it.each(['preflight', 'native-error', 'cleanup-error'])(
       scenario,
       existingNativeOwnership: true,
     })
+  }
+)
+
+it.each(['development', 'production'] as const)(
+  'leaves Firefox V8 coverage explicitly unimplemented before acquiring %s Browser owners',
+  async (mode) => {
+    const profile = {
+      id: 'firefox-v8',
+      environment: 'browser',
+      mode,
+      runtime: 'nodejs',
+      bundler: 'turbopack',
+      browserClient: true,
+    }
+    const entry = {
+      id: 'firefox-entry',
+      file: '/project/firefox.test.mjs',
+      profile,
+    }
+    const artifact = {
+      version: 2,
+      kind: 'browser',
+      entryId: entry.id,
+      revision: 'firefox-revision',
+      profile,
+      client: {
+        sourceFile: entry.file,
+        asyncScope: 'promise-continuations-v1',
+        creatorScope: 'synchronous-source-v1',
+        creatorPromiseRoute: 'native-engine-v1',
+      },
+    }
+    const { executeClient } = jest.requireActual(
+      'next/dist/experimental/testing/client/execute'
+    )
+    const onEvent = jest.fn()
+    await expect(
+      executeClient(artifact, {
+        entry,
+        setupFiles: [],
+        browserEngine: 'firefox',
+        coverage: { version: 1, kind: 'browser-v8' },
+        onEvent,
+      })
+    ).rejects.toThrow('Firefox Browser Mode V8 coverage is not implemented.')
+    expect(onEvent).not.toHaveBeenCalled()
   }
 )
 

@@ -1,0 +1,5 @@
+import { expect, test } from 'vitest'
+import { Card as Card0 } from './tag-alias-named-nested.tsx'
+import { Card as Card1 } from './tag-alias-named-member.tsx'
+test('named nested preserves authored child and prop behavior',()=>{const yes=Card0({active:true,label:'hello'}),no=Card0({active:false,label:'world'});expect(yes.props.children.map(node=>node.type(node.props).props.children)).toEqual(['hello','yes']);expect(no.props.children.map(node=>node.type(node.props).props.children)).toEqual(['world','no'])})
+test('named member preserves authored child and prop behavior',()=>{const yes=Card1({active:true,label:'hello'}),no=Card1({active:false,label:'world'});expect(yes.type.name).toBe('InfoView');expect(yes.type(yes.props).props.children).toBe('hello');expect(no.type(no.props).props.children).toBe('world')})

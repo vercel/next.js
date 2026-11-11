@@ -1,0 +1,8 @@
+/** @jsxRuntime classic */
+import React from 'react'
+type Input = { active: boolean; label: string }
+const Badge = function BadgeView(props: {label:string}) { const {label} = props; return <b>{label}</b> }
+export function Card({ active, label }: Input) {
+  return <section>{active ? <Badge label={label} /> : <Badge label="fallback" />}</section>
+}
+export const Unused = () => <i />

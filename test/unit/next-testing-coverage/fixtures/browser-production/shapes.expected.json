@@ -1,0 +1,3685 @@
+{
+  "javascript": {
+    "cases": ["browser original source"],
+    "coverage": {
+      "subject.mjs": {
+        "lines": {
+          "2": 2,
+          "3": 1,
+          "6": 0
+        },
+        "functions": [
+          {
+            "name": "choose",
+            "line": 1,
+            "hits": 2
+          },
+          {
+            "name": "unused",
+            "line": 5,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "if",
+            "line": 2,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 1, 0]
+      }
+    },
+    "coordinates": {
+      "subject.mjs": {
+        "statements": {
+          "0": [2, 2, 2, null]
+        },
+        "functions": {
+          "0": [1, 30, 4, null]
+        },
+        "branches": {
+          "0": [2, 2, 2, null]
+        }
+      }
+    }
+  },
+  "typescript": {
+    "cases": ["actual compiler full source TypeScript coverage"],
+    "coverage": {
+      "subject.ts": {
+        "lines": {
+          "2": 2,
+          "3": 1,
+          "6": 1,
+          "9": 0
+        },
+        "functions": [
+          {
+            "name": "choose",
+            "line": 1,
+            "hits": 2
+          },
+          {
+            "name": "double",
+            "line": 5,
+            "hits": 1
+          },
+          {
+            "name": "unused",
+            "line": 8,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "if",
+            "line": 2,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 1, 1, 0]
+      }
+    },
+    "coordinates": {
+      "subject.ts": {
+        "statements": {
+          "0": [2, 2, 2, null]
+        },
+        "functions": {
+          "0": [1, 50, 4, null]
+        },
+        "branches": {
+          "0": [2, 2, 2, null]
+        }
+      }
+    }
+  },
+  "fragment": {
+    "cases": [
+      "renders fragment logical child branches",
+      "renders parenthesized typed fragment arrow"
+    ],
+    "coverage": {
+      "helper.js": {
+        "lines": {
+          "1": 5
+        },
+        "functions": [
+          {
+            "name": "label",
+            "line": 1,
+            "hits": 5
+          }
+        ],
+        "branches": [],
+        "statements": [5]
+      },
+      "subject.tsx": {
+        "lines": {
+          "1": 1,
+          "5": 2,
+          "7": 1,
+          "8": 2
+        },
+        "functions": [
+          {
+            "name": "Fragment",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 2
+          }
+        ],
+        "branches": [
+          {
+            "type": "binary-expr",
+            "line": 5,
+            "hits": [2, 1]
+          }
+        ],
+        "statements": [1, 1, 2, 1, 2]
+      }
+    },
+    "coordinates": {
+      "helper.js": {
+        "statements": {
+          "0": [1, 31, 1, 49]
+        },
+        "functions": {
+          "0": [1, 29, 1, null]
+        }
+      }
+    }
+  },
+  "unimported": {
+    "cases": [
+      "renders fragment logical child branches",
+      "renders parenthesized typed fragment arrow"
+    ],
+    "coverage": {
+      "helper.js": {
+        "lines": {
+          "1": 5
+        },
+        "functions": [
+          {
+            "name": "label",
+            "line": 1,
+            "hits": 5
+          }
+        ],
+        "branches": [],
+        "statements": [5]
+      },
+      "subject.tsx": {
+        "lines": {
+          "1": 1,
+          "5": 2,
+          "7": 1,
+          "8": 2
+        },
+        "functions": [
+          {
+            "name": "Fragment",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 2
+          }
+        ],
+        "branches": [
+          {
+            "type": "binary-expr",
+            "line": 5,
+            "hits": [2, 1]
+          }
+        ],
+        "statements": [1, 1, 2, 1, 2]
+      },
+      "unimported.tsx": {
+        "lines": {
+          "1": 0,
+          "5": 0,
+          "7": 0,
+          "8": 0
+        },
+        "functions": [
+          {
+            "name": "Fragment",
+            "line": 4,
+            "hits": 0
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "binary-expr",
+            "line": 5,
+            "hits": [0, 0]
+          }
+        ],
+        "statements": [0, 0, 0, 0, 0]
+      }
+    },
+    "coordinates": {
+      "helper.js": {
+        "statements": {
+          "0": [1, 31, 1, 49]
+        },
+        "functions": {
+          "0": [1, 29, 1, null]
+        }
+      }
+    }
+  },
+  "nojsx": {
+    "cases": ["typed source without JSX drops unrelated React"],
+    "coverage": {
+      "layout-nojsx.tsx": {
+        "lines": {
+          "4": 2,
+          "6": 0
+        },
+        "functions": [
+          {
+            "name": "choose",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "unused",
+            "line": 6,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 4,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 0]
+      }
+    },
+    "coordinates": {
+      "layout-nojsx.tsx": {
+        "statements": {
+          "0": [4, 2, 4, null]
+        },
+        "functions": {
+          "0": [3, 41, 5, null]
+        },
+        "branches": {
+          "0": [4, 9, 4, null]
+        }
+      }
+    }
+  },
+  "classic": {
+    "cases": ["classic JSX owns authored React without automatic helper"],
+    "coverage": {
+      "layout-classic.tsx": {
+        "lines": {
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 5,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      }
+    },
+    "coordinates": {
+      "layout-classic.tsx": {
+        "statements": {
+          "0": [5, 2, 5, null]
+        },
+        "functions": {
+          "0": [4, 39, 6, null]
+        },
+        "branches": {
+          "0": [5, 13, 5, 38]
+        }
+      }
+    }
+  },
+  "automatic": {
+    "cases": ["automatic JSX has no unrelated authored React owner"],
+    "coverage": {
+      "layout-automatic.tsx": {
+        "lines": {
+          "3": 2,
+          "5": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 5,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 3,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      }
+    },
+    "coordinates": {
+      "layout-automatic.tsx": {
+        "statements": {
+          "0": [3, 2, 3, null]
+        },
+        "functions": {
+          "0": [2, 39, 4, null]
+        },
+        "branches": {
+          "0": [3, 13, 3, 38]
+        }
+      }
+    }
+  },
+  "pragma": {
+    "cases": ["classic JSX uses actual authored pragma factory"],
+    "coverage": {
+      "layout-pragma.tsx": {
+        "lines": {
+          "6": 2,
+          "8": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 5,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 8,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 6,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      }
+    },
+    "coordinates": {
+      "layout-pragma.tsx": {
+        "statements": {
+          "0": [6, 2, 6, null]
+        },
+        "functions": {
+          "0": [5, 39, 7, null]
+        },
+        "branches": {
+          "0": [6, 13, 6, 38]
+        }
+      }
+    }
+  },
+  "pragmafrag": {
+    "cases": [
+      "classic fragment uses actual authored pragma factory and fragment"
+    ],
+    "coverage": {
+      "layout-pragmafrag.tsx": {
+        "lines": {
+          "7": 2,
+          "9": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 9,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 7,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      }
+    },
+    "coordinates": {
+      "layout-pragmafrag.tsx": {
+        "statements": {
+          "0": [7, 2, 7, null]
+        },
+        "functions": {
+          "0": [6, 39, 8, null]
+        },
+        "branches": {
+          "0": [7, 12, 7, 36]
+        }
+      }
+    }
+  },
+  "children": {
+    "cases": [
+      "classic props preserves authored child and prop behavior",
+      "classic multiple preserves authored child and prop behavior",
+      "classic logical preserves authored child and prop behavior",
+      "classic conditional preserves authored child and prop behavior",
+      "classic multiline preserves authored child and prop behavior",
+      "classic fragment preserves authored child and prop behavior",
+      "automatic props preserves authored child and prop behavior",
+      "automatic multiple preserves authored child and prop behavior",
+      "automatic logical preserves authored child and prop behavior",
+      "automatic conditional preserves authored child and prop behavior",
+      "automatic multiline preserves authored child and prop behavior",
+      "automatic fragment preserves authored child and prop behavior"
+    ],
+    "coverage": {
+      "shape-automatic-conditional.tsx": {
+        "lines": {
+          "3": 2,
+          "5": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 5,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 3,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-automatic-fragment.tsx": {
+        "lines": {
+          "3": 2,
+          "5": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 5,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 3,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-automatic-logical.tsx": {
+        "lines": {
+          "3": 2,
+          "5": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 5,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "binary-expr",
+            "line": 3,
+            "hits": [2, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-automatic-multiline.tsx": {
+        "lines": {
+          "3": 2,
+          "10": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 10,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 4,
+            "hits": [1, 1]
+          },
+          {
+            "type": "cond-expr",
+            "line": 6,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-automatic-multiple.tsx": {
+        "lines": {
+          "3": 2,
+          "5": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 5,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 3,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-automatic-props.tsx": {
+        "lines": {
+          "3": 2,
+          "5": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 5,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 3,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-classic-conditional.tsx": {
+        "lines": {
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 5,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-classic-fragment.tsx": {
+        "lines": {
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 5,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-classic-logical.tsx": {
+        "lines": {
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "binary-expr",
+            "line": 5,
+            "hits": [2, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-classic-multiline.tsx": {
+        "lines": {
+          "5": 2,
+          "12": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 12,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 6,
+            "hits": [1, 1]
+          },
+          {
+            "type": "cond-expr",
+            "line": 8,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-classic-multiple.tsx": {
+        "lines": {
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 5,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-classic-props.tsx": {
+        "lines": {
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 5,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      }
+    },
+    "coordinates": {
+      "shape-classic-conditional.tsx": {
+        "statements": {
+          "0": [5, 2, 5, null]
+        },
+        "functions": {
+          "0": [4, 47, 6, null]
+        },
+        "branches": {
+          "0": [5, 19, 5, 70]
+        }
+      },
+      "shape-automatic-conditional.tsx": {
+        "statements": {
+          "0": [3, 2, 3, null]
+        },
+        "functions": {
+          "0": [2, 47, 4, null]
+        },
+        "branches": {
+          "0": [3, 19, 3, 70]
+        }
+      }
+    }
+  },
+  "named-children": {
+    "cases": [
+      "classic props preserves authored child and prop behavior",
+      "classic multiple preserves authored child and prop behavior",
+      "classic logical preserves authored child and prop behavior",
+      "classic conditional preserves authored child and prop behavior",
+      "classic multiline preserves authored child and prop behavior",
+      "classic fragment preserves authored child and prop behavior",
+      "named props preserves authored child and prop behavior",
+      "named multiple preserves authored child and prop behavior",
+      "named logical preserves authored child and prop behavior",
+      "named conditional preserves authored child and prop behavior",
+      "named multiline preserves authored child and prop behavior",
+      "named fragment preserves authored child and prop behavior",
+      "automatic props preserves authored child and prop behavior",
+      "automatic multiple preserves authored child and prop behavior",
+      "automatic logical preserves authored child and prop behavior",
+      "automatic conditional preserves authored child and prop behavior",
+      "automatic multiline preserves authored child and prop behavior",
+      "automatic fragment preserves authored child and prop behavior"
+    ],
+    "coverage": {
+      "shape-automatic-conditional.tsx": {
+        "lines": {
+          "3": 2,
+          "5": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 5,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 3,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-automatic-fragment.tsx": {
+        "lines": {
+          "3": 2,
+          "5": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 5,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 3,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-automatic-logical.tsx": {
+        "lines": {
+          "3": 2,
+          "5": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 5,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "binary-expr",
+            "line": 3,
+            "hits": [2, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-automatic-multiline.tsx": {
+        "lines": {
+          "3": 2,
+          "10": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 10,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 4,
+            "hits": [1, 1]
+          },
+          {
+            "type": "cond-expr",
+            "line": 6,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-automatic-multiple.tsx": {
+        "lines": {
+          "3": 2,
+          "5": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 5,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 3,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-automatic-props.tsx": {
+        "lines": {
+          "3": 2,
+          "5": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 5,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 3,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-classic-conditional.tsx": {
+        "lines": {
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 5,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-classic-fragment.tsx": {
+        "lines": {
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 5,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-classic-logical.tsx": {
+        "lines": {
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "binary-expr",
+            "line": 5,
+            "hits": [2, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-classic-multiline.tsx": {
+        "lines": {
+          "5": 2,
+          "12": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 12,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 6,
+            "hits": [1, 1]
+          },
+          {
+            "type": "cond-expr",
+            "line": 8,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-classic-multiple.tsx": {
+        "lines": {
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 5,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-classic-props.tsx": {
+        "lines": {
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 5,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-named-conditional.tsx": {
+        "lines": {
+          "7": 2,
+          "9": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 9,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 7,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-named-fragment.tsx": {
+        "lines": {
+          "7": 2,
+          "9": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 9,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 7,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-named-logical.tsx": {
+        "lines": {
+          "7": 2,
+          "9": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 9,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "binary-expr",
+            "line": 7,
+            "hits": [2, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-named-multiline.tsx": {
+        "lines": {
+          "7": 2,
+          "14": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 14,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 8,
+            "hits": [1, 1]
+          },
+          {
+            "type": "cond-expr",
+            "line": 10,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-named-multiple.tsx": {
+        "lines": {
+          "7": 2,
+          "9": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 9,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 7,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-named-props.tsx": {
+        "lines": {
+          "7": 2,
+          "9": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 9,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 7,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      }
+    },
+    "coordinates": {
+      "shape-classic-conditional.tsx": {
+        "statements": {
+          "0": [5, 2, 5, null]
+        },
+        "functions": {
+          "0": [4, 47, 6, null]
+        },
+        "branches": {
+          "0": [5, 19, 5, 70]
+        }
+      },
+      "shape-automatic-conditional.tsx": {
+        "statements": {
+          "0": [3, 2, 3, null]
+        },
+        "functions": {
+          "0": [2, 47, 4, null]
+        },
+        "branches": {
+          "0": [3, 19, 3, 70]
+        }
+      },
+      "shape-named-conditional.tsx": {
+        "statements": {
+          "0": [7, 2, 7, null]
+        },
+        "functions": {
+          "0": [6, 47, 8, null]
+        },
+        "branches": {
+          "0": [7, 19, 7, 70]
+        }
+      }
+    }
+  },
+  "named-aliases": {
+    "cases": [
+      "named logical preserves authored child and prop behavior",
+      "named fragment preserves authored child and prop behavior"
+    ],
+    "coverage": {
+      "shape-named-fragment.tsx": {
+        "lines": {
+          "7": 2,
+          "9": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 9,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 7,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-named-logical.tsx": {
+        "lines": {
+          "7": 2,
+          "9": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 9,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "binary-expr",
+            "line": 7,
+            "hits": [2, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      }
+    },
+    "coordinates": {
+      "shape-named-fragment.tsx": {
+        "statements": {
+          "0": [7, 2, 7, null]
+        },
+        "functions": {
+          "0": [6, 47, 8, null]
+        },
+        "branches": {
+          "0": [7, 19, 7, 41]
+        }
+      }
+    }
+  },
+  "empty-elements": {
+    "cases": [
+      "classic empty preserves authored child and prop behavior",
+      "classic attributes preserves authored child and prop behavior",
+      "classic boolean preserves authored child and prop behavior",
+      "classic combined preserves authored child and prop behavior",
+      "classic nested preserves authored child and prop behavior",
+      "classic paired preserves authored child and prop behavior",
+      "named empty preserves authored child and prop behavior",
+      "named attributes preserves authored child and prop behavior",
+      "named boolean preserves authored child and prop behavior",
+      "named combined preserves authored child and prop behavior",
+      "named nested preserves authored child and prop behavior",
+      "named paired preserves authored child and prop behavior",
+      "automatic empty preserves authored child and prop behavior",
+      "automatic attributes preserves authored child and prop behavior",
+      "automatic boolean preserves authored child and prop behavior",
+      "automatic combined preserves authored child and prop behavior",
+      "automatic nested preserves authored child and prop behavior",
+      "automatic paired preserves authored child and prop behavior"
+    ],
+    "coverage": {
+      "shape-automatic-attributes.tsx": {
+        "lines": {
+          "3": 2,
+          "5": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 5,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 3,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-automatic-boolean.tsx": {
+        "lines": {
+          "3": 2,
+          "5": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 5,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 1, 0]
+      },
+      "shape-automatic-combined.tsx": {
+        "lines": {
+          "3": 2,
+          "5": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 5,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 3,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-automatic-empty.tsx": {
+        "lines": {
+          "3": 2,
+          "5": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 5,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 1, 0]
+      },
+      "shape-automatic-nested.tsx": {
+        "lines": {
+          "3": 2,
+          "5": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 5,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 3,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-automatic-paired.tsx": {
+        "lines": {
+          "3": 2,
+          "5": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 5,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 1, 0]
+      },
+      "shape-classic-attributes.tsx": {
+        "lines": {
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 5,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-classic-boolean.tsx": {
+        "lines": {
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 1, 0]
+      },
+      "shape-classic-combined.tsx": {
+        "lines": {
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 5,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-classic-empty.tsx": {
+        "lines": {
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 1, 0]
+      },
+      "shape-classic-nested.tsx": {
+        "lines": {
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 5,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-classic-paired.tsx": {
+        "lines": {
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 1, 0]
+      },
+      "shape-named-attributes.tsx": {
+        "lines": {
+          "7": 2,
+          "9": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 9,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 7,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-named-boolean.tsx": {
+        "lines": {
+          "7": 2,
+          "9": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 9,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 1, 0]
+      },
+      "shape-named-combined.tsx": {
+        "lines": {
+          "7": 2,
+          "9": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 9,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 7,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-named-empty.tsx": {
+        "lines": {
+          "7": 2,
+          "9": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 9,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 1, 0]
+      },
+      "shape-named-nested.tsx": {
+        "lines": {
+          "7": 2,
+          "9": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 9,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 7,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      },
+      "shape-named-paired.tsx": {
+        "lines": {
+          "7": 2,
+          "9": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 9,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 1, 0]
+      }
+    },
+    "coordinates": {
+      "shape-classic-attributes.tsx": {
+        "statements": {
+          "0": [5, 2, 5, null]
+        },
+        "functions": {
+          "0": [4, 47, 6, null]
+        },
+        "branches": {
+          "0": [5, 23, 5, 46]
+        }
+      },
+      "shape-automatic-attributes.tsx": {
+        "statements": {
+          "0": [3, 2, 3, null]
+        },
+        "functions": {
+          "0": [2, 47, 4, null]
+        },
+        "branches": {
+          "0": [3, 23, 3, 46]
+        }
+      },
+      "shape-named-attributes.tsx": {
+        "statements": {
+          "0": [7, 2, 7, null]
+        },
+        "functions": {
+          "0": [6, 47, 8, null]
+        },
+        "branches": {
+          "0": [7, 23, 7, 46]
+        }
+      }
+    }
+  },
+  "empty-aliases": {
+    "cases": [
+      "named boolean preserves authored child and prop behavior",
+      "named nested preserves authored child and prop behavior"
+    ],
+    "coverage": {
+      "shape-named-boolean.tsx": {
+        "lines": {
+          "7": 2,
+          "9": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 9,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 1, 0]
+      },
+      "shape-named-nested.tsx": {
+        "lines": {
+          "7": 2,
+          "9": 1
+        },
+        "functions": [
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 9,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 7,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 0]
+      }
+    },
+    "coordinates": {
+      "shape-named-boolean.tsx": {
+        "statements": {
+          "0": [7, 2, 7, null]
+        },
+        "functions": {
+          "0": [6, 47, 8, null]
+        }
+      }
+    }
+  },
+  "component-tags": {
+    "cases": [
+      "classic single preserves authored child and prop behavior",
+      "classic paired preserves authored child and prop behavior",
+      "classic conditional preserves authored child and prop behavior",
+      "classic nested preserves authored child and prop behavior",
+      "classic arrow preserves authored child and prop behavior",
+      "classic member preserves authored child and prop behavior",
+      "named single preserves authored child and prop behavior",
+      "named paired preserves authored child and prop behavior",
+      "named conditional preserves authored child and prop behavior",
+      "named nested preserves authored child and prop behavior",
+      "named arrow preserves authored child and prop behavior",
+      "named member preserves authored child and prop behavior",
+      "automatic single preserves authored child and prop behavior",
+      "automatic paired preserves authored child and prop behavior",
+      "automatic conditional preserves authored child and prop behavior",
+      "automatic nested preserves authored child and prop behavior",
+      "automatic arrow preserves authored child and prop behavior",
+      "automatic member preserves authored child and prop behavior"
+    ],
+    "coverage": {
+      "shape-automatic-arrow.tsx": {
+        "lines": {
+          "2": 2,
+          "4": 2,
+          "6": 1
+        },
+        "functions": [
+          {
+            "name": "(anonymous_0)",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 6,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 4,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [1, 2, 2, 1, 0]
+      },
+      "shape-automatic-conditional.tsx": {
+        "lines": {
+          "2": 2,
+          "4": 2,
+          "6": 1
+        },
+        "functions": [
+          {
+            "name": "Badge",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 6,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 4,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 2, 1, 0]
+      },
+      "shape-automatic-member.tsx": {
+        "lines": {
+          "2": 2,
+          "3": 1,
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "Badge",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 1, 2, 1, 0]
+      },
+      "shape-automatic-nested.tsx": {
+        "lines": {
+          "2": 4,
+          "4": 2,
+          "6": 1
+        },
+        "functions": [
+          {
+            "name": "Badge",
+            "line": 2,
+            "hits": 4
+          },
+          {
+            "name": "Card",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 6,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 4,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [4, 2, 1, 0]
+      },
+      "shape-automatic-paired.tsx": {
+        "lines": {
+          "2": 2,
+          "4": 2,
+          "6": 1
+        },
+        "functions": [
+          {
+            "name": "Badge",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 6,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 2, 1, 0]
+      },
+      "shape-automatic-single.tsx": {
+        "lines": {
+          "2": 2,
+          "4": 2,
+          "6": 1
+        },
+        "functions": [
+          {
+            "name": "Badge",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 6,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 2, 1, 0]
+      },
+      "shape-classic-arrow.tsx": {
+        "lines": {
+          "4": 2,
+          "6": 2,
+          "8": 1
+        },
+        "functions": [
+          {
+            "name": "(anonymous_0)",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 5,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 8,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 6,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [1, 2, 2, 1, 0]
+      },
+      "shape-classic-conditional.tsx": {
+        "lines": {
+          "4": 2,
+          "6": 2,
+          "8": 1
+        },
+        "functions": [
+          {
+            "name": "Badge",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 5,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 8,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 6,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 2, 1, 0]
+      },
+      "shape-classic-member.tsx": {
+        "lines": {
+          "4": 2,
+          "5": 1,
+          "7": 2,
+          "9": 1
+        },
+        "functions": [
+          {
+            "name": "Badge",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 9,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 1, 2, 1, 0]
+      },
+      "shape-classic-nested.tsx": {
+        "lines": {
+          "4": 4,
+          "6": 2,
+          "8": 1
+        },
+        "functions": [
+          {
+            "name": "Badge",
+            "line": 4,
+            "hits": 4
+          },
+          {
+            "name": "Card",
+            "line": 5,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 8,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 6,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [4, 2, 1, 0]
+      },
+      "shape-classic-paired.tsx": {
+        "lines": {
+          "4": 2,
+          "6": 2,
+          "8": 1
+        },
+        "functions": [
+          {
+            "name": "Badge",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 5,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 8,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 2, 1, 0]
+      },
+      "shape-classic-single.tsx": {
+        "lines": {
+          "4": 2,
+          "6": 2,
+          "8": 1
+        },
+        "functions": [
+          {
+            "name": "Badge",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 5,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 8,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 2, 1, 0]
+      },
+      "shape-named-arrow.tsx": {
+        "lines": {
+          "6": 2,
+          "8": 2,
+          "10": 1
+        },
+        "functions": [
+          {
+            "name": "(anonymous_0)",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 7,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 10,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 8,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [1, 2, 2, 1, 0]
+      },
+      "shape-named-conditional.tsx": {
+        "lines": {
+          "6": 2,
+          "8": 2,
+          "10": 1
+        },
+        "functions": [
+          {
+            "name": "Badge",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 7,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 10,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 8,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 2, 1, 0]
+      },
+      "shape-named-member.tsx": {
+        "lines": {
+          "6": 2,
+          "7": 1,
+          "9": 2,
+          "11": 1
+        },
+        "functions": [
+          {
+            "name": "Badge",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 8,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 11,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 1, 2, 1, 0]
+      },
+      "shape-named-nested.tsx": {
+        "lines": {
+          "6": 4,
+          "8": 2,
+          "10": 1
+        },
+        "functions": [
+          {
+            "name": "Badge",
+            "line": 6,
+            "hits": 4
+          },
+          {
+            "name": "Card",
+            "line": 7,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 10,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 8,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [4, 2, 1, 0]
+      },
+      "shape-named-paired.tsx": {
+        "lines": {
+          "6": 2,
+          "8": 2,
+          "10": 1
+        },
+        "functions": [
+          {
+            "name": "Badge",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 7,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 10,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 2, 1, 0]
+      },
+      "shape-named-single.tsx": {
+        "lines": {
+          "6": 2,
+          "8": 2,
+          "10": 1
+        },
+        "functions": [
+          {
+            "name": "Badge",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 7,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 10,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 2, 1, 0]
+      }
+    },
+    "coordinates": {
+      "shape-classic-arrow.tsx": {
+        "statements": {
+          "0": [4, 6, 4, null]
+        },
+        "functions": {
+          "1": [5, 47, 7, null]
+        },
+        "branches": {
+          "0": [6, 23, 6, 47]
+        }
+      },
+      "shape-automatic-arrow.tsx": {
+        "statements": {
+          "0": [2, 6, 2, null]
+        },
+        "functions": {
+          "1": [3, 47, 5, null]
+        },
+        "branches": {
+          "0": [4, 23, 4, 47]
+        }
+      },
+      "shape-named-arrow.tsx": {
+        "statements": {
+          "0": [6, 6, 6, null]
+        },
+        "functions": {
+          "1": [7, 47, 9, null]
+        },
+        "branches": {
+          "0": [8, 23, 8, 47]
+        }
+      }
+    }
+  },
+  "component-aliases": {
+    "cases": [
+      "named nested preserves authored child and prop behavior",
+      "named member preserves authored child and prop behavior"
+    ],
+    "coverage": {
+      "tag-alias-named-member.tsx": {
+        "lines": {
+          "6": 2,
+          "7": 1,
+          "9": 2,
+          "11": 1
+        },
+        "functions": [
+          {
+            "name": "InfoView",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 8,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 11,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 1, 2, 1, 0]
+      },
+      "tag-alias-named-nested.tsx": {
+        "lines": {
+          "6": 4,
+          "8": 2,
+          "10": 1
+        },
+        "functions": [
+          {
+            "name": "InfoView",
+            "line": 6,
+            "hits": 4
+          },
+          {
+            "name": "Card",
+            "line": 7,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 10,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 8,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [4, 2, 1, 0]
+      }
+    },
+    "coordinates": {
+      "tag-alias-named-member.tsx": {
+        "statements": {
+          "0": [6, 51, 6, 76]
+        },
+        "functions": {
+          "1": [8, 47, 10, null]
+        }
+      }
+    }
+  },
+  "creator-scopes": {
+    "cases": [
+      "classic expression preserves real callable/class method execution",
+      "classic declaration preserves real callable/class method execution",
+      "classic classexpression preserves real callable/class method execution",
+      "automatic expression preserves real callable/class method execution",
+      "automatic declaration preserves real callable/class method execution",
+      "automatic classexpression preserves real callable/class method execution"
+    ],
+    "coverage": {
+      "wrapped-automatic-classexpression.tsx": {
+        "lines": {
+          "1": 1,
+          "2": 2,
+          "3": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 3,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [1, 1, 1, 2, 1, 0]
+      },
+      "wrapped-automatic-declaration.tsx": {
+        "lines": {
+          "1": 1,
+          "2": 2,
+          "3": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 3,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [1, 1, 2, 1, 0]
+      },
+      "wrapped-automatic-expression.tsx": {
+        "lines": {
+          "1": 1,
+          "2": 2,
+          "3": 1
+        },
+        "functions": [
+          {
+            "name": "ViewBody",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 3,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [1, 1, 1, 2, 2, 1, 0]
+      },
+      "wrapped-classic-classexpression.tsx": {
+        "lines": {
+          "3": 2,
+          "4": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 4,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [1, 2, 1, 0]
+      },
+      "wrapped-classic-declaration.tsx": {
+        "lines": {
+          "3": 2,
+          "4": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 4,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 1, 0]
+      },
+      "wrapped-classic-expression.tsx": {
+        "lines": {
+          "3": 2,
+          "4": 1
+        },
+        "functions": [
+          {
+            "name": "ViewBody",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 4,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [1, 2, 2, 1, 0]
+      }
+    },
+    "coordinates": {
+      "wrapped-classic-classexpression.tsx": {
+        "statements": {
+          "0": [3, 20, 3, null]
+        },
+        "functions": {
+          "0": [3, 85, 3, 122]
+        }
+      },
+      "wrapped-automatic-classexpression.tsx": {
+        "statements": {
+          "0": [1, 7, 1, null]
+        },
+        "functions": {
+          "0": [2, 85, 2, 122]
+        }
+      }
+    }
+  },
+  "creator-layouts": {
+    "cases": [
+      "classic multiline preserves actual method layout and execution",
+      "classic multiple preserves actual method layout and execution",
+      "classic expression preserves actual method layout and execution",
+      "classic static preserves actual method layout and execution",
+      "automatic multiline preserves actual method layout and execution",
+      "automatic multiple preserves actual method layout and execution",
+      "automatic expression preserves actual method layout and execution",
+      "automatic static preserves actual method layout and execution"
+    ],
+    "coverage": {
+      "layout-automatic-expression.tsx": {
+        "lines": {
+          "1": 1,
+          "2": 1,
+          "4": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [1, 1, 1, 2, 1, 0]
+      },
+      "layout-automatic-multiline.tsx": {
+        "lines": {
+          "1": 1,
+          "4": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [1, 1, 2, 1, 0]
+      },
+      "layout-automatic-multiple.tsx": {
+        "lines": {
+          "1": 1,
+          "2": 2,
+          "3": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "extra",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 3,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [1, 1, 2, 2, 1, 0]
+      },
+      "layout-automatic-static.tsx": {
+        "lines": {
+          "1": 1,
+          "2": 2,
+          "3": 1
+        },
+        "functions": [
+          {
+            "name": "create",
+            "line": 2,
+            "hits": 1
+          },
+          {
+            "name": "render",
+            "line": 2,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 3,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [1, 1, 2, 2, 1, 0]
+      },
+      "layout-classic-expression.tsx": {
+        "lines": {
+          "3": 1,
+          "5": 2,
+          "8": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 5,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 8,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [1, 2, 1, 0]
+      },
+      "layout-classic-multiline.tsx": {
+        "lines": {
+          "5": 2,
+          "8": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_1)",
+            "line": 8,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 1, 0]
+      },
+      "layout-classic-multiple.tsx": {
+        "lines": {
+          "3": 2,
+          "4": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "extra",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 4,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 2, 1, 0]
+      },
+      "layout-classic-static.tsx": {
+        "lines": {
+          "3": 2,
+          "4": 1
+        },
+        "functions": [
+          {
+            "name": "create",
+            "line": 3,
+            "hits": 1
+          },
+          {
+            "name": "render",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 4,
+            "hits": 0
+          }
+        ],
+        "branches": [],
+        "statements": [2, 2, 1, 0]
+      }
+    },
+    "coordinates": {
+      "layout-classic-expression.tsx": {
+        "statements": {
+          "0": [3, 20, 7, null]
+        },
+        "functions": {
+          "0": [5, 11, 5, null]
+        }
+      },
+      "layout-automatic-expression.tsx": {
+        "statements": {
+          "0": [1, 7, 1, null]
+        },
+        "functions": {
+          "0": [4, 11, 4, null]
+        }
+      }
+    }
+  },
+  "creator-tags": {
+    "cases": [
+      "classic expression preserves actual component construction and props",
+      "classic declaration preserves actual component construction and props",
+      "classic classexpression preserves actual component construction and props",
+      "classic member preserves actual component construction and props",
+      "automatic expression preserves actual component construction and props",
+      "automatic declaration preserves actual component construction and props",
+      "automatic classexpression preserves actual component construction and props",
+      "automatic member preserves actual component construction and props"
+    ],
+    "coverage": {
+      "creator-automatic-classexpression.tsx": {
+        "lines": {
+          "1": 1,
+          "3": 2,
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 5,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [1, 1, 1, 2, 2, 1, 0]
+      },
+      "creator-automatic-declaration.tsx": {
+        "lines": {
+          "1": 1,
+          "3": 2,
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 5,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [1, 1, 2, 2, 1, 0]
+      },
+      "creator-automatic-expression.tsx": {
+        "lines": {
+          "1": 1,
+          "3": 2,
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "BadgeView",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 5,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [1, 1, 1, 2, 2, 2, 1, 0]
+      },
+      "creator-automatic-member.tsx": {
+        "lines": {
+          "1": 1,
+          "3": 2,
+          "4": 1,
+          "6": 2,
+          "8": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 5,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 8,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 6,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [1, 1, 2, 1, 2, 1, 0]
+      },
+      "creator-classic-classexpression.tsx": {
+        "lines": {
+          "4": 2,
+          "6": 2,
+          "8": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 5,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 8,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 6,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [1, 2, 2, 1, 0]
+      },
+      "creator-classic-declaration.tsx": {
+        "lines": {
+          "4": 2,
+          "6": 2,
+          "8": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 5,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 8,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 6,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 2, 1, 0]
+      },
+      "creator-classic-expression.tsx": {
+        "lines": {
+          "4": 2,
+          "6": 2,
+          "8": 1
+        },
+        "functions": [
+          {
+            "name": "BadgeView",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 5,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 8,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 6,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [1, 2, 2, 2, 1, 0]
+      },
+      "creator-classic-member.tsx": {
+        "lines": {
+          "4": 2,
+          "5": 1,
+          "7": 2,
+          "9": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 9,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 7,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 2, 1, 0]
+      }
+    },
+    "coordinates": {
+      "creator-classic-classexpression.tsx": {
+        "statements": {
+          "0": [4, 14, 4, null]
+        },
+        "functions": {
+          "1": [5, 47, 7, null]
+        },
+        "branches": {
+          "0": [6, 19, 6, 90]
+        }
+      },
+      "creator-automatic-classexpression.tsx": {
+        "statements": {
+          "0": [1, 7, 1, null]
+        },
+        "functions": {
+          "1": [4, 47, 6, null]
+        },
+        "branches": {
+          "0": [5, 19, 5, 90]
+        }
+      }
+    }
+  },
+  "creator-tag-aliases": {
+    "cases": [
+      "actual renamed creator component 0",
+      "actual renamed creator component 1",
+      "actual renamed creator component 2"
+    ],
+    "coverage": {
+      "alias-creator-automatic-classexpression.tsx": {
+        "lines": {
+          "1": 1,
+          "3": 2,
+          "5": 2,
+          "7": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "MakeCard",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 7,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 5,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [1, 1, 1, 2, 2, 1, 0]
+      },
+      "alias-creator-automatic-member.tsx": {
+        "lines": {
+          "1": 1,
+          "3": 2,
+          "4": 1,
+          "6": 2,
+          "8": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 3,
+            "hits": 2
+          },
+          {
+            "name": "BuildOutput",
+            "line": 5,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 8,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 6,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [1, 1, 2, 1, 2, 1, 0]
+      },
+      "alias-creator-classic-expression.tsx": {
+        "lines": {
+          "4": 2,
+          "6": 2,
+          "8": 1
+        },
+        "functions": [
+          {
+            "name": "DisplayBody",
+            "line": 4,
+            "hits": 2
+          },
+          {
+            "name": "MakeRow",
+            "line": 5,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 8,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 6,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [1, 2, 2, 2, 1, 0]
+      }
+    },
+    "coordinates": {
+      "alias-creator-classic-expression.tsx": {
+        "statements": {
+          "0": [4, 20, 4, null]
+        },
+        "functions": {
+          "1": [5, 50, 7, null]
+        },
+        "branches": {
+          "0": [6, 19, 6, 102]
+        }
+      },
+      "alias-creator-automatic-classexpression.tsx": {
+        "statements": {
+          "0": [1, 7, 1, null]
+        },
+        "functions": {
+          "1": [4, 51, 6, null]
+        },
+        "branches": {
+          "0": [5, 19, 5, 98]
+        }
+      }
+    }
+  },
+  "creator-named": {
+    "cases": [
+      "named expression preserves actual component construction and props",
+      "named declaration preserves actual component construction and props",
+      "named classexpression preserves actual component construction and props",
+      "named member preserves actual component construction and props"
+    ],
+    "coverage": {
+      "creator-named-classexpression.tsx": {
+        "lines": {
+          "6": 2,
+          "8": 2,
+          "10": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 7,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 10,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 8,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [1, 2, 2, 1, 0]
+      },
+      "creator-named-declaration.tsx": {
+        "lines": {
+          "6": 2,
+          "8": 2,
+          "10": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 7,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 10,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 8,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 2, 1, 0]
+      },
+      "creator-named-expression.tsx": {
+        "lines": {
+          "6": 2,
+          "8": 2,
+          "10": 1
+        },
+        "functions": [
+          {
+            "name": "BadgeView",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 7,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 10,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 8,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [1, 2, 2, 2, 1, 0]
+      },
+      "creator-named-member.tsx": {
+        "lines": {
+          "6": 2,
+          "7": 1,
+          "9": 2,
+          "11": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "Card",
+            "line": 8,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 11,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 9,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [2, 1, 2, 1, 0]
+      }
+    },
+    "coordinates": {
+      "creator-named-classexpression.tsx": {
+        "statements": {
+          "0": [6, 14, 6, null]
+        },
+        "functions": {
+          "1": [7, 47, 9, null]
+        },
+        "branches": {
+          "0": [8, 19, 8, 90]
+        }
+      }
+    }
+  },
+  "creator-named-aliases": {
+    "cases": [
+      "actual renamed named creator component 0",
+      "actual renamed named creator component 1"
+    ],
+    "coverage": {
+      "alias-creator-named-classexpression.tsx": {
+        "lines": {
+          "6": 2,
+          "8": 2,
+          "10": 1
+        },
+        "functions": [
+          {
+            "name": "render",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "MakeWidget",
+            "line": 7,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 10,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 8,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [1, 2, 2, 1, 0]
+      },
+      "alias-creator-named-expression.tsx": {
+        "lines": {
+          "6": 2,
+          "8": 2,
+          "10": 1
+        },
+        "functions": [
+          {
+            "name": "PanelBody",
+            "line": 6,
+            "hits": 2
+          },
+          {
+            "name": "MakePanel",
+            "line": 7,
+            "hits": 2
+          },
+          {
+            "name": "(anonymous_2)",
+            "line": 10,
+            "hits": 0
+          }
+        ],
+        "branches": [
+          {
+            "type": "cond-expr",
+            "line": 8,
+            "hits": [1, 1]
+          }
+        ],
+        "statements": [1, 2, 2, 2, 1, 0]
+      }
+    },
+    "coordinates": {
+      "alias-creator-named-classexpression.tsx": {
+        "statements": {
+          "0": [6, 20, 6, null]
+        },
+        "functions": {
+          "1": [7, 53, 9, null]
+        },
+        "branches": {
+          "0": [8, 19, 8, 102]
+        }
+      }
+    }
+  }
+}

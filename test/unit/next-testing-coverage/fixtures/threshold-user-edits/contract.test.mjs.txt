@@ -1,0 +1,3 @@
+import {test,expect} from 'vitest'
+import {choose} from './subject.mjs'
+test('the actual formatter owns complete coverage',()=>expect(choose(true)).toBe(1))

@@ -1,0 +1,235 @@
+{
+  "report": {
+    "passed": 1,
+    "failed": 0,
+    "pending": 0,
+    "cases": [["completed body", "passed", []]],
+    "fileErrors": [""],
+    "snapshot": {
+      "added": 0,
+      "failure": false,
+      "filesAdded": 0,
+      "filesRemoved": 0,
+      "filesRemovedList": [],
+      "filesUnmatched": 0,
+      "filesUpdated": 0,
+      "matched": 0,
+      "total": 0,
+      "unchecked": 0,
+      "uncheckedKeysByFile": [],
+      "unmatched": 0,
+      "updated": 0,
+      "didUpdate": false
+    }
+  },
+  "coverageMap": {
+    "<PROJECT_ROOT>/subject.mjs": {
+      "$coverage": "range-tuples-v1",
+      "path": "<PROJECT_ROOT>/subject.mjs",
+      "statements": {
+        "0": [1, 30, 1, 48],
+        "1": [1, 39, 1, 48],
+        "2": [1, 48, 1, 56]
+      },
+      "functions": {
+        "0": {
+          "name": "choose",
+          "decl": [1, 16, 1, 22],
+          "loc": [1, 29, 1, null],
+          "line": 1
+        }
+      },
+      "branches": {
+        "0": {
+          "loc": [1, 30, 1, 48],
+          "type": "if",
+          "locations": [
+            [1, 30, 1, 48],
+            {
+              "start": {},
+              "end": {}
+            }
+          ],
+          "line": 1
+        }
+      },
+      "s": {
+        "0": 1,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 1
+      },
+      "b": {
+        "0": [1, 0]
+      }
+    }
+  },
+  "defaults": {
+    "observations": {
+      "status": 1,
+      "trace": [
+        "global-setup",
+        {
+          "hook": "global-teardown",
+          "jsonExists": true,
+          "coverageExists": true
+        }
+      ],
+      "json": true,
+      "coverageMap": true,
+      "coverage": true,
+      "tests": 1,
+      "success": true
+    }
+  },
+  "rows": [
+    {
+      "profile": "development-async-error",
+      "mode": "development",
+      "name": "async-error"
+    },
+    {
+      "profile": "development-json-and-teardown-error",
+      "mode": "development",
+      "name": "json-and-teardown-error",
+      "observations": {
+        "status": 1,
+        "trace": [
+          "global-setup",
+          {
+            "hook": "global-teardown",
+            "jsonExists": true,
+            "coverageExists": false
+          }
+        ],
+        "json": false,
+        "coverageMap": false,
+        "coverage": false,
+        "tests": null,
+        "success": null
+      }
+    },
+    {
+      "profile": "development-normal",
+      "mode": "development",
+      "name": "normal",
+      "observations": {
+        "status": 0,
+        "trace": [
+          "global-setup",
+          {
+            "hook": "global-teardown",
+            "jsonExists": true,
+            "coverageExists": true
+          }
+        ],
+        "json": true,
+        "coverageMap": true,
+        "coverage": true,
+        "tests": 1,
+        "success": true
+      }
+    },
+    {
+      "profile": "development-report-and-teardown-error",
+      "mode": "development",
+      "name": "report-and-teardown-error",
+      "observations": {
+        "status": 1,
+        "trace": [
+          "global-setup",
+          {
+            "hook": "global-teardown",
+            "jsonExists": true,
+            "coverageExists": true
+          }
+        ],
+        "json": true,
+        "coverageMap": true,
+        "coverage": false,
+        "tests": 1,
+        "success": true
+      }
+    },
+    {
+      "profile": "development-sync-error",
+      "mode": "development",
+      "name": "sync-error"
+    },
+    {
+      "profile": "production-async-error",
+      "mode": "production",
+      "name": "async-error"
+    },
+    {
+      "profile": "production-json-and-teardown-error",
+      "mode": "production",
+      "name": "json-and-teardown-error",
+      "observations": {
+        "status": 1,
+        "trace": [
+          "global-setup",
+          {
+            "hook": "global-teardown",
+            "jsonExists": true,
+            "coverageExists": false
+          }
+        ],
+        "json": false,
+        "coverageMap": false,
+        "coverage": false,
+        "tests": null,
+        "success": null
+      }
+    },
+    {
+      "profile": "production-normal",
+      "mode": "production",
+      "name": "normal",
+      "observations": {
+        "status": 0,
+        "trace": [
+          "global-setup",
+          {
+            "hook": "global-teardown",
+            "jsonExists": true,
+            "coverageExists": true
+          }
+        ],
+        "json": true,
+        "coverageMap": true,
+        "coverage": true,
+        "tests": 1,
+        "success": true
+      }
+    },
+    {
+      "profile": "production-report-and-teardown-error",
+      "mode": "production",
+      "name": "report-and-teardown-error",
+      "observations": {
+        "status": 1,
+        "trace": [
+          "global-setup",
+          {
+            "hook": "global-teardown",
+            "jsonExists": true,
+            "coverageExists": true
+          }
+        ],
+        "json": true,
+        "coverageMap": true,
+        "coverage": false,
+        "tests": 1,
+        "success": true
+      }
+    },
+    {
+      "profile": "production-sync-error",
+      "mode": "production",
+      "name": "sync-error"
+    }
+  ]
+}

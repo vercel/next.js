@@ -1,0 +1,3 @@
+import { expect, test } from 'vitest'
+import { choose } from './layout-nojsx.tsx'
+test('typed source without JSX drops unrelated React', () => { expect(choose({ active: true })).toBe('yes'); expect(choose({ active: false })).toBe('no') })
