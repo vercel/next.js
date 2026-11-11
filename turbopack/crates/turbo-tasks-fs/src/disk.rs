@@ -191,15 +191,59 @@ fn create_read_semaphore() -> tokio::sync::Semaphore {
     tokio::sync::Semaphore::new(*TURBO_ENGINE_READ_CONCURRENCY)
 }
 
-fn create_write_semaphore() -> tokio::sync::Semaphore {
-    // the semaphore isn't serialized, and we assume the environment variable doesn't change during
-    // runtime, so it's okay to access it in this untracked way.
-    static TURBO_ENGINE_WRITE_CONCURRENCY: LazyLock<usize> = LazyLock::new(|| {
-        number_env_var("TURBO_ENGINE_WRITE_CONCURRENCY").unwrap_or(
-            // We write a lot of smallish files where high concurrency will cause metadata
-            // thrashing. So 4 threads is a safe cross platform suitable value.
-            4,
+/// The default number of concurrent write operations (file writes, file removals and symlink
+/// creations) on platforms other than Linux. On Linux, it's the lower bound of the default, see
+/// `linux_default_write_concurrency`.
+///
+/// Limits on other platforms (e.g. open file limits on macOS, file system metadata contention on
+/// NTFS) differ from Linux, so they keep this conservative value until a higher one has been
+/// measured there.
+const DEFAULT_WRITE_CONCURRENCY: usize = 4;
+/// Upper bound of the default write concurrency on Linux.
+#[cfg(target_os = "linux")]
+const MAX_LINUX_DEFAULT_WRITE_CONCURRENCY: usize = 16;
+
+/// Computes the default number of concurrent write operations on Linux from the available
+/// parallelism. Falls back to [`DEFAULT_WRITE_CONCURRENCY`] if the available parallelism can't be
+/// determined.
+///
+/// Write operations run blocking on the calling tokio worker thread (see
+/// [`retry_blocking`]), so each permit can keep one worker thread (and one file handle) busy in a
+/// syscall. Scaling with the available parallelism lets machines with more cores write the many
+/// small output files of a build in parallel, while staying at a small, fixed number of permits on
+/// smaller machines.
+///
+/// The cap bounds the number of file handles and blocked worker threads that writes add. In
+/// benchmarks on a 32-thread Linux machine, raising the limit beyond 16 did not make builds faster.
+#[cfg(target_os = "linux")]
+fn linux_default_write_concurrency(available_parallelism: Option<usize>) -> usize {
+    available_parallelism.map_or(DEFAULT_WRITE_CONCURRENCY, |parallelism| {
+        parallelism.clamp(
+            DEFAULT_WRITE_CONCURRENCY,
+            MAX_LINUX_DEFAULT_WRITE_CONCURRENCY,
         )
+    })
+}
+
+#[cfg(target_os = "linux")]
+fn default_write_concurrency() -> usize {
+    linux_default_write_concurrency(
+        turbo_tasks::parallel::available_parallelism()
+            .ok()
+            .map(|n| n.get()),
+    )
+}
+
+#[cfg(not(target_os = "linux"))]
+fn default_write_concurrency() -> usize {
+    DEFAULT_WRITE_CONCURRENCY
+}
+
+fn create_write_semaphore() -> tokio::sync::Semaphore {
+    // the semaphore isn't serialized, and we assume the environment variables don't change during
+    // runtime, so it's okay to access them in this untracked way.
+    static TURBO_ENGINE_WRITE_CONCURRENCY: LazyLock<usize> = LazyLock::new(|| {
+        number_env_var("TURBO_ENGINE_WRITE_CONCURRENCY").unwrap_or_else(default_write_concurrency)
     });
     tokio::sync::Semaphore::new(*TURBO_ENGINE_WRITE_CONCURRENCY)
 }

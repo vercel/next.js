@@ -48,7 +48,7 @@ pin-project-lite = { workspace = true }
 rustc-hash = { workspace = true }
 scattered-collect = { workspace = true }
 serde = { workspace = true, features = ["rc", "derive"] }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
 shrink-to-fit = { workspace = true, features = ["indexmap", "serde_json", "smallvec", "nightly"] }
 smallvec = { workspace = true, features = ["serde", "impl_bincode"] }
 thiserror = { workspace = true }

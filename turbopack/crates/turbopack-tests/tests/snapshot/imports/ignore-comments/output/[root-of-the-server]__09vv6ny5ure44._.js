@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/[root-of-the-server]__01sdlhdxi55cn._.js","[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)",((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/[root-of-the-server]__09vv6ny5ure44._.js","[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 // Embedded worker-runtime helper. This file is bundled as a regular module and
@@ -87,11 +87,9 @@ __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapsh
 // pulled in by `new URL()`
 new Worker(new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)")));
 new Worker(new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)")));
-}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs (static in ecmascript)",((__turbopack_context__) => {
-
-__turbopack_context__.q("/static/vercel.0kkt412gy5vj6.cjs");}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript, worker loader)",((__turbopack_context__) => {
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript, worker loader)",((__turbopack_context__) => {
 
 __turbopack_context__.v(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"]("output/0ce9_turbopack-tests_tests_snapshot_imports_ignore-comments_output_0uy0mninb8pht._.js", ["output/1jsg_tests_snapshot_imports_ignore-comments_input_vercel_cjs_0j-fab5w1df6z._.js","output/1ece_tests_snapshot_imports_ignore-comments_input_vercel_cjs_0_vdt2ki2mlm8._.js"]));
 })]);
 
-//# sourceMappingURL=%5Broot-of-the-server%5D__01sdlhdxi55cn._.js.map
+//# sourceMappingURL=%5Broot-of-the-server%5D__09vv6ny5ure44._.js.map

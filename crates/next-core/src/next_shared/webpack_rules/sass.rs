@@ -90,7 +90,8 @@ pub async fn get_sass_loader_rules(
             })
             .as_object_mut()
             .unwrap(),
-        ),
+        )
+        .into(),
     };
     let resolve_url_loader = WebpackLoaderItem {
         loader: rcstr!("next/dist/build/webpack/loaders/resolve-url-loader/index"),
@@ -101,7 +102,8 @@ pub async fn get_sass_loader_rules(
             })
             .as_object_mut()
             .unwrap(),
-        ),
+        )
+        .into(),
     };
 
     let loaders = ResolvedVc::cell(vec![resolve_url_loader, sass_loader]);

@@ -6,7 +6,7 @@ use std::future::IntoFuture;
 
 use anyhow::Result;
 use serde_json::json;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, State, Vc};
 use turbo_tasks_testing::{Registration, register, run_without_cache_check};
 
 static REGISTRATION: Registration = register!();
@@ -292,6 +292,82 @@ async fn test_inline_definitions() -> Result<()> {
     .await
 }
 
+// Executions are counted separately from task lookups: a re-execution of an invalidated task is
+// counted as an execution, while the lookup of that task by its caller is a cache hit.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_executions() -> Result<()> {
+    run_without_cache_check(&REGISTRATION, async move {
+        enable_stats();
+        let step_op = create_step_operation();
+        let step_vc = step_op.resolve().strongly_consistent().await?;
+        let step = step_op.read_strongly_consistent().await?;
+
+        assert_eq!(
+            *read_step_operation(step_vc)
+                .read_strongly_consistent()
+                .await?,
+            0
+        );
+        // Cached: neither function executes again.
+        assert_eq!(
+            *read_step_operation(step_vc)
+                .read_strongly_consistent()
+                .await?,
+            0
+        );
+
+        // Invalidates `read_step`, which then invalidates `read_step_operation`.
+        step.set(1);
+        assert_eq!(
+            *read_step_operation(step_vc)
+                .read_strongly_consistent()
+                .await?,
+            1
+        );
+
+        assert_eq!(
+            stats_json_with_executions(),
+            json!({
+                "task_statistics::create_step_operation": {
+                    "cache_miss": 1,
+                    "cache_hit": 0,
+                    "executions": 1,
+                },
+                "task_statistics::read_step_operation": {
+                    "cache_miss": 1,
+                    "cache_hit": 2,
+                    "executions": 2,
+                },
+                "task_statistics::read_step": {
+                    "cache_miss": 1,
+                    "cache_hit": 1,
+                    "executions": 2,
+                },
+            })
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[turbo_tasks::value(transparent)]
+struct Step(State<u32>);
+
+#[turbo_tasks::function(operation, root)]
+fn create_step_operation() -> Vc<Step> {
+    Step(State::new(0)).cell()
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn read_step_operation(step: ResolvedVc<Step>) -> Result<Vc<u32>> {
+    Ok(Vc::cell(*read_step(*step).await?))
+}
+
+#[turbo_tasks::function]
+async fn read_step(step: Vc<Step>) -> Result<Vc<u32>> {
+    Ok(Vc::cell(*step.await?.get()))
+}
+
 // Internally, this function uses `PersistentTaskType`.
 #[turbo_tasks::function]
 fn double(val: u64) -> Vc<u64> {
@@ -355,6 +431,12 @@ fn stats_json() -> serde_json::Value {
     make_stats_deterministic(serde_json::to_value(tt.task_statistics().get()).unwrap())
 }
 
+// Only safe to call when all executions have completed, e.g. after `read_strongly_consistent`.
+fn stats_json_with_executions() -> serde_json::Value {
+    let tt = turbo_tasks::turbo_tasks();
+    serde_json::to_value(tt.task_statistics().get()).unwrap()
+}
+
 // Global task identifiers can contain the crate name, remove it to simplify test assertions
 fn make_stats_deterministic(mut json: serde_json::Value) -> serde_json::Value {
     match &mut json {
@@ -364,8 +446,8 @@ fn make_stats_deterministic(mut json: serde_json::Value) -> serde_json::Value {
                 // Replace `duration` with a fixed value to simplify test assertions
                 let mut v = v.clone();
                 let object = v.as_object_mut().unwrap();
-                // These are only populated after the task has finalized execution so it racy to
-                // assert on it.
+                // These tests only assert on task lookups. Executions are asserted by
+                // `test_executions`, which waits for every execution to complete.
                 object.remove("duration");
                 object.remove("executions");
                 map.insert(k, v);
