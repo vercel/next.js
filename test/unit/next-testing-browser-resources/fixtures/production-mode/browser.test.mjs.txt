@@ -1,0 +1,130 @@
+import { test, expect, afterEach } from 'vitest'
+import { page, userEvent } from 'vitest/browser'
+
+afterEach(() => { document.body.innerHTML = '' })
+
+const record = (name, row) => console.log('USER_EVENT_RAW ' + JSON.stringify({ name, row }))
+
+test('userEvent clicks use the real pointer for locators and elements', async () => {
+  document.body.innerHTML = '<button>Save</button>'
+  const button = document.querySelector('button')
+  const trace = []
+  for (const type of ['click', 'dblclick', 'contextmenu']) {
+    button.addEventListener(type, function (event) { trace.push([type, event.button, event.detail, this === button]) })
+  }
+  const returns = []
+  returns.push(await userEvent.click(page.getByRole('button', { name: 'Save' })))
+  returns.push(await userEvent.click(button))
+  returns.push(await userEvent.dblClick(button))
+  returns.push(await userEvent.click(button, { button: 'right' }))
+  expect(trace).toEqual([['click', 0, 1, true], ['click', 0, 1, true], ['click', 0, 1, true], ['click', 0, 2, true], ['dblclick', 0, 2, true], ['contextmenu', 2, 0, true]])
+  expect(returns.every(value => value === undefined)).toBe(true)
+  record('clicks', { trace, allUndefined: returns.every(value => value === undefined), focused: document.activeElement === button })
+})
+
+test('userEvent fill clear and select preserve native input effects', async () => {
+  document.body.innerHTML = '<label>Name<input aria-label="Name"></label><select aria-label="Choices" multiple><option value="one">First</option><option value="two">Second</option></select>'
+  const input = document.querySelector('input')
+  const select = document.querySelector('select')
+  const trace = []
+  for (const element of [input, select]) for (const type of ['input', 'change']) element.addEventListener(type, () => trace.push([element.tagName, type, element.value]))
+  const returns = []
+  returns.push(await userEvent.fill(page.getByRole('textbox', { name: 'Name' }), 'A😀'))
+  const filled = input.value
+  returns.push(await userEvent.clear(input))
+  returns.push(await userEvent.selectOptions(page.getByRole('listbox', { name: 'Choices' }), ['one', 'two']))
+  const selected = [...select.selectedOptions].map(option => option.value)
+  expect(filled).toBe('A😀')
+  expect(input.value).toBe('')
+  expect(selected).toEqual(['one', 'two'])
+  expect(returns.every(value => value === undefined)).toBe(true)
+  record('inputs', { filled, cleared: input.value, selected, trace, allUndefined: returns.every(value => value === undefined) })
+})
+
+test('userEvent hover delegates to a native pointer', async () => {
+  document.body.innerHTML = '<button style="margin-top:200px">Hover</button>'
+  const button = document.querySelector('button')
+  const trace = []
+  for (const type of ['pointerover', 'mouseover', 'mouseenter']) button.addEventListener(type, event => trace.push([type, event.isTrusted]))
+  const result = await userEvent.hover(page.getByRole('button', { name: 'Hover' }))
+  expect(trace).toEqual([['pointerover', true], ['mouseover', true], ['mouseenter', true]])
+  expect(result).toBeUndefined()
+  record('hover', { trace, returnedUndefined: result === undefined, hovered: button.matches(':hover') })
+})
+
+
+test('userEvent tripleClick preserves native click counts and options', async () => {
+  document.body.innerHTML = '<div style="height:400px"><button style="margin-top:80px">Triple</button></div>'
+  await userEvent.hover(document.body)
+  const button = document.querySelector('button')
+  const trace = []
+  for (const type of ['click', 'dblclick']) button.addEventListener(type, event => trace.push([type, event.detail, event.shiftKey, event.isTrusted]))
+  const result = await userEvent.tripleClick(page.getByRole('button', { name: 'Triple' }), { delay: 1, modifiers: ['Shift'] })
+  expect(trace).toEqual([['click', 1, true, true], ['click', 2, true, true], ['dblclick', 2, true, true], ['click', 3, true, true]])
+  expect(result).toBeUndefined()
+  record('triple', { trace, returnedUndefined: result === undefined })
+})
+
+test('userEvent unhover moves the real pointer to the body', async () => {
+  document.body.innerHTML = '<div style="height:400px"><button style="margin-top:80px">Leave</button></div>'
+  const button = document.querySelector('button')
+  await userEvent.hover(button)
+  const trace = []
+  for (const type of ['pointerout', 'mouseout', 'mouseleave']) button.addEventListener(type, event => trace.push([type, event.isTrusted]))
+  const result = await userEvent.unhover(page.getByRole('button', { name: 'Leave' }), { force: true })
+  expect(trace).toEqual([['pointerout', true], ['mouseout', true], ['mouseleave', true]])
+  expect(button.matches(':hover')).toBe(false)
+  expect(result).toBeUndefined()
+  record('unhover', { trace, returnedUndefined: result === undefined, hovered: button.matches(':hover') })
+})
+
+
+test('userEvent tab follows native forward and reverse focus order', async () => {
+  document.body.innerHTML = '<button>First</button><input aria-label="Middle"><button>Last</button>'
+  const first = document.querySelector('button')
+  await userEvent.click(first)
+  const focused = ['First']
+  const keys = []
+  const onKey = event => { if (event.key === 'Tab') keys.push([event.key, event.shiftKey, event.isTrusted]) }
+  document.addEventListener('keydown', onKey)
+  const returns = []
+  try {
+    for (const options of [undefined, undefined, { shift: true }, { shift: true }]) {
+      returns.push(await userEvent.tab(options))
+      focused.push(document.activeElement.getAttribute('aria-label') || document.activeElement.textContent)
+    }
+  } finally { document.removeEventListener('keydown', onKey) }
+  expect(focused).toEqual(['First', 'Middle', 'Last', 'Middle', 'First'])
+  expect(keys).toEqual([['Tab', false, true], ['Tab', false, true], ['Tab', true, true], ['Tab', true, true]])
+  expect(returns.every(value => value === undefined)).toBe(true)
+  record('tab', { focused, keys, allUndefined: returns.every(value => value === undefined) })
+})
+
+
+import { label as productionLabel } from 'next-test-production-target'
+
+test('Browser production graph resolves production client dependency conditions', () => {
+  expect(process.env.NODE_ENV).toBe('production')
+  expect(productionLabel).toBe('browser-production')
+  record('production', { environment: process.env.NODE_ENV, target: productionLabel })
+})
+
+
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import { Widget } from './Widget.jsx'
+
+test('Browser production React and CSS render through the real client graph', async () => {
+  const container = document.createElement('section')
+  document.body.append(container)
+  const root = createRoot(container)
+  try {
+    root.render(React.createElement(Widget))
+    await expect.element(page.getByText('Real production widget')).toBeVisible()
+    const element = container.querySelector('p')
+    const color = getComputedStyle(element).color
+    expect(color).toBe('rgb(12, 34, 56)')
+    expect(typeof React.act).toBe('undefined')
+    record('production-react', { environment: process.env.NODE_ENV, text: element.textContent, color, act: typeof React.act })
+  } finally { root.unmount() }
+})

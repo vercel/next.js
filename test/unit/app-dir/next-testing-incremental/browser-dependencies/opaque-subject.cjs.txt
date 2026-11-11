@@ -1,0 +1,2 @@
+const dependency = require('./source-alpha.mjs')
+module.exports = { value: dependency.value }

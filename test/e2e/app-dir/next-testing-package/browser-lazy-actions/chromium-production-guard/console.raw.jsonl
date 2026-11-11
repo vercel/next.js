@@ -1,0 +1,2 @@
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"unconsumed\",\"clicks\":0,\"guardDelta\":1}","browser":true,"time":1792920911981,"taskId":"81615230_0","type":"stdout","size":70}
+{"content":"BROWSER_HOOK_SEQUENCE:{\"phase\":\"following-case\",\"clicks\":0}","browser":true,"time":1792920911981,"taskId":"81615230_1","type":"stdout","size":59}

@@ -1,0 +1,66 @@
+import { test, expect } from 'vitest'
+import { browser } from 'next/experimental/testing/browser'
+import { writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+test('explicit fixture layout matches an ordinary application route', async () => {
+  const { page, component } = await browser()
+  async function observe(name, theme) {
+    await page.locator('#count[data-ready="true"]').waitFor()
+    const response = await page.request.get(page.url())
+    expect(response.ok()).toBe(true)
+    const html = await response.text()
+    if (process.env.REGISTERED_LAYOUT_EVIDENCE)
+      writeFileSync(
+        join(process.env.REGISTERED_LAYOUT_EVIDENCE, name + '.html'),
+        html
+      )
+    const server = await page.evaluate((html) => {
+      const button = new DOMParser()
+        .parseFromString(html, 'text/html')
+        .querySelector('#count')
+      return {
+        theme: button.getAttribute('data-theme'),
+        ready: button.getAttribute('data-ready'),
+        text: button.textContent,
+      }
+    }, html)
+    expect(server).toEqual({
+      theme,
+      ready: 'false',
+      text: `${theme}:fixture:0`,
+    })
+    const hydrated = await page.locator('#count').evaluate((button) => {
+      const shell = button.closest('[data-shell]')
+      return {
+        theme: button.getAttribute('data-theme'),
+        ready: button.getAttribute('data-ready'),
+        text: button.textContent,
+        color: getComputedStyle(button).color,
+        padding: shell ? getComputedStyle(shell).padding : null,
+        shellClass: shell?.className ?? null,
+      }
+    })
+    expect(hydrated.theme).toBe(theme)
+    expect(hydrated.ready).toBe('true')
+    expect(hydrated.text).toBe(`${theme}:fixture:0`)
+    await page.locator('#count').click()
+    expect(await page.locator('#count').textContent()).toBe(
+      `${theme}:fixture:1`
+    )
+    return { server, hydrated, clicked: `${theme}:fixture:1` }
+  }
+  await page.goto('/')
+  const normal = await observe('normal', 'provided')
+  expect(normal.hydrated.color).toBe('rgb(12, 34, 56)')
+  expect(normal.hydrated.padding).toBe('13px')
+  await component.mount('standalone', { label: 'fixture' })
+  const standalone = await observe('standalone', 'missing')
+  expect(standalone.hydrated.shellClass).toBeNull()
+  await component.mount('with-layout', { label: 'fixture' })
+  const explicit = await observe('explicit', 'provided')
+  expect(explicit).toEqual(normal)
+  console.log(
+    'REGISTERED_LAYOUT_RAW ' + JSON.stringify({ normal, standalone, explicit })
+  )
+})

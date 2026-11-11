@@ -1,0 +1,44 @@
+import { test as base } from 'vitest'
+import { page } from 'vitest/browser'
+const row = value => console.log('BROWSER_NATIVE_FIXTURE:' + JSON.stringify(value))
+const key = Symbol.for('vitest:component-cleanup')
+let reads = 0, calls = 0
+const failure = new Error('component native callback completed then rejected')
+failure.name = 'NativeComponentCleanupError'
+failure.stack = ''
+const test = base.extend({ workerA: [async ({}, use) => {
+  const button = document.createElement('button')
+  button.dataset.testid = 'workerA'
+  button.textContent = 'workerA'
+  let clicks = 0
+  button.onclick = event => {
+    clicks++
+    row({phase: 'physical-click', clicks, trusted: event.isTrusted, shift: event.shiftKey, alt: event.altKey})
+  }
+  document.body.append(button)
+  row({phase: 'worker-setup'})
+  const resource = {click: () => page.getByTestId('workerA').click(), count: () => clicks}
+  await use(resource)
+  row({phase: 'worker-cleanup-start', clicks})
+  await resource.click()
+  row({phase: 'worker-cleanup-end', clicks})
+  button.remove()
+}, {scope: 'worker'}]})
+test('component native A', async ({workerA, expect}) => {
+  row({phase: 'A'})
+  expect(workerA.count()).toBe(0)
+})
+test('component native B', async ({workerA, expect}) => {
+  row({phase: 'B'})
+  expect(workerA.count()).toBe(0)
+  Object.defineProperty(page, key, {configurable: true, get() {
+    row({phase: 'component-read', read: ++reads, receiver: this === page})
+    return async function () {
+      row({phase: 'component-call', call: ++calls, receiver: this === page})
+      row({phase: 'component-native-start'})
+      await page.getByTestId('workerA').click()
+      row({phase: 'component-native-settled'})
+      throw failure
+    }
+  }})
+})

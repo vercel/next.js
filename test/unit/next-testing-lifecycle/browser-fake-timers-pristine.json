@@ -1,0 +1,124 @@
+{
+  "vitest": "5.0.4",
+  "environment": "development Chromium, serial file",
+  "cases": [
+    {
+      "name": "date-only system time preserves real timer APIs",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "fake timeout interval and cancellation advance synchronously",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "async advancement includes promise continuations and nested timers",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "real wait polling advances the active fake clock",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "an active fake clock is left for the next serial case",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "the next serial case observes clock state and restores real APIs",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "rows": [
+    {
+      "id": "date-only",
+      "fluent": true,
+      "fake": false,
+      "now": 2000,
+      "mocked": 2000,
+      "dateReplaced": true,
+      "timeoutUnchanged": true,
+      "realClockUnchanged": true
+    },
+    {
+      "id": "synchronous",
+      "fluent": true,
+      "fake": true,
+      "before": 2,
+      "firstReturn": true,
+      "first": {
+        "now": 1007,
+        "pending": 2,
+        "calls": [
+          ["interval", 1004, "argument"],
+          ["timeout", 1006]
+        ]
+      },
+      "secondReturn": true,
+      "now": 1012,
+      "pending": 0,
+      "calls": [
+        ["interval", 1004, "argument"],
+        ["timeout", 1006],
+        ["interval", 1008, "argument"],
+        ["nested", 1008]
+      ],
+      "timeoutReplaced": true
+    },
+    {
+      "id": "asynchronous",
+      "advanceReturn": true,
+      "allReturn": true,
+      "now": 2010,
+      "pending": 0,
+      "calls": [
+        ["timeout", 2005],
+        ["microtask", 2005],
+        ["nested", 2008],
+        ["all", 2010]
+      ]
+    },
+    {
+      "id": "waits",
+      "forResult": "ready",
+      "waitForCalls": 3,
+      "forTimes": [3005, 3010, 3015],
+      "untilResult": "until-ready",
+      "waitUntilCalls": 3,
+      "untilTimes": [3019, 3023, 3027],
+      "now": 3027,
+      "pending": 0
+    },
+    {
+      "id": "retained-clock",
+      "fake": true,
+      "now": 4000,
+      "pending": 1
+    },
+    {
+      "id": "restored-clock",
+      "before": {
+        "fake": true,
+        "now": 4000,
+        "pending": 1,
+        "retainedCallbackRan": false
+      },
+      "fluent": true,
+      "fake": false,
+      "mocked": null,
+      "dateRestored": true,
+      "timeoutRestored": true,
+      "retainedCallbackRan": false
+    },
+    {
+      "id": "file-cleanup",
+      "fake": false,
+      "dateRestored": true,
+      "timeoutRestored": true
+    }
+  ]
+}

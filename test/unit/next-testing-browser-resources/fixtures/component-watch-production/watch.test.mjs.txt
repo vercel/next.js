@@ -1,0 +1,29 @@
+import './profile.mjs'
+import React from 'react'
+import { expect, test } from 'vitest'
+import { userEvent } from 'vitest/browser'
+import { render } from 'vitest-browser-react'
+import { Counter } from './Counter.jsx'
+import { label } from './label.mjs'
+import { hold } from './control.mjs'
+
+test('client component watch preserves imports CSS and fresh component ownership', async () => {
+  expect(document.querySelector('button')).toBeNull()
+  const effects = []
+  const view = await render(React.createElement(Counter, { label, onEffect: value => effects.push(value) }))
+  const button = view.getByRole('button', { name: label + ': 0' })
+  await expect.element(button).toBeVisible()
+  if (hold) {
+    console.log('CLIENT_WATCH_ACTIVE ' + JSON.stringify({ text: view.container.querySelector('button').textContent }))
+    await new Promise(() => {})
+  }
+  const before = view.container.querySelector('button').textContent
+  const color = getComputedStyle(view.container.querySelector('button')).color
+  await userEvent.click(button)
+  await expect.element(view.getByRole('button', { name: label + ': 1' })).toBeVisible()
+  const after = view.container.querySelector('button').textContent
+  await view.unmount()
+  expect(effects).toEqual(['mount', 'unmount'])
+  expect(document.querySelector('button')).toBeNull()
+  console.log('CLIENT_WATCH_RAW ' + JSON.stringify({ before, after, color, effects }))
+})

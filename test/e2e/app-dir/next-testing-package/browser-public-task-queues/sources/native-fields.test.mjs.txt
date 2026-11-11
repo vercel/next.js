@@ -1,0 +1,62 @@
+import { test, expect, afterEach, afterAll } from 'vitest'
+const rows = []
+const shape = (task, stage, extra = {}) => {
+  const descriptor = Object.getOwnPropertyDescriptor(task, 'promises')
+  const value = descriptor?.value
+  rows.push({
+    name: task.name, stage,
+    promises: descriptor ? {
+      writable: descriptor.writable, enumerable: descriptor.enumerable, configurable: descriptor.configurable,
+      array: Array.isArray(value), ownPush: Object.hasOwn(value, 'push'),
+      nativeArrayPrototype: Object.getPrototypeOf(value) === Array.prototype,
+      keys: Reflect.ownKeys(value).map(String), length: value.length,
+      nativePromises: value.map(promise => promise instanceof Promise),
+    } : null,
+    ...extra,
+  })
+}
+afterEach(({ task }) => shape(task, 'afterEach'))
+afterAll(() => console.log('TASK_NATIVE_PROMISES:' + JSON.stringify(rows)))
+test('native fulfilled field', async ({ task, expect: local }) => {
+  shape(task, 'before')
+  let release
+  const real = new Promise(resolve => { release = resolve })
+  const pending = local(real).resolves.toBe(17)
+  const queue = task.promises
+  shape(task, 'created', { returnedQueuedIdentity: queue?.[0] === pending, returnedTag: Object.prototype.toString.call(pending) })
+  release(17)
+  await pending
+  shape(task, 'awaited', { sameQueue: task.promises === queue })
+})
+test('native rejected field', async ({ task }) => {
+  shape(task, 'before')
+  let reject
+  const reason = new Error('actual native rejection')
+  const real = new Promise((_resolve, no) => { reject = no })
+  const pending = expect(real).rejects.toBe(reason)
+  const queue = task.promises
+  shape(task, 'created', { returnedQueuedIdentity: queue?.[0] === pending })
+  reject(reason)
+  await pending
+  shape(task, 'awaited', { sameQueue: task.promises === queue })
+})
+test('public queue reassignment preserves actual operation', async ({ task, expect: local }) => {
+  let release
+  const real = new Promise(resolve => { release = resolve })
+  const pending = local(real).resolves.toBe(23)
+  const original = task.promises
+  const native = original?.[0]
+  task.promises = []
+  shape(task, 'reassigned', { oldLength: original?.length, oldNativeIdentity: original?.[0] === native })
+  release(23)
+  await pending
+  shape(task, 'awaited', { oldLength: original?.length, oldNativeIdentity: original?.[0] === native })
+})
+expect.extend({ async nativeFieldsCustom(value) { await Promise.resolve(); return { pass: value === 29, message: () => 'controlled custom matcher' } } })
+test('plain custom matcher keeps native field absent', async ({ task, expect: local }) => {
+  shape(task, 'before')
+  const pending = local(29).nativeFieldsCustom()
+  shape(task, 'created')
+  await pending
+  shape(task, 'awaited')
+})

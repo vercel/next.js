@@ -1,0 +1,1048 @@
+import type { WebKitPageOwner } from '../browser/webkit-host'
+import { isTestCI } from '../config-environment'
+import { encodeSnapshotFormat } from '../snapshot-format'
+import { cleanupClientKeyboard, runClientKeyboard } from './keyboard'
+import { captureProductionStaticMockClosure } from '../mocking/production-artifact'
+import { randomBytes } from 'node:crypto'
+import { basename, dirname, resolve } from 'node:path'
+import { mkdir } from 'node:fs/promises'
+import type {
+  Browser,
+  BrowserContext,
+  ConsoleMessage,
+  Frame,
+  Page,
+} from 'playwright'
+import type {
+  CompiledBrowserClientTestArtifact,
+  ExecuteTestOptions,
+  TestExecutionResult,
+} from '../contracts'
+import { assertArtifactProfile } from '../execution/artifact-profile'
+import { assertCompiledSetup } from '../execution/setup'
+import {
+  createBrowserHost,
+  connectBrowserHost,
+  type BrowserHost,
+} from '../browser/host'
+import {
+  commitSnapshotUpdates,
+  resolveSnapshotUpdateMode,
+} from '../assertions/snapshots'
+import { serializeDiagnostic } from '../reporting/diagnostics'
+import type { ResultEvent } from '../reporting/events'
+import { createClientServer } from './server'
+import { createClientResultCollector } from './results'
+import { createClientEngineBrand } from './engine-brand'
+import { clientConsoleBoundary } from './protocol'
+import { runClientBrowserAction } from './action-error'
+import { clientLocatorEngine, registerClientLocators } from './locator-engine'
+import {
+  resolveClientCommandTarget,
+  getClientCommandLocator,
+} from './command-target'
+import type { BrowserFrameOwner } from '../browser/frame-owner'
+import type { FirefoxFrameOwner } from '../browser/firefox-host'
+
+/** Execute a compiler-certified client graph in its freshly owned page. */
+export async function executeClient(
+  artifact: CompiledBrowserClientTestArtifact,
+  options: ExecuteTestOptions & {
+    browserEngine?: 'chromium' | 'firefox' | 'webkit'
+    testFrame?: boolean
+  }
+): Promise<TestExecutionResult> {
+  assertArtifactProfile(artifact, options.entry)
+  assertCompiledSetup(artifact, options.setupFiles)
+  if (
+    options.browserHeadless !== undefined &&
+    typeof options.browserHeadless !== 'boolean'
+  )
+    throw new Error('Browser headless mode must be a boolean.')
+  const engine = options.browserEngine ?? 'chromium'
+  if (options.userCancelSignal && resolveSnapshotUpdateMode(options) === 'all')
+    throw new Error(
+      'Browser scheduling cancellation does not yet support coverage or snapshot replacement.'
+    )
+  if (
+    artifact.kind !== 'browser' ||
+    artifact.client.asyncScope !== 'promise-continuations-v1' ||
+    artifact.client.creatorScope !== 'synchronous-source-v1' ||
+    artifact.client.creatorPromiseRoute !== 'native-engine-v1' ||
+    artifact.profile.browserClient !== true ||
+    (artifact.profile.mode !== 'development' &&
+      artifact.profile.mode !== 'production') ||
+    options.browser ||
+    options.collectOnly ||
+    options.snapshotSerializers?.length ||
+    options.inspect ||
+    (options.retry !== undefined &&
+      (typeof options.retry !== 'number' ||
+        !Number.isSafeInteger(options.retry) ||
+        options.retry < 0)) ||
+    options.bail ||
+    (options.sequence?.hooks !== undefined &&
+      !['stack', 'list', 'parallel'].includes(options.sequence.hooks)) ||
+    (options.sequence?.setupFiles && options.sequence.setupFiles !== 'list') ||
+    (options.sequence?.concurrent !== undefined &&
+      typeof options.sequence.concurrent !== 'boolean') ||
+    (typeof options.sequence?.shuffle === 'object'
+      ? options.sequence.shuffle.tests
+      : options.sequence?.shuffle) ||
+    (options.maxConcurrency !== undefined &&
+      (!Number.isSafeInteger(options.maxConcurrency) ||
+        options.maxConcurrency < 1)) ||
+    options.tags?.length ||
+    options.strictTags ||
+    options.attachmentsDir
+  )
+    throw new Error(
+      'Browser Mode currently requires an isolated compiler-certified serial file without Node driver, parallel setup, setup coverage, fixtures, nonnumeric retries, concurrency, or runtime configuration.'
+    )
+  if (options.entry.file !== artifact.client.sourceFile)
+    throw new Error(
+      'Browser Mode selected source differs from the compiled source owner.'
+    )
+  if (!Number.isFinite(options.fileTimeout) || options.fileTimeout <= 0)
+    throw new Error('Browser Mode requires a finite file deadline.')
+  const verifyProductionStaticMock = await captureProductionStaticMockClosure(
+    artifact,
+    options
+  )
+  // Vitest Browser projects provided values through JSON before file loading.
+  const provide: Record<string, unknown> = JSON.parse(
+    JSON.stringify(options.provide ?? {})
+  )
+  const snapshotUpdateMode = resolveSnapshotUpdateMode(options)
+  const testNamePattern =
+    options.testNamePattern === undefined
+      ? undefined
+      : new RegExp(options.testNamePattern)
+  const started = performance.now(),
+    controller = new AbortController(),
+    errors: unknown[] = [],
+    cleanupErrors: unknown[] = []
+  const optionHandleCleanups = new Set<Promise<void>>()
+  const envelope = () => ({
+    version: 1 as const,
+    runId: options.runId,
+    timestamp: Date.now(),
+  })
+  options.onEvent({
+    ...envelope(),
+    type: 'file-start',
+    entry: options.entry,
+    revision: artifact.revision,
+  })
+  const onAbort = () => controller.abort(options.signal.reason)
+  options.signal.addEventListener('abort', onAbort, { once: true })
+  if (options.signal.aborted) onAbort()
+  const timer = setTimeout(
+    () => controller.abort(new Error('Browser Mode file deadline exceeded.')),
+    options.fileTimeout
+  )
+  let host: BrowserHost | undefined,
+    browser: Browser | undefined,
+    context: BrowserContext | undefined,
+    page: Page | undefined,
+    testFrame: Frame | undefined,
+    frameOwner: BrowserFrameOwner | FirefoxFrameOwner | undefined,
+    webKitOwner: WebKitPageOwner | undefined,
+    server: Awaited<ReturnType<typeof createClientServer>> | undefined,
+    engineBrand: ReturnType<typeof createClientEngineBrand> | undefined
+  let closing = false,
+    cleanCompletion = false,
+    userCancellationInterrupted = false,
+    managedConsole = false,
+    escapedConsoleDebug = false,
+    consoleCompleted = false
+  const collector = createClientResultCollector(
+    artifact,
+    {
+      ...options,
+      caseScheduling: 'concurrent-v1',
+      updateSnapshots: snapshotUpdateMode !== 'none',
+      ...(options.userCancelSignal
+        ? {
+            isUserCancellationFinalized: () =>
+              options.userCancelSignal!.aborted &&
+              !controller.signal.aborted &&
+              server?.userCancellationFinalized() === true,
+          }
+        : {}),
+    },
+    (stack) => server?.mapStack(stack) ?? [],
+    (path) => server?.ownsSnapshotPath(path) === true
+  )
+  const forwardedEvents = options.captureTaskResults
+    ? new Set<ResultEvent>()
+    : undefined
+  const publishCapturedEvents = () => {
+    if (!forwardedEvents) return
+    for (const event of collector.events) {
+      if (forwardedEvents.has(event)) continue
+      // A rejecting observer must not receive the same actual event twice.
+      forwardedEvents.add(event)
+      options.onEvent(event)
+    }
+  }
+  const fail = (error: unknown) => {
+    errors.push(error)
+    server?.fail(error)
+  }
+  const onFrameDetached = (frame: Frame) => {
+    if (frame === testFrame && !closing)
+      fail(new Error('Browser Mode selected test Frame detached.'))
+  }
+  const deferredConsole: ResultEvent[] = []
+  const onConsole = (message: ConsoleMessage) => {
+    try {
+      // Gecko publishes timeline markers as console events; the reference
+      // console reporter leaves timeStamp in the browser timeline only.
+      if (engine === 'firefox' && (message.type() as string) === 'timeStamp')
+        return
+      const text = message.text()
+      if (message.type() === 'debug' && escapedConsoleDebug) {
+        escapedConsoleDebug = false
+        return
+      }
+      if (
+        managedConsole &&
+        message.type() === 'debug' &&
+        text === clientConsoleBoundary.escape
+      ) {
+        escapedConsoleDebug = true
+        return
+      }
+      if (
+        !consoleCompleted &&
+        message.type() === 'debug' &&
+        text === clientConsoleBoundary.start
+      ) {
+        managedConsole = true
+        return
+      }
+      if (
+        managedConsole &&
+        message.type() === 'debug' &&
+        text === clientConsoleBoundary.stop
+      ) {
+        managedConsole = false
+        consoleCompleted = true
+        return
+      }
+      if (
+        managedConsole &&
+        ['log', 'info', 'debug', 'warning', 'error'].includes(message.type())
+      )
+        return
+      const event: ResultEvent = {
+        ...envelope(),
+        type: 'output',
+        entryId: artifact.entryId,
+        revision: artifact.revision,
+        stream: ['error', 'warning', 'trace', 'assert'].includes(message.type())
+          ? 'stderr'
+          : 'stdout',
+        text: `${text}\n`,
+      }
+      if (consoleCompleted) deferredConsole.push(event)
+      else options.onEvent(event)
+    } catch (error) {
+      fail(error)
+    }
+  }
+  const onPageError = (error: Error) => fail(error)
+  const onCrash = () => fail(new Error('Browser Mode page crashed.'))
+  const onClose = () => {
+    if (!closing)
+      fail(new Error('Browser Mode page closed before its owner completed.'))
+  }
+  let rejectAbort!: (error: unknown) => void
+  const interrupted = new Promise<never>((_, reject) => {
+    rejectAbort = reject
+  })
+  interrupted.catch(() => {})
+  const abort = () => rejectAbort(controller.signal.reason)
+  controller.signal.addEventListener('abort', abort, { once: true })
+  if (controller.signal.aborted) abort()
+  try {
+    controller.signal.throwIfAborted()
+    server = await createClientServer({
+      artifact,
+      ...(options.testFrame ? { testFrame: true } : {}),
+      ...(options.userCancelSignal
+        ? { userCancelSignal: options.userCancelSignal }
+        : {}),
+      configuration: {
+        version: 1,
+        runId: options.runId,
+        entryId: artifact.entryId,
+        revision: artifact.revision,
+        ownerToken: randomBytes(32).toString('hex'),
+        filePath: artifact.client.sourceFile,
+        ...(options.entry.projectName === undefined
+          ? {}
+          : { projectName: options.entry.projectName }),
+        sourceHash: artifact.sourceHash,
+        projectDir: options.projectDir,
+        browserLocatorErrorFormat: options.browserLocatorErrorFormat,
+        ...(options.browserLocatorTestIdAttribute === undefined
+          ? {}
+          : {
+              browserLocatorTestIdAttribute:
+                options.browserLocatorTestIdAttribute,
+            }),
+        snapshotUpdateMode,
+        snapshotFormat: encodeSnapshotFormat(options.snapshotFormat),
+        ...(options.captureTaskResults ? { captureTaskResults: true } : {}),
+        ...(options.captureCompletedModuleResult
+          ? { captureCompletedModuleResult: true as const }
+          : {}),
+        ...(options.userCancelSignal
+          ? { userCancellation: true as const }
+          : {}),
+        testNamePattern:
+          testNamePattern === undefined
+            ? undefined
+            : { source: testNamePattern.source, flags: testNamePattern.flags },
+        allowOnly: options.allowOnly,
+        includeTaskLocation:
+          options.includeTaskLocation ??
+          (!(options.browserHeadless ?? isTestCI) && !isTestCI),
+        testTimeout: options.testTimeout,
+        hookTimeout: options.hookTimeout,
+        caseScheduling: 'concurrent-v1',
+        ...(options.sequence?.hooks === undefined
+          ? {}
+          : { hookSequence: options.sequence.hooks }),
+        ...(options.sequence?.concurrent === undefined
+          ? {}
+          : { sequenceConcurrent: options.sequence.concurrent }),
+        ...(options.maxConcurrency === undefined
+          ? {}
+          : { maxConcurrency: options.maxConcurrency }),
+        fakeTimers: options.fakeTimers,
+        provide,
+        env: options.env,
+        globals: options.globals,
+        clearMocks: options.clearMocks,
+        mockReset: options.mockReset,
+        restoreMocks: options.restoreMocks,
+        unstubGlobals: options.unstubGlobals,
+        unstubEnvs: options.unstubEnvs,
+        retry: typeof options.retry === 'number' ? options.retry : undefined,
+      },
+      async onBrowserCommand(command, admit = () => {}, origin) {
+        if (!page || (options.testFrame && !testFrame) || closing)
+          throw new Error('Invalid Browser Mode element command.')
+        const commandTarget = resolveClientCommandTarget(command)
+        const runAction = <T>(perform: () => Promise<T>) => {
+          if (origin) collector.assertLiveCommandOrigin(origin)
+          admit()
+          return runClientBrowserAction(perform)
+        }
+        const actionPage = page
+        const actionFrame = testFrame ?? actionPage
+        if (commandTarget.kind === 'viewport') {
+          const chromiumMainFrame =
+            engine === 'chromium' &&
+            !options.testFrame &&
+            !testFrame &&
+            actionFrame === actionPage
+          const firefoxOwnedFrame =
+            engine === 'firefox' &&
+            options.testFrame === true &&
+            testFrame !== undefined &&
+            frameOwner?.engine === 'firefox' &&
+            actionFrame === testFrame
+          const webKitMainFrame =
+            engine === 'webkit' &&
+            !options.testFrame &&
+            !testFrame &&
+            actionFrame === actionPage &&
+            webKitOwner !== undefined
+          if (
+            options.userCancelSignal ||
+            (!chromiumMainFrame && !firefoxOwnedFrame && !webKitMainFrame)
+          )
+            throw new Error(
+              'Browser viewport commands require a Chromium/WebKit main frame or owned Firefox frame in a one-shot session.'
+            )
+          if (firefoxOwnedFrame) frameOwner!.assertCurrent()
+          if (webKitMainFrame) webKitOwner!.assertCurrent()
+          await runAction(() =>
+            actionPage.setViewportSize({
+              width: command.args[0] as number,
+              height: command.args[1] as number,
+            })
+          )
+          return null
+        }
+        if (commandTarget.kind === 'drag') {
+          const frame = testFrame ?? actionPage.mainFrame()
+          await runAction(() =>
+            frame.dragAndDrop(
+              commandTarget.sourceSelector,
+              commandTarget.targetSelector,
+              command.args[1] as Parameters<typeof frame.dragAndDrop>[2]
+            )
+          )
+          return null
+        }
+        const locator = getClientCommandLocator(
+          actionFrame,
+          commandTarget,
+          clientLocatorEngine
+        )
+        switch (command.method) {
+          case 'dragAndDrop': {
+            const [target, dragOptions] = command.args
+            if (
+              command.args.length < 1 ||
+              command.args.length > 2 ||
+              typeof target !== 'string' ||
+              !/^next-test-element-[0-9]+$/.test(target) ||
+              (dragOptions !== undefined &&
+                (!dragOptions ||
+                  typeof dragOptions !== 'object' ||
+                  Array.isArray(dragOptions)))
+            )
+              throw new Error('Invalid Browser Mode drag target or options.')
+            const frame = testFrame ?? actionPage.mainFrame()
+            await runAction(() =>
+              frame.dragAndDrop(
+                `[data-next-test-element="${command.element}"]`,
+                `[data-next-test-element="${target}"]`,
+                dragOptions as Parameters<typeof frame.dragAndDrop>[2]
+              )
+            )
+            break
+          }
+          case 'click':
+            await runAction(() =>
+              locator.click(
+                command.args[0] as Parameters<typeof locator.click>[0]
+              )
+            )
+            break
+          case 'dblClick':
+            await runAction(() =>
+              locator.dblclick(
+                command.args[0] as Parameters<typeof locator.dblclick>[0]
+              )
+            )
+            break
+          case 'keyboardCleanup': {
+            const state = command.args[0]
+            if (
+              !Array.isArray(state) ||
+              state.some((key) => typeof key !== 'string')
+            )
+              throw new Error('Invalid keyboard state.')
+            await runAction(async () => {
+              await actionFrame.evaluate(() => {})
+              await cleanupClientKeyboard(actionPage.keyboard, state)
+            })
+            break
+          }
+          case 'type':
+          case 'keyboard': {
+            if (typeof command.args[0] !== 'string')
+              throw new Error('Invalid keyboard text.')
+            const text = command.args[0]
+            const state = command.args[command.method === 'type' ? 2 : 1] ?? []
+            if (
+              !Array.isArray(state) ||
+              state.some((key) => typeof key !== 'string')
+            )
+              throw new Error('Invalid keyboard state.')
+            return runAction(async () => {
+              // Settle the awaiting continuation's classifier pause before input.
+              if (command.method === 'keyboard')
+                await actionFrame.evaluate(() => {
+                  if (
+                    !document.activeElement ||
+                    document.activeElement.ownerDocument !== document ||
+                    document.activeElement === document.body
+                  )
+                    window.focus()
+                })
+              else await actionFrame.evaluate(() => {})
+              let skipRelease = true
+              if (command.method === 'type') {
+                const typeOptions = command.args[1] as
+                  | { skipClick?: boolean; skipAutoClose?: boolean }
+                  | undefined
+                if (
+                  typeOptions !== undefined &&
+                  (!typeOptions ||
+                    typeof typeOptions !== 'object' ||
+                    Array.isArray(typeOptions) ||
+                    Object.keys(typeOptions).some(
+                      (key) => key !== 'skipClick' && key !== 'skipAutoClose'
+                    ) ||
+                    (typeOptions.skipClick !== undefined &&
+                      typeof typeOptions.skipClick !== 'boolean') ||
+                    (typeOptions.skipAutoClose !== undefined &&
+                      typeof typeOptions.skipAutoClose !== 'boolean'))
+                )
+                  throw new Error('Unsupported Browser type options.')
+                if (!typeOptions?.skipClick) await locator.focus()
+                skipRelease = typeOptions?.skipAutoClose ?? false
+              }
+              return runClientKeyboard(
+                actionPage.keyboard,
+                text,
+                () =>
+                  command.method === 'type'
+                    ? locator.selectText()
+                    : actionFrame.evaluate(() => {
+                        const active =
+                          document.activeElement as HTMLInputElement | null
+                        if (typeof active?.select === 'function')
+                          active.select()
+                      }),
+                state,
+                skipRelease
+              )
+            })
+          }
+          case 'wheel': {
+            const wheelOptions = command.args[0] as
+              | { delta: { x: number; y: number }; times: number }
+              | undefined
+            if (
+              !wheelOptions ||
+              !wheelOptions.delta ||
+              !Number.isFinite(wheelOptions.delta.x) ||
+              !Number.isFinite(wheelOptions.delta.y) ||
+              !Number.isSafeInteger(wheelOptions.times) ||
+              wheelOptions.times < 0
+            )
+              throw new Error('Invalid Browser wheel command.')
+            await runAction(async () => {
+              await locator.hover()
+              for (let count = 0; count < wheelOptions.times; count++)
+                await actionPage.mouse.wheel(
+                  wheelOptions.delta.x,
+                  wheelOptions.delta.y
+                )
+            })
+            break
+          }
+          case 'tab': {
+            // Direct keyboard input has no locator actionability round-trip.
+            // Settle the client continuation's classifier pause before input.
+            await actionFrame.evaluate(() => {})
+            const tabOptions =
+              command.args[0] === undefined
+                ? {}
+                : (command.args[0] as { shift?: boolean })
+            await runAction(() =>
+              actionPage.keyboard.press(
+                tabOptions.shift === true ? 'Shift+Tab' : 'Tab'
+              )
+            )
+            break
+          }
+          case 'tripleClick':
+            await runAction(() =>
+              locator.click({
+                ...(command.args[0] as Parameters<typeof locator.click>[0]),
+                clickCount: 3,
+              })
+            )
+            break
+          case 'unhover':
+            await runAction(async () => {
+              await actionFrame.evaluate(() => {})
+              await actionFrame
+                .locator('body')
+                .hover(command.args[0] as Parameters<typeof locator.hover>[0])
+            })
+            break
+          case 'hover':
+            await runAction(async () => {
+              await actionFrame.evaluate(() => {})
+              await locator.hover(
+                command.args[0] as Parameters<typeof locator.hover>[0]
+              )
+            })
+            break
+          case 'fill':
+            if (
+              commandTarget.kind !== 'locator' &&
+              typeof command.args[0] !== 'string'
+            )
+              throw new Error('Invalid fill text.')
+            await runAction(() =>
+              locator.fill(
+                command.args[0] as string,
+                command.args[1] as Parameters<typeof locator.fill>[1]
+              )
+            )
+            break
+          case 'clear':
+            await runAction(() =>
+              locator.clear(
+                command.args[0] as Parameters<typeof locator.clear>[0]
+              )
+            )
+            break
+          case 'selectOptions': {
+            if (commandTarget.kind === 'locator') {
+              await runAction(async () => {
+                const selections = command.args[0] as (
+                  | string
+                  | { element: { selector: string; locator: string } }
+                )[]
+                const operations = selections.map(async (value) => {
+                  if (typeof value === 'string') return value
+                  const { locator: description, selector } = value.element
+                  const handle = await getClientCommandLocator(
+                    actionFrame,
+                    { kind: 'locator', selector, description },
+                    clientLocatorEngine
+                  ).elementHandle()
+                  if (!handle)
+                    throw new Error(`Element not found: ${value.element}`)
+                  return handle
+                })
+                try {
+                  const values = await Promise.all(operations)
+                  await locator.selectOption(
+                    values as Parameters<typeof locator.selectOption>[0],
+                    command.args[1] as Parameters<
+                      typeof locator.selectOption
+                    >[1]
+                  )
+                } finally {
+                  // Join every started lookup before releasing its owned handle.
+                  // Keep the real first rejection reply independent from a
+                  // different lookup that may need subsequent authored DOM work.
+                  const cleanup = (async () => {
+                    const outcomes = await Promise.allSettled(operations)
+                    for (const outcome of outcomes) {
+                      if (
+                        outcome.status === 'fulfilled' &&
+                        typeof outcome.value !== 'string'
+                      ) {
+                        try {
+                          await outcome.value.dispose()
+                        } catch (error) {
+                          cleanupErrors.push(error)
+                        }
+                      }
+                    }
+                  })()
+                  optionHandleCleanups.add(cleanup)
+                  void cleanup.then(
+                    () => optionHandleCleanups.delete(cleanup),
+                    (error) => {
+                      cleanupErrors.push(error)
+                      optionHandleCleanups.delete(cleanup)
+                    }
+                  )
+                }
+              })
+              break
+            }
+            const selections = command.args[0]
+            if (
+              !Array.isArray(selections) ||
+              selections.some((value) =>
+                typeof value === 'string'
+                  ? false
+                  : !value ||
+                    typeof value !== 'object' ||
+                    Array.isArray(value) ||
+                    Object.keys(value).length !== 1 ||
+                    typeof value.element !== 'string' ||
+                    !/^next-test-element-[0-9]+$/.test(value.element)
+              ) ||
+              selections.some(
+                (value) =>
+                  (typeof value === 'string') !==
+                  (typeof selections[0] === 'string')
+              )
+            )
+              throw new Error('Invalid option selection.')
+            await runAction(async () => {
+              const handles: NonNullable<
+                Awaited<ReturnType<typeof locator.elementHandle>>
+              >[] = []
+              try {
+                for (const value of selections as (
+                  | string
+                  | { element: string }
+                )[]) {
+                  if (typeof value !== 'string') {
+                    const handle = await actionFrame
+                      .locator(`[data-next-test-element="${value.element}"]`)
+                      .elementHandle()
+                    if (!handle)
+                      throw new Error(
+                        'Browser option element is not attached to its document.'
+                      )
+                    handles.push(handle)
+                  }
+                }
+                await locator.selectOption(
+                  handles.length ? handles : (selections as string[]),
+                  command.args[1] as Parameters<typeof locator.selectOption>[1]
+                )
+              } finally {
+                for (const handle of handles) {
+                  try {
+                    await handle.dispose()
+                  } catch (error) {
+                    cleanupErrors.push(error)
+                  }
+                }
+              }
+            })
+            break
+          }
+          case 'upload': {
+            if (!Array.isArray(command.args[0]))
+              throw new Error('Invalid upload files.')
+            const files = command.args[0].map((file: unknown) => {
+              if (typeof file === 'string')
+                return resolve(options.projectDir, file)
+              if (
+                !file ||
+                typeof file !== 'object' ||
+                typeof Reflect.get(file, 'name') !== 'string' ||
+                typeof Reflect.get(file, 'mimeType') !== 'string' ||
+                typeof Reflect.get(file, 'base64') !== 'string'
+              )
+                throw new Error('Invalid upload file payload.')
+              return {
+                name: Reflect.get(file, 'name') as string,
+                mimeType: Reflect.get(file, 'mimeType') as string,
+                buffer: Buffer.from(Reflect.get(file, 'base64'), 'base64'),
+              }
+            })
+            await runAction(() =>
+              locator.setInputFiles(
+                files as Parameters<typeof locator.setInputFiles>[0],
+                command.args[1] as Parameters<typeof locator.setInputFiles>[1]
+              )
+            )
+            break
+          }
+          case 'screenshot': {
+            if (
+              command.args.length !== 2 ||
+              !command.args[1] ||
+              typeof command.args[1] !== 'object' ||
+              Array.isArray(command.args[1])
+            )
+              throw new Error('Invalid Browser Mode screenshot command.')
+            return runAction(async () => {
+              const [name, values] = command.args as [
+                string,
+                Omit<NonNullable<Parameters<Page['screenshot']>[0]>, 'mask'> & {
+                  base64?: boolean
+                  save?: boolean
+                  mask?: { selector: string; locator: string }[]
+                },
+              ]
+              const {
+                element: _element,
+                target: _target,
+                ...config
+              } = values as typeof values & {
+                element?: unknown
+                target?: unknown
+              }
+              config.save ??= true
+              if (!config.save) config.base64 = true
+              const input = config.path || name
+              // The reference resolves screenshot paths with portable separators.
+              const normalized = input.replace(/\\/g, '/')
+              const path = config.path
+                ? resolve(dirname(artifact.client.sourceFile), normalized)
+                : resolve(
+                    dirname(artifact.client.sourceFile),
+                    '__screenshots__',
+                    basename(artifact.client.sourceFile),
+                    normalized
+                  )
+              const save = config.save
+              if (save) await mkdir(dirname(path), { recursive: true })
+              const mask = config.mask?.map((target) =>
+                getClientCommandLocator(
+                  actionFrame,
+                  {
+                    kind: 'locator',
+                    selector: target.selector,
+                    description: target.locator,
+                  },
+                  clientLocatorEngine
+                )
+              )
+              const buffer = await locator.screenshot({
+                ...config,
+                mask,
+                path: save ? path : undefined,
+              })
+              if (!save) return buffer.toString('base64')
+              if (config.base64)
+                return { path, base64: buffer.toString('base64') }
+              return path
+            })
+          }
+          default:
+            throw new Error('Unsupported Browser Mode element command.')
+        }
+        return null
+      },
+      onMessage(message) {
+        if (message.type === 'output') {
+          if (
+            !['stdout', 'stderr'].includes(message.stream) ||
+            typeof message.text !== 'string' ||
+            (message.console !== undefined &&
+              (!Number.isInteger(message.console.size) ||
+                message.console.size < 0 ||
+                (message.console.taskId !== undefined &&
+                  typeof message.console.taskId !== 'string') ||
+                message.console.browser !== true ||
+                !Number.isFinite(message.time)))
+          )
+            throw new Error('Invalid Browser Mode console output.')
+          options.onEvent({
+            ...envelope(),
+            type: 'output',
+            entryId: artifact.entryId,
+            revision: artifact.revision,
+            stream: message.stream,
+            text: message.text,
+            ...(message.console
+              ? {
+                  console: message.console,
+                  timestamp: message.time ?? envelope().timestamp,
+                }
+              : {}),
+          })
+        } else {
+          const value = collector.accept(message)
+          if (message.type === 'complete')
+            userCancellationInterrupted = message.interrupted
+          publishCapturedEvents()
+          return value
+        }
+      },
+      onFailure: (error) => errors.push(error),
+    })
+    controller.signal.throwIfAborted()
+    host = await createBrowserHost({
+      projectDir: options.projectDir,
+      signal: controller.signal,
+      ...(engine !== 'chromium' ? { engine } : {}),
+      headless: options.browserHeadless ?? isTestCI,
+      ...(options.testFrame ? { ownedFrames: true } : {}),
+    })
+    controller.signal.throwIfAborted()
+    browser = await connectBrowserHost({
+      projectDir: options.projectDir,
+      wsEndpoint: host.wsEndpoint,
+      timeout: Math.min(30000, options.fileTimeout),
+      beforeConnect: registerClientLocators,
+      ...(engine !== 'chromium' ? { engine } : {}),
+    })
+    controller.signal.throwIfAborted()
+    const contextOptions = {
+      serviceWorkers: 'block' as const,
+      ...(options.browserViewport ? { viewport: options.browserViewport } : {}),
+    }
+    context = await browser.newContext(contextOptions)
+    controller.signal.throwIfAborted()
+    page = await context.newPage()
+    page.on('console', onConsole)
+    page.on('pageerror', onPageError)
+    page.on('crash', onCrash)
+    page.on('close', onClose)
+    if (options.testFrame) {
+      page.on('framedetached', onFrameDetached)
+      if (!server.hostURL || !host.frameOwner)
+        throw new Error('Browser Mode host has no owned test Frame producer.')
+      await Promise.race([
+        page.goto(server.hostURL, {
+          waitUntil: 'load',
+          timeout: Math.min(30000, options.fileTimeout),
+        }),
+        interrupted,
+      ])
+      controller.signal.throwIfAborted()
+      const element = await page
+        .locator('iframe')
+        .elementHandle({ timeout: Math.min(30000, options.fileTimeout) })
+      if (!element)
+        throw new Error('Browser Mode host has no actual test iframe.')
+      try {
+        testFrame = (await element.contentFrame()) ?? undefined
+      } finally {
+        await element.dispose()
+      }
+      controller.signal.throwIfAborted()
+      if (!testFrame)
+        throw new Error('Browser Mode iframe has no actual test Frame.')
+      frameOwner = host.frameOwner(context, page, testFrame)
+    }
+    engineBrand = createClientEngineBrand({
+      context,
+      page,
+      url: server.url,
+      signal: controller.signal,
+      onFailure: fail,
+      ...(frameOwner ? { frameOwner } : {}),
+      ...(engine === 'firefox'
+        ? { firefoxOwner: host.firefoxPageOwner!(context, page) }
+        : {}),
+      ...(engine === 'webkit'
+        ? { webKitOwner: (webKitOwner = host.webKitPageOwner!(context, page)) }
+        : {}),
+    })
+    await Promise.race([engineBrand.start(), interrupted])
+    await Promise.race([
+      (testFrame ?? page).goto(server.url, {
+        waitUntil: 'load',
+        timeout: Math.min(30000, options.fileTimeout),
+      }),
+      interrupted,
+    ])
+    await Promise.race([server.completion, interrupted])
+    engineBrand.fact()
+    cleanCompletion = true
+  } catch (error) {
+    errors.push(error)
+  } finally {
+    closing = true
+    const engineClosing = engineBrand?.close()
+    clearTimeout(timer)
+    controller.signal.removeEventListener('abort', abort)
+    options.signal.removeEventListener('abort', onAbort)
+    // Every acquired owner is awaited, including when a prior disposal fails.
+    for (const dispose of [
+      () => engineClosing,
+      () => context?.close(),
+      () => page?.off('console', onConsole),
+      () => page?.off('framedetached', onFrameDetached),
+      () => browser?.close(),
+      () => host?.dispose(),
+      () => engineBrand?.afterOwnersClosed(),
+      () => server?.dispose(),
+      // The server has joined all command handlers; no new cleanup can start.
+      () => Promise.all([...optionHandleCleanups]),
+      () => {
+        // Native calls after STOP can overtake older queued RPC output. Publish
+        // them after both channels close, retaining each captured event unchanged.
+        for (const event of deferredConsole.splice(0)) {
+          try {
+            options.onEvent(event)
+          } catch (error) {
+            fail(error)
+          }
+        }
+      },
+    ]) {
+      try {
+        await dispose()
+      } catch (error) {
+        cleanupErrors.push(error)
+      }
+    }
+  }
+  if (cleanupErrors.length)
+    throw new AggregateError(
+      [...errors, ...cleanupErrors],
+      'Browser Mode owner cleanup could not be confirmed.'
+    )
+  if (cleanCompletion) {
+    try {
+      await server!.verify()
+      server!.assertClean()
+      await verifyProductionStaticMock?.()
+    } catch (error) {
+      errors.push(error)
+    }
+  }
+  const actualErrors = errors.filter(
+    (error) => !options.signal.aborted || error !== options.signal.reason
+  )
+  for (const error of actualErrors) collector.fail(error)
+  let facts: ReturnType<typeof collector.result> | undefined
+  if (cleanCompletion) {
+    try {
+      facts = collector.result()
+    } catch (error) {
+      collector.fail(error)
+      errors.push(error)
+    }
+  }
+  if (forwardedEvents) publishCapturedEvents()
+  else for (const event of collector.events) options.onEvent(event)
+  let status: TestExecutionResult['status'] =
+    options.signal.aborted && !collector.hasFailure()
+      ? 'cancelled'
+      : (facts?.status ?? 'failed')
+  if (actualErrors.length) status = 'failed'
+  if (status === 'passed' && facts?.updates.length) {
+    try {
+      options.signal.throwIfAborted()
+      await server!.verify()
+      if (options.onSnapshotUpdates)
+        await options.onSnapshotUpdates(
+          artifact.client.sourceFile,
+          facts.updates
+        )
+      else
+        await commitSnapshotUpdates(artifact.client.sourceFile, facts.updates, {
+          projectDir: options.projectDir,
+          signal: options.signal,
+          sourceHash: artifact.sourceHash,
+        })
+    } catch (error) {
+      status = 'failed'
+      options.onEvent({
+        ...envelope(),
+        type: 'diagnostic',
+        entryId: artifact.entryId,
+        revision: artifact.revision,
+        diagnostic: serializeDiagnostic(error, { phase: 'cleanup' }),
+      })
+    }
+  }
+  const result = {
+    entryId: artifact.entryId,
+    status,
+    durationMs: performance.now() - started,
+  }
+  options.onEvent({ ...envelope(), type: 'file-end', ...result })
+  return {
+    ...result,
+    ...(options.captureCompletedModuleResult
+      ? {
+          moduleExecution: {
+            closed: false as const,
+            ...(facts?.moduleCompletion
+              ? { completion: facts.moduleCompletion }
+              : {}),
+          },
+        }
+      : {}),
+    ...(status === 'passed' &&
+    cleanCompletion &&
+    userCancellationInterrupted &&
+    options.userCancelSignal?.aborted &&
+    !options.signal.aborted &&
+    server?.userCancellationFinalized() === true &&
+    facts?.updates.length === 0 &&
+    actualErrors.length === 0
+      ? { closedUserCancellation: true as const }
+      : {}),
+  }
+}

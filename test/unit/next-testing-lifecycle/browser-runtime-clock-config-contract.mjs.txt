@@ -1,0 +1,80 @@
+import { expect, test, vi } from 'vitest'
+
+const originalDate = globalThis.Date
+const originalSetTimeout = globalThis.setTimeout
+const clock = () => ({ now: Date.now(), fake: vi.isFakeTimers(), dateReplaced: Date !== originalDate, timeoutFaked: setTimeout !== originalSetTimeout })
+function record(name, raw) { console.log('BROWSER_RUNTIME_CONFIG_RAW ' + JSON.stringify({ name, raw })) }
+
+test('changes clock defaults and retains a shallow per-call override', () => {
+  const returned = vi.setConfig({ fakeTimers: { now: 2000, toFake: ['Date'], loopLimit: 2, shouldClearNativeTimers: true } })
+  let raw
+  try {
+    const fluent = vi.useFakeTimers() === vi
+    const configured = clock()
+    vi.useRealTimers()
+    vi.useFakeTimers({ now: 3000 })
+    raw = { returnType: typeof returned, fluent, configured, override: clock() }
+  } finally { vi.useRealTimers() }
+  raw.restored = Date === originalDate && setTimeout === originalSetTimeout
+  record('set-and-override', raw)
+  expect(raw.restored).toBe(true)
+})
+
+test('observes cross-case settings and resets the saved project defaults', () => {
+  let raw
+  try {
+    vi.useFakeTimers()
+    const inherited = clock()
+    const returned = vi.resetConfig()
+    const activeAfterReset = clock()
+    vi.useRealTimers()
+    vi.useFakeTimers()
+    raw = { inherited, returnType: typeof returned, activeAfterReset, reinstalled: clock() }
+  } finally { vi.useRealTimers(); vi.resetConfig() }
+  raw.restored = Date === originalDate && setTimeout === originalSetTimeout
+  record('inherit-and-reset', raw)
+  expect(raw.restored).toBe(true)
+})
+
+test('updates an installed clock only at the next explicit installation', () => {
+  let raw
+  try {
+    vi.useFakeTimers()
+    const before = clock()
+    const calls = []
+    setTimeout(() => calls.push(Date.now()), 5)
+    const returned = vi.setConfig({ fakeTimers: { now: 4000, toFake: ['Date'] } })
+    const activeAfterSet = clock()
+    vi.advanceTimersByTime(5)
+    const advanced = clock()
+    vi.useFakeTimers()
+    raw = { before, returnType: typeof returned, activeAfterSet, calls, advanced, reinstalled: clock() }
+  } finally { vi.useRealTimers(); vi.resetConfig() }
+  raw.restored = Date === originalDate && setTimeout === originalSetTimeout
+  record('active-clock', raw)
+  expect(raw.restored).toBe(true)
+})
+
+test('keeps per-call timer options separate from mutable file configuration', () => {
+  let raw
+  try {
+    vi.setConfig({ fakeTimers: { now: 5000, toFake: ['Date'], loopLimit: 2, shouldClearNativeTimers: true } })
+    vi.useFakeTimers({ now: 6000, toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    const calls = []
+    function again() { calls.push(Date.now()); setTimeout(again, 0) }
+    setTimeout(again, 0)
+    let caught
+    try { vi.runAllTimers() } catch (error) { caught = error }
+    const override = { ...clock(), calls, pending: vi.getTimerCount(), error: caught && { name: caught.name, message: caught.message } }
+    vi.useRealTimers()
+    vi.useFakeTimers()
+    const configured = clock()
+    vi.useRealTimers()
+    vi.resetConfig()
+    vi.useFakeTimers()
+    raw = { override, configured, reset: clock() }
+  } finally { vi.useRealTimers(); vi.resetConfig() }
+  raw.restored = Date === originalDate && setTimeout === originalSetTimeout
+  record('config-isolation', raw)
+  expect(raw.restored).toBe(true)
+})

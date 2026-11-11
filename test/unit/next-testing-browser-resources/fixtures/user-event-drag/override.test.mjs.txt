@@ -1,0 +1,25 @@
+import './override.css'
+import { expect, test } from 'vitest'
+
+test('applies authored document CSS geometry overrides', () => {
+  const marker = document.createElement('div')
+  marker.style.width = '100px'
+  marker.style.height = '50px'
+  document.body.append(marker)
+  try {
+    expect(marker.isConnected).toBe(true)
+    expect(getComputedStyle(document.documentElement).padding).toBe('5px')
+    expect(getComputedStyle(document.body).margin).toBe('12px')
+    expect(getComputedStyle(document.body).padding).toBe('3px')
+    const { left, top, width, height } = marker.getBoundingClientRect()
+    expect({ left, top, width, height }).toEqual({
+      left: 22,
+      top: 22,
+      width: 100,
+      height: 50,
+    })
+    expect([innerWidth, innerHeight]).toEqual([640, 480])
+  } finally {
+    marker.remove()
+  }
+})

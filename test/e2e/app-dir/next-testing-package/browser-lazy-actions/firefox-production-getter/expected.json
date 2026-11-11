@@ -1,0 +1,27 @@
+{
+  "rows": [
+    {
+      "phase": "getter"
+    },
+    {
+      "phase": "constructor-error",
+      "same": true,
+      "name": "Error",
+      "message": "original serial getter",
+      "clicks": 0
+    },
+    {
+      "phase": "after-restoration",
+      "clicks": 1
+    }
+  ],
+  "cases": [
+    {
+      "name": "serial original getter failure",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "success": true,
+  "exit": 0
+}

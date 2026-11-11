@@ -1,0 +1,465 @@
+{
+  "totals": {
+    "numTotalTests": 4,
+    "numPassedTests": 4,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0
+  },
+  "cases": [
+    {
+      "fullName": "string stubs delete missing values and restore the first original value",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "DEV PROD and SSR stubs retain their genuine boolean conversion behavior",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "A leaves env stubs for the configured next-attempt reset",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "B sees project unstubEnvs restore originals before the body",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "files": [
+    {
+      "status": "passed",
+      "message": ""
+    }
+  ],
+  "rows": [
+    {
+      "id": "strings",
+      "before": {
+        "NEXT_ENV_RECON_EXISTING": {
+          "own": true,
+          "type": "string",
+          "value": "configured-value"
+        },
+        "NEXT_ENV_RECON_DELETED": {
+          "own": true,
+          "type": "string",
+          "value": "configured-delete"
+        },
+        "NEXT_ENV_RECON_MISSING": {
+          "own": false,
+          "type": "undefined"
+        },
+        "DEV": {
+          "own": true,
+          "type": "boolean",
+          "value": true
+        },
+        "PROD": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "SSR": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        }
+      },
+      "fluent": true,
+      "changed": {
+        "NEXT_ENV_RECON_EXISTING": {
+          "own": true,
+          "type": "string",
+          "value": "second"
+        },
+        "NEXT_ENV_RECON_DELETED": {
+          "own": false,
+          "type": "undefined"
+        },
+        "NEXT_ENV_RECON_MISSING": {
+          "own": true,
+          "type": "string",
+          "value": "new-value"
+        },
+        "DEV": {
+          "own": true,
+          "type": "boolean",
+          "value": true
+        },
+        "PROD": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "SSR": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        }
+      },
+      "crossModule": {
+        "sameEnv": true,
+        "value": "second"
+      },
+      "removed": {
+        "own": false,
+        "type": "undefined"
+      },
+      "restoreFluent": true,
+      "restored": {
+        "NEXT_ENV_RECON_EXISTING": {
+          "own": true,
+          "type": "string",
+          "value": "configured-value"
+        },
+        "NEXT_ENV_RECON_DELETED": {
+          "own": true,
+          "type": "string",
+          "value": "configured-delete"
+        },
+        "NEXT_ENV_RECON_MISSING": {
+          "own": false,
+          "type": "undefined"
+        },
+        "DEV": {
+          "own": true,
+          "type": "boolean",
+          "value": true
+        },
+        "PROD": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "SSR": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        }
+      }
+    },
+    {
+      "id": "boolean-specials",
+      "before": {
+        "NEXT_ENV_RECON_EXISTING": {
+          "own": true,
+          "type": "string",
+          "value": "configured-value"
+        },
+        "NEXT_ENV_RECON_DELETED": {
+          "own": true,
+          "type": "string",
+          "value": "configured-delete"
+        },
+        "NEXT_ENV_RECON_MISSING": {
+          "own": false,
+          "type": "undefined"
+        },
+        "DEV": {
+          "own": true,
+          "type": "boolean",
+          "value": true
+        },
+        "PROD": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "SSR": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        }
+      },
+      "observations": [
+        {
+          "name": "DEV",
+          "fluent": true,
+          "enabled": {
+            "own": true,
+            "type": "string",
+            "value": "1"
+          },
+          "disabled": {
+            "own": true,
+            "type": "string",
+            "value": ""
+          },
+          "removed": {
+            "own": false,
+            "type": "undefined"
+          }
+        },
+        {
+          "name": "PROD",
+          "fluent": true,
+          "enabled": {
+            "own": true,
+            "type": "string",
+            "value": "1"
+          },
+          "disabled": {
+            "own": true,
+            "type": "string",
+            "value": ""
+          },
+          "removed": {
+            "own": false,
+            "type": "undefined"
+          }
+        },
+        {
+          "name": "SSR",
+          "fluent": true,
+          "enabled": {
+            "own": true,
+            "type": "string",
+            "value": "1"
+          },
+          "disabled": {
+            "own": true,
+            "type": "string",
+            "value": ""
+          },
+          "removed": {
+            "own": false,
+            "type": "undefined"
+          }
+        }
+      ],
+      "restored": {
+        "NEXT_ENV_RECON_EXISTING": {
+          "own": true,
+          "type": "string",
+          "value": "configured-value"
+        },
+        "NEXT_ENV_RECON_DELETED": {
+          "own": true,
+          "type": "string",
+          "value": "configured-delete"
+        },
+        "NEXT_ENV_RECON_MISSING": {
+          "own": false,
+          "type": "undefined"
+        },
+        "DEV": {
+          "own": true,
+          "type": "boolean",
+          "value": true
+        },
+        "PROD": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "SSR": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        }
+      }
+    },
+    {
+      "id": "attempt-A",
+      "before": {
+        "NEXT_ENV_RECON_EXISTING": {
+          "own": true,
+          "type": "string",
+          "value": "configured-value"
+        },
+        "NEXT_ENV_RECON_DELETED": {
+          "own": true,
+          "type": "string",
+          "value": "configured-delete"
+        },
+        "NEXT_ENV_RECON_MISSING": {
+          "own": false,
+          "type": "undefined"
+        },
+        "DEV": {
+          "own": true,
+          "type": "boolean",
+          "value": true
+        },
+        "PROD": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "SSR": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        }
+      },
+      "changed": {
+        "NEXT_ENV_RECON_EXISTING": {
+          "own": true,
+          "type": "string",
+          "value": "from-A"
+        },
+        "NEXT_ENV_RECON_DELETED": {
+          "own": true,
+          "type": "string",
+          "value": "configured-delete"
+        },
+        "NEXT_ENV_RECON_MISSING": {
+          "own": true,
+          "type": "string",
+          "value": "pending-A"
+        },
+        "DEV": {
+          "own": true,
+          "type": "string",
+          "value": ""
+        },
+        "PROD": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "SSR": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        }
+      }
+    },
+    {
+      "id": "attempt-B",
+      "before": {
+        "NEXT_ENV_RECON_EXISTING": {
+          "own": true,
+          "type": "string",
+          "value": "configured-value"
+        },
+        "NEXT_ENV_RECON_DELETED": {
+          "own": true,
+          "type": "string",
+          "value": "configured-delete"
+        },
+        "NEXT_ENV_RECON_MISSING": {
+          "own": false,
+          "type": "undefined"
+        },
+        "DEV": {
+          "own": true,
+          "type": "boolean",
+          "value": true
+        },
+        "PROD": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "SSR": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        }
+      },
+      "fluent": true,
+      "changed": {
+        "NEXT_ENV_RECON_EXISTING": {
+          "own": true,
+          "type": "string",
+          "value": "from-B"
+        },
+        "NEXT_ENV_RECON_DELETED": {
+          "own": true,
+          "type": "string",
+          "value": "configured-delete"
+        },
+        "NEXT_ENV_RECON_MISSING": {
+          "own": false,
+          "type": "undefined"
+        },
+        "DEV": {
+          "own": true,
+          "type": "boolean",
+          "value": true
+        },
+        "PROD": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "SSR": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        }
+      }
+    },
+    {
+      "id": "file-cleanup",
+      "beforeRestore": {
+        "NEXT_ENV_RECON_EXISTING": {
+          "own": true,
+          "type": "string",
+          "value": "from-B"
+        },
+        "NEXT_ENV_RECON_DELETED": {
+          "own": true,
+          "type": "string",
+          "value": "configured-delete"
+        },
+        "NEXT_ENV_RECON_MISSING": {
+          "own": false,
+          "type": "undefined"
+        },
+        "DEV": {
+          "own": true,
+          "type": "boolean",
+          "value": true
+        },
+        "PROD": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "SSR": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        }
+      },
+      "fluent": true,
+      "restored": {
+        "NEXT_ENV_RECON_EXISTING": {
+          "own": true,
+          "type": "string",
+          "value": "configured-value"
+        },
+        "NEXT_ENV_RECON_DELETED": {
+          "own": true,
+          "type": "string",
+          "value": "configured-delete"
+        },
+        "NEXT_ENV_RECON_MISSING": {
+          "own": false,
+          "type": "undefined"
+        },
+        "DEV": {
+          "own": true,
+          "type": "boolean",
+          "value": true
+        },
+        "PROD": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "SSR": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        }
+      }
+    }
+  ],
+  "streams": ["stdout", "stdout", "stdout", "stdout", "stdout"]
+}

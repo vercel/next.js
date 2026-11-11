@@ -1,0 +1,49 @@
+{
+  "rows": [
+    {
+      "name": "invalid-module-error",
+      "raw": {
+        "name": "AssertionError",
+        "message": "Artifact can only be recorded on a test, instead got module",
+        "constructorName": "Object",
+        "constructorIsError": false,
+        "prototypeIsError": false,
+        "instanceofError": false,
+        "keys": [
+          "name",
+          "message",
+          "stack",
+          "generatedMessage",
+          "code",
+          "actual",
+          "expected",
+          "operator",
+          "diff"
+        ],
+        "ownKeys": [
+          "name",
+          "message",
+          "stack",
+          "generatedMessage",
+          "code",
+          "actual",
+          "expected",
+          "operator",
+          "diff"
+        ],
+        "stackHead": "AssertionError [ERR_ASSERTION]: Artifact can only be recorded on a test, instead got module",
+        "code": "ERR_ASSERTION",
+        "actual": false,
+        "expected": true,
+        "operator": "==",
+        "generatedMessage": false,
+        "inputLocation": {
+          "file": "/private/tmp/next-testing-browser-record-artifact117-reference/error-shape-v3/reference-attempt-01/fixture/artifacts.test.mjs",
+          "line": 5,
+          "column": 15
+        },
+        "taskCount": 0
+      }
+    }
+  ]
+}

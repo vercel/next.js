@@ -1,0 +1,99 @@
+import { afterEach, expect, test } from 'vitest'
+import { page } from 'vitest/browser'
+afterEach(() => document.body.replaceChildren())
+function trace(element) {
+  const events = []
+  for (const type of [
+    'pointerdown',
+    'mousedown',
+    'pointerup',
+    'mouseup',
+    'click',
+  ])
+    element.addEventListener(type, (event) =>
+      events.push({
+        type,
+        trusted: event.isTrusted,
+        target: event.target === element,
+        currentTarget: event.currentTarget === element,
+        text: element.textContent,
+        detail: event.detail,
+      })
+    )
+  return events
+}
+function settled(promise) {
+  return promise.then(
+    (value) => ({ returnedUndefined: value === undefined }),
+    (error) => ({
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    })
+  )
+}
+
+function button(name) {
+  const element = document.createElement('button')
+  element.textContent = name
+  document.body.append(element)
+  return element
+}
+test('missing target has a native timeout and the following healthy action stays live', async () => {
+  const outcome = await settled(
+    page
+      .getByRole('button', { name: 'Never appears', exact: true })
+      .click({ timeout: 60 })
+  )
+  const element = button('Following healthy action'),
+    events = trace(element)
+  await page
+    .getByRole('button', { name: 'Following healthy action', exact: true })
+    .click({ timeout: 500 })
+
+  expect(outcome.name).toBe('TimeoutError')
+  expect(outcome.message).toContain('Timeout 60ms exceeded')
+  expect(events.map((event) => event.type)).toContain('click')
+})
+test('the same query can own two sequential missing target actions', async () => {
+  const query = page.getByRole('button', { name: 'Reused query', exact: true }),
+    outcomes = []
+  for (let index = 0; index < 2; index++) {
+    const call = settled(query.click({ timeout: 500 }))
+    await Promise.resolve()
+    const element = button('Reused query'),
+      events = trace(element),
+      outcome = await call
+
+    expect(events.filter((event) => event.type === 'click')).toHaveLength(1)
+    expect(
+      events.every(
+        (event) => event.trusted && event.target && event.currentTarget
+      )
+    ).toBe(true)
+    outcomes.push(outcome)
+    element.remove()
+  }
+  expect(outcomes).toEqual([
+    { returnedUndefined: true },
+    { returnedUndefined: true },
+  ])
+})
+test('a late ambiguous query retains native strict resolution failure', async () => {
+  const call = settled(
+    page
+      .getByRole('button', { name: 'Ambiguous query', exact: true })
+      .click({ timeout: 500 })
+  )
+  await Promise.resolve()
+  const first = button('Ambiguous query'),
+    second = button('Ambiguous query'),
+    firstEvents = trace(first),
+    secondEvents = trace(second),
+    outcome = await call
+
+  expect(outcome.name).toBe('Error')
+  expect(outcome.message).toContain('strict mode violation')
+  expect(firstEvents).toEqual([])
+  expect(secondEvents).toEqual([])
+})

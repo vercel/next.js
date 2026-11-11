@@ -1,0 +1,44 @@
+[
+  {
+    "label": "exports",
+    "value": {
+      "chai": "object",
+      "assertSame": true,
+      "shouldSame": true,
+      "capitalShouldSame": true,
+      "expectAssertSame": true,
+      "rawExpectDifferent": true
+    }
+  },
+  {
+    "label": "raw-count",
+    "value": {
+      "calls": 0
+    }
+  },
+  {
+    "label": "should",
+    "value": {
+      "helperObject": "object",
+      "secondObject": "object",
+      "getter": "function",
+      "calls": 0
+    }
+  },
+  {
+    "label": "proxy-plugin",
+    "value": {
+      "freshUseRecords": true,
+      "sharedPluginUtility": true,
+      "enabledDifferent": true,
+      "enabledValue": 7,
+      "disabledSame": true,
+      "typo": {
+        "name": "Error",
+        "message": "Invalid Chai property: mraker. Did you mean \"marker\"?"
+      },
+      "pluginCalls": 1,
+      "calls": 0
+    }
+  }
+]

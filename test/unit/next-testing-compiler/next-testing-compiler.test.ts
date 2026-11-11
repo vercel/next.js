@@ -28,7 +28,7 @@ import {
   requireProductionFixtureCapability,
 } from 'next/dist/build/swc/browser-fixtures'
 import { requireTestRouteCapability } from 'next/dist/build/swc/test-route'
-import { mkdtemp, mkdir, readdir, rm, symlink } from 'fs/promises'
+import { mkdtemp, mkdir, writeFile, readdir, rm, symlink } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { createCompiledRouteRenderOpts } from 'next/dist/experimental/testing/compiler/route-render'
@@ -312,6 +312,57 @@ describe('private production Browser coverage native ABI', () => {
       'retained-revision',
     ])
     expect(getter).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('client async continuation compiler certificate', () => {
+  const {
+    readClientDescriptor,
+  } = require('next/dist/experimental/testing/compiler/client')
+  it.each([undefined, null, '', 'lexical-only', 1])(
+    'refuses missing or incorrect async scope provenance %p',
+    async (asyncScope) => {
+      const root = await mkdtemp(
+        join(tmpdir(), 'next-client-scope-certificate-')
+      )
+      try {
+        const path = 'server/next-test/client.client.json'
+        await mkdir(join(root, 'server/next-test'), { recursive: true })
+        await writeFile(
+          join(root, path),
+          JSON.stringify({
+            version: 1,
+            asyncScope,
+            scripts: ['static/entry.js'],
+            styles: [],
+          })
+        )
+        await expect(
+          readClientDescriptor(root, path, [path, 'static/entry.js'], 'client')
+        ).rejects.toThrow('Invalid native Browser Mode descriptor')
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+  it('retains the native continuation certificate in the published client closure', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-client-scope-certificate-'))
+    try {
+      const path = 'server/next-test/client.client.json'
+      const expected = {
+        version: 1,
+        asyncScope: 'promise-continuations-v1',
+        scripts: ['static/entry.js'],
+        styles: [],
+      }
+      await mkdir(join(root, 'server/next-test'), { recursive: true })
+      await writeFile(join(root, path), JSON.stringify(expected))
+      await expect(
+        readClientDescriptor(root, path, [path, 'static/entry.js'], 'client')
+      ).resolves.toEqual(expected)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
   })
 })
 
@@ -1319,6 +1370,24 @@ it('validates production Browser client profiles without enabling route-aware or
     expect(() => validateTestProfile({ ...profile, ...unsupported })).toThrow()
   }
 })
+
+it('awaits actual Shared ESM setup dependencies while retaining lazy noninheriting Shared CJS harness imports', () => {
+  const { execFileSync } = require('node:child_process')
+  const output = execFileSync(
+    process.execPath,
+    [join(__dirname, 'shared-async-codegen.cjs')],
+    { encoding: 'utf8', timeout: 120000 }
+  )
+  const marker = 'NEXT_TEST_SHARED_ASYNC_CODEGEN '
+  const rows = output.split('\n').filter((line) => line.startsWith(marker))
+  expect(rows).toHaveLength(1)
+  expect(JSON.parse(rows[0].slice(marker.length))).toEqual({
+    actualNativeCodegen: true,
+    sharedSubjectAwaited: true,
+    noninheritingCjsRequires: ['setup', 'test'],
+    harnessAsync: false,
+  })
+}, 130000)
 
 it.each(['development', 'production'])(
   'validates explicit %s Node RSC AppProject routes',

@@ -1,0 +1,29 @@
+{
+  "rows": [
+    {
+      "phase": "unconsumed",
+      "clicks": 0,
+      "guardDelta": 1
+    },
+    {
+      "phase": "following-case",
+      "clicks": 0
+    }
+  ],
+  "cases": [
+    {
+      "name": "serial unconsumed action",
+      "status": "failed",
+      "failureMessages": [
+        "Error: The call was not awaited. This method is asynchronous and must be awaited; otherwise, the call will not start to avoid unhandled rejections.\n    at new d (http://localhost:63315/@fs/private/tmp/next-testing-run/integration/production-browser-mocks/reference/node_modules/@vitest/browser/dist/locators-BHr21v4S.js?v=e5f6bced:1:1405)\n    at new f (http://localhost:63315/@fs/private/tmp/next-testing-run/integration/production-browser-mocks/reference/node_modules/@vitest/browser/dist/locators-BHr21v4S.js?v=e5f6bced:1:2236)\n    at PlaywrightLocator.action (http://localhost:63315/@fs/private/tmp/next-testing-run/integration/production-browser-mocks/reference/node_modules/@vitest/browser/dist/locators-BHr21v4S.js?v=e5f6bced:4:14553)\n    at PlaywrightLocator.click (http://localhost:63315/@fs/private/tmp/next-testing-run/integration/production-browser-mocks/reference/node_modules/@vitest/browser/dist/locators-BHr21v4S.js?v=e5f6bced:4:10881)\n    at PlaywrightLocator.click (http://localhost:63315/@fs/private/tmp/next-testing-run/integration/production-browser-mocks/reference/node_modules/@vitest/browser-playwright/dist/locators.js:14:16)\n    at http://localhost:63315/private/tmp/next-testing-run/work-1/task-buffers/browser-concurrency-contract/native-actions/serial-behavior/.actual-native-actions-reference-uwbbjzez/hooks.test.mjs?import&browserv=1792920908210:9:62\n    at http://localhost:63315/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=e5f6bced:4125:35\n    at http://localhost:63315/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=e5f6bced:5235:26\n    at http://localhost:63315/node_modules/.vite/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DwowZtJo.js?v=e5f6bced:5726:20\n    at new Promise (<anonymous>)"
+      ]
+    },
+    {
+      "name": "serial following case continues",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "success": false,
+  "exit": 1
+}

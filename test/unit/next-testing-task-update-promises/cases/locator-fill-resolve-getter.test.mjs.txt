@@ -1,0 +1,48 @@
+import { test, expect, vi } from 'vitest'
+import { page } from 'vitest/browser'
+const NativePromise = Promise
+const nativeStringify = JSON.stringify
+const nativeFrame = requestAnimationFrame.bind(globalThis)
+for (const variant of ['forwarded', 'veto']) {
+  test('keeps task publication independent of an authored resolve getter ' + variant, async () => {
+    const input = document.createElement('input')
+    input.dataset.testid = 'replacement'
+    input.textContent = 'replacement'
+    let events = 0
+    input.oninput = () => { events++ }
+    document.body.append(input)
+    const locator = page.getByTestId('not-present')
+    const trace = []
+    const descriptor = {
+      get selector() { trace.push({ event: 'field:selector', receiver: this === descriptor }); return 'internal:testid=[data-testid="replacement"s]' },
+      get locator() { trace.push({ event: 'field:locator', receiver: this === descriptor }); return "getByTestId('replacement')" },
+    }
+    locator.serialize = function () { trace.push({ event: 'serialize', receiver: this === locator, argsLength: arguments.length }); return descriptor }
+    const action = locator.fill('filled')
+    trace.push({ event: 'after-create' })
+    const marker = new Error('actual RPC constructor veto')
+    marker.name = 'ConstructorVeto'
+    marker.stack = ''
+    const resolveMarker = new Error('authored Promise.resolve getter')
+    resolveMarker.name = 'AuthoredResolveGetter'
+    resolveMarker.stack = ''
+    let caught
+    try {
+      vi.stubGlobal('Promise', new Proxy(NativePromise, { get(target, property, receiver) { if (property === 'resolve') { trace.push({ event: 'resolve-get', receiver: receiver === globalThis.Promise }); throw resolveMarker } return Reflect.get(target, property, receiver) }, construct(target, args, receiver) {
+        trace.push({ event: 'constructor' })
+        if (variant === 'veto') throw marker
+        return Reflect.construct(target, args, receiver)
+      } }))
+      try { await action; if (variant === 'forwarded') await new NativePromise(resolve => { let remaining = 16; const frame = () => { trace.push({ event: 'actual-frame', remaining }); if (--remaining) nativeFrame(frame); else resolve() }; nativeFrame(frame) }) } catch (error) { caught = error }
+    } finally { vi.unstubAllGlobals(); input.remove() }
+    console.log('BROWSER_NATIVE_FIXTURE:' + nativeStringify({ variant, events, value: input.value, trace, error: caught ? { name: caught.name, message: caught.message, sameError: caught === marker } : null }))
+    expect(trace.filter(entry => entry.event === 'resolve-get')).toHaveLength(0)
+    expect(trace[0].event).toBe('serialize')
+    expect(trace[1].event).toBe('after-create')
+    const ctor = trace.findIndex(entry => entry.event === 'constructor')
+    const field = trace.findIndex(entry => entry.event.startsWith('field:'))
+    expect(ctor).toBeGreaterThan(1)
+    if (variant === 'veto') { expect(events).toBe(0); expect(field).toBe(-1); expect(caught.name).toBe('ConstructorVeto') }
+    else { expect(events).toBe(1); expect(field).toBeGreaterThan(ctor); expect(caught).toBe(undefined) }
+  })
+}

@@ -1,0 +1,4 @@
+import {test,describe,beforeAll,afterAll,aroundAll} from 'vitest'
+import {appendFileSync} from 'node:fs'
+const trace=(...row)=>appendFileSync('authored.jsonl',JSON.stringify(row)+'\n')
+describe('empty',()=>{});test('excluded',()=>{throw Error('must not run')})

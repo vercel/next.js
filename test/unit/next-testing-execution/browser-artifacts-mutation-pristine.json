@@ -1,0 +1,96 @@
+{
+  "rows": [
+    {
+      "name": "mutation",
+      "raw": {
+        "returnedStage": "after-one-await",
+        "inputStage": "after-one-await",
+        "returnedSameInput": false,
+        "returnedDataSame": false,
+        "storedSame": true,
+        "count": 1,
+        "trace": ["sync", "microtask", "after-one-await", "recorded"]
+      }
+    },
+    {
+      "name": "unawaited-body",
+      "raw": {
+        "settled": false,
+        "count": 0,
+        "trace": [
+          "sync",
+          "microtask",
+          "after-one-await",
+          "recorded",
+          "unawaited-body-return"
+        ]
+      }
+    },
+    {
+      "name": "next-case",
+      "raw": {
+        "settled": false,
+        "priorCount": 0,
+        "priorState": "pass",
+        "currentCount": 0,
+        "trace": [
+          "sync",
+          "microtask",
+          "after-one-await",
+          "recorded",
+          "unawaited-body-return",
+          "unawaited-microtask"
+        ]
+      }
+    },
+    {
+      "name": "next-case-microtask",
+      "raw": {
+        "settled": false,
+        "priorCount": 0,
+        "trace": [
+          "sync",
+          "microtask",
+          "after-one-await",
+          "recorded",
+          "unawaited-body-return",
+          "unawaited-microtask"
+        ]
+      }
+    },
+    {
+      "name": "afterAll",
+      "raw": {
+        "settled": false,
+        "priorCount": 0,
+        "priorState": "pass",
+        "trace": [
+          "sync",
+          "microtask",
+          "after-one-await",
+          "recorded",
+          "unawaited-body-return",
+          "unawaited-microtask"
+        ]
+      }
+    },
+    {
+      "name": "unawaited-settled",
+      "raw": {
+        "stage": "microtask-unawaited",
+        "state": "pass",
+        "count": 1,
+        "storedSame": true,
+        "trace": [
+          "sync",
+          "microtask",
+          "after-one-await",
+          "recorded",
+          "unawaited-body-return",
+          "unawaited-microtask",
+          "unawaited-settled"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "next-test-production-target",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "browser": {
+        "production": "./browser-production.mjs",
+        "development": "./browser-development.mjs",
+        "default": "./browser-default.mjs"
+      },
+      "node": "./node.mjs",
+      "default": "./other.mjs"
+    }
+  }
+}

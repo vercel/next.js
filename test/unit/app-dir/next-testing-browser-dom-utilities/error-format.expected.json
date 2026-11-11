@@ -1,0 +1,6 @@
+{
+  "aria": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+  "html": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+  "all": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go\n\nHTML:\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+  "customAria": "Cannot find element with locator: authored locator\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go"
+}

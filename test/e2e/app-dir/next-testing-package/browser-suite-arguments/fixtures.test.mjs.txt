@@ -1,0 +1,83 @@
+import { describe, test, expect, beforeAll, afterAll } from 'vitest'
+
+const firstArguments = []
+const suiteArguments = []
+let suiteFromTest
+
+function emit(value) {
+  console.log('BROWSER_NATIVE_FIXTURE:' + JSON.stringify(value))
+}
+
+function record(phase, expectedName, fn, args, target, receiver) {
+  const first = args[0]
+  const suite = args[1]
+  const fresh = firstArguments.every((previous) => previous !== first)
+  expect(args.length).toBe(2)
+  expect(first !== null).toBe(true)
+  expect(typeof first).toBe('object')
+  expect(Object.getPrototypeOf(first) === Object.prototype).toBe(true)
+  expect(Reflect.ownKeys(first)).toEqual([])
+  expect(fresh).toBe(true)
+  expect(fn.name).toBe(expectedName)
+  expect(fn.length).toBe(1)
+  expect(Object.hasOwn(fn, 'prototype')).toBe(true)
+  expect(fn.prototype.constructor === fn).toBe(true)
+  expect(receiver === undefined).toBe(true)
+  expect(target === undefined).toBe(true)
+  if (suiteFromTest !== undefined) expect(suite === suiteFromTest).toBe(true)
+  firstArguments.push(first)
+  suiteArguments.push(suite)
+  emit({
+    phase,
+    firstArgument: {
+      type: typeof first,
+      plainObject: Object.getPrototypeOf(first) === Object.prototype,
+      ownKeys: Reflect.ownKeys(first),
+      fresh,
+      uniqueCount: new Set(firstArguments).size,
+    },
+    argumentCount: args.length,
+    function: {
+      name: fn.name,
+      length: fn.length,
+      ownPrototype: Object.hasOwn(fn, 'prototype'),
+      prototypeConstructor: fn.prototype.constructor === fn,
+    },
+    receiverUndefined: receiver === undefined,
+    newTargetUndefined: target === undefined,
+    suiteEqualsActualTestSuite:
+      suiteFromTest === undefined ? null : suite === suiteFromTest,
+  })
+}
+
+describe('actual DOM Suite arguments for original synchronous hooks', () => {
+  beforeAll(function namedBeforeAllOne({}) {
+    record('beforeAll-one', 'namedBeforeAllOne', namedBeforeAllOne, arguments, new.target, this)
+  })
+  beforeAll(function namedBeforeAllTwo({}) {
+    record('beforeAll-two', 'namedBeforeAllTwo', namedBeforeAllTwo, arguments, new.target, this)
+  })
+  afterAll(function namedAfterAllOne({}) {
+    record('afterAll-one', 'namedAfterAllOne', namedAfterAllOne, arguments, new.target, this)
+    expect(firstArguments.length).toBe(4)
+    expect(new Set(firstArguments).size).toBe(4)
+    expect(suiteArguments.every((suite) => suite === suiteFromTest)).toBe(true)
+  })
+  afterAll(function namedAfterAllTwo({}) {
+    record('afterAll-two', 'namedAfterAllTwo', namedAfterAllTwo, arguments, new.target, this)
+  })
+  test('retains fresh plain hook objects and the actual collected Suite', function namedCase(context) {
+    suiteFromTest = context.task.suite
+    expect(suiteFromTest !== undefined).toBe(true)
+    expect(firstArguments.length).toBe(2)
+    expect(firstArguments[0] !== firstArguments[1]).toBe(true)
+    expect(suiteArguments[0] === suiteFromTest).toBe(true)
+    expect(suiteArguments[1] === suiteFromTest).toBe(true)
+    emit({
+      phase: 'test',
+      firstArgumentsDistinct: firstArguments[0] !== firstArguments[1],
+      bothBeforeAllArgumentsAreActualSuite:
+        suiteArguments[0] === suiteFromTest && suiteArguments[1] === suiteFromTest,
+    })
+  })
+})

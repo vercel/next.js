@@ -1,0 +1,12 @@
+{
+  "typeNegativeCases": 6,
+  "negativeDiagnostics": [
+    "invalid.mts(3,1): error TS2322: Type '\"text\"' is not assignable to type '\"html\" | \"aria\" | \"all\"'.",
+    "invalid.mts(4,1): error TS2322: Type '\"text\"' is not assignable to type '\"html\" | \"aria\" | \"all\"'.",
+    "invalid.mts(5,1): error TS2322: Type '1' is not assignable to type '\"html\" | \"aria\" | \"all\"'.",
+    "invalid.mts(6,1): error TS2322: Type '1' is not assignable to type '\"html\" | \"aria\" | \"all\"'.",
+    "invalid.mts(7,1): error TS2322: Type 'undefined' is not assignable to type '\"html\" | \"aria\" | \"all\"'.",
+    "invalid.mts(8,1): error TS2322: Type 'undefined' is not assignable to type '\"html\" | \"aria\" | \"all\"'."
+  ],
+  "unionLiterals": ["html", "aria", "all"]
+}

@@ -5,6 +5,10 @@ import {
 import { withCompilerAliases } from './aliases'
 import { materializeExternalLayout } from './external-layout'
 import { createCompiledRouteRenderOpts } from './route-render'
+import {
+  readCreatorClientDescriptor as readClientDescriptor,
+  hashClientOutputs,
+} from './client'
 import { createHash, randomUUID } from 'crypto'
 import {
   mkdir,
@@ -81,6 +85,7 @@ export async function createTestCompilerSession(
     (configuredCompilerEnvKeys !== true ||
       profile.environment !== 'node' ||
       !['development', 'production'].includes(profile.mode) ||
+      profile.browserClient ||
       profile.route !== undefined)
   )
     throw new Error(
@@ -117,7 +122,17 @@ export async function createTestCompilerSession(
   const { dir } = loaded
   // Assertion and inline-snapshot locations need maps in the isolated test
   // artifact even when the application's production build omits them.
-  const testConfig = loaded.config
+  const testConfig =
+    profile.browserClient && profile.mode === 'production'
+      ? {
+          ...loaded.config,
+          productionBrowserSourceMaps: true,
+          experimental: {
+            ...loaded.config.experimental,
+            turbopackSourceMaps: true,
+          },
+        }
+      : loaded.config
   const configured = withCompilerTransforms(
     withCompilerAliases(testConfig, dir, profile, configuredCompilerAliases),
     dir,
@@ -300,7 +315,9 @@ export async function createTestCompilerSession(
     if (
       dependencyPlan &&
       ((profile.environment !== 'node' &&
-        !(profile.environment === 'browser' && false)) ||
+        !(
+          profile.environment === 'browser' && profile.browserClient === true
+        )) ||
         cohortEntries)
     )
       throw new Error(
@@ -371,6 +388,23 @@ export async function createTestCompilerSession(
           })
         )
       : undefined
+    if (profile.browserClient && (config.basePath || config.assetPrefix))
+      throw new Error(
+        'Client Browser Mode currently requires the default asset prefix and base path.'
+      )
+    if (
+      profile.browserClient &&
+      (setupFilesSequence !== 'list' ||
+        (setupFiles.length && undefined) ||
+        snapshotSerializers.length ||
+        cohortEntries ||
+        entry.executionEnvironment ||
+        entry.inSource ||
+        entry.typecheck)
+    )
+      throw new Error(
+        'Client Browser Mode currently requires one isolated runtime file with list-ordered setup and without setup coverage, serializers or custom realms.'
+      )
     const file = projectFile(entry.file)
     const source = await readFile(entry.file)
     if (configuredCompilerTransforms)
@@ -387,6 +421,22 @@ export async function createTestCompilerSession(
       throw new Error(
         'In-source test discovery does not match the selected Node source bytes'
       )
+    }
+    const clientSource = profile.browserClient
+      ? await realpath(entry.file)
+      : undefined
+    if (clientSource) {
+      const root = await realpath(dir),
+        clientRelativePath = relative(root, clientSource)
+      if (
+        !clientRelativePath ||
+        clientRelativePath === '..' ||
+        clientRelativePath.startsWith(`..${sep}`) ||
+        isAbsolute(clientRelativePath)
+      )
+        throw new Error(
+          'Browser Mode selected source escaped its project root.'
+        )
     }
     const setup = setupFiles.map(projectFile)
     const nativeId = createHash('sha256')
@@ -418,6 +468,12 @@ export async function createTestCompilerSession(
             aliasFinds: configuredCompilerAliases.entries.map(
               (mapping) => mapping.find
             ),
+          }
+        : {}),
+      ...(profile.browserClient
+        ? {
+            browserClient: true,
+            browserCoverage: false,
           }
         : {}),
       environment: profile.environment,
@@ -541,7 +597,7 @@ export async function createTestCompilerSession(
           )
         }
       }
-      if (usesInSource) {
+      if (usesInSource || profile.browserClient) {
         const sourceMetadataPath = `server/next-test/${nativeId}.source.json`
         if (!files.includes(sourceMetadataPath)) {
           throw new Error('Missing native in-source test source identity')
@@ -555,6 +611,9 @@ export async function createTestCompilerSession(
           )
         }
       }
+      const clientDescriptor = profile.browserClient
+        ? await readClientDescriptor(staging, output.entryPath, files, nativeId)
+        : undefined
       let route:
         | (CompiledTestRoute & {
             metadataPath: string
@@ -668,6 +727,7 @@ export async function createTestCompilerSession(
             profile.runtime !== 'nodejs' ||
             profile.bundler !== 'turbopack' ||
             profile.route !== undefined ||
+            profile.browserClient ||
             cohortInputs ||
             setupFiles.length ||
             snapshotSerializers.length ||
@@ -696,6 +756,7 @@ export async function createTestCompilerSession(
                 profile.bundler !== 'turbopack' ||
                 dependencyPlan)) ||
             profile.route !== undefined ||
+            profile.browserClient ||
             cohortInputs ||
             setupFiles.length ||
             snapshotSerializers.length ||
@@ -769,7 +830,8 @@ export async function createTestCompilerSession(
           const productionStaticFactory =
             profile.mode === 'production' &&
             (profile.environment === 'node' ||
-              (profile.environment === 'browser' && false)) &&
+              (profile.environment === 'browser' &&
+                profile.browserClient === true)) &&
             metadata.moduleMocking?.productionStaticFactory === 1 &&
             metadata.moduleMocking?.coverage === undefined &&
             metadata.moduleMocking?.cjsNamedSpy === undefined &&
@@ -925,6 +987,13 @@ export async function createTestCompilerSession(
           )
         : undefined
       await validateRouteSources()
+      const client = clientDescriptor
+        ? {
+            ...clientDescriptor,
+            sourceFile: clientSource!,
+            outputs: await hashClientOutputs(staging, files),
+          }
+        : undefined
       await rename(staging, rootDir)
       published = true
       directories.delete(staging)
@@ -969,8 +1038,14 @@ export async function createTestCompilerSession(
         },
         diagnostics,
       }
-      const artifact: CompiledTestArtifact =
-        profile.environment === 'rsc'
+      const artifact: CompiledTestArtifact = client
+        ? {
+            ...common,
+            kind: 'browser',
+            profile: { ...profile, environment: 'browser' },
+            client,
+          }
+        : profile.environment === 'rsc'
           ? {
               ...common,
               kind: 'rsc',
