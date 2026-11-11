@@ -763,10 +763,11 @@ export async function handleAction({
 
       const error = new Error('Invalid Server Actions request.')
 
-      if (isFetchAction) {
-        res.statusCode = 500
-        metadata.statusCode = 500
+      // A rejected origin is a client error, not a server error.
+      res.statusCode = 403
+      metadata.statusCode = 403
 
+      if (isFetchAction) {
         const promise = Promise.reject(error)
         try {
           // we need to await the promise to trigger the rejection early
@@ -790,7 +791,11 @@ export async function handleAction({
         }
       }
 
-      throw error
+      res.setHeader('content-type', 'text/plain')
+      return {
+        type: 'done',
+        result: RenderResult.fromStatic(error.message, 'text/plain'),
+      }
     }
   }
 
@@ -905,11 +910,21 @@ export async function handleAction({
             // would fail to match and `formData()` would throw. An explicit header
             // on the Request takes precedence over the Blob's normalized type.
             const edgeBodyBlob = new Blob(edgeChunks as BlobPart[])
-            const formData = await new Request('http://n/', {
-              method: 'POST',
-              headers: { 'content-type': req.headers['content-type'] ?? '' },
-              body: edgeBodyBlob,
-            }).formData()
+            let formData: FormData
+            try {
+              formData = await new Request('http://n/', {
+                method: 'POST',
+                headers: { 'content-type': req.headers['content-type'] ?? '' },
+                body: edgeBodyBlob,
+              }).formData()
+            } catch (err) {
+              // A body that cannot be parsed as FormData is a client error.
+              // Fetch actions keep the existing error handling.
+              if (isFetchAction) {
+                throw err
+              }
+              return handleUnrecognizedAction(err, 400)
+            }
             if (isFetchAction) {
               // A fetch action with a multipart body.
 
@@ -1133,19 +1148,29 @@ export async function handleAction({
                 duplex: 'half',
               })
 
-              let formData: FormData
               const abortController = new AbortController()
-              try {
-                ;[, formData] = await Promise.all([
-                  pipeline(body, sizeLimitTransform, sizeLimitedBody, {
-                    signal: abortController.signal,
-                  }),
-                  fakeRequest.formData(),
-                ])
-              } catch (err) {
-                abortController.abort()
-                throw err
+              const [piped, parsed] = await Promise.allSettled([
+                pipeline(body, sizeLimitTransform, sizeLimitedBody, {
+                  signal: abortController.signal,
+                }),
+                fakeRequest.formData().catch((err) => {
+                  abortController.abort()
+                  throw err
+                }),
+              ])
+              // Errors while reading the body (e.g. the size limit) keep their status.
+              // An AbortError only means we stopped reading after a parse error.
+              if (
+                piped.status === 'rejected' &&
+                (piped.reason as Error | undefined)?.name !== 'AbortError'
+              ) {
+                throw piped.reason
               }
+              // A body that cannot be parsed as FormData is a client error.
+              if (parsed.status === 'rejected') {
+                return handleUnrecognizedAction(parsed.reason, 400)
+              }
+              const formData = parsed.value
 
               try {
                 if (!areAllActionIdsValid(formData, serverModuleMap)) {
