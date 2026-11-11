@@ -30,11 +30,16 @@
       "types": "./dist/tools.d.ts",
       "default": "./dist/tools.js"
     },
+    "./skills": {
+      "types": "./dist/skills.d.ts",
+      "default": "./dist/skills.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
     "auth.d.ts",
+    "skills.d.ts",
     "tools.d.ts",
     "NOTICE",
     "license.md",
