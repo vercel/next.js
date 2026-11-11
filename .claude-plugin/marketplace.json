@@ -1,6 +1,6 @@
 {
   "name": "nextjs",
-  "description": "Official Next.js agent skills for Claude Code",
+  "description": "Official Next.js agent skills",
   "owner": {
     "name": "Vercel",
     "url": "https://vercel.com"
