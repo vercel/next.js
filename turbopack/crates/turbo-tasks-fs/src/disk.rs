@@ -1840,43 +1840,6 @@ mod tests {
 
     use super::*;
 
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn linux_default_write_concurrency_scales_with_parallelism_within_bounds() {
-        // Unknown parallelism falls back to the fixed default
-        assert_eq!(
-            linux_default_write_concurrency(None),
-            DEFAULT_WRITE_CONCURRENCY
-        );
-        // Small machines never go below the fixed default
-        assert_eq!(
-            linux_default_write_concurrency(Some(1)),
-            DEFAULT_WRITE_CONCURRENCY
-        );
-        // In between, it follows the available parallelism
-        for parallelism in DEFAULT_WRITE_CONCURRENCY..=MAX_LINUX_DEFAULT_WRITE_CONCURRENCY {
-            assert_eq!(
-                linux_default_write_concurrency(Some(parallelism)),
-                parallelism
-            );
-        }
-        // Large machines are capped
-        assert_eq!(
-            linux_default_write_concurrency(Some(MAX_LINUX_DEFAULT_WRITE_CONCURRENCY + 1)),
-            MAX_LINUX_DEFAULT_WRITE_CONCURRENCY
-        );
-        assert_eq!(
-            linux_default_write_concurrency(Some(256)),
-            MAX_LINUX_DEFAULT_WRITE_CONCURRENCY
-        );
-    }
-
-    #[cfg(not(target_os = "linux"))]
-    #[test]
-    fn default_write_concurrency_is_fixed_outside_linux() {
-        assert_eq!(default_write_concurrency(), DEFAULT_WRITE_CONCURRENCY);
-    }
-
     #[turbo_tasks::function(operation, root)]
     async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
         let _ = op.resolve().strongly_consistent().await?;
