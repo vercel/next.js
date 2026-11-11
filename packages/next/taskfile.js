@@ -144,6 +144,17 @@ export async function ncc_next_test_coverage(task) {
   await fs.writeFile(entry, source)
 }
 
+export async function ncc_next_test_instrumentation(task) {
+  await task.clear('src/compiled/next-test-instrumentation')
+  await task
+    .source('src/bundles/next-test-instrumentation/index.js')
+    .ncc({ license: 'LICENSE', target: 'es2020' })
+    .target('src/compiled/next-test-instrumentation')
+  await task
+    .source('src/bundles/next-test-instrumentation/{package.json,index.d.ts}')
+    .target('src/compiled/next-test-instrumentation')
+}
+
 export async function ncc_node_html_parser(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('node-html-parser')))
@@ -2465,6 +2476,7 @@ export async function ncc(task, opts) {
       'ncc_rsc_poison_packages',
       'ncc_modelcontextprotocol_sdk',
       'ncc_next_test_coverage',
+      'ncc_next_test_instrumentation',
       'ncc_vercel_routing_utils',
       'ncc_vercel_detect_agent',
     ],

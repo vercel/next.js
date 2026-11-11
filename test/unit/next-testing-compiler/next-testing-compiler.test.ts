@@ -42,6 +42,7 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import { createTestCompilerSession } from 'next/dist/experimental/testing/compiler'
 import { createDevTurbopackProject } from 'next/dist/build/swc/dev-project'
+import { Lockfile } from 'next/dist/build/lockfile'
 import { createCompiledRouteRenderOpts } from 'next/dist/experimental/testing/compiler/route-render'
 import { serialize, deserialize } from 'v8'
 
@@ -103,6 +104,2282 @@ const profile = {
   runtime: 'nodejs',
   bundler: 'turbopack',
 } as const
+
+// These tests exercise publication/lifetime policy. The native compiler and real
+// application environment require the separately run reference application.
+describe('test compiler artifact publication', () => {
+  let dir: string
+  let session: Awaited<ReturnType<typeof createTestCompilerSession>> | undefined
+  let outputText: string
+  let failCompilation: boolean
+  let mockMetadata: object | undefined
+  let routeMetadata: object | null | undefined
+  const routeRequests: Array<string | undefined> = []
+  let cohortMetadata: object | null | undefined
+  const cohortRequests: string[][] = []
+  const runtimeEnvRequests: {
+    environment: string
+    runtimeEnv?: boolean
+    cohortFiles: string[]
+  }[] = []
+  let linkOutput: boolean
+  let nativeSourceIdentity: string | undefined
+  let externalLayout: unknown
+  let externalFiles: Record<string, string>
+  let beforeEmit: () => Promise<void>
+  const shutdown = jest.fn(async () => {})
+  const previousNodeEnv = process.env.NODE_ENV
+
+  beforeEach(async () => {
+    process.env = { ...process.env, NODE_ENV: 'development' }
+    dir = await mkdtemp(join(tmpdir(), 'next-test-publication-'))
+    await writeFile(join(dir, 'subject.test.ts'), '// compiler test fixture')
+    mockCacheComponents = true
+    routeMetadata = undefined
+    routeRequests.length = 0
+    await mkdir(join(dir, 'app/reference/[slug]'), { recursive: true })
+    await writeFile(
+      join(dir, 'app/reference/[slug]/page.jsx'),
+      'export default function Page() { return null }'
+    )
+    await writeFile(
+      join(dir, 'app/layout.jsx'),
+      'export default function Layout({ children }) { return children }'
+    )
+    outputText = 'first revision'
+    failCompilation = false
+    mockMetadata = undefined
+    linkOutput = false
+    nativeSourceIdentity = undefined
+    externalLayout = undefined
+    externalFiles = {}
+    cohortMetadata = undefined
+    cohortRequests.length = 0
+    runtimeEnvRequests.length = 0
+    beforeEmit = async () => {}
+    shutdown.mockClear()
+    jest.mocked(createDevTurbopackProject).mockClear()
+    jest.mocked(createDevTurbopackProject).mockImplementation(
+      async () =>
+        ({
+          project: {
+            testEntry: async ({
+              id,
+              environment,
+              inSource,
+              runtimeEnv,
+              route,
+              cohortFiles = [],
+            }: {
+              id: string
+              environment: string
+              inSource?: boolean
+              runtimeEnv?: boolean
+              route?: string
+              cohortFiles?: string[]
+            }) => ({
+              writeToDiskSnapshot: async (directory: string) => {
+                routeRequests.push(route)
+                cohortRequests.push([...cohortFiles])
+                runtimeEnvRequests.push({
+                  environment,
+                  runtimeEnv,
+                  cohortFiles: [...cohortFiles],
+                })
+                await beforeEmit()
+                const entryPath =
+                  environment === 'rsc'
+                    ? `server/app/__next_test__/${id}/page.js`
+                    : `server/next-test/${id}.js`
+                const paths = [
+                  entryPath,
+                  ...(environment === 'rsc'
+                    ? [
+                        `server/app/__next_test__/${id}/page_client-reference-manifest.js`,
+                        `server/app/__next_test__/${id}/page/server-reference-manifest.json`,
+                        ...(route
+                          ? [
+                              `server/app/__next_test__/${id}/page/build-manifest.json`,
+                              `server/app/__next_test__/${id}/page/next-font-manifest.json`,
+                              `server/app/__next_test__/${id}/page/react-loadable-manifest.json`,
+                            ]
+                          : []),
+                        'static/client.js',
+                      ]
+                    : []),
+                  'server/subject.js.map',
+                ]
+                for (const file of paths) {
+                  const target = join(dir, '.next', directory, file)
+                  await mkdir(join(target, '..'), { recursive: true })
+                  await writeFile(target, outputText)
+                }
+                if (inSource && nativeSourceIdentity !== 'missing') {
+                  const sourcePath = `server/next-test/${id}.source.json`
+                  paths.push(sourcePath)
+                  await writeFile(
+                    join(dir, '.next', directory, sourcePath),
+                    JSON.stringify({
+                      version: 1,
+                      sha256:
+                        nativeSourceIdentity ??
+                        createHash('sha256')
+                          .update(await readFile(join(dir, 'subject.test.ts')))
+                          .digest('hex'),
+                    })
+                  )
+                }
+                if (route && routeMetadata !== null) {
+                  const metadataPath = `server/next-test/${id}.route.json`
+                  paths.push(metadataPath)
+                  await mkdir(
+                    join(dir, '.next', directory, 'server/next-test'),
+                    { recursive: true }
+                  )
+                  const hash = async (file: string) =>
+                    createHash('sha256')
+                      .update(await readFile(join(dir, file)))
+                      .digest('hex')
+                  await writeFile(
+                    join(dir, '.next', directory, metadataPath),
+                    JSON.stringify(
+                      routeMetadata ?? {
+                        version: 1,
+                        pathname: route,
+                        page: `${route}/page`,
+                        runtime: 'nodejs',
+                        basePath: '',
+                        rootParamNames: [],
+                        config: {
+                          dynamic: 'auto',
+                          dynamicParams: true,
+                          fetchCache: 'auto',
+                          revalidate: false,
+                        },
+                        entry: {
+                          file: 'subject.test.ts',
+                          sha256: await hash('subject.test.ts'),
+                        },
+                        sources: await Promise.all(
+                          [
+                            'app/layout.jsx',
+                            'app/reference/[slug]/page.jsx',
+                          ].map(async (file) => ({
+                            file,
+                            sha256: await hash(file),
+                          }))
+                        ),
+                      }
+                    )
+                  )
+                }
+                if (cohortFiles.length && cohortMetadata !== null) {
+                  const metadataPath = `server/next-test/${id}.cohort.json`
+                  paths.push(metadataPath)
+                  const target = join(dir, '.next', directory, metadataPath)
+                  await mkdir(join(target, '..'), { recursive: true })
+                  await writeFile(
+                    target,
+                    JSON.stringify(
+                      cohortMetadata ?? {
+                        cohort: { version: 1, files: cohortFiles },
+                      }
+                    )
+                  )
+                }
+                if (mockMetadata) {
+                  const metadataPath = `server/next-test/${id}.metadata.json`
+                  paths.push(metadataPath)
+                  const target = join(dir, '.next', directory, metadataPath)
+                  await mkdir(join(target, '..'), { recursive: true })
+                  await writeFile(target, JSON.stringify(mockMetadata))
+                }
+                if (linkOutput) {
+                  const mutable = join(dir, 'mutable.js')
+                  await writeFile(mutable, 'mutable dependency')
+                  await rm(join(dir, '.next', directory, entryPath))
+                  await symlink(
+                    mutable,
+                    join(dir, '.next', directory, entryPath)
+                  )
+                }
+                if (externalLayout !== undefined) {
+                  const path = `server/next-test/${id}.external-layout.json`
+                  externalFiles[path] = JSON.stringify(externalLayout)
+                }
+                for (const [path, contents] of Object.entries(externalFiles)) {
+                  const target = join(dir, '.next', directory, path)
+                  await mkdir(dirname(target), { recursive: true })
+                  await writeFile(target, contents)
+                  paths.push(path)
+                }
+                return {
+                  value: {
+                    type: 'nodejs',
+                    entryPath,
+                    serverPaths: paths
+                      .filter((path) => !path.startsWith('static/'))
+                      .map((path) => ({ path, contentHash: 'native-hash' })),
+                    clientPaths:
+                      environment === 'rsc' ? ['static/client.js'] : [],
+                  },
+                  issues: failCompilation
+                    ? [
+                        {
+                          severity: 'error',
+                          message: 'Invalid server-only boundary',
+                        },
+                      ]
+                    : [],
+                }
+              },
+            }),
+            shutdown,
+          },
+        }) as any
+    )
+  })
+
+  afterEach(async () => {
+    await session?.dispose()
+    session = undefined
+    await rm(dir, { recursive: true, force: true })
+    process.env = { ...process.env, NODE_ENV: previousNodeEnv }
+  })
+
+  function entry() {
+    return {
+      id: 'rsc:subject.test.ts',
+      file: join(dir, 'subject.test.ts'),
+      profile,
+    }
+  }
+
+  it('binds native AppProject facts without replacing the synthetic manifest identity', async () => {
+    mockCacheComponents = false
+    const selected = { ...profile, route: '/reference/[slug]' }
+    session = await createTestCompilerSession(dir, selected)
+    const artifact = await session.compile(
+      { ...entry(), profile: selected },
+      { signal: new AbortController().signal }
+    )
+    expect(routeRequests).toEqual(['/reference/[slug]'])
+    expect(artifact.kind).toBe('rsc')
+    if (artifact.kind !== 'rsc') throw new Error('Expected RSC artifact')
+    expect(artifact.manifestPage).toMatch(/^\/__next_test__\/[a-f0-9]+\/page$/)
+    expect(artifact.route).toMatchObject({
+      pathname: selected.route,
+      page: '/reference/[slug]/page',
+      runtime: 'nodejs',
+      rootParamNames: [],
+      sources: [
+        { file: 'app/layout.jsx' },
+        { file: 'app/reference/[slug]/page.jsx' },
+      ],
+    })
+    expect(artifact.files).toContain(artifact.route!.metadataPath)
+    expect(artifact.manifests.clientReference).toContain(artifact.manifestPage)
+    for (const key of ['routeBuild', 'routeFont', 'routeLoadable'] as const) {
+      expect(artifact.manifests[key]).toContain(artifact.manifestPage)
+      expect(artifact.files).toContain(artifact.manifests[key])
+    }
+    expect(artifact.requestContext?.routeRenderOpts?.basePath).toBe('')
+  })
+
+  it.each([
+    ['missing', 'Missing native AppProject test route metadata'],
+    ['runtime', 'matching native AppProject route metadata'],
+    ['pathname', 'matching native AppProject route metadata'],
+    ['entry', 'entry source identity does not match'],
+    ['source', 'route source changed or escaped'],
+  ])(
+    'rejects %s native route facts without publication',
+    async (kind, message) => {
+      mockCacheComponents = false
+      const selected = { ...profile, route: '/reference/[slug]' }
+      session = await createTestCompilerSession(dir, selected)
+      const hash = async (file: string) =>
+        createHash('sha256')
+          .update(await readFile(join(dir, file)))
+          .digest('hex')
+      routeMetadata =
+        kind === 'missing'
+          ? null
+          : {
+              version: 1,
+              pathname: kind === 'pathname' ? '/wrong' : selected.route,
+              page: `${selected.route}/page`,
+              runtime: kind === 'runtime' ? 'edge' : 'nodejs',
+              basePath: '',
+              rootParamNames: [],
+              config: {
+                dynamic: 'auto',
+                dynamicParams: true,
+                fetchCache: 'auto',
+                revalidate: false,
+              },
+              entry: {
+                file: 'subject.test.ts',
+                sha256:
+                  kind === 'entry'
+                    ? '0'.repeat(64)
+                    : await hash('subject.test.ts'),
+              },
+              sources: [
+                {
+                  file: 'app/reference/[slug]/page.jsx',
+                  sha256: await hash('app/reference/[slug]/page.jsx'),
+                },
+              ],
+            }
+      if (kind === 'source')
+        beforeEmit = async () => {
+          await writeFile(
+            join(dir, 'app/reference/[slug]/page.jsx'),
+            'export const runtime = "edge"'
+          )
+        }
+      await expect(
+        session.compile(
+          { ...entry(), profile: selected },
+          { signal: new AbortController().signal }
+        )
+      ).rejects.toThrow(message)
+      expect(
+        (await readdir(join(dir, '.next'))).filter((name) =>
+          name.startsWith('.next-test-')
+        )
+      ).toEqual([])
+    }
+  )
+
+  it('captures the private import option once before opening the session', async () => {
+    let reads = 0
+    session = await createTestCompilerSession(dir, profile, {
+      get nativeImportCoverageRoles() {
+        reads++
+        return reads !== 1
+      },
+    })
+    expect(reads).toBe(1)
+    await session.compile(entry(), { signal: new AbortController().signal })
+    expect(reads).toBe(1)
+  })
+
+  it('rejects route prerender configuration before acquiring the output writer', async () => {
+    const acquired = jest.mocked(Lockfile.tryAcquire).mock.calls.length
+    await expect(
+      createTestCompilerSession(dir, {
+        ...profile,
+        route: '/reference/[slug]',
+      })
+    ).rejects.toThrow('without Cache Components')
+    expect(Lockfile.tryAcquire).toHaveBeenCalledTimes(acquired)
+  })
+
+  it('rejects an occupied application output before creating another compiler', async () => {
+    jest.mocked(Lockfile.tryAcquire).mockReturnValueOnce(undefined)
+    await expect(createTestCompilerSession(dir, profile)).rejects.toThrow(
+      'already owned'
+    )
+    expect(createDevTurbopackProject).not.toHaveBeenCalled()
+  })
+
+  it('releases its output lock when compiler creation fails', async () => {
+    jest
+      .mocked(createDevTurbopackProject)
+      .mockRejectedValueOnce(new Error('native startup failed'))
+    await expect(createTestCompilerSession(dir, profile)).rejects.toThrow(
+      'native startup failed'
+    )
+    expect(
+      jest.mocked(Lockfile.tryAcquire).mock.results.at(-1)!.value.unlock
+    ).toHaveBeenCalledTimes(1)
+  })
+
+  it('publishes distinct complete revisions and retains earlier bytes until disposal', async () => {
+    session = await createTestCompilerSession(dir, profile)
+    const first = await session.compile(entry(), {
+      signal: new AbortController().signal,
+    })
+    expect(first.dependencyEvidence).toEqual({
+      kind: 'emitted-output',
+      complete: false,
+      serverOutputs: expect.arrayContaining([
+        { path: first.entryPath, contentHash: 'native-hash' },
+      ]),
+    })
+    expect(first.version).toBe(2)
+    expect(first.kind).toBe('rsc')
+    if (first.kind !== 'rsc') throw new Error('Expected RSC artifact')
+    expect(first.requestContext).toEqual({
+      mode: 'development',
+      buildId: 'development',
+      deploymentId: 'test-deployment',
+      incrementalCache: {
+        cacheMaxMemorySize: 123456,
+        allowedRevalidateHeaderKeys: ['x-test-revalidate'],
+        fetchCacheKeyPrefix: 'test-cache',
+        isrFlushToDisk: true,
+        customHandlersConfigured: false,
+      },
+      renderOpts: {
+        cacheComponents: true,
+        cacheLifeProfiles: {
+          default: { stale: 300, revalidate: 900, expire: 3600 },
+        },
+        staticPageGenerationTimeout: 60,
+        validationLevel: 'none',
+        assetPrefix: '/assets',
+        experimental: {
+          authInterrupts: true,
+          useCacheTimeout: 5000,
+          durableUseCacheEntries: true,
+        },
+      },
+    })
+    outputText = 'second revision'
+    const second = await session.compile(entry(), {
+      signal: new AbortController().signal,
+    })
+    expect(first.rootDir).not.toBe(second.rootDir)
+    expect(await readFile(join(first.rootDir, first.entryPath), 'utf8')).toBe(
+      'first revision'
+    )
+    expect(await readFile(join(second.rootDir, second.entryPath), 'utf8')).toBe(
+      'second revision'
+    )
+    expect(first.files).toContain('static/client.js')
+    expect(first.files).toContain(first.manifests.previewProps)
+    expect(first.files).toContain(first.manifests.prerender)
+    expect(
+      JSON.parse(
+        await readFile(
+          join(first.rootDir, first.manifests.previewProps!),
+          'utf8'
+        )
+      )
+    ).toEqual({
+      previewModeId: 'test-preview-id',
+      previewModeSigningKey: 'test-signing-key',
+      previewModeEncryptionKey: 'test-encryption-key',
+    })
+    expect(
+      JSON.parse(
+        await readFile(join(first.rootDir, first.manifests.prerender!), 'utf8')
+      )
+    ).toEqual({
+      version: 4,
+      routes: {},
+      dynamicRoutes: {},
+      notFoundRoutes: [],
+    })
+    expect(first.files).toContain('server/subject.js.map')
+    expect(
+      JSON.parse(await readFile(join(first.rootDir, 'package.json'), 'utf8'))
+    ).toEqual({ type: 'commonjs' })
+    await session.dispose()
+    await expect(
+      readFile(join(first.rootDir, first.entryPath))
+    ).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(shutdown).toHaveBeenCalledTimes(1)
+  })
+
+  it('retains parent-allocated publication through compiler disposal', async () => {
+    const allocated: string[] = []
+    session = await createTestCompilerSession(dir, profile, {
+      async allocateArtifact(parentDir) {
+        expect(parentDir).toBe(join(dir, '.next'))
+        const stagingDir = await mkdtemp(
+          join(parentDir, '.next-test-pending-parent-')
+        )
+        const rootDir = join(parentDir, '.next-test-parent-publication')
+        allocated.push(stagingDir, rootDir)
+        return { stagingDir, rootDir }
+      },
+    })
+    beforeEmit = async () => {
+      expect(allocated).toHaveLength(2)
+    }
+    const artifact = await session.compile(entry(), {
+      signal: new AbortController().signal,
+    })
+    expect(artifact.rootDir).toBe(allocated[1])
+    await session.shutdownCompilation()
+    expect(
+      await readFile(join(artifact.rootDir, artifact.entryPath), 'utf8')
+    ).toBe('first revision')
+    await session.dispose()
+    expect(
+      await readFile(join(artifact.rootDir, artifact.entryPath), 'utf8')
+    ).toBe('first revision')
+  })
+
+  it('rejects an allocator publication path that already exists without deleting its contents', async () => {
+    let rootDir: string
+    session = await createTestCompilerSession(dir, profile, {
+      async allocateArtifact(parentDir) {
+        const stagingDir = await mkdtemp(
+          join(parentDir, '.next-test-pending-parent-')
+        )
+        rootDir = join(parentDir, '.next-test-existing')
+        await mkdir(rootDir)
+        await writeFile(join(rootDir, 'owned-elsewhere'), 'preserve')
+        return { stagingDir, rootDir }
+      },
+    })
+    await expect(
+      session.compile(entry(), { signal: new AbortController().signal })
+    ).rejects.toThrow('must not already exist')
+    await session.dispose()
+    expect(await readFile(join(rootDir!, 'owned-elsewhere'), 'utf8')).toBe(
+      'preserve'
+    )
+  })
+
+  it('awaits parent allocation before completing cancelled disposal', async () => {
+    const emit = jest.fn(async () => {})
+    beforeEmit = emit
+    let release!: () => void
+    let started!: () => void
+    const entered = new Promise<void>((resolve) => {
+      started = resolve
+    })
+    const ready = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    session = await createTestCompilerSession(dir, profile, {
+      async allocateArtifact(parentDir) {
+        started()
+        await ready
+        return {
+          stagingDir: await mkdtemp(
+            join(parentDir, '.next-test-pending-parent-')
+          ),
+          rootDir: join(parentDir, '.next-test-parent-delayed'),
+        }
+      },
+    })
+    const controller = new AbortController()
+    const compiling = session.compile(entry(), { signal: controller.signal })
+    await entered
+    controller.abort()
+    const rejected = compiling.catch((error) => error)
+    const disposed = session.dispose()
+    expect(shutdown).not.toHaveBeenCalled()
+    release()
+    expect(await rejected).toMatchObject({ name: 'AbortError' })
+    await disposed
+    expect(emit).not.toHaveBeenCalled()
+    expect(await readdir(join(dir, '.next'))).toEqual([
+      expect.stringMatching(/^\.next-test-pending-parent-/),
+      'dev',
+    ])
+  })
+
+  it('shuts down compilation after pending work while retaining published revisions', async () => {
+    session = await createTestCompilerSession(dir, profile)
+    let release!: () => void
+    let started!: () => void
+    const emitted = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const entered = new Promise<void>((resolve) => {
+      started = resolve
+    })
+    beforeEmit = () => {
+      started()
+      return emitted
+    }
+    const compiling = session.compile(entry(), {
+      signal: new AbortController().signal,
+    })
+    await entered
+    const stopped = session.shutdownCompilation()
+    expect(session.shutdownCompilation()).toBe(stopped)
+    expect(shutdown).not.toHaveBeenCalled()
+    await expect(
+      session.compile(entry(), { signal: new AbortController().signal })
+    ).rejects.toThrow('shut down')
+    release()
+    const artifact = await compiling
+    await stopped
+    expect(shutdown).toHaveBeenCalledTimes(1)
+    expect(
+      await readFile(join(artifact.rootDir, artifact.entryPath), 'utf8')
+    ).toBe('first revision')
+    await session.dispose()
+    expect(shutdown).toHaveBeenCalledTimes(1)
+    await expect(
+      readFile(join(artifact.rootDir, artifact.entryPath))
+    ).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('rejects file symlinks instead of publishing mutable dependency contents', async () => {
+    session = await createTestCompilerSession(dir, profile)
+    linkOutput = true
+    await expect(
+      session.compile(entry(), { signal: new AbortController().signal })
+    ).rejects.toThrow('external package links')
+    expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+  })
+
+  function externalFixture() {
+    const directories = ['a', 'b', 'c', 'd'].map(
+      (id) => `node_modules/.next-test-external/${id.repeat(16)}`
+    )
+    const [root, left, right, shared] = directories
+    const links = [
+      { path: 'node_modules/root-0123456789abcdef', target: root },
+      { path: 'node_modules/@scope/root-fedcba9876543210', target: root },
+      { path: `${root}/node_modules/left`, target: left },
+      { path: `${root}/node_modules/right`, target: right },
+      { path: `${left}/node_modules/@scope/shared`, target: shared },
+      { path: `${right}/node_modules/@scope/shared`, target: shared },
+      { path: `${shared}/node_modules/root`, target: root },
+    ].sort((a, b) => (a.path < b.path ? -1 : 1))
+    externalFiles = Object.fromEntries(
+      directories.flatMap((directory, index) => [
+        [`${directory}/package.json`, '{"main":"index.cjs"}'],
+        [
+          `${directory}/index.cjs`,
+          [
+            "const self = module.exports = {name:'root'}; self.left = require('left'); self.right = require('right')",
+            "module.exports = {shared:require('@scope/shared')}",
+            "module.exports = {shared:require('@scope/shared')}",
+            "const self = module.exports = {name:'shared'}; self.root = require('root')",
+          ][index],
+        ],
+      ])
+    )
+    return { version: 1, kind: 'node-external-layout', directories, links }
+  }
+
+  it('publishes scoped aliases, diamond dependencies and cycles with one native module identity', async () => {
+    externalLayout = externalFixture()
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    const artifact = await session.compile(
+      { ...entry(), profile: nodeProfile },
+      { signal: new AbortController().signal }
+    )
+    const result = require('node:child_process').spawnSync(
+      process.execPath,
+      [
+        '-e',
+        `const assert = require('node:assert/strict');
+         const {createRequire} = require('node:module');
+         const {join} = require('node:path');
+         const {pathToFileURL} = require('node:url');
+         const load = createRequire(join(process.cwd(), 'entry.cjs'));
+         const a = load('root-0123456789abcdef');
+         assert.equal(load('@scope/root-fedcba9876543210'), a);
+         assert.equal(a.left.shared, a.right.shared);
+         assert.equal(a.left.shared.root, a);
+         import(pathToFileURL(load.resolve('@scope/root-fedcba9876543210')).href)
+           .then(namespace => { assert.equal(namespace.default, a); console.log('shared-native-identity') })
+           .catch(error => { console.error(error); process.exitCode = 1 });`,
+      ],
+      { cwd: artifact.rootDir, encoding: 'utf8', timeout: 20_000 }
+    )
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.stderr).toBe('')
+    expect(result.status).toBe(0)
+    expect(result.stdout.trim()).toBe('shared-native-identity')
+    expect(artifact.files).toContainEqual(
+      expect.stringMatching(/\.external-layout\.json$/)
+    )
+    await session.dispose()
+    await expect(readdir(artifact.rootDir)).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
+  })
+
+  it('leaves emitted package files untouched when no external layout is present', async () => {
+    externalFixture()
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    const artifact = await session.compile(
+      { ...entry(), profile: nodeProfile },
+      { signal: new AbortController().signal }
+    )
+    expect(await readdir(join(artifact.rootDir, 'node_modules'))).toEqual([
+      '.next-test-external',
+    ])
+  })
+
+  it('rolls back its created links when a later link cannot be materialized', async () => {
+    const {
+      materializeExternalLayout,
+    } = require('next/dist/experimental/testing/compiler/external-layout')
+    const layout = externalFixture()
+    const metadata = 'server/next-test/rollback.external-layout.json'
+    externalFiles[metadata] = JSON.stringify(layout)
+    const root = join(dir, 'published')
+    for (const [path, contents] of Object.entries(externalFiles)) {
+      await mkdir(dirname(join(root, path)), { recursive: true })
+      await writeFile(join(root, path), contents)
+    }
+    const last = layout.links[layout.links.length - 1].path
+    await writeFile(join(root, last), 'preserve existing contents')
+    await expect(
+      materializeExternalLayout(root, Object.keys(externalFiles), 'rollback')
+    ).rejects.toMatchObject({ code: 'EEXIST' })
+    expect(await readFile(join(root, last), 'utf8')).toBe(
+      'preserve existing contents'
+    )
+    for (const { path } of layout.links.slice(0, -1)) {
+      await expect(
+        require('fs/promises').lstat(join(root, path))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    }
+  })
+
+  it.each([
+    'version',
+    'unknown field',
+    'directory traversal',
+    'duplicate directory',
+    'directory order',
+    'missing package files',
+    'unhashed alias',
+    'foreign owner',
+    'foreign target',
+    'duplicate link',
+    'link order',
+    'link overlaps emitted files',
+  ])(
+    'rejects %s in an external layout and removes its owned publication',
+    async (invalid) => {
+      const layout = externalFixture()
+      switch (invalid) {
+        case 'version':
+          layout.version = 2
+          break
+        case 'unknown field':
+          Object.assign(layout, { extra: true })
+          break
+        case 'directory traversal':
+          layout.directories[0] += '/..'
+          break
+        case 'duplicate directory':
+          layout.directories.splice(1, 0, layout.directories[0])
+          break
+        case 'directory order':
+          layout.directories.reverse()
+          break
+        case 'missing package files':
+          externalFiles = {}
+          break
+        case 'unhashed alias':
+          layout.links[layout.links.length - 1].path = 'node_modules/root'
+          break
+        case 'foreign owner':
+          layout.links[0].path =
+            'node_modules/.next-test-external/0000000000000000/node_modules/left'
+          break
+        case 'foreign target':
+          layout.links[0].target =
+            'node_modules/.next-test-external/0000000000000000'
+          break
+        case 'duplicate link':
+          layout.links.splice(1, 0, layout.links[0])
+          break
+        case 'link order':
+          layout.links.reverse()
+          break
+        case 'link overlaps emitted files':
+          externalFiles[`${layout.links[0].path}/index.cjs`] =
+            'module.exports = 1'
+          break
+        default:
+          throw new Error('Unknown external layout control')
+      }
+      externalLayout = layout
+      const nodeProfile = { ...profile, environment: 'node' as const }
+      session = await createTestCompilerSession(dir, nodeProfile)
+      await expect(
+        session.compile(
+          { ...entry(), profile: nodeProfile },
+          { signal: new AbortController().signal }
+        )
+      ).rejects.toThrow('Invalid compiler-issued external package layout')
+      expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+    }
+  )
+
+  it('does not publish compilation failures', async () => {
+    session = await createTestCompilerSession(dir, profile)
+    failCompilation = true
+    await expect(
+      session.compile(entry(), { signal: new AbortController().signal })
+    ).rejects.toThrow('Invalid server-only boundary')
+    expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+  })
+
+  it('waits for native emission before cleaning up a cancelled compilation', async () => {
+    session = await createTestCompilerSession(dir, profile)
+    let release!: () => void
+    let started!: () => void
+    const emitted = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const entered = new Promise<void>((resolve) => {
+      started = resolve
+    })
+    beforeEmit = () => {
+      started()
+      return emitted
+    }
+    const controller = new AbortController()
+    const result = session.compile(entry(), { signal: controller.signal })
+    await entered
+    controller.abort(new Error('cancelled'))
+    const disposed = session.dispose()
+    release()
+    await expect(result).rejects.toThrow('cancelled')
+    await disposed
+    expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+    expect(shutdown).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    'import.meta.vitest',
+    'import.meta /* comment */ .vitest',
+    'import.meta. vitest',
+  ])(
+    'negotiates ordinary current-file marker %s even when discovery metadata is absent',
+    async (marker) => {
+      const nodeProfile = { ...profile, environment: 'node' as const }
+      session = await createTestCompilerSession(dir, nodeProfile)
+      const compilation = await jest
+        .mocked(createDevTurbopackProject)
+        .mock.results.at(-1)!.value
+      const nativeEntry = compilation.project.testEntry.bind(
+        compilation.project
+      )
+      let nativeInSourceVersion: number | undefined
+      compilation.project.testEntry = async (options) => {
+        if (options.inSource && !nativeInSourceVersion) {
+          throw new Error(
+            'The installed Turbopack binding does not support native in-source test entries'
+          )
+        }
+        return nativeEntry(options)
+      }
+      const source = await readFile(
+        join(
+          __dirname,
+          '../app-dir/next-testing-stable-release-gaps/fixtures/in-source-tests/subject.source.mjs'
+        )
+      )
+      const selectedSource = source
+        .toString('utf8')
+        .replaceAll('import.meta.vitest', marker)
+      await writeFile(entry().file, selectedSource)
+      const selected = { ...entry(), profile: nodeProfile }
+      nativeInSourceVersion = undefined
+      await expect(
+        session.compile(selected, { signal: new AbortController().signal })
+      ).rejects.toThrow('does not support native in-source test entries')
+      expect(cohortRequests).toHaveLength(0)
+      nativeInSourceVersion = 1
+      const artifact = await session.compile(selected, {
+        signal: new AbortController().signal,
+      })
+      expect(artifact.sourceHash).toBe(
+        createHash('sha256').update(selectedSource).digest('hex')
+      )
+      nativeSourceIdentity = 'missing'
+      await expect(
+        session.compile(selected, { signal: new AbortController().signal })
+      ).rejects.toThrow('Missing native in-source test source identity')
+    }
+  )
+
+  it('rejects parenthesized import.meta objects before ordinary or cohort native emission', async () => {
+    const entries = await sharedInputs()
+    await writeFile(
+      entries[0].file,
+      'if((import.meta).vitest){throw new Error("must not execute")}'
+    )
+    const options = { signal: new AbortController().signal }
+    await expect(session!.compile(entries[0], options)).rejects.toThrow(
+      'remains unqualified'
+    )
+    await expect(session!.compileCohort(entries, options)).rejects.toThrow(
+      'remains unqualified'
+    )
+    expect(cohortRequests).toHaveLength(0)
+  })
+
+  it('binds in-source discovery to the exact source bytes before compilation', async () => {
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    const source = await readFile(entry().file)
+    const selected = {
+      ...entry(),
+      profile: nodeProfile,
+      inSource: true as const,
+      inSourceHash: createHash('sha256').update(source).digest('hex'),
+    }
+    const compileOptions = { signal: new AbortController().signal }
+    await expect(
+      session.compile({ ...selected, inSourceHash: undefined }, compileOptions)
+    ).rejects.toThrow('does not match the selected Node source bytes')
+    await writeFile(entry().file, '// changed since marker discovery')
+    await expect(session.compile(selected, compileOptions)).rejects.toThrow(
+      'does not match the selected Node source bytes'
+    )
+    expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+    await writeFile(entry().file, source)
+    const artifact = await session.compile(selected, compileOptions)
+    expect(artifact.sourceHash).toBe(selected.inSourceHash)
+  })
+
+  it.each([
+    ['missing', 'Missing native in-source test source identity'],
+    [
+      '0'.repeat(64),
+      'Native in-source test bytes do not match marker discovery',
+    ],
+  ])('rejects the in-source native identity %s', async (identity, message) => {
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    nativeSourceIdentity = identity
+    await expect(
+      session.compile(
+        {
+          ...entry(),
+          profile: nodeProfile,
+          inSource: true,
+          inSourceHash: createHash('sha256')
+            .update(await readFile(entry().file))
+            .digest('hex'),
+        },
+        { signal: new AbortController().signal }
+      )
+    ).rejects.toThrow(message)
+    expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+  })
+
+  it('vetoes in-source edits during native emission before artifact publication', async () => {
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    const selected = {
+      ...entry(),
+      profile: nodeProfile,
+      inSource: true as const,
+      inSourceHash: createHash('sha256')
+        .update(await readFile(entry().file))
+        .digest('hex'),
+    }
+    beforeEmit = async () => {
+      await writeFile(entry().file, '// changed during native emission')
+    }
+    await expect(
+      session.compile(selected, { signal: new AbortController().signal })
+    ).rejects.toThrow(
+      'Native in-source test bytes do not match marker discovery'
+    )
+    expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+  })
+
+  it('publishes runtime registration only with its native dynamic and actual cache owner metadata', async () => {
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    mockMetadata = {
+      moduleCache: { version: 1 },
+      dynamicModuleMocking: { version: 1 },
+    }
+    const artifact = await session.compile(
+      { ...entry(), profile: nodeProfile },
+      { signal: new AbortController().signal }
+    )
+    expect(artifact.kind).toBe('node')
+    if (artifact.kind !== 'node')
+      throw new Error('Expected Node runtime mock owner')
+    expect(artifact.dynamicModuleMocking).toEqual({ version: 1 })
+    expect(artifact.moduleCache).toEqual({ version: 1 })
+    expect(artifact).not.toHaveProperty('moduleMocking')
+    mockMetadata = { moduleCache: { version: 1 } }
+    expect(
+      await session.compile(
+        { ...entry(), profile: nodeProfile },
+        { signal: new AbortController().signal }
+      )
+    ).not.toHaveProperty('dynamicModuleMocking')
+  })
+  it.each([
+    { version: 2, cache: true, environment: 'node' as const },
+    { version: 1, cache: false, environment: 'node' as const },
+    { version: 1, cache: true, environment: 'rsc' as const },
+    { version: 1, cache: true, environment: 'browser' as const },
+    { version: 1, cache: true, environment: 'node' as const, staticMock: true },
+  ])(
+    'rejects invalid native runtime registration metadata %j',
+    async ({ version, cache, environment, staticMock }) => {
+      const dynamicProfile = { ...profile, environment }
+      session = await createTestCompilerSession(dir, dynamicProfile)
+      mockMetadata = {
+        dynamicModuleMocking: { version },
+        ...(cache ? { moduleCache: { version: 1 } } : {}),
+        ...(staticMock ? { moduleMocking: { version: 1 } } : {}),
+      }
+      await expect(
+        session.compile(
+          { ...entry(), profile: dynamicProfile },
+          { signal: new AbortController().signal }
+        )
+      ).rejects.toThrow('Invalid native runtime module mock ownership metadata')
+      expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+    }
+  )
+
+  it('activates static native runtime mocks only from the complete marked compiler metadata', async () => {
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    mockMetadata = {
+      moduleCache: { version: 1 },
+      dynamicModuleMocking: { version: 1, staticMocks: 1 },
+      moduleMocking: { version: 1 },
+    }
+    const encoded = JSON.stringify(mockMetadata)
+    const artifact = await session.compile(
+      { ...entry(), profile: nodeProfile },
+      { signal: new AbortController().signal }
+    )
+    expect(artifact.kind).toBe('node')
+    if (artifact.kind !== 'node') throw new Error('Expected paired Node owner')
+    expect(artifact.moduleCache).toEqual({ version: 1 })
+    expect(artifact.dynamicModuleMocking).toEqual({
+      version: 1,
+      staticMocks: 1,
+    })
+    expect(artifact.moduleMocking).toEqual({ version: 1 })
+    expect(JSON.stringify(mockMetadata)).toBe(encoded)
+  })
+
+  it('accepts certified static native runtime metadata in production', async () => {
+    process.env = { ...process.env, NODE_ENV: 'production' }
+    const swc =
+      require('next/dist/build/swc') as typeof import('next/dist/build/swc')
+    const previousDefineEnv = Object.getOwnPropertyDescriptor(
+      swc,
+      'createDefineEnv'
+    )
+    Object.defineProperty(swc, 'createDefineEnv', {
+      configurable: true,
+      value: () => ({ client: [], edge: [], nodejs: [] }),
+    })
+    const productionBindings = jest
+      .spyOn(swc, 'loadBindings')
+      .mockResolvedValue({
+        isWasm: false,
+        turbo: {
+          createProject: async () => ({
+            issues: [],
+            value: (await (createDevTurbopackProject as jest.Mock)()).project,
+          }),
+        },
+      } as any)
+    try {
+      const nodeProfile = {
+        ...profile,
+        environment: 'node' as const,
+        mode: 'production' as const,
+      }
+      session = await createTestCompilerSession(dir, nodeProfile)
+      mockMetadata = {
+        moduleCache: { version: 1 },
+        dynamicModuleMocking: { version: 1, staticMocks: 1 },
+        moduleMocking: { version: 1 },
+      }
+      const encoded = JSON.stringify(mockMetadata)
+      const artifact = await session.compile(
+        { ...entry(), profile: nodeProfile },
+        { signal: new AbortController().signal }
+      )
+      expect(artifact.kind).toBe('node')
+      if (artifact.kind !== 'node')
+        throw new Error('Expected paired Node owner')
+      expect(artifact.moduleCache).toEqual({ version: 1 })
+      expect(artifact.dynamicModuleMocking).toEqual({
+        version: 1,
+        staticMocks: 1,
+      })
+      expect(artifact.moduleMocking).toEqual({ version: 1 })
+      expect(JSON.stringify(mockMetadata)).toBe(encoded)
+    } finally {
+      productionBindings.mockRestore()
+      if (previousDefineEnv)
+        Object.defineProperty(swc, 'createDefineEnv', previousDefineEnv)
+      else delete (swc as any).createDefineEnv
+    }
+  })
+
+  it.each([
+    { dynamicModuleMocking: { version: 1, staticMocks: 1 } },
+    {
+      dynamicModuleMocking: { version: 1, staticMocks: 1 },
+      moduleCache: { version: 1 },
+    },
+    {
+      dynamicModuleMocking: { version: 1, staticMocks: 1 },
+      moduleMocking: { version: 1 },
+    },
+    ...[0, 2, true, null, '1'].map((staticMocks) => ({
+      dynamicModuleMocking: { version: 1, staticMocks },
+      moduleCache: { version: 1 },
+      moduleMocking: { version: 1 },
+    })),
+    ...[undefined, 2].map((version) => ({
+      dynamicModuleMocking: { version, staticMocks: 1 },
+      moduleCache: { version: 1 },
+      moduleMocking: { version: 1 },
+    })),
+    {
+      dynamicModuleMocking: { version: 1, staticMocks: 1 },
+      moduleCache: { version: 2 },
+      moduleMocking: { version: 1 },
+    },
+    ...[
+      { version: 2 },
+      { version: 1, cjsNamedSpy: 1 },
+      { version: 1, setupInputs: 1 },
+      { version: 1, coverage: { version: 1, sources: [] } },
+      { version: 1, productionStaticFactory: 1 },
+    ].map((moduleMocking) => ({
+      dynamicModuleMocking: { version: 1, staticMocks: 1 },
+      moduleCache: { version: 1 },
+      moduleMocking,
+    })),
+  ])(
+    'rejects partial or malformed paired runtime metadata %j',
+    async (metadata) => {
+      const nodeProfile = { ...profile, environment: 'node' as const }
+      session = await createTestCompilerSession(dir, nodeProfile)
+      mockMetadata = metadata
+      await expect(
+        session.compile(
+          { ...entry(), profile: nodeProfile },
+          { signal: new AbortController().signal }
+        )
+      ).rejects.toThrow('Invalid native runtime module mock ownership metadata')
+      expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+    }
+  )
+
+  it.each([
+    'production',
+    'rsc',
+    'browser',
+    'setup',
+    'serializers',
+    'realm',
+    'in-source',
+    'coverage',
+  ] as const)(
+    'retains the paired static runtime boundary for %s',
+    async (mode) => {
+      const previousEnvironment = process.env.NODE_ENV
+      const swc =
+        require('next/dist/build/swc') as typeof import('next/dist/build/swc')
+      const previousDefineEnv = Object.getOwnPropertyDescriptor(
+        swc,
+        'createDefineEnv'
+      )
+      let productionBindings: jest.SpyInstance | undefined
+      try {
+        if (mode === 'production') {
+          process.env = { ...process.env, NODE_ENV: 'production' }
+          // The publication fixture supplies its controlled native endpoint in
+          // both modes; real production option construction still runs.
+          Object.defineProperty(swc, 'createDefineEnv', {
+            configurable: true,
+            value: () => ({ client: [], edge: [], nodejs: [] }),
+          })
+          productionBindings = jest
+            .spyOn(swc, 'loadBindings')
+            .mockResolvedValue({
+              isWasm: false,
+              turbo: {
+                createProject: async () => ({
+                  issues: [],
+                  value: (await (createDevTurbopackProject as jest.Mock)())
+                    .project,
+                }),
+              },
+            } as any)
+        }
+        const nodeProfile = {
+          ...profile,
+          environment: mode === 'rsc' || mode === 'browser' ? mode : 'node',
+          mode: mode === 'production' ? 'production' : 'development',
+        } as const
+        session = await createTestCompilerSession(dir, nodeProfile)
+        mockMetadata = {
+          moduleCache: { version: 1 },
+          dynamicModuleMocking: { version: 1, staticMocks: 1 },
+          moduleMocking: { version: 1 },
+        }
+        await writeFile(join(dir, 'setup.ts'), 'export {}')
+        const compilation = session.compile(
+          {
+            ...entry(),
+            profile: nodeProfile,
+            ...(mode === 'realm'
+              ? { executionEnvironment: { name: 'node' } }
+              : {}),
+            ...(mode === 'in-source'
+              ? {
+                  inSource: true as const,
+                  inSourceHash: createHash('sha256')
+                    .update(await readFile(entry().file))
+                    .digest('hex'),
+                }
+              : {}),
+          },
+          {
+            signal: new AbortController().signal,
+            ...(mode === 'setup'
+              ? { setupFiles: [join(dir, 'setup.ts')] }
+              : {}),
+            ...(mode === 'serializers'
+              ? { snapshotSerializers: [join(dir, 'setup.ts')] }
+              : {}),
+            ...(mode === 'coverage'
+              ? {
+                  coverage: {
+                    version: 1 as const,
+                    kind: 'node-line' as const,
+                  },
+                }
+              : {}),
+          }
+        )
+        if (mode === 'production') {
+          const artifact = await compilation
+          expect(artifact.kind).toBe('node')
+          expect(artifact.profile).toEqual(nodeProfile)
+          if (artifact.kind !== 'node')
+            throw new Error('Expected paired Node owner')
+          expect(artifact.moduleCache).toEqual({ version: 1 })
+          expect(artifact.dynamicModuleMocking).toEqual({
+            version: 1,
+            staticMocks: 1,
+          })
+          expect(artifact.moduleMocking).toEqual({ version: 1 })
+        } else {
+          await expect(compilation).rejects.toThrow()
+          expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+        }
+      } finally {
+        productionBindings?.mockRestore()
+        if (mode === 'production') {
+          if (previousDefineEnv)
+            Object.defineProperty(swc, 'createDefineEnv', previousDefineEnv)
+          else delete (swc as any).createDefineEnv
+        }
+        process.env = { ...process.env, NODE_ENV: previousEnvironment }
+      }
+    }
+  )
+
+  it('activates actual native original-initial metadata without a static pair', async () => {
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    mockMetadata = {
+      moduleCache: { version: 1 },
+      dynamicModuleMocking: { version: 1, nativeOriginalInitial: 1 },
+      moduleMocking: { version: 1 },
+    }
+    const bytes = JSON.stringify(mockMetadata)
+    const artifact = await session.compile(
+      { ...entry(), profile: nodeProfile },
+      { signal: new AbortController().signal }
+    )
+    expect(artifact.kind).toBe('node')
+    if (artifact.kind !== 'node')
+      throw new Error('Expected native original owner')
+    expect(artifact.dynamicModuleMocking).toEqual({
+      version: 1,
+      nativeOriginalInitial: 1,
+    })
+    expect(artifact.moduleCache).toEqual({ version: 1 })
+    expect(artifact.moduleMocking).toEqual({ version: 1 })
+    expect(JSON.stringify(mockMetadata)).toBe(bytes)
+  })
+
+  it.each([
+    { dynamicModuleMocking: { version: 1, nativeOriginalInitial: 1 } },
+    {
+      dynamicModuleMocking: { version: 1, nativeOriginalInitial: 1 },
+      moduleCache: { version: 1 },
+    },
+    {
+      dynamicModuleMocking: { version: 1, nativeOriginalInitial: 1 },
+      moduleMocking: { version: 1 },
+    },
+    ...[0, 2, true, null, '1'].map((nativeOriginalInitial) => ({
+      dynamicModuleMocking: { version: 1, nativeOriginalInitial },
+      moduleCache: { version: 1 },
+      moduleMocking: { version: 1 },
+    })),
+    {
+      dynamicModuleMocking: {
+        version: 1,
+        nativeOriginalInitial: 1,
+        staticMocks: 1,
+      },
+      moduleCache: { version: 1 },
+      moduleMocking: { version: 1 },
+    },
+    {
+      dynamicModuleMocking: { version: 1, nativeOriginalInitial: 1 },
+      moduleCache: { version: 1 },
+      moduleMocking: { version: 1, cjsNamedSpy: 1 },
+    },
+  ])('rejects malformed original-initial activation %j', async (metadata) => {
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    mockMetadata = metadata
+    await expect(
+      session.compile(
+        { ...entry(), profile: nodeProfile },
+        { signal: new AbortController().signal }
+      )
+    ).rejects.toThrow('Invalid native runtime module mock ownership metadata')
+    expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+  })
+
+  it('activates the actual original CommonJS require reset role without dynamic mocks', async () => {
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    mockMetadata = {
+      moduleCache: { version: 1 },
+      moduleMocking: { version: 1, originalCommonJsRequireReset: 1 },
+    }
+    const originalBytes = JSON.stringify(mockMetadata)
+    const artifact = await session.compile(
+      { ...entry(), profile: nodeProfile },
+      { signal: new AbortController().signal }
+    )
+    expect(artifact.kind).toBe('node')
+    if (artifact.kind !== 'node')
+      throw new Error('Expected original require owner')
+    expect(artifact.moduleCache).toEqual({ version: 1 })
+    expect(artifact.moduleMocking).toEqual({
+      version: 1,
+      originalCommonJsRequireReset: 1,
+    })
+    expect(artifact).not.toHaveProperty('dynamicModuleMocking')
+    expect(JSON.stringify(mockMetadata)).toBe(originalBytes)
+    mockMetadata = { moduleCache: { version: 1 } }
+    const nextArtifact = await session.compile(
+      { ...entry(), profile: nodeProfile },
+      { signal: new AbortController().signal }
+    )
+    expect(nextArtifact).not.toHaveProperty('moduleMocking')
+  })
+
+  it.each([
+    {
+      moduleMocking: { version: 1, originalCommonJsRequireReset: 2 },
+      moduleCache: { version: 1 },
+    },
+    {
+      moduleMocking: { version: 2, originalCommonJsRequireReset: 1 },
+      moduleCache: { version: 1 },
+    },
+    { moduleMocking: { version: 1, originalCommonJsRequireReset: 1 } },
+    {
+      moduleMocking: { version: 1, originalCommonJsRequireReset: 1 },
+      moduleCache: { version: 2 },
+    },
+    {
+      moduleMocking: { version: 1, originalCommonJsRequireReset: 1 },
+      moduleCache: { version: 1, extra: 1 },
+    },
+    {
+      moduleMocking: {
+        version: 1,
+        originalCommonJsRequireReset: 1,
+        cjsNamedSpy: 1,
+      },
+      moduleCache: { version: 1 },
+    },
+    {
+      moduleMocking: { version: 1, originalCommonJsRequireReset: 1 },
+      moduleCache: { version: 1 },
+      extra: 1,
+    },
+    {
+      moduleMocking: { version: 1, originalCommonJsRequireReset: 1 },
+      moduleCache: { version: 1 },
+      dynamicModuleMocking: { version: 1, staticMocks: 1 },
+    },
+  ])(
+    'rejects malformed original CommonJS require reset activation %j',
+    async (metadata) => {
+      const nodeProfile = { ...profile, environment: 'node' as const }
+      session = await createTestCompilerSession(dir, nodeProfile)
+      mockMetadata = metadata
+      await expect(
+        session.compile(
+          { ...entry(), profile: nodeProfile },
+          { signal: new AbortController().signal }
+        )
+      ).rejects.toThrow(
+        'Original CommonJS require resets require isolated ordinary development Node metadata'
+      )
+      expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+    }
+  )
+
+  it('publishes reset capability only from emitted native cache metadata', async () => {
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    mockMetadata = { moduleCache: { version: 1 } }
+    const artifact = await session.compile(
+      { ...entry(), profile: nodeProfile },
+      { signal: new AbortController().signal }
+    )
+    expect(artifact.kind).toBe('node')
+    if (artifact.kind !== 'node') throw new Error('Expected Node cache owner')
+    expect(artifact.moduleCache).toEqual({ version: 1 })
+    expect(artifact).not.toHaveProperty('moduleMocking')
+    mockMetadata = undefined
+    expect(
+      await session.compile(
+        { ...entry(), profile: nodeProfile },
+        { signal: new AbortController().signal }
+      )
+    ).not.toHaveProperty('moduleCache')
+  })
+
+  it.each([
+    { environment: 'node' as const, version: 2 },
+    { environment: 'rsc' as const, version: 1 },
+    { environment: 'browser' as const, version: 1 },
+    { environment: 'node' as const, version: 1, inSourceMarker: true },
+    { environment: 'node' as const, version: 1, moduleMocking: { version: 1 } },
+    {
+      environment: 'node' as const,
+      version: 1,
+      executionEnvironment: { name: 'node' },
+    },
+  ])(
+    'rejects unsupported native reset profile %j before publication',
+    async ({
+      environment,
+      version,
+      moduleMocking,
+      executionEnvironment,
+      inSourceMarker,
+    }) => {
+      if (inSourceMarker)
+        await writeFile(entry().file, 'if (import.meta.vitest) {}')
+      const resetProfile = { ...profile, environment }
+      session = await createTestCompilerSession(dir, resetProfile)
+      mockMetadata = {
+        moduleCache: { version },
+        ...(moduleMocking ? { moduleMocking } : {}),
+      }
+      await expect(
+        session.compile(
+          { ...entry(), profile: resetProfile, executionEnvironment },
+          { signal: new AbortController().signal }
+        )
+      ).rejects.toThrow('Module cache resets require isolated development Node')
+      expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+    }
+  )
+
+  it('publishes module mocking capability only from emitted compiler metadata', async () => {
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    mockMetadata = { moduleMocking: { version: 1 } }
+    const artifact = await session.compile(
+      { ...entry(), profile: nodeProfile },
+      { signal: new AbortController().signal }
+    )
+    expect(artifact.moduleMocking).toEqual({ version: 1 })
+    mockMetadata = undefined
+    const nextArtifact = await session.compile(
+      { ...entry(), profile: nodeProfile },
+      { signal: new AbortController().signal }
+    )
+    expect(nextArtifact).not.toHaveProperty('moduleMocking')
+  })
+
+  it('retains compiled setup mock inputs only with the native marker', async () => {
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    const setup = join(dir, 'setup.ts')
+    await writeFile(setup, 'export {}')
+    mockMetadata = { moduleMocking: { version: 1, setupInputs: 1 } }
+    const artifact = await session.compile(
+      { ...entry(), profile: nodeProfile },
+      {
+        signal: new AbortController().signal,
+        setupFiles: [setup],
+      }
+    )
+    expect(artifact.moduleMocking).toEqual({ version: 1, setupInputs: 1 })
+    mockMetadata = { moduleMocking: { version: 1 } }
+    expect(
+      (
+        await session.compile(
+          { ...entry(), profile: nodeProfile },
+          {
+            signal: new AbortController().signal,
+            setupFiles: [setup],
+          }
+        )
+      ).moduleMocking
+    ).toEqual({ version: 1 })
+  })
+
+  it.each(['version', 'no setup', 'CommonJS certificate'] as const)(
+    'rejects invalid compiled setup mock %s before publication',
+    async (mode) => {
+      const nodeProfile = { ...profile, environment: 'node' as const }
+      session = await createTestCompilerSession(dir, nodeProfile)
+      const setup = join(dir, 'setup.ts')
+      await writeFile(setup, 'export {}')
+      mockMetadata = {
+        moduleMocking: {
+          version: 1,
+          setupInputs: mode === 'version' ? 2 : 1,
+          ...(mode === 'CommonJS certificate' ? { cjsNamedSpy: 1 } : {}),
+        },
+      }
+      await expect(
+        session.compile(
+          { ...entry(), profile: nodeProfile },
+          {
+            signal: new AbortController().signal,
+            setupFiles: mode === 'no setup' ? [] : [setup],
+          }
+        )
+      ).rejects.toThrow('Invalid compiled setup module mock inputs')
+      expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+    }
+  )
+
+  it('retains a native named CommonJS spy certificate without inferring one', async () => {
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    mockMetadata = { moduleMocking: { version: 1, cjsNamedSpy: 1 } }
+    const artifact = await session.compile(
+      { ...entry(), profile: nodeProfile },
+      { signal: new AbortController().signal }
+    )
+    expect(artifact.moduleMocking).toEqual({ version: 1, cjsNamedSpy: 1 })
+    mockMetadata = { moduleMocking: { version: 1 } }
+    expect(
+      (
+        await session.compile(
+          { ...entry(), profile: nodeProfile },
+          { signal: new AbortController().signal }
+        )
+      ).moduleMocking
+    ).toEqual({ version: 1 })
+  })
+
+  it.each([
+    'version',
+    'rsc',
+    'setup',
+    'serializers',
+    'coverage',
+    'realm',
+    'in-source',
+  ] as const)(
+    'rejects unsupported named CommonJS spy %s before publication',
+    async (mode) => {
+      const selected = {
+        ...profile,
+        environment: mode === 'rsc' ? ('rsc' as const) : ('node' as const),
+      }
+      session = await createTestCompilerSession(dir, selected)
+      mockMetadata = {
+        moduleMocking: { version: 1, cjsNamedSpy: mode === 'version' ? 2 : 1 },
+      }
+      await writeFile(join(dir, 'setup.ts'), 'export {}')
+      if (mode === 'in-source')
+        await writeFile(entry().file, 'if (import.meta.vitest) {}')
+      await expect(
+        session.compile(
+          {
+            ...entry(),
+            profile: selected,
+            ...(mode === 'realm'
+              ? { executionEnvironment: { name: 'node' } }
+              : {}),
+          },
+          {
+            signal: new AbortController().signal,
+            ...(mode === 'setup'
+              ? { setupFiles: [join(dir, 'setup.ts')] }
+              : {}),
+            ...(mode === 'serializers'
+              ? { snapshotSerializers: [join(dir, 'setup.ts')] }
+              : {}),
+            ...(mode === 'coverage'
+              ? {
+                  coverage: { version: 1 as const, kind: 'node-line' as const },
+                }
+              : {}),
+          }
+        )
+      ).rejects.toThrow(
+        'CommonJS named-import spies require isolated development Node'
+      )
+      expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+    }
+  )
+
+  it('rejects older native mock coverage metadata before publishing an artifact', async () => {
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    mockMetadata = { moduleMocking: { version: 1 } }
+    await expect(
+      session.compile(
+        { ...entry(), profile: nodeProfile },
+        {
+          signal: new AbortController().signal,
+          coverage: { version: 1, kind: 'node-line' },
+        }
+      )
+    ).rejects.toThrow('native binding with generated-source provenance')
+    expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+  })
+
+  it('rejects a production-only native marker in a development artifact', async () => {
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    mockMetadata = { moduleMocking: { version: 1, productionStaticFactory: 1 } }
+    await expect(
+      session.compile(
+        { ...entry(), profile: nodeProfile },
+        { signal: new AbortController().signal }
+      )
+    ).rejects.toThrow('Invalid compiled module mocking metadata')
+    expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+  })
+
+  it('publishes RSC module mocking only from actual emitted compiler metadata', async () => {
+    session = await createTestCompilerSession(dir, profile)
+    mockMetadata = { moduleMocking: { version: 1 } }
+    const artifact = await session.compile(entry(), {
+      signal: new AbortController().signal,
+    })
+    expect(artifact.kind).toBe('rsc')
+    expect(artifact.moduleMocking).toEqual({ version: 1 })
+    mockMetadata = undefined
+    expect(
+      await session.compile(entry(), { signal: new AbortController().signal })
+    ).not.toHaveProperty('moduleMocking')
+  })
+
+  it.each(['route', 'setup', 'serializers', 'realm', 'reset'] as const)(
+    'rejects unsupported RSC mocking %s before publishing',
+    async (mode) => {
+      mockCacheComponents = false
+      const selected = {
+        ...profile,
+        ...(mode === 'route' ? { route: '/reference/[slug]' } : {}),
+      }
+      session = await createTestCompilerSession(dir, selected)
+      mockMetadata = {
+        moduleMocking: { version: 1 },
+        ...(mode === 'reset' ? { moduleCache: { version: 1 } } : {}),
+      }
+      await writeFile(join(dir, 'setup.ts'), 'export {}')
+      await expect(
+        session.compile(
+          {
+            ...entry(),
+            profile: selected,
+            ...(mode === 'realm'
+              ? { executionEnvironment: { name: 'node' } }
+              : {}),
+          },
+          {
+            signal: new AbortController().signal,
+            ...(mode === 'setup'
+              ? { setupFiles: [join(dir, 'setup.ts')] }
+              : {}),
+            ...(mode === 'serializers'
+              ? { snapshotSerializers: [join(dir, 'setup.ts')] }
+              : {}),
+          }
+        )
+      ).rejects.toThrow(
+        mode === 'reset'
+          ? 'Module cache resets require isolated development Node'
+          : 'Invalid compiled module mocking metadata'
+      )
+      expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+    }
+  )
+
+  it.each([
+    ['node', 2],
+    ['rsc', 2],
+    ['browser', 1],
+  ] as const)(
+    'rejects module mocking metadata for %s version %s',
+    async (environment, version) => {
+      const metadataProfile = { ...profile, environment }
+      session = await createTestCompilerSession(dir, metadataProfile)
+      mockMetadata = { moduleMocking: { version } }
+      await expect(
+        session.compile(
+          { ...entry(), profile: metadataProfile },
+          { signal: new AbortController().signal }
+        )
+      ).rejects.toThrow('Invalid compiled module mocking metadata')
+      expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+    }
+  )
+
+  it.each(['node', 'browser'] as const)(
+    'publishes a %s driver without RSC capabilities',
+    async (environment) => {
+      const driverProfile = { ...profile, environment }
+      session = await createTestCompilerSession(dir, driverProfile)
+      const artifact = await session.compile(
+        { ...entry(), profile: driverProfile },
+        { signal: new AbortController().signal }
+      )
+      expect(artifact.version).toBe(2)
+      expect(artifact.kind).toBe('node')
+      expect(artifact.profile).toEqual(driverProfile)
+      expect(artifact).not.toHaveProperty('manifests')
+      expect(artifact).not.toHaveProperty('manifestPage')
+      expect(artifact).not.toHaveProperty('requestContext')
+      expect(artifact.files.some((file) => file.includes('manifest'))).toBe(
+        false
+      )
+      if (environment === 'browser') {
+        expect(artifact).toHaveProperty('applicationServer', {
+          mode: 'development',
+          lockDistDir: true,
+          distDir: join(dir, '.next/dev'),
+        })
+      } else {
+        expect(artifact).not.toHaveProperty('applicationServer')
+      }
+    }
+  )
+
+  it.each(['node', 'rsc', 'browser'] as const)(
+    'requests mutable compiler environment only for development Node, not %s substitutes',
+    async (environment) => {
+      const selected = { ...profile, environment }
+      session = await createTestCompilerSession(dir, selected)
+      await session.compile(
+        { ...entry(), profile: selected },
+        { signal: new AbortController().signal }
+      )
+      expect(runtimeEnvRequests).toEqual([
+        { environment, runtimeEnv: environment === 'node', cohortFiles: [] },
+      ])
+    }
+  )
+
+  it('fails before output allocation when the native boundary lacks mutable environment support', async () => {
+    const selected = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, selected)
+    const compilation = await jest
+      .mocked(createDevTurbopackProject)
+      .mock.results.at(-1)!.value
+    const nativeEntry = compilation.project.testEntry.bind(compilation.project)
+    compilation.project.testEntry = async (options) => {
+      if (options.runtimeEnv)
+        throw new Error(
+          'The installed Turbopack binding does not support mutable Node test environment bindings'
+        )
+      return nativeEntry(options)
+    }
+    await expect(
+      session.compile(
+        { ...entry(), profile: selected },
+        { signal: new AbortController().signal }
+      )
+    ).rejects.toThrow('does not support mutable Node test environment bindings')
+    expect(runtimeEnvRequests).toEqual([])
+    expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+  })
+
+  it('requests the same mutable environment boundary for the complete Node cohort', async () => {
+    const entries = await sharedInputs()
+    await session!.compileCohort(entries, {
+      signal: new AbortController().signal,
+    })
+    expect(runtimeEnvRequests).toEqual([
+      {
+        environment: 'node',
+        runtimeEnv: true,
+        cohortFiles: ['subject.test.ts', 'second.test.ts'],
+      },
+    ])
+  })
+
+  it('rejects a production profile in a development compiler process', async () => {
+    await expect(
+      createTestCompilerSession(dir, { ...profile, mode: 'production' })
+    ).rejects.toThrow('requires NODE_ENV=production')
+    expect(createDevTurbopackProject).not.toHaveBeenCalled()
+  })
+  async function sharedRscInputs() {
+    mockCacheComponents = false
+    const rscProfile = { ...profile, route: '/reference/[slug]' }
+    await writeFile(
+      join(dir, 'second.test.ts'),
+      '// second RSC compiler fixture'
+    )
+    session = await createTestCompilerSession(dir, rscProfile)
+    return [
+      { ...entry(), id: 'rsc:first', profile: rscProfile },
+      {
+        id: 'rsc:second',
+        file: join(dir, 'second.test.ts'),
+        profile: rscProfile,
+      },
+    ]
+  }
+
+  it('shared RSC compiler contract retains one actual native route closure with distinct dispatch identities', async () => {
+    const entries = await sharedRscInputs()
+    const result = await session!.compileCohort(entries, {
+      signal: new AbortController().signal,
+    })
+    expect(cohortRequests).toEqual([['subject.test.ts', 'second.test.ts']])
+    expect(routeRequests).toEqual(['/reference/[slug]'])
+    const [first, second] = result.artifacts
+    expect(first.kind).toBe('rsc')
+    expect(second.kind).toBe('rsc')
+    if (first.kind !== 'rsc' || second.kind !== 'rsc')
+      throw new Error('Expected RSC cohort')
+    expect(first.rootDir).toBe(second.rootDir)
+    expect(first.entryPath).toBe(second.entryPath)
+    expect(first.manifestPage).toBe(second.manifestPage)
+    expect(first.manifests).toEqual(second.manifests)
+    expect(first.route).toEqual(second.route)
+    expect(second.route!.entry.file).toBe('subject.test.ts')
+    expect(first.cohort!.index).toBe(0)
+    expect(second.cohort!.index).toBe(1)
+    expect(second.entryId).toBe(entries[1].id)
+    expect(second.sourceHash).toBe(first.cohort!.entries[1].sourceHash)
+    expect(second.sourceHash).not.toBe(first.sourceHash)
+    expect(first.cohort!.outputs).toEqual(
+      await Promise.all(
+        first.files.map(async (file) => ({
+          path: file,
+          sha256: createHash('sha256')
+            .update(await readFile(join(first.rootDir, file)))
+            .digest('hex'),
+        }))
+      )
+    )
+    await session!.shutdownCompilation()
+    expect(await readFile(join(first.rootDir, first.entryPath), 'utf8')).toBe(
+      'first revision'
+    )
+  })
+
+  it.each([
+    ['missing', null],
+    [
+      'wrong version',
+      { cohort: { version: 2, files: ['subject.test.ts', 'second.test.ts'] } },
+    ],
+    [
+      'wrong order',
+      { cohort: { version: 1, files: ['second.test.ts', 'subject.test.ts'] } },
+    ],
+  ])(
+    'shared RSC compiler contract rejects %s native cohort evidence',
+    async (_, metadata) => {
+      const entries = await sharedRscInputs()
+      cohortMetadata = metadata
+      await expect(
+        session!.compileCohort(entries, {
+          signal: new AbortController().signal,
+        })
+      ).rejects.toThrow(/cohort (metadata|order)/)
+    }
+  )
+
+  it('shared RSC compiler contract rejects actual later-root mutation', async () => {
+    const entries = await sharedRscInputs()
+    beforeEmit = () => writeFile(entries[1].file, '// actual later-root edit')
+    await expect(
+      session!.compileCohort(entries, { signal: new AbortController().signal })
+    ).rejects.toThrow('cohort source changed')
+  })
+
+  it('shared RSC compiler contract keeps route-less cohorts closed', async () => {
+    const entries = await sharedRscInputs()
+    await session!.dispose()
+    session = await createTestCompilerSession(dir, profile)
+    await expect(
+      session.compileCohort(
+        entries.map((value) => ({ ...value, profile })),
+        { signal: new AbortController().signal }
+      )
+    ).rejects.toThrow(/cohort/)
+    expect(cohortRequests).toHaveLength(0)
+  })
+
+  async function sharedInputs() {
+    const nodeProfile = {
+      ...profile,
+      id: 'node',
+      environment: 'node' as const,
+    }
+    await writeFile(join(dir, 'second.test.ts'), '// second compiler fixture')
+    session = await createTestCompilerSession(dir, nodeProfile)
+    return [
+      { ...entry(), id: 'node:first', profile: nodeProfile },
+      {
+        id: 'node:second',
+        file: join(dir, 'second.test.ts'),
+        profile: nodeProfile,
+      },
+    ]
+  }
+
+  it('shared worker cohort emits once with exact ordered per-file identity and retained closure', async () => {
+    const entries = await sharedInputs()
+    const result = await session!.compileCohort(entries, {
+      signal: new AbortController().signal,
+    })
+    expect(cohortRequests).toEqual([['subject.test.ts', 'second.test.ts']])
+    expect(result.version).toBe(1)
+    expect(result.artifacts).toHaveLength(2)
+    const [first, second] = result.artifacts
+    expect(first.rootDir).toBe(second.rootDir)
+    expect(first.revision).toBe(second.revision)
+    expect(first.entryPath).toBe(second.entryPath)
+    expect(first.cohort?.index).toBe(0)
+    expect(second.cohort?.index).toBe(1)
+    expect(first.cohort?.entries).toEqual(
+      await Promise.all(
+        entries.map(async (entry, index) => ({
+          entryId: entry.id,
+          file: index === 0 ? 'subject.test.ts' : 'second.test.ts',
+          sourceHash: createHash('sha256')
+            .update(await readFile(entry.file))
+            .digest('hex'),
+        }))
+      )
+    )
+    expect(first.entryId).toBe(entries[0].id)
+    expect(second.entryId).toBe(entries[1].id)
+    expect(first.sourceHash).toBe(first.cohort!.entries[0].sourceHash)
+    expect(second.sourceHash).toBe(first.cohort!.entries[1].sourceHash)
+    expect(first.files).toContain(first.cohort!.metadataPath)
+    expect(first.cohort!.outputs).toEqual(
+      await Promise.all(
+        first.files.map(async (outputFile) => ({
+          path: outputFile,
+          sha256: createHash('sha256')
+            .update(await readFile(join(first.rootDir, outputFile)))
+            .digest('hex'),
+        }))
+      )
+    )
+    await session!.shutdownCompilation()
+    expect(await readFile(join(first.rootDir, first.entryPath), 'utf8')).toBe(
+      'first revision'
+    )
+    await session!.dispose()
+    await expect(
+      readFile(join(first.rootDir, first.entryPath))
+    ).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it.each([
+    ['missing', null],
+    [
+      'wrong version',
+      { cohort: { version: 2, files: ['subject.test.ts', 'second.test.ts'] } },
+    ],
+    [
+      'wrong order',
+      { cohort: { version: 1, files: ['second.test.ts', 'subject.test.ts'] } },
+    ],
+  ])(
+    'shared worker cohort rejects %s native order evidence',
+    async (_, metadata) => {
+      const entries = await sharedInputs()
+      cohortMetadata = metadata
+      await expect(
+        session!.compileCohort(entries, {
+          signal: new AbortController().signal,
+        })
+      ).rejects.toThrow(/cohort (metadata|order)/)
+      expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+    }
+  )
+
+  it('shared worker cohort rejects a changed later source before publication', async () => {
+    const entries = await sharedInputs()
+    beforeEmit = () => writeFile(entries[1].file, '// changed while compiling')
+    await expect(
+      session!.compileCohort(entries, { signal: new AbortController().signal })
+    ).rejects.toThrow('cohort source changed')
+    expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+  })
+
+  it.each([
+    'empty',
+    'duplicate ID',
+    'duplicate file',
+    'foreign profile',
+    'typecheck',
+    'in-source',
+    'marker source without metadata',
+    'spaced marker source without metadata',
+    'comment marker source without metadata',
+    'DOM execution environment',
+    'setup',
+    'serializer',
+    'coverage',
+  ] as const)(
+    'shared worker cohort rejects %s before native emission',
+    async (invalid) => {
+      let entries = await sharedInputs()
+      const options = { signal: new AbortController().signal }
+      if (invalid === 'empty') entries = []
+      if (invalid === 'duplicate ID')
+        entries[1] = { ...entries[1], id: entries[0].id }
+      if (invalid === 'duplicate file')
+        entries[1] = { ...entries[1], file: entries[0].file }
+      if (invalid === 'foreign profile')
+        entries[1] = {
+          ...entries[1],
+          profile: { ...entries[1].profile, id: 'other' },
+        }
+      if (invalid === 'typecheck')
+        entries[1] = {
+          ...entries[1],
+          typecheck: true,
+        } as (typeof entries)[number]
+      if (invalid === 'in-source')
+        entries[1] = {
+          ...entries[1],
+          inSource: true,
+        } as (typeof entries)[number]
+      if (invalid === 'DOM execution environment')
+        entries[1] = {
+          ...entries[1],
+          executionEnvironment: { name: 'jsdom', options: {} },
+        } as (typeof entries)[number]
+      if (invalid.includes('marker source without metadata')) {
+        const original = await readFile(
+          join(
+            __dirname,
+            '../app-dir/next-testing-stable-release-gaps/fixtures/in-source-tests/subject.source.mjs'
+          ),
+          'utf8'
+        )
+        const marker = invalid.startsWith('spaced')
+          ? 'import.meta. vitest'
+          : invalid.startsWith('comment')
+            ? 'import.meta /* comment */ .vitest'
+            : 'import.meta.vitest'
+        await writeFile(
+          entries[1].file,
+          original.replaceAll('import.meta.vitest', marker)
+        )
+      }
+      const unsupported =
+        invalid === 'setup'
+          ? { setupFiles: [entries[0].file] }
+          : invalid === 'serializer'
+            ? { snapshotSerializers: ['./serializer.cjs'] }
+            : invalid === 'coverage'
+              ? {
+                  coverage: { version: 1 as const, kind: 'node-line' as const },
+                }
+              : {}
+      await expect(
+        session!.compileCohort(entries, { ...options, ...unsupported })
+      ).rejects.toThrow(/cohort/)
+      expect(cohortRequests).toHaveLength(0)
+    }
+  )
+
+  it.each([
+    {
+      name: 'development Node V8',
+      environment: 'node',
+      mode: 'development',
+      coverage: 'node-line',
+      preserve: true,
+    },
+    {
+      name: 'development Node without coverage',
+      environment: 'node',
+      mode: 'development',
+      coverage: undefined,
+      preserve: false,
+    },
+    {
+      name: 'development Node Istanbul',
+      environment: 'node',
+      mode: 'development',
+      coverage: 'node-istanbul',
+      preserve: false,
+    },
+    {
+      name: 'ordinary Browser driver',
+      environment: 'browser',
+      mode: 'development',
+      coverage: undefined,
+      preserve: false,
+    },
+    {
+      name: 'ordinary RSC',
+      environment: 'rsc',
+      mode: 'development',
+      coverage: undefined,
+      preserve: false,
+    },
+    {
+      name: 'production Node V8',
+      environment: 'node',
+      mode: 'production',
+      coverage: 'node-line',
+      preserve: false,
+    },
+  ] as const)('forwards the preservation role only for $name', async (row) => {
+    if (row.coverage === 'node-istanbul') {
+      const { execFileSync } = require('node:child_process')
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-istanbul-role-control-')
+      )
+      try {
+        const stdout = execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'preserve-node-v8-istanbul-request.mjs'),
+            join(__dirname, '../../..'),
+            output,
+          ],
+          { encoding: 'utf8', timeout: 125000, env: process.env }
+        )
+        expect(JSON.parse(stdout)).toEqual({
+          actualIstanbulCompilerRequest: true,
+          requests: 1,
+          preserveCoverageSourcesAbsent: true,
+          productionSourceCoverageAbsent: true,
+          originalSourceUnchanged: true,
+          actualCompilerOwnerDisposed: true,
+          noNativeOutputRequested: true,
+        })
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+      return
+    }
+    const selected = {
+      ...profile,
+      environment: row.environment,
+      mode: row.mode,
+    }
+    process.env = { ...process.env, NODE_ENV: row.mode }
+    const make = jest.mocked(createDevTurbopackProject).getMockImplementation()!
+    const compilation = await make({} as never)
+    const requests: Parameters<typeof compilation.project.testEntry>[0][] = []
+    compilation.project.testEntry = async (options) => {
+      requests.push(structuredClone(options))
+      throw new Error('preservation native request observed')
+    }
+    jest.mocked(createDevTurbopackProject).mockResolvedValue(compilation)
+    const swc = require('next/dist/build/swc')
+    const previousBindings = swc.loadBindings
+    const hadDefineEnv = Object.hasOwn(swc, 'createDefineEnv')
+    const previousDefineEnv = swc.createDefineEnv
+    const fsModule = require('next/dist/server/lib/router-utils/filesystem')
+    const previousFsCheck = fsModule.setupFsCheck
+    if (row.mode === 'production') {
+      swc.createDefineEnv = () => ({ client: [], nodejs: [], edge: [] })
+      fsModule.setupFsCheck = async (...args: unknown[]) => ({
+        ...(await previousFsCheck(...args)),
+        rewrites: { beforeFiles: [], afterFiles: [], fallback: [] },
+      })
+      swc.loadBindings = async () => ({
+        isWasm: false,
+        turbo: {
+          createProject: async () => ({
+            value: compilation.project,
+            issues: [],
+          }),
+        },
+      })
+    }
+    try {
+      await writeFile(join(dir, 'package.json'), '{"type":"module"}\n')
+      const file = join(dir, 'source-role.test.mjs')
+      await writeFile(file, '// actual compiler request control\n')
+      if (row.coverage === 'node-istanbul')
+        await symlink(
+          join(__dirname, '../../..', 'node_modules'),
+          join(dir, 'node_modules')
+        )
+      session = await createTestCompilerSession(
+        dir,
+        selected,
+        row.coverage === 'node-istanbul'
+          ? {
+              istanbulInstrumentation: {
+                version: 1,
+                profile: selected,
+                transport: {
+                  version: 1,
+                  socket: join(dir, 'unused.sock'),
+                  realm: 'request-control',
+                  revision: 'request-control',
+                },
+                metadata: { version: 1, sources: [] },
+              },
+            }
+          : undefined
+      )
+      await expect(
+        session.compile(
+          { id: 'source-role.test.mjs', file, profile: selected },
+          {
+            signal: new AbortController().signal,
+            ...(row.coverage
+              ? { coverage: { version: 1, kind: row.coverage } }
+              : {}),
+          }
+        )
+      ).rejects.toThrow('preservation native request observed')
+      expect(requests).toHaveLength(1)
+      expect(Object.hasOwn(requests[0], 'preserveCoverageSources')).toBe(
+        row.preserve
+      )
+      if (row.preserve) expect(requests[0].preserveCoverageSources).toBe(true)
+      if (row.mode === 'production')
+        expect(requests[0].sourceCoverage).toBe(true)
+    } finally {
+      swc.loadBindings = previousBindings
+      if (hadDefineEnv) swc.createDefineEnv = previousDefineEnv
+      else delete swc.createDefineEnv
+      fsModule.setupFsCheck = previousFsCheck
+    }
+  })
+})
 
 describe('native route ABI negotiation', () => {
   it.each([undefined, 0, -1, NaN])(

@@ -1467,7 +1467,13 @@ importers:
       '@vitest/istanbul-lib-coverage':
         specifier: 1.0.2
         version: 1.0.2
+      '@vitest/istanbul-lib-instrument':
+        specifier: 1.0.2
+        version: 1.0.2
       '@vitest/istanbul-lib-report':
+        specifier: 1.0.2
+        version: 1.0.2
+      '@vitest/istanbul-lib-source-maps':
         specifier: 1.0.2
         version: 1.0.2
       acorn:
@@ -1656,6 +1662,9 @@ importers:
       lodash.curry:
         specifier: 4.1.1
         version: 4.1.1
+      magic-string:
+        specifier: 1.4.3
+        version: 1.4.3
       mini-css-extract-plugin:
         specifier: 2.4.4
         version: 2.4.4(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.23))(esbuild@0.25.9))
