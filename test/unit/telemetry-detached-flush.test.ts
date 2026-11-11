@@ -1,4 +1,5 @@
 import { spawn } from 'child_process'
+import { once } from 'events'
 import { cpSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'fs'
 import path from 'path'
 import treeKill from 'tree-kill'
@@ -129,31 +130,48 @@ describe('telemetry detached-flush', () => {
     })
   })
 
-  it('drains all debug output when the reader is paused', async () => {
-    await useTempDir(async (dir) => {
-      const { distDir, events, eventsPath } = createProject(dir, 300)
-      writeFileSync(eventsPath, JSON.stringify(events))
-      const { child, completed } = runProcess(
-        dir,
-        [flushScript, 'dev', dir, eventsFile, distDir],
-        {},
-        true
-      )
+  it.each([false, true])(
+    'drains debug output with a paused reader (blocking=%s)',
+    async (blocking) => {
+      await useTempDir(async (dir) => {
+        const { distDir, events, eventsPath } = createProject(dir, 300)
+        writeFileSync(eventsPath, JSON.stringify(events))
+        const { child, completed } = runProcess(
+          dir,
+          [
+            ...(blocking ? ['-r', path.join(dir, 'blocking-stderr.cjs')] : []),
+            flushScript,
+            'dev',
+            dir,
+            eventsFile,
+            distDir,
+          ],
+          {},
+          true
+        )
 
-      try {
-        // The file is removed after logging, while writes can still be buffered.
-        await retry(async () => {
-          expect(existsSync(eventsPath)).toBe(false)
-        })
-      } finally {
-        child.stderr.resume()
-      }
-      const { code, stderr } = await completed
-      expect(code).toBe(0)
-      expect(stderr.match(/\[telemetry\]/g)).toHaveLength(events.length)
-      expect(existsSync(path.join(dir, 'config-loaded'))).toBe(false)
-    })
-  })
+        try {
+          if (process.platform === 'win32' || blocking) {
+            // Synchronous pipe writes can block before file cleanup.
+            await once(child.stderr, 'readable')
+          } else {
+            // Keep asynchronous writes backpressured through completion so an
+            // explicit process.exit() would truncate the queued debug output.
+            await retry(async () => {
+              expect(existsSync(eventsPath)).toBe(false)
+            })
+          }
+        } finally {
+          child.stderr.resume()
+        }
+        const { code, stderr } = await completed
+        expect(code).toBe(0)
+        expect(stderr.match(/\[telemetry\]/g)).toHaveLength(events.length)
+        expect(existsSync(eventsPath)).toBe(false)
+        expect(existsSync(path.join(dir, 'config-loaded'))).toBe(false)
+      })
+    }
+  )
 
   it.each(['', '1'])(
     'terminates at ten minutes with an open handle (debug=%j)',
