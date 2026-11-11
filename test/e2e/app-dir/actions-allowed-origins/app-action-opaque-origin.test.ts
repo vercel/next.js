@@ -27,7 +27,7 @@ describe('app-dir action allowed from opaque origins', () => {
 
 // @force-gate !deploy
 describe('app-dir action disallowed from opaque origins', () => {
-  const { isNextDev, next, skipped } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: join(__dirname, 'opaque-origin'),
     env: {
       NEXT_TEST_ALLOW_OPAQUE_ORIGIN: '',
@@ -52,17 +52,13 @@ describe('app-dir action disallowed from opaque origins', () => {
           {
             source: 'error',
             message:
-              'Failed to load resource: the server responded with a status of 500 (Internal Server Error)',
+              'Failed to load resource: the server responded with a status of 403 (Forbidden)',
           },
         ])
       )
     })
-    if (isNextDev) {
-      // page is borked at this point. Nothing interesting to assert on.
-    } else {
-      expect(await browser.elementByCss('body').text()).toEqual(
-        'Internal Server Error'
-      )
-    }
+    expect(await browser.elementByCss('body').text()).toEqual(
+      'Invalid Server Actions request.'
+    )
   })
 })
