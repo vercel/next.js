@@ -53,7 +53,9 @@ describe('find-pages-dir', () => {
     )
   })
 
-  it('accepts a symlink to a directory', () => {
+  // Creating symlinks may require elevated privileges on Windows.
+  const symlinkTest = process.platform === 'win32' ? it.skip : it
+  symlinkTest('accepts a symlink to a directory', () => {
     const target = path.join(root, 'actual-app')
     fs.mkdirSync(target)
     fs.symlinkSync(target, path.join(root, 'app'), 'dir')
