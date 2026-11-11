@@ -40,6 +40,22 @@ pub async fn make_production_chunks(
     );
     let span = span_outer.clone();
     async move {
+        // The position of every chunk item and batch group in the input. The merging below
+        // reorders them depending on the merge sequence, which can change even when the resulting
+        // partition doesn't (e.g. when an unrelated module changes its chunk groups). The emitted
+        // chunks restore the input order, so that equal chunks get equal arguments and keep
+        // their identity (and their cached code) across incremental builds.
+        let item_index: FxHashMap<usize, usize> = chunk_items
+            .iter()
+            .enumerate()
+            .map(|(index, &item)| (std::ptr::from_ref(item).addr(), index))
+            .collect();
+        let batch_group_index: FxHashMap<ResolvedVc<ChunkItemBatchGroup>, usize> = batch_groups
+            .iter()
+            .enumerate()
+            .map(|(index, &batch_group)| (batch_group, index))
+            .collect();
+
         let module_chunk_groups = module_graph.chunk_group_info().module_chunk_groups();
         let chunk_group_info = module_graph.chunk_group_info().await?;
         let heuristics = &chunk_group_info.chunking_heuristics;
@@ -610,6 +626,53 @@ pub async fn make_production_chunks(
 
             span.record("chunks", heap.len());
 
+            let item_position = |item: &&ChunkItemOrBatchWithInfo| {
+                item_index
+                    .get(&std::ptr::from_ref(*item).addr())
+                    .copied()
+                    .unwrap_or(usize::MAX)
+            };
+            let batch_group_position = |batch_group: &ResolvedVc<ChunkItemBatchGroup>| {
+                batch_group_index
+                    .get(batch_group)
+                    .copied()
+                    .unwrap_or(usize::MAX)
+            };
+            // Restore the input order, see `item_index`.
+            let mut candidates = heap.into_vec();
+            for candidate in &mut candidates {
+                candidate.chunk_items.sort_by_key(item_position);
+                candidate.batch_groups.sort_by_key(batch_group_position);
+                for component in &mut candidate.components {
+                    component.chunk_items.sort_by_key(item_position);
+                    component.batch_groups.sort_by_key(batch_group_position);
+                }
+                candidate.components.sort_by_key(|component| {
+                    (
+                        component
+                            .chunk_items
+                            .first()
+                            .map_or(usize::MAX, item_position),
+                        component
+                            .batch_groups
+                            .first()
+                            .map_or(usize::MAX, batch_group_position),
+                    )
+                });
+            }
+            candidates.sort_by_key(|candidate| {
+                (
+                    candidate
+                        .chunk_items
+                        .first()
+                        .map_or(usize::MAX, item_position),
+                    candidate
+                        .batch_groups
+                        .first()
+                        .map_or(usize::MAX, batch_group_position),
+                )
+            });
+
             let mut total_size = 0;
             for ChunkCandidate {
                 chunk_items,
@@ -617,7 +680,7 @@ pub async fn make_production_chunks(
                 size,
                 components,
                 ..
-            } in heap.into_iter()
+            } in candidates
             {
                 total_size += size;
                 // Merged chunks also emit their constituent components as referenced "module

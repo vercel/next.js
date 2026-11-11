@@ -402,28 +402,42 @@ struct SplitContext<'a> {
     chunks: &'a mut Vec<Vc<Box<dyn Chunk>>>,
 }
 
-fn build_chunk(
+/// Creates the chunk. Batches and batch groups are passed without their chunk groups: those only
+/// influence how chunks are formed, and keeping them would give a chunk a new identity whenever the
+/// chunk groups of one of its batches change, even when the chunk itself is unchanged.
+async fn build_chunk(
     chunk_items: Vec<&'_ ChunkItemOrBatchWithInfo>,
     batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
     component_chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
     split_context: &SplitContext<'_>,
-) -> Vc<Box<dyn Chunk>> {
-    split_context.ty.chunk(
-        *split_context.chunking_context,
-        chunk_items
-            .into_iter()
-            .map(|item| match item {
+) -> Result<Vc<Box<dyn Chunk>>> {
+    let chunk_items = chunk_items
+        .into_iter()
+        .map(async |item| {
+            Ok(match item {
                 ChunkItemOrBatchWithInfo::ChunkItem { chunk_item, .. } => {
                     ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(*chunk_item)
                 }
                 &ChunkItemOrBatchWithInfo::Batch { batch, .. } => {
-                    ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch)
+                    ChunkItemOrBatchWithAsyncModuleInfo::Batch(
+                        batch.without_chunk_groups().to_resolved().await?,
+                    )
                 }
             })
-            .collect(),
+        })
+        .try_join()
+        .await?;
+    let batch_groups = batch_groups
+        .into_iter()
+        .map(|batch_group| batch_group.without_chunk_groups().to_resolved())
+        .try_join()
+        .await?;
+    Ok(split_context.ty.chunk(
+        *split_context.chunking_context,
+        chunk_items,
         ResolvedVc::deref_vec(batch_groups),
         ResolvedVc::deref_vec(component_chunks),
-    )
+    ))
 }
 
 /// The chunk items and batch groups that make up one component chunk of a merged chunk.
@@ -450,11 +464,12 @@ async fn make_chunk(
                 Vec::new(),
                 split_context,
             )
+            .await?
             .to_resolved()
             .await?,
         );
     }
-    let chunk = build_chunk(chunk_items, batch_groups, component_chunks, split_context);
+    let chunk = build_chunk(chunk_items, batch_groups, component_chunks, split_context).await?;
     split_context.chunks.push(chunk);
     Ok(())
 }

@@ -102,6 +102,14 @@ impl ChunkItemOrBatchWithAsyncModuleInfo {
         })
     }
 
+    /// See [`ChunkItemBatchWithAsyncModuleInfo::without_chunk_groups`].
+    pub async fn without_chunk_groups(&self) -> Result<Self> {
+        Ok(match self {
+            Self::ChunkItem(item) => Self::ChunkItem(*item),
+            Self::Batch(batch) => Self::Batch(batch.without_chunk_groups().to_resolved().await?),
+        })
+    }
+
     pub async fn split_by_chunk_type(
         &self,
     ) -> Result<ChunkItemOrBatchWithAsyncModuleInfoByChunkType> {
@@ -158,6 +166,21 @@ impl ChunkItemBatchWithAsyncModuleInfo {
             chunk_groups: batch.chunk_groups.clone(),
         }
         .cell())
+    }
+
+    /// The same batch without its chunk groups, i.e. identified only by its chunk items.
+    ///
+    /// The chunk groups are only needed to decide how batches are chunked. A chunk refers to its
+    /// batches through this, so that a batch whose chunk groups change (e.g. because a module of
+    /// it is imported from one more page) doesn't change the identity of every chunk that
+    /// contains it.
+    #[turbo_tasks::function]
+    pub async fn without_chunk_groups(self: Vc<Self>) -> Result<Vc<Self>> {
+        let this = self.await?;
+        if this.chunk_groups.is_none() {
+            return Ok(self);
+        }
+        Ok(Self::new(this.chunk_items.clone()))
     }
 
     #[turbo_tasks::function]
@@ -241,6 +264,29 @@ pub struct ChunkItemBatchGroup {
 
 #[turbo_tasks::value_impl]
 impl ChunkItemBatchGroup {
+    /// A batch group with the given items and no chunk groups.
+    #[turbo_tasks::function]
+    fn from_items(items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>) -> Vc<Self> {
+        Self {
+            items,
+            chunk_groups: Bitset::new(),
+        }
+        .cell()
+    }
+
+    /// The same batch group without chunk groups, also for its batches, i.e. identified only by
+    /// its chunk items. See [`ChunkItemBatchWithAsyncModuleInfo::without_chunk_groups`].
+    #[turbo_tasks::function]
+    pub async fn without_chunk_groups(&self) -> Result<Vc<Self>> {
+        let items = self
+            .items
+            .iter()
+            .map(ChunkItemOrBatchWithAsyncModuleInfo::without_chunk_groups)
+            .try_join()
+            .await?;
+        Ok(Self::from_items(items))
+    }
+
     #[turbo_tasks::function]
     pub async fn from_module_batch_group(
         batch_group: Vc<ChunkableModuleBatchGroup>,
@@ -335,4 +381,92 @@ where
         })
         .try_join()
         .await
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use turbo_bitset::Bitset;
+    use turbo_tasks::Vc;
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+
+    use super::{
+        ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo, ChunkItemOrBatchWithAsyncModuleInfo,
+    };
+
+    /// Whether `without_chunk_groups` gives equal results for batches and batch groups that only
+    /// differ in their chunk groups, and different results for different items.
+    #[turbo_tasks::value(transparent)]
+    struct Identities(Vec<bool>);
+
+    #[turbo_tasks::function(operation, root)]
+    async fn without_chunk_groups_identities() -> Result<Vc<Identities>> {
+        // Batches without chunk items: creating chunk items needs a chunking context, and the
+        // identity only depends on the items, whatever they are.
+        let batch = |chunk_groups: Option<Bitset>| {
+            ChunkItemBatchWithAsyncModuleInfo {
+                chunk_items: Vec::new(),
+                chunk_groups,
+            }
+            .resolved_cell()
+        };
+        let in_groups_1 = batch(Some(Bitset::from_iter([1])));
+        let in_groups_2 = batch(Some(Bitset::from_iter([1, 2])));
+        let normalized_1 = in_groups_1.without_chunk_groups().to_resolved().await?;
+        let normalized_2 = in_groups_2.without_chunk_groups().to_resolved().await?;
+        let normalized_again = normalized_1.without_chunk_groups().to_resolved().await?;
+
+        let group = |items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>, chunk_groups: Bitset| {
+            ChunkItemBatchGroup {
+                items,
+                chunk_groups,
+            }
+            .resolved_cell()
+        };
+        let group_1 = group(
+            vec![ChunkItemOrBatchWithAsyncModuleInfo::Batch(in_groups_1)],
+            Bitset::from_iter([1]),
+        );
+        let group_2 = group(
+            vec![ChunkItemOrBatchWithAsyncModuleInfo::Batch(in_groups_2)],
+            Bitset::from_iter([1, 2]),
+        );
+        let group_other = group(
+            vec![
+                ChunkItemOrBatchWithAsyncModuleInfo::Batch(in_groups_1),
+                ChunkItemOrBatchWithAsyncModuleInfo::Batch(in_groups_2),
+            ],
+            Bitset::from_iter([1]),
+        );
+        let group_1 = group_1.without_chunk_groups().to_resolved().await?;
+        let group_2 = group_2.without_chunk_groups().to_resolved().await?;
+        let group_other = group_other.without_chunk_groups().to_resolved().await?;
+
+        Ok(Vc::cell(vec![
+            in_groups_1 != in_groups_2,
+            normalized_1 == normalized_2,
+            normalized_1 == normalized_again,
+            normalized_1.await?.chunk_groups.is_none(),
+            group_1 == group_2,
+            group_1.await?.chunk_groups.is_zero(),
+            group_1 != group_other,
+        ]))
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn without_chunk_groups_only_depends_on_the_items() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let identities = without_chunk_groups_identities()
+                .read_strongly_consistent()
+                .await?;
+            assert_eq!(*identities, vec![true; 7]);
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
 }
