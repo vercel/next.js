@@ -139,9 +139,11 @@ import {
   setReactDebugChannelForHtmlRequest,
 } from './debug-channel'
 import {
+  getPendingVersionInfo,
   getVersionInfo,
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
+import type { VersionInfo } from './parse-version-info'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { formatCompilationIssues } from '../mcp/tools/utils/format-compilation-issues'
 import {
@@ -414,7 +416,7 @@ export async function createHotReloaderTurbopack(
   serverFields: ServerFields,
   distDir: string,
   resetFetch: () => void,
-  lockfile: Lockfile | undefined,
+  lockfile: Lockfile,
   serverFastRefresh?: boolean
 ): Promise<NextJsHotReloaderInterface> {
   const dev = true
@@ -592,7 +594,7 @@ export async function createHotReloaderTurbopack(
     } else {
       await project.onExit()
     }
-    await lockfile?.unlock()
+    await lockfile.unlock()
   })
   // Subscription detects route additions/removals; returned endpoints stay lazy.
   const entrypointsSubscription = project.entrypointsSubscribe()
@@ -710,7 +712,8 @@ export async function createHotReloaderTurbopack(
     return (
       !!serverFastRefresh &&
       splitEntryKey(key).type === 'app' &&
-      writtenEndpoint.type !== 'edge'
+      writtenEndpoint.type !== 'edge' &&
+      writtenEndpoint.type !== 'native'
     )
   }
 
@@ -724,6 +727,7 @@ export async function createHotReloaderTurbopack(
       force?: boolean
     } = {}
   ): boolean {
+    if (writtenEndpoint.type === 'native') return false
     if (force) {
       for (const { path, contentHash } of writtenEndpoint.serverPaths) {
         // We ignore source maps
@@ -999,14 +1003,22 @@ export async function createHotReloaderTurbopack(
   }
   const sendEnqueuedMessagesDebounce = debounce(sendEnqueuedMessages, 2)
 
+  function markClientHmrChange() {
+    if (!clientHmrEventHappened) {
+      clientHmrVersion++
+      clientHmrEventHappened = true
+    }
+  }
+
   const sendHmr: SendHmr = (id: string, message: HmrMessageSentToBrowser) => {
     pendingBuilding.flush()
 
+    if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES) {
+      // Pages already observes client output before a browser subscribes.
+      markClientHmrChange()
+    }
     if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES) {
-      if (!clientHmrEventHappened) {
-        clientHmrVersion++
-        clientHmrEventHappened = true
-      }
+      markClientHmrChange()
       message.hmrVersion = String(clientHmrVersion)
     }
 
@@ -1036,12 +1048,56 @@ export async function createHotReloaderTurbopack(
       clientStates.get(client)?.turbopackUpdates.push(payload)
     }
 
-    if (!clientHmrEventHappened) {
-      clientHmrVersion++
-      clientHmrEventHappened = true
-    }
+    markClientHmrChange()
     hmrEventHappened = true
     sendEnqueuedMessagesDebounce()
+  }
+
+  async function subscribeToClientHmrChanges(
+    key: EntryKey,
+    endpoint: Endpoint
+  ) {
+    const existing = changeSubscriptions.get(key)
+    if (existing) {
+      // Its owner handles setup failures using the existing HMR error path.
+      await existing.catch(() => {})
+      return
+    }
+
+    const changedPromise = endpoint.clientChanged()
+    changeSubscriptions.set(key, changedPromise)
+    let changed: Awaited<typeof changedPromise>
+    try {
+      // Resolves after the native baseline is established, not when consumption
+      // ends. HTML must not be served while listening is still being set up.
+      changed = await changedPromise
+    } catch (error) {
+      changeSubscriptions.delete(key)
+      sendHmr(key, {
+        type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+        data: `error in ${key} client subscription: ${error}`,
+      })
+      return
+    }
+
+    void (async () => {
+      try {
+        for await (const _change of changed) {
+          // No browser message or server cache invalidation: connected clients
+          // still receive ordinary CSS/JS HMR through their chunk subscriptions.
+          markClientHmrChange()
+        }
+      } catch (error) {
+        sendHmr(key, {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+          data: `error in ${key} client subscription: ${error}`,
+        })
+      } finally {
+        if (changeSubscriptions.get(key) === changedPromise) {
+          changeSubscriptions.delete(key)
+        }
+      }
+    })()
   }
 
   async function subscribeToClientChanges(
@@ -1156,6 +1212,9 @@ export async function createHotReloaderTurbopack(
     state.clientIssues.delete(key)
   }
 
+  let nativeRoutePages: ReadonlySet<string> | undefined
+  const nativeRouteListeners = new Set<(pages: ReadonlySet<string>) => void>()
+
   async function handleEntrypointsSubscription() {
     for await (const entrypoints of entrypointsSubscription) {
       if (!currentEntriesHandlingResolve) {
@@ -1181,6 +1240,14 @@ export async function createHotReloaderTurbopack(
       }
 
       const routes = entrypoints.value.routes
+      // Only valid Rust entrypoint snapshots replace the active Go route set.
+      // Original names retain route groups and distinguish Go-to-JS replacement.
+      nativeRoutePages = new Set(
+        [...routes.values()].flatMap((route) =>
+          route.type === 'app-route-go' ? [route.originalName] : []
+        )
+      )
+      for (const listener of nativeRouteListeners) listener(nativeRoutePages)
       const prevRouteKeys = previousRouteKeys
       const addedRoutes = prevRouteKeys
         ? [...routes.keys()].filter((route) => !prevRouteKeys.has(route))
@@ -1359,7 +1426,7 @@ export async function createHotReloaderTurbopack(
                       page: name,
                       bundlePath: `app${name}`,
                       filename: '',
-                    } as any,
+                    },
                   }
                   break
                 }
@@ -1434,16 +1501,35 @@ export async function createHotReloaderTurbopack(
     })
   })
 
-  let versionInfoCached: ReturnType<typeof getVersionInfo> | undefined
-  // This fetch, even though not awaited, is not kicked off eagerly because the first `fetch()` in
+  let resolvedVersionInfo: VersionInfo | undefined
+  let versionInfoRequested = false
+  // This fetch is not kicked off eagerly because the first `fetch()` in
   // Node.js adds roughly 20ms main-thread blocking to load the SSL certificate cache
   // We don't want that blocking time to be in the hot path for the `ready in` logging.
-  // Instead, the fetch is kicked off lazily when the first `getVersionInfoCached()` is called.
-  const getVersionInfoCached = (): ReturnType<typeof getVersionInfo> => {
-    if (!versionInfoCached) {
-      versionInfoCached = getVersionInfo()
-    }
-    return versionInfoCached
+  // Instead, `startVersionInfoRequest()` kicks it off lazily when the first HMR
+  // client connects. The registry request is never awaited: until it resolves,
+  // clients get a placeholder in `sync`, and every connected client receives
+  // the resolved info in a `versionInfo` message. Otherwise a slow registry
+  // would delay `sync`, and with it the whole dev overlay.
+  const startVersionInfoRequest = () => {
+    if (versionInfoRequested) return
+    versionInfoRequested = true
+    getVersionInfo()
+      .then((versionInfo) => {
+        resolvedVersionInfo = versionInfo
+        for (const client of [
+          ...clientsWithoutHtmlRequestId,
+          ...clientsByHtmlRequestId.values(),
+        ]) {
+          sendToClient(client, {
+            type: HMR_MESSAGE_SENT_TO_BROWSER.VERSION_INFO,
+            versionInfo,
+          })
+        }
+      })
+      .catch((error) => {
+        console.error(error)
+      })
   }
 
   let devtoolsFrontendUrl: string | undefined
@@ -1465,6 +1551,13 @@ export async function createHotReloaderTurbopack(
 
   const hotReloader: NextJsHotReloaderInterface = {
     turbopackProject: project,
+    onNativeRoutesChanged(listener) {
+      nativeRouteListeners.add(listener)
+      if (nativeRoutePages) listener(nativeRoutePages)
+      return () => {
+        nativeRouteListeners.delete(listener)
+      }
+    },
     activeWebpackConfigs: undefined,
     serverStats: null,
     edgeServerStats: null,
@@ -1758,34 +1851,38 @@ export async function createHotReloaderTurbopack(
         }
         sendToClient(client, turbopackConnectedMessage)
 
-        const errors: CompilationError[] = []
-
-        for (const entryIssues of currentEntryIssues.values()) {
-          for (const issue of entryIssues.values()) {
-            if (issue.severity !== 'warning') {
-              errors.push({
-                message: formatIssue(issue),
-              })
-            } else {
-              printNonFatalIssue(issue)
-            }
-          }
-        }
+        startVersionInfoRequest()
 
         if (devIndicatorServerState.disabledUntil < Date.now()) {
           devIndicatorServerState.disabledUntil = 0
         }
 
         ;(async function () {
-          const versionInfo = await getVersionInfoCached()
           const devToolsConfig = await getDevToolsConfig(distDir)
+
+          // Collect the issues only after the await so that `sync` reflects the
+          // current build state. Stale errors here would replace newer ones on
+          // the client.
+          const errors: CompilationError[] = []
+
+          for (const entryIssues of currentEntryIssues.values()) {
+            for (const issue of entryIssues.values()) {
+              if (issue.severity !== 'warning') {
+                errors.push({
+                  message: formatIssue(issue),
+                })
+              } else {
+                printNonFatalIssue(issue)
+              }
+            }
+          }
 
           const syncMessage: SyncMessage = {
             type: HMR_MESSAGE_SENT_TO_BROWSER.SYNC,
             errors,
             warnings: [],
             hash: '',
-            versionInfo,
+            versionInfo: resolvedVersionInfo ?? getPendingVersionInfo(),
             hasVulnerabilityInsight,
             debug: {
               devtoolsFrontendUrl,
@@ -1824,6 +1921,10 @@ export async function createHotReloaderTurbopack(
       ]) {
         client.send(payload)
       }
+    },
+
+    getClientHmrVersion() {
+      return String(clientHmrVersion)
     },
 
     getServerComponentsHmrRefreshHash() {
@@ -2158,6 +2259,9 @@ export async function createHotReloaderTurbopack(
                 subscribeToChanges: subscribeToChanges
                   ? subscribeToClientChanges
                   : ((async () => {}) as StartChangeSubscription),
+                subscribeToClientHmrChanges: subscribeToChanges
+                  ? subscribeToClientHmrChanges
+                  : undefined,
                 handleServerComponentChanges,
                 handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                   currentWrittenEntrypoints.set(id, result.value)
@@ -2335,11 +2439,18 @@ export async function createHotReloaderTurbopack(
 
   if (lazyDynamicImportsSSR) {
     const previousEnsureChunk = globalThis.__turbopack_ensure_chunk__
-    const ensureChunk = async (chunkPath: string) => {
+    // Synchronous when there is nothing to compile, so the runtime can load
+    // the chunk without creating a new promise for it.
+    const ensureChunk = (chunkPath: string): void | Promise<void> => {
       if (!chunkPath.includes('lazy-compilation-')) return
 
       const keys = serverAssetMapper.getKeysByAsset(chunkPath)
-      if (keys.length === 0 || !(await project.activateLazyChunk(chunkPath))) {
+      if (keys.length === 0) return
+
+      return activateLazyChunk(chunkPath, keys)
+    }
+    const activateLazyChunk = async (chunkPath: string, keys: EntryKey[]) => {
+      if (!(await project.activateLazyChunk(chunkPath))) {
         return
       }
 
@@ -2423,7 +2534,7 @@ export async function createHotReloaderTurbopack(
         // Clear the evalManifest() shared cache for each updated chunk so the
         // next RSC render picks up the HMR-applied module changes. Unlike
         // a full restart, this does NOT clear require.cache — the HMR-applied
-        // modules in devModuleCache must persist for dep preservation.
+        // modules in the module cache must persist for dep preservation.
         const manifestPaths = chunkPaths.map((chunkPath) =>
           join(distDir, chunkPath)
         )

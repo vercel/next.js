@@ -21,6 +21,11 @@ type InnerMap<K, V, const I: usize> = AutoMap<K, V, BuildHasherDefault<FxHasher>
 ///
 /// The `I` const generic forwards the inline capacity to the backing `AutoMap`
 /// — see the schema field-by-field sizing for the chosen values.
+///
+/// Removing entries calls [`AutoMap::shrink_amortized`]: aggregation edges (`upper`,
+/// `followers`, the aggregated counters) are moved around constantly while the aggregation
+/// graph rebalances, and neither hash tables nor spilled lists shrink on their own, so they would
+/// otherwise keep their peak capacity.
 #[derive(Debug, Clone)]
 pub struct CounterMap<K, V, const I: usize>(InnerMap<K, V, I>);
 
@@ -119,7 +124,11 @@ impl<K, V, const I: usize> CounterMap<K, V, I> {
     where
         K: Eq + Hash,
     {
-        self.0.remove(key)
+        let removed = self.0.remove(key);
+        if removed.is_some() {
+            self.0.shrink_amortized();
+        }
+        removed
     }
 
     /// Retain only entries for which `f(key, value)` returns `true`.
@@ -129,6 +138,7 @@ impl<K, V, const I: usize> CounterMap<K, V, I> {
         K: Eq + Hash,
     {
         self.0.retain(|k, v| f(k, v));
+        self.0.shrink_amortized();
     }
 
     /// Extend this map with the entries from an iterator. Used by restore paths
@@ -179,6 +189,7 @@ impl<K: Hash + Eq, V: CounterValue, const I: usize> CounterMap<K, V, I> {
                 let new = old + delta;
                 if new.is_zero() {
                     e.remove();
+                    self.0.shrink_amortized();
                     true // crossed from non-zero to zero
                 } else {
                     *e.get_mut() = new;
@@ -209,6 +220,7 @@ impl<K: Hash + Eq, V: CounterValue, const I: usize> CounterMap<K, V, I> {
                 let new_value = old + delta;
                 if new_value.is_zero() {
                     e.remove();
+                    self.0.shrink_amortized();
                 } else {
                     *e.get_mut() = new_value;
                 }
@@ -250,6 +262,7 @@ impl<K: Hash + Eq, V: CounterValue, const I: usize> CounterMap<K, V, I> {
                     }
                     None => {
                         e.remove();
+                        self.0.shrink_amortized();
                     }
                 }
             }
@@ -285,6 +298,7 @@ impl<K: Hash + Eq, V: CounterValue, const I: usize> CounterMap<K, V, I> {
                 let state_change = old.is_positive() != new.is_positive();
                 if new.is_zero() {
                     e.remove();
+                    self.0.shrink_amortized();
                 } else {
                     *e.get_mut() = new;
                 }

@@ -15,7 +15,11 @@ import {
   normalizeAppPath,
   selectAppPageEntry,
 } from '../../shared/lib/router/utils/app-paths'
-import { AdapterOutputType, type PHASE_TYPE } from '../../shared/lib/constants'
+import {
+  APP_PATHS_MANIFEST,
+  AdapterOutputType,
+  type PHASE_TYPE,
+} from '../../shared/lib/constants'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import {
@@ -43,6 +47,8 @@ import {
   CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
+  NEXT_CACHE_IMPLICIT_TAG_ID,
+  NEXT_CACHE_TAGS_HEADER,
   NEXT_QUERY_PARAM_PREFIX,
   NEXT_RESUME_HEADER,
 } from '../../lib/constants'
@@ -92,7 +98,7 @@ interface SharedRouteFields {
   /**
    * runtime is which runtime the entrypoint is built for
    */
-  runtime: 'nodejs' | 'edge'
+  runtime: 'nodejs' | 'edge' | 'go'
 
   /**
    * assets are all necessary traced assets that could be
@@ -262,7 +268,7 @@ export interface AdapterOutput {
 
   /**
    * `APP_ROUTE` represents all the API routes and metadata routes that are under `app/` with the
-   * filename of `route.{j,t}s{,x}`.
+   * filename of `route.{j,t}s{,x}` or experimental `route.go`.
    */
   APP_ROUTE: SharedRouteFields & {
     type: AdapterOutputType.APP_ROUTE
@@ -436,6 +442,18 @@ export interface AdapterOutputs {
   appRoutes: Array<AdapterOutput['APP_ROUTE']>
   prerenders: Array<AdapterOutput['PRERENDER']>
   staticFiles: Array<AdapterOutput['STATIC_FILE']>
+}
+
+// Time-based or explicit tag-based revalidation requires a runtime route,
+// even when the initial response can be served without compute.
+function hasRevalidation(prerender: PrerenderManifestRoute): boolean {
+  if (prerender.initialRevalidateSeconds !== false) {
+    return true
+  }
+
+  const tags =
+    prerender.initialHeaders?.[NEXT_CACHE_TAGS_HEADER]?.split(',') ?? []
+  return tags.some((tag) => tag && !tag.startsWith(NEXT_CACHE_IMPLICIT_TAG_ID))
 }
 
 function getPrerenderClassification(
@@ -808,8 +826,9 @@ export async function handleBuildComplete({
           edgeEntrypointRelativePath
         )
 
-        const output: Omit<AdapterOutput[typeof type], 'type'> & {
+        const output: Omit<AdapterOutput[typeof type], 'type' | 'runtime'> & {
           type: any
+          runtime: 'edge'
         } = {
           type,
           id: page.name,
@@ -1141,6 +1160,26 @@ export async function handleBuildComplete({
         AdapterOutput['APP_PAGE'] | AdapterOutput['APP_ROUTE']
       > = {}
       const appDistDir = path.join(distDir, 'server', 'app')
+      const serverDistDir = path.join(distDir, 'server')
+      const appPathsManifest: Record<string, string> =
+        config.experimental.goRoutes && appPageKeys?.length
+          ? JSON.parse(
+              await fs.readFile(
+                path.join(serverDistDir, APP_PATHS_MANIFEST),
+                'utf8'
+              )
+            )
+          : {}
+
+      // Decide which metadata prerenders can become static files once, so
+      // omitting their runtime routes agrees with emitting their responses.
+      const staticMetadataPrerenders = new Set(
+        Object.keys(prerenderManifest.routes).filter(
+          (pathname) =>
+            isStaticMetadataFile(pathname) &&
+            !hasRevalidation(prerenderManifest.routes[pathname])
+        )
+      )
 
       if (appPageKeys) {
         for (const page of orderAppPageKeysByEntry(appPageKeys)) {
@@ -1149,24 +1188,118 @@ export async function handleBuildComplete({
           }
           const normalizedPage = normalizeAppPath(page)
 
-          // Skip static metadata routes only when they are prerendered.
-          // Dynamic metadata routes (e.g. robots/sitemap using connection())
-          // should remain app routes in adapter outputs.
-          const isStaticMetadataRoute = isStaticMetadataFile(normalizedPage)
+          // Metadata that remains a prerender needs its backing runtime route.
           const staticMetadataPrerenderPathname =
             getStaticMetadataPrerenderPathname(normalizedPage) ?? normalizedPage
-          const isPrerenderedMetadataRoute =
-            prerenderManifest.routes[staticMetadataPrerenderPathname] ||
+          const isEmittedAsStaticFile =
+            staticMetadataPrerenders.has(staticMetadataPrerenderPathname) ||
             config.i18n?.locales?.some((locale) => {
               const localePathname = path.posix.join(
                 '/',
                 locale,
                 staticMetadataPrerenderPathname.slice(1)
               )
-              return prerenderManifest.routes[localePathname]
+              return staticMetadataPrerenders.has(localePathname)
             })
 
-          if (isStaticMetadataRoute && isPrerenderedMetadataRoute) {
+          if (isEmittedAsStaticFile) {
+            continue
+          }
+          const nativeEntry = appPathsManifest[page]
+          if (nativeEntry?.endsWith('.native.json')) {
+            if (!page.endsWith('/route') || appOutputMap[normalizedPage]) {
+              throw new InvariantError(
+                `Unexpected native App Router entry for ${page}`
+              )
+            }
+            const descriptorPath = path.resolve(serverDistDir, nativeEntry)
+            const descriptorRelativePath = path.relative(
+              serverDistDir,
+              descriptorPath
+            )
+            if (
+              path.isAbsolute(descriptorRelativePath) ||
+              descriptorRelativePath === '..' ||
+              descriptorRelativePath.startsWith(`..${path.sep}`)
+            ) {
+              throw new InvariantError(
+                'Native route descriptor is outside server output'
+              )
+            }
+            const descriptor = JSON.parse(
+              await fs.readFile(descriptorPath, 'utf8')
+            ) as { executable: string }
+            if (
+              typeof descriptor?.executable !== 'string' ||
+              path.isAbsolute(descriptor.executable)
+            ) {
+              throw new InvariantError(
+                `Invalid native route descriptor for ${page}`
+              )
+            }
+            const executablePath = path.resolve(
+              serverDistDir,
+              descriptor.executable
+            )
+            const executableRelativePath = path.relative(
+              serverDistDir,
+              executablePath
+            )
+            if (
+              !executableRelativePath ||
+              path.isAbsolute(executableRelativePath) ||
+              executableRelativePath === '..' ||
+              executableRelativePath.startsWith(`..${path.sep}`)
+            ) {
+              throw new InvariantError(
+                'Native route executable is outside server output'
+              )
+            }
+            const tracedAssets: Record<string, string> = {}
+            const tracedHashes: Record<string, string> = {}
+            const salt = config.outputHashSalt || ''
+            await loadNFT(
+              tracedAssets,
+              tracedHashes,
+              repoRoot,
+              `${descriptorPath}.nft.json`,
+              syntheticSymlinks,
+              salt
+            )
+            const assets: Record<string, string> = {}
+            const assetsHashes: Record<string, string> = {}
+            for (const [destination, source] of Object.entries(tracedAssets)) {
+              // The binary is the entrypoint, not an additional dependency.
+              // Adapters package filePath separately from assets.
+              if (source === executablePath) continue
+              const outputPath = normalizePathSep(destination)
+              assets[outputPath] = source
+              assetsHashes[outputPath] =
+                tracedHashes[destination] ?? (await hashFile(salt, source))
+            }
+            // Like a Node trace's entryHash, expose the entrypoint content hash
+            // without copying that same executable into assets a second time.
+            assetsHashes[
+              normalizePathSep(path.relative(repoRoot, executablePath))
+            ] = await hashFile(salt, executablePath)
+            const functionConfig =
+              functionsConfigManifest.functions[normalizedPage] || {}
+            const output: AdapterOutput['APP_ROUTE'] = {
+              type: AdapterOutputType.APP_ROUTE,
+              runtime: 'go',
+              pathname: normalizedPage,
+              id: normalizedPage,
+              sourcePage: page,
+              filePath: executablePath,
+              assets,
+              assetsHashes,
+              config: {
+                maxDuration: functionConfig.maxDuration,
+                preferredRegion: functionConfig.regions,
+              },
+            }
+            appOutputMap[normalizedPage] = output
+            outputs.appRoutes.push(output)
             continue
           }
           const pageFile = path.join(appDistDir, `${page}.js`)
@@ -1522,9 +1655,7 @@ export async function handleBuildComplete({
           isAppPage && !dataRoute ? '.body' : '.html'
         )
 
-        // Check if this is a static metadata route (e.g., /favicon.ico, /icon.png, /opengraph-image.png)
-        // These should be output as static files, not prerenders.
-        if (isStaticMetadataFile(route)) {
+        if (staticMetadataPrerenders.has(route)) {
           // For static metadata from app router, check if the .body file exists
           const staticMetadataFilePath = getPrerenderFilePath(
             route,

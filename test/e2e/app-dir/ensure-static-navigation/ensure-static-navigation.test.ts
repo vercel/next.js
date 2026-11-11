@@ -544,7 +544,7 @@ describe('ensureStatic = "navigation"', () => {
 
          > Build error occurred
          Error: Failed to collect page data for /default/fallback-params/[slug]
-             at ignore-listed frames {
+             at <next-internal> {
            type: 'Error'
          }"
         `)
@@ -585,7 +585,7 @@ describe('ensureStatic = "navigation"', () => {
 
          > Build error occurred
          Error: Failed to collect page data for /default/fallback-params-passed-to-client/[slug]
-             at ignore-listed frames {
+             at <next-internal> {
            type: 'Error'
          }"
         `)
@@ -623,7 +623,7 @@ describe('ensureStatic = "navigation"', () => {
 
          > Build error occurred
          Error: Failed to collect page data for /default/fallback-params-client-segment/[slug]
-             at ignore-listed frames {
+             at <next-internal> {
            type: 'Error'
          }"
         `)
@@ -820,7 +820,7 @@ describe('ensureStatic = "navigation"', () => {
 
          > Build error occurred
          Error: Failed to collect page data for /default/static-params-empty/[slug]
-             at ignore-listed frames {
+             at <next-internal> {
            type: 'Error'
          }"
         `)
@@ -856,7 +856,7 @@ describe('ensureStatic = "navigation"', () => {
 
          > Build error occurred
          Error: Failed to collect page data for /default/static-params-incomplete/[slug]/[snail]
-             at ignore-listed frames {
+             at <next-internal> {
            type: 'Error'
          }"
         `)
@@ -893,7 +893,7 @@ describe('ensureStatic = "navigation"', () => {
 
          > Build error occurred
          Error: Failed to collect page data for /default/static-params-incomplete-unused/[slug]/[snail]
-             at ignore-listed frames {
+             at <next-internal> {
            type: 'Error'
          }"
         `)

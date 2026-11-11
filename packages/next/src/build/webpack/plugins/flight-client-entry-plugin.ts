@@ -799,8 +799,7 @@ export class FlightClientEntryPlugin {
       }
 
       if (isCSSMod(mod)) {
-        const sideEffectFree =
-          mod.factoryMeta && (mod.factoryMeta as any).sideEffectFree
+        const sideEffectFree = mod.factoryMeta && mod.factoryMeta.sideEffectFree
 
         if (sideEffectFree) {
           const unused = !compilation.moduleGraph

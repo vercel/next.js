@@ -45,7 +45,15 @@
 
 import type { DynamicParamTypesShort } from '../../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../../shared/lib/app-router-types'
-import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
+import {
+  DEFAULT_SEGMENT_KEY,
+  PAGE_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
+import {
+  type SegmentRequestKey,
+  appendSegmentRequestKeyPart,
+  createSegmentRequestKeyPart,
+} from '../../../shared/lib/segment-cache/segment-value-encoding'
 import type {
   RouteTree,
   RootRouteTree,
@@ -167,16 +175,6 @@ type KnownRoutePartWithDynamicChild = KnownRoutePartBase & {
 export type KnownRoutePart =
   | KnownRoutePartWithoutDynamicChild
   | KnownRoutePartWithDynamicChild
-
-/**
- * Param values extracted during URL matching. Used to reify the template.
- * Values are always strings: catch-all [...param] and optional catch-all
- * [[...param]] values are joined with '/' at the time they're resolved, which
- * matches how the rest of the system models catch-all cache keys (an empty
- * optional catch-all is the empty string). Keeping a single value type keeps
- * reads of this map monomorphic.
- */
-type ResolvedParams = Map<string, string>
 
 /**
  * Read the pattern from a KnownRoutePart, evicting it if expired.
@@ -741,14 +739,7 @@ export function matchKnownRoute(
   search: NormalizedSearch
 ): FulfilledRouteCacheEntry | null {
   const pathnameParts = splitPathnameIntoParts(pathname)
-  const resolvedParams: ResolvedParams = new Map()
-  const match = matchKnownRoutePart(
-    now,
-    knownRouteTreeRoot,
-    pathnameParts,
-    0,
-    resolvedParams
-  )
+  const match = matchKnownRoutePart(now, knownRouteTreeRoot, pathnameParts, 0)
 
   if (match === null) {
     return null
@@ -784,17 +775,22 @@ export function matchKnownRoute(
   }
 
   // "Reify" the pattern: clone the template tree with concrete param values.
-  // This substitutes resolved params (e.g., slug: "hello") into dynamic
-  // segments and recomputes vary paths for correct segment cache keying.
+  // This substitutes params parsed from the URL (e.g., slug: "hello") into
+  // dynamic segments and recomputes vary paths for correct segment cache
+  // keying.
   const renderedSearch = normalizeRenderedSearch(search)
   const acc: ReifyAccumulator = { metadataVaryPath: null }
   const reifiedTree = reifyRouteTree(
     pattern.root.tree,
-    resolvedParams,
+    pathnameParts,
+    0,
     renderedSearch,
     null, // Start with null partial vary path at the root
     acc
   )
+  if (reifiedTree === null) {
+    return null
+  }
 
   // The metadata tree is a flat page node without the intermediate layout
   // structure. Clone it with the updated metadata vary path collected during
@@ -852,15 +848,15 @@ type KnownRouteMatch = {
  * 2. Dynamic child - [param], [...param], [[...param]]
  * 3. Direct pattern - when no more URL parts remain
  *
- * Collects resolved param values in resolvedParams as it traverses.
+ * Only selects the pattern. Param values are read from the URL when the
+ * pattern is reified (see reifyRouteTree).
  * Returns null if no match found (caller should fall back to server).
  */
 function matchKnownRoutePart(
   now: number,
   part: KnownRoutePart,
   pathnameParts: string[],
-  partIndex: number,
-  resolvedParams: ResolvedParams
+  partIndex: number
 ): KnownRouteMatch {
   const urlPart =
     partIndex < pathnameParts.length ? pathnameParts[partIndex] : null
@@ -903,8 +899,7 @@ function matchKnownRoutePart(
         now,
         staticChild,
         pathnameParts,
-        partIndex + 1,
-        resolvedParams
+        partIndex + 1
       )
       if (match !== null) {
         return match
@@ -923,7 +918,6 @@ function matchKnownRoutePart(
   // was learned under a conflicting model.
   if (part.dynamicChild !== null && !part.hasConflictingDynamicChildren) {
     const dynamicPart = part.dynamicChild
-    const paramName = part.dynamicChildParamName
     const paramType = part.dynamicChildParamType
     // Catch-alls terminate at the dynamic child, so a dynamic rewrite marked
     // there rules out predicting any URL that would end in it.
@@ -935,10 +929,6 @@ function matchKnownRoutePart(
       case 'c':
         // Required catch-all [...param]: consumes 1+ URL parts
         if (dynamicPattern !== null && urlPart !== null) {
-          resolvedParams.set(
-            paramName,
-            pathnameParts.slice(partIndex).map(canonicalizeURLPart).join('/')
-          )
           return { part: dynamicPart, pattern: dynamicPattern }
         }
         break
@@ -946,10 +936,6 @@ function matchKnownRoutePart(
         // Optional catch-all [[...param]]: consumes 0+ URL parts
         if (dynamicPattern !== null) {
           if (urlPart !== null) {
-            resolvedParams.set(
-              paramName,
-              pathnameParts.slice(partIndex).map(canonicalizeURLPart).join('/')
-            )
             return { part: dynamicPart, pattern: dynamicPattern }
           }
           // urlPart is null - can match with zero parts, but a direct pattern
@@ -958,7 +944,6 @@ function matchKnownRoutePart(
             ? null
             : readPattern(now, part)
           if (directPattern === null) {
-            resolvedParams.set(paramName, '')
             return { part: dynamicPart, pattern: dynamicPattern }
           }
         }
@@ -969,13 +954,11 @@ function matchKnownRoutePart(
         // Unlike catch-all which terminates here, regular dynamic must
         // continue recursing to find the leaf pattern.
         if (urlPart !== null) {
-          resolvedParams.set(paramName, canonicalizeURLPart(urlPart))
           return matchKnownRoutePart(
             now,
             dynamicPart,
             pathnameParts,
-            partIndex + 1,
-            resolvedParams
+            partIndex + 1
           )
         }
         break
@@ -1021,20 +1004,32 @@ type ReifyAccumulator = {
  * "Reify" means to make concrete - we take an abstract pattern (the template
  * route tree) and produce a concrete instance with actual param values.
  *
- * This function clones a RouteTree, substituting dynamic segment values from
- * resolvedParams and computing new vary paths. The vary path encodes param
- * values so segment cache entries can be correctly keyed.
+ * This function clones a RouteTree, substituting dynamic segment values parsed
+ * from the target URL and computing new vary paths. The vary path encodes
+ * param values so segment cache entries can be correctly keyed.
  *
- * Example: Pattern for /blog/[slug] with resolvedParams { slug: "hello" }
- * produces a tree where segment [slug] has cacheKey "hello".
+ * Each parallel route branch maps the same URL onto its own segments, so each
+ * branch reads its params from the URL parts independently, using the same
+ * rules as discoverKnownRoutePart. For example, given the URL /en/f/shoes:
+ *
+ *   children:     [locale]=en / f / [slug]=shoes
+ *   @nav:         [locale]=en / [...catchAll]=f/shoes
+ *
+ * Inactive parallel routes become default segments, which is what the server
+ * sends for them. On navigation, the client reuses whatever is active in those
+ * slots at that time (see reuseActiveSegmentInDefaultSlot).
+ *
+ * Returns null if a branch doesn't fit the URL, in which case the route must
+ * be resolved by the server.
  */
 function reifyRouteTree(
   pattern: RouteTree<null>,
-  resolvedParams: ResolvedParams,
+  pathnameParts: readonly string[],
+  partIndex: number,
   search: NormalizedSearch,
   parentPartialVaryPath: PartialVaryPath | null,
   acc: ReifyAccumulator
-): RouteTree<null> {
+): RouteTree<null> | null {
   const originalSegment = pattern.segment
 
   // This segment's param (if any) is a root param iff the segment is at or
@@ -1042,34 +1037,76 @@ function reifyRouteTree(
   const isRootParam =
     (pattern.prefetchHints & PrefetchHint.IsRootLayoutOrAbove) !== 0
 
+  const urlPart =
+    partIndex < pathnameParts.length ? pathnameParts[partIndex] : null
+
   let newSegment = originalSegment
   let partialVaryPath: PartialVaryPath | null
+  let nextPartIndex = partIndex
 
-  if (typeof originalSegment !== 'string') {
+  if (typeof originalSegment === 'string') {
+    if (doesStaticSegmentAppearInURL(originalSegment)) {
+      if (urlPart !== originalSegment) {
+        return null
+      }
+      nextPartIndex = partIndex + 1
+    }
+    // Static segment: inherit partial vary path from parent
+    partialVaryPath = parentPartialVaryPath
+  } else {
     // Dynamic segment: compute new cache key and append to partial vary path
     const paramName = originalSegment[0]
     const paramType = originalSegment[2]
     const staticSiblings = originalSegment[3]
-    const newValue = resolvedParams.get(paramName)
-    if (newValue !== undefined) {
-      // Catch-all values are already joined into a single string when they're
-      // resolved in matchKnownRoutePart, so the value can be used directly.
-      const newCacheKey = newValue
-      newSegment = [paramName, newCacheKey, paramType, staticSiblings]
-      partialVaryPath = appendLayoutVaryPath(
-        parentPartialVaryPath,
-        newCacheKey,
-        paramName,
-        isRootParam
-      )
-    } else {
-      // Param not found in resolvedParams - keep original and inherit partial
-      // TODO: This should never happen. Bail out with null.
-      partialVaryPath = parentPartialVaryPath
+    let newCacheKey: string
+    switch (paramType) {
+      case 'd':
+        if (urlPart === null) {
+          return null
+        }
+        newCacheKey = canonicalizeURLPart(urlPart)
+        nextPartIndex = partIndex + 1
+        break
+      case 'c':
+        if (urlPart === null) {
+          return null
+        }
+        newCacheKey = pathnameParts
+          .slice(partIndex)
+          .map(canonicalizeURLPart)
+          .join('/')
+        nextPartIndex = pathnameParts.length
+        break
+      case 'oc':
+        // An empty optional catch-all is the empty string.
+        newCacheKey = pathnameParts
+          .slice(partIndex)
+          .map(canonicalizeURLPart)
+          .join('/')
+        nextPartIndex = pathnameParts.length
+        break
+      case 'ci(..)(..)':
+      case 'ci(.)':
+      case 'ci(..)':
+      case 'ci(...)':
+      case 'di(..)(..)':
+      case 'di(.)':
+      case 'di(..)':
+      case 'di(...)':
+        // Patterns that could be intercepted are never predicted (see
+        // matchKnownRoute).
+        return null
+      default:
+        paramType satisfies never
+        return null
     }
-  } else {
-    // Static segment: inherit partial vary path from parent
-    partialVaryPath = parentPartialVaryPath
+    newSegment = [paramName, newCacheKey, paramType, staticSiblings]
+    partialVaryPath = appendLayoutVaryPath(
+      parentPartialVaryPath,
+      newCacheKey,
+      paramName,
+      isRootParam
+    )
   }
 
   // Recurse into children with the (possibly updated) partial vary path
@@ -1078,17 +1115,34 @@ function reifyRouteTree(
   if (patternSlots !== null) {
     newSlots = new Map()
     for (const [key, childPattern] of patternSlots) {
-      newSlots.set(
-        key,
-        reifyRouteTree(
-          childPattern,
-          resolvedParams,
-          search,
-          partialVaryPath,
-          acc
+      // An inactive parallel route was reused from whatever route was active
+      // when the pattern was learned.
+      if (childPattern.refreshState !== null) {
+        newSlots.set(
+          key,
+          createDefaultRouteTree(pattern.requestKey, key, partialVaryPath)
         )
+        continue
+      }
+      const childTree = reifyRouteTree(
+        childPattern,
+        pathnameParts,
+        nextPartIndex,
+        search,
+        partialVaryPath,
+        acc
       )
+      if (childTree === null) {
+        return null
+      }
+      newSlots.set(key, childTree)
     }
+  } else if (
+    originalSegment === PAGE_SEGMENT_KEY &&
+    nextPartIndex < pathnameParts.length
+  ) {
+    // A page must consume the whole URL.
+    return null
   }
 
   let newVaryPath: VaryPath
@@ -1118,6 +1172,32 @@ function reifyRouteTree(
     varyPath: newVaryPath,
     slots: newSlots,
     prefetchHints: pattern.prefetchHints,
+  }
+}
+
+function createDefaultRouteTree(
+  parentRequestKey: SegmentRequestKey,
+  parallelRouteKey: string,
+  parentPartialVaryPath: PartialVaryPath | null
+): RouteTree<null> {
+  const requestKey = appendSegmentRequestKeyPart(
+    parentRequestKey,
+    parallelRouteKey,
+    createSegmentRequestKeyPart(DEFAULT_SEGMENT_KEY)
+  )
+  const varyPath = finalizeVaryPath(requestKey, null, parentPartialVaryPath)
+  return {
+    requestKey,
+    segment: DEFAULT_SEGMENT_KEY,
+    shellVaryPath: getShellSegmentVaryPath(varyPath),
+    refreshState: null,
+    data: null,
+    varyPath,
+    slots: null,
+    // The server derives a default segment's hints from its config and build
+    // output, which the client doesn't have. Navigations replace default
+    // segments with the active segment, so these shouldn't be read.
+    prefetchHints: 0,
   }
 }
 

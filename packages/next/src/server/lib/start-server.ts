@@ -33,6 +33,7 @@ import {
   getEnvInfo,
   logExperimentalInfo,
   logStartInfo,
+  syncAgentUpgradeForDev,
   syncAgentFeedbackForDev,
   syncAgentRulesForDev,
 } from './app-info-log'
@@ -528,6 +529,17 @@ export async function startServer(
               `Removed agent rules from ${files} because \`agentRules\` is disabled.`
           )
 
+          logAgentFileSync(
+            await syncAgentUpgradeForDev(
+              dir,
+              initResult.agentUpgrade !== false
+            ),
+            (files) =>
+              `Generated upgrade instructions in ${files}. Set \`experimental.agentUpgrade: false\` in next.config to disable.`,
+            (files) =>
+              `Removed upgrade instructions from ${files} because \`experimental.agentUpgrade\` is disabled.`
+          )
+
           if (!isCI) {
             const { traceGlobals } =
               require('../../trace/shared') as typeof import('../../trace/shared')
@@ -640,6 +652,17 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
     if (
       msg &&
       typeof msg === 'object' &&
+      typeof msg.nextTerminalColumns === 'number'
+    ) {
+      // The CLI's terminal was resized. Code frames read this width.
+      process.env.NEXT_PRIVATE_TERMINAL_COLUMNS = String(
+        msg.nextTerminalColumns
+      )
+      return
+    }
+    if (
+      msg &&
+      typeof msg === 'object' &&
       msg.nextWorkerOptions &&
       process.send
     ) {
@@ -662,7 +685,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
       }
 
       startServerSpan = trace('start-dev-server', undefined, {
-        cpus: String(os.cpus().length),
+        cpus: String(os.availableParallelism()),
         platform: os.platform(),
         'memory.freeMem': String(os.freemem()),
         'memory.totalMem': String(os.totalmem()),

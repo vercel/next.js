@@ -29,6 +29,7 @@ use rustc_hash::{FxHashSet, FxHasher};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tracing::span::EnteredSpan;
+use turbo_bitset::Bitset;
 
 pub use crate::compaction::selector::CompactConfig;
 #[cfg(feature = "mmap")]
@@ -38,6 +39,7 @@ use crate::{
     arc_bytes::ArcBytes,
     compaction::selector::{Compactable, MergeJob, plan_compaction},
     compression::{Compression, checksum_block, decompress_into_arc},
+    concurrent_slice::ConcurrentSlice,
     constants::{
         DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
         MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
@@ -297,6 +299,107 @@ impl Drop for WriteOperationGuard<'_> {
         match delete_orphan_files(self.path, self.seq_before) {
             Ok(()) => *self.active.lock() = None,
             Err(_) => *self.active.lock() = Some(ActiveWriteState::Error),
+        }
+    }
+}
+
+/// [`TurboPersistence::batch_get`] looks up batches with more keys than this in parallel.
+///
+/// This is an initial value that has not been tuned yet. A batched lookup costs a few microseconds
+/// per key, mostly spent on decompression or page faults, so small batches don't benefit from the
+/// scheduling overhead.
+const PARALLEL_BATCH_GET_THRESHOLD: usize = 2048;
+
+/// When [`TurboPersistence::batch_get`] runs in parallel, it aims for this many chunks per task
+/// that the scheduler can run at the same time, like `turbo_tasks::util::good_chunk_size`.
+const BATCH_GET_CHUNKS_PER_TASK: usize = 4;
+
+/// The number of `usize` blocks that the `SmallVec` storage of [`BatchGetResolved`] holds inline:
+/// enough for the positions of 256 keys on every target.
+const BATCH_GET_RESOLVED_INLINE_BLOCKS: usize = 256 / usize::BITS as usize;
+const _: () = assert!(BATCH_GET_RESOLVED_INLINE_BLOCKS * usize::BITS as usize == 256);
+
+/// The positions of the keys of a [`BatchGetChunk`] that were found already. Chunks of up to 256
+/// keys store it inline in a `SmallVec`, without a heap allocation.
+pub(crate) type BatchGetResolved = Bitset<SmallVec<[usize; BATCH_GET_RESOLVED_INLINE_BLOCKS]>>;
+
+/// A chunk of keys looked up by [`TurboPersistence::batch_get`]. All keys belong to the same shard.
+struct BatchGetChunk<'l> {
+    shard: u32,
+    /// `(key hash, key index)` of the keys of this chunk, sorted by key hash.
+    cells: &'l [(u64, u32)],
+    counts: BatchGetCounts,
+}
+
+/// Splits `cells`, which are sorted by key hash, into chunks of contiguous cells that don't cross a
+/// shard boundary, aiming for `target_chunk_count` chunks in total. Every shard is split into
+/// chunks of nearly equal length, none of which is longer than
+/// `cells.len().div_ceil(target_chunk_count)`. So there are at most `target_chunk_count` chunks
+/// plus one per shard. The counts of the chunks are zero.
+fn split_into_batch_chunks(
+    cells: &[(u64, u32)],
+    shard_bits: ShardBits,
+    target_chunk_count: usize,
+) -> Vec<BatchGetChunk<'_>> {
+    let max_chunk_len = cells.len().div_ceil(target_chunk_count.max(1)).max(1);
+    // There can't be more chunks than cells, even if the target asks for more.
+    let mut chunks = Vec::with_capacity(target_chunk_count.min(cells.len()));
+    let mut rest = cells;
+    while let Some(&(first_hash, _)) = rest.first() {
+        let shard = shard_bits.shard_of(first_hash);
+        let shard_len = rest.partition_point(|(hash, _)| shard_bits.shard_of(*hash) == shard);
+        let chunk_count = shard_len.div_ceil(max_chunk_len);
+        let (base_len, longer_chunks) = (shard_len / chunk_count, shard_len % chunk_count);
+        for chunk in 0..chunk_count {
+            let len = base_len + usize::from(chunk < longer_chunks);
+            let (chunk_cells, tail) = rest.split_at(len);
+            chunks.push(BatchGetChunk {
+                shard,
+                cells: chunk_cells,
+                counts: BatchGetCounts::default(),
+            });
+            rest = tail;
+        }
+    }
+    chunks
+}
+
+/// Counts of a [`TurboPersistence::batch_get`] chunk, summed over all chunks after the lookups.
+#[derive(Clone, Copy, Default)]
+struct BatchGetCounts {
+    not_found: usize,
+    deleted: usize,
+    result_size: usize,
+    #[cfg(feature = "stats")]
+    hits_small: usize,
+    #[cfg(feature = "stats")]
+    hits_blob: usize,
+    #[cfg(feature = "stats")]
+    range_misses: usize,
+    #[cfg(feature = "stats")]
+    quick_filter_misses: usize,
+    #[cfg(feature = "stats")]
+    sst_misses: usize,
+}
+
+impl std::ops::Add for BatchGetCounts {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self {
+            not_found: self.not_found + other.not_found,
+            deleted: self.deleted + other.deleted,
+            result_size: self.result_size + other.result_size,
+            #[cfg(feature = "stats")]
+            hits_small: self.hits_small + other.hits_small,
+            #[cfg(feature = "stats")]
+            hits_blob: self.hits_blob + other.hits_blob,
+            #[cfg(feature = "stats")]
+            range_misses: self.range_misses + other.range_misses,
+            #[cfg(feature = "stats")]
+            quick_filter_misses: self.quick_filter_misses + other.quick_filter_misses,
+            #[cfg(feature = "stats")]
+            sst_misses: self.sst_misses + other.sst_misses,
         }
     }
 }
@@ -1385,10 +1488,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         let mut guard = self.acquire_write_operation("compaction")?;
 
-        // Free block caches and SST mmaps before compaction. The block caches
-        // are not used during compaction (we iterate uncached), and any cached
-        // SST mmaps would use MADV_RANDOM which is wrong for sequential scans.
-        // Clearing them upfront frees memory for the merge work.
+        // Free block caches and SST mmaps before compaction. Neither is used during
+        // compaction (we iterate uncached with `pread`), so clearing them upfront frees
+        // memory for the merge work.
         self.clear_cache();
 
         let mut sequence_number;
@@ -1697,9 +1799,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     })
                                 }
                             };
-                            // Open SST files independently for compaction.
-                            // Uses MADV_SEQUENTIAL for better OS page management
-                            // and avoids caching mmaps on MetaEntry's OnceLock.
+                            // Open SST files independently for compaction. They are read
+                            // with `pread`, which keeps the memory of an open file to the
+                            // blocks it currently holds, and doesn't cache an mmap on
+                            // MetaEntry's OnceLock.
                             let iters = indices
                                 .iter()
                                 .map(|&index| {
@@ -1711,7 +1814,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         path,
                                         entry.sst_metadata(),
                                         meta_file.compression(),
-                                        self.config.access_mode,
                                     )
                                 })
                                 .collect::<Result<Vec<_>>>()?;
@@ -2340,7 +2442,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         Ok(output)
     }
 
-    pub fn batch_get<K: QueryKey>(
+    /// Looks up many keys of a [`FamilyKind::SingleValue`] family at once. The result has one entry
+    /// per key, in the order of `keys`.
+    ///
+    /// Panics if there are more than `u32::MAX` keys.
+    pub fn batch_get<K: QueryKey + Sync>(
         &self,
         family: usize,
         keys: &[K],
@@ -2359,13 +2465,19 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             result_size = tracing::field::Empty
         )
         .entered();
-        let mut cells: Vec<(u64, usize, Option<LookupValue>)> = Vec::with_capacity(keys.len());
-        for (index, key) in keys.iter().enumerate() {
-            let hash = hash_key(key);
-            cells.push((hash, index, None));
-        }
-        cells.sort_by_key(|(hash, _, _)| *hash);
-        let inner = self.inner.read();
+        assert!(
+            u32::try_from(keys.len()).is_ok(),
+            "`batch_get` supports at most u32::MAX keys"
+        );
+        // `(key hash, key index)`, sorted by key hash.
+        let mut cells: Vec<(u64, u32)> = keys
+            .iter()
+            .enumerate()
+            .map(|(index, key)| (hash_key(key), index as u32))
+            .collect();
+        cells.sort_unstable_by_key(|(hash, _)| *hash);
+        let inner_guard = self.inner.read();
+        let inner = &*inner_guard;
         let key_block_cache = self.key_block_cache();
         let value_block_cache = self.value_block_cache();
         debug_assert!(
@@ -2374,117 +2486,190 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 .all(|meta| meta.family() as usize == family),
             "meta file stored in the wrong family shard while querying family {family}"
         );
-        // Cells are sorted by hash, so the keys of each shard are contiguous. Each run of cells is
-        // only looked up in the SST files of its shard.
-        let shard_index = &inner.shard_indices[family];
-        let mut run_start = 0;
-        while run_start < cells.len() {
-            let shard = shard_index.bits().shard_of(cells[run_start].0);
-            let run_len = cells[run_start..]
-                .partition_point(|(hash, _, _)| shard_index.bits().shard_of(*hash) == shard);
-            let run = &mut cells[run_start..run_start + run_len];
-            run_start += run_len;
-            let mut empty_run_cells = run_len;
-            let shard_files = shard_index.shard(shard);
-            for (
-                range,
-                &MetaEntryIndex {
-                    meta_index,
-                    entry_index,
-                },
-            ) in shard_files.ranges.iter().zip(&shard_files.locations)
-            {
-                let _result = inner.meta_files_by_family[family][meta_index as usize]
-                    .batch_lookup_entry(
-                        entry_index,
-                        range,
-                        keys,
-                        run,
-                        &mut empty_run_cells,
-                        key_block_cache,
-                        value_block_cache,
-                    )?;
-                #[cfg(feature = "stats")]
-                self.record_batch_lookup_stats(_result);
-                if empty_run_cells == 0 {
-                    break;
-                }
+        let parallel = keys.len() > PARALLEL_BATCH_GET_THRESHOLD;
+        // Without parallelism, one chunk per shard keeps the overhead low.
+        let target_chunk_count = if parallel {
+            self.parallel_scheduler
+                .parallelism()
+                .max(1)
+                .saturating_mul(BATCH_GET_CHUNKS_PER_TASK)
+        } else {
+            1
+        };
+        let mut chunks = split_into_batch_chunks(
+            &cells,
+            inner.shard_indices[family].bits(),
+            target_chunk_count,
+        );
+        let mut results: Vec<Option<ArcBytes>> = vec![None; keys.len()];
+        let results_writer = ConcurrentSlice::new(&mut results);
+        let lookup_chunk = |chunk: &mut BatchGetChunk<'_>| {
+            self.batch_get_chunk(
+                inner,
+                family,
+                keys,
+                chunk,
+                &results_writer,
+                key_block_cache,
+                value_block_cache,
+            )
+        };
+        if parallel {
+            self.parallel_scheduler
+                .try_parallel_for_each_task_mut(&mut chunks, lookup_chunk)?;
+        } else {
+            for chunk in &mut chunks {
+                lookup_chunk(chunk)?;
             }
         }
-        let mut deleted = 0;
-        let mut not_found = 0;
-        let mut result_size = 0;
-        let mut results = vec![None; keys.len()];
-        for (hash, index, result) in cells {
-            if let Some(result) = result {
-                inner.accessed_key_hashes[family].insert(hash);
-                let result = match result {
-                    LookupValue::KeyDeleted => {
-                        #[cfg(feature = "stats")]
-                        self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
-                        deleted += 1;
-                        None
-                    }
-                    LookupValue::KeyValueDeleted { .. } => {
-                        // Key-value tombstones are only written to MultiValue families, and
-                        // `batch_get` rejects those above.
-                        bail!(
-                            "unexpected key-value tombstone in SingleValue family {}",
-                            self.config.family_configs[family].name
-                        )
-                    }
-                    LookupValue::Slice { value } => {
-                        #[cfg(feature = "stats")]
-                        self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
-                        result_size += value.len();
-                        Some(value)
-                    }
-                    LookupValue::Blob { sequence_number } => {
-                        #[cfg(feature = "stats")]
-                        self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
-                        let blob = self.read_blob(
-                            sequence_number,
-                            self.config.family_configs[family].compression,
-                        )?;
-                        result_size += blob.len();
-                        Some(blob)
-                    }
-                };
-                results[index] = result;
-            } else {
-                #[cfg(feature = "stats")]
-                self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
-                not_found += 1;
-            }
-        }
-        span.record("not_found", not_found);
-        span.record("deleted", deleted);
-        span.record("result_size", result_size);
+        let counts = chunks
+            .iter()
+            .fold(BatchGetCounts::default(), |acc, chunk| acc + chunk.counts);
+        drop(chunks);
+        span.record("not_found", counts.not_found);
+        span.record("deleted", counts.deleted);
+        span.record("result_size", counts.result_size);
+        #[cfg(feature = "stats")]
+        self.record_batch_get_stats(counts);
         Ok(results)
     }
 
+    /// Looks up the keys of a chunk for [`Self::batch_get`]. Values found (including blobs) are
+    /// written to `results` at the index of their key.
+    #[allow(clippy::too_many_arguments)]
+    fn batch_get_chunk<K: QueryKey>(
+        &self,
+        inner: &Inner<FAMILIES>,
+        family: usize,
+        keys: &[K],
+        chunk: &mut BatchGetChunk<'_>,
+        results: &ConcurrentSlice<'_, Option<ArcBytes>>,
+        key_block_cache: &BlockCache,
+        value_block_cache: &BlockCache,
+    ) -> Result<()> {
+        let BatchGetChunk {
+            shard,
+            cells,
+            counts,
+        } = chunk;
+        let cells: &[(u64, u32)] = cells;
+        // The positions in `cells` of the keys found in a newer SST file already, and their count.
+        // The set covers every position up front, so lookups never grow it.
+        let mut resolved = BatchGetResolved::with_len(
+            u32::try_from(cells.len()).expect("batch_get limits the number of keys to u32::MAX"),
+        );
+        let mut resolved_count = 0;
+        let mut on_found = |position: usize, value: LookupValue| -> Result<()> {
+            let (hash, index) = cells[position];
+            inner.accessed_key_hashes[family].insert(hash);
+            let value = match value {
+                LookupValue::KeyDeleted => {
+                    counts.deleted += 1;
+                    return Ok(());
+                }
+                LookupValue::KeyValueDeleted { .. } => {
+                    // Key-value tombstones are only written to MultiValue families, and
+                    // `batch_get` rejects those.
+                    bail!(
+                        "unexpected key-value tombstone in SingleValue family {}",
+                        self.config.family_configs[family].name
+                    )
+                }
+                LookupValue::Slice { value } => {
+                    #[cfg(feature = "stats")]
+                    {
+                        counts.hits_small += 1;
+                    }
+                    value
+                }
+                LookupValue::Blob { sequence_number } => {
+                    #[cfg(feature = "stats")]
+                    {
+                        counts.hits_blob += 1;
+                    }
+                    self.read_blob(
+                        sequence_number,
+                        self.config.family_configs[family].compression,
+                    )?
+                }
+            };
+            counts.result_size += value.len();
+            // SAFETY: Every key index occurs in exactly one cell, every cell belongs to exactly one
+            // chunk, and `batch_lookup_entry` reports each cell at most once since it is marked as
+            // resolved. So every index is written at most once.
+            unsafe { results.write(index as usize, Some(value)) };
+            Ok(())
+        };
+        let shard_files = inner.shard_indices[family].shard(*shard);
+        #[cfg(feature = "stats")]
+        let mut lookup_counts = crate::meta_file::MetaBatchLookupResult::default();
+        for (
+            range,
+            &MetaEntryIndex {
+                meta_index,
+                entry_index,
+            },
+        ) in shard_files.ranges.iter().zip(&shard_files.locations)
+        {
+            let _result = inner.meta_files_by_family[family][meta_index as usize]
+                .batch_lookup_entry(
+                    entry_index,
+                    range,
+                    keys,
+                    cells,
+                    &mut resolved,
+                    &mut resolved_count,
+                    key_block_cache,
+                    value_block_cache,
+                    &mut on_found,
+                )?;
+            #[cfg(feature = "stats")]
+            {
+                lookup_counts.range_misses += _result.range_misses;
+                lookup_counts.quick_filter_misses += _result.quick_filter_misses;
+                lookup_counts.sst_misses += _result.sst_misses;
+            }
+            if resolved_count == cells.len() {
+                break;
+            }
+        }
+        // `on_found` borrows `counts`.
+        drop(on_found);
+        counts.not_found += cells.len() - resolved_count;
+        #[cfg(feature = "stats")]
+        {
+            counts.range_misses += lookup_counts.range_misses;
+            counts.quick_filter_misses += lookup_counts.quick_filter_misses;
+            counts.sst_misses += lookup_counts.sst_misses;
+        }
+        Ok(())
+    }
+
+    /// Adds the counts of a whole [`Self::batch_get`] to the database statistics.
     #[cfg(feature = "stats")]
-    fn record_batch_lookup_stats(&self, result: crate::meta_file::MetaBatchLookupResult) {
-        let crate::meta_file::MetaBatchLookupResult {
+    fn record_batch_get_stats(&self, counts: BatchGetCounts) {
+        let BatchGetCounts {
+            not_found,
+            deleted,
+            result_size: _,
+            hits_small,
+            hits_blob,
             range_misses,
             quick_filter_misses,
             sst_misses,
-            hits: _,
-        } = result;
-        if range_misses > 0 {
-            self.stats
-                .miss_range
-                .fetch_add(range_misses as u64, Ordering::Relaxed);
-        }
-        if quick_filter_misses > 0 {
-            self.stats
-                .miss_amqf
-                .fetch_add(quick_filter_misses as u64, Ordering::Relaxed);
-        }
-        if sst_misses > 0 {
-            self.stats
-                .miss_key
-                .fetch_add(sst_misses as u64, Ordering::Relaxed);
+        } = counts;
+        for (stat, count) in [
+            (&self.stats.hits_deleted, deleted),
+            (&self.stats.hits_small, hits_small),
+            (&self.stats.hits_blob, hits_blob),
+            (&self.stats.miss_global, not_found),
+            (&self.stats.miss_range, range_misses),
+            (&self.stats.miss_amqf, quick_filter_misses),
+            (&self.stats.miss_key, sst_misses),
+        ] {
+            if count > 0 {
+                stat.fetch_add(count as u64, Ordering::Relaxed);
+            }
         }
     }
 
@@ -2643,7 +2828,7 @@ fn rebuild_shard_index<const FAMILIES: usize>(
 /// `FamilyConfig::initial_shard_bits`, is recorded in every meta file, and follows the size of the
 /// bottom runs, which is about the size of the live data after compaction (see
 /// [`ShardBits::maybe_reshard`]). Before the first bottom merge, it follows the size of all files,
-/// so that the first bottom merges already split at a fitting shard count.
+/// but only grows.
 fn shard_bits<const FAMILIES: usize>(
     config: &DbConfig<FAMILIES>,
     meta_files_by_family: &[Vec<MetaFile>; FAMILIES],
@@ -2673,11 +2858,17 @@ fn shard_bits<const FAMILIES: usize>(
         }
         // Before the first bottom merge there is no bottom run, so use the size of all files. They
         // are only the first commits, so they hold little garbage.
-        let estimated_bytes = if covered_shards.is_empty() {
-            all_bytes
-        } else {
-            bottom_bytes.saturating_mul(u64::from(current.count())) / covered_shards.len() as u64
-        };
+        //
+        // But don't shrink yet. The first bottom merges rewrite the whole family, and shrinking
+        // would combine the files of multiple shards into one large job instead of several
+        // small ones that run in parallel. Once the shards have bottom runs, shrinking is
+        // free: the disjoint bottom runs of the former shards together are the bottom run
+        // of the combined shard.
+        if covered_shards.is_empty() {
+            return current.maybe_grow(all_bytes, config.target_shard_size);
+        }
+        let estimated_bytes =
+            bottom_bytes.saturating_mul(u64::from(current.count())) / covered_shards.len() as u64;
         current.maybe_reshard(estimated_bytes, config.target_shard_size)
     })
 }
@@ -2726,4 +2917,139 @@ pub struct MetaFileEntryInfo {
     pub block_count: u16,
     /// The number of entries in the SST file.
     pub entry_count: u32,
+}
+
+#[cfg(test)]
+mod split_into_batch_chunks_tests {
+    use super::*;
+
+    /// Cells for `count` keys in each shard of `counts`, with 4 shard bits.
+    fn cells(counts: &[usize]) -> (Vec<(u64, u32)>, ShardBits) {
+        let bits = ShardBits::new(4);
+        let mut cells = Vec::new();
+        for (shard, &count) in counts.iter().enumerate() {
+            let start = *bits.range(shard as u32).start();
+            for i in 0..count {
+                cells.push((start + i as u64, cells.len() as u32));
+            }
+        }
+        (cells, bits)
+    }
+
+    /// Checks that `chunks` cover `cells` contiguously without crossing a shard boundary, with zero
+    /// counts, and returns the chunk lengths of each shard of `counts`.
+    fn check_chunks(
+        chunks: &[BatchGetChunk<'_>],
+        cells: &[(u64, u32)],
+        bits: ShardBits,
+        counts: &[usize],
+    ) -> Vec<Vec<usize>> {
+        let mut next = 0;
+        for chunk in chunks {
+            assert!(
+                std::ptr::eq(chunk.cells.as_ptr(), cells[next..].as_ptr()),
+                "chunks are contiguous"
+            );
+            next += chunk.cells.len();
+            assert!(!chunk.cells.is_empty());
+            let BatchGetCounts {
+                not_found,
+                deleted,
+                result_size,
+                ..
+            } = chunk.counts;
+            assert_eq!((not_found, deleted, result_size), (0, 0, 0));
+            for &(hash, _) in chunk.cells {
+                assert_eq!(
+                    bits.shard_of(hash),
+                    chunk.shard,
+                    "a chunk crosses a shard boundary"
+                );
+            }
+        }
+        assert_eq!(next, cells.len(), "chunks cover all cells");
+        (0..counts.len())
+            .map(|shard| {
+                let lens = chunks
+                    .iter()
+                    .filter(|chunk| chunk.shard == shard as u32)
+                    .map(|chunk| chunk.cells.len())
+                    .collect::<Vec<_>>();
+                // The chunks of a shard have nearly equal length.
+                if let (Some(min), Some(max)) = (lens.iter().min(), lens.iter().max()) {
+                    assert!(max - min <= 1, "{lens:?}");
+                }
+                lens
+            })
+            .collect()
+    }
+
+    #[test]
+    fn chunks_aim_for_target_count() {
+        let counts = [0, 1, 256, 257, 2049, 0, 3, 512, 1000];
+        let (cells, bits) = cells(&counts);
+        let shards = counts.iter().filter(|&&count| count > 0).count();
+        for target in [2, 7, 16, 64, 128, 1000] {
+            let chunks = split_into_batch_chunks(&cells, bits, target);
+            let lens = check_chunks(&chunks, &cells, bits, &counts);
+            let max_len = cells.len().div_ceil(target);
+            assert!(chunks.iter().all(|chunk| chunk.cells.len() <= max_len));
+            assert!(
+                (shards.max(target.min(cells.len()) / 2)..=target + shards).contains(&chunks.len()),
+                "target {target}: {} chunks",
+                chunks.len()
+            );
+            for (lens, &count) in lens.iter().zip(&counts) {
+                assert_eq!(lens.len(), count.div_ceil(max_len), "target {target}");
+            }
+        }
+    }
+
+    #[test]
+    fn one_chunk_per_shard_for_target_one() {
+        let counts = [0, 1, 256, 257, 2049, 0, 3, 512, 1000];
+        let (cells, bits) = cells(&counts);
+        for target in [0, 1] {
+            let chunks = split_into_batch_chunks(&cells, bits, target);
+            let lens = check_chunks(&chunks, &cells, bits, &counts);
+            for (lens, &count) in lens.iter().zip(&counts) {
+                let expected: &[usize] = if count == 0 { &[] } else { &[count] };
+                assert_eq!(lens, expected);
+            }
+        }
+    }
+
+    #[test]
+    fn single_shard_splits_into_target_chunks() {
+        let (cells, bits) = cells(&[10_000]);
+        let chunks = split_into_batch_chunks(&cells, bits, 128);
+        check_chunks(&chunks, &cells, bits, &[10_000]);
+        // Chunks of at most `ceil(10_000 / 128) = 79` cells.
+        assert_eq!(chunks.len(), 127);
+    }
+
+    #[test]
+    fn more_chunks_than_cells() {
+        let counts = [3, 0, 2];
+        let (cells, bits) = cells(&counts);
+        let chunks = split_into_batch_chunks(&cells, bits, 64);
+        let lens = check_chunks(&chunks, &cells, bits, &counts);
+        assert_eq!(lens, [vec![1, 1, 1], vec![], vec![1, 1]]);
+    }
+
+    #[test]
+    fn huge_target_creates_one_chunk_per_cell() {
+        let counts = [3, 0, 2];
+        let (cells, bits) = cells(&counts);
+        let chunks = split_into_batch_chunks(&cells, bits, usize::MAX);
+        let lens = check_chunks(&chunks, &cells, bits, &counts);
+        assert_eq!(lens, [vec![1, 1, 1], vec![], vec![1, 1]]);
+    }
+
+    #[test]
+    fn no_chunks_for_no_cells() {
+        for target in [0, 1, 64, usize::MAX] {
+            assert!(split_into_batch_chunks(&[], ShardBits::new(4), target).is_empty());
+        }
+    }
 }

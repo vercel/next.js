@@ -1,6 +1,7 @@
 use std::io::Write;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::Serialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
@@ -22,6 +23,40 @@ use crate::{
     util::{NextRuntime, file_content_rope, load_next_js_template, pages_function_name},
 };
 
+/// The kind of entry a pages router route is compiled to.
+#[turbo_tasks::task_input]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash, Encode, Decode)]
+pub enum PagesEntryKind {
+    /// A page.
+    Page,
+    /// A page's data route. This is used in development to tell changes to a page's server props
+    /// apart from changes to its template.
+    Data,
+    /// An API route.
+    Api,
+}
+
+impl PagesEntryKind {
+    /// The reference type to process the route's entry module with, and for pages also `_app`,
+    /// `_document` and `_error`.
+    pub fn reference_type(self) -> ReferenceType {
+        ReferenceType::Entry(EntryReferenceSubType {
+            // Nothing imports a route's entry module, only the route template, which reads its
+            // whole namespace. Keeping it whole lets HMR follow it when an edit adds or removes a
+            // reexport.
+            standalone: true,
+            tag: matches!(self, PagesEntryKind::Data).then_some(PAGE_DATA_ENTRY_TAG.clone()),
+        })
+    }
+
+    fn is_page(self) -> bool {
+        matches!(self, PagesEntryKind::Page | PagesEntryKind::Data)
+    }
+}
+
+/// The [`EntryReferenceSubType::tag`] of a page's data route entry.
+pub static PAGE_DATA_ENTRY_TAG: RcStr = rcstr!("next-page-data");
+
 #[turbo_tasks::value]
 pub struct PageSsrEntryModule {
     pub ssr_module: ResolvedVc<Box<dyn Module>>,
@@ -32,7 +67,7 @@ pub struct PageSsrEntryModule {
 #[turbo_tasks::function]
 pub async fn create_page_ssr_entry_module(
     pathname: RcStr,
-    reference_type: ReferenceType,
+    kind: PagesEntryKind,
     project_root: FileSystemPath,
     ssr_module_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
@@ -43,6 +78,7 @@ pub async fn create_page_ssr_entry_module(
 ) -> Result<Vc<PageSsrEntryModule>> {
     let definition_page = next_original_name;
     let definition_pathname = pathname;
+    let reference_type = kind.reference_type();
 
     let ssr_module = ssr_module_context
         .process(source, reference_type.clone())
@@ -50,23 +86,19 @@ pub async fn create_page_ssr_entry_module(
         .to_resolved()
         .await?;
 
-    let template_file = match &reference_type {
-        ReferenceType::Entry(EntryReferenceSubType::Page)
-        | ReferenceType::Entry(EntryReferenceSubType::PageData) => {
-            // Load the Page entry file.
-            match runtime {
-                NextRuntime::NodeJs => "pages.js",
-                NextRuntime::Edge => "edge-ssr.js",
-            }
+    let is_page = kind.is_page();
+    let template_file = if is_page {
+        // Load the Page entry file.
+        match runtime {
+            NextRuntime::NodeJs => "pages.js",
+            NextRuntime::Edge => "edge-ssr.js",
         }
-        ReferenceType::Entry(EntryReferenceSubType::PagesApi) => {
-            // Load the Pages API entry file.
-            match runtime {
-                NextRuntime::NodeJs => "pages-api.js",
-                NextRuntime::Edge => "pages-edge-api.js",
-            }
+    } else {
+        // Load the Pages API entry file.
+        match runtime {
+            NextRuntime::NodeJs => "pages-api.js",
+            NextRuntime::Edge => "pages-edge-api.js",
         }
-        _ => bail!("Invalid path type"),
     };
 
     let inner = rcstr!("INNER_PAGE");
@@ -80,11 +112,6 @@ pub async fn create_page_ssr_entry_module(
         ("VAR_USERLAND", &*inner),
     ];
 
-    let is_page = matches!(
-        reference_type,
-        ReferenceType::Entry(EntryReferenceSubType::Page)
-            | ReferenceType::Entry(EntryReferenceSubType::PageData)
-    );
     if !(is_page && runtime == NextRuntime::Edge) {
         replacements.push(("VAR_DEFINITION_PAGE", &*definition_page));
     }

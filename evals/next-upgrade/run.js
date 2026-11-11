@@ -170,11 +170,21 @@ function buildStableCandidate(runRoot, destination) {
     stdio: 'ignore',
   })
   try {
-    fs.symlinkSync(
-      path.join(root, 'node_modules'),
-      path.join(checkout, 'node_modules'),
-      'dir'
-    )
+    // pnpm stores task state here and requires a real directory at this path.
+    // Reuse installed dependencies, but let this checkout own its task state.
+    const modules = path.join(checkout, 'node_modules')
+    fs.mkdirSync(modules)
+    for (const name of fs.readdirSync(path.join(root, 'node_modules'))) {
+      if (name === '.pnpm-task-run-state-v1') {
+        continue
+      }
+      const source = path.join(root, 'node_modules', name)
+      fs.symlinkSync(
+        source,
+        path.join(modules, name),
+        fs.statSync(source).isDirectory() ? 'dir' : 'file'
+      )
+    }
     for (const name of fs.readdirSync(path.join(root, 'packages'))) {
       const modules = path.join(root, 'packages', name, 'node_modules')
       const directory = path.join(checkout, 'packages', name)

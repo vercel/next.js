@@ -8,7 +8,7 @@ describe('cached navigations - root params', () => {
     files: join(__dirname, 'root-params'),
   })
 
-  it('does not reuse the initial static stage across root param values', async () => {
+  it("does not reuse the initial page's embedded prefetch across root param values", async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/en/foo', {
       beforePageLoad(page) {
@@ -44,7 +44,7 @@ describe('cached navigations - root params', () => {
     )
   })
 
-  it('reuses the initial static stage when only a fallback param changes', async () => {
+  it("reuses the initial page's embedded prefetch when only a fallback param changes", async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/en/foo', {
       beforePageLoad(page) {
@@ -59,11 +59,19 @@ describe('cached navigations - root params', () => {
       'Cached locale: en'
     )
 
+    // Wait for a real request first, so the hydration-time write has finished.
+    await act(
+      async () => {
+        await browser.elementByCss('a[href="/en/hub"]').click()
+      },
+      { includes: 'Hub page' }
+    )
+
     await act(async () => {
       await browser.elementByCss('a[href="/en/bar"]').click()
 
-      // The router reuses the English static stage and shows a fallback until
-      // the new slug's dynamic content arrives.
+      // The router reuses the English page and shows a fallback until the new
+      // slug's dynamic content arrives.
       expect(await browser.elementById('cached-locale').text()).toBe(
         'Cached locale: en'
       )

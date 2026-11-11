@@ -83,8 +83,23 @@ import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
+import {
+  appendArchivedRequestInsightUpdateToJournal,
+  appendRequestInsightToJournal,
+  appendRequestInsightUpdateToJournal,
+  closeRequestInsightsJournal,
+  configureRequestInsightsJournal,
+  getRequestInsightsHistory as getJournalHistory,
+  readRequestInsightsJournal,
+} from '../lib/trace/request-insights-journal'
+import {
+  clearRequestInsightsHistoryProvider,
+  configureRequestInsightsHistoryProvider,
+  registerRequestInsightsExporter,
+} from '../lib/trace/request-insights'
 
 registerLocalSpanRecorder()
+registerRequestInsightsExporter()
 
 // Load ReactDevOverlay only when needed
 let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
@@ -189,6 +204,12 @@ export default class DevServer extends Server {
     super({ ...options, dev: true })
     this.nextConfig = options.conf
     this.bundlerService = options.bundlerService
+    const unsubscribeNativeRoutes = this.bundlerService.onNativeRoutesChanged(
+      (pages) => this.reconcileNativeRoutes(pages)
+    )
+    this.onServerClose(async () => {
+      unsubscribeNativeRoutes()
+    })
     this.startServerSpan =
       options.startServerSpan ?? trace('start-next-dev-server')
     this.renderOpts.ErrorDebug = ReactDevOverlay
@@ -258,6 +279,10 @@ export default class DevServer extends Server {
     return this.serverComponentsHmrCache
   }
 
+  protected override getClientHmrVersion(): string | undefined {
+    return this.bundlerService.getClientHmrVersion()
+  }
+
   protected override getServerComponentsHmrRefreshHash(): string | undefined {
     return this.bundlerService.getServerComponentsHmrRefreshHash()
   }
@@ -269,6 +294,20 @@ export default class DevServer extends Server {
   protected async prepareImpl(): Promise<void> {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
+    if (this.nextConfig.experimental.requestInsights) {
+      await configureRequestInsightsJournal(this.distDir)
+      configureRequestInsightsHistoryProvider({
+        append: appendRequestInsightToJournal,
+        appendUpdate: appendRequestInsightUpdateToJournal,
+        appendArchivedUpdate: appendArchivedRequestInsightUpdateToJournal,
+        getHistory: (query) => getJournalHistory(this.distDir, query),
+        read: (query) => readRequestInsightsJournal(this.distDir, query),
+      })
+      this.onServerClose(async () => {
+        clearRequestInsightsHistoryProvider()
+        await closeRequestInsightsJournal()
+      })
+    }
 
     // Use existing telemetry instance from traceGlobals instead of creating a new one.
     // Creating a new instance would overwrite the existing one, causing any telemetry
@@ -836,10 +875,16 @@ export default class DevServer extends Server {
           // This matches the hasGenerateStaticParams logic we do during build.
           (!isAppPath || (prerenderedRoutes && prerenderedRoutes.length > 0))
         ) {
-          // we write the static paths to partial manifest for
-          // fallback handling inside of entry handler's
-          const rawExistingManifest = await fs.promises.readFile(
-            pathJoin(this.distDir, PRERENDER_MANIFEST),
+          const prerenderManifestPath = pathJoin(
+            this.distDir,
+            PRERENDER_MANIFEST
+          )
+          // We write the static paths to the partial manifest for fallback handling
+          // inside of entry handlers
+          // NOTE: We're mutating a shared manifest, so we use sync reads/writes
+          // without any awaits in between to avoid races with other requests
+          const rawExistingManifest = fs.readFileSync(
+            prerenderManifestPath,
             'utf8'
           )
           const existingManifest: PrerenderManifest =
@@ -876,13 +921,10 @@ export default class DevServer extends Server {
             allowHeader: [],
           }
 
-          const updatedManifest = JSON.stringify(existingManifest)
+          const updatedManifest = JSON.stringify(existingManifest, null, 2)
 
           if (updatedManifest !== rawExistingManifest) {
-            await fs.promises.writeFile(
-              pathJoin(this.distDir, PRERENDER_MANIFEST),
-              updatedManifest
-            )
+            fs.writeFileSync(prerenderManifestPath, updatedManifest)
           }
         }
         this.staticPathsCache.set(pathname, value)
@@ -926,7 +968,7 @@ export default class DevServer extends Server {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
-    definition: RouteDefinition | undefined
+    definition?: RouteDefinition | undefined
     url?: string
   }): Promise<void> {
     await this.bundlerService.ensurePage(opts)
