@@ -393,21 +393,28 @@ impl AppPath {
     }
 
     pub fn contains(&self, other: &AppPath) -> bool {
+        self.contains_segments(other.0.iter().map(PathSegmentRef::from))
+    }
+
+    /// Same as `self.contains(&AppPath::from(page.clone()))`, but without allocating an
+    /// intermediate [AppPath].
+    pub fn contains_page(&self, page: &AppPage) -> bool {
+        self.contains_segments(page.0.iter().filter_map(PathSegmentRef::from_page_segment))
+    }
+
+    fn contains_segments<'a>(&self, other: impl IntoIterator<Item = PathSegmentRef<'a>>) -> bool {
         // TODO: handle OptionalCatchAll properly.
-        for (i, segment) in other.0.iter().enumerate() {
+        for (i, segment) in other.into_iter().enumerate() {
             let Some(self_segment) = self.0.get(i) else {
                 // other is longer than self
                 return false;
             };
 
-            if self_segment == segment {
+            if segment == *self_segment {
                 continue;
             }
 
-            if matches!(
-                segment,
-                PathSegment::CatchAll(_) | PathSegment::OptionalCatchAll(_)
-            ) {
+            if segment.is_catchall() {
                 return true;
             }
 
@@ -627,6 +634,53 @@ impl PartialOrd for AppPath {
     }
 }
 
+#[derive(Clone, Copy)]
+enum PathSegmentRef<'a> {
+    Static(&'a RcStr),
+    Dynamic(&'a RcStr),
+    CatchAll(&'a RcStr),
+    OptionalCatchAll(&'a RcStr),
+}
+
+impl<'a> PathSegmentRef<'a> {
+    fn from_page_segment(segment: &'a PageSegment) -> Option<Self> {
+        match segment {
+            PageSegment::Static(s) => Some(Self::Static(s)),
+            PageSegment::Dynamic(s) => Some(Self::Dynamic(s)),
+            PageSegment::CatchAll(s) => Some(Self::CatchAll(s)),
+            PageSegment::OptionalCatchAll(s) => Some(Self::OptionalCatchAll(s)),
+            PageSegment::Group(_) | PageSegment::Parallel(_) | PageSegment::PageType(_) => None,
+        }
+    }
+
+    fn is_catchall(self) -> bool {
+        matches!(self, Self::CatchAll(_) | Self::OptionalCatchAll(_))
+    }
+}
+
+impl<'a> From<&'a PathSegment> for PathSegmentRef<'a> {
+    fn from(segment: &'a PathSegment) -> Self {
+        match segment {
+            PathSegment::Static(s) => Self::Static(s),
+            PathSegment::Dynamic(s) => Self::Dynamic(s),
+            PathSegment::CatchAll(s) => Self::CatchAll(s),
+            PathSegment::OptionalCatchAll(s) => Self::OptionalCatchAll(s),
+        }
+    }
+}
+
+impl PartialEq<PathSegment> for PathSegmentRef<'_> {
+    fn eq(&self, other: &PathSegment) -> bool {
+        match (self, other) {
+            (Self::Static(a), PathSegment::Static(b))
+            | (Self::Dynamic(a), PathSegment::Dynamic(b))
+            | (Self::CatchAll(a), PathSegment::CatchAll(b))
+            | (Self::OptionalCatchAll(a), PathSegment::OptionalCatchAll(b)) => *a == b,
+            _ => false,
+        }
+    }
+}
+
 impl From<AppPage> for AppPath {
     fn from(value: AppPage) -> Self {
         AppPath(
@@ -700,6 +754,59 @@ mod test {
                 route.is_route_pattern_covered_by(ordinary_routes.iter()),
                 expected,
                 "coverage for {route} from {ordinary_routes:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn contains_page_matches_contains() {
+        for (for_app_path, page, expected) in [
+            // root contains everything
+            ("/blog/[slug]", "", true),
+            ("/", "", true),
+            // static segments
+            ("/blog/[slug]", "blog", true),
+            ("/blog/[slug]", "docs", false),
+            ("/blog", "blog/post", false),
+            // dynamic segments only match the same parameter
+            ("/blog/[slug]", "blog/[slug]", true),
+            ("/blog/[slug]", "blog/[id]", false),
+            // route groups, parallel routes and the page type are not part of the path
+            ("/blog/[slug]", "(marketing)", true),
+            ("/blog/[slug]", "(marketing)/blog", true),
+            ("/blog/[slug]", "(marketing)/docs", false),
+            ("/blog/[slug]", "blog/@modal", true),
+            ("/blog/[slug]", "blog/@modal/[slug]", true),
+            ("/blog/[slug]", "blog/@modal/[id]", false),
+            ("/blog/[slug]", "blog/[slug]/page", true),
+            // interception segments are static path segments
+            ("/feed/(.)photo/[id]", "feed/(.)photo", true),
+            ("/feed/(.)photo/[id]", "feed/photo", false),
+            ("/feed/photo/[id]", "feed/(.)photo", false),
+            ("/feed/(..)photo/[id]", "feed/(..)photo/[id]", true),
+            // catch-all segments contain any path of at least the same length
+            ("/docs/a/b", "docs/[...slug]", true),
+            ("/docs/a/b", "[...slug]", true),
+            ("/docs", "docs/[...slug]", false),
+            ("/docs/[...slug]", "docs/[...slug]", true),
+            ("/docs/a", "docs/[[...slug]]", true),
+            ("/docs/[[...slug]]", "docs/[[...slug]]", true),
+            ("/docs/[...slug]", "docs/[[...slug]]", true),
+            ("/docs/[[...slug]]", "@slot/docs/[...slug]", true),
+        ] {
+            let for_app_path =
+                AppPath::from(AppPage::parse(for_app_path.trim_start_matches('/')).unwrap());
+            let page = AppPage::parse(page).unwrap();
+
+            assert_eq!(
+                for_app_path.contains_page(&page),
+                for_app_path.contains(&AppPath::from(page.clone())),
+                "contains_page and contains disagree for {for_app_path} and {page}"
+            );
+            assert_eq!(
+                for_app_path.contains_page(&page),
+                expected,
+                "{for_app_path} contains {page}"
             );
         }
     }
