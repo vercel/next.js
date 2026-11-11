@@ -817,8 +817,9 @@ export async function getPagesPageStaticInfo({
   if (/(?:^|[\\/])proxy\.go$/.test(pageFilePath)) {
     if (!process.env.TURBOPACK)
       throw new Error('proxy.go requires Turbopack; remove --webpack')
-    const config = nextConfig.experimental?.goProxy
-    if (!config) throw new Error('proxy.go requires experimental.goProxy: {}')
+    if (!nextConfig.experimental?.goRoutes)
+      throw new Error('proxy.go requires experimental.goRoutes: true')
+    const config = nextConfig.experimental.goProxy ?? {}
     return {
       type: PAGE_TYPES.PAGES,
       config: undefined,

@@ -511,9 +511,9 @@ export interface DeprecatedConfig {
 }
 
 export interface ExperimentalConfig {
-  /** Native Go App Router handlers. Turbopack and self-hosted next start only. */
+  /** Enable native Go route handlers and proxies. Requires Turbopack. */
   goRoutes?: boolean
-  /** Native Go proxy. Requires Turbopack and a Proxy(w, r) handler in proxy.go. */
+  /** Optional proxy.go settings. Requires experimental.goRoutes: true. */
   goProxy?: {
     matcher?: import('../build/segment-config/middleware/middleware-config').MiddlewareConfigInput['matcher']
     maxDuration?: number

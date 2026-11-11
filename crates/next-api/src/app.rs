@@ -1116,10 +1116,10 @@ pub async fn app_entry_point_to_route(
             Route::AppGoRoute {
                 original_name: page.to_string().into(),
                 endpoint: ResolvedVc::upcast(
-                    GoRouteEndpoint {
+                    GoEndpoint {
                         project: app_project.project().to_resolved().await?,
                         path,
-                        page: Some(page),
+                        kind: GoEndpointKind::Route { page },
                     }
                     .resolved_cell(),
                 ),
@@ -1156,11 +1156,17 @@ pub async fn app_entry_point_to_route(
     .cell())
 }
 
+#[derive(Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
+enum GoEndpointKind {
+    Route { page: AppPage },
+    Proxy,
+}
+
 #[turbo_tasks::value(shared)]
-struct GoRouteEndpoint {
+struct GoEndpoint {
     project: ResolvedVc<Project>,
     path: FileSystemPath,
-    page: Option<AppPage>,
+    kind: GoEndpointKind,
 }
 
 pub(crate) fn go_proxy_endpoint(
@@ -1168,10 +1174,10 @@ pub(crate) fn go_proxy_endpoint(
     path: FileSystemPath,
 ) -> Vc<Box<dyn Endpoint>> {
     Vc::upcast(
-        GoRouteEndpoint {
+        GoEndpoint {
             project,
             path,
-            page: None,
+            kind: GoEndpointKind::Proxy,
         }
         .cell(),
     )
@@ -1221,22 +1227,17 @@ impl Issue for GoRouteIssue {
 }
 
 #[turbo_tasks::value_impl]
-impl Endpoint for GoRouteEndpoint {
+impl Endpoint for GoEndpoint {
     #[turbo_tasks::function]
     async fn output(self: Vc<Self>) -> Result<Vc<EndpointOutput>> {
         let this = self.await?;
         let project = this.project;
-        let is_proxy = this.page.is_none();
-        let proxy_config = project.next_config().go_proxy().await?;
-        if if is_proxy {
-            proxy_config.is_none()
-        } else {
-            !*project.next_config().go_routes().await?
-        } {
+        let is_proxy = matches!(this.kind, GoEndpointKind::Proxy);
+        if !*project.next_config().go_routes().await? {
             GoRouteIssue {
                 path: this.path.clone(),
                 message: if is_proxy {
-                    rcstr!("proxy.go requires experimental.goProxy: {}")
+                    rcstr!("proxy.go requires experimental.goRoutes: true")
                 } else {
                     rcstr!("route.go requires experimental.goRoutes: true")
                 },
@@ -1298,11 +1299,12 @@ impl Endpoint for GoRouteEndpoint {
             .join("\n");
         let dispatch = include_str!("templates/go_route_dispatch.go")
             .replace("\t// __NEXT_GO_ROUTE_METHODS__", &declarations);
-        let pathname = this
-            .page
-            .as_ref()
-            .map(|page| AppPath::from(page.clone()).to_string())
-            .unwrap_or_default();
+        let (original_name, pathname) = match &this.kind {
+            GoEndpointKind::Route { page } => {
+                (page.to_string(), AppPath::from(page.clone()).to_string())
+            }
+            GoEndpointKind::Proxy => (String::new(), String::new()),
+        };
         let base_path = project.next_config().base_path().await?;
         let route_pattern = format!("{}{pathname}", base_path.as_deref().unwrap_or(""));
         let handler = if is_proxy {
@@ -1378,11 +1380,6 @@ impl Endpoint for GoRouteEndpoint {
         let hash = AssetContent::file(*content)
             .hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Hex)
             .await?;
-        let original_name = this
-            .page
-            .as_ref()
-            .map(ToString::to_string)
-            .unwrap_or_default();
         let output_name = if is_proxy {
             "middleware".to_owned()
         } else {
@@ -1445,22 +1442,48 @@ impl Endpoint for GoRouteEndpoint {
             ),
         ];
         if is_proxy {
-            assets.push(ResolvedVc::upcast(VirtualOutputAsset::new(
-                node_root.join("server/middleware/middleware-manifest.json")?,
-                AssetContent::file(FileContent::Content(File::from("{\"version\":3,\"middleware\":{},\"functions\":{},\"sortedMiddleware\":[]}".to_owned())).cell()),
-            ).to_resolved().await?));
+            // This partial manifest lists Edge functions only. Like Node.js proxies,
+            // Go proxies emit an empty manifest so the manifest loader clears any
+            // previous Edge entry when the proxy changes runtime in development.
+            let middleware_manifest = MiddlewaresManifestV2::default();
+            assets.push(ResolvedVc::upcast(
+                VirtualOutputAsset::new(
+                    node_root.join("server/middleware/middleware-manifest.json")?,
+                    AssetContent::file(
+                        FileContent::Content(File::from(serde_json::to_string_pretty(
+                            &middleware_manifest,
+                        )?))
+                        .cell(),
+                    ),
+                )
+                .to_resolved()
+                .await?,
+            ));
             // The JS marker is used only by next start/dev. Adapters consume the
             // native descriptor and deploy the PORT-based executable directly.
             let marker = serde_json::json!({"nativeEntry": entry});
-            assets.push(ResolvedVc::upcast(VirtualOutputAsset::new(
-                node_root.join("server/middleware.js")?,
-                AssetContent::file(FileContent::Content(File::from(format!("module.exports = {};", marker))).cell()),
-            ).to_resolved().await?));
+            assets.push(ResolvedVc::upcast(
+                VirtualOutputAsset::new(
+                    node_root.join("server/middleware.js")?,
+                    AssetContent::file(
+                        FileContent::Content(File::from(format!("module.exports = {};", marker)))
+                            .cell(),
+                    ),
+                )
+                .to_resolved()
+                .await?,
+            ));
             let trace = serde_json::json!({"version": 1, "files": [entry, executable]});
-            assets.push(ResolvedVc::upcast(VirtualOutputAsset::new(
-                node_root.join("server/middleware.js.nft.json")?,
-                AssetContent::file(FileContent::Content(File::from(serde_json::to_string(&trace)?)).cell()),
-            ).to_resolved().await?));
+            assets.push(ResolvedVc::upcast(
+                VirtualOutputAsset::new(
+                    node_root.join("server/middleware.js.nft.json")?,
+                    AssetContent::file(
+                        FileContent::Content(File::from(serde_json::to_string(&trace)?)).cell(),
+                    ),
+                )
+                .to_resolved()
+                .await?,
+            ));
         } else {
             assets.push(create_app_paths_manifest(node_root, &original_name, entry.into()).await?);
         }

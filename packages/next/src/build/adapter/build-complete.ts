@@ -1124,7 +1124,7 @@ export async function handleBuildComplete({
           'middleware.native.json'
         )
         const isGoProxy =
-          Boolean(config.experimental.goProxy) &&
+          Boolean(config.experimental.goRoutes) &&
           (await fs.stat(nativeDescriptorPath).then(
             () => true,
             (error) => {

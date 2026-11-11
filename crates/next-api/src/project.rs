@@ -1000,9 +1000,7 @@ impl ProjectContainer {
         let dist_dir = next_config.dist_dir().owned().await?;
         let dist_dir_root = next_config.dist_dir_root().owned().await?;
         Ok(Project {
-            go_sessions: if *next_config.go_routes().await?
-                || next_config.go_proxy().await?.is_some()
-            {
+            go_sessions: if *next_config.go_routes().await? {
                 Some(self.go_sessions)
             } else {
                 None
@@ -2492,7 +2490,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn find_middleware(self: Vc<Self>) -> Result<Vc<FindContextFileResult>> {
+    pub(crate) async fn find_middleware(self: Vc<Self>) -> Result<Vc<FindContextFileResult>> {
         Ok(find_context_file(
             self.project_path().owned().await?,
             middleware_files(self.next_config().page_extensions()),

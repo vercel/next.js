@@ -20,7 +20,9 @@ use turbopack_core::{
     module_graph::{GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::CommonJsReferenceSubType,
-    resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request},
+    resolve::{
+        FindContextFileResult, ResolveErrorMode, origin::PlainResolveOrigin, parse::Request,
+    },
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
@@ -354,13 +356,15 @@ fn next_owned_ignores(
 
 #[turbo_tasks::function]
 async fn has_native_routes(project: ResolvedVc<Project>) -> Result<Vc<bool>> {
-    if project.next_config().go_proxy().await?.is_some() {
-        return Ok(Vc::cell(true));
-    }
-    if *project.next_config().go_routes().await?
-        && let Some(app) = *project.app_project().await?
-    {
-        return Ok(app.has_go_routes());
+    if *project.next_config().go_routes().await? {
+        if let FindContextFileResult::Found(path, _) = &*project.find_middleware().await?
+            && path.file_name() == "proxy.go"
+        {
+            return Ok(Vc::cell(true));
+        }
+        if let Some(app) = *project.app_project().await? {
+            return Ok(app.has_go_routes());
+        }
     }
     Ok(Vc::cell(false))
 }

@@ -1,6 +1,9 @@
 # Native Go proxy
 
-Enable the experiment with `experimental.goProxy: { matcher: ['/protected/:path*'] }`.
+Enable both `route.go` and `proxy.go` with `experimental.goRoutes: true`.
+Optionally configure the proxy with
+`experimental.goProxy: { matcher: ['/protected/:path*'] }`; without settings it
+matches all paths.
 Put `proxy.go` beside `app` or `pages` (including in `src`) and provide:
 
 ```go

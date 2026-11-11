@@ -1235,8 +1235,6 @@ pub struct ExperimentalConfig {
     /// route.
     strict_route_matching: Option<bool>,
     go_routes: Option<bool>,
-    #[bincode(with = "turbo_bincode::serde_self_describing")]
-    go_proxy: Option<JsonValue>,
     /// Experimental Rust React compiler (Turbopack only); requires `reactCompiler`.
     turbopack_rust_react_compiler: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -1804,11 +1802,6 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn go_routes(&self) -> Vc<bool> {
         Vc::cell(self.experimental.go_routes.unwrap_or_default())
-    }
-
-    #[turbo_tasks::function]
-    pub fn go_proxy(&self) -> Vc<OptionJsonValue> {
-        Vc::cell(self.experimental.go_proxy.clone())
     }
 
     #[turbo_tasks::function]

@@ -105,13 +105,25 @@ describe('native route discovery', () => {
       )
       process.env.TURBOPACK = '1'
       await expect(getPagesPageStaticInfo(params)).rejects.toThrow(
-        'experimental.goProxy'
+        'experimental.goRoutes'
       )
+      await expect(
+        getPagesPageStaticInfo({
+          ...params,
+          nextConfig: { experimental: { goProxy: {} } },
+        })
+      ).rejects.toThrow('experimental.goRoutes')
+      const defaults = await getPagesPageStaticInfo({
+        ...params,
+        nextConfig: { experimental: { goRoutes: true } },
+      })
+      expect(defaults.middleware!.matchers![0].originalSource).toBe('/:path*')
       const info = await getPagesPageStaticInfo({
         ...params,
         nextConfig: {
           basePath: '/base',
           experimental: {
+            goRoutes: true,
             goProxy: {
               matcher: ['/protected/:path*'],
               maxDuration: 42,

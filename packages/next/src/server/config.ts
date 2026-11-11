@@ -481,7 +481,7 @@ function assignDefaultsAndValidate(
     result.experimental.strictRouteMatching = false
   }
 
-  if (result.experimental.goRoutes || result.experimental.goProxy) {
+  if (result.experimental.goRoutes) {
     if (result.output) {
       throw new Error(
         'Native Go routes and proxies do not support standalone or static export output'

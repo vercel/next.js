@@ -103,6 +103,12 @@ describe('native-proxy-go', () => {
         )
       )
       await next.build()
+      // Like Node.js proxies, Go proxies register no Edge functions.
+      const middlewareManifest = JSON.parse(
+        await next.readFile('.next/server/middleware/middleware-manifest.json')
+      )
+      expect(middlewareManifest.middleware).toEqual({})
+      expect(middlewareManifest.functions).toEqual({})
       const output = JSON.parse(await next.readFile('go-proxy-output.json'))
       expect(output).toMatchObject({
         type: 'MIDDLEWARE',
@@ -184,6 +190,8 @@ describe('native-proxy-go in src with Go route handlers', () => {
   const { next } = nextTestSetup({ files: join(__dirname, 'src-fixture') })
 
   it('runs src/proxy.go before a Go handler', async () => {
+    // goRoutes alone enables the proxy, with an all-paths matcher by default.
+    expect((await next.fetch('/')).headers.get('x-src-proxy')).toBe('yes')
     const response = await next.fetch('/native-proxy/native')
     expect(response.status).toBe(200)
     expect(response.headers.get('x-src-proxy')).toBe('yes')
