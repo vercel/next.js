@@ -325,6 +325,61 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toContain('with-type-error/page.tsx')
       })
     })
+
+    describe('metadata routes', () => {
+      it.each([
+        {
+          name: 'an image handler in a dynamic segment',
+          pattern: 'app/blog/[slug]/opengraph-image.tsx',
+          routes: ['/blog/[slug]/opengraph-image/route'],
+        },
+        {
+          name: 'global metadata handlers',
+          pattern: 'app/robots.ts,app/manifest.ts',
+          routes: ['/manifest.webmanifest/route', '/robots.txt/route'],
+        },
+        {
+          name: 'a handler with generateSitemaps',
+          pattern: 'app/sitemap.ts',
+          routes: ['/sitemap/[__metadata_id__]/route'],
+        },
+        {
+          name: 'a handler with generateImageMetadata in a route group',
+          pattern: 'app/(group)/nested/twitter-image.tsx',
+          routes: [
+            expect.stringMatching(
+              /^\/\(group\)\/nested\/twitter-image-[a-z0-9]+\/\[__metadata_id__\]\/route$/
+            ),
+          ],
+        },
+        {
+          name: 'static metadata files',
+          pattern: 'app/static/icon1.svg,app/static/sitemap.xml',
+          routes: ['/static/icon1.svg/route', '/static/sitemap.xml/route'],
+        },
+        {
+          name: 'image handlers selected by a glob and negation',
+          pattern: 'app/**/opengraph-image.tsx,!app/blog/**',
+          routes: ['/opengraph-image/route'],
+        },
+      ])('should build only $name', async ({ pattern, routes }) => {
+        const buildResult = await next.build({
+          args: ['--debug-build-paths', pattern],
+        })
+        expect(buildResult.exitCode).toBe(0)
+
+        const appPathsManifest = JSON.parse(
+          await next.readFile('.next/server/app-paths-manifest.json')
+        )
+        const builtRoutes = Object.keys(appPathsManifest)
+          .filter(
+            (route) =>
+              route !== '/_not-found/page' && route !== '/_global-error/page'
+          )
+          .sort()
+        expect(builtRoutes).toEqual(routes)
+      })
+    })
   })
 
   describe('src-dir fixture', () => {
