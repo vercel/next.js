@@ -52,7 +52,7 @@ describe('native route discovery', () => {
       delete process.env.TURBOPACK
       await expect(
         getAppPageStaticInfo({
-          pageFilePath: '/app/route.go',
+          pageFilePath: join(__dirname, 'app/native/route.go'),
           nextConfig: { experimental: { goRoutes: true } },
           isDev: true,
           page: '/route',
@@ -62,7 +62,7 @@ describe('native route discovery', () => {
       process.env.TURBOPACK = '1'
       await expect(
         getAppPageStaticInfo({
-          pageFilePath: '/app/route.go',
+          pageFilePath: join(__dirname, 'app/native/route.go'),
           nextConfig: {},
           isDev: true,
           page: '/route',
@@ -112,7 +112,7 @@ describe('native route discovery', () => {
   it('requires opt-in and Turbopack for Go proxies, and uses an all-paths matcher', async () => {
     const saved = process.env.TURBOPACK
     const params = {
-      pageFilePath: '/project/proxy.go',
+      pageFilePath: join(__dirname, 'proxy.go'),
       nextConfig: {},
       isDev: false,
       page: '/proxy',

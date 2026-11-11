@@ -43,7 +43,12 @@ export async function getStaticInfoIncludingLayouts({
     pageType,
   })
 
-  if (pageStaticInfo.type === PAGE_TYPES.PAGES || !appDir) {
+  // Native handlers have file-local deployment metadata, not layout config.
+  if (
+    pageStaticInfo.type === PAGE_TYPES.PAGES ||
+    !appDir ||
+    /(?:^|[\\/])route\.go$/.test(pageFilePath)
+  ) {
     return pageStaticInfo
   }
 
