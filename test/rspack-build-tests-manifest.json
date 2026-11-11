@@ -149,7 +149,14 @@
       "agent upgrade terminal build waits for Skip before completing generate-env"
     ],
     "failed": [],
-    "pending": ["agent upgrade terminal dev only runs with Next.js dev"],
+    "pending": [
+      "agent upgrade terminal dev closes the menu and shows all output when dev crashes",
+      "agent upgrade terminal dev holds dev logs behind the menu and shows all of them after Skip",
+      "agent upgrade terminal dev keeps the menu working after dev restarts",
+      "agent upgrade terminal dev sizes code frames to the terminal after it is resized",
+      "agent upgrade terminal dev stops dev on Upgrade now without showing held output",
+      "agent upgrade terminal dev stops dev when Ctrl+C is pressed in the menu"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -1016,7 +1023,10 @@
   "test/e2e/app-dir/app-custom-cache-handler-errors/app-custom-cache-handler-errors.test.ts": {
     "passed": [
       "app-custom-cache-handler-errors - get throws surfaces the cache handler error",
-      "app-custom-cache-handler-errors - set throws renders the page successfully"
+      "app-custom-cache-handler-errors - lookup recovery retains generated data in the producer request after its handler write fails",
+      "app-custom-cache-handler-errors - lookup recovery retries a shared failed lookup and shares its successful fill while the write is pending",
+      "app-custom-cache-handler-errors - set throws logs the cache write error without failing the render",
+      "app-custom-cache-handler-errors - shared write failure completes a joining server action and its re-render when the producer's cache write fails"
     ],
     "failed": [],
     "pending": [],
@@ -1130,6 +1140,7 @@
   },
   "test/e2e/app-dir/app-fetch-deduping-errors/app-fetch-deduping-errors.test.ts": {
     "passed": [
+      "app-fetch-errors should release the cache lock when a fetch URL cannot be parsed",
       "app-fetch-errors should still successfully render when a fetch request that acquires a cache lock errors"
     ],
     "failed": [],
@@ -1439,9 +1450,13 @@
       "app-root-param-getters - cache - at runtime should handle root param reads introduced after revalidation",
       "app-root-param-getters - cache - at runtime should resume with the same cached data that was prerendered",
       "app-root-param-getters - cache - at runtime should revalidate only the tagged root params",
+      "app-root-param-getters - cache dedup with root params persists a joining root value after the shared producer cache write fails",
       "app-root-param-getters - cache dedup with root params should dedupe same root params and isolate different root params",
       "app-root-param-getters - cache dedup with root params should dedupe same root params and isolate different root params for private caches",
       "app-root-param-getters - cache dedup with root params should key a joining outer cache by the root params read by its inner cache",
+      "app-root-param-getters - cache dedup with root params should key an outer cache by root params of an inner cache with a delayed Flight tail",
+      "app-root-param-getters - cache dedup with root params should key outer caches that join an inner cache by root params with a delayed Flight tail",
+      "app-root-param-getters - cache dedup with root params should not fork a cold root-param fill into unstable_cache",
       "app-root-param-getters - private cache should allow using root params within a \"use cache: private\" - start"
     ],
     "failed": [],
@@ -2215,6 +2230,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/avif-svg-signature-confusion/avif-svg-signature-confusion.test.ts": {
+    "passed": [
+      "avif-svg-signature-confusion rejects an SVG prefixed with <!--ftypavif-->",
+      "avif-svg-signature-confusion rejects an ordinary SVG when dangerouslyAllowSVG is false"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/back-before-hydration/back-before-hydration.test.ts": {
     "passed": [
       "back navigation before hydration after reload Suspense boundary above the page other history changes before hydration adopts a third-party pushState",
@@ -2958,7 +2983,7 @@
   "test/e2e/app-dir/cache-components-segment-configs/cache-components-segment-configs.test.ts": {
     "passed": [
       "cache-components-segment-configs it should error when using segment configs that aren't supported by cacheComponents",
-      "cache-components-segment-configs should propagate configurations from layouts to pages"
+      "cache-components-segment-configs layout propagation should propagate configurations from layouts to pages"
     ],
     "failed": [],
     "pending": [],
@@ -3731,6 +3756,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/custom-server-response-chunks/custom-server-response-chunks.test.ts": {
+    "passed": [
+      "custom-server-response-chunks writes no string chunks to the HTML response",
+      "custom-server-response-chunks writes no string chunks to the RSC response"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/custom-webpack/custom-webpack.test.ts": {
     "passed": [],
     "failed": [],
@@ -3794,6 +3829,18 @@
     "passed": [
       "app-dir - draft-mode-middleware should be able to disable draft mode with middleware present",
       "app-dir - draft-mode-middleware should be able to enable draft mode with middleware present"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/draft-mode-resume-data-cache/draft-mode-resume-data-cache.test.ts": {
+    "passed": [
+      "draft-mode-resume-data-cache renders draft data after an action enables draft mode and normal data after it disables draft mode",
+      "draft-mode-resume-data-cache renders fresh draft data after a progressively enhanced action enables draft mode",
+      "draft-mode-resume-data-cache renders fresh draft documents without cache miss warnings and preserves values for requests without draft mode",
+      "draft-mode-resume-data-cache requests fresh draft data when navigating to another page and returning"
     ],
     "failed": [],
     "pending": [],
@@ -4052,6 +4099,17 @@
       "edge runtime node compatibility [app] supports node:buffer",
       "edge runtime node compatibility [pages/api] supports node:buffer",
       "edge runtime node compatibility does not warn when using supported node modules"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/edge-x-middleware-set-cookie/edge-x-middleware-set-cookie.test.ts": {
+    "passed": [
+      "edge-x-middleware-set-cookie omits the internal header on a nodejs route handler",
+      "edge-x-middleware-set-cookie omits the internal header on a pages router edge api route",
+      "edge-x-middleware-set-cookie omits the internal header on an app router edge route handler"
     ],
     "failed": [],
     "pending": [],
@@ -4382,6 +4440,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/external-browser-runtime/external-browser-runtime.test.ts": {
+    "passed": [
+      "external-browser-runtime carries the Flight payload as data instead of inline scripts",
+      "external-browser-runtime loads the runtime as a static asset",
+      "external-browser-runtime reveals suspended content and hydrates",
+      "external-browser-runtime streams React instructions as data instead of inline scripts"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/external-redirect/external-redirect.test.ts": {
     "passed": [
       "external-redirect regression: Server Action triggered from onClick redirects to external URL"
@@ -4454,6 +4524,17 @@
       "fetch metrics (NEXT_SSG_FETCH_METRICS=1) stops tracking runtime prerender fetches when the response closes",
       "fetch metrics (NEXT_SSG_FETCH_METRICS=1) tracks build-time fetches through after() when metrics are enabled",
       "fetch metrics (NEXT_SSG_FETCH_METRICS=1) tracks dynamic renders only in development and stops on close"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/flight-native-chunks/flight-native-chunks.test.ts": {
+    "passed": [
+      "Flight native chunks hydrates the same values without executing embedded script text",
+      "Flight native chunks preserves Flight text, binary slices and promise values during SSR",
+      "Flight native chunks sends the same text on the RSC response"
     ],
     "failed": [],
     "pending": [],
@@ -4595,6 +4676,7 @@
   },
   "test/e2e/app-dir/global-not-found/basic/global-not-found-basic.test.ts": {
     "passed": [
+      "global-not-found - basic should navigate from global-not-found to the app root layout",
       "global-not-found - basic should render global-not-found for 404",
       "global-not-found - basic should render not-found boundary when calling notFound() in a page",
       "global-not-found - basic should ssr global-not-found for 404"
@@ -4674,8 +4756,8 @@
   },
   "test/e2e/app-dir/graceful-shutdown-next-after/next-start/index.test.ts": {
     "passed": [
-      "after during server shutdown - next start waits for after callbacks when the server receives SIGINT",
-      "after during server shutdown - next start waits for after callbacks when the server receives SIGTERM"
+      "after during server shutdown - next start handles after callbacks when the server receives SIGINT",
+      "after during server shutdown - next start handles after callbacks when the server receives SIGTERM"
     ],
     "failed": [],
     "pending": [],
@@ -4730,6 +4812,35 @@
       "app dir - hooks useSelectedLayoutSegments should have the correct layout segments at /hooks/use-selected-layout-segment/rewritten",
       "app dir - hooks useSelectedLayoutSegments should have the correct layout segments at /hooks/use-selected-layout-segment/rewritten-middleware",
       "app dir - hooks useSelectedLayoutSegments should return an empty array in pages"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/i18n-app-pages-domain-routing/i18n-app-pages-domain-routing.test.ts": {
+    "passed": [
+      "i18n-app-pages-domain-routing does not expose an inferred domain locale to an unlocalized App route",
+      "i18n-app-pages-domain-routing does not expose an inferred locale through a config rewrite on en.example.local",
+      "i18n-app-pages-domain-routing does not expose an inferred locale through a config rewrite on nl.example.local",
+      "i18n-app-pages-domain-routing does not expose an inferred locale through proxy rewrite /rewrite-plain on en.example.local",
+      "i18n-app-pages-domain-routing does not expose an inferred locale through proxy rewrite /rewrite-plain on nl.example.local",
+      "i18n-app-pages-domain-routing does not expose an inferred locale through proxy rewrite /rewrite-plain-clone on en.example.local",
+      "i18n-app-pages-domain-routing does not expose an inferred locale through proxy rewrite /rewrite-plain-clone on nl.example.local",
+      "i18n-app-pages-domain-routing does not strip an explicit locale to match an unlocalized exact App page",
+      "i18n-app-pages-domain-routing keeps Pages Router domain locale handling",
+      "i18n-app-pages-domain-routing keeps locale normalization for dynamic Pages routes",
+      "i18n-app-pages-domain-routing matches App catch-all params against the locale-prefixed pathname",
+      "i18n-app-pages-domain-routing preserves an explicit locale in a proxy rewrite destination on en.example.local",
+      "i18n-app-pages-domain-routing preserves an explicit locale in a proxy rewrite destination on nl.example.local",
+      "i18n-app-pages-domain-routing preserves an explicit locale through a config rewrite",
+      "i18n-app-pages-domain-routing routes a literal locale pathname to a dynamic App page",
+      "i18n-app-pages-domain-routing routes a proxy locale rewrite to a dynamic App page on en.example.local",
+      "i18n-app-pages-domain-routing routes a proxy locale rewrite to a dynamic App page on nl.example.local",
+      "i18n-app-pages-domain-routing routes an explicit config rewrite destination to a localized App page",
+      "i18n-app-pages-domain-routing routes an explicit locale pathname to a dynamic App page",
+      "i18n-app-pages-domain-routing routes an explicit locale pathname to an App route handler",
+      "i18n-app-pages-domain-routing routes an explicit locale pathname to an exact App page"
     ],
     "failed": [],
     "pending": [],
@@ -4809,6 +4920,25 @@
       "initial-css-order should serve styles in the correct order for the page"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/inject-instrumentation/inject-instrumentation.test.ts": {
+    "passed": [
+      "inject-instrumentation no inject and no project file emits no instrumentation entry",
+      "inject-instrumentation no inject and no project file runs no instrumentation"
+    ],
+    "failed": [
+      "inject-instrumentation a project instrumentation file chains after the inject runs the injected registers, then the project register",
+      "inject-instrumentation a project instrumentation file with a compound page extension chains instrumentation.page.ts after the inject",
+      "inject-instrumentation injected package resolution keeps the opted-out implementation out of emitted server bundles",
+      "inject-instrumentation injected package resolution runs injected packages and filesystem entries",
+      "inject-instrumentation injected package resolution traces the external instrumentation package",
+      "inject-instrumentation instrumentationInject without a project file emits the instrumentation entry",
+      "inject-instrumentation instrumentationInject without a project file runs every injected register in Node.js, in order",
+      "inject-instrumentation instrumentationInject without a project file runs every injected register in the Edge runtime, in order"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5238,6 +5368,7 @@
     "failed": [],
     "pending": [
       "layout-segment-chunk-sharing chunk sharing emits the shared layout module into exactly one server chunk",
+      "layout-segment-chunk-sharing layout segment chunking in the build trace chunks all client reference groups of a segment in one task",
       "layout-segment-chunk-sharing layout segment chunking in the build trace chunks the shared dashboard layout segment exactly once"
     ],
     "flakey": [],
@@ -5978,6 +6109,32 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/mpa-server-action-html/mpa-server-action-html.global-not-found.test.ts": {
+    "passed": [
+      "mpa-server-action-html with global-not-found renders a complete global not-found document after an MPA form submission"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/mpa-server-action-html/mpa-server-action-html.test.ts": {
+    "passed": [
+      "mpa-server-action-html preserves form state through an MPA form submission, hydration, and a fetch action",
+      "mpa-server-action-html renders returned form state in a complete document on /",
+      "mpa-server-action-html renders returned form state in a complete document on /blocking",
+      "mpa-server-action-html renders returned form state in a complete document on /data-only",
+      "mpa-server-action-html renders returned form state in a complete document on /dynamic-form",
+      "mpa-server-action-html returns a complete document after a plain action with bound arguments",
+      "mpa-server-action-html returns a complete not-found document after an MPA form submission",
+      "mpa-server-action-html reuses prerendered cache values from the RDC after an MPA form submission",
+      "mpa-server-action-html uses fresh invalidated data while preserving unrelated cached values"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/multi-value-search-params-stale/multi-value-search-params-stale.test.ts": {
     "passed": [
       "multi-value-search-params-stale re-renders when a repeated search param goes from multiple values to one"
@@ -6009,6 +6166,36 @@
     "passed": ["multiple-lockfiles should have multiple lockfiles warnings"],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/native-route-go/native-route-go.test.ts": {
+    "passed": [
+      "native route diagnostics diagnoses conflicting Go and TS handlers",
+      "native route diagnostics rejects a named handler with an incompatible net/http signature",
+      "native route diagnostics reports unsupported native handlers when building with Webpack"
+    ],
+    "failed": [
+      "native route diagnostics does not require Go or trace its runtime when no Go routes exist",
+      "native route diagnostics reports Go routes without the experiment before invoking the compiler"
+    ],
+    "pending": [
+      "native-route-go dispatches every declared method and automatically implements HEAD and sorted OPTIONS",
+      "native-route-go emits standalone Go adapter outputs alongside existing Node outputs",
+      "native-route-go finishes oversized proxied uploads when proxy copies the original Content-Length",
+      "native-route-go in src/app discovers grouped native handlers below src/app",
+      "native-route-go includes basePath in rewritten Go destination URLs",
+      "native-route-go matches Next parameter decoding and normalization",
+      "native-route-go passes the rewritten destination URL and derives parameters from it",
+      "native-route-go prefers explicit HEAD and OPTIONS handlers and rejects missing methods",
+      "native-route-go preserves repeated request headers and cancels streaming responses",
+      "native-route-go recovers after a native process crash",
+      "native-route-go retries a transient worker startup failure in production",
+      "native-route-go reuses the process and ignores forged native metadata",
+      "native-route-go serves native methods, params, headers, cookies, query, and streamed request bodies",
+      "native-route-go starts relocated output without a Go toolchain",
+      "native-route-go uses Node routing, rewrites and proxy exactly once and coexists with JS and Pages"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -6211,6 +6398,7 @@
       "after() in edge runtime runs in generateMetadata()",
       "after() in edge runtime runs in middleware",
       "after() in edge runtime runs in server actions",
+      "after() in edge runtime runs when route response validation fails",
       "after() in edge runtime uses waitUntil from request context if available in a page",
       "after() in edge runtime uses waitUntil from request context if available in a route handler",
       "after() in edge runtime uses waitUntil from request context if available in middleware",
@@ -6228,6 +6416,7 @@
       "after() in nodejs runtime runs in generateMetadata()",
       "after() in nodejs runtime runs in middleware",
       "after() in nodejs runtime runs in server actions",
+      "after() in nodejs runtime runs when route response validation fails",
       "after() in nodejs runtime uses waitUntil from request context if available in a page",
       "after() in nodejs runtime uses waitUntil from request context if available in a route handler",
       "after() in nodejs runtime uses waitUntil from request context if available in middleware"
@@ -6245,6 +6434,18 @@
       "after() - pages invalid usages errors at compile time when used in pages dir errors when used in getStaticProps",
       "after() - pages invalid usages errors at compile time when used in pages dir errors when used in within a page component",
       "after() - pages runs in middleware"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-analyze-source-maps/next-analyze-source-maps.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next analyze source maps preserves emitted assets with default source maps",
+      "next analyze source maps preserves emitted assets with full source maps",
+      "next analyze source maps preserves emitted assets with none source maps",
+      "next analyze source maps preserves emitted assets with shallow source maps"
     ],
     "flakey": [],
     "runtimeError": false
@@ -7299,6 +7500,34 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/optimistic-routing-inactive-parallel-slot/optimistic-routing-inactive-parallel-slot.test.ts": {
+    "passed": [
+      "optimistic-routing-inactive-parallel-slot predicts a route whose parallel slot renders default"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/optimistic-routing-parallel-catchall-prefetch-loop/optimistic-routing-parallel-catchall-prefetch-loop.test.ts": {
+    "passed": [
+      "optimistic-routing-parallel-catchall-prefetch-loop does not reuse stale params from active parallel catch-all slots"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/optimistic-routing-parallel-catchall-scroll/optimistic-routing-parallel-catchall-scroll.test.ts": {
+    "passed": [
+      "optimistic-routing-parallel-catchall-scroll predicts the parallel catch-all param from the URL",
+      "optimistic-routing-parallel-catchall-scroll scrolls to top on a locale replace that stays on /f/[slug]"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/optimistic-routing/optimistic-routing.test.ts": {
     "passed": [
       "optimistic-routing basic dynamic route prediction: shows loading state instantly for unprefetched route",
@@ -7343,6 +7572,9 @@
       "otel-middleware-trace - middleware (edge runtime) traces /route-handler with an incoming traceparent",
       "otel-middleware-trace - middleware (edge runtime) traces a direct middleware response",
       "otel-middleware-trace - middleware (edge runtime) traces a middleware redirect",
+      "otel-middleware-trace - middleware (edge runtime) traces a middleware rewrite to a static page",
+      "otel-middleware-trace - middleware (edge runtime) traces a middleware rewrite to an ISR page",
+      "otel-middleware-trace - middleware (edge runtime) traces a middleware rewrite to an external origin",
       "otel-middleware-trace - middleware (edge runtime) traces a page rendered after NextResponse.next()",
       "otel-middleware-trace - middleware (edge runtime) traces a request the middleware does not match",
       "otel-middleware-trace - middleware (edge runtime) traces a rewritten page",
@@ -7355,6 +7587,9 @@
       "otel-middleware-trace - proxy (nodejs runtime) traces /route-handler with an incoming traceparent",
       "otel-middleware-trace - proxy (nodejs runtime) traces a direct middleware response",
       "otel-middleware-trace - proxy (nodejs runtime) traces a middleware redirect",
+      "otel-middleware-trace - proxy (nodejs runtime) traces a middleware rewrite to a static page",
+      "otel-middleware-trace - proxy (nodejs runtime) traces a middleware rewrite to an ISR page",
+      "otel-middleware-trace - proxy (nodejs runtime) traces a middleware rewrite to an external origin",
       "otel-middleware-trace - proxy (nodejs runtime) traces a page rendered after NextResponse.next()",
       "otel-middleware-trace - proxy (nodejs runtime) traces a request the middleware does not match",
       "otel-middleware-trace - proxy (nodejs runtime) traces a rewritten page",
@@ -7370,6 +7605,16 @@
     "passed": [
       "otel-parent-span-propagation should set http.route on handleRequest span for dynamic routes",
       "otel-parent-span-propagation should set http.route on handleRequest span for static routes"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/package-json-type-commonjs/package-json-type-commonjs.test.ts": {
+    "passed": [
+      "generated server actions entrypoint compiles correctly when package.json has `\"type\": \"commonjs\"` does not error during build",
+      "nested package.json can override `\"type\": \"commonjs\"` in root package.json does not error during build"
     ],
     "failed": [],
     "pending": [],
@@ -7777,9 +8022,9 @@
       "parallel-routes-revalidation should handle a redirect action when called in a slot",
       "parallel-routes-revalidation should handle router.refresh() when called in a slot",
       "parallel-routes-revalidation should not trigger full page when calling router.refresh() on an intercepted route",
-      "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/catchall/foobar)",
-      "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/detail-page)",
-      "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/dynamic/foobar)",
+      "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/prr/catchall/foobar)",
+      "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/prr/detail-page)",
+      "parallel-routes-revalidation should not trigger interception when calling router.refresh() on an intercepted route (/prr/dynamic/foobar)",
       "parallel-routes-revalidation should not trigger the intercepted route when lazy-fetching missing data",
       "parallel-routes-revalidation should refresh the correct page when a server action triggers a redirect",
       "parallel-routes-revalidation should submit the action and revalidate the page data"
@@ -8123,6 +8368,7 @@
       "partial-fallback-shell-upgrade - partialPrefetching disabled shares an on-demand shell across params without generateStaticParams",
       "partial-fallback-shell-upgrade - partialPrefetching disabled should not specialize a generic shell into a more specific shell",
       "partial-fallback-shell-upgrade - partialPrefetching disabled should not upgrade the fallback shell to a route shell",
+      "partial-fallback-shell-upgrade - partialPrefetching disabled treats a request-supplied placeholder segment as a concrete value",
       "partial-fallback-shell-upgrade should let a segment prefetch trigger the background shell upgrade",
       "partial-fallback-shell-upgrade should not keep upgrading once only fully dynamic params remain",
       "partial-fallback-shell-upgrade should not upgrade a route shell when no params were prerendered",
@@ -8148,6 +8394,15 @@
   "test/e2e/app-dir/partial-prefetching-deep-propagation/partial-prefetching-deep-propagation.test.ts": {
     "passed": [
       "partial prefetching - deep subtree-hint propagation downgrades a prefetch={true} to a partial prefetch when a deeply nested segment opts in"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/partial-prefetching-inline-server-function/partial-prefetching-inline-server-function.test.ts": {
+    "passed": [
+      "partial prefetching with an inline server function terminates the HTML response of a partially prerendered page"
     ],
     "failed": [],
     "pending": [],
@@ -8453,11 +8708,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/ppr-navigations/prefetch-navigation/prefetch-navigation.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
+    "passed": [
       "prefetch-navigation should render the prefetch without waiting for the RSC request"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -8607,6 +8862,36 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/prepare-navigation/prepare-navigation.test.ts": {
+    "passed": [
+      "router.experimental_prepare requests a prepared navigation that redirects does not navigate",
+      "router.experimental_prepare requests a refresh between prepare and commit invalidates the prepared data",
+      "router.experimental_prepare requests a refresh invalidates a completed preparation of a static route",
+      "router.experimental_prepare requests a refresh while preparing a route that was not prefetched invalidates the prepared data",
+      "router.experimental_prepare requests a regular navigation does not reuse an expired prepared route",
+      "router.experimental_prepare requests a regular navigation does not reuse prepared data",
+      "router.experimental_prepare requests can commit after navigating elsewhere",
+      "router.experimental_prepare requests commits the prepared URL when a sibling route pattern was prefetched",
+      "router.experimental_prepare requests committing a navigation to a route that was not prefetched",
+      "router.experimental_prepare requests committing a prepared navigation more than once has no effect",
+      "router.experimental_prepare requests committing while the prepared request is in flight reuses it",
+      "router.experimental_prepare requests committing while the prepared request is in flight reuses it, for a route that was not prefetched",
+      "router.experimental_prepare requests committing with push reuses a completed preparation of /static-target",
+      "router.experimental_prepare requests committing with push reuses a completed preparation of /static-target#static-target",
+      "router.experimental_prepare requests committing with push reuses the prepared data and preserves the hash",
+      "router.experimental_prepare requests committing with replace reuses a completed preparation of /static-target",
+      "router.experimental_prepare requests committing with replace reuses a completed preparation of /static-target#static-target",
+      "router.experimental_prepare requests committing with replace reuses the prepared data",
+      "router.experimental_prepare requests preparing a navigation does not navigate",
+      "router.experimental_prepare requests reuses a completed preparation while a replacement prefetch is pending"
+    ],
+    "failed": [],
+    "pending": [
+      "router.experimental_prepare warns when a prepared navigation is committed more than once"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -8793,6 +9078,7 @@
   },
   "test/e2e/app-dir/require-context/require-context.test.ts": {
     "passed": [
+      "require-context should get correct require context when using no regex",
       "require-context should get correct require context when using regex filtering"
     ],
     "failed": [],
@@ -8825,6 +9111,7 @@
   },
   "test/e2e/app-dir/resume-data-cache/resume-data-cache.partial-prefetching.test.ts": {
     "passed": [
+      "resume-data-cache fills the RDC from the cache handler for the embedded runtime prefetch",
       "resume-data-cache should have consistent data between static and dynamic renders fetch cache after revalidation",
       "resume-data-cache should have consistent data between static and dynamic renders fetch cache initial",
       "resume-data-cache should have consistent data between static and dynamic renders use cache after revalidation",
@@ -8840,6 +9127,7 @@
   },
   "test/e2e/app-dir/resume-data-cache/resume-data-cache.test.ts": {
     "passed": [
+      "resume-data-cache fills the RDC from the cache handler for the embedded runtime prefetch",
       "resume-data-cache should have consistent data between static and dynamic renders fetch cache after revalidation",
       "resume-data-cache should have consistent data between static and dynamic renders fetch cache initial",
       "resume-data-cache should have consistent data between static and dynamic renders use cache after revalidation",
@@ -9124,6 +9412,15 @@
     "passed": [],
     "failed": [
       "react@experimental - blockingSSR should opt into the react@experimental channel when blockingSSR is enabled"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/rsc-basic/rsc-basic-external-browser-runtime.test.ts": {
+    "passed": [],
+    "failed": [
+      "react@experimental - externalBrowserRuntime should opt into the react@experimental channel when externalBrowserRuntime is enabled"
     ],
     "pending": [],
     "flakey": [],
@@ -9555,11 +9852,12 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/unused/unused.test.ts": {
-    "passed": [],
+    "passed": [
+      "unused scss Body is not hidden when unused ($dependencies) should have body visible"
+    ],
     "failed": [],
     "pending": [
-      "unused scss Body is not hidden when broken in Development development only should have body visible",
-      "unused scss Body is not hidden when unused in Development ($dependencies) development only should have body visible"
+      "unused scss Body is not hidden when broken in Development should have body visible"
     ],
     "flakey": [],
     "runtimeError": false
@@ -10534,7 +10832,10 @@
       "app-dir - server source maps - fake frame source maps server chunk source maps are resolvable by an attached debugger"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "app-dir - server source maps - fake frame source maps fake stack frame source maps are resolvable by an attached debugger",
+      "app-dir - server source maps - fake frame source maps fake stack frames from nested Flight requests are resolvable by an attached debugger"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -10664,6 +10965,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/stale-compressed-framing/stale-compressed-framing.test.ts": {
+    "passed": [
+      "stale-compressed-framing strips stale compressed framing on a direct response",
+      "stale-compressed-framing strips stale compressed framing on responses from the fetch cache"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/static-export-skew-trailing-slash/static-export-skew-trailing-slash.test.ts": {
     "passed": [
       "static-export-skew-trailing-slash preserves the trailing slash during an MPA fallback"
@@ -10712,6 +11023,27 @@
       "static-siblings parallel route siblings should navigate to static sibling after visiting dynamic route",
       "static-siblings same-directory siblings should include static sibling info in the server response",
       "static-siblings same-directory siblings should navigate to static sibling after visiting dynamic route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/static-to-partial-rsc/static-to-partial-rsc.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "static-to-partial RSC renders navigation with request data after revalidation",
+      "static-to-partial RSC renders runtime-prefetch with request data after revalidation",
+      "static-to-partial RSC renders runtime-shell with request data after revalidation"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/streamed-cache-revalidation/streamed-cache-revalidation.test.ts": {
+    "passed": [
+      "streamed cache revalidation applies a tag invalidation queued during response streaming",
+      "streamed cache revalidation invalidates a cached value from a streamed action that skips rendering"
     ],
     "failed": [],
     "pending": [],
@@ -10840,6 +11172,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/treeshake-client/treeshake-client.test.ts": {
+    "passed": [
+      "treeshake-client builds a client re-export of a side-effect-free external barrel"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/treeshake-mw/mw.test.ts": {
     "passed": [
       "treeshake-mw builds and runs Node.js middleware importing via a star re-export"
@@ -10855,9 +11196,11 @@
     "pending": [
       "turbopack additional roots emits additional-root files and cross-root symlinks in the NFT",
       "turbopack additional roots handles absolute paths and an additional root in dependencies from a webpack loader",
+      "turbopack additional roots passes the path of a file in an additional root to PostCSS",
       "turbopack additional roots provides relocatable synthetic symlinks through adapter assets",
       "turbopack additional roots reports initialization warnings when startup succeeds",
       "turbopack additional roots resolves a linked package, sibling dependency, and next/dist",
+      "turbopack additional roots runs a webpack loader on a file in an additional root",
       "turbopack additional roots runs after relocating standalone output away from the source root",
       "turbopack additional roots uses a placeholder for import.meta.url in an additional root"
     ],
@@ -10907,6 +11250,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/turbopack-rules-css-module-rename-as/turbopack-rules-css-module-rename-as.test.ts": {
+    "passed": [
+      "turbopack-rules-css-module-rename-as should apply CSS Module and global styles",
+      "turbopack-rules-css-module-rename-as should keep CSS Module class exports scoped"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/turbopack-tree-shaking-chunkgroup/turbopack-tree-shaking-chunkgroup.test.ts": {
     "passed": [
       "turbopack-tree-shaking-chunkgroup builds an app-router app with tree-shaking enabled and renders"
@@ -10918,19 +11271,19 @@
   },
   "test/e2e/app-dir/typed-routes-validator/typed-routes-validator.test.ts": {
     "passed": [
-      "typed-routes-validator should fail type checking with invalid API route exports",
-      "typed-routes-validator should fail type checking with invalid layout exports",
-      "typed-routes-validator should fail type checking with invalid page exports",
-      "typed-routes-validator should fail type checking with invalid page props",
-      "typed-routes-validator should fail type checking with invalid route handler params",
-      "typed-routes-validator should fail type checking with invalid route handler return type",
+      "typed-routes-validator production mode should fail type checking with invalid API route exports",
+      "typed-routes-validator production mode should fail type checking with invalid layout exports",
+      "typed-routes-validator production mode should fail type checking with invalid page exports",
+      "typed-routes-validator production mode should fail type checking with invalid page props",
+      "typed-routes-validator production mode should fail type checking with invalid route handler params",
+      "typed-routes-validator production mode should fail type checking with invalid route handler return type",
+      "typed-routes-validator production mode should pass type checking with valid API route exports",
+      "typed-routes-validator production mode should pass type checking with valid layout exports",
+      "typed-routes-validator production mode should pass type checking with valid page exports",
+      "typed-routes-validator production mode should pass type checking with valid page props",
+      "typed-routes-validator production mode should pass type checking with valid route handler exports",
       "typed-routes-validator should generate route validation correctly",
-      "typed-routes-validator should have passing tsc after the server generated types",
-      "typed-routes-validator should pass type checking with valid API route exports",
-      "typed-routes-validator should pass type checking with valid layout exports",
-      "typed-routes-validator should pass type checking with valid page exports",
-      "typed-routes-validator should pass type checking with valid page props",
-      "typed-routes-validator should pass type checking with valid route handler exports"
+      "typed-routes-validator should have passing tsc after the server generated types"
     ],
     "failed": [],
     "pending": [],
@@ -11084,6 +11437,26 @@
       "use cache called after tasky uncached IO does not store an incomplete cache entry in the cache handler"
     ],
     "failed": [],
+    "pending": ["use cache called after tasky uncached IO resolves in dev"],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/use-cache-binary-args/use-cache-binary-args.test.ts": {
+    "passed": [
+      "use-cache-binary-args should cache binary arguments",
+      "use-cache-binary-args should include file name and type in the cache key"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/use-cache-caught-error/use-cache-caught-error.test.ts": {
+    "passed": [
+      "use-cache-caught-error should cache the fallback for /runtime when a cached function throws",
+      "use-cache-caught-error should cache the fallback for /static when a cached function throws"
+    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11109,6 +11482,9 @@
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
       "use-cache-custom-handler calls neither refreshTags nor getExpiration if \"use cache\" is not used",
+      "use-cache-custom-handler currently shares a handler lookup across routes and serves old data after revalidatePath()",
+      "use-cache-custom-handler currently shares a handler lookup between equal routes separated by path revalidation",
+      "use-cache-custom-handler currently shares a pending fill without checking route-specific cache invalidation",
       "use-cache-custom-handler handles a failed handler preload without an unhandled rejection",
       "use-cache-custom-handler should call updateTags once per profile group",
       "use-cache-custom-handler should dedupe nested caches across different outer cache scopes, and still propagate cache life/tags correctly",
@@ -11267,7 +11643,9 @@
       "use-cache-route-handler-only refreshes cached data after tag revalidation",
       "use-cache-route-handler-only should be able to revalidate prerendered route handlers",
       "use-cache-route-handler-only should cache results in node route handlers",
-      "use-cache-route-handler-only should dedupe concurrent cache invocations in route handlers"
+      "use-cache-route-handler-only should dedupe concurrent cache invocations in route handlers",
+      "use-cache-route-handler-only should prerender route handlers that respond with 204",
+      "use-cache-route-handler-only should respond to auto-implemented OPTIONS requests"
     ],
     "failed": [],
     "pending": [],
@@ -11299,10 +11677,33 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/use-cache-short-stale/use-cache-short-stale.test.ts": {
+    "passed": [
+      "use-cache-short-stale revalidates by tag before and after path revalidation",
+      "use-cache-short-stale revalidates repeatedly after the time interval"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/use-cache-streaming-revalidation/use-cache-streaming-revalidation.test.ts": {
+    "passed": [
+      "use cache streaming revalidation completes stale regeneration started during a streaming flight response",
+      "use cache streaming revalidation completes stale regeneration started during a streaming html response"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/use-cache-swr/use-cache-swr.test.ts": {
     "passed": [
+      "use-cache-swr currently delays a direct stale read behind a nested foreground fill",
+      "use-cache-swr currently gives nested callers stale data after background revalidation completes",
       "use-cache-swr deduplicates background revalidations across concurrent requests",
       "use-cache-swr deduplicates background revalidations when a cache handler read returns stale data after revalidation completes",
+      "use-cache-swr retries background revalidation after its handler write fails",
       "use-cache-swr reuses the prospective prerender's stale value in the final runtime prerender after background revalidation completes",
       "use-cache-swr serves the same stale value in HTML, hydration data, and the embedded runtime prefetch while revalidation is pending",
       "use-cache-swr serves the same stale value in navigation data and the embedded runtime prefetch while revalidation is pending",
@@ -11594,9 +11995,17 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/webpack-loader-fs/webpack-loader-fs.test.ts": {
-    "passed": ["webpack-loader-fs should allow reading the input FS"],
+    "passed": [
+      "webpack-loader-fs exposes Node stat results, options, path types, and callback errors",
+      "webpack-loader-fs should allow reading the input FS"
+    ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "webpack-loader-fs invalidates a stat-only read when the file size changes",
+      "webpack-loader-fs invalidates metadata-only changes without reading file contents",
+      "webpack-loader-fs tracks metadata through a symlinked parent directory",
+      "webpack-loader-fs tracks missing-path creation, file-to-directory replacement, and deletion"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -11666,6 +12075,17 @@
       "webpack-loader-ts-transform should accept Typescript returned from Webpack loaders"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-utils/webpack-loader-utils.test.ts": {
+    "passed": [
+      "webpack-loader-utils runs style-loader pitching with the real loader context"
+    ],
+    "failed": [
+      "webpack-loader-utils exposes path and hash utilities to loaders"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12107,7 +12527,9 @@
       "chrome-devtools-workspace proxy should be able to connect to Chrome DevTools in dev"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "chrome-devtools-workspace persistence persists the UUID when the cache directory does not exist yet"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -12206,7 +12628,31 @@
       "client-max-body-size default 10MB limit should accept request body over 10MB but only buffer up to limit",
       "client-max-body-size default 10MB limit should accept request body under 10MB",
       "client-max-body-size large custom limit should accept request body over custom 50MB limit but only buffer up to limit",
-      "client-max-body-size large custom limit should accept request body up to 50MB with custom limit"
+      "client-max-body-size large custom limit should accept request body up to 50MB with custom limit",
+      "client-max-body-size replayed HTTP body framing frames 16384 bytes for /api/echo (override=false, chunked=false)",
+      "client-max-body-size replayed HTTP body framing frames 16384 bytes for /api/echo (override=false, chunked=true)",
+      "client-max-body-size replayed HTTP body framing frames 16384 bytes for /api/echo (override=true, chunked=false)",
+      "client-max-body-size replayed HTTP body framing frames 16384 bytes for /api/echo (override=true, chunked=true)",
+      "client-max-body-size replayed HTTP body framing frames 16384 bytes for /api/external (override=false, chunked=false)",
+      "client-max-body-size replayed HTTP body framing frames 16384 bytes for /api/external (override=false, chunked=true)",
+      "client-max-body-size replayed HTTP body framing frames 16384 bytes for /api/external (override=true, chunked=false)",
+      "client-max-body-size replayed HTTP body framing frames 16384 bytes for /api/external (override=true, chunked=true)",
+      "client-max-body-size replayed HTTP body framing frames 32768 bytes for /api/echo (override=false, chunked=false)",
+      "client-max-body-size replayed HTTP body framing frames 32768 bytes for /api/echo (override=false, chunked=true)",
+      "client-max-body-size replayed HTTP body framing frames 32768 bytes for /api/echo (override=true, chunked=false)",
+      "client-max-body-size replayed HTTP body framing frames 32768 bytes for /api/echo (override=true, chunked=true)",
+      "client-max-body-size replayed HTTP body framing frames 32768 bytes for /api/external (override=false, chunked=false)",
+      "client-max-body-size replayed HTTP body framing frames 32768 bytes for /api/external (override=false, chunked=true)",
+      "client-max-body-size replayed HTTP body framing frames 32768 bytes for /api/external (override=true, chunked=false)",
+      "client-max-body-size replayed HTTP body framing frames 32768 bytes for /api/external (override=true, chunked=true)",
+      "client-max-body-size replayed HTTP body framing frames 65536 bytes for /api/echo (override=false, chunked=false)",
+      "client-max-body-size replayed HTTP body framing frames 65536 bytes for /api/echo (override=false, chunked=true)",
+      "client-max-body-size replayed HTTP body framing frames 65536 bytes for /api/echo (override=true, chunked=false)",
+      "client-max-body-size replayed HTTP body framing frames 65536 bytes for /api/echo (override=true, chunked=true)",
+      "client-max-body-size replayed HTTP body framing frames 65536 bytes for /api/external (override=false, chunked=false)",
+      "client-max-body-size replayed HTTP body framing frames 65536 bytes for /api/external (override=false, chunked=true)",
+      "client-max-body-size replayed HTTP body framing frames 65536 bytes for /api/external (override=true, chunked=false)",
+      "client-max-body-size replayed HTTP body framing frames 65536 bytes for /api/external (override=true, chunked=true)"
     ],
     "failed": [],
     "pending": [],
@@ -12217,6 +12663,19 @@
     "passed": [
       "Client Shallow Routing should not shallowly navigate back in history when current page was not shallow",
       "Client Shallow Routing should not shallowly navigate forwards in history when current page was not shallow"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/compression/compression.test.ts": {
+    "passed": [
+      "Compression should compress dynamic route handler responses above 1kb",
+      "Compression should compress dynamic route handler responses below 1kb",
+      "Compression should compress responses by default",
+      "Compression should compress route handler responses above 1kb",
+      "Compression should compress route handler responses below 1kb"
     ],
     "failed": [],
     "pending": [],
@@ -13470,27 +13929,22 @@
   },
   "test/e2e/fetch-failures-have-good-stack-traces-in-edge-runtime/fetch-failures-have-good-stack-traces-in-edge-runtime.test.ts": {
     "passed": [
-      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved"
-    ],
-    "failed": [],
-    "pending": [
+      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved",
       "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/fetch-polyfill-ky-universal/fetch-polyfill-ky-universal.test.ts": {
     "passed": [
-      "Fetch polyfill with ky-universal production mode includes polyfilled fetch when using getInitialProps (prod)",
-      "Fetch polyfill with ky-universal production mode includes polyfilled fetch when using getServerSideProps (prod)",
-      "Fetch polyfill with ky-universal production mode includes polyfilled fetch when using getStaticProps (prod)"
+      "Fetch polyfill with ky-universal includes polyfilled fetch when using getInitialProps",
+      "Fetch polyfill with ky-universal includes polyfilled fetch when using getServerSideProps",
+      "Fetch polyfill with ky-universal includes polyfilled fetch when using getStaticProps"
     ],
     "failed": [],
-    "pending": [
-      "Fetch polyfill with ky-universal development mode includes polyfilled fetch when using getInitialProps (dev)",
-      "Fetch polyfill with ky-universal development mode includes polyfilled fetch when using getServerSideProps (dev)",
-      "Fetch polyfill with ky-universal development mode includes polyfilled fetch when using getStaticProps (dev)"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -14247,7 +14701,8 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "warm-restart task statistics snapshot of tasks with cache misses on warm build"
+      "warm-restart task statistics snapshot of tasks with cache misses on warm build",
+      "warm-restart task statistics snapshot of tasks with cache misses on warm dev restart"
     ],
     "flakey": [],
     "runtimeError": false
@@ -14794,190 +15249,101 @@
   },
   "test/e2e/i18n-support-base-path/i18n-support-base-path.test.ts": {
     "passed": [
-      "i18n Support basePath production mode should 404 for GSP pages that returned notFound",
-      "i18n Support basePath production mode should 404 for GSP that returned notFound on client-transition",
-      "i18n Support basePath production mode should 404 for locale prefixed public folder files",
-      "i18n Support basePath production mode should 404 for locale prefixed static assets correctly",
-      "i18n Support basePath production mode should add i18n config to routes-manifest",
-      "i18n Support basePath production mode should apply headers correctly",
-      "i18n Support basePath production mode should apply redirects correctly",
-      "i18n Support basePath production mode should apply rewrites correctly",
-      "i18n Support basePath production mode should apply trailingSlash redirect correctly",
-      "i18n Support basePath production mode should generate auto-export page with all locales",
-      "i18n Support basePath production mode should generate fallbacks with all locales",
-      "i18n Support basePath production mode should generate non-dynamic GSP page with all locales",
-      "i18n Support basePath production mode should handle basePath like pathname",
-      "i18n Support basePath production mode should handle fallback correctly after generating",
-      "i18n Support basePath production mode should handle locales with domain for domain example.com should handle locale do-BE",
-      "i18n Support basePath production mode should handle locales with domain for domain example.com should handle locale go-BE",
-      "i18n Support basePath production mode should handle locales with domain for domain example.do should handle locale do-BE",
-      "i18n Support basePath production mode should handle locales with domain for domain example.do should handle locale go-BE",
-      "i18n Support basePath production mode should handle navigating back to different casing of locale",
-      "i18n Support basePath production mode should have correct initial query values for fallback",
-      "i18n Support basePath production mode should have correct values for non-prefixed path",
-      "i18n Support basePath production mode should have domainLocales available on useRouter",
-      "i18n Support basePath production mode should load dynamic getServerSideProps page correctly SSR",
-      "i18n Support basePath production mode should load getServerSideProps page correctly SSR",
-      "i18n Support basePath production mode should load getServerSideProps page correctly SSR (default locale no prefix)",
-      "i18n Support basePath production mode should load getStaticProps fallback non-prerender page another locale correctly",
-      "i18n Support basePath production mode should load getStaticProps fallback non-prerender page correctly",
-      "i18n Support basePath production mode should load getStaticProps fallback non-prerender page correctly (default locale no prefix",
-      "i18n Support basePath production mode should load getStaticProps fallback prerender page correctly SSR",
-      "i18n Support basePath production mode should load getStaticProps fallback prerender page correctly SSR (default locale no prefix)",
-      "i18n Support basePath production mode should load getStaticProps non-fallback correctly",
-      "i18n Support basePath production mode should load getStaticProps non-fallback correctly another locale",
-      "i18n Support basePath production mode should load getStaticProps non-fallback correctly another locale via cookie",
-      "i18n Support basePath production mode should load getStaticProps page correctly SSR",
-      "i18n Support basePath production mode should load getStaticProps page correctly SSR (default locale no prefix)",
-      "i18n Support basePath production mode should navigate client side for default locale with no prefix",
-      "i18n Support basePath production mode should navigate through history with query correctly",
-      "i18n Support basePath production mode should navigate to another page and back correctly with locale",
-      "i18n Support basePath production mode should navigate to auto-export dynamic page",
-      "i18n Support basePath production mode should navigate to getStaticProps page and back correctly with locale",
-      "i18n Support basePath production mode should navigate to page with same name as development buildId",
-      "i18n Support basePath production mode should navigate with locale false correctly",
-      "i18n Support basePath production mode should navigate with locale false correctly GSP",
-      "i18n Support basePath production mode should navigate with locale prop correctly",
-      "i18n Support basePath production mode should navigate with locale prop correctly GSP",
-      "i18n Support basePath production mode should not add duplicate locale key when navigating back to root path with hash",
-      "i18n Support basePath production mode should not add duplicate locale key when navigating back to root path with query params",
-      "i18n Support basePath production mode should not contain backslashes in pages-manifest",
-      "i18n Support basePath production mode should not error with similar named cookie to locale cookie",
-      "i18n Support basePath production mode should not have hydration mis-match from hash",
-      "i18n Support basePath production mode should not output GSP pages that returned notFound",
-      "i18n Support basePath production mode should not redirect to accept-lang preferred locale with locale cookie",
-      "i18n Support basePath production mode should not remove locale prefix for default locale",
-      "i18n Support basePath production mode should not strip locale prefix for default locale with locale domains",
-      "i18n Support basePath production mode should output correct prerender-manifest",
-      "i18n Support basePath production mode should preload all locales data correctly",
-      "i18n Support basePath production mode should prerender with the correct href for locale domain",
-      "i18n Support basePath production mode should provide defaultLocale correctly for locale domain",
-      "i18n Support basePath production mode should redirect external domain correctly",
-      "i18n Support basePath production mode should redirect to correct locale domain",
-      "i18n Support basePath production mode should redirect to locale prefixed route for /",
-      "i18n Support basePath production mode should render 404 for blocking fallback page that returned 404",
-      "i18n Support basePath production mode should render 404 for blocking fallback page that returned 404 on client transition",
-      "i18n Support basePath production mode should render 404 for fallback page that returned 404",
-      "i18n Support basePath production mode should render 404 for fallback page that returned 404 on client transition",
-      "i18n Support basePath production mode should render the correct href with locale domains but not on a locale domain",
-      "i18n Support basePath production mode should resolve auto-export dynamic route correctly",
-      "i18n Support basePath production mode should resolve href correctly when dynamic route matches locale prefixed",
-      "i18n Support basePath production mode should rewrite to API route correctly for do locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for do-BE locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for en locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for en-US locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for fr locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for fr-BE locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for go locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for go-BE locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for nl locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for nl-BE locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for nl-NL locale",
-      "i18n Support basePath production mode should serve public file on locale domain",
-      "i18n Support basePath production mode should transition on client properly for page that starts with locale",
-      "i18n Support basePath production mode should update asPath on the client correctly",
-      "i18n Support basePath production mode should use correct default locale for locale domains",
-      "i18n Support basePath production mode should use default locale for / without accept-language",
-      "i18n Support basePath production mode should use default locale when no locale is in href with locale false",
-      "i18n Support basePath production mode should visit API route directly correctly",
-      "i18n Support basePath production mode should visit dynamic API route directly correctly",
+      "i18n Support basePath should 404 for GSP pages that returned notFound",
+      "i18n Support basePath should 404 for GSP that returned notFound on client-transition",
+      "i18n Support basePath should 404 for locale prefixed public folder files",
+      "i18n Support basePath should 404 for locale prefixed static assets correctly",
+      "i18n Support basePath should add i18n config to routes-manifest",
+      "i18n Support basePath should apply headers correctly",
+      "i18n Support basePath should apply redirects correctly",
+      "i18n Support basePath should apply rewrites correctly",
+      "i18n Support basePath should apply trailingSlash redirect correctly",
+      "i18n Support basePath should generate auto-export page with all locales",
+      "i18n Support basePath should generate fallbacks with all locales",
+      "i18n Support basePath should generate non-dynamic GSP page with all locales",
+      "i18n Support basePath should handle basePath like pathname",
+      "i18n Support basePath should handle fallback correctly after generating",
+      "i18n Support basePath should handle locales with domain for domain example.com should handle locale do-BE",
+      "i18n Support basePath should handle locales with domain for domain example.com should handle locale go-BE",
+      "i18n Support basePath should handle locales with domain for domain example.do should handle locale do-BE",
+      "i18n Support basePath should handle locales with domain for domain example.do should handle locale go-BE",
+      "i18n Support basePath should handle navigating back to different casing of locale",
+      "i18n Support basePath should have correct initial query values for fallback",
+      "i18n Support basePath should have correct values for non-prefixed path",
+      "i18n Support basePath should have domainLocales available on useRouter",
+      "i18n Support basePath should load dynamic getServerSideProps page correctly SSR",
+      "i18n Support basePath should load getServerSideProps page correctly SSR",
+      "i18n Support basePath should load getServerSideProps page correctly SSR (default locale no prefix)",
+      "i18n Support basePath should load getStaticProps fallback non-prerender page another locale correctly",
+      "i18n Support basePath should load getStaticProps fallback non-prerender page correctly",
+      "i18n Support basePath should load getStaticProps fallback non-prerender page correctly (default locale no prefix",
+      "i18n Support basePath should load getStaticProps fallback prerender page correctly SSR",
+      "i18n Support basePath should load getStaticProps fallback prerender page correctly SSR (default locale no prefix)",
+      "i18n Support basePath should load getStaticProps non-fallback correctly",
+      "i18n Support basePath should load getStaticProps non-fallback correctly another locale",
+      "i18n Support basePath should load getStaticProps non-fallback correctly another locale via cookie",
+      "i18n Support basePath should load getStaticProps page correctly SSR",
+      "i18n Support basePath should load getStaticProps page correctly SSR (default locale no prefix)",
+      "i18n Support basePath should navigate client side for default locale with no prefix",
+      "i18n Support basePath should navigate through history with query correctly",
+      "i18n Support basePath should navigate to another page and back correctly with locale",
+      "i18n Support basePath should navigate to auto-export dynamic page",
+      "i18n Support basePath should navigate to getStaticProps page and back correctly with locale",
+      "i18n Support basePath should navigate to page with same name as development buildId",
+      "i18n Support basePath should navigate with locale false correctly",
+      "i18n Support basePath should navigate with locale false correctly GSP",
+      "i18n Support basePath should navigate with locale prop correctly",
+      "i18n Support basePath should navigate with locale prop correctly GSP",
+      "i18n Support basePath should not add duplicate locale key when navigating back to root path with hash",
+      "i18n Support basePath should not add duplicate locale key when navigating back to root path with query params",
+      "i18n Support basePath should not contain backslashes in pages-manifest",
+      "i18n Support basePath should not error with similar named cookie to locale cookie",
+      "i18n Support basePath should not have hydration mis-match from hash",
+      "i18n Support basePath should not output GSP pages that returned notFound",
+      "i18n Support basePath should not redirect to accept-lang preferred locale with locale cookie",
+      "i18n Support basePath should not remove locale prefix for default locale",
+      "i18n Support basePath should not strip locale prefix for default locale with locale domains",
+      "i18n Support basePath should output correct prerender-manifest",
+      "i18n Support basePath should preload all locales data correctly",
+      "i18n Support basePath should prerender with the correct href for locale domain",
+      "i18n Support basePath should provide defaultLocale correctly for locale domain",
+      "i18n Support basePath should redirect external domain correctly",
+      "i18n Support basePath should redirect to correct locale domain",
+      "i18n Support basePath should redirect to locale prefixed route for /",
+      "i18n Support basePath should render 404 for blocking fallback page that returned 404",
+      "i18n Support basePath should render 404 for blocking fallback page that returned 404 on client transition",
+      "i18n Support basePath should render 404 for fallback page that returned 404",
+      "i18n Support basePath should render 404 for fallback page that returned 404 on client transition",
+      "i18n Support basePath should render the correct href with locale domains but not on a locale domain",
+      "i18n Support basePath should resolve auto-export dynamic route correctly",
+      "i18n Support basePath should resolve href correctly when dynamic route matches locale prefixed",
+      "i18n Support basePath should rewrite to API route correctly for do locale",
+      "i18n Support basePath should rewrite to API route correctly for do-BE locale",
+      "i18n Support basePath should rewrite to API route correctly for en locale",
+      "i18n Support basePath should rewrite to API route correctly for en-US locale",
+      "i18n Support basePath should rewrite to API route correctly for fr locale",
+      "i18n Support basePath should rewrite to API route correctly for fr-BE locale",
+      "i18n Support basePath should rewrite to API route correctly for go locale",
+      "i18n Support basePath should rewrite to API route correctly for go-BE locale",
+      "i18n Support basePath should rewrite to API route correctly for nl locale",
+      "i18n Support basePath should rewrite to API route correctly for nl-BE locale",
+      "i18n Support basePath should rewrite to API route correctly for nl-NL locale",
+      "i18n Support basePath should serve public file on locale domain",
+      "i18n Support basePath should transition on client properly for page that starts with locale",
+      "i18n Support basePath should update asPath on the client correctly",
+      "i18n Support basePath should use correct default locale for locale domains",
+      "i18n Support basePath should use default locale for / without accept-language",
+      "i18n Support basePath should use default locale when no locale is in href with locale false",
+      "i18n Support basePath should visit API route directly correctly",
+      "i18n Support basePath should visit dynamic API route directly correctly",
       "i18n Support basePath with localeDetection disabled should have localeDetection in routes-manifest",
       "i18n Support basePath with localeDetection disabled should not detect locale from accept-language",
       "i18n Support basePath with localeDetection disabled should set locale from detected path"
     ],
     "failed": [],
     "pending": [
-      "i18n Support basePath development mode should 404 for GSP pages that returned notFound",
-      "i18n Support basePath development mode should 404 for GSP that returned notFound on client-transition",
-      "i18n Support basePath development mode should 404 for locale prefixed public folder files",
-      "i18n Support basePath development mode should 404 for locale prefixed static assets correctly",
-      "i18n Support basePath development mode should add i18n config to routes-manifest",
-      "i18n Support basePath development mode should apply headers correctly",
-      "i18n Support basePath development mode should apply redirects correctly",
-      "i18n Support basePath development mode should apply rewrites correctly",
-      "i18n Support basePath development mode should apply trailingSlash redirect correctly",
-      "i18n Support basePath development mode should generate auto-export page with all locales",
-      "i18n Support basePath development mode should generate fallbacks with all locales",
-      "i18n Support basePath development mode should generate non-dynamic GSP page with all locales",
-      "i18n Support basePath development mode should handle basePath like pathname",
-      "i18n Support basePath development mode should handle fallback correctly after generating",
-      "i18n Support basePath development mode should handle locales with domain for domain example.com should handle locale do-BE",
-      "i18n Support basePath development mode should handle locales with domain for domain example.com should handle locale go-BE",
-      "i18n Support basePath development mode should handle locales with domain for domain example.do should handle locale do-BE",
-      "i18n Support basePath development mode should handle locales with domain for domain example.do should handle locale go-BE",
-      "i18n Support basePath development mode should handle navigating back to different casing of locale",
-      "i18n Support basePath development mode should have correct initial query values for fallback",
-      "i18n Support basePath development mode should have correct values for non-prefixed path",
-      "i18n Support basePath development mode should have domainLocales available on useRouter",
-      "i18n Support basePath development mode should load dynamic getServerSideProps page correctly SSR",
-      "i18n Support basePath development mode should load getServerSideProps page correctly SSR",
-      "i18n Support basePath development mode should load getServerSideProps page correctly SSR (default locale no prefix)",
-      "i18n Support basePath development mode should load getStaticProps fallback non-prerender page another locale correctly",
-      "i18n Support basePath development mode should load getStaticProps fallback non-prerender page correctly",
-      "i18n Support basePath development mode should load getStaticProps fallback non-prerender page correctly (default locale no prefix",
-      "i18n Support basePath development mode should load getStaticProps fallback prerender page correctly SSR",
-      "i18n Support basePath development mode should load getStaticProps fallback prerender page correctly SSR (default locale no prefix)",
-      "i18n Support basePath development mode should load getStaticProps non-fallback correctly",
-      "i18n Support basePath development mode should load getStaticProps non-fallback correctly another locale",
-      "i18n Support basePath development mode should load getStaticProps non-fallback correctly another locale via cookie",
-      "i18n Support basePath development mode should load getStaticProps page correctly SSR",
-      "i18n Support basePath development mode should load getStaticProps page correctly SSR (default locale no prefix)",
-      "i18n Support basePath development mode should navigate client side for default locale with no prefix",
-      "i18n Support basePath development mode should navigate through history with query correctly",
-      "i18n Support basePath development mode should navigate to another page and back correctly with locale",
-      "i18n Support basePath development mode should navigate to auto-export dynamic page",
-      "i18n Support basePath development mode should navigate to getStaticProps page and back correctly with locale",
-      "i18n Support basePath development mode should navigate to page with same name as development buildId",
-      "i18n Support basePath development mode should navigate with locale false correctly",
-      "i18n Support basePath development mode should navigate with locale false correctly GSP",
-      "i18n Support basePath development mode should navigate with locale prop correctly",
-      "i18n Support basePath development mode should navigate with locale prop correctly GSP",
-      "i18n Support basePath development mode should not add duplicate locale key when navigating back to root path with hash",
-      "i18n Support basePath development mode should not add duplicate locale key when navigating back to root path with query params",
-      "i18n Support basePath development mode should not contain backslashes in pages-manifest",
-      "i18n Support basePath development mode should not error with similar named cookie to locale cookie",
-      "i18n Support basePath development mode should not have hydration mis-match from hash",
-      "i18n Support basePath development mode should not output GSP pages that returned notFound",
-      "i18n Support basePath development mode should not redirect to accept-lang preferred locale with locale cookie",
-      "i18n Support basePath development mode should not remove locale prefix for default locale",
-      "i18n Support basePath development mode should not strip locale prefix for default locale with locale domains",
-      "i18n Support basePath development mode should output correct prerender-manifest",
-      "i18n Support basePath development mode should preload all locales data correctly",
-      "i18n Support basePath development mode should prerender with the correct href for locale domain",
-      "i18n Support basePath development mode should provide defaultLocale correctly for locale domain",
-      "i18n Support basePath development mode should redirect external domain correctly",
-      "i18n Support basePath development mode should redirect to correct locale domain",
-      "i18n Support basePath development mode should redirect to locale domain correctly client-side",
-      "i18n Support basePath development mode should redirect to locale prefixed route for /",
-      "i18n Support basePath development mode should render 404 for blocking fallback page that returned 404",
-      "i18n Support basePath development mode should render 404 for blocking fallback page that returned 404 on client transition",
-      "i18n Support basePath development mode should render 404 for fallback page that returned 404",
-      "i18n Support basePath development mode should render 404 for fallback page that returned 404 on client transition",
-      "i18n Support basePath development mode should render the correct href for locale domain",
-      "i18n Support basePath development mode should render the correct href with locale domains but not on a locale domain",
-      "i18n Support basePath development mode should resolve auto-export dynamic route correctly",
-      "i18n Support basePath development mode should resolve href correctly when dynamic route matches locale prefixed",
-      "i18n Support basePath development mode should rewrite to API route correctly for do locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for do-BE locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for en locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for en-US locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for fr locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for fr-BE locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for go locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for go-BE locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for nl locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for nl-BE locale",
-      "i18n Support basePath development mode should rewrite to API route correctly for nl-NL locale",
-      "i18n Support basePath development mode should serve public file on locale domain",
-      "i18n Support basePath development mode should transition on client properly for page that starts with locale",
-      "i18n Support basePath development mode should update asPath on the client correctly",
-      "i18n Support basePath development mode should use correct default locale for locale domains",
-      "i18n Support basePath development mode should use default locale for / without accept-language",
-      "i18n Support basePath development mode should use default locale when no locale is in href with locale false",
-      "i18n Support basePath development mode should visit API route directly correctly",
-      "i18n Support basePath development mode should visit dynamic API route directly correctly",
-      "i18n Support basePath production mode should redirect to locale domain correctly client-side",
-      "i18n Support basePath production mode should render the correct href for locale domain"
+      "i18n Support basePath should redirect to locale domain correctly client-side",
+      "i18n Support basePath should render the correct href for locale domain"
     ],
     "flakey": [],
     "runtimeError": false
@@ -15179,6 +15545,16 @@
     "passed": [
       "Event with stale state - static route previously was dynamic Ignore event with query param",
       "Event with stale state - static route previously was dynamic Ignore event without query param"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/image-optimizer-internal-redirect/image-optimizer-internal-redirect.test.ts": {
+    "passed": [
+      "image-optimizer internal redirect should follow a relative redirect from a relative image src",
+      "image-optimizer internal redirect should follow an absolute redirect to an allowed remote pattern from a relative image src"
     ],
     "failed": [],
     "pending": [],
@@ -15608,15 +15984,14 @@
       "Image Optimizer config checks should error when remotePatterns has invalid prop",
       "Image Optimizer config checks should error when remotePatterns is missing hostname",
       "Image Optimizer config checks should error when remotePatterns length exceeds 50",
-      "Image Optimizer config checks should error when sizes length exceeds 25"
+      "Image Optimizer config checks should error when sizes length exceeds 25",
+      "Image Optimizer dev support for dynamic blur placeholder should support width 8 per BLUR_IMG_SIZE with next dev",
+      "Image Optimizer experimental.imgOptMaxInputPixels in next.config.js should fallback to source image when input exceeds imgOptMaxInputPixels",
+      "Image Optimizer images.unoptimized in next.config.js should 404 when unoptimized",
+      "Image Optimizer next.config.js cloudinary loader should 404 when loader is not default"
     ],
     "failed": [],
-    "pending": [
-      "Image Optimizer dev support for dynamic blur placeholder should support width 8 per BLUR_IMG_SIZE with next dev",
-      "Image Optimizer dev support next.config.js cloudinary loader should 404 when loader is not default",
-      "Image Optimizer experimental.imgOptMaxInputPixels in next.config.js should fallback to source image when input exceeds imgOptMaxInputPixels",
-      "Image Optimizer images.unoptimized in next.config.js should 404 when unoptimized"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -16506,30 +16881,19 @@
   },
   "test/e2e/invalid-custom-routes/invalid-custom-routes.test.ts": {
     "passed": [
-      "Errors on invalid custom routes production mode should error during next build for invalid headers",
-      "Errors on invalid custom routes production mode should error during next build for invalid redirects",
-      "Errors on invalid custom routes production mode should error during next build for invalid rewrites",
-      "Errors on invalid custom routes production mode should error when empty headers array is present on header item",
-      "Errors on invalid custom routes production mode should error when source and destination length is exceeded",
-      "Errors on invalid custom routes production mode should show formatted error for redirect source parse fail",
-      "Errors on invalid custom routes production mode should show valid error when non-array is returned from headers",
-      "Errors on invalid custom routes production mode should show valid error when non-array is returned from redirects",
-      "Errors on invalid custom routes production mode should show valid error when non-array is returned from rewrites",
-      "Errors on invalid custom routes production mode should show valid error when segments not in source are used in destination"
+      "Errors on invalid custom routes should error during next build for invalid headers",
+      "Errors on invalid custom routes should error during next build for invalid redirects",
+      "Errors on invalid custom routes should error during next build for invalid rewrites",
+      "Errors on invalid custom routes should error when empty headers array is present on header item",
+      "Errors on invalid custom routes should error when source and destination length is exceeded",
+      "Errors on invalid custom routes should show formatted error for redirect source parse fail",
+      "Errors on invalid custom routes should show valid error when non-array is returned from headers",
+      "Errors on invalid custom routes should show valid error when non-array is returned from redirects",
+      "Errors on invalid custom routes should show valid error when non-array is returned from rewrites",
+      "Errors on invalid custom routes should show valid error when segments not in source are used in destination"
     ],
     "failed": [],
-    "pending": [
-      "Errors on invalid custom routes development mode should error during next build for invalid headers",
-      "Errors on invalid custom routes development mode should error during next build for invalid redirects",
-      "Errors on invalid custom routes development mode should error during next build for invalid rewrites",
-      "Errors on invalid custom routes development mode should error when empty headers array is present on header item",
-      "Errors on invalid custom routes development mode should error when source and destination length is exceeded",
-      "Errors on invalid custom routes development mode should show formatted error for redirect source parse fail",
-      "Errors on invalid custom routes development mode should show valid error when non-array is returned from headers",
-      "Errors on invalid custom routes development mode should show valid error when non-array is returned from redirects",
-      "Errors on invalid custom routes development mode should show valid error when non-array is returned from rewrites",
-      "Errors on invalid custom routes development mode should show valid error when segments not in source are used in destination"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -16561,14 +16925,11 @@
   },
   "test/e2e/invalid-middleware-matchers/invalid-middleware-matchers.test.ts": {
     "passed": [
-      "Errors on invalid custom middleware matchers production mode should error during next build for invalid matchers",
-      "Errors on invalid custom middleware matchers production mode should error when source length is exceeded"
+      "Errors on invalid custom middleware matchers should error during next build for invalid matchers",
+      "Errors on invalid custom middleware matchers should error when source length is exceeded"
     ],
     "failed": [],
-    "pending": [
-      "Errors on invalid custom middleware matchers development mode should error during next build for invalid matchers",
-      "Errors on invalid custom middleware matchers development mode should error when source length is exceeded"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -16820,21 +17181,19 @@
   },
   "test/e2e/link-ref-pages/link-ref-pages.test.ts": {
     "passed": [
-      "Link ref forwarding production mode should not have a race condition with a click handler",
       "Link ref forwarding production mode should preload with child ref with React.createRef",
       "Link ref forwarding production mode should preload with child ref with function",
       "Link ref forwarding production mode should preload with child ref with function that returns a cleanup function",
-      "Link ref forwarding production mode should preload with forwardRef"
+      "Link ref forwarding production mode should preload with forwardRef",
+      "Link ref forwarding ref forwarding should handle child ref that is a function",
+      "Link ref forwarding ref forwarding should handle child ref that is a function that returns a cleanup function",
+      "Link ref forwarding ref forwarding should handle child ref with React.createRef",
+      "Link ref forwarding ref forwarding should not show error for class component as child of next/link",
+      "Link ref forwarding ref forwarding should not show error for function component with forwardRef",
+      "Link ref forwarding should not have a race condition with a click handler"
     ],
     "failed": [],
-    "pending": [
-      "Link ref forwarding development mode should handle child ref that is a function",
-      "Link ref forwarding development mode should handle child ref that is a function that returns a cleanup function",
-      "Link ref forwarding development mode should handle child ref with React.createRef",
-      "Link ref forwarding development mode should not have a race condition with a click handler",
-      "Link ref forwarding development mode should not show error for class component as child of next/link",
-      "Link ref forwarding development mode should not show error for function component with forwardRef"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -17842,7 +18201,11 @@
       "Legacy Image Component basePath Tests should work with sizes and automatically use layout-responsive"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "Legacy Image Component basePath Tests should show invalid src error",
+      "Legacy Image Component basePath Tests should show invalid src error when protocol-relative",
+      "Legacy Image Component basePath Tests should show missing src error"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -18112,7 +18475,11 @@
       "Image Component basePath Tests should work when using flexbox"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "Image Component basePath Tests should show invalid src error",
+      "Image Component basePath Tests should show invalid src error when protocol-relative",
+      "Image Component basePath Tests should show missing src error"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -18717,6 +19084,7 @@
       "opentelemetry - middleware default edge runtime root context should trace middleware",
       "opentelemetry - middleware default nodejs runtime incoming context propagation should trace middleware",
       "opentelemetry - middleware default nodejs runtime root context should trace middleware",
+      "opentelemetry - middleware direct entrypoint rejecting the first request should still trace instrumentation registration, once",
       "opentelemetry - middleware direct entrypoints nodejs runtime incoming context propagation should trace middleware",
       "opentelemetry - middleware direct entrypoints nodejs runtime root context should trace middleware",
       "opentelemetry - middleware direct entrypoints nodejs runtime should trace instrumentation registration in the first middleware request",
@@ -18937,6 +19305,9 @@
       "Prerender Preview Mode should not return fallback page on preview request",
       "Prerender Preview Mode should pass the preview data to API routes",
       "Prerender Preview Mode should pass undefined to API routes when not in preview",
+      "Prerender Preview Mode should reject preview data with an invalid signature",
+      "Prerender Preview Mode should reject preview data with maxAge -60",
+      "Prerender Preview Mode should reject preview data with maxAge 0",
       "Prerender Preview Mode should return cookies to be expired on reset request",
       "Prerender Preview Mode should return cookies to be expired on reset request with path specified",
       "Prerender Preview Mode should return correct caching headers for data preview request",
@@ -19490,6 +19861,437 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/routing-server/http/action-origin-contract/action-origin-contract.test.ts": {
+    "passed": [
+      "documented Server Action origin admission applies the default Action limit to 1048575 raw multipart bytes",
+      "documented Server Action origin admission applies the default Action limit to 1048576 raw multipart bytes",
+      "documented Server Action origin admission applies the default Action limit to 1048577 raw multipart bytes",
+      "documented Server Action origin admission executes an action for allowlisted origin https://child.multi.example.test",
+      "documented Server Action origin admission executes an action for allowlisted origin https://child.port-wildcard.example.test:8443",
+      "documented Server Action origin admission executes an action for allowlisted origin https://child.region.multi.example.test",
+      "documented Server Action origin admission executes an action for allowlisted origin https://child.single.example.test",
+      "documented Server Action origin admission executes an action for allowlisted origin https://exact.example.test",
+      "documented Server Action origin admission executes an action for allowlisted origin https://port.example.test:8443",
+      "documented Server Action origin admission executes same-origin actions without an allowlist entry",
+      "documented Server Action origin admission permits missing Origin instead of rejecting the action",
+      "documented Server Action origin admission rejects Origin matching Host when forwarded host disagrees",
+      "documented Server Action origin admission rejects nonmatching origin https://a.b.single.example.test",
+      "documented Server Action origin admission rejects nonmatching origin https://child.exact.example.test",
+      "documented Server Action origin admission rejects nonmatching origin https://child.port-wildcard.example.test",
+      "documented Server Action origin admission rejects nonmatching origin https://child.port-wildcard.example.test:9443",
+      "documented Server Action origin admission rejects nonmatching origin https://child.single.example.test:8443",
+      "documented Server Action origin admission rejects nonmatching origin https://exact.example.test:8443",
+      "documented Server Action origin admission rejects nonmatching origin https://multi.example.test",
+      "documented Server Action origin admission rejects nonmatching origin https://port.example.test",
+      "documented Server Action origin admission rejects nonmatching origin https://single.example.test",
+      "documented Server Action origin admission rejects nonmatching origin https://unknown.example.test",
+      "documented Server Action origin admission uses forwarded public host and preserves it for the action"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/routing-server/http/compression-contract/compression-contract.test.ts": {
+    "passed": [
+      "documented compression: custom-server compression preserves decoded bytes with gzip negotiation at /",
+      "documented compression: custom-server compression preserves decoded bytes with gzip negotiation at /compressible.txt",
+      "documented compression: custom-server compression respects identity encoding at /",
+      "documented compression: custom-server compression respects identity encoding at /compressible.txt",
+      "documented compression: disabled preserves decoded bytes with gzip negotiation at /",
+      "documented compression: disabled preserves decoded bytes with gzip negotiation at /compressible.txt",
+      "documented compression: disabled respects identity encoding at /",
+      "documented compression: disabled respects identity encoding at /compressible.txt",
+      "documented compression: enabled preserves decoded bytes with gzip negotiation at /",
+      "documented compression: enabled preserves decoded bytes with gzip negotiation at /compressible.txt",
+      "documented compression: enabled respects identity encoding at /",
+      "documented compression: enabled respects identity encoding at /compressible.txt"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/routing-server/http/docs-http-contract/docs-http-contract.test.ts": {
+    "passed": [
+      "documented HTTP contracts accepts 1048575 bytes at /api/body",
+      "documented HTTP contracts accepts 1048576 bytes at /api/body",
+      "documented HTTP contracts accepts 2047 bytes at /api/body-configured",
+      "documented HTTP contracts accepts 2048 bytes at /api/body-configured",
+      "documented HTTP contracts bodyParser:false preserves a stream larger than the default limit",
+      "documented HTTP contracts gives public files the documented default cache policy",
+      "documented HTTP contracts honors poweredByHeader:false",
+      "documented HTTP contracts immutable hashed assets override configured cache headers",
+      "documented HTTP contracts preserves binary response bytes, status and headers",
+      "documented HTTP contracts reads multipart repeated fields and uploaded bytes",
+      "documented HTTP contracts rejects a body over the parser limit at /api/body",
+      "documented HTTP contracts rejects a body over the parser limit at /api/body-configured",
+      "documented HTTP contracts responses held at an explicit release barrier Proxy waitUntil finishes controlled background work after the response",
+      "documented HTTP contracts responses held at an explicit release barrier delivers early bytes before release at /api/stream",
+      "documented HTTP contracts responses held at an explicit release barrier delivers early bytes before release at /stream",
+      "documented HTTP contracts responses held at an explicit release barrier preserves 200 after the shell for forbidden",
+      "documented HTTP contracts responses held at an explicit release barrier preserves 200 after the shell for not-found",
+      "documented HTTP contracts responses held at an explicit release barrier preserves 200 after the shell for permanent-redirect",
+      "documented HTTP contracts responses held at an explicit release barrier preserves 200 after the shell for redirect",
+      "documented HTTP contracts responses held at an explicit release barrier preserves 200 after the shell for unauthorized",
+      "documented HTTP contracts returns 307 before the shell for redirect",
+      "documented HTTP contracts returns 308 before the shell for permanent-redirect",
+      "documented HTTP contracts returns 401 before the shell for unauthorized",
+      "documented HTTP contracts returns 403 before the shell for forbidden",
+      "documented HTTP contracts returns 404 before the shell for not-found",
+      "documented HTTP contracts sends independent cookies that a browser returns to the destination"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/routing-server/http/lifecycle-contract/lifecycle-contract.test.ts": {
+    "passed": [
+      "documented listener keep-alive timeout closes an idle persistent connection using the configured timeout"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/routing-server/router/app-i18n-contract/app-i18n-contract.test.ts": {
+    "passed": [
+      "documented App locale routing pattern does not redirect an already localized URL for another Accept-Language",
+      "documented App locale routing pattern redirects an unprefixed path to en-US while retaining the query",
+      "documented App locale routing pattern redirects an unprefixed path to nl while retaining the query",
+      "documented App locale routing pattern redirects an unprefixed path to nl-NL while retaining the query",
+      "documented App locale routing pattern retains the locale and shared layout during client navigation and refresh"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/routing-server/router/conditional-routes/conditional-routes.test.ts": {
+    "passed": [
+      "documented custom route source and condition matching documented custom route condition conjunctions header: a forbidden cookie",
+      "documented custom route source and condition matching documented custom route condition conjunctions header: a forbidden header",
+      "documented custom route source and condition matching documented custom route condition conjunctions header: a forbidden host that otherwise matches the required host pattern",
+      "documented custom route source and condition matching documented custom route condition conjunctions header: a forbidden query",
+      "documented custom route source and condition matching documented custom route condition conjunctions header: a nonmatching required cookie",
+      "documented custom route source and condition matching documented custom route condition conjunctions header: a nonmatching required header",
+      "documented custom route source and condition matching documented custom route condition conjunctions header: a nonmatching required host",
+      "documented custom route source and condition matching documented custom route condition conjunctions header: a nonmatching required query",
+      "documented custom route source and condition matching documented custom route condition conjunctions header: all required conditions and no forbidden conditions",
+      "documented custom route source and condition matching documented custom route condition conjunctions header: an absent required cookie",
+      "documented custom route source and condition matching documented custom route condition conjunctions header: an absent required header",
+      "documented custom route source and condition matching documented custom route condition conjunctions header: an absent required query",
+      "documented custom route source and condition matching documented custom route condition conjunctions header: an alternate regex capture and nonmatching missing values",
+      "documented custom route source and condition matching documented custom route condition conjunctions redirect: a forbidden cookie",
+      "documented custom route source and condition matching documented custom route condition conjunctions redirect: a forbidden header",
+      "documented custom route source and condition matching documented custom route condition conjunctions redirect: a forbidden host that otherwise matches the required host pattern",
+      "documented custom route source and condition matching documented custom route condition conjunctions redirect: a forbidden query",
+      "documented custom route source and condition matching documented custom route condition conjunctions redirect: a nonmatching required cookie",
+      "documented custom route source and condition matching documented custom route condition conjunctions redirect: a nonmatching required header",
+      "documented custom route source and condition matching documented custom route condition conjunctions redirect: a nonmatching required host",
+      "documented custom route source and condition matching documented custom route condition conjunctions redirect: a nonmatching required query",
+      "documented custom route source and condition matching documented custom route condition conjunctions redirect: all required conditions and no forbidden conditions",
+      "documented custom route source and condition matching documented custom route condition conjunctions redirect: an absent required cookie",
+      "documented custom route source and condition matching documented custom route condition conjunctions redirect: an absent required header",
+      "documented custom route source and condition matching documented custom route condition conjunctions redirect: an absent required query",
+      "documented custom route source and condition matching documented custom route condition conjunctions redirect: an alternate regex capture and nonmatching missing values",
+      "documented custom route source and condition matching documented custom route condition conjunctions rewrite: a forbidden cookie",
+      "documented custom route source and condition matching documented custom route condition conjunctions rewrite: a forbidden header",
+      "documented custom route source and condition matching documented custom route condition conjunctions rewrite: a forbidden host that otherwise matches the required host pattern",
+      "documented custom route source and condition matching documented custom route condition conjunctions rewrite: a forbidden query",
+      "documented custom route source and condition matching documented custom route condition conjunctions rewrite: a nonmatching required cookie",
+      "documented custom route source and condition matching documented custom route condition conjunctions rewrite: a nonmatching required header",
+      "documented custom route source and condition matching documented custom route condition conjunctions rewrite: a nonmatching required host",
+      "documented custom route source and condition matching documented custom route condition conjunctions rewrite: a nonmatching required query",
+      "documented custom route source and condition matching documented custom route condition conjunctions rewrite: all required conditions and no forbidden conditions",
+      "documented custom route source and condition matching documented custom route condition conjunctions rewrite: an absent required cookie",
+      "documented custom route source and condition matching documented custom route condition conjunctions rewrite: an absent required header",
+      "documented custom route source and condition matching documented custom route condition conjunctions rewrite: an absent required query",
+      "documented custom route source and condition matching documented custom route condition conjunctions rewrite: an alternate regex capture and nonmatching missing values",
+      "documented custom route source and condition matching documented custom route source patterns header: matches only the documented source /archive/patterns/header/literal",
+      "documented custom route source and condition matching documented custom route source patterns header: matches only the documented source /patterns/header/digits/123",
+      "documented custom route source and condition matching documented custom route source patterns header: matches only the documented source /patterns/header/digits/123x",
+      "documented custom route source and condition matching documented custom route source patterns header: matches only the documented source /patterns/header/english(default)/hello",
+      "documented custom route source and condition matching documented custom route source patterns header: matches only the documented source /patterns/header/englishdefault/hello",
+      "documented custom route source and condition matching documented custom route source patterns header: matches only the documented source /patterns/header/literal",
+      "documented custom route source and condition matching documented custom route source patterns header: matches only the documented source /patterns/header/literal-extra",
+      "documented custom route source and condition matching documented custom route source patterns header: matches only the documented source /patterns/header/many",
+      "documented custom route source and condition matching documented custom route source patterns header: matches only the documented source /patterns/header/many-extra/a",
+      "documented custom route source and condition matching documented custom route source patterns header: matches only the documented source /patterns/header/many/a/b",
+      "documented custom route source and condition matching documented custom route source patterns header: matches only the documented source /patterns/header/optional",
+      "documented custom route source and condition matching documented custom route source patterns header: matches only the documented source /patterns/header/optional/a",
+      "documented custom route source and condition matching documented custom route source patterns header: matches only the documented source /patterns/header/optional/a/b",
+      "documented custom route source and condition matching documented custom route source patterns header: matches only the documented source /patterns/header/single/hello",
+      "documented custom route source and condition matching documented custom route source patterns header: matches only the documented source /patterns/header/single/hello/extra",
+      "documented custom route source and condition matching documented custom route source patterns header: matches only the documented source /patterns/header/some",
+      "documented custom route source and condition matching documented custom route source patterns header: matches only the documented source /patterns/header/some/a",
+      "documented custom route source and condition matching documented custom route source patterns header: matches only the documented source /patterns/header/some/a/b",
+      "documented custom route source and condition matching documented custom route source patterns redirect: matches only the documented source /archive/patterns/redirect/literal",
+      "documented custom route source and condition matching documented custom route source patterns redirect: matches only the documented source /patterns/redirect/digits/123",
+      "documented custom route source and condition matching documented custom route source patterns redirect: matches only the documented source /patterns/redirect/digits/123x",
+      "documented custom route source and condition matching documented custom route source patterns redirect: matches only the documented source /patterns/redirect/english(default)/hello",
+      "documented custom route source and condition matching documented custom route source patterns redirect: matches only the documented source /patterns/redirect/englishdefault/hello",
+      "documented custom route source and condition matching documented custom route source patterns redirect: matches only the documented source /patterns/redirect/literal",
+      "documented custom route source and condition matching documented custom route source patterns redirect: matches only the documented source /patterns/redirect/literal-extra",
+      "documented custom route source and condition matching documented custom route source patterns redirect: matches only the documented source /patterns/redirect/many",
+      "documented custom route source and condition matching documented custom route source patterns redirect: matches only the documented source /patterns/redirect/many-extra/a",
+      "documented custom route source and condition matching documented custom route source patterns redirect: matches only the documented source /patterns/redirect/many/a/b",
+      "documented custom route source and condition matching documented custom route source patterns redirect: matches only the documented source /patterns/redirect/optional",
+      "documented custom route source and condition matching documented custom route source patterns redirect: matches only the documented source /patterns/redirect/optional/a",
+      "documented custom route source and condition matching documented custom route source patterns redirect: matches only the documented source /patterns/redirect/optional/a/b",
+      "documented custom route source and condition matching documented custom route source patterns redirect: matches only the documented source /patterns/redirect/single/hello",
+      "documented custom route source and condition matching documented custom route source patterns redirect: matches only the documented source /patterns/redirect/single/hello/extra",
+      "documented custom route source and condition matching documented custom route source patterns redirect: matches only the documented source /patterns/redirect/some",
+      "documented custom route source and condition matching documented custom route source patterns redirect: matches only the documented source /patterns/redirect/some/a",
+      "documented custom route source and condition matching documented custom route source patterns redirect: matches only the documented source /patterns/redirect/some/a/b",
+      "documented custom route source and condition matching documented custom route source patterns rewrite: matches only the documented source /archive/patterns/rewrite/literal",
+      "documented custom route source and condition matching documented custom route source patterns rewrite: matches only the documented source /patterns/rewrite/digits/123",
+      "documented custom route source and condition matching documented custom route source patterns rewrite: matches only the documented source /patterns/rewrite/digits/123x",
+      "documented custom route source and condition matching documented custom route source patterns rewrite: matches only the documented source /patterns/rewrite/english(default)/hello",
+      "documented custom route source and condition matching documented custom route source patterns rewrite: matches only the documented source /patterns/rewrite/englishdefault/hello",
+      "documented custom route source and condition matching documented custom route source patterns rewrite: matches only the documented source /patterns/rewrite/literal",
+      "documented custom route source and condition matching documented custom route source patterns rewrite: matches only the documented source /patterns/rewrite/literal-extra",
+      "documented custom route source and condition matching documented custom route source patterns rewrite: matches only the documented source /patterns/rewrite/many",
+      "documented custom route source and condition matching documented custom route source patterns rewrite: matches only the documented source /patterns/rewrite/many-extra/a",
+      "documented custom route source and condition matching documented custom route source patterns rewrite: matches only the documented source /patterns/rewrite/many/a/b",
+      "documented custom route source and condition matching documented custom route source patterns rewrite: matches only the documented source /patterns/rewrite/optional",
+      "documented custom route source and condition matching documented custom route source patterns rewrite: matches only the documented source /patterns/rewrite/optional/a",
+      "documented custom route source and condition matching documented custom route source patterns rewrite: matches only the documented source /patterns/rewrite/optional/a/b",
+      "documented custom route source and condition matching documented custom route source patterns rewrite: matches only the documented source /patterns/rewrite/single/hello",
+      "documented custom route source and condition matching documented custom route source patterns rewrite: matches only the documented source /patterns/rewrite/single/hello/extra",
+      "documented custom route source and condition matching documented custom route source patterns rewrite: matches only the documented source /patterns/rewrite/some",
+      "documented custom route source and condition matching documented custom route source patterns rewrite: matches only the documented source /patterns/rewrite/some/a",
+      "documented custom route source and condition matching documented custom route source patterns rewrite: matches only the documented source /patterns/rewrite/some/a/b"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/routing-server/router/docs-draft-lifecycle/docs-draft-lifecycle.test.ts": {
+    "passed": [
+      "documented Draft Mode browser lifecycle isolates an editor from a public browser and restores the public view on disable",
+      "documented Draft Mode browser lifecycle sets and deletes the bypass cookie and keeps draft responses private"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/routing-server/router/docs-handler-cache/docs-handler-cache.test.ts": {
+    "passed": [
+      "documented Route Handler caching by method caches an opted-in GET at /cached in production while keeping development fresh",
+      "documented Route Handler caching by method caches an opted-in GET at /static-only in production while keeping development fresh",
+      "documented Route Handler caching by method does not cache DELETE beside the opted-in GET",
+      "documented Route Handler caching by method does not cache OPTIONS beside the opted-in GET",
+      "documented Route Handler caching by method does not cache PATCH beside the opted-in GET",
+      "documented Route Handler caching by method does not cache POST beside the opted-in GET",
+      "documented Route Handler caching by method does not cache PUT beside the opted-in GET",
+      "documented Route Handler caching by method does not cache a default GET response",
+      "documented Route Handler caching by method does not cache an explicit HEAD beside the opted-in GET"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/routing-server/router/docs-remote-images/docs-remote-images.test.ts": {
+    "passed": [
+      "documented remote image source admission optimizes an allowed remote source /account/photo.jpg?v=123",
+      "documented remote image source admission optimizes an allowed remote source /account/team/photo.jpg?v=123",
+      "documented remote image source admission optimizes an allowed remote source /single/photo.jpg",
+      "documented remote image source admission optimizes an allowed remote source /url-pattern/photo.jpg",
+      "documented remote image source admission permits different remote ports when port is omitted",
+      "documented remote image source admission rejects a remote extra-query mismatch before fetching it",
+      "documented remote image source admission rejects a remote hostname mismatch before fetching it",
+      "documented remote image source admission rejects a remote missing-query mismatch before fetching it",
+      "documented remote image source admission rejects a remote pathname mismatch before fetching it",
+      "documented remote image source admission rejects a remote pathname-prefix mismatch before fetching it",
+      "documented remote image source admission rejects a remote port mismatch before fetching it",
+      "documented remote image source admission rejects a remote protocol mismatch before fetching it",
+      "documented remote image source admission rejects a remote query mismatch before fetching it",
+      "documented remote image source admission rejects a remote single-segment mismatch before fetching it",
+      "documented remote image source admission rejects a remote url-object-query mismatch before fetching it"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/routing-server/router/docs-route-selection/docs-route-selection.test.ts": {
+    "passed": [
+      "configured image optimization routing path serves the advertised image through images.path",
+      "documented route selection boundaries does not expose non-routable App files at /(marketing)/about",
+      "documented route selection boundaries does not expose non-routable App files at /_private",
+      "documented route selection boundaries does not expose non-routable App files at /_private/nested",
+      "documented route selection boundaries does not expose non-routable App files at /colocated/helper.ts",
+      "documented route selection boundaries does not expose non-routable App files at /layout-only",
+      "documented route selection boundaries fetches the image URL advertised for the default optimization path",
+      "documented route selection boundaries keeps getStaticPaths parameter matching case-sensitive",
+      "documented route selection boundaries keeps the reserved Pages error route inaccessible",
+      "documented route selection boundaries preserves optional catch-all params for /optional",
+      "documented route selection boundaries preserves optional catch-all params for /optional/one",
+      "documented route selection boundaries preserves optional catch-all params for /optional/one/two",
+      "documented route selection boundaries rejects disallowed image source/quality /allowed/test.jpg 26",
+      "documented route selection boundaries rejects disallowed image source/quality /blocked/test.jpg 75",
+      "documented route selection boundaries selects the documented Pages API priority for /api/priority/fixed",
+      "documented route selection boundaries selects the documented Pages API priority for /api/priority/one",
+      "documented route selection boundaries selects the documented Pages API priority for /api/priority/one/two",
+      "documented route selection boundaries serves a route group without including the group in the URL"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/routing-server/router/docs-router-contract/docs-router-contract.test.ts": {
+    "passed": [
+      "documented routing phases applies Pages config redirects on client navigation only with a matching Proxy",
+      "documented routing phases applies afterFiles before a matching dynamic page",
+      "documented routing phases continues all beforeFiles rules even when an intermediate page exists",
+      "documented routing phases does not run fallback rewrites for getStaticPaths fallback:blocking",
+      "documented routing phases does not run fallback rewrites for getStaticPaths fallback:true",
+      "documented routing phases lets the last matching header rule win on /headers/page",
+      "documented routing phases lets the last matching header rule win on /headers/public.txt",
+      "documented routing phases matches configured headers against the original URL before Proxy and rewrites",
+      "documented routing phases preserves PATCH and its body through the 307 redirect",
+      "documented routing phases preserves PATCH and its body through the 308 redirect",
+      "documented routing phases preserves POST and its body through the 307 redirect",
+      "documented routing phases preserves POST and its body through the 308 redirect",
+      "documented routing phases preserves PUT and its body through the 307 redirect",
+      "documented routing phases preserves PUT and its body through the 308 redirect",
+      "documented routing phases protects a page and its data route despite excluding _next/data in a negative matcher",
+      "documented routing phases returns 404 when no route or fallback matches",
+      "documented routing phases selects a dynamic page before fallback rewrites",
+      "documented routing phases selects an existing filesystem page before afterFiles rewrites",
+      "documented routing phases stops afterFiles at the first rewrite that resolves to an existing page",
+      "documented routing phases terminates a config redirect before Proxy",
+      "documented routing phases terminates a direct Proxy response before beforeFiles and filesystem routes",
+      "documented routing phases uses fallback only after filesystem and dynamic matches fail"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/routing-server/router/docs-url-policy/asset-prefix-data.test.ts": {
+    "passed": [
+      "documented Pages data origin with assetPrefix keeps ssg client navigation data on the application origin",
+      "documented Pages data origin with assetPrefix keeps ssr client navigation data on the application origin",
+      "documented Pages data origin with assetPrefix loads emitted assets at the CDN origin while public files keep their ordinary path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/routing-server/router/docs-url-policy/docs-url-policy.test.ts": {
+    "passed": [
+      "documented trailing slash policy=false canonicalizes the page /about and preserves its query",
+      "documented trailing slash policy=false canonicalizes the page /folder.v1/about and preserves its query",
+      "documented trailing slash policy=false removes a slash after a static file extension",
+      "documented trailing slash policy=false serves /.well-known/acme/challenge without appending a slash",
+      "documented trailing slash policy=false serves /.well-known/subfolder/config.json without appending a slash",
+      "documented trailing slash policy=false serves /manual.txt without appending a slash",
+      "documented trailing slash policy=true canonicalizes the page /about and preserves its query",
+      "documented trailing slash policy=true canonicalizes the page /folder.v1/about and preserves its query",
+      "documented trailing slash policy=true removes a slash after a static file extension",
+      "documented trailing slash policy=true serves /.well-known/acme/challenge without appending a slash",
+      "documented trailing slash policy=true serves /.well-known/subfolder/config.json without appending a slash",
+      "documented trailing slash policy=true serves /manual.txt without appending a slash",
+      "skip trailing slash redirect with policy=false serves both page forms when automatic redirects are disabled",
+      "skip trailing slash redirect with policy=true serves both page forms when automatic redirects are disabled"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/routing-server/router/filesystem-optout-contract/filesystem-optout-contract.test.ts": {
+    "passed": [
+      "documented filesystem routing opt-out agrees on route priority and repeated query values for direct/outer fixed",
+      "documented filesystem routing opt-out agrees on route priority and repeated query values for direct/outer one",
+      "documented filesystem routing opt-out agrees on route priority and repeated query values for direct/outer one/two",
+      "documented filesystem routing opt-out continues to serve public files",
+      "documented filesystem routing opt-out does not expose the filename route / over HTTP",
+      "documented filesystem routing opt-out does not expose the filename route /secret over HTTP",
+      "documented filesystem routing opt-out renders a custom destination with its original query and working client assets"
+    ],
+    "failed": [],
+    "pending": [
+      "documented filesystem routing opt-out refreshes direct and outer lookups after a route generation changes"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/routing-server/router/isr-last-good/isr-last-good.test.ts": {
+    "passed": [
+      "routing ISR failure and exact-path revalidation revalidates the exact destination and bypasses Proxy rewrites",
+      "routing ISR failure and exact-path revalidation serves the last successful page during failed regeneration, then recovers"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/routing-server/router/proxy-normalization-config/proxy-normalization-config.test.ts": {
+    "passed": [
+      "documented Proxy URL normalization: alias preserves or removes navigation query and headers as documented",
+      "documented Proxy URL normalization: alias shows Proxy the data URL as sent",
+      "documented Proxy URL normalization: alias warns for the deprecated alias and accepts the current name",
+      "documented Proxy URL normalization: current preserves or removes navigation query and headers as documented",
+      "documented Proxy URL normalization: current shows Proxy the data URL as sent",
+      "documented Proxy URL normalization: current warns for the deprecated alias and accepts the current name",
+      "documented Proxy URL normalization: default preserves or removes navigation query and headers as documented",
+      "documented Proxy URL normalization: default shows Proxy the destination path for a data URL",
+      "documented Proxy URL normalization: default warns for the deprecated alias and accepts the current name",
+      "documented conflicting Proxy URL normalization options rejects configuring the current name and deprecated alias together"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/routing-server/router/route-definition-conflicts/route-definition-conflicts.test.ts": {
+    "passed": [
+      "documented route definition conflicts rejects a page and Route Handler at the same URL"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/routing-server/router/rsc-contract/rsc-contract.test.ts": {
+    "passed": [
+      "RSC cache discriminator validation=false advertises HTML versus RSC variability to caches",
+      "RSC cache discriminator validation=false corrects a missing segment-prefetch discriminator without losing request context",
+      "RSC cache discriminator validation=false handles a missing discriminator according to the configured policy",
+      "RSC cache discriminator validation=false handles a wrong discriminator according to the configured policy",
+      "RSC cache discriminator validation=false runs Proxy without a matcher on /",
+      "RSC cache discriminator validation=false runs Proxy without a matcher on /api/ping",
+      "RSC cache discriminator validation=false runs Proxy without a matcher on /handler",
+      "RSC cache discriminator validation=false runs Proxy without a matcher on /marker.txt",
+      "RSC cache discriminator validation=false runs Proxy without a matcher on an advertised framework chunk",
+      "RSC cache discriminator validation=false runs Proxy without a matcher on image optimization",
+      "RSC cache discriminator validation=false serves HTML for documents and invalid RSC header values",
+      "RSC cache discriminator validation=true advertises HTML versus RSC variability to caches",
+      "RSC cache discriminator validation=true corrects a missing segment-prefetch discriminator without losing request context",
+      "RSC cache discriminator validation=true handles a missing discriminator according to the configured policy",
+      "RSC cache discriminator validation=true handles a wrong discriminator according to the configured policy",
+      "RSC cache discriminator validation=true runs Proxy without a matcher on /",
+      "RSC cache discriminator validation=true runs Proxy without a matcher on /api/ping",
+      "RSC cache discriminator validation=true runs Proxy without a matcher on /handler",
+      "RSC cache discriminator validation=true runs Proxy without a matcher on /marker.txt",
+      "RSC cache discriminator validation=true runs Proxy without a matcher on an advertised framework chunk",
+      "RSC cache discriminator validation=true runs Proxy without a matcher on image optimization",
+      "RSC cache discriminator validation=true serves HTML for documents and invalid RSC header values"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/rsc-layers-transform/rsc-layers-transform.test.ts": {
     "passed": [
       "rsc layers transform should call instrumentation hook without errors",
@@ -19857,10 +20659,11 @@
       "Telemetry CLI production mode detect static 404 correctly for `next build`",
       "Telemetry CLI production mode detects correct cli session defaults",
       "Telemetry CLI production mode detects tests correctly for `next build`",
-      "Telemetry CLI production mode emits event when swc fails to load",
       "Telemetry CLI production mode logs completed `next build` with warnings"
     ],
-    "failed": [],
+    "failed": [
+      "Telemetry CLI production mode emits event when swc fails to load"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -19895,6 +20698,26 @@
       "testmode app router should handle RSC with fetch in serverless function",
       "testmode app router should handle RSC with http.get in serverless function",
       "testmode app router should pass http.get through to the real server when Next-Test-* headers are not present",
+      "testmode compressed HTTP responses should preserve explicitly compressed mock bytes and headers",
+      "testmode compressed HTTP responses should preserve fetched bytes with unsupported encoding custom",
+      "testmode compressed HTTP responses should preserve fetched bytes with unsupported encoding gzip, custom",
+      "testmode compressed HTTP responses should preserve representation headers on a HEAD fetch-response",
+      "testmode compressed HTTP responses should preserve representation headers on a HEAD head-response",
+      "testmode compressed HTTP responses with proxy continue preserves chunked",
+      "testmode compressed HTTP responses with proxy continue preserves longer decoded body",
+      "testmode compressed HTTP responses with proxy continue preserves shorter decoded body",
+      "testmode compressed HTTP responses with proxy fetch-response should forward chunked with a decoded body and matching headers",
+      "testmode compressed HTTP responses with proxy fetch-response should forward longer decoded body with a decoded body and matching headers",
+      "testmode compressed HTTP responses with proxy fetch-response should forward shorter decoded body with a decoded body and matching headers",
+      "testmode compressed HTTP responses with proxy fetch-response-clone should forward chunked with a decoded body and matching headers",
+      "testmode compressed HTTP responses with proxy fetch-response-clone should forward longer decoded body with a decoded body and matching headers",
+      "testmode compressed HTTP responses with proxy fetch-response-clone should forward shorter decoded body with a decoded body and matching headers",
+      "testmode compressed HTTP responses with proxy modified-response should forward chunked with a decoded body and matching headers",
+      "testmode compressed HTTP responses with proxy modified-response should forward longer decoded body with a decoded body and matching headers",
+      "testmode compressed HTTP responses with proxy modified-response should forward shorter decoded body with a decoded body and matching headers",
+      "testmode compressed HTTP responses without test context preserves chunked",
+      "testmode compressed HTTP responses without test context preserves longer decoded body",
+      "testmode compressed HTTP responses without test context preserves shorter decoded body",
       "testmode image optimizer should intercept external image requests",
       "testmode middleware should intercept fetchs in middleware",
       "testmode page router should handle API with fetch",
@@ -19949,20 +20772,20 @@
     "runtimeError": false
   },
   "test/e2e/trailing-slashes/basepath.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs should redirect to /docs/",
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/about should redirect to /docs/about/",
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/catch-all/hello.world/ should redirect to /docs/catch-all/hello.world",
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/catch-all/hello/world should redirect to /docs/catch-all/hello/world/",
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/ should have href /docs/",
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/",
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/ should push route to /docs/",
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/about should have href /docs/about/",
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/about should navigate to /docs/about/",
-      "Trailing slashes in development mode, with basepath, trailingSlash: true /docs/linker?href=/about should push route to /docs/about/"
+    "passed": [
+      "Trailing slashes with basePath, trailingSlash: true /docs should redirect to /docs/",
+      "Trailing slashes with basePath, trailingSlash: true /docs/about should redirect to /docs/about/",
+      "Trailing slashes with basePath, trailingSlash: true /docs/catch-all/hello.world/ should redirect to /docs/catch-all/hello.world",
+      "Trailing slashes with basePath, trailingSlash: true /docs/catch-all/hello/world should redirect to /docs/catch-all/hello/world/",
+      "Trailing slashes with basePath, trailingSlash: true /docs/linker?href=/ should have href /docs/",
+      "Trailing slashes with basePath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/",
+      "Trailing slashes with basePath, trailingSlash: true /docs/linker?href=/ should push route to /docs/",
+      "Trailing slashes with basePath, trailingSlash: true /docs/linker?href=/about should have href /docs/about/",
+      "Trailing slashes with basePath, trailingSlash: true /docs/linker?href=/about should navigate to /docs/about/",
+      "Trailing slashes with basePath, trailingSlash: true /docs/linker?href=/about should push route to /docs/about/"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -20567,6 +21390,8 @@
     "passed": [],
     "failed": [],
     "pending": [
+      "adapter-config-cache-components adapter-config keeps revalidating metadata as a prerender backed by an app route",
+      "adapter-config-cache-components adapter-config keeps tagged metadata as a prerender backed by an app route",
       "adapter-config-cache-components adapter-config should apply modifyConfig from adapter",
       "adapter-config-cache-components adapter-config should call onBuildComplete with correct context",
       "adapter-config-cache-components adapter-config should propagate preferredRegion to adapter output",
@@ -20586,6 +21411,8 @@
   },
   "test/production/adapter-config/adapter-config.test.ts": {
     "passed": [
+      "adapter-config keeps revalidating metadata as a prerender backed by an app route",
+      "adapter-config keeps tagged metadata as a prerender backed by an app route",
       "adapter-config should apply modifyConfig from adapter",
       "adapter-config should call onBuildComplete with correct context",
       "adapter-config should propagate preferredRegion to adapter output",
@@ -21049,12 +21876,11 @@
   "test/production/app-dir/build-output-tree-view/build-output-tree-view.test.ts": {
     "passed": [
       "build-output-tree-view with generated app routes that mix static and partial outputs should show child route symbols for generated app paths",
+      "build-output-tree-view with mixed static and dynamic pages and app router routes should show info about prerendered and dynamic routes in a tree view",
       "build-output-tree-view with only a few static routes should show info about prerendered routes in a compact tree view"
     ],
     "failed": [],
-    "pending": [
-      "build-output-tree-view with mixed static and dynamic pages and app router routes should show info about prerendered and dynamic routes in a tree view"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -21068,6 +21894,43 @@
       "production - app dir - build output should log errors not caught by the worker without terminating the process",
       "production - app dir - build output should match the expected output format",
       "production - app dir - build output should only log app routes"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/cache-components-disk-readback/cache-components-disk-readback.test.ts": {
+    "passed": [
+      "cache-components-disk-readback reads a runtime-created page from disk after a server restart",
+      "cache-components-disk-readback reads a runtime-created page from disk with memory caching disabled"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/cache-components-link-header/cache-components-link-header.test.ts": {
+    "passed": [
+      "cache-components-link-header emits each Link header once across revalidations of /",
+      "cache-components-link-header emits each Link header once across revalidations of /on-demand",
+      "cache-components-link-header emits each Link header once across revalidations of /prerendered"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/cache-components-static-navigation/cache-components-static-navigation.test.ts": {
+    "passed": [
+      "Cache Components static navigation executes a Server Action when a fresh fully static entry is available",
+      "Cache Components static navigation renders concrete router tree params for a shared shell with no server-side dynamic holes",
+      "Cache Components static navigation renders dynamic RSC after tag revalidation marks the cached value expired",
+      "Cache Components static navigation renders dynamic RSC after tag revalidation marks the cached value stale",
+      "Cache Components static navigation reuses a partial prerender's cached value and renders its dynamic content for each navigation",
+      "Cache Components static navigation runtime-prefetches a fully static ISR page when the build-time example uses cookies",
+      "Cache Components static navigation serves a fresh prerender generated by a document request after a restart",
+      "Cache Components static navigation serves a fully static ISR page when a navigation only needs its metadata"
     ],
     "failed": [],
     "pending": [],
@@ -21099,6 +21962,21 @@
   "test/production/app-dir/client-page-error-bailout/client-page-error-bailout.test.ts": {
     "passed": [
       "app-dir - client-page-error-bailout should bail out in static generation build"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/data-cache-revalidation/data-cache-revalidation.test.ts": {
+    "passed": [
+      "data-cache-revalidation on demand should regenerate /fetch/get with fresh cached data",
+      "data-cache-revalidation on demand should regenerate /fetch/post with fresh cached data",
+      "data-cache-revalidation on demand should regenerate /unstable-cache with fresh cached data",
+      "data-cache-revalidation past expire should regenerate /fetch/get with fresh cached data",
+      "data-cache-revalidation past expire should regenerate /fetch/post with fresh cached data",
+      "data-cache-revalidation past expire should regenerate /unstable-cache with fresh cached data",
+      "data-cache-revalidation should refresh Pages Router unstable_cache data on demand"
     ],
     "failed": [],
     "pending": [],
@@ -21248,6 +22126,22 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/app-dir/file-system-cache-clock/file-system-cache-clock.test.ts": {
+    "passed": [
+      "file-system-cache-clock with cacheMaxMemorySize: 0 reads a fetch cache entry written without a stored timestamp",
+      "file-system-cache-clock with cacheMaxMemorySize: 0 serves fresh data for a dynamic page right after revalidateTag",
+      "file-system-cache-clock with cacheMaxMemorySize: 0 serves fresh data for an ISR page right after revalidateTag",
+      "file-system-cache-clock with cacheMaxMemorySize: 0 serves fresh data for an ISR route handler right after revalidateTag",
+      "file-system-cache-clock with the default memory cache reads a fetch cache entry written without a stored timestamp",
+      "file-system-cache-clock with the default memory cache serves fresh data for a dynamic page right after revalidateTag",
+      "file-system-cache-clock with the default memory cache serves fresh data for an ISR page right after revalidateTag",
+      "file-system-cache-clock with the default memory cache serves fresh data for an ISR route handler right after revalidateTag"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/app-dir/generate-static-params-errors/generate-static-params-errors.test.ts": {
     "passed": [
       "generate-static-params-errors should allow root params access inside generateStaticParams",
@@ -21367,6 +22261,28 @@
       "isr-cache-control-restart default cache keeps the Cache-Control and freshness of an on-demand page after a restart",
       "isr-cache-control-restart pages cache keeps the Cache-Control and freshness of an on-demand page after a restart",
       "isr-cache-control-restart replacement entries shared by running instances uses the replacement entry lifetime instead of the first instance's remembered lifetime"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/layout-client-async-chunks/layout-client-async-chunks.test.ts": {
+    "passed": [
+      "layout client chunks async keeps required layout and home code without dashboard-only code",
+      "layout client chunks async retains dashboard-only code on the dashboard",
+      "layout client chunks cyclic keeps required layout and home code without dashboard-only code",
+      "layout client chunks cyclic retains dashboard-only code on the dashboard",
+      "layout client chunks mixed keeps required layout and home code without dashboard-only code",
+      "layout client chunks mixed retains dashboard-only code on the dashboard",
+      "layout client chunks nested keeps required layout and home code without dashboard-only code",
+      "layout client chunks nested retains dashboard-only code on the dashboard",
+      "layout client chunks static keeps required layout and home code without dashboard-only code",
+      "layout client chunks static retains dashboard-only code on the dashboard",
+      "layout client chunks unrelated-cycle keeps required layout and home code without dashboard-only code",
+      "layout client chunks unrelated-cycle retains dashboard-only code on the dashboard",
+      "layout client chunks unshared keeps required layout and home code without dashboard-only code",
+      "layout client chunks unshared retains dashboard-only code on the dashboard"
     ],
     "failed": [],
     "pending": [],
@@ -21721,6 +22637,20 @@
       "ppr-use-server-inserted-html should insert the html insertion into html body",
       "ppr-use-server-inserted-html should mark the route as ppr rendered",
       "ppr-use-server-inserted-html should not log insertion in build"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/prerender-output/prerender-output.test.ts": {
+    "passed": [
+      "prerender-output caches background output independently of the stale response status",
+      "prerender-output does not cache the 304 status of a conditional stale response",
+      "prerender-output keeps a background redirect out of Flight before its headers commit",
+      "prerender-output preserves the 404 status when its prerender is missing",
+      "prerender-output preserves the 500 status when its prerender is missing",
+      "prerender-output sets the selected document status before a callback handles delivery"
     ],
     "failed": [],
     "pending": [],
@@ -22186,6 +23116,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/app-dir/streaming-revalidation-close/streaming-revalidation-close.test.ts": {
+    "passed": [
+      "streaming revalidation at response close keeps regeneration started after the HTML shell alive after the response ends"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/app-dir/subresource-integrity/subresource-integrity.test.ts": {
     "passed": [
       "Subresource Integrity with edge runtime does not include nonce when not enabled",
@@ -22274,7 +23213,9 @@
     "pending": [
       "experimental.turbopackChunking changes the client chunk output based on the size thresholds",
       "experimental.turbopackChunking emits additional component chunks when generateComponentChunks is enabled",
-      "experimental.turbopackChunking renders and navigates correctly with custom chunking"
+      "experimental.turbopackChunking renders and navigates correctly with custom chunking",
+      "experimental.turbopackChunking server size thresholds maxMergeServerChunkSize changes the Node.js server chunk output",
+      "experimental.turbopackChunking server size thresholds minServerChunkSize changes the Node.js server chunk output"
     ],
     "flakey": [],
     "runtimeError": false
@@ -22391,6 +23332,7 @@
       "app-dir - use-cache-code-hash basic emits root dependencies alongside durability",
       "app-dir - use-cache-code-hash basic hashes and renders a cached function that uses a bundled Node.js worker",
       "app-dir - use-cache-code-hash basic lists non-inlined runtime env vars",
+      "app-dir - use-cache-code-hash basic tracks both branches when an env var condition is only known at runtime",
       "app-dir - use-cache-code-hash invalidation changes when the action's own code changes",
       "app-dir - use-cache-code-hash invalidation codeHash changes when an external (node_modules) dependency changes",
       "app-dir - use-cache-code-hash invalidation codeHash changes when an imported dependency changes",
@@ -22398,6 +23340,8 @@
       "app-dir - use-cache-code-hash invalidation codeHash does not change when a client file changes",
       "app-dir - use-cache-code-hash invalidation codeHash does not change when an unrelated file changes",
       "app-dir - use-cache-code-hash invalidation codeHash stays stable across identical rebuilds",
+      "app-dir - use-cache-code-hash invalidation tracks both branches when TEST_CONDITIONAL is disabled at runtime",
+      "app-dir - use-cache-code-hash invalidation tracks both branches when TEST_CONDITIONAL is enabled at runtime",
       "app-dir - use-cache-code-hash root params keeps codeHash stable when an unrelated root param is added",
       "app-dir - use-cache-code-hash root params keeps root-param codeHash stable in debug-prerender builds",
       "app-dir - use-cache-code-hash root params keeps root-param codeHash stable without import/export pruning"
@@ -22441,6 +23385,26 @@
       "use-cache-cross-deployment with durableUseCacheEntries should still work when a client reference argument changes",
       "use-cache-cross-deployment with durableUseCacheEntries should still work when imported client reference changes"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/use-cache-dedupe-prerender/use-cache-dedupe-prerender.test.ts": {
+    "passed": [
+      "use-cache-dedupe-prerender asynchronous handler expiration checks keeps cache warming active while implicit-tag expiration is pending",
+      "use-cache-dedupe-prerender concurrent prerenders sharing the same short-lived cache currently omits cached work in a second prerender after the first prerender finishes",
+      "use-cache-dedupe-prerender direct and nested calls during static prerendering currently times out a nested cache when a direct short-lived warm-cache call starts the lookup first"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/use-cache-error-metadata/use-cache-error-metadata.test.ts": {
+    "passed": [
+      "use-cache-error-metadata should finish the error document when a failing \"use cache\" function is also read by generateMetadata"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -22734,12 +23698,13 @@
   },
   "test/production/chunk-load-failure/chunk-load-failure.test.ts": {
     "passed": [
-      "chunk-load-failure should report aborted chunks when navigating away",
-      "chunk-load-failure should report async chunk load failures"
+      "chunk-load-failure (default) should load the chunk when the same import() is called again after a failure",
+      "chunk-load-failure (default) should report aborted chunks when navigating away",
+      "chunk-load-failure (default) should report async chunk load failures"
     ],
     "failed": [],
     "pending": [
-      "chunk-load-failure should recover after a transient async chunk load failure"
+      "chunk-load-failure (default) should recover after a transient async chunk load failure"
     ],
     "flakey": [],
     "runtimeError": false
@@ -22932,6 +23897,7 @@
       "create-next-app should not print assumed defaults when all flags are provided",
       "create-next-app should not print assumed defaults with --yes flag",
       "create-next-app should print assumed defaults when flags are partially provided",
+      "create-next-app should print success and next steps commands when creating an app from template",
       "create-next-app should set Cache Components to false with [\"--js\", \"--api\", \"--no-cache-components\"]",
       "create-next-app should set Cache Components to false with [\"--ts\", \"--api\", \"--no-cache-components\"]",
       "create-next-app should set Cache Components to false with [\"--ts\", \"--app\", \"--no-cache-components\"]",
@@ -25058,10 +26024,13 @@
   },
   "test/production/segment-config-precedence/segment-config-precedence.test.ts": {
     "passed": [
+      "global-not-found deployment exports does not turn a global 404 into an Edge function with regions",
       "segment-config validation invalid maxDuration values validates all invalid maxDuration values in one build",
+      "segment-config-precedence accepts an ordinary page alongside an explicit @children page",
       "segment-config-precedence accepts an undefined maxDuration export",
       "segment-config-precedence accepts equivalent preferredRegion values in parallel routes: region-array-first",
       "segment-config-precedence accepts equivalent preferredRegion values in parallel routes: region-string-first",
+      "segment-config-precedence accepts maxDuration above the u32 boundary and preserves its manifest value",
       "segment-config-precedence accepts maxDuration boundaries: /duration-upper-bound",
       "segment-config-precedence accepts maxDuration boundaries: /duration-zero",
       "segment-config-precedence does not inherit Edge manifest regions from a sibling parallel slot",
@@ -25073,6 +26042,7 @@
       "segment-config-precedence preserves fetchCache config from a parallel slot",
       "segment-config-precedence preserves revalidate config from a parallel slot",
       "segment-config-precedence preserves the synthetic Node.js not-found entry configuration",
+      "segment-config-precedence renders generated params and rejects ungenerated ones with unequal sibling dynamicParams",
       "segment-config-precedence resolves config precedence for Pages Router pages: /config-page",
       "segment-config-precedence resolves config precedence for Pages Router pages: /undefined-config-page",
       "segment-config-precedence resolves runtime independently of export order: config-first",
@@ -25087,12 +26057,18 @@
       "segment-config-precedence resolves static info through complex loader trees: /nested-slots",
       "segment-config-precedence resolves static info through complex loader trees: /sibling-layout",
       "segment-config-precedence resolves static info through complex loader trees: /slot-only/only",
+      "segment-config-precedence resolves unequal sibling rendering config: dynamic",
+      "segment-config-precedence resolves unequal sibling rendering config: dynamic-layout",
+      "segment-config-precedence resolves unequal sibling rendering config: fetch-cache",
+      "segment-config-precedence resolves unequal sibling rendering config: revalidate",
       "segment-config-precedence uses route handler exports without inheriting page layouts: /config-handler",
       "segment-config-precedence uses route handler exports without inheriting page layouts: /config-handler/edge",
       "segment-config-precedence uses route handler exports without inheriting page layouts: /config-handler/implicit",
       "segment-config-precedence uses route handler exports without inheriting page layouts: /config-handler/undefined",
       "segment-config-precedence uses the entry page and ancestor layouts for static info: /entry-config",
       "segment-config-precedence uses the entry page and ancestor layouts for static info: /entry-config/inherited",
+      "segment-config-precedence uses the first page extension for both the layout and its runtime",
+      "synthetic not-found config: Edge root layout supports a Node-only custom 404 under an Edge root layout",
       "synthetic not-found config: ignored edge exports inherits the root layout runtime instead of the not-found exports"
     ],
     "failed": [],
