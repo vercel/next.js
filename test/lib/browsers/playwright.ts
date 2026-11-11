@@ -24,6 +24,7 @@ let page: Page
 let browser: Browser | undefined
 let context: BrowserContext | undefined
 let contextHasJSEnabled: boolean = true
+let contextUserAgent: string | undefined
 let contextPermissions: Permissions = undefined
 let pageLogs: Array<Promise<PageLog> | PageLog> = []
 let websocketFrames: Array<{ payload: string | Buffer }> = []
@@ -189,6 +190,10 @@ export class Playwright<TCurrent = undefined> {
     if (browser) {
       if (
         contextHasJSEnabled !== javaScriptEnabled ||
+        // The user agent lives on the context, so a different one needs a new
+        // context. Otherwise every browser() call after the first silently
+        // keeps the first one's user agent.
+        contextUserAgent !== userAgent ||
         // Even triggers on same set of permissions, but we don't want to deal
         // with the complexity of diffing them, so we just always recreate the
         // context when permissions are set.
@@ -206,6 +211,7 @@ export class Playwright<TCurrent = undefined> {
           permissions,
         })
         contextHasJSEnabled = javaScriptEnabled
+        contextUserAgent = userAgent
         contextPermissions = permissions
       }
       return
@@ -221,6 +227,7 @@ export class Playwright<TCurrent = undefined> {
       permissions,
     })
     contextHasJSEnabled = javaScriptEnabled
+    contextUserAgent = userAgent
   }
 
   async close(): Promise<void> {

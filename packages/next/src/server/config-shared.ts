@@ -73,7 +73,9 @@ export type NextConfigComplete = Required<
     // override NextConfigComplete.experimental.htmlLimitedBots to string
     // because it's not defined in NextConfigComplete.experimental
     htmlLimitedBots: string | undefined
-    experimental: ExperimentalConfig & {
+    experimental: Omit<ExperimentalConfig, 'nonJsBots'> & {
+      // Normalized by config.ts: the RegExp config is serialized to its source string
+      nonJsBots?: string
       // Normalized by config.ts: true and partial objects become resolved objects
       prefetchInlining?: PrefetchInliningConfig
       // Normalized by config.ts: defaulted to 90% of staticPageGenerationTimeout
@@ -714,6 +716,21 @@ export interface ExperimentalConfig {
   scrollRestoration?: boolean
   externalDir?: boolean
   disableOptimizedLoading?: boolean
+
+  /**
+   * Disables progressive loading for crawlers and agents that do not execute
+   * JavaScript (see `nonJsBots`): their document is rendered dynamically,
+   * after all Suspense boundaries resolve, with every boundary inlined at its
+   * position instead of being revealed by client JS.
+   */
+  disableProgressiveLoadingForNonJsBots?: boolean
+
+  /**
+   * User agents considered non-JS bots when
+   * `disableProgressiveLoadingForNonJsBots` is enabled. Defaults to a list of
+   * known AI crawlers and agents. Replaces the default list when set.
+   */
+  nonJsBots?: RegExp
 
   /** @deprecated A no-op as of Next 16, size metrics were removed from the build output. */
   gzipSize?: boolean
@@ -2463,6 +2480,8 @@ export const defaultConfig = Object.freeze({
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,
+    disableProgressiveLoadingForNonJsBots: undefined,
+    nonJsBots: undefined,
     cachedNavigations: false,
     dynamicOnHover: false,
     reactBrowserBailout: true,
@@ -2664,6 +2683,8 @@ export interface NextConfigRuntime {
     | 'optimizeCss'
     | 'nextScriptWorkers'
     | 'disableOptimizedLoading'
+    | 'disableProgressiveLoadingForNonJsBots'
+    | 'nonJsBots'
     | 'largePageDataBytes'
     | 'serverComponentsHmrCache'
     | 'serverComponentsHmrCancellation'
@@ -2737,6 +2758,9 @@ export function getNextConfigRuntime(
     optimizeCss: ex.optimizeCss,
     nextScriptWorkers: ex.nextScriptWorkers,
     disableOptimizedLoading: ex.disableOptimizedLoading,
+    disableProgressiveLoadingForNonJsBots:
+      ex.disableProgressiveLoadingForNonJsBots,
+    nonJsBots: ex.nonJsBots,
     largePageDataBytes: ex.largePageDataBytes,
     serverComponentsHmrCache: ex.serverComponentsHmrCache,
     serverComponentsHmrCancellation: ex.serverComponentsHmrCancellation,

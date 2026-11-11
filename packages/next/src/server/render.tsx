@@ -134,8 +134,16 @@ function noRouter() {
   throw new Error(message)
 }
 
-async function renderToString(element: React.ReactElement) {
-  const renderStream = await ReactDOMServerPages.renderToReadableStream(element)
+async function renderToString(
+  element: React.ReactElement,
+  streamOptions?: Parameters<
+    typeof ReactDOMServerPages.renderToReadableStream
+  >[1]
+) {
+  const renderStream = await ReactDOMServerPages.renderToReadableStream(
+    element,
+    streamOptions
+  )
   await renderStream.allReady
   return streamToString(renderStream)
 }
@@ -268,6 +276,7 @@ export type RenderOptsPartial = {
   supportsDynamicResponse: boolean
   botType?: 'dom' | 'html' | undefined
   serveStreamingMetadata?: boolean
+  disableProgressiveLoading?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
   serverActions?: {
@@ -514,6 +523,13 @@ export async function renderToHTMLImpl(
     expireTime,
   } = renderOpts
   const { App } = extra
+
+  // Infinity disables React SSR's progressive chunking (default 12800) so
+  // every completed Suspense boundary is inlined at its position; non-JS bots
+  // can't run the scripts that patch outlined boundaries into the document.
+  const progressiveChunkSize = renderOpts.disableProgressiveLoading
+    ? Infinity
+    : undefined
 
   let Document = extra.Document
 
@@ -1372,6 +1388,7 @@ export async function renderToHTMLImpl(
       return await renderToInitialFizzStream({
         ReactDOMServer: ReactDOMServerPages,
         element: content,
+        streamOptions: { progressiveChunkSize },
       })
     }
 
@@ -1560,7 +1577,7 @@ export async function renderToHTMLImpl(
 
   const documentHTML = await getTracer().trace(
     RenderSpan.renderToString,
-    async () => renderToString(document)
+    async () => renderToString(document, { progressiveChunkSize })
   )
 
   if (process.env.NODE_ENV !== 'production') {

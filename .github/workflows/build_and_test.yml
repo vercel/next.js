@@ -883,6 +883,7 @@ jobs:
         if [ "${{ matrix.cache-components }}" = "true" ]; then
           export __NEXT_CACHE_COMPONENTS=true
           export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
+          export __NEXT_EXPERIMENTAL_DISABLE_PROGRESSIVE_LOADING_FOR_NON_JS_BOTS=true
           export NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json,test/cache-components-tests-manifest.json"
           # revalidatePath/revalidateTag invalidate at project scope, so this
           # job deploys into its own project, separate from the plain deploy job.
@@ -1133,6 +1134,7 @@ jobs:
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
         export __NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION=true
+        export __NEXT_EXPERIMENTAL_DISABLE_PROGRESSIVE_LOADING_FOR_NON_JS_BOTS=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=dev
         export IS_TURBOPACK_TEST=1
@@ -1172,6 +1174,7 @@ jobs:
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
         export __NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION=true
+        export __NEXT_EXPERIMENTAL_DISABLE_PROGRESSIVE_LOADING_FOR_NON_JS_BOTS=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=start
         export IS_TURBOPACK_TEST=1

@@ -266,6 +266,8 @@ export const experimentalSchema = {
     .optional(),
   devMemoryThresholdRestart: z.boolean().optional(),
   disableOptimizedLoading: z.boolean().optional(),
+  disableProgressiveLoadingForNonJsBots: z.boolean().optional(),
+  nonJsBots: z.instanceof(RegExp).optional(),
   disablePostcssPresetEnv: z.boolean().optional(),
   cacheComponents: z.boolean().optional(),
   inlineCss: z.boolean().optional(),

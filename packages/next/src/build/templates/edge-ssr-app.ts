@@ -29,7 +29,10 @@ import type { AppPageRenderResultMetadata } from '../../server/render-result'
 import type RenderResult from '../../server/render-result'
 import { getServerActionRequestMetadata } from '../../server/lib/server-action-request-meta'
 import { getBotType } from '../../shared/lib/router/utils/is-bot'
-import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata'
+import {
+  shouldDisableProgressiveLoading,
+  shouldServeStreamingMetadata,
+} from '../../server/lib/streaming-metadata'
 import { interopDefault } from '../../lib/interop-default'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { checkIsOnDemandRevalidate } from '../../server/api-utils'
@@ -158,6 +161,10 @@ async function requestHandler(
       serveStreamingMetadata: shouldServeStreamingMetadata(
         userAgent,
         nextConfig.htmlLimitedBots
+      ),
+      disableProgressiveLoading: shouldDisableProgressiveLoading(
+        userAgent,
+        nextConfig.experimental
       ),
       supportsDynamicResponse: true,
       buildManifest,

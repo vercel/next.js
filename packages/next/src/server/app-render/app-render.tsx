@@ -3581,10 +3581,21 @@ async function renderToStream(
     setReactDebugChannel,
     subresourceIntegrityManifest,
     supportsDynamicResponse,
+    disableProgressiveLoading,
     cacheComponents,
   } = renderOpts
 
-  const waitForAllReady = supportsDynamicResponse !== true
+  // Non-JS bots can't reveal progressively-streamed content at all: wait for
+  // the full render so every boundary has resolved before anything flushes.
+  const waitForAllReady =
+    supportsDynamicResponse !== true || disableProgressiveLoading === true
+
+  // Infinity disables React SSR's progressive chunking (default 12800) so
+  // every completed Suspense boundary is inlined at its position; non-JS bots
+  // can't run the scripts that patch outlined boundaries into the document.
+  // Must never be set on prerender paths: React persists it into the
+  // JSON-serialized postponed state (as null), corrupting resume renders.
+  const progressiveChunkSize = disableProgressiveLoading ? Infinity : undefined
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
@@ -4249,6 +4260,7 @@ async function renderToStream(
           bootstrapScripts: [bootstrapScript],
           unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
+          progressiveChunkSize,
         }
 
         const { stream: htmlStream, allReady } = await getTracer().trace(
@@ -4394,6 +4406,7 @@ async function renderToStream(
           bootstrapScripts: [bootstrapScript],
           unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
+          progressiveChunkSize,
         }
 
         const { stream: htmlStream, allReady } = await workUnitAsyncStorage.run(
@@ -4561,6 +4574,7 @@ async function renderToStream(
               unstable_externalRuntimeSrc: externalRuntimeSrc,
               formState,
               onAllReady: finishHtmlRender,
+              progressiveChunkSize,
             },
             { waitForAllReady }
           )
@@ -4655,6 +4669,7 @@ async function renderToStream(
                 bootstrapScripts: [errorBootstrapScript],
                 unstable_externalRuntimeSrc: externalRuntimeSrc,
                 formState,
+                progressiveChunkSize,
               }
             )
 

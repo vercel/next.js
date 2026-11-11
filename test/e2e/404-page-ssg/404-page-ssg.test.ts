@@ -54,6 +54,23 @@ describe('404 Page Support SSG', () => {
 
     it('should have 404 page in prerender-manifest', async () => {
       const data = await next.readJSON('.next/prerender-manifest.json')
+      // The nonJsBots bypass entry is only emitted when
+      // disableProgressiveLoadingForNonJsBots is on (the Cache Components
+      // shards), so the expected shape depends on the shard.
+      const bypassForEntry =
+        process.env
+          .__NEXT_EXPERIMENTAL_DISABLE_PROGRESSIVE_LOADING_FOR_NON_JS_BOTS ===
+        'true'
+          ? {
+              experimentalBypassFor: [
+                {
+                  type: 'header',
+                  key: 'user-agent',
+                  value: expect.any(String),
+                },
+              ],
+            }
+          : {}
       expect(data.routes['/404']).toEqual({
         routeType: 'page',
         response: 'complete',
@@ -69,6 +86,7 @@ describe('404 Page Support SSG', () => {
         initialRevalidateSeconds: false,
         srcRoute: null,
         dataRoute: `/_next/data/${next.buildId}/404.json`,
+        ...bypassForEntry,
       })
     })
   }
