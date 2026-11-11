@@ -7,8 +7,7 @@ use serde::Serialize;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
-    ValueToStringRef, Vc,
+    FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, ValueToStringRef, Vc,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
@@ -17,6 +16,7 @@ use turbopack_core::{
         ChunkGroupResult, ChunkingContext, CrossOrigin, ModuleChunkItemIdExt,
         ModuleId as TurbopackModuleId, OutputChunk,
     },
+    module::Module,
     module_graph::async_module_info::AsyncModulesInfo,
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
 };
@@ -253,37 +253,15 @@ async fn build_manifest(
         let client_relative_path = client_relative_path.clone();
         let node_root_ref = node_root.clone();
 
-        let client_references_ecmascript = client_references
-            .await?
-            .client_references
-            .iter()
-            .map(async |r| {
-                Ok(match r.ty {
-                    ClientReferenceType::EcmascriptClientReference(r) => Some((r, r.await?)),
+        let client_references = client_references.await?;
+        let client_references_ecmascript =
+            client_references
+                .client_references
+                .iter()
+                .filter_map(|r| match r.ty {
+                    ClientReferenceType::EcmascriptClientReference(r) => Some(r),
                     ClientReferenceType::CssClientReference(_) => None,
-                })
-            })
-            .try_flat_join()
-            .await?;
-
-        let async_modules = client_references_ecmascript
-            .iter()
-            .flat_map(|(r, r_val)| {
-                [
-                    ResolvedVc::upcast(*r),
-                    ResolvedVc::upcast(r_val.client_module),
-                    ResolvedVc::upcast(r_val.ssr_module),
-                ]
-            })
-            .map(async move |asset| {
-                Ok(if async_module_info.is_async(asset).await? {
-                    Some(asset)
-                } else {
-                    None
-                })
-            })
-            .try_flat_join()
-            .await?;
+                });
 
         async fn cached_chunk_paths(
             cache: &mut FxHashMap<ResolvedVc<Box<dyn OutputAsset>>, FileSystemPath>,
@@ -331,19 +309,19 @@ async fn build_manifest(
         let mut ssr_chunk_list_by_group: FxHashMap<ResolvedVc<OutputAssetsWithReferenced>, usize> =
             FxHashMap::default();
 
-        for (client_reference_module, client_reference_module_ref) in client_references_ecmascript {
+        for client_reference_module in client_references_ecmascript {
             let app_client_reference_ty =
                 ClientReferenceType::EcmascriptClientReference(client_reference_module);
 
-            let ids = client_reference_ids(
+            let info = client_reference_info(
                 *client_reference_module,
                 **client_chunking_context,
                 ssr_chunking_context.map(|chunking_context| *chunking_context),
+                **async_module_info,
             )
             .await?;
-            let server_path = &ids.server_path;
-            let client_module = client_reference_module_ref.client_module;
-            let client_chunk_item_id = &ids.client_id;
+            let server_path = &info.server_path;
+            let client_chunk_item_id = &info.client_id;
 
             let (client_chunks_index, client_is_async) = if let Some(&client_assets) =
                 client_component_client_chunks.get(&app_client_reference_ty)
@@ -408,16 +386,13 @@ async fn build_manifest(
                     index
                 };
 
-                let is_async = async_modules.contains(&ResolvedVc::upcast(client_module));
-
-                (index, is_async)
+                (index, info.client_module_is_async)
             } else {
                 (client_chunk_lists.intern(Vec::new()), false)
             };
 
-            if let (Some(ssr_chunk_item_id), Some(rsc_chunk_item_id)) = (&ids.ssr_id, &ids.rsc_id) {
-                let ssr_module = client_reference_module_ref.ssr_module;
-
+            if let (Some(ssr_chunk_item_id), Some(rsc_chunk_item_id)) = (&info.ssr_id, &info.rsc_id)
+            {
                 let (ssr_chunks_index, ssr_is_async) = if *runtime == NextRuntime::Edge {
                     // the chunks get added to the middleware-manifest.json instead
                     // of this file because the
@@ -454,9 +429,7 @@ async fn build_manifest(
                         index
                     };
 
-                    let is_async = async_modules.contains(&ResolvedVc::upcast(ssr_module));
-
-                    (index, is_async)
+                    (index, info.ssr_module_is_async)
                 } else {
                     (ssr_chunk_lists.intern(Vec::new()), false)
                 };
@@ -464,7 +437,7 @@ async fn build_manifest(
                 let rsc_is_async = if *runtime == NextRuntime::Edge {
                     false
                 } else {
-                    async_modules.contains(&ResolvedVc::upcast(client_reference_module))
+                    info.is_async
                 };
 
                 entry_manifest.client_modules.module_exports.insert(
@@ -713,25 +686,46 @@ async fn client_chunk_components(
 }
 
 /// The parts of a client reference's manifest entries that do not depend on the page: its
-/// server path and its module ids for the client, SSR and RSC sides. A task, so that they are
-/// computed once per client reference instead of once per page that uses it.
+/// server path, its module ids for the client, SSR and RSC sides, and whether those modules are
+/// async. A task, so that they are computed once per client reference instead of once per page
+/// that uses it.
 #[turbo_tasks::value(shared)]
-struct ClientReferenceIds {
+struct ClientReferenceInfo {
     server_path: RcStr,
     client_id: TurbopackModuleId,
     /// Set when there is an SSR chunking context.
     ssr_id: Option<TurbopackModuleId>,
     /// Set when there is an SSR chunking context.
     rsc_id: Option<TurbopackModuleId>,
+    /// Whether the client reference module itself (the RSC side) is async.
+    is_async: bool,
+    /// Whether the client module is async.
+    client_module_is_async: bool,
+    /// Whether the SSR module is async.
+    ssr_module_is_async: bool,
 }
 
 #[turbo_tasks::function]
-async fn client_reference_ids(
+async fn client_reference_info(
     client_reference_module: ResolvedVc<EcmascriptClientReferenceModule>,
     client_chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ssr_chunking_context: Option<ResolvedVc<Box<dyn ChunkingContext>>>,
-) -> Result<Vc<ClientReferenceIds>> {
+    async_module_info: Vc<AsyncModulesInfo>,
+) -> Result<Vc<ClientReferenceInfo>> {
     let module = client_reference_module.await?;
+    let (is_async, client_module_is_async, ssr_module_is_async) = {
+        // `AsyncModulesInfo` is one keyed cell for the whole app. Read it once and depend only on
+        // the three keys accessed, instead of three keyed reads from every page's manifest.
+        let async_modules = async_module_info.keyed_reader().await?;
+        (
+            async_modules.contains_key(&ResolvedVc::upcast::<Box<dyn Module>>(
+                client_reference_module,
+            )),
+            async_modules
+                .contains_key(&ResolvedVc::upcast::<Box<dyn Module>>(module.client_module)),
+            async_modules.contains_key(&ResolvedVc::upcast::<Box<dyn Module>>(module.ssr_module)),
+        )
+    };
     let server_path = module.server_ident.to_string().owned().await?;
     let client_id = module
         .client_module
@@ -754,11 +748,14 @@ async fn client_reference_ids(
     } else {
         (None, None)
     };
-    Ok(ClientReferenceIds {
+    Ok(ClientReferenceInfo {
         server_path,
         client_id,
         ssr_id,
         rsc_id,
+        is_async,
+        client_module_is_async,
+        ssr_module_is_async,
     }
     .cell())
 }
