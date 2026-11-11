@@ -68,7 +68,24 @@ export function generateViewport({ params }) {
 
 ## Viewport Fields
 
+All viewport fields are optional. The layout fields below configure the `viewport` meta tag.
+
+| Field                         | Accepted values                                                  | Viewport directive                        |
+| ----------------------------- | ---------------------------------------------------------------- | ----------------------------------------- |
+| `width`                       | `string` or `number`                                             | `width`                                   |
+| `height`                      | `string` or `number`                                             | `height`                                  |
+| `initialScale`                | `number`                                                         | `initial-scale`                           |
+| `minimumScale`                | `number`                                                         | `minimum-scale`                           |
+| `maximumScale`                | `number`                                                         | `maximum-scale`                           |
+| `userScalable`                | `boolean`                                                        | `user-scalable=yes` or `user-scalable=no` |
+| [`viewportFit`](#viewportfit) | `'auto'`, `'contain'`, or `'cover'`                              | `viewport-fit`                            |
+| `interactiveWidget`           | `'resizes-visual'`, `'resizes-content'`, or `'overlays-content'` | `interactive-widget`                      |
+
+[`themeColor`](#themecolor) and [`colorScheme`](#colorscheme) generate separate meta tags.
+
 ### `themeColor`
+
+`themeColor` accepts a color string, a `{ color: string, media?: string }` descriptor, or an array of descriptors.
 
 Learn more about [`theme-color`](https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color).
 
@@ -123,7 +140,7 @@ export const viewport = {
 
 > **Good to know**: The `viewport` meta tag is automatically set, and manual configuration is usually unnecessary as the default is sufficient. However, the information is provided for completeness.
 
-Next.js sets `width: 'device-width'` and `initialScale: 1` by default. A `viewport` export or `generateViewport` return value overrides only the fields it provides.
+Next.js sets `width: 'device-width'` and `initialScale: 1` by default. A `viewport` export or `generateViewport` return value overrides only the fields it provides. Omitted fields retain inherited or default values. To remove the default `initial-scale` directive, set `initialScale: undefined`.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
 import type { Viewport } from 'next'
@@ -186,6 +203,8 @@ The default `width` and `initialScale` values are retained:
 ```
 
 ### `colorScheme`
+
+`colorScheme` accepts `'normal'`, `'light'`, `'dark'`, `'light dark'`, `'dark light'`, or `'only light'`.
 
 Learn more about [`color-scheme`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta/name#:~:text=color%2Dscheme%3A%20specifies,of%20the%20following%3A).
 
