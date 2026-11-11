@@ -2206,17 +2206,29 @@ export function createAppPageEntrypoint({
 
         // Apply the selected entry's status before a platform callback can
         // deliver it. PPR Flight responses keep their request status.
-        if (cachedData.status && (!isRSCRequest || !isRoutePPREnabled)) {
+        //
+        // A Proxy rewrite can already have set a non-default status on this
+        // response. That status belongs to the rewrite, so the rewritten
+        // target's cached status (often 200) must not replace it. When the
+        // response is still the default 200, the prerender keeps ownership,
+        // including 404/500 and redirect statuses.
+        if (
+          cachedData.status &&
+          res.statusCode === 200 &&
+          (!isRSCRequest || !isRoutePPREnabled)
+        ) {
           res.statusCode = cachedData.status
         }
 
         // RSC payloads encode redirects. The non-minimal server sends them with
-        // a 200 status.
+        // a 200 status. Only replace the default or the redirect status just
+        // applied above, so an earlier Proxy status is left intact.
         if (
           !isMinimalMode &&
           cachedData.status &&
           RedirectStatusCode[cachedData.status] &&
-          isRSCRequest
+          isRSCRequest &&
+          (res.statusCode === 200 || res.statusCode === cachedData.status)
         ) {
           res.statusCode = 200
         }
