@@ -386,15 +386,12 @@ export const metadata = {
 <meta name="publisher" content="Sebastian Markbåge" />
 ```
 
-| Field             | Type                                                                  | Output                              |
-| ----------------- | --------------------------------------------------------------------- | ----------------------------------- |
-| `applicationName` | `string`                                                              | `application-name` meta tag         |
-| `authors`         | `{ name?: string, url?: string \| URL }` or an array of these objects | `author` meta tags and links        |
-| `generator`       | `string`                                                              | `generator` meta tag                |
-| `keywords`        | `string` or `string[]`                                                | Comma-separated `keywords` meta tag |
-| `referrer`        | Referrer policy string                                                | `referrer` meta tag                 |
-| `creator`         | `string`                                                              | `creator` meta tag                  |
-| `publisher`       | `string`                                                              | `publisher` meta tag                |
+| Field                                                  | Accepted input                                                                                                   |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `applicationName`, `generator`, `creator`, `publisher` | `string`                                                                                                         |
+| `authors`                                              | `{ name?: string, url?: string \| URL }` or an array of these objects                                            |
+| `keywords`                                             | `string` or `string[]`; arrays are joined with commas                                                            |
+| `referrer`                                             | A supported [referrer policy](https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/meta/name/referrer) |
 
 `referrer` accepts `'no-referrer'`, `'origin'`, `'no-referrer-when-downgrade'`, `'origin-when-cross-origin'`, `'same-origin'`, `'strict-origin'`, or `'strict-origin-when-cross-origin'`.
 
@@ -474,7 +471,7 @@ Any `metadata` fields that inherit the above `metadataBase` and set their own va
 
 ### `formatDetection`
 
-Set a field to `false` to add its opt-out directive to the `format-detection` meta tag. Fields set to `true` or omitted do not add a directive.
+`formatDetection` accepts boolean `telephone`, `date`, `address`, `email`, and `url` fields. Set a field to `false` to add its `key=no` directive; `true` and omitted fields add no directive. See Apple's [format-detection reference](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html) for telephone detection behavior.
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -490,19 +487,9 @@ export const metadata = {
 <meta name="format-detection" content="telephone=no, address=no, email=no" />
 ```
 
-| Field       | Type      | Directive when `false` |
-| ----------- | --------- | ---------------------- |
-| `telephone` | `boolean` | `telephone=no`         |
-| `date`      | `boolean` | `date=no`              |
-| `address`   | `boolean` | `address=no`           |
-| `email`     | `boolean` | `email=no`             |
-| `url`       | `boolean` | `url=no`               |
-
 ### `openGraph`
 
 `openGraph` configures [Open Graph metadata](https://ogp.me/) for a page. Image URLs can be absolute, or relative when [`metadataBase`](#metadatabase) is set. Use absolute URLs for audio and video.
-
-Start with the page's title, description, URL, and media:
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -510,34 +497,8 @@ export const metadata = {
     title: 'Next.js',
     description: 'The React Framework for the Web',
     url: 'https://nextjs.org',
-    siteName: 'Next.js',
-    images: [
-      {
-        url: 'https://nextjs.org/og.png',
-        width: 800,
-        height: 600,
-      },
-      {
-        url: 'https://nextjs.org/og-alt.png',
-        width: 1800,
-        height: 1600,
-        alt: 'My custom alt',
-      },
-    ],
-    videos: [
-      {
-        url: 'https://nextjs.org/video.mp4', // Must be an absolute URL
-        width: 800,
-        height: 600,
-      },
-    ],
-    audio: [
-      {
-        url: 'https://nextjs.org/audio.mp3', // Must be an absolute URL
-      },
-    ],
-    locale: 'en_US',
     type: 'website',
+    images: [{ url: 'https://nextjs.org/og.png', width: 800, height: 600 }],
   },
 }
 ```
@@ -546,100 +507,60 @@ export const metadata = {
 <meta property="og:title" content="Next.js" />
 <meta property="og:description" content="The React Framework for the Web" />
 <meta property="og:url" content="https://nextjs.org" />
-<meta property="og:site_name" content="Next.js" />
-<meta property="og:locale" content="en_US" />
+<meta property="og:type" content="website" />
 <meta property="og:image" content="https://nextjs.org/og.png" />
 <meta property="og:image:width" content="800" />
 <meta property="og:image:height" content="600" />
-<meta property="og:image" content="https://nextjs.org/og-alt.png" />
-<meta property="og:image:width" content="1800" />
-<meta property="og:image:height" content="1600" />
-<meta property="og:image:alt" content="My custom alt" />
-<meta property="og:video" content="https://nextjs.org/video.mp4" />
-<meta property="og:video:width" content="800" />
-<meta property="og:video:height" content="600" />
-<meta property="og:audio" content="https://nextjs.org/audio.mp3" />
-<meta property="og:type" content="website" />
 ```
 
 #### Open Graph fields
 
-The following fields are available for every Open Graph type:
+All Open Graph types accept these fields. See the [Open Graph protocol](https://ogp.me/#metadata) for property meanings and requirements.
 
-| Field             | Type                                           | Meta property                        |
-| ----------------- | ---------------------------------------------- | ------------------------------------ |
-| `title`           | `string` or a [title object](#title)           | `og:title`                           |
-| `description`     | `string`                                       | `og:description`                     |
-| `url`             | `string` or `URL`                              | `og:url`                             |
-| `siteName`        | `string`                                       | `og:site_name`                       |
-| `locale`          | `string`                                       | `og:locale`                          |
-| `alternateLocale` | `string` or `string[]`                         | `og:locale:alternate`                |
-| `determiner`      | `'a'`, `'an'`, `'the'`, `'auto'`, or `''`      | `og:determiner`                      |
-| `emails`          | `string` or `string[]`                         | `og:email`                           |
-| `phoneNumbers`    | `string` or `string[]`                         | `og:phone_number`                    |
-| `faxNumbers`      | `string` or `string[]`                         | `og:fax_number`                      |
-| `countryName`     | `string`                                       | `og:country_name`                    |
-| `ttl`             | `number`                                       | `og:ttl`                             |
-| `images`          | Image URL or descriptor, or an array of either | `og:image` and descriptor properties |
-| `audio`           | Audio URL or descriptor, or an array of either | `og:audio` and descriptor properties |
-| `videos`          | Video URL or descriptor, or an array of either | `og:video` and descriptor properties |
-
-An empty `determiner` omits the `og:determiner` tag.
+| Field                                                     | Accepted input                                                   |
+| --------------------------------------------------------- | ---------------------------------------------------------------- |
+| `title`                                                   | `string` or a [title object](#title)                             |
+| `description`, `siteName`, `locale`, `countryName`        | `string`                                                         |
+| `url`                                                     | `string` or `URL`                                                |
+| `alternateLocale`, `emails`, `phoneNumbers`, `faxNumbers` | `string` or `string[]`                                           |
+| `determiner`                                              | `'a'`, `'an'`, `'the'`, `'auto'`, or `''` (omits the tag)        |
+| `ttl`                                                     | `number`                                                         |
+| `images`, `audio`, `videos`                               | URL string, `URL`, media descriptor, or an array of these values |
 
 #### Open Graph media descriptors
 
-Each media item in the example above is an object containing a `url` and optional attributes. You can also provide URL strings or `URL` instances directly.
+Media descriptors accept a required `url` and optional [structured properties](https://ogp.me/#structured):
 
-Use absolute URLs for audio and video. Relative image URLs are resolved with [`metadataBase`](#metadatabase).
+| Field              | Type                 | Applies to           |
+| ------------------ | -------------------- | -------------------- |
+| `url`, `secureUrl` | `string` or `URL`    | Images, audio, video |
+| `type`             | `string`             | Images, audio, video |
+| `width`, `height`  | `string` or `number` | Images, video        |
+| `alt`              | `string`             | Images               |
 
-| Descriptor field | Type                 | Applies to           | Property suffix     |
-| ---------------- | -------------------- | -------------------- | ------------------- |
-| `url`            | `string` or `URL`    | Images, audio, video | Base media property |
-| `secureUrl`      | `string` or `URL`    | Images, audio, video | `:secure_url`       |
-| `type`           | `string`             | Images, audio, video | `:type`             |
-| `width`          | `string` or `number` | Images, video        | `:width`            |
-| `height`         | `string` or `number` | Images, video        | `:height`           |
-| `alt`            | `string`             | Images               | `:alt`              |
-
-For example, an image descriptor's `alt` field emits `og:image:alt`.
+Relative image URLs are resolved with [`metadataBase`](#metadatabase). Use absolute URLs for audio and video.
 
 #### Open Graph types
 
-Set `type` to describe the page's content. For example, an article can include publication dates, authors, a section, and tags:
+Set `type` to add fields for an [Open Graph object type](https://ogp.me/#types). For example:
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
   openGraph: {
-    title: 'Next.js',
-    description: 'The React Framework for the Web',
     type: 'article',
-    publishedTime: '2023-01-01T00:00:00.000Z',
-    modifiedTime: '2023-02-01T00:00:00.000Z',
-    expirationTime: '2024-01-01T00:00:00.000Z',
-    authors: ['Seb', 'Josh'],
-    section: 'Technology',
-    tags: ['Next.js', 'React'],
+    publishedTime: '2026-01-01T00:00:00.000Z',
+    authors: ['https://example.com/authors/ada'],
   },
 }
 ```
 
 ```html filename="<head> output" hideLineNumbers
-<meta property="og:title" content="Next.js" />
-<meta property="og:description" content="The React Framework for the Web" />
 <meta property="og:type" content="article" />
-<meta property="article:published_time" content="2023-01-01T00:00:00.000Z" />
-<meta property="article:modified_time" content="2023-02-01T00:00:00.000Z" />
-<meta property="article:expiration_time" content="2024-01-01T00:00:00.000Z" />
-<meta property="article:author" content="Seb" />
-<meta property="article:author" content="Josh" />
-<meta property="article:section" content="Technology" />
-<meta property="article:tag" content="Next.js" />
-<meta property="article:tag" content="React" />
+<meta property="article:published_time" content="2026-01-01T00:00:00.000Z" />
+<meta property="article:author" content="https://example.com/authors/ada" />
 ```
 
-> **Good to know**:
->
-> - It may be more convenient to use the [file-based Metadata API](/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif) for Open Graph images. Rather than having to sync the config export with actual files, the file-based API will automatically generate the correct metadata for you.
+> **Good to know**: Use the [file-based Metadata API](/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif) to generate Open Graph image metadata from image files.
 
 The following table lists the fields Next.js supports for each `type`. All types also accept the [common Open Graph fields](#open-graph-fields).
 
@@ -669,9 +590,7 @@ The following table lists the fields Next.js supports for each `type`. All types
 | `albums`, `songs`                                                | `string`, `URL`, `{ url: string \| URL, disc?: number, track?: number }`, or an array of these values |
 | `actors`                                                         | `string`, `URL`, `{ url: string \| URL, role?: string }`, or an array of these values                 |
 
-The `authors`, `tags`, `musicians`, `creators`, `directors`, and `writers` fields emit repeated `author`, `tag`, `musician`, `creator`, `director`, and `writer` properties under the selected type's prefix.
-
-The `albums` and `songs` descriptor fields emit `music:album` or `music:song`, followed by optional `:disc` and `:track` properties. Actor descriptors emit `video:actor` and an optional `video:actor:role`. Other camel-cased fields map to underscore-separated property names, such as `modifiedTime` to `article:modified_time` and `firstName` to `profile:first_name`.
+Next.js maps camel-cased field names to protocol properties, such as `modifiedTime` to `article:modified_time`.
 
 ### `robots`
 
@@ -709,70 +628,34 @@ export const metadata: Metadata = {
 
 Both `robots` and `googleBot` accept a directive string or an object. Their object fields are listed below. Only the `robots` object accepts a `googleBot` field.
 
-| Field                                                                                                         | Type                                   | Behavior                                        |
-| ------------------------------------------------------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------- |
-| `index`                                                                                                       | `boolean`                              | `true` emits `index`; `false` emits `noindex`   |
-| `follow`                                                                                                      | `boolean`                              | `true` emits `follow`; `false` emits `nofollow` |
-| `noarchive`, `nosnippet`, `noimageindex`, `nocache`, `notranslate`, `indexifembedded`, `nositelinkssearchbox` | `boolean`                              | `true` emits the directive; `false` omits it    |
-| `unavailable_after`                                                                                           | `string`                               | Emits `unavailable_after:<value>`               |
-| `'max-video-preview'`                                                                                         | `number` or `string`                   | Emits `max-video-preview:<value>`               |
-| `'max-image-preview'`                                                                                         | `'none'`, `'standard'`, or `'large'`   | Emits `max-image-preview:<value>`               |
-| `'max-snippet'`                                                                                               | `number`                               | Emits `max-snippet:<value>`                     |
-| `googleBot`                                                                                                   | `string` or a crawler directive object | Sets the `googlebot` meta tag                   |
+| Field                                                                                                         | Accepted input                         |
+| ------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `index`, `follow`                                                                                             | `boolean`                              |
+| `noarchive`, `nosnippet`, `noimageindex`, `nocache`, `notranslate`, `indexifembedded`, `nositelinkssearchbox` | `boolean`                              |
+| `unavailable_after`                                                                                           | `string`                               |
+| `'max-video-preview'`                                                                                         | `number` or `string`                   |
+| `'max-image-preview'`                                                                                         | `'none'`, `'standard'`, or `'large'`   |
+| `'max-snippet'`                                                                                               | `number`                               |
+| `googleBot`                                                                                                   | `string` or a crawler directive object |
 
-Use `index: false` and `follow: false` in object form. The deprecated object keys `noindex` and `nofollow` are not accepted boolean options.
+For `index` and `follow`, `false` emits `noindex` and `nofollow`. Other boolean fields emit their directive only when `true`. The deprecated object keys `noindex` and `nofollow` are not accepted boolean options.
 
-These fields configure the emitted tags. Support for individual directives depends on the crawler. See Google's [robots meta tag reference](https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag) for Googlebot behavior.
+See Google's [robots meta tag reference](https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag) for directive meanings and Googlebot support. Next.js emits the configured tags; each crawler determines which directives it honors.
 
 ### `icons`
 
-`icons` adds icon links to the page. Group icon URLs or objects by category:
-
-> **Good to know**: We recommend using the [file-based Metadata API](/docs/app/api-reference/file-conventions/metadata/app-icons#image-files-ico-jpg-png) for icons where possible. Rather than having to sync the config export with actual files, the file-based API will automatically generate the correct metadata for you.
-
-```jsx filename="layout.js | page.js"
-export const metadata = {
-  icons: {
-    icon: '/icon.png',
-    shortcut: '/shortcut-icon.png',
-    apple: '/apple-icon.png',
-    other: {
-      rel: 'apple-touch-icon-precomposed',
-      url: '/apple-touch-icon-precomposed.png',
-    },
-  },
-}
-```
-
-```html filename="<head> output" hideLineNumbers
-<link rel="shortcut icon" href="/shortcut-icon.png" />
-<link rel="icon" href="/icon.png" />
-<link rel="apple-touch-icon" href="/apple-icon.png" />
-<link
-  rel="apple-touch-icon-precomposed"
-  href="/apple-touch-icon-precomposed.png"
-/>
-```
+`icons` adds icon links, grouped by category:
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
   icons: {
     icon: [
       { url: '/icon.png' },
-      new URL('/icon.png', 'https://example.com'),
       { url: '/icon-dark.png', media: '(prefers-color-scheme: dark)' },
     ],
-    shortcut: ['/shortcut-icon.png'],
-    apple: [
-      { url: '/apple-icon.png' },
-      { url: '/apple-icon-x3.png', sizes: '180x180', type: 'image/png' },
-    ],
-    other: [
-      {
-        rel: 'apple-touch-icon-precomposed',
-        url: '/apple-touch-icon-precomposed.png',
-      },
-    ],
+    shortcut: '/shortcut-icon.png',
+    apple: '/apple-icon.png',
+    other: { rel: 'mask-icon', url: '/mask-icon.svg', color: '#000000' },
   },
 }
 ```
@@ -780,35 +663,25 @@ export const metadata = {
 ```html filename="<head> output" hideLineNumbers
 <link rel="shortcut icon" href="/shortcut-icon.png" />
 <link rel="icon" href="/icon.png" />
-<link rel="icon" href="https://example.com/icon.png" />
 <link rel="icon" href="/icon-dark.png" media="(prefers-color-scheme: dark)" />
 <link rel="apple-touch-icon" href="/apple-icon.png" />
-<link
-  rel="apple-touch-icon-precomposed"
-  href="/apple-touch-icon-precomposed.png"
-/>
-<link
-  rel="apple-touch-icon"
-  href="/apple-icon-x3.png"
-  sizes="180x180"
-  type="image/png"
-/>
+<link rel="mask-icon" href="/mask-icon.svg" color="#000000" />
 ```
 
-> **Good to know**: The `msapplication-*` meta tags are no longer supported in Chromium builds of Microsoft Edge, and thus no longer needed.
+> **Good to know**: Use the [file-based Metadata API](/docs/app/api-reference/file-conventions/metadata/app-icons#image-files-ico-jpg-png) to generate icon metadata from image files.
 
 #### Icon categories and descriptors
 
-`icons` accepts a URL string, a `URL` instance, an array of URLs or descriptor objects, or an object with these categories:
+`icons` accepts a URL string, `URL` instance, array of URLs/descriptors, or category object. Each category accepts a single item or an array; `other` accepts descriptors only.
 
-| Category   | Input                           | Default `rel`      |
-| ---------- | ------------------------------- | ------------------ |
-| `icon`     | Icon URL/descriptor or an array | `icon`             |
-| `shortcut` | Icon URL/descriptor or an array | `shortcut icon`    |
-| `apple`    | Icon URL/descriptor or an array | `apple-touch-icon` |
-| `other`    | Descriptor or descriptor array  | `icon`             |
+| Category   | Default `rel`      |
+| ---------- | ------------------ |
+| `icon`     | `icon`             |
+| `shortcut` | `shortcut icon`    |
+| `apple`    | `apple-touch-icon` |
+| `other`    | `icon`             |
 
-An icon descriptor has the following fields. Only `url` is required, and an explicit `rel` overrides the category default.
+Only a descriptor's `url` is required. An explicit `rel` overrides the category default. See the [`<link>` reference](https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/link#attributes) for attribute meanings.
 
 | Descriptor field                         | Type                           |
 | ---------------------------------------- | ------------------------------ |
@@ -870,18 +743,14 @@ export const metadata = {
 
 #### Twitter fields
 
-The following fields are shared by all card types:
+All card types accept these fields:
 
-| Field         | Type                                                                                           | Meta name                                 |
-| ------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| `card`        | `'summary'`, `'summary_large_image'`, `'player'`, or `'app'`                                   | `twitter:card`                            |
-| `site`        | `string`                                                                                       | `twitter:site`                            |
-| `siteId`      | `string`                                                                                       | `twitter:site:id`                         |
-| `creator`     | `string`                                                                                       | `twitter:creator`                         |
-| `creatorId`   | `string`                                                                                       | `twitter:creator:id`                      |
-| `title`       | `string` or a [title object](#title)                                                           | `twitter:title`                           |
-| `description` | `string`                                                                                       | `twitter:description`                     |
-| `images`      | URL string, `URL`, [image descriptor](#twitter-image-descriptors), or an array of these values | `twitter:image` and descriptor properties |
+| Field                                                   | Accepted input                                                                                 |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `card`                                                  | `'summary'`, `'summary_large_image'`, `'player'`, or `'app'`                                   |
+| `site`, `siteId`, `creator`, `creatorId`, `description` | `string`                                                                                       |
+| `title`                                                 | `string` or a [title object](#title)                                                           |
+| `images`                                                | URL string, `URL`, [image descriptor](#twitter-image-descriptors), or an array of these values |
 
 If `card` is omitted, the resolver uses `'summary_large_image'` when the supplied `images` resolve to a non-empty list, or `'summary'` otherwise. Set `card` explicitly when you need a specific card type.
 
@@ -921,97 +790,38 @@ export const metadata = {
 }
 ```
 
-```html filename="<head> output" hideLineNumbers
-<meta name="twitter:card" content="player" />
-<meta name="twitter:player" content="https://example.com/player" />
-<meta name="twitter:player:stream" content="https://example.com/video.mp4" />
-<meta name="twitter:player:width" content="1280" />
-<meta name="twitter:player:height" content="720" />
-```
-
-All four player fields are required:
-
-| Field       | Type              | Meta name               |
-| ----------- | ----------------- | ----------------------- |
-| `playerUrl` | `string` or `URL` | `twitter:player`        |
-| `streamUrl` | `string` or `URL` | `twitter:player:stream` |
-| `width`     | `number`          | `twitter:player:width`  |
-| `height`    | `number`          | `twitter:player:height` |
+All four player fields are required. `playerUrl` and `streamUrl` accept absolute URL strings or `URL` instances; `width` and `height` are numbers.
 
 #### App cards
 
-For `card: 'app'`, provide an `app` object with identifiers and links for each platform:
+For `card: 'app'`, provide an `app` object. The `id` and `url` maps accept optional `iphone`, `ipad`, and `googleplay` keys:
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
   twitter: {
     card: 'app',
-    title: 'Next.js',
-    description: 'The React Framework for the Web',
-    siteId: '1467726470533754880',
-    creator: '@nextjs',
-    creatorId: '1467726470533754880',
-    images: {
-      url: 'https://nextjs.org/og.png',
-      alt: 'Next.js Logo',
-    },
     app: {
-      name: 'twitter_app',
+      name: 'Example App',
       id: {
-        iphone: 'twitter_app://iphone',
-        ipad: 'twitter_app://ipad',
-        googleplay: 'twitter_app://googleplay',
+        iphone: '123456789',
+        ipad: '123456789',
+        googleplay: 'com.example.app',
       },
-      url: {
-        iphone: 'https://iphone_url',
-        ipad: 'https://ipad_url',
-      },
+      url: { iphone: 'https://example.com/app' },
     },
   },
 }
 ```
 
-```html filename="<head> output" hideLineNumbers
-<meta name="twitter:site:id" content="1467726470533754880" />
-<meta name="twitter:creator" content="@nextjs" />
-<meta name="twitter:creator:id" content="1467726470533754880" />
-<meta name="twitter:title" content="Next.js" />
-<meta name="twitter:description" content="The React Framework for the Web" />
-<meta name="twitter:card" content="app" />
-<meta name="twitter:image" content="https://nextjs.org/og.png" />
-<meta name="twitter:image:alt" content="Next.js Logo" />
-<meta name="twitter:app:name:iphone" content="twitter_app" />
-<meta name="twitter:app:id:iphone" content="twitter_app://iphone" />
-<meta name="twitter:app:id:ipad" content="twitter_app://ipad" />
-<meta name="twitter:app:id:googleplay" content="twitter_app://googleplay" />
-<meta name="twitter:app:url:iphone" content="https://iphone_url" />
-<meta name="twitter:app:url:ipad" content="https://ipad_url" />
-<meta name="twitter:app:name:ipad" content="twitter_app" />
-<meta name="twitter:app:name:googleplay" content="twitter_app" />
-```
-
-The `app` object accepts these fields:
-
-| Field  | Type                                                         | Behavior                                                                                    |
-| ------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| `id`   | Object with optional `iphone`, `ipad`, and `googleplay` keys | Required object. iPhone/iPad IDs accept strings or numbers; Google Play IDs accept strings. |
-| `url`  | Object with optional `iphone`, `ipad`, and `googleplay` keys | Optional. Each URL accepts a string or `URL`.                                               |
-| `name` | `string`                                                     | Optional name shared by all three platforms                                                 |
-
-These fields emit `twitter:app:id:<platform>`, `twitter:app:url:<platform>`, and `twitter:app:name:<platform>`.
+| Field  | Accepted input                                                                           |
+| ------ | ---------------------------------------------------------------------------------------- |
+| `id`   | Required map. iPhone/iPad IDs accept strings or numbers; Google Play IDs accept strings. |
+| `url`  | Optional map of absolute URL strings or `URL` instances                                  |
+| `name` | Optional `string`, shared by all platforms                                               |
 
 #### Twitter image descriptors
 
-`images` accepts URL strings, `URL` instances, or objects containing a `url` and optional attributes, as shown in the app card example. Use an array to supply multiple images. Relative image URLs are resolved with [`metadataBase`](#metadatabase).
-
-| Field            | Type                 | Meta name                  |
-| ---------------- | -------------------- | -------------------------- |
-| `url` (required) | `string` or `URL`    | `twitter:image`            |
-| `alt`            | `string`             | `twitter:image:alt`        |
-| `secureUrl`      | `string` or `URL`    | `twitter:image:secure_url` |
-| `type`           | `string`             | `twitter:image:type`       |
-| `width`          | `string` or `number` | `twitter:image:width`      |
-| `height`         | `string` or `number` | `twitter:image:height`     |
+Twitter image descriptors use the same fields as [Open Graph image descriptors](#open-graph-media-descriptors): required `url` and optional `alt`, `secureUrl`, `type`, `width`, and `height`.
 
 ### `viewport`
 
@@ -1064,24 +874,6 @@ export const metadata = {
 }
 ```
 
-```html filename="<head> output" hideLineNumbers
-<meta name="mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-title" content="Apple Web App" />
-<link
-  href="/assets/startup/apple-touch-startup-image-768x1004.png"
-  rel="apple-touch-startup-image"
-/>
-<link
-  href="/assets/startup/apple-touch-startup-image-1536x2008.png"
-  media="(device-width: 768px) and (device-height: 1024px)"
-  rel="apple-touch-startup-image"
-/>
-<meta
-  name="apple-mobile-web-app-status-bar-style"
-  content="black-translucent"
-/>
-```
-
 `appleWebApp` accepts `true`, `false`, or an object. `true` enables web app capability; `false` omits the Apple web app metadata. The object fields are:
 
 | Field            | Type                                                                 | Default                           |
@@ -1111,12 +903,7 @@ export const metadata = {
 />
 ```
 
-| Field         | Type     | Required |
-| ------------- | -------- | -------- |
-| `appId`       | `string` | Yes      |
-| `appArgument` | `string` | No       |
-
-`appId` emits `app-id=<value>`. When present, `appArgument` adds `app-argument=<value>` and is resolved using `metadataBase` and the current route.
+`appId` is a required string. The optional `appArgument` string is resolved using [`metadataBase`](#metadatabase) and the current route.
 
 ### `alternates`
 
@@ -1297,45 +1084,19 @@ export const metadata = {
 
 ### `facebook`
 
-You can connect a Facebook app or Facebook account to your webpage for certain Facebook Social Plugins [Facebook Documentation](https://developers.facebook.com/docs/plugins/comments/#moderation-setup-instructions)
-
-`facebook.appId` accepts a string. `facebook.admins` accepts a string or an array of strings. You can supply both `appId` and an array of `admins` to emit both sets of tags.
+`facebook.appId` accepts a string; `facebook.admins` accepts a string or string array. Supply both `appId` and an array of `admins` to emit both sets of tags. See the [Facebook reference](https://developers.facebook.com/docs/plugins/comments/#moderation-setup-instructions) for platform requirements.
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
   facebook: {
     appId: '12345678',
-  },
-}
-```
-
-```html filename="<head> output" hideLineNumbers
-<meta property="fb:app_id" content="12345678" />
-```
-
-```jsx filename="layout.js | page.js"
-export const metadata = {
-  facebook: {
-    admins: '12345678',
-  },
-}
-```
-
-```html filename="<head> output" hideLineNumbers
-<meta property="fb:admins" content="12345678" />
-```
-
-If you want to generate multiple fb:admins meta tags you can use array value.
-
-```jsx filename="layout.js | page.js"
-export const metadata = {
-  facebook: {
     admins: ['12345678', '87654321'],
   },
 }
 ```
 
 ```html filename="<head> output" hideLineNumbers
+<meta property="fb:app_id" content="12345678" />
 <meta property="fb:admins" content="12345678" />
 <meta property="fb:admins" content="87654321" />
 ```
@@ -1358,21 +1119,7 @@ export const metadata = {
 
 ### `other`
 
-All metadata options should be covered using the built-in support. However, there may be custom metadata tags specific to your site, or brand new metadata tags just released. You can use the `other` option to render custom named meta tags. Values can be strings, numbers, or arrays of either.
-
-```jsx filename="layout.js | page.js"
-export const metadata = {
-  other: {
-    custom: 'meta',
-  },
-}
-```
-
-```html filename="<head> output" hideLineNumbers
-<meta name="custom" content="meta" />
-```
-
-If you want to generate multiple same key meta tags you can use array value.
+Use `other` for custom named meta tags. Values can be strings, numbers, or arrays of either. Arrays emit multiple tags with the same name:
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {

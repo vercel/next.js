@@ -127,8 +127,6 @@ export const viewport = {
 
 ### `width`, `initialScale`, `maximumScale` and `userScalable`
 
-> **Good to know**: The `viewport` meta tag is automatically set, and manual configuration is usually unnecessary as the default is sufficient. However, the information is provided for completeness.
-
 Next.js sets `width: 'device-width'` and `initialScale: 1` by default. A `viewport` export or `generateViewport` return value overrides only the fields it provides. Omitted fields retain inherited or default values. To remove the default `initial-scale` directive, set `initialScale: undefined`.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
@@ -139,8 +137,6 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  // Also supported but less commonly used
-  // interactiveWidget: 'resizes-visual',
 }
 ```
 
@@ -150,8 +146,6 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  // Also supported but less commonly used
-  // interactiveWidget: 'resizes-visual',
 }
 ```
 
@@ -162,22 +156,19 @@ export const viewport = {
 />
 ```
 
-The [`viewport` meta tag](https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/meta/name/viewport) supports the following layout fields:
+Next.js accepts these layout fields. See the [`viewport` reference](https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/meta/name/viewport) for directive meanings and browser support.
 
-| Field                         | Accepted values                                                  | Viewport directive                        |
-| ----------------------------- | ---------------------------------------------------------------- | ----------------------------------------- |
-| `width`                       | `string` or `number`                                             | `width`                                   |
-| `height`                      | `string` or `number`                                             | `height`                                  |
-| `initialScale`                | `number`                                                         | `initial-scale`                           |
-| `minimumScale`                | `number`                                                         | `minimum-scale`                           |
-| `maximumScale`                | `number`                                                         | `maximum-scale`                           |
-| `userScalable`                | `boolean`                                                        | `user-scalable=yes` or `user-scalable=no` |
-| [`viewportFit`](#viewportfit) | `'auto'`, `'contain'`, or `'cover'`                              | `viewport-fit`                            |
-| `interactiveWidget`           | `'resizes-visual'`, `'resizes-content'`, or `'overlays-content'` | `interactive-widget`                      |
+| Field                                          | Accepted input                                                   |
+| ---------------------------------------------- | ---------------------------------------------------------------- |
+| `width`, `height`                              | `string` or `number`                                             |
+| `initialScale`, `minimumScale`, `maximumScale` | `number`                                                         |
+| `userScalable`                                 | `boolean` (emits `yes` or `no`)                                  |
+| [`viewportFit`](#viewportfit)                  | `'auto'`, `'contain'`, or `'cover'`                              |
+| `interactiveWidget`                            | `'resizes-visual'`, `'resizes-content'`, or `'overlays-content'` |
 
 ### `viewportFit`
 
-`viewportFit` sets the `viewport-fit` value in the viewport meta tag. It accepts `'auto'`, `'contain'`, or `'cover'`.
+`viewportFit` sets the `viewport-fit` directive in the viewport meta tag.
 
 Use `'cover'` to fill the device display. Use CSS [safe area inset variables](https://developer.mozilla.org/docs/Web/CSS/env#parameters) to keep content clear of display cutouts.
 
