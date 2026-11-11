@@ -89,6 +89,26 @@ describe('native route discovery', () => {
     expect(result.page).toBe('/native/route')
     expect(normalizePathSep(result.filename)).toContain('/app/native/route.go')
   })
+  it('resolves root Go proxies without enabling Go Pages routes', async () => {
+    await expect(
+      findPageFile(__dirname, '/proxy', ['ts'], false, { isRoot: true })
+    ).resolves.toBe('proxy.go')
+    await expect(
+      findPageFile(__dirname, '/proxy', ['ts'], false)
+    ).resolves.toBeNull()
+    const result = await findPagePathData(
+      __dirname,
+      '/proxy',
+      ['ts'],
+      undefined,
+      join(__dirname, 'app'),
+      false
+    )
+    expect(result.page).toBe('/proxy')
+    expect(normalizePathSep(result.filename)).toBe(
+      normalizePathSep(join(__dirname, 'proxy.go'))
+    )
+  })
   it('requires opt-in and Turbopack for Go proxies, and uses an all-paths matcher', async () => {
     const saved = process.env.TURBOPACK
     const params = {

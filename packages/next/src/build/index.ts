@@ -1508,7 +1508,7 @@ export default async function build(
         if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
           if (proxyFilePath)
             throw new Error(
-              'Only one proxy file is allowed, including proxy.go'
+              `Multiple Proxy files detected: ".${normalizePathSep(proxyFilePath)}" and ".${normalizePathSep(rootPath)}". Remove one of these files; Next.js supports a single Proxy file.`
             )
           proxyFilePath = rootPath
         }
@@ -3003,8 +3003,6 @@ export default async function build(
           hasNodeMiddleware = true
           functionsConfigManifest.functions['/_middleware'] = {
             runtime: 'nodejs',
-            maxDuration: staticInfo.maxDuration,
-            regions: staticInfo.preferredRegion,
             matchers: staticInfo.middleware?.matchers ?? [
               {
                 regexp: '^.*$',

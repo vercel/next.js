@@ -440,7 +440,6 @@ async function startWatcher(
         path.join(rootDir!, '..'),
         nextConfig.pageExtensions
       ),
-      path.join(rootDir!, '..', 'proxy.go'),
       ...getPossibleInstrumentationHookFilenames(
         path.join(rootDir!, '..'),
         nextConfig.pageExtensions
@@ -570,7 +569,7 @@ async function startWatcher(
         if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
           if (proxyFilePath)
             throw new Error(
-              'Only one proxy file is allowed, including proxy.go'
+              `Multiple Proxy files detected: "./${normalizePathSep(path.relative(dir, proxyFilePath))}" and "./${normalizePathSep(path.relative(dir, fileName))}". Remove one of these files; Next.js supports a single Proxy file.`
             )
           proxyFilePath = fileName
         }

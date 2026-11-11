@@ -44,7 +44,7 @@ export function proxyNativeRequest(
   url: string,
   target: { port: number; agent: Agent; token: string }
 ): Promise<void> {
-  // Discard client-supplied internal Go headers.
+  // Discard client-supplied internal Next.js headers.
   // Authenticate forwarded requests with this Go worker's token.
   // Use normalized headers so proxy.ts request-header mutations are respected.
   const rawValues = distinctHeaders(req)
@@ -58,7 +58,7 @@ export function proxyNativeRequest(
       !Object.hasOwn(req.headers, name) ||
       HOP_BY_HOP_HEADERS.has(name) ||
       connectionHeaders?.has(name) ||
-      name.startsWith('x-next-internal-go-')
+      name.startsWith('x-next-internal-')
     ) {
       continue
     }

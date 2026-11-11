@@ -1,6 +1,7 @@
 package main
 
 import (
+	"compress/gzip"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,7 +12,7 @@ import (
 func Proxy(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-go-proxy", "yes")
 	w.Header().Set("x-go-url", r.URL.RequestURI())
-	w.Header().Set("x-private-token", strconv.FormatBool(r.Header.Get("x-next-internal-go-token") != ""))
+	w.Header().Set("x-private-token", strconv.FormatBool(r.Header.Get("x-next-internal-go-token") != "" || r.Header.Get("x-next-internal-test") != ""))
 	if date := r.URL.Query().Get("response-date"); date != "" {
 		w.Header().Set("Date", date)
 	}
@@ -27,6 +28,12 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/native-proxy/blocked":
 		http.Error(w, "blocked by Go", http.StatusForbidden)
+	case "/native-proxy/compressed":
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Encoding", "gzip")
+		compressed := gzip.NewWriter(w)
+		fmt.Fprint(compressed, "compressed by Go")
+		compressed.Close()
 	case "/native-proxy/rewrite":
 		Rewrite(w, "/api/proxy-query?rewritten=1")
 	case "/native-proxy/redirect":

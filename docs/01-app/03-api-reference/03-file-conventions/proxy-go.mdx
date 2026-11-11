@@ -33,6 +33,8 @@ Call `OverrideRequestHeaders` before `Next` or `Rewrite`. Go stores Host in `r.H
 
 Returning without calling `Next` or `Rewrite` sends the response directly. Use standard Go APIs such as `http.Redirect`, `http.SetCookie`, and `http.Flusher` for redirects, response cookies, and streaming. Relative redirect and rewrite destinations resolve against the incoming URL.
 
+Go Proxy supports gzip, zlib-wrapped deflate, and Brotli response compression.
+
 ## Good to know
 
 - Go Proxy runs on every request by default.

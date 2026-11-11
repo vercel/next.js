@@ -46,6 +46,28 @@ describe('native-proxy-go', () => {
     expect(await response.text()).toBe('blocked by Go\n')
   })
 
+  it('serves compressed terminal responses', async () => {
+    // Middleware response processing strips encoded-body headers, so the body
+    // must be decoded before reaching the client.
+    const response = await next.fetch('/native-proxy/compressed')
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('compressed by Go')
+  })
+
+  it.each(['POST', 'DELETE'])(
+    'replays a large unread %s body',
+    async (method) => {
+      const body = 'a'.repeat(600 * 1024)
+      const response = await next.fetch('/native-proxy/inspect', {
+        method,
+        body,
+      })
+      expect(response.status).toBe(200)
+      expect((await response.json()).body).toBe(body)
+      expect((await next.fetch('/native-proxy/inspect')).status).toBe(200)
+    }
+  )
+
   it('rewrites paths and queries', async () => {
     const response = await next.fetch('/native-proxy/rewrite')
     expect(response.status).toBe(200)
@@ -131,7 +153,10 @@ describe('native-proxy-go', () => {
 
   it('does not expose private worker authentication metadata', async () => {
     const response = await next.fetch('/native-proxy/inspect', {
-      headers: { 'x-next-internal-go-token': 'forged' },
+      headers: {
+        'x-next-internal-go-token': 'forged',
+        'x-next-internal-test': 'internal value',
+      },
     })
     expect(response.headers.get('x-private-token')).toBe('false')
   })
@@ -231,6 +256,22 @@ describe('native-proxy-go', () => {
       }
     })
   }
+  it('identifies conflicting Proxy files', async () => {
+    await next.stop()
+    await next.patchFile('proxy.ts', 'export function proxy() {}')
+    try {
+      const [result] = await Promise.allSettled([next.start()])
+      if (isNextStart) expect(result.status).toBe('rejected')
+      // Dev may announce readiness before the watch aggregation reports it.
+      await retry(() => {
+        expect(next.cliOutput).toContain('Multiple Proxy files detected')
+        expect(next.cliOutput).toContain('./proxy.go')
+        expect(next.cliOutput).toContain('./proxy.ts')
+      })
+    } finally {
+      await next.deleteFile('proxy.ts')
+    }
+  })
 })
 
 // Hosted tests require the Go proxy adapter and builder releases.

@@ -4,6 +4,7 @@ import { promises as fs } from 'fs'
 import http from 'http'
 import { Socket } from 'net'
 import { PassThrough } from 'stream'
+import { brotliCompressSync, deflateSync, gzipSync } from 'zlib'
 import { NativeRouteManager } from 'next/dist/server/lib/native-route.external'
 import { filterInternalHeaders } from 'next/dist/server/lib/server-ipc/utils'
 
@@ -100,9 +101,21 @@ describe('native route runtime', () => {
     })
   })
 
-  it.each(['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])(
-    'returns native middleware responses for %s with bodies and repeated cookies',
-    async (method) => {
+  it.each([
+    ['POST', 'identity'],
+    ['PUT', 'identity'],
+    ['PATCH', 'identity'],
+    ['DELETE', 'identity'],
+    ['OPTIONS', 'identity'],
+    ['HEAD', 'identity'],
+    ['GET', 'gzip'],
+    ['GET', 'deflate'],
+    ['GET', 'br'],
+    ['GET', 'gzip, br'],
+  ])(
+    'returns native middleware responses for %s with %s compression and repeated cookies',
+    async (method, encoding) => {
+      const hasBody = method !== 'HEAD' && method !== 'GET'
       let token = ''
       let received: {
         url?: string
@@ -120,10 +133,29 @@ describe('native route runtime', () => {
           body: Buffer.concat(chunks).toString(),
         }
         expect(req.headers['x-next-internal-go-token']).toBe(token)
+        expect(req.headers['x-next-internal-test']).toBeUndefined()
+        expect(req.headers['cache-control']).toBeUndefined()
+        expect(req.headers.pragma).toBeUndefined()
+        expect(req.headers.accept).toBeUndefined()
+        expect(req.headers['user-agent']).toBeUndefined()
+        expect(req.headers['sec-fetch-mode']).toBe(
+          req.url === '/path?query=one' ? 'navigate' : undefined
+        )
         res.setHeader('set-cookie', ['first=one; Path=/', 'second=two; Path=/'])
+        let payload: Buffer = Buffer.from('firstsecond')
+        if (encoding !== 'identity') {
+          for (const coding of encoding.split(', ')) {
+            if (coding === 'gzip') payload = gzipSync(payload)
+            else if (coding === 'deflate') payload = deflateSync(payload)
+            else if (coding === 'br') payload = brotliCompressSync(payload)
+          }
+          res.setHeader('content-encoding', encoding)
+          res.setHeader('content-length', payload.length)
+        }
         res.writeHead(201)
-        res.write('first')
-        setImmediate(() => res.end('second'))
+        res.write(payload.subarray(0, 5))
+        if (req.url === '/abort') return
+        setImmediate(() => res.end(payload.subarray(5)))
       })
       await new Promise<void>((resolve) =>
         server.listen(0, '127.0.0.1', resolve)
@@ -151,11 +183,18 @@ describe('native route runtime', () => {
       )
       const manager = new NativeRouteManager(__dirname, false)
       try {
+        jest
+          .spyOn(globalThis, 'fetch')
+          .mockImplementation(async () => new Response('application cache'))
         const response = await manager.invokeMiddleware(
           'middleware.native.json',
           new Request('https://public.example/path?query=one', {
             method,
-            body: 'request body',
+            body: hasBody ? 'request body' : undefined,
+            headers: {
+              'x-next-internal-test': 'internal value',
+              'sec-fetch-mode': 'navigate',
+            },
           })
         )
         expect(response.status).toBe(201)
@@ -163,12 +202,14 @@ describe('native route runtime', () => {
           'first=one; Path=/',
           'second=two; Path=/',
         ])
-        expect(await response.text()).toBe('firstsecond')
+        expect(await response.text()).toBe(
+          method === 'HEAD' ? '' : 'firstsecond'
+        )
         expect(received).toEqual({
           url: '/path?query=one',
           host: 'public.example',
           protocol: 'https',
-          body: 'request body',
+          body: hasBody ? 'request body' : '',
         })
         const following = await manager.invokeMiddleware(
           'middleware.native.json',
@@ -177,6 +218,16 @@ describe('native route runtime', () => {
         expect(following.status).toBe(201)
         expect(await following.text()).toBe('firstsecond')
         expect(received.body).toBe('')
+
+        const controller = new AbortController()
+        const streaming = await manager.invokeMiddleware(
+          'middleware.native.json',
+          new Request('https://public.example/abort', {
+            signal: controller.signal,
+          })
+        )
+        controller.abort()
+        await expect(streaming.text()).rejects.toThrow()
       } finally {
         child.exitCode = 0
         child.emit('exit', 0)

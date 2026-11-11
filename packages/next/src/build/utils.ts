@@ -1783,10 +1783,13 @@ export function getPossibleMiddlewareFilenames(
   folder: string,
   extensions: string[]
 ) {
-  return extensions.flatMap((extension) => [
-    path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`),
-    path.join(folder, `${PROXY_FILENAME}.${extension}`),
-  ])
+  return [
+    ...extensions.flatMap((extension) => [
+      path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`),
+      path.join(folder, `${PROXY_FILENAME}.${extension}`),
+    ]),
+    path.join(folder, `${PROXY_FILENAME}.go`),
+  ]
 }
 
 export class NestedMiddlewareError extends Error {

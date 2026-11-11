@@ -423,15 +423,12 @@ export async function findPagePathData(
     }
   }
   if (isMiddlewareFile(normalizedPagePath) || isInstrumentation) {
-    const rootExtensions =
-      normalizedPagePath === '/proxy' || normalizedPagePath === '/src/proxy'
-        ? [...extensions, 'go']
-        : extensions
     pagePath = await findPageFile(
       rootDir,
       normalizedPagePath,
-      rootExtensions,
-      false
+      extensions,
+      false,
+      { isRoot: true }
     )
 
     if (!pagePath) {
@@ -440,7 +437,7 @@ export async function findPagePathData(
 
     const pageUrl = ensureLeadingSlash(
       removePagePathTail(normalizePathSep(pagePath), {
-        extensions,
+        extensions: pagePath.endsWith('.go') ? ['go'] : extensions,
       })
     )
 

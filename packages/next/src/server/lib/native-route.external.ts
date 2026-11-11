@@ -3,8 +3,51 @@ import { randomBytes } from 'crypto'
 import { promises as fs } from 'fs'
 import { Agent, request, type IncomingMessage, type ServerResponse } from 'http'
 import { join, relative, isAbsolute } from 'path'
-import { Readable } from 'stream'
+import { PassThrough, Readable, pipeline, type Transform } from 'stream'
+import { createBrotliDecompress, createUnzip } from 'zlib'
 import { proxyNativeRequest } from './native-route-proxy'
+
+const noop = () => {}
+
+// The middleware response pipeline expects decoded bytes and removes the
+// encoded body's Content-Encoding and Content-Length headers.
+function decodeMiddlewareBody(response: IncomingMessage): Readable {
+  const contentEncoding = response.headers['content-encoding']
+  if (!contentEncoding) return response
+  const encodings = contentEncoding.split(',')
+  if (encodings.length > 5) {
+    throw new Error('Native middleware response has too many Content-Encodings')
+  }
+  const decoders: Array<() => Transform> = []
+  for (let i = encodings.length - 1; i >= 0; i--) {
+    const encoding = encodings[i].trim().toLowerCase()
+    switch (encoding) {
+      case '':
+      case 'identity':
+        break
+      case 'gzip':
+      case 'x-gzip':
+      case 'deflate':
+      case 'x-deflate':
+        decoders.push(createUnzip)
+        break
+      case 'br':
+        decoders.push(createBrotliDecompress)
+        break
+      default:
+        throw new Error(
+          `Unsupported native middleware Content-Encoding: ${encoding}`
+        )
+    }
+  }
+  if (decoders.length === 0) return response
+  const decoded = new PassThrough()
+  pipeline(
+    [response, ...decoders.map((createDecoder) => createDecoder()), decoded],
+    noop
+  )
+  return decoded
+}
 
 interface Worker {
   child: ChildProcess
@@ -251,19 +294,18 @@ export class NativeRouteManager {
     req.signal.throwIfAborted()
     const url = new URL(req.url)
     const headers: Record<string, string> = Object.create(null)
-    req.headers.forEach((value, name) => {
+    for (const [name, value] of req.headers) {
       if (
-        !name.startsWith('x-next-internal-go-') &&
-        ![
-          'connection',
-          'transfer-encoding',
-          'content-length',
-          'keep-alive',
-          'expect',
-        ].includes(name)
+        name.startsWith('x-next-internal-') ||
+        name === 'connection' ||
+        name === 'transfer-encoding' ||
+        name === 'content-length' ||
+        name === 'keep-alive' ||
+        name === 'expect'
       )
-        headers[name] = value
-    })
+        continue
+      headers[name] = value
+    }
     headers.host = url.host
     headers['x-forwarded-proto'] = url.protocol.slice(0, -1)
     headers['x-next-internal-go-token'] = worker.token
@@ -297,11 +339,16 @@ export class NativeRouteManager {
       })
       upstream.once('response', (response) => {
         response.once('close', finish)
+        response.once('error', finish)
         response.once('end', finish)
         const responseHeaders = new Headers()
         for (let i = 0; i < response.rawHeaders.length; i += 2) {
           const name = response.rawHeaders[i]
-          if (/^(connection|transfer-encoding|keep-alive)$/i.test(name))
+          if (
+            /^(connection|transfer-encoding|keep-alive|content-length|content-encoding)$/i.test(
+              name
+            )
+          )
             continue
           responseHeaders.append(name, response.rawHeaders[i + 1])
         }
@@ -312,18 +359,23 @@ export class NativeRouteManager {
           responseHeaders.has('x-middleware-next') ||
           responseHeaders.has('x-middleware-rewrite') ||
           (status >= 300 && status < 400 && responseHeaders.has('location'))
-        if (noBody) response.resume()
-        resolve(
-          new Response(
-            noBody
-              ? null
-              : (Readable.toWeb(response) as ReadableStream<Uint8Array>),
-            {
-              status,
-              headers: responseHeaders,
-            }
+        try {
+          if (noBody) response.resume()
+          resolve(
+            new Response(
+              noBody
+                ? null
+                : (Readable.toWeb(
+                    decodeMiddlewareBody(response)
+                  ) as ReadableStream<Uint8Array>),
+              { status, headers: responseHeaders }
+            )
           )
-        )
+        } catch (error) {
+          response.destroy()
+          finish()
+          reject(error)
+        }
       })
       if (req.body) {
         const body = Readable.fromWeb(

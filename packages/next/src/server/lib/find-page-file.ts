@@ -33,10 +33,17 @@ export async function findPageFile(
   pagesDir: string,
   normalizedPagePath: string,
   pageExtensions: PageExtensions,
-  isAppDir: boolean
+  isAppDir: boolean,
+  options?: { isRoot?: boolean }
 ): Promise<string | null> {
   const pagePaths = getPagePaths(normalizedPagePath, pageExtensions, isAppDir)
   if (isAppDir && normalizedPagePath.endsWith('/route')) {
+    pagePaths.push(normalizedPagePath.slice(1) + '.go')
+  }
+  if (
+    options?.isRoot &&
+    (normalizedPagePath === '/proxy' || normalizedPagePath === '/src/proxy')
+  ) {
     pagePaths.push(normalizedPagePath.slice(1) + '.go')
   }
   const [existingPath, ...others] = (
