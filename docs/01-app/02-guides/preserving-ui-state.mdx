@@ -22,7 +22,7 @@ Next.js preserves up to 3 routes. Beyond that, the oldest route is evicted and w
 
 ## Choosing what to preserve
 
-Activity preserves all component state and DOM state by default. For each piece of state, you decide whether that's the right behavior for your UI. The patterns below show common scenarios and how to handle both sides.
+Activity preserves all component state and DOM state by default. Whether to preserve or reset a piece of state depends on how people use the UI. The examples below illustrate patterns you can apply to other components with the same state or cleanup needs.
 
 ### Expandable UI (dropdowns, accordions, panels)
 
@@ -30,9 +30,9 @@ When a user navigates away and returns, Activity preserves the open/closed state
 
 **When to keep it:** A sidebar with expanded sections, a FAQ accordion, or a filters panel. The user set up their view intentionally, and restoring it avoids re-doing that work.
 
-**When to reset it:** A dropdown menu or popover triggered by a button click. These are transient interactions, not persistent view state. Returning to a page with a dropdown already open is not user friendly.
+**When to reset it:** Transient UI, such as an options menu, that should be closed when the user returns.
 
-For UI controlled by React state, reset that state in a `useLayoutEffect` cleanup when Activity hides the component:
+When React state should reset on hide, update it in a `useLayoutEffect` cleanup. For example, this dropdown closes when Activity hides the component:
 
 ```tsx highlight={8-13}
 'use client'
@@ -73,7 +73,7 @@ You can also use `Link`'s [`onNavigate`](/docs/app/api-reference/components/link
 
 #### Native popovers
 
-A native popover stores its open state in the DOM rather than React state. Call [`hidePopover()`](https://developer.mozilla.org/docs/Web/API/HTMLElement/hidePopover) in the cleanup to close it when Activity hides the component:
+For browser-managed state, use the element's DOM API to reset it. For example, this native popover calls [`hidePopover()`](https://developer.mozilla.org/docs/Web/API/HTMLElement/hidePopover) in the cleanup so it is closed when the user returns:
 
 ```tsx highlight={9-12}
 'use client'
