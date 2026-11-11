@@ -1,0 +1,2 @@
+import{test,describe,beforeAll,afterAll}from'vitest';const noStack=message=>{const error=new Error(message);error.stack=undefined;return error};
+test('one',()=>{});test('two',()=>{});afterAll(()=>{throw 'primitive cleanup value'})

@@ -1,0 +1,5 @@
+import{test,expect,vi,describe,beforeAll,afterAll}from'vitest'
+import fs,{appendFileSync}from'node:fs'
+const record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event,snapshotStatePresent:expect.getState().snapshotState!==undefined})+'\n')
+record('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));
+const shared=new Error('owned same load and snapshot error');const originalRead=fs.promises.readFile;vi.spyOn(fs.promises,'readFile').mockImplementation(function(file,...args){if(file===process.env.SNAPSHOT_OWNED_FILE)throw shared;return Reflect.apply(originalRead,this,[file,...args])});test('never runs',()=>record('BAD_BODY'));throw shared

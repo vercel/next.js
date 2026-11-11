@@ -1,0 +1,1 @@
+throw new Error('wrong conditional reporter branch')

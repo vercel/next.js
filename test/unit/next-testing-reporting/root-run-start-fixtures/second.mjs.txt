@@ -1,0 +1,48 @@
+import { appendFileSync } from 'node:fs'
+
+const record = (row) =>
+  appendFileSync(process.env.ROOT_RUN_START_TRACE, JSON.stringify(row) + '\n')
+
+export default class SecondReporter {
+  reads = 0
+
+  constructor() {
+    record({ kind: 'second-constructed' })
+  }
+
+  onInit(context) {
+    record({ kind: 'second-init', reads: this.reads })
+    context.onClose(() => record({ kind: 'second-close' }))
+  }
+
+  get onTestRunStart() {
+    this.reads++
+    record({ kind: 'second-get-start', reads: this.reads })
+    const callback = function (...args) {
+      if (process.env.ROOT_RUN_START_ROLE === 'remove-start')
+        delete Object.getPrototypeOf(this).onTestRunStart
+      record({
+        kind: 'second-start',
+        argc: args.length,
+        receiver: this instanceof SecondReporter,
+        reads: this.reads,
+        specifications: args[0].map((spec) => ({
+          moduleId: spec.moduleId,
+          pool: spec.pool,
+          projectName: spec.project.name,
+        })),
+      })
+    }
+    callback.call = () => {
+      throw new Error('root run start second poisoned call')
+    }
+    callback.apply = () => {
+      throw new Error('root run start second poisoned apply')
+    }
+    return callback
+  }
+
+  onTestRunEnd() {
+    record({ kind: 'second-end', argc: arguments.length })
+  }
+}

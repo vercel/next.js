@@ -1478,3 +1478,35 @@ describe('ordinary Node worker raw error stacks', () => {
     }
   )
 })
+
+describe('native-authored Node stack consumers', () => {
+  it.each([
+    'locations',
+    'snapshots',
+    'diagnostics',
+    'suite-own',
+    'refusals',
+    'registration',
+  ])(
+    'uses retained compiler sources for %s without remapping authored points',
+    (mode) => {
+      const stdout = execFileSync(
+        process.execPath,
+        [
+          '--enable-source-maps',
+          path.join(__dirname, 'node-stack-consumers.cjs'),
+          path.dirname(require.resolve('next/package.json')),
+          mode,
+        ],
+        { encoding: 'utf8', timeout: 10000 }
+      )
+      expect(JSON.parse(stdout)).toEqual({
+        mode,
+        actualRetainedCompilerSource: true,
+        nativeAuthoredVariant: true,
+        rawStackUnchanged: true,
+        nativeAddonsLoaded: 0,
+      })
+    }
+  )
+})

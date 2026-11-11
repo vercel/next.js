@@ -1,0 +1,10 @@
+import { appendFileSync } from 'node:fs'
+const record = (value) => appendFileSync('trace.jsonl', JSON.stringify(value) + '\n')
+const logs = (entity) => entity.logs().map(log => ({ content:log.content, type:log.type, size:log.size, timeIsNumber:Number.isFinite(log.time) }))
+export default class Reporter {
+  onInit(context) { context.onClose(() => record({hook:'close',queued:logs(this.queued),collected:logs(this.collected)})) }
+  onTestModuleQueued(module) { this.queued=module; record({hook:'queued',logs:logs(module)}) }
+  onTestModuleCollected(module) { this.collected=module; record({hook:'collected',differentModule:module!==this.queued,queued:logs(this.queued),collected:logs(module)}) }
+  onTestModuleEnd(module) { record({hook:'module',sameCollected:module===this.collected,queued:logs(this.queued),collected:logs(module),tests:[...module.children.allTests()].map(test=>({name:test.name,logs:logs(test)}))}) }
+  onTestRunEnd(modules,errors,reason) { record({hook:'end',reason,errors:errors.map(error=>error.message),sameCollected:modules[0]===this.collected,queued:logs(this.queued),collected:logs(modules[0])}) }
+}

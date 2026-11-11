@@ -1,0 +1,7 @@
+import { row, fail } from './record.mjs'
+export default class Second {
+  get onInit() {
+    row('onInit-getter')
+    fail()
+  }
+}

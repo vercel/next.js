@@ -1,0 +1,11 @@
+import {describe,test,expect} from 'vitest'
+let retries=0
+let repeats=0
+describe('runtime pending',()=>{
+ test('pass control',()=>expect(2+2).toBe(4))
+ test.skip('static skipped control',()=>{})
+ test.todo('static todo control')
+ test('skip with note',ctx=>{ctx.task.meta.observed='before skip';ctx.skip(true,'retained skip note')})
+ test('skip after failed retry',{retry:1},ctx=>{if(retries++===0)throw new Error('first retry retained');ctx.skip(true,'retry skip note')})
+ test('skip after failed repeat',{repeats:1},ctx=>{if(repeats++===0)throw new Error('first repeat retained');ctx.skip(true,'repeat skip note')})
+})

@@ -1,0 +1,11 @@
+import { beforeAll, afterAll, describe, expect, test } from 'vitest'
+import { appendFileSync } from 'node:fs'
+const record = (...row) => appendFileSync(process.env.WS1_AUDIT_FILE, JSON.stringify(row)+'\n')
+const first = new Error('same authored message')
+const second = new Error('same authored message')
+describe('nested', () => {
+beforeAll(() => {record('failure', 'beforeAll'); throw first})
+afterAll(() => {record('opposite', 'afterAll')})
+test('one', () => {record('body','one'); expect(1).toBe(1)})
+test('two', () => {record('body','two'); expect(2).toBe(2)})
+})

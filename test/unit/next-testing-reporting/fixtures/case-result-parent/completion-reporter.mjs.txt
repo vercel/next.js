@@ -1,0 +1,28 @@
+import { appendFileSync } from 'node:fs'
+
+function capture(phase, entity) {
+  const row = {
+    phase,
+    name: entity.name,
+    fullName: entity.fullName,
+    parent: entity.parent
+      ? { type: entity.parent.type, name: entity.parent.name ?? null }
+      : null,
+  }
+  appendFileSync(process.env.NEXT_TEST_HIERARCHY_FILE, JSON.stringify(row) + '\n')
+}
+
+export default class Reporter {
+  onTestModuleEnd(module) {
+    for (const entity of module.children.allTests()) capture('module-end', entity)
+  }
+  onTestRunEnd(modules) {
+    for (const module of modules)
+      for (const entity of module.children.allTests()) capture('run-end', entity)
+  }
+}
+
+if (process.env.NEXT_TEST_PARENT_HOOKS === 'module')
+  delete Reporter.prototype.onTestRunEnd
+if (process.env.NEXT_TEST_PARENT_HOOKS === 'run')
+  delete Reporter.prototype.onTestModuleEnd

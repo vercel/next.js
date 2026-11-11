@@ -12,6 +12,7 @@ import {
 } from './reporting/options'
 import type { CustomCoverageConfig } from './coverage/custom-types'
 import { parseProjectStandardCoverage } from './coverage/options'
+import { applyCoverageProviderOverride } from './coverage/provider-override'
 import type { ProjectStandardCoverageConfig } from './coverage/types'
 import { validateOptions, type TestOptions } from './runner/collector'
 import type { TestTagDefinition } from './runner/tasks'
@@ -19,6 +20,8 @@ import {
   inheritGlobalTestSequence,
   type TestSequenceOptions,
 } from './runner/sequence'
+import { readFile, readdir } from 'fs/promises'
+import path from 'path'
 import type {
   BrowserViewport,
   TestBrowserEngine,
@@ -27,6 +30,8 @@ import type {
 } from './contracts'
 import { parseMaxWorkers } from './scheduling'
 import { assignBrowserInstanceIds } from './browser-instances'
+import { openTestConfigModule, openTestProjectModules } from './config-modules'
+import type { CustomReporterTransport } from './reporting/custom-reporter'
 import type { FakeTimerOptions } from './assertions/utilities'
 import type { TestTypecheckConfig } from './typecheck'
 import { parseTestTypecheckConfig } from './typecheck'
@@ -1194,4 +1199,698 @@ export function normalizeTestConfig(value: unknown): TestConfig {
         object(projectValue, `test.projects[${index}]`).extends !== false
     )
   )
+}
+
+/** Next config takes precedence, then Vitest, then Vite's test configuration. */
+async function testConfigSource(projectDir: string) {
+  const files = await readdir(projectDir)
+  for (const prefix of ['next.test', 'vitest', 'vite']) {
+    const selected = files
+      .filter((file) =>
+        new RegExp(
+          `^${prefix.replaceAll('.', '\\.')}\\.config\\.(?:[cm]?[jt]s|json)$`
+        ).test(file)
+      )
+      .sort()
+    if (selected.length > 1)
+      throw new Error(
+        `Ambiguous test configuration: ${selected.join(', ')}. Keep one configuration per precedence level.`
+      )
+    if (selected.length) return path.join(projectDir, selected[0])
+  }
+}
+
+export async function openTestConfiguration(
+  projectDir: string,
+  signal?: AbortSignal,
+  coverageProvider?: 'v8' | 'istanbul'
+) {
+  const filename = await testConfigSource(projectDir)
+  const sourceBytes = filename ? await readFile(filename) : undefined
+  let realm: Awaited<ReturnType<typeof openTestConfigModule>> | undefined
+  let projectModules:
+    | Awaited<ReturnType<typeof openTestProjectModules>>
+    | undefined
+  let disposing: Promise<void> | undefined
+  let setupTeardown: Promise<void> | undefined
+  let reporterRealmOpened = false
+  let reporterWatchLifetime: AbortSignal | undefined
+  let reporterFinalExitOpened = false
+  let preparingFinalExit:
+    | ReturnType<NonNullable<typeof realm>['prepareFinalExit']>
+    | undefined
+  function teardownSetup() {
+    return (setupTeardown ??= (async () => {
+      const failures: unknown[] = []
+      if (!signal?.aborted) {
+        for (const resource of [realm, projectModules]) {
+          try {
+            await resource?.teardown()
+          } catch (error) {
+            failures.push(error)
+          }
+        }
+      }
+      if (failures.length === 1) throw failures[0]
+      if (failures.length)
+        throw new AggregateError(
+          failures,
+          'Test configuration global teardown failed.'
+        )
+    })())
+  }
+  let retainedTransforms = false
+  let globalSetupLifetime: AbortSignal | undefined
+  let retainedSetupContexts: Record<string, Record<string, unknown>> | undefined
+  let watchTriggerLifetime: AbortSignal | undefined
+  let triggerSetupRequested = false
+  let globalSetupRetentionInvalid = false
+  function dispose() {
+    return (disposing ??= (async () => {
+      if (preparingFinalExit) {
+        const prepared = await preparingFinalExit
+        if (prepared.initialCloseFailure)
+          throw prepared.initialCloseFailure.error
+        return
+      }
+      const failures: unknown[] = []
+      if (reporterRealmOpened) {
+        try {
+          await teardownSetup()
+        } catch (error) {
+          failures.push(error)
+        }
+      } else if (projectModules && !signal?.aborted) {
+        for (const resource of [realm, projectModules]) {
+          try {
+            await resource?.teardown()
+          } catch (error) {
+            failures.push(error)
+          }
+        }
+      }
+      for (const resource of [projectModules, realm]) {
+        try {
+          await resource?.dispose()
+        } catch (error) {
+          failures.push(error)
+        }
+      }
+      if (failures.length === 1) throw failures[0]
+      if (failures.length) {
+        throw new AggregateError(failures, 'Test configuration cleanup failed.')
+      }
+    })())
+  }
+  try {
+    let value: unknown = {}
+    if (filename?.endsWith('.json')) {
+      try {
+        value = JSON.parse(await readFile(filename, 'utf8'))
+      } catch {
+        invalid('The file must contain valid JSON.')
+      }
+    } else if (filename) {
+      realm = await openTestConfigModule(filename, projectDir, signal)
+      value = realm.value
+    }
+    value = applyCoverageProviderOverride(value, coverageProvider)
+    const normalize = coverageProvider
+      ? (project: unknown) =>
+          normalizeTestConfig(
+            applyCoverageProviderOverride(project, coverageProvider)
+          )
+      : normalizeTestConfig
+    projectModules = await openTestProjectModules(
+      value,
+      projectDir,
+      normalize,
+      signal
+    )
+    const config = projectModules?.config ?? normalize(value)
+    const finalExitOwnerAvailable =
+      projectModules === undefined &&
+      config.projects.length > 0 &&
+      config.projects.every(
+        (project) =>
+          project.profile.environment === 'node' &&
+          project.profile.runtime === 'nodejs' &&
+          project.profile.bundler === 'turbopack' &&
+          project.profile.route === undefined &&
+          !project.profile.browserClient &&
+          !project.executionEnvironment &&
+          project.isolate !== false
+      )
+    const watchTriggerBytes = new Map<string, Buffer>()
+    if (realm?.hasWatchTriggers) {
+      for (const file of realm.watchTriggerInputs)
+        watchTriggerBytes.set(file, await readFile(file))
+    }
+
+    if (realm?.compilerAliases) {
+      for (const project of config.projects)
+        if (
+          !projectModules?.owns(project) &&
+          project.compilerRootInheritance !== false
+        )
+          project.compilerAliases = realm.compilerAliases
+    }
+    function compilerInputsForProjects(projects: readonly TestProjectConfig[]) {
+      const usesRoot = projects.some(
+        (project) =>
+          !projectModules?.owns(project) &&
+          project.compilerRootInheritance !== false
+      )
+      return [
+        ...new Set([
+          ...(usesRoot ? (realm?.compilerTransformInputs ?? []) : []),
+          ...(usesRoot ? (realm?.compilerAliases?.inputs ?? []) : []),
+          ...(projectModules?.compilerInputsForProjects(projects) ?? []),
+        ]),
+      ]
+    }
+    async function retainWatchTriggerRealm(
+      lifetime: AbortSignal,
+      requireCurrent = false
+    ): Promise<boolean> {
+      if (!realm?.hasWatchTriggers) return false
+      if (projectModules)
+        throw new Error(
+          'Watch trigger patterns with external project configuration owners are not implemented.'
+        )
+      let current = (await testConfigSource(projectDir)) === filename
+      for (const [file, bytes] of watchTriggerBytes) {
+        try {
+          if (!(await readFile(file)).equals(bytes)) current = false
+        } catch (error) {
+          if (
+            (error as NodeJS.ErrnoException).code === 'ENOENT' ||
+            (error as NodeJS.ErrnoException).code === 'ENOTDIR'
+          )
+            current = false
+          else throw error
+        }
+      }
+      if (!current) {
+        if (requireCurrent)
+          throw new Error(
+            'Watch trigger configuration changed during evaluation.'
+          )
+        return false
+      }
+      realm.retainForWatch(lifetime)
+      watchTriggerLifetime = lifetime
+      return true
+    }
+    return {
+      config,
+      finalExitOwnerAvailable,
+      get physicalExit() {
+        return reporterRealmOpened ? realm?.physicalExit : undefined
+      },
+      prepareFinalExit() {
+        if (preparingFinalExit) return preparingFinalExit
+        if (
+          !reporterRealmOpened ||
+          !reporterFinalExitOpened ||
+          !realm ||
+          !finalExitOwnerAvailable
+        )
+          return Promise.resolve(undefined)
+        if (disposing)
+          return disposing.then(() => {
+            throw new Error('Test configuration disposal has already started.')
+          })
+        return (preparingFinalExit ??= realm.prepareFinalExit(teardownSetup, {
+          initialClose: true,
+        }))
+      },
+      async openReporterTransport(): Promise<CustomReporterTransport> {
+        if (disposing) throw new Error('Test configuration is closing.')
+        realm ??= await openTestConfigModule(
+          filename?.endsWith('.json') ? undefined : filename,
+          projectDir,
+          signal
+        )
+        const retainedRealm = realm
+        reporterRealmOpened = true
+        return (processOptions) => {
+          const input = processOptions.input as {
+            finalExitLifecycle?: unknown
+            watch?: unknown
+          }
+          reporterFinalExitOpened =
+            finalExitOwnerAvailable &&
+            input.finalExitLifecycle === true &&
+            input.watch !== true
+          return retainedRealm.reporterTransport({
+            ...processOptions,
+            onReady(send, terminateAfterCompletion) {
+              processOptions.onReady?.((message) => {
+                if (
+                  message &&
+                  typeof message === 'object' &&
+                  'type' in message &&
+                  message.type === 'shutdown'
+                ) {
+                  // The actual run has ended. Retain this same realm through all
+                  // global teardowns, then run reporter close callbacks in it.
+                  const { exitCodeSnapshot, ...shutdownMessage } = message as {
+                    type: 'shutdown'
+                    exitCodeSnapshot?: { value?: number | string }
+                  }
+                  return Promise.resolve(
+                    exitCodeSnapshot
+                      ? retainedRealm.seedExitCode(exitCodeSnapshot)
+                      : undefined
+                  )
+                    .then(() => teardownSetup().catch(() => {}))
+                    .then(() => send(shutdownMessage))
+                }
+                return send(message)
+              }, terminateAfterCompletion)
+            },
+          })
+        }
+      },
+      /** The same root JSON owner hosts basic reporters for a watch lifetime. */
+      async retainReportersForWatch(
+        lifetime: AbortSignal,
+        requireCurrent = false
+      ): Promise<boolean> {
+        // Executable/imported configuration reload needs its own restart
+        // contract; do not retain a stale realm or silently rebuild reporters.
+        if (projectModules || (filename && !filename.endsWith('.json')))
+          return false
+        const selected = await testConfigSource(projectDir)
+        let current = selected === filename
+        if (current && filename) {
+          try {
+            current = (await readFile(filename)).equals(sourceBytes!)
+          } catch (error) {
+            if (
+              ['ENOENT', 'ENOTDIR'].includes(
+                (error as NodeJS.ErrnoException).code ?? ''
+              )
+            )
+              current = false
+            else throw error
+          }
+        }
+        if (!current) {
+          if (requireCurrent)
+            throw new Error(
+              'Custom reporter watch configuration changed during evaluation.'
+            )
+          return false
+        }
+        if (disposing)
+          throw new Error('Custom reporter watch configuration is closing.')
+        lifetime.throwIfAborted()
+        realm ??= await openTestConfigModule(undefined, projectDir, lifetime)
+        realm.retainForWatch(lifetime)
+        reporterWatchLifetime = lifetime
+        return true
+      },
+      hasWatchTriggers: realm?.hasWatchTriggers === true,
+      async evaluateWatchTriggers(
+        files: readonly string[],
+        observationSignal?: AbortSignal
+      ) {
+        if (!realm?.hasWatchTriggers)
+          throw new Error('No watch trigger configuration owner is available.')
+        return realm.evaluateWatchTriggers(files, observationSignal)
+      },
+      retainWatchTriggersForWatch: retainWatchTriggerRealm,
+      async certifyWatchTriggerSelection(
+        lifetime: AbortSignal
+      ): Promise<boolean> {
+        if (
+          !realm?.hasWatchTriggers ||
+          !realm.watchTriggerInputsCurrent ||
+          projectModules ||
+          realm.compilerTransformNames.length ||
+          config.projects.some((project) => project.compilerAliases)
+        )
+          return false
+        return retainWatchTriggerRealm(lifetime)
+      },
+      /** The root configuration selected for this invocation. */
+      coverageConfigurationFile: filename,
+      ...(realm?.prepareCoverageThresholdUpdate
+        ? {
+            prepareCoverageThresholdUpdate:
+              realm.prepareCoverageThresholdUpdate,
+          }
+        : {}),
+      ...(realm?.formatCoverageThresholdUpdates
+        ? {
+            formatCoverageThresholdUpdates:
+              realm.formatCoverageThresholdUpdates,
+          }
+        : {}),
+      /** Root transform closures follow the watch service across ordinary runs. */
+      async retainCompilerTransformsForWatch(
+        lifetime: AbortSignal,
+        requireCurrent = false
+      ) {
+        if (
+          !realm?.compilerTransform ||
+          projectModules ||
+          config.projects.some((project) => project.globalSetup?.length)
+        )
+          return false
+        const selected = await testConfigSource(projectDir)
+        const current =
+          selected === filename &&
+          (await readFile(filename!)).equals(sourceBytes!)
+        if (!current) {
+          if (requireCurrent)
+            throw new Error(
+              'Test compiler configuration changed during evaluation.'
+            )
+          return false
+        }
+        realm.retainCompilerTransformsForWatch(lifetime)
+        retainedTransforms = true
+        return true
+      },
+      /** The qualified root JSON global setup follows the watch session. */
+      async retainGlobalSetupForWatch(
+        lifetime: AbortSignal,
+        projects: readonly TestProjectConfig[],
+        requireCurrent = false,
+        requireFulfilled = false
+      ) {
+        const project = projects[0]
+        if (
+          !filename?.endsWith('.json') ||
+          projectModules ||
+          config.projects.length !== 1 ||
+          projects.length !== 1 ||
+          project.profile.id !== config.projects[0].profile.id ||
+          !project.globalSetup?.length ||
+          project.globalSetup.length !==
+            config.projects[0].globalSetup?.length ||
+          project.globalSetup.some(
+            (file, index) => file !== config.projects[0].globalSetup?.[index]
+          ) ||
+          project.profile.mode !== 'development' ||
+          project.profile.environment !== 'node' ||
+          project.profile.runtime !== 'nodejs' ||
+          project.profile.bundler !== 'turbopack' ||
+          project.profile.route !== undefined ||
+          project.isolate === false ||
+          (project.executionEnvironment &&
+            project.executionEnvironment.name !== 'node') ||
+          project.customCoverage ||
+          globalSetupRetentionInvalid
+        )
+          return false
+        if (requireFulfilled && !retainedSetupContexts) return false
+        if (!retainedSetupContexts && signal?.aborted) {
+          globalSetupRetentionInvalid = true
+          return false
+        }
+        const selected = await testConfigSource(projectDir)
+        if (
+          selected !== filename ||
+          !(await readFile(filename)).equals(sourceBytes!)
+        ) {
+          if (requireCurrent)
+            throw new Error(
+              'Test global setup configuration changed during evaluation.'
+            )
+          return false
+        }
+        if (disposing)
+          throw new Error(
+            'The retained global setup configuration is unavailable.'
+          )
+        lifetime.throwIfAborted()
+        // Before the initial setup fulfills its realm remains generation-owned.
+        // A cancelled or partially failed setup must not survive that generation.
+        if (retainedSetupContexts) realm!.retainForWatch(lifetime)
+        globalSetupLifetime = lifetime
+        return true
+      },
+      compilerTransformNames: [
+        ...(realm?.compilerTransformNames ?? []),
+        ...(projectModules?.compilerTransformNames ?? []),
+      ],
+      compilerTransforms(projects: readonly TestProjectConfig[]) {
+        return Object.fromEntries(
+          projects.flatMap((project) => {
+            const descriptor = projectModules?.owns(project)
+              ? projectModules.compilerTransform(project)
+              : project.compilerRootInheritance === false
+                ? undefined
+                : realm?.compilerTransform
+            return descriptor ? [[project.profile.id, descriptor]] : []
+          })
+        )
+      },
+      compilerInputsForProjects,
+      /** Compiler dependencies of all configured project owners. */
+      get compilerInputs() {
+        return compilerInputsForProjects(config.projects)
+      },
+      /** Private watch identities; imported config dependencies still widen. */
+      get watchInputs() {
+        return [
+          ...(filename ? [filename] : []),
+          ...(realm?.compilerTransformInputs ?? []),
+          ...(realm?.watchTriggerInputs ?? []),
+          ...(realm?.compilerAliases?.inputs ?? []),
+          ...(projectModules?.watchInputs ?? []),
+          ...(projectModules?.rootProject.globalSetup ?? []).map((file) =>
+            path.resolve(projectDir, file)
+          ),
+        ]
+      },
+      watchRootProject: projectModules?.rootProject,
+      async setup(
+        projects: TestProjectConfig[],
+        generationSignal?: AbortSignal
+      ) {
+        if (
+          globalSetupLifetime &&
+          projects.some(
+            (project) => project.profile.id !== config.projects[0].profile.id
+          )
+        )
+          throw new Error(
+            'Unknown project in retained global setup configuration.'
+          )
+        if (
+          globalSetupLifetime &&
+          projects.length &&
+          (projects.length !== 1 ||
+            !projects[0].globalSetup?.length ||
+            projects[0].globalSetup.length !==
+              config.projects[0].globalSetup?.length ||
+            projects[0].globalSetup.some(
+              (file, index) => file !== config.projects[0].globalSetup?.[index]
+            ) ||
+            projects[0].profile.mode !== 'development' ||
+            projects[0].profile.environment !== 'node' ||
+            projects[0].profile.runtime !== 'nodejs' ||
+            projects[0].profile.bundler !== 'turbopack' ||
+            projects[0].profile.route !== undefined ||
+            projects[0].isolate === false ||
+            (projects[0].executionEnvironment &&
+              projects[0].executionEnvironment.name !== 'node') ||
+            projects[0].customCoverage)
+        ) {
+          globalSetupRetentionInvalid = true
+          globalSetupLifetime = undefined
+          if (retainedSetupContexts)
+            throw new Error(
+              'Unsupported project in retained global setup configuration.'
+            )
+        }
+        if (retainedSetupContexts) {
+          if (disposing || globalSetupRetentionInvalid)
+            throw new Error(
+              'The retained global setup configuration is unavailable.'
+            )
+          globalSetupLifetime!.throwIfAborted()
+          realm!.retainForWatch(globalSetupLifetime!)
+          for (const project of projects) {
+            if (!Object.hasOwn(retainedSetupContexts, project.profile.id))
+              throw new Error(
+                'Unknown project in retained global setup configuration.'
+              )
+            project.provide = structuredClone(
+              retainedSetupContexts[project.profile.id]
+            )
+          }
+          return
+        }
+        if (reporterWatchLifetime) {
+          reporterWatchLifetime.throwIfAborted()
+          generationSignal?.throwIfAborted()
+          if (disposing)
+            throw new Error('Custom reporter watch configuration is closing.')
+          // This retained owner admits no global setup. Its normalized literal
+          // context is fresh for each run; the worker's setup RPC is one-shot.
+          for (const project of projects) {
+            const declared = config.projects.find(
+              (candidate) => candidate.profile.id === project.profile.id
+            )
+            if (!declared)
+              throw new Error(
+                'Unknown project in retained reporter configuration.'
+              )
+            if (declared.globalSetup?.length || project.globalSetup?.length)
+              throw new Error(
+                'Custom reporter watch global setup is not implemented.'
+              )
+            project.provide = structuredClone(declared.provide ?? {})
+          }
+          return
+        }
+        if (
+          watchTriggerLifetime &&
+          !triggerSetupRequested &&
+          !projectModules &&
+          config.projects.every((project) => !project.globalSetup?.length) &&
+          projects.every((project) => !project.globalSetup?.length)
+        ) {
+          watchTriggerLifetime.throwIfAborted()
+          if (disposing)
+            throw new Error(
+              'The retained watch trigger configuration is unavailable.'
+            )
+          // This actual owner has no global setup. Keep its mapper realm, but
+          // provide each selected project a fresh declared context per run.
+          for (const project of projects) {
+            const declared = config.projects.find(
+              (candidate) => candidate.profile.id === project.profile.id
+            )
+            if (!declared)
+              throw new Error(
+                'Unknown project in retained watch trigger configuration.'
+              )
+            project.provide = structuredClone(declared.provide ?? {})
+          }
+          return
+        }
+        if (retainedTransforms) {
+          // This owner admits no global setup or external project realm. Provide
+          // fresh cloned context per run without repeating the worker setup RPC.
+          for (const project of projects) {
+            const declared = config.projects.find(
+              (candidate) => candidate.profile.id === project.profile.id
+            )
+            if (!declared)
+              throw new Error(
+                'Unknown project in retained compiler configuration.'
+              )
+            project.provide = structuredClone(declared.provide ?? {})
+          }
+          return
+        }
+        if (watchTriggerLifetime && projects.length)
+          triggerSetupRequested = true
+        try {
+          const initialSetupSignal = generationSignal ?? signal
+          if (globalSetupLifetime) initialSetupSignal?.throwIfAborted()
+          let rootContext = projectModules?.rootProject.provide ?? {}
+          const selected = projects.map((project) => ({
+            name: project.profile.id,
+            provide: project.provide ?? {},
+            ...(projectModules ? { inheritedProvide: rootContext } : {}),
+            globalSetup: (project.globalSetup ?? []).map((file) =>
+              path.resolve(projectDir, file)
+            ),
+          }))
+          if (!realm && selected.some((project) => project.globalSetup.length))
+            realm = await openTestConfigModule(
+              undefined,
+              projectDir,
+              globalSetupLifetime ? initialSetupSignal : signal
+            )
+          const rootSelected = projectModules
+            ? selected.filter(
+                (_, index) => !projectModules!.owns(projects[index])
+              )
+            : selected
+          const contexts =
+            realm && rootSelected.length
+              ? await realm.setup(rootSelected)
+              : Object.fromEntries(
+                  rootSelected.map((project) => [
+                    project.name,
+                    structuredClone(project.provide),
+                  ])
+                )
+          if (projectModules) {
+            Object.assign(contexts, await projectModules.setup(selected))
+            if (projects.length) {
+              realm ??= await openTestConfigModule(
+                undefined,
+                projectDir,
+                signal
+              )
+              rootContext = await realm.setupRoot({
+                ...projectModules.rootProject,
+                globalSetup: projectModules.rootProject.globalSetup.map(
+                  (file) => path.resolve(projectDir, file)
+                ),
+              })
+            }
+            for (const project of projects) {
+              contexts[project.profile.id] = {
+                ...rootContext,
+                ...contexts[project.profile.id],
+              }
+            }
+          }
+          for (const project of projects)
+            project.provide = contexts[project.profile.id]
+          if (globalSetupLifetime && projects.length) {
+            initialSetupSignal?.throwIfAborted()
+            globalSetupLifetime.throwIfAborted()
+            const retained = structuredClone(contexts)
+            realm!.retainForWatch(globalSetupLifetime)
+            retainedSetupContexts = retained
+          }
+        } catch (error) {
+          if (globalSetupLifetime) globalSetupRetentionInvalid = true
+          throw error
+        }
+      },
+      assertReadyForCoverage() {
+        if (disposing)
+          throw new Error('Test configuration is closing before coverage.')
+        realm?.assertReadyForCoverage()
+        projectModules?.assertReadyForCoverage()
+      },
+      dispose,
+    }
+  } catch (error) {
+    try {
+      await dispose()
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        'Test configuration and cleanup failed.'
+      )
+    }
+    throw error
+  }
+}
+
+export async function loadTestConfig(projectDir: string): Promise<TestConfig> {
+  const session = await openTestConfiguration(projectDir)
+  try {
+    if (session.compilerTransformNames.length)
+      invalid(
+        `Unsupported setting config.plugins (${session.compilerTransformNames.join(', ')}). Configure equivalent application transforms through next.config compiler rules or retain openTestConfiguration through compilation; loadTestConfig cannot own executable compiler hooks.`
+      )
+    return session.config
+  } finally {
+    await session.dispose()
+  }
 }

@@ -1,0 +1,31 @@
+[
+  {
+    "event": "case-result",
+    "name": "first",
+    "result": {
+      "state": "passed"
+    },
+    "module": "first.test.mjs"
+  },
+  {
+    "event": "module-end",
+    "file": "first.test.mjs",
+    "state": "passed"
+  },
+  {
+    "event": "run-end",
+    "reason": "passed",
+    "files": ["first.test.mjs"],
+    "states": ["passed"],
+    "errors": [
+      {
+        "name": "Error",
+        "message": "case result hook rejected"
+      }
+    ],
+    "sameObjects": [true]
+  },
+  {
+    "event": "close"
+  }
+]

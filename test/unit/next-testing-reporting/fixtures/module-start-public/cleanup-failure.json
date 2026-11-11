@@ -1,0 +1,238 @@
+{
+  "profile": "cleanup-failure",
+  "sourceFiles": {
+    "package.json": "{\"private\":true,\"type\":\"module\"}\n",
+    "setup.mjs": "import{appendFileSync}from'node:fs'\nappendFileSync(process.env.QUEUED_TRACE,JSON.stringify({actor:'author',event:'setup'})+'\\n')\n",
+    "dependency.mjs": "throw new Error('owned dependency load failure')\n",
+    "a.case.mjs": "import{test as base}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.QUEUED_TRACE,JSON.stringify({actor:'author',event,file:'a'})+'\\n')\nrecord('module-enter')\nconst test=base.extend({resource:[async({},use)=>{record('file-fixture-setup');await use(1);record('file-fixture-dispose');throw new Error('owned file fixture cleanup failure')},{scope:'file',auto:true}]})\ntest('case a completes',()=>record('body'))\n"
+  },
+  "sourceSHA256": {
+    "package.json": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428",
+    "setup.mjs": "c7f5dd03f70b7d3a3e2c82425fad4272b5435c9ea25aa083f4ae9a520fd1f6d2",
+    "dependency.mjs": "91b3140326ddf5cb3df3a7625a5066ab8bfd3544015ef592830399a9a08d08c7",
+    "a.case.mjs": "b79bf24a04382b6a73ca9c10e05174b0119876e4dc8a6219fc93aa73dcb3eae7"
+  },
+  "reporter": "import{appendFileSync,existsSync,writeFileSync}from'node:fs'\nimport{basename,join}from'node:path'\nconst queued=new Map(),collected=new Map()\nconst record=value=>appendFileSync(process.env.QUEUED_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst info=m=>({file:basename(m.moduleId),relativeModuleId:m.relativeModuleId,state:m.state(),children:m.children.size,childNames:[...m.children].map(c=>({type:c.type,name:c.name})),tests:[...m.children.allTests()].map(t=>({name:t.name,state:t.result().state})),errors:m.errors().map(e=>e.message),project:m.project.name,type:m.type,id:m.id})\nexport default class{\n constructor(){writeFileSync(process.env.QUEUED_RUNTIME,JSON.stringify({execPath:process.execPath,versions:process.versions}))}\n onTestModuleQueued(m){queued.set(basename(m.moduleId),m);record({event:'queued',...info(m)})}\n onTestModuleCollected(m){const file=basename(m.moduleId);collected.set(file,m);record({event:'collected',sameQueued:m===queued.get(file),...info(m)})}\n async onTestModuleStart(m){const file=basename(m.moduleId);record({event:'start',sameCollected:m===collected.get(file),sameQueued:m===queued.get(file),...info(m)});writeFileSync(join(process.env.QUEUED_MARKERS,file),'start');while(!existsSync(join(process.env.QUEUED_RELEASE,file)))await new Promise(resolve=>setTimeout(resolve,10));record({event:'start-return',...info(m)})}\n onTestModuleEnd(m){const c=collected.get(basename(m.moduleId));record({event:'end',sameCollected:m===c,sameQueued:m===queued.get(basename(m.moduleId)),...info(m)})}\n onTestRunEnd(modules,errors,reason){record({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===collected.get(basename(m.moduleId)),sameQueued:m===queued.get(basename(m.moduleId)),...info(m)}))})}\n}\n",
+  "originalReporterSHA256": "0d2c1f9622054efce3a98a23f8cc9fd66efa2eb1f458f7c3283de538af2146dd",
+  "originalTestConfig": {
+    "test": {
+      "include": ["*.case.mjs"],
+      "setupFiles": ["./setup.mjs"],
+      "maxWorkers": 1,
+      "cache": false,
+      "testTimeout": 10000,
+      "sequence": {
+        "seed": 1
+      }
+    }
+  },
+  "genuine": {
+    "development": {
+      "status": 1,
+      "rows": [
+        {
+          "actor": "reporter",
+          "event": "queued",
+          "file": "a.case.mjs",
+          "relativeModuleId": "a.case.mjs",
+          "state": "pending",
+          "children": 0,
+          "childNames": [],
+          "tests": [],
+          "errors": [],
+          "project": "",
+          "type": "module",
+          "id": "[actual-owner:a.case.mjs]"
+        },
+        {
+          "actor": "author",
+          "event": "setup"
+        },
+        {
+          "actor": "author",
+          "event": "module-enter",
+          "file": "a"
+        },
+        {
+          "actor": "reporter",
+          "event": "collected",
+          "sameQueued": false,
+          "file": "a.case.mjs",
+          "relativeModuleId": "a.case.mjs",
+          "state": "pending",
+          "children": 1,
+          "childNames": [
+            {
+              "type": "test",
+              "name": "case a completes"
+            }
+          ],
+          "tests": [
+            {
+              "name": "case a completes",
+              "state": "pending"
+            }
+          ],
+          "errors": [],
+          "project": "",
+          "type": "module",
+          "id": "[actual-owner:a.case.mjs]"
+        },
+        {
+          "actor": "reporter",
+          "event": "start",
+          "sameCollected": true,
+          "sameQueued": false,
+          "file": "a.case.mjs",
+          "relativeModuleId": "a.case.mjs",
+          "state": "pending",
+          "children": 1,
+          "childNames": [
+            {
+              "type": "test",
+              "name": "case a completes"
+            }
+          ],
+          "tests": [
+            {
+              "name": "case a completes",
+              "state": "pending"
+            }
+          ],
+          "errors": [],
+          "project": "",
+          "type": "module",
+          "id": "[actual-owner:a.case.mjs]"
+        },
+        {
+          "actor": "author",
+          "event": "file-fixture-setup",
+          "file": "a"
+        },
+        {
+          "actor": "author",
+          "event": "body",
+          "file": "a"
+        },
+        {
+          "actor": "author",
+          "event": "file-fixture-dispose",
+          "file": "a"
+        },
+        {
+          "actor": "reporter",
+          "event": "end",
+          "sameCollected": true,
+          "sameQueued": false,
+          "file": "a.case.mjs",
+          "relativeModuleId": "a.case.mjs",
+          "state": "failed",
+          "children": 1,
+          "childNames": [
+            {
+              "type": "test",
+              "name": "case a completes"
+            }
+          ],
+          "tests": [
+            {
+              "name": "case a completes",
+              "state": "passed"
+            }
+          ],
+          "errors": ["owned file fixture cleanup failure"],
+          "project": "",
+          "type": "module",
+          "id": "[actual-owner:a.case.mjs]"
+        },
+        {
+          "actor": "reporter",
+          "event": "start-return",
+          "file": "a.case.mjs",
+          "relativeModuleId": "a.case.mjs",
+          "state": "failed",
+          "children": 1,
+          "childNames": [
+            {
+              "type": "test",
+              "name": "case a completes"
+            }
+          ],
+          "tests": [
+            {
+              "name": "case a completes",
+              "state": "passed"
+            }
+          ],
+          "errors": ["owned file fixture cleanup failure"],
+          "project": "",
+          "type": "module",
+          "id": "[actual-owner:a.case.mjs]"
+        },
+        {
+          "actor": "reporter",
+          "event": "run-end",
+          "reason": "failed",
+          "errors": [],
+          "modules": [
+            {
+              "sameCollected": true,
+              "sameQueued": false,
+              "file": "a.case.mjs",
+              "relativeModuleId": "a.case.mjs",
+              "state": "failed",
+              "children": 1,
+              "childNames": [
+                {
+                  "type": "test",
+                  "name": "case a completes"
+                }
+              ],
+              "tests": [
+                {
+                  "name": "case a completes",
+                  "state": "passed"
+                }
+              ],
+              "errors": ["owned file fixture cleanup failure"],
+              "project": "",
+              "type": "module",
+              "id": "[actual-owner:a.case.mjs]"
+            }
+          ]
+        }
+      ],
+      "standardCounts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false
+      },
+      "standardFileStates": [
+        {
+          "name": "a.case.mjs",
+          "status": "failed",
+          "message": "owned file fixture cleanup failure",
+          "assertions": [
+            {
+              "title": "case a completes",
+              "fullName": "case a completes",
+              "ancestorTitles": [],
+              "status": "passed"
+            }
+          ]
+        }
+      ],
+      "rawReference": "/Users/timneutkens/projects/next-testing-handoffs/work2-module-start-current-20261028/reference-end-gated/development/cleanup-failure/OBSERVED.json"
+    },
+    "production": {
+      "rawReference": "/Users/timneutkens/projects/next-testing-handoffs/work2-module-start-current-20261028/reference-end-gated/production/cleanup-failure/OBSERVED.json"
+    }
+  }
+}

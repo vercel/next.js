@@ -1,0 +1,39 @@
+{
+  "numTotalTestSuites": 1,
+  "numPassedTestSuites": 0,
+  "numFailedTestSuites": 1,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 0,
+  "numPassedTests": 0,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1792934091906,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [],
+      "startTime": 1792934091906,
+      "endTime": 1792934091906,
+      "status": "failed",
+      "message": "module collection failure",
+      "name": "/private/tmp/next-testing-run/work-2/json-suite-message213/runs/reference-node26-production-collection-error/fixture/contract.case.mjs"
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+module.exports = [
+"[project]/.next-around-empty-cross-qMkMEc/sub/deep/contract.test.mjs [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+return __turbopack_context__.a(async (__turbopack_handle_async_dependencies__, __turbopack_async_result__) => { try {
+__turbopack_context__.s([]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/packages/next/dist/experimental/testing/vitest.js [next-test-node] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$externals$5d2f$node$3a$fs__$5b$external$5d$__$28$node$3a$fs$2c$__esm_import$29$__ = __turbopack_context__.i("[externals]/node:fs [external] (node:fs, esm_import)");
+var __turbopack_async_dependencies__ = __turbopack_handle_async_dependencies__([
+    __TURBOPACK__imported__module__$5b$externals$5d2f$node$3a$fs__$5b$external$5d$__$28$node$3a$fs$2c$__esm_import$29$__
+]);
+[__TURBOPACK__imported__module__$5b$externals$5d2f$node$3a$fs__$5b$external$5d$__$28$node$3a$fs$2c$__esm_import$29$__] = __turbopack_async_dependencies__.then ? (await __turbopack_async_dependencies__)() : __turbopack_async_dependencies__;
+;
+;
+const trace = (...row)=>(0, __TURBOPACK__imported__module__$5b$externals$5d2f$node$3a$fs__$5b$external$5d$__$28$node$3a$fs$2c$__esm_import$29$__["appendFileSync"])('authored.jsonl', JSON.stringify(row) + '\n');
+let releaseRoot;
+const actualSettled = new Promise((resolve)=>{
+    releaseRoot = resolve;
+});
+let wrapperPending = true;
+(0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["afterAll"])(async ()=>{
+    trace('root-afterAll-wait');
+    await actualSettled;
+    trace('root-afterAll-settled');
+}, 5000);
+{
+    const __next_test_declaration__ = __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["describe"];
+    __next_test_declaration__('affected', ()=>{
+        (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["aroundAll"])(async (run)=>{
+            trace('wrapper-entry');
+            try {
+                await new Promise((resolve)=>setTimeout(resolve, 250));
+                trace('wrapper-late-run');
+                try {
+                    await run();
+                    trace('wrapper-late-run-complete');
+                } catch (error) {
+                    trace('wrapper-late-run-rejected', {
+                        name: error.name,
+                        message: error.message,
+                        own: Object.fromEntries(Object.getOwnPropertyNames(error).map((key)=>[
+                                key,
+                                error[key]
+                            ]))
+                    });
+                }
+            } finally{
+                wrapperPending = false;
+                trace('wrapper-finally');
+                releaseRoot();
+            }
+        }, 100);
+        {
+            const __next_test_declaration__ = __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["describe"];
+            __next_test_declaration__('blocked empty', ()=>{
+                (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["beforeAll"])(()=>trace('blocked-empty-beforeAll'));
+                (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["afterAll"])(()=>trace('blocked-empty-afterAll'));
+            });
+        }
+        {
+            const __next_test_declaration__ = __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["test"];
+            __next_test_declaration__('blocked case', ()=>trace('blocked-case'), 5000);
+        }
+    });
+}{
+    const __next_test_declaration__ = __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["describe"];
+    __next_test_declaration__('following empty', ()=>{
+        (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["beforeAll"])(()=>trace('following-empty-beforeAll', {
+                wrapperPending
+            }));
+        (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["afterAll"])(()=>trace('following-empty-afterAll', {
+                wrapperPending
+            }));
+    });
+}__turbopack_async_result__();
+} catch(e) { __turbopack_async_result__(e); } }, false);}),
+];
+
+//# sourceMappingURL=_next-around-empty-cross-qMkMEc_sub_deep_contract_test_mjs_0nsj8y8439p6s._.js.map

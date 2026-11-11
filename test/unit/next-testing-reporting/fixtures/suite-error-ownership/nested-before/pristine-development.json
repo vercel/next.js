@@ -1,0 +1,48 @@
+{
+  "cases": [
+    {
+      "fullName": "nested one",
+      "status": "skipped",
+      "failureMessages": []
+    },
+    {
+      "fullName": "nested two",
+      "status": "skipped",
+      "failureMessages": []
+    }
+  ],
+  "events": [
+    ["failure", "beforeAll"],
+    ["opposite", "afterAll"]
+  ],
+  "callbacks": [
+    {
+      "event": "module-end",
+      "module": {
+        "type": "module",
+        "state": "failed",
+        "sameArrayMembers": true,
+        "errors": []
+      },
+      "suites": [
+        {
+          "type": "suite",
+          "name": "nested",
+          "state": "failed",
+          "sameArrayMembers": true,
+          "errors": [
+            {
+              "id": 1,
+              "name": "Error",
+              "message": "same authored message"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "event": "run-end",
+      "errors": []
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+export default {
+  test: {
+    name: 'passive-public',
+    include: ['public-passive.test.mjs'],
+    reporters: [new URL('./public-passive-reporter.mjs', import.meta.url).pathname, 'json'],
+    outputFile: { json: process.env.PASSIVE_REPORT },
+    attachmentsDir: process.env.PASSIVE_ATTACHMENTS,
+    maxWorkers: 1,
+    fileParallelism: false,
+    environment: 'node',
+    watch: false,
+    globals: false,
+    passWithNoTests: false,
+  },
+}

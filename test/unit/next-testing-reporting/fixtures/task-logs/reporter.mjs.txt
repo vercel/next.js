@@ -1,0 +1,84 @@
+import { appendFileSync, existsSync, readFileSync } from 'node:fs'
+const row = (value) => appendFileSync('trace.jsonl', JSON.stringify(value) + '\n')
+const normalize = (log) => ({
+  keys: Object.keys(log).sort(),
+  content: log.content,
+  type: log.type,
+  size: log.size,
+  timeIsNumber: Number.isFinite(log.time),
+  taskIdIsString: typeof log.taskId === 'string',
+  browser: log.browser,
+  origin: log.origin,
+  observer: log.observer,
+})
+export default class Reporter {
+  constructor() {
+    const { mode } = JSON.parse(readFileSync('options.json', 'utf8'))
+    const owners = new Map()
+    let module
+    const heldRows = new Map()
+    const collect = (entity) => {
+      owners.set(entity.id, entity)
+      for (const child of entity.children ?? []) collect(child)
+    }
+    const inspect = (entity) => {
+      const first = entity.logs()
+      const second = entity.logs()
+      const saved = first.slice()
+      first.length = 0
+      return {
+        type: entity.type,
+        name: entity.name ?? 'module',
+        freshArray: first !== second,
+        stableRows: saved.every((log, index) => log === second[index]),
+        mutationIsolated: entity.logs().length === saved.length,
+        logs: second.map(normalize),
+        children: [...(entity.children ?? [])].map(inspect),
+      }
+    }
+    const reporter = {
+      onInit(context) {
+        context.onClose(() => row({ hook: 'close', module: inspect(module) }))
+      },
+      onTestModuleQueued(entity) {
+        row({ hook: 'queued', module: inspect(entity) })
+      },
+      onTestModuleCollected(entity) {
+        module = entity
+        collect(entity)
+        row({ hook: 'collected', module: inspect(entity) })
+      },
+      onTestCaseResult(entity) {
+        row({ hook: 'case', test: inspect(entity) })
+      },
+      onTestModuleEnd(entity) {
+        row({ hook: 'module', sameModule: entity === module, observerIdentityRetained: mode !== 'observer' || [...owners.values()].every(owner => owner.logs().every(log => log.retainedProof === true)), module: inspect(entity) })
+      },
+      onTestRunEnd(modules, errors, reason) {
+        row({ hook: 'end', sameModule: modules[0] === module, errors: errors.map(error => error.message), reason, module: inspect(modules[0]) })
+      },
+    }
+    if (mode === 'observer' || mode === 'pending') {
+      reporter.onUserConsoleLog = async (log) => {
+        const owner = owners.get(log.taskId)
+        if (mode === 'observer') {
+          row({ hook: 'console', owner: owner?.name ?? (owner?.type === 'module' ? 'module' : null), alreadyRetained: owner ? owner.logs().includes(log) : null, log: normalize(log) })
+          Object.defineProperty(log, 'retainedProof', { value: true })
+        }
+        if (mode === 'pending' && log.content === 'case-pass\n') {
+          while (!module.logs().some(item => item.content === 'root-afterAll\n'))
+            await new Promise(resolve => setImmediate(resolve))
+          const finish = [...module.children.allTests()].find(test => test.name === 'finish')
+          heldRows.set('case-finish\n', finish.logs().find(item => item.content === 'case-finish\n'))
+          row({ hook: 'pending', module: inspect(module) })
+        }
+        if (mode === 'pending' && log.content === 'case-finish\n') {
+          while (!heldRows.has(log.content))
+            await new Promise(resolve => setImmediate(resolve))
+          row({ hook: 'identity', retainedRowIsEventualCallbackRow: heldRows.get(log.content) === log })
+        }
+      }
+    }
+    return reporter
+  }
+}

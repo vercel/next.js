@@ -1,0 +1,6 @@
+import { test, afterAll, expect } from 'vitest'
+const row = (...event) => console.log('RETRY_PUBLICATION_ROW ' + JSON.stringify({ actor: 'worker', contract: 'body-failure', event }))
+const retry = { count: 0, metadata: () => 42 }
+test('body failure after publication failure', { retry }, () => { row('body'); throw new Error('actual publication body failure') })
+afterAll(() => row('afterAll'))
+row('registered')
