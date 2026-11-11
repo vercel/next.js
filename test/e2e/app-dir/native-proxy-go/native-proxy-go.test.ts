@@ -18,6 +18,27 @@ describe('native-proxy-go', () => {
     expect((await next.fetch('/')).headers.get('x-go-proxy')).toBe('yes')
   })
 
+  it.each([undefined, 'Mon, 01 Jan 2001 00:00:00 GMT'])(
+    'preserves the downstream request Date: %s',
+    async (date) => {
+      for (const path of ['/native-proxy/inspect', '/native-proxy/override']) {
+        const response = await next.fetch(path, {
+          headers: date ? { date } : {},
+        })
+        expect(await response.json()).toMatchObject({ date: date ?? null })
+      }
+    }
+  )
+
+  it('preserves an explicitly set proxy response Date', async () => {
+    const date = 'Tue, 02 Jan 2001 00:00:00 GMT'
+    const query = new URLSearchParams({ 'response-date': date })
+    const response = await next.fetch(`/native-proxy/override?${query}`, {
+      headers: { date: 'Mon, 01 Jan 2001 00:00:00 GMT' },
+    })
+    expect(await response.json()).toMatchObject({ date })
+  })
+
   it('returns a terminal response', async () => {
     const response = await next.fetch('/native-proxy/blocked')
     expect(response.status).toBe(403)
@@ -54,17 +75,51 @@ describe('native-proxy-go', () => {
     expect(response.headers.get('set-cookie')).toContain('second=two')
   })
 
-  it('replays a body consumed by Go to the rewritten handler', async () => {
-    const response = await next.fetch('/native-proxy/body', {
-      method: 'POST',
-      body: 'hello from POST',
-    })
+  it.each(['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])(
+    'replays a %s body consumed by Go and serves the following request',
+    async (method) => {
+      const response = await next.fetch('/native-proxy/body', {
+        method,
+        body: 'hello from ' + method,
+      })
+      expect(response.status).toBe(200)
+      expect(response.headers.get('x-go-body')).toBe('hello from ' + method)
+      expect(await response.json()).toMatchObject({
+        method,
+        body: 'hello from ' + method,
+      })
+      const following = await next.fetch('/native-proxy/inspect')
+      expect(following.status).toBe(200)
+      expect(following.headers.get('x-go-proxy')).toBe('yes')
+    }
+  )
+
+  it.each(['?new=1', './target?new=1', '#section'])(
+    'resolves relative redirects from the raw request URL: %s',
+    async (destination) => {
+      const query = new URLSearchParams({
+        old: '1',
+        'relative-location': destination,
+      })
+      const path = `/native-proxy/a%2Fb?${query}`
+      const response = await next.fetch(path, { redirect: 'manual' })
+      expect(response.status).toBe(307)
+      const expected = new URL(destination, new URL(path, next.url))
+      const actual = new URL(response.headers.get('location')!, next.url)
+      expect(actual.pathname).toBe(expected.pathname)
+      expect(actual.search).toBe(expected.search)
+      expect(actual.hash).toBe(expected.hash)
+    }
+  )
+
+  it('resolves relative rewrite paths without decoding encoded separators', async () => {
+    const query = new URLSearchParams({ 'relative-rewrite': './inspect' })
+    const response = await next.fetch(`/native-proxy/a%2Fb?${query}`)
     expect(response.status).toBe(200)
-    expect(response.headers.get('x-go-body')).toBe('hello from POST')
-    expect(await response.json()).toMatchObject({
-      method: 'POST',
-      body: 'hello from POST',
-    })
+    expect(await response.json()).toMatchObject({ method: 'GET' })
+    const encodedQuery = new URLSearchParams({ 'relative-rewrite': '?new=1' })
+    const encoded = await next.fetch(`/api%2Fproxy-query?${encodedQuery}`)
+    expect(encoded.status).toBe(404)
   })
 
   it('preserves streaming terminal responses', async () => {
@@ -151,6 +206,22 @@ describe('native-proxy-go', () => {
           body: 'hosted body',
         })
         expect(body.headers.get('x-go-body')).toBe('hosted body')
+        for (const [parameter, header] of [
+          ['relative-location', 'location'],
+          ['relative-rewrite', 'x-middleware-rewrite'],
+        ]) {
+          for (const destination of ['?new=1', './target?new=1', '#section']) {
+            const url = new URL(`http://127.0.0.1:${port}/native-proxy/a%2Fb`)
+            url.search = new URLSearchParams({
+              old: '1',
+              [parameter]: destination,
+            }).toString()
+            const response = await fetch(url, { redirect: 'manual' })
+            expect(response.headers.get(header)).toBe(
+              new URL(destination, url).href
+            )
+          }
+        }
       } finally {
         const exited = once(child, 'exit')
         child.kill()

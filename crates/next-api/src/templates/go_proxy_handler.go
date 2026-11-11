@@ -30,9 +30,20 @@ func (w *nextGoProxyWriter) WriteHeader(status int) {
 	}
 	if status >= 200 {
 		w.wroteHeader = true
+		// Control-response headers also reach the downstream request. Do not
+		// replace its Date with net/http's automatic response Date, but retain
+		// a Date explicitly set by the proxy.
+		if w.Header().Get("x-middleware-next") != "" || w.Header().Get("x-middleware-rewrite") != "" {
+			if _, explicit := w.Header()["Date"]; !explicit {
+				w.Header()["Date"] = nil
+			}
+		}
 		// Go permits relative redirects and rewrites. The Next adapter consumes
 		// absolute URLs, and the platform can then make same-origin URLs relative.
-		base := &url.URL{Scheme: w.request.Header.Get("X-Forwarded-Proto"), Host: w.request.Host, Path: w.request.URL.Path}
+		// Preserve RawPath, RawQuery and ForceQuery when resolving references.
+		base := *w.request.URL
+		base.Scheme = w.request.Header.Get("X-Forwarded-Proto")
+		base.Host = w.request.Host
 		if base.Scheme == "" {
 			base.Scheme = "http"
 		}

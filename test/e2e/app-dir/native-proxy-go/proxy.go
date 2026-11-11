@@ -12,6 +12,18 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-go-proxy", "yes")
 	w.Header().Set("x-go-url", r.URL.RequestURI())
 	w.Header().Set("x-private-token", strconv.FormatBool(r.Header.Get("x-next-internal-go-token") != ""))
+	if date := r.URL.Query().Get("response-date"); date != "" {
+		w.Header().Set("Date", date)
+	}
+	if destination := r.URL.Query().Get("relative-location"); destination != "" {
+		w.Header().Set("Location", destination)
+		w.WriteHeader(http.StatusTemporaryRedirect)
+		return
+	}
+	if destination := r.URL.Query().Get("relative-rewrite"); destination != "" {
+		Rewrite(w, destination)
+		return
+	}
 	switch r.URL.Path {
 	case "/native-proxy/blocked":
 		http.Error(w, "blocked by Go", http.StatusForbidden)

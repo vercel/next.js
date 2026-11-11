@@ -6,7 +6,15 @@ async function handler(request: Request) {
     fromGo: request.headers.get('x-from-go'),
     removed: request.headers.get('x-client-remove'),
     cookie: request.headers.get('cookie'),
+    date: request.headers.get('date'),
   })
 }
 
-export { handler as GET, handler as POST }
+export {
+  handler as GET,
+  handler as POST,
+  handler as PUT,
+  handler as PATCH,
+  handler as DELETE,
+  handler as OPTIONS,
+}

@@ -27,6 +27,10 @@ Self-hosted builds use an authenticated local worker; adapter builds emit a Go
 middleware executable using the platform's PORT-based HTTP server contract.
 Background work after the HTTP response is not an invocation-lifetime API.
 
+`http.SetCookie` writes response cookies. Like an ordinary JavaScript `Response`
+with a `Set-Cookie` header, it does not update `cookies()` in the current render.
+Go proxies do not yet provide a `NextResponse.cookies`-style helper.
+
 The root fixture is a proxy-only application. `src-fixture` also has a Go route
 handler to exercise continuation, rewrite and header override interoperability.
 

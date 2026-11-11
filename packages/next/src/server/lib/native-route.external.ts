@@ -267,6 +267,9 @@ export class NativeRouteManager {
     headers.host = url.host
     headers['x-forwarded-proto'] = url.protocol.slice(0, -1)
     headers['x-next-internal-go-token'] = worker.token
+    // The cloned body has no known length. Node does not default to chunked
+    // encoding for every method (including DELETE and OPTIONS).
+    if (req.body) headers['transfer-encoding'] = 'chunked'
     worker.active++
     return new Promise<Response>((resolve, reject) => {
       const upstream = request({
