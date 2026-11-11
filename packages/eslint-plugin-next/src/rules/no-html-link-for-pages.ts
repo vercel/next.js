@@ -2,6 +2,7 @@ import { defineRule } from '../utils/define-rule'
 import * as path from 'path'
 import * as fs from 'fs'
 import { getRootDirs } from '../utils/get-root-dirs'
+import { getPageExtensions } from '../utils/next-config'
 
 import {
   getUrlFromPagesDirectories,
@@ -74,6 +75,12 @@ export default defineRule({
 
     const rootDirs = getRootDirs(context)
 
+    // Get page extensions for each root directory
+    const pageExtensionsMap = new Map<string, string[]>()
+    rootDirs.forEach((rootDir) => {
+      pageExtensionsMap.set(rootDir, getPageExtensions(rootDir))
+    })
+
     const pagesDirs = (
       customPagesDirectory
         ? [customPagesDirectory]
@@ -107,8 +114,12 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    // Get page extensions for the first root directory (used as default)
+    // In practice, all root directories should have the same extensions
+    const defaultPageExtensions = pageExtensionsMap.get(rootDirs[0]) || ['.js', '.jsx', '.ts', '.tsx']
+
+    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs, defaultPageExtensions)
+    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs, defaultPageExtensions)
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {

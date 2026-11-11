@@ -496,3 +496,49 @@ describe('no-html-link-for-pages', function () {
     )
   })
 })
+
+// Test fixture for custom page extensions
+const withPageExtensionsDir = path.join(__dirname, 'with-page-extensions')
+
+const withPageExtensionsLinter = new Linter({
+  cwd: withPageExtensionsDir,
+  configType: 'eslintrc',
+})
+
+withPageExtensionsLinter.defineRules({
+  'no-html-link-for-pages': NextESLintRule,
+})
+
+const linterConfigWithPageExtensions = {
+  ...linterConfig,
+  settings: {
+    next: {
+      rootDir: withPageExtensionsDir,
+    },
+  },
+}
+
+describe('no-html-link-for-pages with custom pageExtensions', function () {
+  it('should detect links to pages with custom extensions', function () {
+    const report = withPageExtensionsLinter.verify(
+      `
+      import Link from 'next/link';
+
+      export default function Test() {
+        return (
+          <div>
+            <a href="/about">About</a>
+          </div>
+        );
+      }
+      `,
+      linterConfigWithPageExtensions,
+      { filename: 'test.jsx' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report[0].message,
+      'Do not use an `<a>` element to navigate to `/about/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+})
