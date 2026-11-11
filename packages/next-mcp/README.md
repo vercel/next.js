@@ -212,6 +212,66 @@ Unexpected execution and schema-validator errors are sanitized. Output that does
 | `approval_required` | The policy needs a person; MCP cannot ask.                      |
 | `internal`          | The tool or a validator threw, or the output failed its schema. |
 
+## Skills
+
+Serve a folder of [Agent Skills](https://agentskills.io) next to your tools, using the MCP Skills extension ([SEP-2640](https://modelcontextprotocol.io/seps/2640-skills-extension)):
+
+```
+skills/
+  roll-dice/
+    SKILL.md              # frontmatter `name: roll-dice` must match the folder
+    references/ODDS.md
+    scripts/roll.py
+    assets/d20.png
+```
+
+```ts filename="app/mcp/route.ts"
+import path from 'node:path'
+import { mcpRoute } from '@next/mcp'
+import { localDev } from '@next/mcp/auth'
+import { skillsFromDirectory } from '@next/mcp/skills'
+
+export const { GET, POST, DELETE } = mcpRoute({
+  name: 'dice',
+  version: '0.1.0',
+  auth: localDev(),
+  tools: { roll_dice },
+  skills: skillsFromDirectory(path.join(process.cwd(), 'skills')),
+})
+```
+
+Supported regular files in a skill, text or binary, are resources at `skill://<skill>/<file>`. The SDK skips dot-prefixed files and directories within the skills root. Clients find skills with `skills/list` and `skills/get`, read files with `resources/read` (binary files come back base64-encoded), and browse folders with `resources/directory/read`. Each listing carries a SHA-256 digest and size for each included file, so clients can verify what they read. Skills sit behind the route's `auth`, like tools.
+
+- **Pass an absolute path for stable runtime resolution.** Relative paths are rejected. Keep a static expression such as `path.join(process.cwd(), 'skills')` in the route so Next.js output file tracing can discover the directory. An absolute path alone does not guarantee deployment inclusion; verify that the deployed output contains the files.
+- **No skill files are read until a client asks for skills.** A cold start that only lists or calls tools does not scan or hash the skill files. In production the catalog is then kept for the life of the process; under `next dev` it is rebuilt on every skills request, so edits show up immediately.
+- **Skills over the spec's limits are skipped:** more than 512 files, or more than 16 MiB in total. Each skipped skill is logged once with the reason.
+- Invalid skills, such as one whose `name` does not match its folder, are skipped with a warning.
+
+If tracing does not include the skills directory, add an explicit include:
+
+```ts filename="next.config.ts"
+export default {
+  outputFileTracingIncludes: {
+    '/mcp': ['./skills/**/*'],
+  },
+}
+```
+
+The keys are route paths (here, `/mcp` for `app/mcp/route.ts`), not source file paths. Include patterns are relative to the Next.js project root, not the route's directory. Adjust both for your route and skills location.
+
+### `skillsFromDirectory(root, options)`
+
+| Option        | Type     | Default | Behavior                                                                                    |
+| ------------- | -------- | ------- | ------------------------------------------------------------------------------------------- |
+| `prefix`      | `string` | none    | Slash-separated namespace for skill URIs; does not change the file layout.                  |
+| `maxFileSize` | `number` | unset   | Positive, finite size in bytes. Skips a whole skill if any included file exceeds this size. |
+
+`prefix` removes empty and `.` components: `'my team/support/'` normalizes to `'my team/support'`. The SDK percent-encodes URI components, returning `skill://my%20team/support/roll-dice/SKILL.md` for the example skill. Files still live at `<root>/roll-dice/...`, without prefix directories. When provided, a prefix with a `..` component, an empty normalized value, a nonstring value, or malformed Unicode is rejected when `skillsFromDirectory` is called, before any skills request.
+
+`maxFileSize` filters served skills **after the SDK reads and hashes the catalog**; it is not an I/O or memory cap. Skills skipped by this filter are logged once with the reason. A `resources/read` response carries the whole file. Size it for the response limits of your deployment platform, leaving room for protocol overhead: binary base64 encoding adds roughly 33%, and JSON escaping can add overhead for text. Streaming does not guarantee that a host accepts the response size. Check the limits of your deployment host and test representative responses; small-file deployment demos do not establish larger response limits.
+
+`skillsFromDirectory` returns an opaque `McpSkills` handle for `mcpRoute`'s `skills` option. Use the helper rather than constructing an object yourself. It lives in its own entry point, `@next/mcp/skills`, so routes without skills never load it.
+
 ## Request pipeline
 
 Every request passes these checks in order; the first failure answers.
@@ -234,17 +294,18 @@ The public URL is resolved when the module loads, never from request headers:
 
 ## `mcpRoute` options
 
-| Option               | Type                   | Default          |
-| -------------------- | ---------------------- | ---------------- |
-| `name`               | `string`               | required         |
-| `version`            | `string`               | required         |
-| `auth`               | `AuthFn \| AuthFn[]`   | required         |
-| `tools`              | `Record<string, Tool>` | required         |
-| `instructions`       | `string`               | none             |
-| `url`                | `string`               | resolved         |
-| `allowedOrigins`     | `string[]`             | canonical origin |
-| `allowedHosts`       | `string[]`             | canonical host   |
-| `maxRequestBodySize` | `number`               | `1_048_576`      |
+| Option               | Type                       | Default          |
+| -------------------- | -------------------------- | ---------------- |
+| `name`               | `string`                   | required         |
+| `version`            | `string`                   | required         |
+| `auth`               | `AuthFn \| AuthFn[]`       | required         |
+| `tools`              | `Record<string, Tool>`     | required         |
+| `instructions`       | `string`                   | none             |
+| `url`                | `string`                   | resolved         |
+| `allowedOrigins`     | `string[]`                 | canonical origin |
+| `allowedHosts`       | `string[]`                 | canonical host   |
+| `maxRequestBodySize` | `number`                   | `1_048_576`      |
+| `skills`             | `skillsFromDirectory(...)` | none             |
 
 Invalid options, invalid tool names, values that are not `defineTool` results, and schemas that cannot produce JSON Schema all throw when the module loads.
 
@@ -252,7 +313,7 @@ Invalid options, invalid tool names, values that are not `defineTool` results, a
 
 - OAuth protected-resource metadata (RFC 9728) and shared OIDC strategies.
 - Per-tool authorization and `tools/list` filtering.
-- Stateful sessions, subscriptions, prompts, and resources.
+- Stateful sessions, subscriptions, prompts, and resources other than skills.
 
 ## Maintaining the eve adaptation
 
