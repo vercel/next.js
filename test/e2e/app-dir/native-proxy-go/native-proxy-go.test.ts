@@ -7,7 +7,7 @@ import { spawn } from 'child_process'
 import { once } from 'events'
 import { request } from 'http'
 
-// Hosted tests require the Go proxy adapter and builder releases (see README.md).
+// Hosted tests require the Go proxy adapter and builder releases.
 // @force-gate turbopack && !deploy
 describe('native-proxy-go', () => {
   const { next, isNextStart } = nextTestSetup({ files: __dirname })
@@ -233,7 +233,7 @@ describe('native-proxy-go', () => {
   }
 })
 
-// Hosted tests require the Go proxy adapter and builder releases (see README.md).
+// Hosted tests require the Go proxy adapter and builder releases.
 // @force-gate turbopack && !deploy
 describe.each([false, true])(
   'native-proxy-go with i18n and skipProxyUrlNormalize: %s',

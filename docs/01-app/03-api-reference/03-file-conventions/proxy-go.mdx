@@ -1,0 +1,41 @@
+---
+title: proxy.go
+description: API reference for writing experimental Go Proxy (middleware) with the proxy.go file convention.
+version: experimental
+---
+
+`proxy.go` runs Go code before routing a request, using Go's `net/http` request and response APIs.
+
+```go filename="proxy.go" highlight={5,7}
+package main
+
+import "net/http"
+
+func Proxy(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("x-proxy", "go")
+  Next(w)
+}
+```
+
+Enable `experimental.goRoutes` and follow the [Go setup requirements](/docs/app/api-reference/file-conventions/route-go#setup). Create `proxy.go` beside `app` or `pages`, including inside `src` when applicable. Export a `Proxy` function with the signature shown above.
+
+## Reference
+
+Next.js generates these helpers in the proxy package:
+
+| Helper                               | Behavior                                                                               |
+| ------------------------------------ | -------------------------------------------------------------------------------------- |
+| `Next(w)`                            | Continue routing the request.                                                          |
+| `Rewrite(w, destination)`            | Route the request to another URL.                                                      |
+| `OverrideRequestHeaders(w, headers)` | Replace downstream request headers with an `http.Header`. Omitted headers are removed. |
+
+Call `OverrideRequestHeaders` before `Next` or `Rewrite`. Go stores Host in `r.Host`, separately from `r.Header`. When cloning request headers, add `headers.Set("Host", r.Host)` to preserve Host.
+
+Returning without calling `Next` or `Rewrite` sends the response directly. Use standard Go APIs such as `http.Redirect`, `http.SetCookie`, and `http.Flusher` for redirects, response cookies, and streaming. Relative redirect and rewrite destinations resolve against the incoming URL.
+
+## Good to know
+
+- Go Proxy runs on every request by default.
+- Only one proxy file is supported. Go and JavaScript proxies cannot be combined.
+- Go Proxy requires Turbopack and runs as a compiled Go executable.
+- Self-hosting uses `next build` and `next start`. Platform deployments require an adapter that supports Go middleware.
