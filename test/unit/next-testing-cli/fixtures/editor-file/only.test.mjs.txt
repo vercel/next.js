@@ -1,0 +1,8 @@
+import { afterAll, inject, test } from 'vitest'
+import { body, record } from './resource.mjs'
+let project
+afterAll(() => record(project, 'only', 'afterAll'))
+test('only physical file', async (context) => {
+  project = inject('project')
+  await body(project, 'only', context)
+})

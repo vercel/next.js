@@ -1,0 +1,3 @@
+import 'server-only'
+import Counter from './Counter'
+export default async function Fixture({label}){const value=await Promise.resolve('Hello '+label);return <section><h1>{value}</h1><Counter/></section>}

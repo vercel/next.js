@@ -1,0 +1,2 @@
+import {version} from '../view-version.mjs'
+export default function Layout({children}) {return <html><body data-root-version={version}>{children}</body></html>}

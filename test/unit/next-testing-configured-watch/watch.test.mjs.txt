@@ -1,0 +1,2 @@
+import {test,expect} from 'vitest'
+test('authored watch configuration executes the real case',()=>expect(2+3).toBe(5))

@@ -1,0 +1,19 @@
+import { appendFileSync } from 'node:fs'
+import { afterAll, expect, test } from 'vitest'
+const record = (value) => appendFileSync(process.env.NEXT_TEST_EDITOR_TRACE, value + '\n')
+const owned = test.extend({
+  resource: async ({}, provide) => {
+    record('fixture setup')
+    await provide('ready')
+    record('fixture cleanup')
+  },
+})
+afterAll(() => record('afterAll'))
+owned('active public run', async ({ resource, signal, onTestFinished }) => {
+  onTestFinished(() => record('finished'))
+  expect(resource).toBe('ready')
+  expect('staged update').toMatchSnapshot()
+  record('body active')
+  console.log('NEXT_TEST_EDITOR_ACTIVE')
+  if (!signal.aborted) await new Promise((resolve) => signal.addEventListener('abort', resolve, { once: true }))
+})
