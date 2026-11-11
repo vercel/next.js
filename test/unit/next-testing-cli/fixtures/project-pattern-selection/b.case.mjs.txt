@@ -1,0 +1,8 @@
+import { test, expect, inject } from 'vitest'
+
+test('b selected project', () => {
+  const project = inject('project')
+  expect(typeof project).toBe('string')
+  console.log('PROJECT347:' + JSON.stringify({ project, file: 'b.case.mjs', value: 6 }))
+  expect(2 * 3).toBe(6)
+})

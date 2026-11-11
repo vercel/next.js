@@ -1,0 +1,36 @@
+{
+  "reference": {
+    "runner": "Vitest 5.0.4 Browser Mode",
+    "react": "19.2.0",
+    "helper": "vitest-browser-react 2.3.0",
+    "engine": "Chromium",
+    "mode": "development"
+  },
+  "cases": [
+    {
+      "fullName": "client component watch preserves imports CSS and fresh component ownership",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "rows": [
+    {
+      "before": "one: 0",
+      "after": "one: 1",
+      "color": "rgb(23, 45, 67)",
+      "effects": ["mount", "unmount"]
+    },
+    {
+      "before": "two: 0",
+      "after": "two: 1",
+      "color": "rgb(23, 45, 67)",
+      "effects": ["mount", "unmount"]
+    },
+    {
+      "before": "two: 0",
+      "after": "two: 1",
+      "color": "rgb(67, 45, 23)",
+      "effects": ["mount", "unmount"]
+    }
+  ]
+}

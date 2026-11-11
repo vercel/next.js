@@ -1,0 +1,6 @@
+import { appendFileSync } from 'node:fs'
+export default function () {
+  const record = (value) => appendFileSync(process.env.NEXT_TEST_EDITOR_TRACE, value + '\n')
+  record('global setup')
+  return () => record('global teardown')
+}

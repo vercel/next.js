@@ -1,0 +1,58 @@
+[
+  {
+    "status": 200,
+    "contentType": "text/html; charset=utf-8",
+    "rootVersion": "version-one",
+    "nestedVersion": "version-one",
+    "layoutId": "acme",
+    "subject": {
+      "version": "version-one",
+      "id": "acme",
+      "tag": ["one", "two"],
+      "header": "header-one",
+      "cookie": "session-one"
+    }
+  },
+  {
+    "status": 200,
+    "contentType": "text/html; charset=utf-8",
+    "rootVersion": "version-two",
+    "nestedVersion": "version-two",
+    "layoutId": "acme",
+    "subject": {
+      "version": "version-two",
+      "id": "acme",
+      "tag": ["one", "two"],
+      "header": "header-one",
+      "cookie": "session-one"
+    }
+  },
+  {
+    "status": 200,
+    "contentType": "text/html; charset=utf-8",
+    "rootVersion": "version-two",
+    "nestedVersion": "version-two-layout",
+    "layoutId": "acme",
+    "subject": {
+      "version": "version-two",
+      "id": "acme",
+      "tag": ["one", "two"],
+      "header": "header-one",
+      "cookie": "session-one"
+    }
+  },
+  {
+    "status": 200,
+    "contentType": "text/html; charset=utf-8",
+    "rootVersion": "version-two",
+    "nestedVersion": "version-two-layout",
+    "layoutId": "acme",
+    "subject": {
+      "version": "version-two",
+      "id": "acme",
+      "tag": ["one", "two"],
+      "header": "updated:header-one",
+      "cookie": "session-one"
+    }
+  }
+]

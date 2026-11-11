@@ -1,0 +1,5 @@
+import { test, expectTypeOf } from 'vitest'
+test('actual type checking does not execute the callback', () => {
+  expectTypeOf<string>().toEqualTypeOf<string>()
+  throw new Error('Type-test callback must not execute')
+})

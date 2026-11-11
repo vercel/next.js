@@ -1,0 +1,2 @@
+export {dependency} from './dependency.mjs'
+export const value = 'source-one'

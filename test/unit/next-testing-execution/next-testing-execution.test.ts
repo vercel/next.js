@@ -8,14 +8,20 @@ import {
   readFileSync,
   symlinkSync,
   existsSync,
+  copyFileSync,
+  realpathSync,
+  promises as fileSystem,
 } from 'fs'
 import { pathToFileURL } from 'url'
 import { tmpdir } from 'os'
+import { createHash, randomUUID } from 'crypto'
 import { retry } from 'next-test-utils'
 import {
   runTestProcess,
   type TestProcessOptions,
 } from 'next/dist/experimental/testing/execution/process'
+import { validateCompiledTestCohort } from 'next/dist/experimental/testing/execution/cohort'
+import { createTestWorkerLease } from 'next/dist/experimental/testing/execution/worker-lease'
 import { createArtifactSourceMapLookup } from 'next/dist/experimental/testing/execution/source-maps'
 import { withFileCacheDirectory } from 'next/dist/experimental/testing/execution/file-cache'
 import {
@@ -27,7 +33,26 @@ import { assertArtifactProfile } from 'next/dist/experimental/testing/execution/
 import { createLateFailureSink } from 'next/dist/experimental/testing/execution/late-failures'
 import { browserOutputDirectory } from 'next/dist/experimental/testing/execution/browser-output'
 import { assertCompiledSetup } from 'next/dist/experimental/testing/execution/setup'
+import { execute } from 'next/dist/experimental/testing/execution/execute'
+import { assertRuntimeModuleCompletion } from 'next/dist/experimental/testing/execution/completed-module'
+import {
+  executeCohort,
+  isCohortExecutionClosedError,
+} from 'next/dist/experimental/testing/execution/execute-cohort'
+import {
+  createExecutionBrokerHost,
+  createExecutionBrokerClient,
+  type ExecutionBrokerResponse,
+} from 'next/dist/experimental/testing/execution/broker'
+import type {
+  CompiledTestCohort,
+  ExecuteTestOptions,
+} from 'next/dist/experimental/testing/contracts'
 import type { ResultEvent } from 'next/dist/experimental/testing/reporting/events'
+import type {
+  WorkerInput,
+  WorkerMessage,
+} from 'next/dist/experimental/testing/execution/protocol'
 
 jest.mock('next/dist/experimental/testing/client/execute', () => ({
   __esModule: true,
@@ -43,6 +68,375 @@ const options: TestProcessOptions = {
   shutdownGraceMs: 100,
   onMessage() {},
 }
+
+describe('compiler-owned mock activation in the real file worker', () => {
+  it.each([
+    { marked: false, expose: true, status: 'passed' },
+    { marked: true, expose: true, status: 'passed' },
+    { marked: true, expose: false, status: 'failed' },
+    {
+      marked: false,
+      expose: true,
+      status: 'passed',
+      testNamePattern: '^no match$',
+    },
+  ])(
+    'handles marker=$marked and runtime=$expose',
+    async ({ marked, expose, status, testNamePattern }) => {
+      const rootDir = mkdtempSync(path.join(tmpdir(), 'next-worker-marker-'))
+      try {
+        copyFileSync(
+          path.join(__dirname, 'mock-marker-entry.cjs'),
+          path.join(rootDir, 'entry.cjs')
+        )
+        writeFileSync(
+          path.join(rootDir, 'runtime-paths.json'),
+          JSON.stringify({
+            runner: require.resolve('next/dist/experimental/testing/runner'),
+            mocking: require.resolve(
+              'next/dist/experimental/testing/mocking/runtime'
+            ),
+            marked,
+            expose,
+          })
+        )
+        const profile = {
+          id: 'unit',
+          mode: 'development' as const,
+          environment: 'node' as const,
+          runtime: 'nodejs' as const,
+          bundler: 'turbopack' as const,
+        }
+        const entry = {
+          id: 'unit:marker',
+          file: path.join(rootDir, 'spec.ts'),
+          profile,
+        }
+        const input: WorkerInput = {
+          artifact: {
+            version: 2,
+            kind: 'node',
+            entryId: entry.id,
+            profile,
+            revision: 'marker-protocol',
+            rootDir,
+            entryPath: 'entry.cjs',
+            files: ['entry.cjs', 'runtime-paths.json'],
+            diagnostics: [],
+            ...(marked ? { moduleMocking: { version: 1 as const } } : {}),
+          },
+          options: {
+            runId: 'marker',
+            projectDir: rootDir,
+            entry,
+            setupFiles: [],
+            testTimeout: 1000,
+            hookTimeout: 1000,
+            testNamePattern,
+            fileTimeout: 5000,
+          },
+          cacheScope: { type: 'file', directory: path.join(rootDir, 'cache') },
+        }
+        const messages: WorkerMessage[] = []
+        const exit = await runTestProcess(
+          require.resolve('next/dist/experimental/testing/execution/worker'),
+          {
+            ...options,
+            cwd: rootDir,
+            input,
+            onMessage(message) {
+              messages.push(message as WorkerMessage)
+            },
+          }
+        )
+        expect(exit.code).toBe(0)
+        expect(messages.find((message) => message.type === 'complete')).toEqual(
+          { type: 'complete', result: expect.objectContaining({ status }) }
+        )
+        if (testNamePattern) {
+          expect(
+            messages.some(
+              (message) =>
+                message.type === 'event' && message.event.type === 'case-start'
+            )
+          ).toBe(false)
+          expect(
+            messages.some(
+              (message) =>
+                message.type === 'event' &&
+                message.event.type === 'case-end' &&
+                message.event.status === 'skipped'
+            )
+          ).toBe(true)
+        }
+        if (!expose)
+          expect(JSON.stringify(messages)).toContain(
+            'missing its module mocking runtime'
+          )
+      } finally {
+        rmSync(rootDir, { recursive: true, force: true })
+      }
+    }
+  )
+})
+
+describe('owned runtime collection', () => {
+  it.each([
+    {
+      mode: 'execution-fact-case-start',
+      pattern: undefined,
+      status: 'protocol-error',
+      names: undefined,
+    },
+    {
+      mode: 'execution-fact-case-end',
+      pattern: undefined,
+      status: 'protocol-error',
+      names: undefined,
+    },
+    { mode: 'normal', pattern: undefined, status: 'passed', names: ['listed'] },
+    { mode: 'normal', pattern: '^missing$', status: 'passed', names: [] },
+    {
+      mode: 'collection-error',
+      pattern: undefined,
+      status: 'failed',
+      names: undefined,
+    },
+    {
+      mode: 'cleanup-error',
+      pattern: undefined,
+      status: 'failed',
+      names: undefined,
+    },
+    {
+      mode: 'nonzero-exit',
+      pattern: undefined,
+      status: 'failed',
+      names: undefined,
+    },
+  ])(
+    'collects only after authoritative cleanup: $mode/$pattern',
+    async ({ mode, pattern, status, names }) => {
+      const rootDir = mkdtempSync(
+        path.join(tmpdir(), 'next-worker-collection-')
+      )
+      try {
+        copyFileSync(
+          path.join(__dirname, 'collection-entry.cjs'),
+          path.join(rootDir, 'entry.cjs')
+        )
+        const marker = path.join(rootDir, 'cleanup.txt')
+        writeFileSync(
+          path.join(rootDir, 'runtime-paths.json'),
+          JSON.stringify({
+            runner: require.resolve('next/dist/experimental/testing/runner'),
+            vitest: require.resolve('next/dist/experimental/testing/vitest'),
+            mode,
+            marker,
+          })
+        )
+        const profile = {
+          id: 'unit',
+          mode: 'development' as const,
+          environment: 'node' as const,
+          runtime: 'nodejs' as const,
+          bundler: 'turbopack' as const,
+        }
+        const entry = {
+          id: 'unit:list',
+          file: path.join(rootDir, 'spec.ts'),
+          profile,
+        }
+        mkdirSync(path.join(rootDir, '__snapshots__'))
+        const snapshot = path.join(rootDir, '__snapshots__/spec.ts.snap')
+        const snapshotBytes =
+          'Existing snapshot syntax must not be evaluated during collection.\n'
+        writeFileSync(snapshot, snapshotBytes)
+        const events: ResultEvent[] = []
+        const completion = execute(
+          {
+            version: 2,
+            kind: 'node',
+            entryId: entry.id,
+            profile,
+            revision: 'collection',
+            rootDir,
+            entryPath: 'entry.cjs',
+            files: ['entry.cjs', 'runtime-paths.json'],
+            diagnostics: [],
+          },
+          {
+            runId: 'collection',
+            projectDir: rootDir,
+            entry,
+            setupFiles: [],
+            collectOnly: true,
+            snapshotUpdateMode: 'none',
+            testNamePattern: pattern,
+            testTimeout: 1000,
+            hookTimeout: 1000,
+            fileTimeout: 5000,
+            signal: new AbortController().signal,
+            onEvent: (event) => events.push(event),
+          }
+        )
+        if (status === 'protocol-error') {
+          await expect(completion).rejects.toThrow(
+            'Collection worker returned execution facts'
+          )
+          expect(
+            events.some(
+              (event) =>
+                event.type === 'case-start' || event.type === 'case-end'
+            )
+          ).toBe(false)
+          expect(readFileSync(snapshot, 'utf8')).toBe(snapshotBytes)
+          expect(readFileSync(marker, 'utf8')).toBe('restored')
+          return
+        }
+        const result = await completion
+        expect(result.status).toBe(status)
+        expect(result.collection?.cases.map((test) => test.name)).toEqual(names)
+        expect(
+          events.some((event) =>
+            [
+              'case-start',
+              'case-end',
+              'suite-end',
+              'snapshot-summary',
+            ].includes(event.type)
+          )
+        ).toBe(false)
+        expect(
+          events.find((event) => event.type === 'file-end')
+        ).not.toHaveProperty('collection')
+        expect(readFileSync(snapshot, 'utf8')).toBe(snapshotBytes)
+        expect(readFileSync(marker, 'utf8')).toBe('restored')
+      } finally {
+        rmSync(rootDir, { recursive: true, force: true })
+      }
+    }
+  )
+})
+
+describe('owned unhandled rejection reporting', () => {
+  it.each(['body', 'collection', 'disposal', 'primitive', 'caught', 'normal'])(
+    'retains completed cases and cleanup for %s rejections',
+    async (mode) => {
+      const rootDir = mkdtempSync(path.join(tmpdir(), 'next-worker-rejection-'))
+      try {
+        copyFileSync(
+          path.join(__dirname, 'unhandled-entry.cjs'),
+          path.join(rootDir, 'entry.cjs')
+        )
+        const marker = path.join(rootDir, 'cleanup.txt')
+        writeFileSync(
+          path.join(rootDir, 'runtime-paths.json'),
+          JSON.stringify({
+            runner: require.resolve('next/dist/experimental/testing/runner'),
+            vitest: require.resolve('next/dist/experimental/testing/vitest'),
+            mode,
+            marker,
+          })
+        )
+        const profile = {
+          id: 'unit',
+          mode: 'development' as const,
+          environment: 'node' as const,
+          runtime: 'nodejs' as const,
+          bundler: 'turbopack' as const,
+        }
+        const entry = {
+          id: 'unit:rejection',
+          file: path.join(rootDir, 'spec.ts'),
+          profile,
+        }
+        writeFileSync(
+          entry.file,
+          '// Source belongs to the owned worker probe.\n'
+        )
+        const events: ResultEvent[] = []
+        const onSnapshotUpdates = jest.fn(async () => {})
+        const result = await execute(
+          {
+            version: 2,
+            kind: 'node',
+            entryId: entry.id,
+            profile,
+            revision: 'rejection',
+            rootDir,
+            entryPath: 'entry.cjs',
+            files: ['entry.cjs', 'runtime-paths.json'],
+            diagnostics: [],
+          },
+          {
+            runId: 'rejection',
+            projectDir: rootDir,
+            entry,
+            setupFiles: [],
+            updateSnapshots: true,
+            testTimeout: 1000,
+            hookTimeout: 1000,
+            fileTimeout: 5000,
+            signal: new AbortController().signal,
+            onEvent: (event) => events.push(event),
+            onSnapshotUpdates,
+          }
+        )
+        const rejected = mode !== 'caught' && mode !== 'normal'
+        expect(result.status).toBe(rejected ? 'failed' : 'passed')
+        const cases = events.filter((event) => event.type === 'case-end')
+        expect(cases).toMatchObject([
+          {
+            testName: 'completed body retains its result',
+            status: 'passed',
+            errors: [],
+          },
+          { testName: 'successor still runs', status: 'passed', errors: [] },
+        ])
+        const diagnostics = events.filter(
+          (event) => event.type === 'diagnostic'
+        )
+        if (rejected) {
+          expect(diagnostics).toMatchObject([
+            {
+              diagnostic: {
+                phase: 'runtime',
+                severity: 'error',
+                unhandled: 'rejection',
+                message:
+                  mode === 'primitive'
+                    ? 'owned primitive rejection'
+                    : 'owned unhandled rejection',
+              },
+            },
+          ])
+          expect(diagnostics).toHaveLength(1)
+          expect(onSnapshotUpdates).not.toHaveBeenCalled()
+        } else {
+          expect(diagnostics).toEqual([])
+          expect(onSnapshotUpdates).toHaveBeenCalledTimes(1)
+          expect(onSnapshotUpdates.mock.calls[0]).toEqual([
+            entry.file,
+            [
+              expect.objectContaining({
+                content: expect.stringContaining(
+                  'snapshot remains provisional'
+                ),
+              }),
+            ],
+          ])
+        }
+        expect(
+          existsSync(path.join(rootDir, '__snapshots__/spec.ts.snap'))
+        ).toBe(false)
+        expect(readFileSync(marker, 'utf8')).toBe('restored')
+      } finally {
+        rmSync(rootDir, { recursive: true, force: true })
+      }
+    }
+  )
+})
 
 describe('explicit file worker inspector', () => {
   it.each([
@@ -981,6 +1375,974 @@ describe('browser attempt attachment paths', () => {
   })
 })
 
+describe('persistent worker lease prerequisite', () => {
+  const profile = {
+    id: 'lease',
+    mode: 'development' as const,
+    environment: 'node' as const,
+    runtime: 'nodejs' as const,
+    bundler: 'turbopack' as const,
+  }
+  const fileInput = (rootDir: string, id: string): WorkerInput => {
+    mkdirSync(path.join(rootDir, id + '-cache'), { recursive: true })
+    writeFileSync(path.join(rootDir, id + '-cache', 'retained'), id)
+    return {
+      artifact: {
+        version: 2,
+        kind: 'node',
+        entryId: id,
+        profile,
+        revision: 'cohort',
+        rootDir,
+        entryPath: id + '.cjs',
+        files: [id + '.cjs', 'shared.cjs'],
+        diagnostics: [],
+      },
+      options: {
+        runId: 'lease',
+        projectDir: rootDir,
+        entry: { id, file: path.join(rootDir, id + '.test.ts'), profile },
+        setupFiles: [],
+        fileTimeout: 500,
+        testTimeout: 100,
+        hookTimeout: 100,
+        updateSnapshots: true,
+      },
+      cacheScope: {
+        type: 'file',
+        directory: path.join(rootDir, id + '-cache'),
+      },
+    }
+  }
+  const setup = (
+    mode = 'normal',
+    onFileComplete?: Parameters<
+      typeof createTestWorkerLease
+    >[1]['onFileComplete']
+  ) => {
+    const rootDir = mkdtempSync(path.join(tmpdir(), 'next-worker-lease-'))
+    writeFileSync(
+      path.join(rootDir, 'shared.cjs'),
+      'module.exports = {token:42}'
+    )
+    let pid: number | undefined
+    const events: ResultEvent[] = []
+    const released: string[] = []
+    const start = () =>
+      createTestWorkerLease(path.join(__dirname, 'lease-worker.cjs'), {
+        cwd: rootDir,
+        env: {
+          ...process.env,
+          NODE_ENV: 'development',
+          NEXT_LEASE_CONTROL: mode,
+        },
+        input: {
+          version: 1,
+          leaseId: 'lease',
+          runId: 'lease',
+          rootDir,
+          revision: 'cohort',
+          profile,
+        },
+        startupTimeoutMs: mode === 'startup-busy' ? 150 : 5000,
+        finishTimeoutMs: mode === 'cleanup-busy' ? 150 : 5000,
+        shutdownGraceMs: 25,
+        onEvent(event) {
+          events.push(event)
+          if (mode === 'event-failure') throw new Error('event consumer failed')
+        },
+        onFileComplete,
+        onOutput(_stream, chunk) {
+          const match = chunk.toString().match(/LEASE_PID=(\d+)/)
+          if (match) pid = Number(match[1])
+          if (mode === 'output-failure')
+            throw new Error('output consumer failed')
+        },
+        async release() {
+          if (pid)
+            expect(() => process.kill(pid!, 0)).toThrow(
+              expect.objectContaining({ code: 'ESRCH' })
+            )
+          released.push('cohort')
+        },
+      })
+    return { rootDir, events, released, start }
+  }
+
+  it.each([false, true])(
+    'observes opted-in disposed files while retaining final facts and caches (capture=%s)',
+    async (captureTaskResults) => {
+      const observed: unknown[] = []
+      const fixture = setup('normal', (entryId, result) => {
+        observed.push({
+          entryId,
+          result: { ...result },
+          released: [...fixture.released],
+          cleanup: existsSync(path.join(fixture.rootDir, 'worker-cleanup')),
+        })
+        result.status = 'failed'
+      })
+      let lease: Awaited<ReturnType<typeof createTestWorkerLease>> | undefined
+      try {
+        lease = await fixture.start()
+        const input = fileInput(fixture.rootDir, 'first')
+        input.options.captureTaskResults = captureTaskResults
+        expect(
+          await lease.enqueue(input, async () => {
+            fixture.released.push('first')
+          })
+        ).toBeUndefined()
+        expect(observed).toEqual(
+          captureTaskResults
+            ? [
+                {
+                  entryId: 'first',
+                  result: { entryId: 'first', status: 'passed', durationMs: 1 },
+                  released: [],
+                  cleanup: false,
+                },
+              ]
+            : []
+        )
+        expect(fixture.released).toEqual([])
+        expect(
+          existsSync(path.join(fixture.rootDir, 'first-cache', 'retained'))
+        ).toBe(true)
+        expect(fixture.events.some((event) => event.type === 'file-end')).toBe(
+          false
+        )
+        const completed = await lease.finish()
+        expect(
+          completed.map((file) => ({
+            result: file.result,
+            snapshots: file.snapshotUpdates,
+          }))
+        ).toEqual([
+          {
+            result: { entryId: 'first', status: 'passed', durationMs: 1 },
+            snapshots: [],
+          },
+        ])
+        expect(fixture.released).toEqual(['first', 'cohort'])
+      } finally {
+        await lease?.abort(new Error('test cleanup')).catch(() => {})
+        rmSync(fixture.rootDir, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('reuses one actual process and cached helper while withholding all completions until final cleanup', async () => {
+    const fixture = setup()
+    let lease: Awaited<ReturnType<typeof createTestWorkerLease>> | undefined
+    try {
+      lease = await fixture.start()
+      expect(
+        await lease.enqueue(fileInput(fixture.rootDir, 'first'), async () => {
+          rmSync(path.join(fixture.rootDir, 'first-cache'), {
+            recursive: true,
+            force: true,
+          })
+          fixture.released.push('first')
+        })
+      ).toBeUndefined()
+      expect(
+        await lease.enqueue(fileInput(fixture.rootDir, 'second'), async () => {
+          rmSync(path.join(fixture.rootDir, 'second-cache'), {
+            recursive: true,
+            force: true,
+          })
+          fixture.released.push('second')
+        })
+      ).toBeUndefined()
+      expect(fixture.released).toEqual([])
+      expect(
+        existsSync(path.join(fixture.rootDir, 'first-cache', 'retained'))
+      ).toBe(true)
+      expect(
+        existsSync(path.join(fixture.rootDir, 'second-cache', 'retained'))
+      ).toBe(true)
+      const outputs = fixture.events
+        .filter((event) => event.type === 'output')
+        .map((event) => JSON.parse(event.text))
+      expect(outputs.map((output) => output.count)).toEqual([1, 2])
+      expect(outputs[0].pid).toBe(outputs[1].pid)
+      const result = await lease.finish()
+      expect(result.map((completion) => completion.result.entryId)).toEqual([
+        'first',
+        'second',
+      ])
+      expect(result.map((completion) => completion.result.status)).toEqual([
+        'passed',
+        'passed',
+      ])
+      expect(result.map((completion) => completion.snapshotUpdates)).toEqual([
+        [],
+        [],
+      ])
+      expect(fixture.released).toEqual(['second', 'first', 'cohort'])
+      expect(existsSync(path.join(fixture.rootDir, 'first-cache'))).toBe(false)
+      expect(existsSync(path.join(fixture.rootDir, 'second-cache'))).toBe(false)
+      expect(
+        readFileSync(path.join(fixture.rootDir, 'worker-cleanup'), 'utf8')
+      ).toBe('finish\n')
+      expect(await lease.finish()).toBe(result)
+    } finally {
+      await lease?.abort(new Error('test cleanup')).catch(() => {})
+      rmSync(fixture.rootDir, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    'forged',
+    'event-failure',
+    'file-poisoned',
+    'duplicate',
+    'crash-after-file',
+    'late-first',
+    'premature-worker',
+    'cleanup-failure',
+    'cleanup-busy',
+    'deadline',
+    'reset-module',
+  ])('vetoes every provisional file completion after %s', async (mode) => {
+    const fixture = setup(mode)
+    let lease: Awaited<ReturnType<typeof createTestWorkerLease>> | undefined
+    try {
+      lease = await fixture.start()
+      const requests = [
+        lease.enqueue(fileInput(fixture.rootDir, 'first'), async () => {
+          rmSync(path.join(fixture.rootDir, 'first-cache'), {
+            recursive: true,
+            force: true,
+          })
+          fixture.released.push('first')
+        }),
+      ]
+      if (mode === 'late-first' || mode === 'reset-module')
+        requests.push(
+          lease.enqueue(fileInput(fixture.rootDir, 'second'), async () => {
+            rmSync(path.join(fixture.rootDir, 'second-cache'), {
+              recursive: true,
+              force: true,
+            })
+            fixture.released.push('second')
+          })
+        )
+      await Promise.allSettled(requests)
+      await expect(lease.finish()).rejects.toThrow()
+      expect(fixture.released.at(-1)).toBe('cohort')
+    } finally {
+      await lease?.abort(new Error('test cleanup')).catch(() => {})
+      rmSync(fixture.rootDir, { recursive: true, force: true })
+    }
+  })
+
+  it.each(['after-finish', 'after-poison', 'release-failure'])(
+    'drains an unsubmitted cache when enqueue refuses %s',
+    async (mode) => {
+      const fixture = setup()
+      let lease: Awaited<ReturnType<typeof createTestWorkerLease>> | undefined
+      let closing: Promise<unknown> | undefined
+      try {
+        lease = await fixture.start()
+        if (mode === 'after-poison') {
+          closing = lease.abort(new Error('lease retired'))
+          void closing.catch(() => {})
+        } else await lease.finish()
+        const input = fileInput(fixture.rootDir, 'rejected')
+        const rejected = lease.enqueue(input, async () => {
+          rmSync(input.cacheScope.directory, { recursive: true, force: true })
+          fixture.released.push('rejected')
+          if (mode === 'release-failure')
+            throw new Error('unsubmitted cache cleanup failed')
+        })
+        if (mode === 'release-failure')
+          await expect(rejected).rejects.toMatchObject({
+            errors: [
+              expect.objectContaining({
+                message: 'Persistent worker lease is closing.',
+              }),
+              expect.objectContaining({
+                message: 'unsubmitted cache cleanup failed',
+              }),
+            ],
+          })
+        else
+          await expect(rejected).rejects.toThrow(
+            'Persistent worker lease is closing.'
+          )
+        expect(existsSync(input.cacheScope.directory)).toBe(false)
+        expect(fixture.released).toContain('rejected')
+        await closing?.catch(() => {})
+      } finally {
+        await lease?.abort(new Error('test cleanup')).catch(() => {})
+        rmSync(fixture.rootDir, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('closes owned resources if a request cannot cross the IPC boundary', async () => {
+    const fixture = setup()
+    let lease: Awaited<ReturnType<typeof createTestWorkerLease>> | undefined
+    try {
+      lease = await fixture.start()
+      const input = fileInput(fixture.rootDir, 'first')
+      input.options.provide = { uncloneable() {} }
+      await expect(
+        lease.enqueue(input, async () => {
+          rmSync(path.join(fixture.rootDir, 'first-cache'), {
+            recursive: true,
+            force: true,
+          })
+          fixture.released.push('first')
+        })
+      ).rejects.toThrow()
+      await expect(lease.finish()).rejects.toThrow()
+      expect(fixture.released).toEqual(['first', 'cohort'])
+    } finally {
+      await lease?.abort(new Error('test cleanup')).catch(() => {})
+      rmSync(fixture.rootDir, { recursive: true, force: true })
+    }
+  })
+
+  it('reclaims descendants before releasing retained resources', async () => {
+    const fixture = setup('descendant')
+    let lease: Awaited<ReturnType<typeof createTestWorkerLease>> | undefined
+    try {
+      lease = await fixture.start()
+      await lease.enqueue(fileInput(fixture.rootDir, 'first'), async () => {
+        rmSync(path.join(fixture.rootDir, 'first-cache'), {
+          recursive: true,
+          force: true,
+        })
+      })
+      const event = fixture.events.find((event) => event.type === 'output')!
+      if (event.type !== 'output') throw new Error('Missing transport evidence')
+      const { descendant } = JSON.parse(event.text)
+      expect(descendant).toBeGreaterThan(0)
+      await lease.finish()
+      expect(() => process.kill(descendant, 0)).toThrow(
+        expect.objectContaining({ code: 'ESRCH' })
+      )
+    } finally {
+      await lease?.abort(new Error('test cleanup')).catch(() => {})
+      rmSync(fixture.rootDir, { recursive: true, force: true })
+    }
+  })
+
+  it('retires the whole lease when a queued file is cancelled', async () => {
+    const fixture = setup()
+    let lease: Awaited<ReturnType<typeof createTestWorkerLease>> | undefined
+    const controller = new AbortController()
+    try {
+      lease = await fixture.start()
+      const first = lease.enqueue(
+        fileInput(fixture.rootDir, 'first'),
+        async () => {
+          rmSync(path.join(fixture.rootDir, 'first-cache'), {
+            recursive: true,
+            force: true,
+          })
+          fixture.released.push('first')
+        }
+      )
+      const second = lease.enqueue(
+        fileInput(fixture.rootDir, 'second'),
+        async () => {
+          rmSync(path.join(fixture.rootDir, 'second-cache'), {
+            recursive: true,
+            force: true,
+          })
+          fixture.released.push('second')
+        },
+        controller.signal
+      )
+      controller.abort(new Error('queued file cancelled'))
+      await Promise.allSettled([first, second])
+      await expect(lease.finish()).rejects.toThrow('queued file cancelled')
+      expect(fixture.released).toEqual(['second', 'first', 'cohort'])
+      expect(existsSync(path.join(fixture.rootDir, 'first-cache'))).toBe(false)
+      expect(existsSync(path.join(fixture.rootDir, 'second-cache'))).toBe(false)
+    } finally {
+      await lease?.abort(new Error('test cleanup')).catch(() => {})
+      rmSync(fixture.rootDir, { recursive: true, force: true })
+    }
+  })
+
+  it('retains output callback failure until process and resource cleanup finish', async () => {
+    const fixture = setup('output-failure')
+    try {
+      await expect(fixture.start()).rejects.toThrow('output consumer failed')
+      expect(fixture.released).toEqual(['cohort'])
+    } finally {
+      rmSync(fixture.rootDir, { recursive: true, force: true })
+    }
+  })
+
+  it('bounds startup without publishing a lease and still releases resources', async () => {
+    const fixture = setup('startup-busy')
+    try {
+      await expect(fixture.start()).rejects.toThrow(
+        'startup exceeded its deadline'
+      )
+      expect(fixture.released).toEqual(['cohort'])
+    } finally {
+      rmSync(fixture.rootDir, { recursive: true, force: true })
+    }
+  })
+
+  it('vetoes provisional results and drains resources after a parent cleanup failure', async () => {
+    const fixture = setup()
+    let lease: Awaited<ReturnType<typeof createTestWorkerLease>> | undefined
+    try {
+      lease = await fixture.start()
+      await lease.enqueue(fileInput(fixture.rootDir, 'first'), async () => {
+        rmSync(path.join(fixture.rootDir, 'first-cache'), {
+          recursive: true,
+          force: true,
+        })
+        fixture.released.push('first')
+        throw new Error('retained file cache cleanup failed')
+      })
+      await expect(lease.finish()).rejects.toThrow(
+        'retained file cache cleanup failed'
+      )
+      expect(fixture.released).toEqual(['first', 'cohort'])
+    } finally {
+      await lease?.abort(new Error('test cleanup')).catch(() => {})
+      rmSync(fixture.rootDir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects separate compiler revisions instead of treating a reused PID as a shared module graph', async () => {
+    const fixture = setup()
+    let lease: Awaited<ReturnType<typeof createTestWorkerLease>> | undefined
+    try {
+      lease = await fixture.start()
+      const first = fileInput(fixture.rootDir, 'first')
+      const second = fileInput(fixture.rootDir, 'second')
+      second.artifact.rootDir += '-different'
+      await lease.enqueue(first, async () => {
+        rmSync(path.join(fixture.rootDir, 'first-cache'), {
+          recursive: true,
+          force: true,
+        })
+        fixture.released.push('first')
+      })
+      await expect(
+        lease.enqueue(second, async () => {
+          rmSync(path.join(fixture.rootDir, 'second-cache'), {
+            recursive: true,
+            force: true,
+          })
+          fixture.released.push('second')
+        })
+      ).rejects.toThrow('immutable compiler cohort')
+      await expect(lease.finish()).rejects.toThrow('immutable compiler cohort')
+      expect(fixture.released).toEqual(['second', 'first', 'cohort'])
+      expect(existsSync(path.join(fixture.rootDir, 'first-cache'))).toBe(false)
+      expect(existsSync(path.join(fixture.rootDir, 'second-cache'))).toBe(false)
+    } finally {
+      await lease?.abort(new Error('test cleanup')).catch(() => {})
+      rmSync(fixture.rootDir, { recursive: true, force: true })
+    }
+  })
+  const finalInput = (rootDir: string, id: string, index: number) => {
+    const input = fileInput(rootDir, id)
+    if (input.artifact.kind !== 'node')
+      throw new Error('Expected Node control artifact')
+    input.artifact.cohort = {
+      version: 1,
+      index,
+      metadataPath: 'cohort.json',
+      outputs: input.artifact.files.map((file) => ({
+        path: file,
+        sha256: '0'.repeat(64),
+      })),
+      entries: [
+        { entryId: 'first', file: 'first.test.ts', sourceHash: '0'.repeat(64) },
+        {
+          entryId: 'second',
+          file: 'second.test.ts',
+          sourceHash: '0'.repeat(64),
+        },
+      ],
+    }
+    return input
+  }
+  it('attaches final shared snapshots only after actual finish and retained cache cleanup', async () => {
+    const fixture = setup('final-snapshots')
+    let lease: Awaited<ReturnType<typeof createTestWorkerLease>> | undefined
+    try {
+      lease = await fixture.start()
+      await lease.enqueue(finalInput(fixture.rootDir, 'first', 0), async () => {
+        fixture.released.push('first')
+      })
+      await lease.enqueue(
+        finalInput(fixture.rootDir, 'second', 1),
+        async () => {
+          fixture.released.push('second')
+        }
+      )
+      expect(fixture.released).toEqual([])
+      expect(existsSync(path.join(fixture.rootDir, 'first.snap'))).toBe(false)
+      const completions = await lease.finish()
+      expect(
+        completions.map((completion) => completion.snapshotUpdates)
+      ).toEqual([
+        [
+          {
+            path: path.join(fixture.rootDir, 'first.snap'),
+            content: 'staged',
+            previousContent: null,
+          },
+        ],
+        [
+          {
+            path: path.join(fixture.rootDir, 'second.snap'),
+            content: 'staged',
+            previousContent: null,
+          },
+        ],
+      ])
+      expect(fixture.released).toEqual(['second', 'first', 'cohort'])
+      expect(existsSync(path.join(fixture.rootDir, 'first.snap'))).toBe(false)
+    } finally {
+      await lease?.abort(new Error('cleanup')).catch(() => {})
+      rmSync(fixture.rootDir, { recursive: true, force: true })
+    }
+  })
+  it.each([
+    'final-forged',
+    'final-duplicate',
+    'final-missing',
+    'final-bytes',
+    'final-crash',
+  ])('vetoes final shared snapshot data after %s', async (mode) => {
+    const fixture = setup(mode)
+    let lease: Awaited<ReturnType<typeof createTestWorkerLease>> | undefined
+    try {
+      lease = await fixture.start()
+      await lease.enqueue(
+        finalInput(fixture.rootDir, 'first', 0),
+        async () => {}
+      )
+      await expect(lease.finish()).rejects.toThrow()
+      expect(existsSync(path.join(fixture.rootDir, 'first.snap'))).toBe(false)
+      expect(fixture.released).toEqual(['cohort'])
+    } finally {
+      await lease?.abort(new Error('cleanup')).catch(() => {})
+      rmSync(fixture.rootDir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('actual shared compiler cohort child host', () => {
+  const profile = {
+    id: 'cohort-host',
+    mode: 'development',
+    environment: 'node',
+    runtime: 'nodejs',
+    bundler: 'turbopack',
+  } as const
+  async function setupHost(
+    mode:
+      | 'original'
+      | 'snapshots'
+      | 'cleanup-failure'
+      | 'late-error'
+      | 'late-primitive' = 'original'
+  ) {
+    const project = realpathSync(
+      mkdtempSync(path.join(tmpdir(), 'next-cohort-host-'))
+    )
+    const rootDir = path.join(project, 'artifact')
+    mkdirSync(rootDir)
+    const names =
+      mode === 'original'
+        ? ['contract.case.mjs', 'second.case.mjs']
+        : ['first.test.mjs', 'second.test.mjs']
+    const runtime = {
+      runner: require.resolve('next/dist/experimental/testing/runner'),
+      facade: require.resolve('next/dist/experimental/testing/vitest'),
+    }
+    mkdirSync(path.join(project, 'node_modules/vitest'), { recursive: true })
+    writeFileSync(
+      path.join(project, 'node_modules/vitest/package.json'),
+      JSON.stringify({ type: 'module', exports: './index.mjs' })
+    )
+    writeFileSync(
+      path.join(project, 'node_modules/vitest/index.mjs'),
+      `import facade from ${JSON.stringify(pathToFileURL(runtime.facade).href)}; export const {test,expect,beforeAll,afterAll}=facade;`
+    )
+    if (mode === 'original') {
+      const original = path.join(
+        process.cwd(),
+        'test/unit/app-dir/next-testing-stable-release-gaps/fixtures/worker-lifetime-across-files'
+      )
+      for (const name of [
+        ...names,
+        'worker-helper.mjs',
+        'worker-creations.txt',
+      ])
+        copyFileSync(path.join(original, name), path.join(project, name))
+    } else {
+      writeFileSync(
+        path.join(project, 'worker-helper.mjs'),
+        `import {test} from 'vitest'; import {appendFileSync} from 'node:fs';
+        export let release; export const gate = new Promise(r=>release=r);
+        export const owned=test.extend({value:[async ({},use)=>{appendFileSync('worker-created','1');await use(1);appendFileSync('worker-disposed','1');${mode === 'cleanup-failure' ? "throw new Error('worker cleanup sentinel')" : ''}},{scope:'worker'}]});`
+      )
+      writeFileSync(
+        path.join(project, names[0]),
+        `import {owned,gate} from './worker-helper.mjs'; import {expect} from 'vitest';
+        owned('first',({value})=>{expect(value).toBe(1);${mode.startsWith('late-') ? `void gate.then(()=>{throw ${mode === 'late-error' ? "new Error('closed first rejection')" : "'closed first primitive'"}});` : "expect('first staged').toMatchSnapshot();"}});`
+      )
+      writeFileSync(
+        path.join(project, names[1]),
+        `import {owned,release} from './worker-helper.mjs'; import {expect} from 'vitest';
+        owned('second',async ({value})=>{expect(value).toBe(1);${mode.startsWith('late-') ? 'release();await new Promise(setImmediate);await new Promise(setImmediate);' : "expect('second staged').toMatchSnapshot();"}});`
+      )
+    }
+    copyFileSync(
+      path.join(__dirname, 'cohort-entry.cjs'),
+      path.join(rootDir, 'entry.cjs')
+    )
+    writeFileSync(
+      path.join(rootDir, 'runtime-paths.json'),
+      JSON.stringify({ ...runtime, project, files: names })
+    )
+    writeFileSync(
+      path.join(rootDir, 'cohort.json'),
+      JSON.stringify({ cohort: { version: 1, files: names } })
+    )
+    writeFileSync(
+      path.join(rootDir, 'helper.cjs'),
+      'exports.validateIndex=index=>{if(!Number.isInteger(index))throw new Error("invalid index")}'
+    )
+    const emitted = [
+      'entry.cjs',
+      'runtime-paths.json',
+      'cohort.json',
+      'helper.cjs',
+    ]
+    const outputs = emitted.map((file) => ({
+      path: file,
+      sha256: createHash('sha256')
+        .update(readFileSync(path.join(rootDir, file)))
+        .digest('hex'),
+    }))
+    const entries = names.map((name, index) => ({
+      entryId: index ? 'second' : 'first',
+      file: name,
+      sourceHash: createHash('sha256')
+        .update(readFileSync(path.join(project, name)))
+        .digest('hex'),
+    }))
+    const inputs: WorkerInput[] = entries.map((input, index) => {
+      const directory = path.join(project, `cache-${index}`)
+      mkdirSync(directory)
+      writeFileSync(path.join(directory, 'retained'), '1')
+      return {
+        artifact: {
+          version: 2,
+          kind: 'node',
+          profile,
+          entryId: input.entryId,
+          revision: 'shared',
+          sourceHash: input.sourceHash,
+          rootDir,
+          entryPath: 'entry.cjs',
+          files: [...emitted],
+          diagnostics: [],
+          setupFiles: [],
+          snapshotSerializers: [],
+          cohort: {
+            version: 1,
+            index,
+            metadataPath: 'cohort.json',
+            entries,
+            outputs,
+          },
+        },
+        options: {
+          runId: 'host',
+          projectDir: project,
+          entry: {
+            id: input.entryId,
+            file: path.join(project, input.file),
+            profile,
+          },
+          setupFiles: [],
+          updateSnapshots: mode !== 'original',
+          snapshotUpdateMode: mode === 'original' ? 'none' : 'all',
+          fileTimeout: 3000,
+          testTimeout: 1000,
+          hookTimeout: 1000,
+        },
+        cacheScope: { type: 'file', directory },
+      }
+    })
+    const events: ResultEvent[] = [],
+      released: string[] = [],
+      output: string[] = []
+    const lease = await createTestWorkerLease(
+      require.resolve('next/dist/experimental/testing/execution/cohort-worker'),
+      {
+        cwd: project,
+        env: { ...process.env, NODE_ENV: 'development' },
+        input: {
+          version: 1,
+          leaseId: randomUUID(),
+          runId: 'host',
+          rootDir,
+          revision: 'shared',
+          profile,
+        },
+        startupTimeoutMs: 5000,
+        finishTimeoutMs: 5000,
+        shutdownGraceMs: 25,
+        onEvent(event) {
+          events.push(event)
+        },
+        onOutput(_, bytes) {
+          output.push(bytes.toString())
+        },
+        async release() {
+          released.push('cohort')
+        },
+      }
+    )
+    return { project, rootDir, inputs, events, released, output, lease }
+  }
+  it('runs both unchanged original cross-file specs in one actual child with one cached helper and owner', async () => {
+    const fixture = await setupHost()
+    try {
+      for (const input of fixture.inputs)
+        await fixture.lease.enqueue(input, async () => {
+          expect(
+            existsSync(path.join(input.cacheScope.directory, 'retained'))
+          ).toBe(true)
+          rmSync(input.cacheScope.directory, { recursive: true })
+          fixture.released.push(input.artifact.entryId)
+        })
+      expect(fixture.released).toEqual([])
+      const result = await fixture.lease.finish()
+      expect(result.map((item) => item.result.status)).toEqual([
+        'passed',
+        'passed',
+      ])
+      expect(
+        readFileSync(path.join(fixture.project, 'worker-creations.txt'), 'utf8')
+      ).toBe('1')
+      expect(
+        fixture.events
+          .filter((event) => event.type === 'case-end')
+          .map((event) => event.status)
+      ).toEqual(['passed', 'passed'])
+      expect(fixture.released).toEqual(['second', 'first', 'cohort'])
+    } finally {
+      await fixture.lease.abort(new Error('cleanup')).catch(() => {})
+      rmSync(fixture.project, { recursive: true, force: true })
+    }
+  })
+  it('holds staged snapshot bytes through actual shared fixture teardown and process/cache cleanup', async () => {
+    const fixture = await setupHost('snapshots')
+    try {
+      for (const input of fixture.inputs)
+        await fixture.lease.enqueue(input, async () => {
+          fixture.released.push(input.artifact.entryId)
+        })
+      expect(existsSync(path.join(fixture.project, 'worker-disposed'))).toBe(
+        false
+      )
+      expect(fixture.released).toEqual([])
+      const result = await fixture.lease.finish()
+      expect(result.map((item) => item.result.status)).toEqual([
+        'passed',
+        'passed',
+      ])
+      expect(result.map((item) => item.snapshotUpdates?.length)).toEqual([1, 1])
+      expect(
+        readFileSync(path.join(fixture.project, 'worker-created'), 'utf8')
+      ).toBe('1')
+      expect(
+        readFileSync(path.join(fixture.project, 'worker-disposed'), 'utf8')
+      ).toBe('1')
+      expect(existsSync(path.join(fixture.project, '__snapshots__'))).toBe(
+        false
+      )
+      expect(fixture.released).toEqual(['second', 'first', 'cohort'])
+    } finally {
+      await fixture.lease.abort(new Error('cleanup')).catch(() => {})
+      rmSync(fixture.project, { recursive: true, force: true })
+    }
+  })
+  it.each(['cleanup-failure', 'late-error', 'late-primitive'] as const)(
+    'vetoes all provisional shared results and snapshots after %s',
+    async (mode) => {
+      const fixture = await setupHost(mode)
+      try {
+        for (const input of fixture.inputs)
+          await fixture.lease.enqueue(input, async () => {}).catch(() => {})
+        await expect(fixture.lease.finish()).rejects.toThrow()
+        expect(existsSync(path.join(fixture.project, '__snapshots__'))).toBe(
+          false
+        )
+        if (mode.startsWith('late-')) {
+          const rejections = fixture.events.flatMap((event) =>
+            event.type === 'diagnostic' &&
+            event.diagnostic.unhandled === 'rejection'
+              ? [event]
+              : []
+          )
+          expect(rejections.map((event) => event.entryId)).toEqual(['first'])
+          expect(rejections[0]).toMatchObject({
+            diagnostic: {
+              message: expect.stringContaining(
+                mode === 'late-error'
+                  ? 'closed first rejection'
+                  : 'closed first primitive'
+              ),
+            },
+          })
+        }
+      } finally {
+        await fixture.lease.abort(new Error('cleanup')).catch(() => {})
+        rmSync(fixture.project, { recursive: true, force: true })
+      }
+    }
+  )
+  function compiledCohort(inputs: WorkerInput[]) {
+    return {
+      version: 1 as const,
+      artifacts: inputs.map((input) => {
+        if (input.artifact.kind !== 'node')
+          throw new Error('Expected Node cohort')
+        return input.artifact
+      }),
+    }
+  }
+  it.each([
+    'range',
+    'duplicate source',
+    'native order',
+    'missing emission',
+    'changed source',
+    'escaping path',
+    'split closure',
+    'entry bytes',
+    'helper bytes',
+  ] as const)(
+    'rejects shared cohort %s before evaluating application modules',
+    async (invalid) => {
+      const fixture = await setupHost('snapshots')
+      try {
+        const cohort = compiledCohort(fixture.inputs)
+        if (invalid === 'range') cohort.artifacts[1].cohort!.index = 2
+        if (invalid === 'duplicate source')
+          cohort.artifacts[0].cohort!.entries = [
+            cohort.artifacts[0].cohort!.entries[0],
+            cohort.artifacts[0].cohort!.entries[0],
+          ]
+        if (invalid === 'native order')
+          writeFileSync(
+            path.join(fixture.rootDir, 'cohort.json'),
+            JSON.stringify({
+              cohort: {
+                version: 1,
+                files: ['second.test.mjs', 'first.test.mjs'],
+              },
+            })
+          )
+        if (invalid === 'missing emission')
+          rmSync(path.join(fixture.rootDir, 'entry.cjs'))
+        if (invalid === 'changed source')
+          writeFileSync(fixture.inputs[1].options.entry.file, '// changed')
+        if (invalid === 'escaping path')
+          cohort.artifacts[0].files.push('../outside.cjs')
+        if (invalid === 'entry bytes')
+          writeFileSync(
+            path.join(fixture.rootDir, 'entry.cjs'),
+            '// tampered entry'
+          )
+        if (invalid === 'helper bytes')
+          writeFileSync(
+            path.join(fixture.rootDir, 'helper.cjs'),
+            '// tampered helper'
+          )
+        if (invalid === 'split closure') {
+          cohort.artifacts[1].entryPath = 'other.cjs'
+          cohort.artifacts[1].files = [
+            ...cohort.artifacts[1].files,
+            'other.cjs',
+          ]
+        }
+        await expect(
+          validateCompiledTestCohort(
+            cohort,
+            fixture.inputs.map((input) => input.options.entry),
+            fixture.project
+          )
+        ).rejects.toThrow()
+        expect(existsSync(path.join(fixture.project, 'worker-created'))).toBe(
+          false
+        )
+      } finally {
+        await fixture.lease.abort(new Error('cleanup')).catch(() => {})
+        rmSync(fixture.project, { recursive: true, force: true })
+      }
+    }
+  )
+  it('rejects a changed source in post-exit validation before staged snapshot publication', async () => {
+    const fixture = await setupHost('snapshots')
+    try {
+      const cohort = compiledCohort(fixture.inputs),
+        entries = fixture.inputs.map((input) => input.options.entry)
+      await validateCompiledTestCohort(cohort, entries, fixture.project)
+      for (const input of fixture.inputs)
+        await fixture.lease.enqueue(input, async () => {})
+      const result = await fixture.lease.finish()
+      expect(result.map((item) => item.snapshotUpdates?.length)).toEqual([1, 1])
+      writeFileSync(entries[1].file, '// changed after actual process close')
+      await expect(
+        validateCompiledTestCohort(cohort, entries, fixture.project)
+      ).rejects.toThrow('source changed')
+      expect(existsSync(path.join(fixture.project, '__snapshots__'))).toBe(
+        false
+      )
+    } finally {
+      await fixture.lease.abort(new Error('cleanup')).catch(() => {})
+      rmSync(fixture.project, { recursive: true, force: true })
+    }
+  })
+  it('rejects changed emitted helper bytes after actual child exit before snapshot publication', async () => {
+    const fixture = await setupHost('snapshots')
+    try {
+      const cohort = compiledCohort(fixture.inputs),
+        entries = fixture.inputs.map((input) => input.options.entry)
+      await validateCompiledTestCohort(cohort, entries, fixture.project)
+      for (const input of fixture.inputs)
+        await fixture.lease.enqueue(input, async () => {})
+      const result = await fixture.lease.finish()
+      expect(result.map((item) => item.snapshotUpdates?.length)).toEqual([1, 1])
+      writeFileSync(
+        path.join(fixture.rootDir, 'helper.cjs'),
+        '// mutated after exit'
+      )
+      await expect(
+        validateCompiledTestCohort(cohort, entries, fixture.project)
+      ).rejects.toThrow('emitted file bytes changed')
+      expect(existsSync(path.join(fixture.project, '__snapshots__'))).toBe(
+        false
+      )
+    } finally {
+      await fixture.lease.abort(new Error('cleanup')).catch(() => {})
+      rmSync(fixture.project, { recursive: true, force: true })
+    }
+  })
+})
+
 describe('owned custom execution environment', () => {
   function probe(root: string, code: string) {
     return JSON.parse(
@@ -1189,6 +2551,1065 @@ describe('owned custom execution environment', () => {
       rmSync(root, { recursive: true, force: true })
     }
   })
+})
+
+describe('parent API with the actual shared child host', () => {
+  function parentFixture(
+    mode: 'original' | 'snapshots' | 'cleanup-failure' = 'original'
+  ) {
+    const project = realpathSync(
+      mkdtempSync(path.join(tmpdir(), 'next-cohort-parent-'))
+    )
+    const rootDir = path.join(project, 'artifact')
+    const caches = path.join(project, 'caches')
+    mkdirSync(rootDir)
+    mkdirSync(caches)
+    const profile = {
+      id: 'cohort-parent',
+      mode: 'development',
+      environment: 'node',
+      runtime: 'nodejs',
+      bundler: 'turbopack',
+    } as const
+    const names =
+      mode === 'original'
+        ? ['contract.case.mjs', 'second.case.mjs']
+        : ['first.test.mjs', 'second.test.mjs']
+    const runtime = {
+      runner: require.resolve('next/dist/experimental/testing/runner'),
+      facade: require.resolve('next/dist/experimental/testing/vitest'),
+    }
+    mkdirSync(path.join(project, 'node_modules/vitest'), { recursive: true })
+    writeFileSync(
+      path.join(project, 'node_modules/vitest/package.json'),
+      JSON.stringify({ type: 'module', exports: './index.mjs' })
+    )
+    writeFileSync(
+      path.join(project, 'node_modules/vitest/index.mjs'),
+      `import facade from ${JSON.stringify(pathToFileURL(runtime.facade).href)};import {writeFileSync} from 'node:fs';writeFileSync('worker-pid',String(process.pid));export const {test,expect,beforeAll,afterAll}=facade;`
+    )
+    if (mode === 'original') {
+      const original = path.join(
+        process.cwd(),
+        'test/unit/app-dir/next-testing-stable-release-gaps/fixtures/worker-lifetime-across-files'
+      )
+      for (const name of [
+        ...names,
+        'worker-helper.mjs',
+        'worker-creations.txt',
+      ])
+        copyFileSync(path.join(original, name), path.join(project, name))
+    } else {
+      writeFileSync(
+        path.join(project, 'worker-helper.mjs'),
+        `import {test} from 'vitest';import {appendFileSync} from 'node:fs';export const owned=test.extend({value:[async ({},use)=>{appendFileSync('worker-created','1');await use(1);appendFileSync('worker-disposed','1');${mode === 'cleanup-failure' ? "throw new Error('parent worker cleanup sentinel')" : ''}},{scope:'worker'}]});`
+      )
+      for (const [index, name] of names.entries())
+        writeFileSync(
+          path.join(project, name),
+          `import {owned} from './worker-helper.mjs';import {expect} from 'vitest';owned('${index ? 'second' : 'first'}',({value})=>{expect(value).toBe(1);expect('${index ? 'second' : 'first'} staged').toMatchSnapshot()});`
+        )
+    }
+    copyFileSync(
+      path.join(__dirname, 'cohort-entry.cjs'),
+      path.join(rootDir, 'entry.cjs')
+    )
+    writeFileSync(
+      path.join(rootDir, 'runtime-paths.json'),
+      JSON.stringify({ ...runtime, project, files: names })
+    )
+    writeFileSync(
+      path.join(rootDir, 'cohort.json'),
+      JSON.stringify({ cohort: { version: 1, files: names } })
+    )
+    writeFileSync(
+      path.join(rootDir, 'helper.cjs'),
+      'exports.validateIndex=index=>{if(!Number.isInteger(index))throw new Error("invalid index")}'
+    )
+    const files = [
+      'entry.cjs',
+      'runtime-paths.json',
+      'cohort.json',
+      'helper.cjs',
+    ]
+    const outputs = files.map((file) => ({
+      path: file,
+      sha256: createHash('sha256')
+        .update(readFileSync(path.join(rootDir, file)))
+        .digest('hex'),
+    }))
+    const entries = names.map((name, index) => ({
+      entryId: index ? 'second' : 'first',
+      file: name,
+      sourceHash: createHash('sha256')
+        .update(readFileSync(path.join(project, name)))
+        .digest('hex'),
+    }))
+    const controller = new AbortController()
+    const events: ResultEvent[][] = [[], []]
+    const options: ExecuteTestOptions[] = entries.map((input, index) => ({
+      runId: 'parent-api',
+      projectDir: project,
+      entry: {
+        id: input.entryId,
+        file: path.join(project, input.file),
+        profile,
+      },
+      setupFiles: [],
+      snapshotUpdateMode: mode === 'original' ? 'none' : 'all',
+      updateSnapshots: mode !== 'original',
+      fileTimeout: 5000,
+      testTimeout: 1000,
+      hookTimeout: 1000,
+      signal: controller.signal,
+      onEvent: (event) => events[index].push(event),
+    }))
+    const cohort: CompiledTestCohort = {
+      version: 1,
+      artifacts: entries.map((input, index) => ({
+        version: 2,
+        kind: 'node',
+        profile,
+        entryId: input.entryId,
+        revision: 'parent-api',
+        sourceHash: input.sourceHash,
+        rootDir,
+        entryPath: 'entry.cjs',
+        files,
+        diagnostics: [],
+        setupFiles: [],
+        snapshotSerializers: [],
+        cohort: {
+          version: 1,
+          index,
+          metadataPath: 'cohort.json',
+          entries,
+          outputs,
+        },
+      })),
+    }
+    const retainedDirectories: string[] = []
+    const cacheDirectories = () =>
+      retainedDirectories.filter((directory) => existsSync(directory))
+    const snapshotFiles = names.map((name) =>
+      path.join(project, '__snapshots__', `${name}.snap`)
+    )
+    const assertExited = () => {
+      const pid = Number(readFileSync(path.join(project, 'worker-pid'), 'utf8'))
+      expect(() => process.kill(pid, 0)).toThrow()
+    }
+    async function run(execution: typeof executeCohort = executeCohort) {
+      const createDirectory = fileSystem.mkdtemp
+      const observeDirectory = jest
+        .spyOn(fileSystem, 'mkdtemp')
+        .mockImplementation(async (prefix) => {
+          const directory = await createDirectory(prefix)
+          if (path.basename(directory).startsWith('next-test-cache-'))
+            retainedDirectories.push(directory)
+          return directory
+        })
+      try {
+        return await execution(cohort, options)
+      } finally {
+        observeDirectory.mockRestore()
+      }
+    }
+    function cleanup() {
+      for (const directory of retainedDirectories)
+        rmSync(directory, { recursive: true, force: true })
+      rmSync(project, { recursive: true, force: true })
+    }
+    return {
+      project,
+      rootDir,
+      caches,
+      cohort,
+      options,
+      controller,
+      events,
+      cacheDirectories,
+      snapshotFiles,
+      assertExited,
+      run,
+      cleanup,
+    }
+  }
+
+  it('routes distinct per-file callbacks and retains both caches until the actual original worker exits', async () => {
+    const fixture = parentFixture()
+    const retained: number[] = []
+    try {
+      for (const [index, value] of fixture.options.entries())
+        value.onEvent = (event) => {
+          fixture.events[index].push(event)
+          if (event.type === 'case-end')
+            retained.push(fixture.cacheDirectories().length)
+          if (event.type === 'file-end') {
+            expect(fixture.cacheDirectories()).toEqual([])
+            fixture.assertExited()
+          }
+        }
+      const result = await fixture.run()
+      expect(result.map((value) => value.status)).toEqual(['passed', 'passed'])
+      expect(
+        fixture.events.map((events) =>
+          events
+            .filter((event) => event.type === 'file-start')
+            .map((event) => event.entry.id)
+        )
+      ).toEqual([['first'], ['second']])
+      expect(
+        fixture.events.map((events) =>
+          events
+            .filter((event) => event.type === 'file-end')
+            .map((event) => event.entryId)
+        )
+      ).toEqual([['first'], ['second']])
+      expect(retained).toEqual([1, 2])
+      expect(fixture.cacheDirectories()).toEqual([])
+      expect(
+        readFileSync(path.join(fixture.project, 'worker-creations.txt'), 'utf8')
+      ).toBe('1')
+    } finally {
+      fixture.cleanup()
+    }
+  })
+
+  it('refuses a private scheduling signal before launching an actual shared worker', async () => {
+    const fixture = parentFixture()
+    try {
+      fixture.options[0].userCancelSignal = new AbortController().signal
+      await expect(fixture.run()).rejects.toThrow(
+        'Shared workers require one serial development Node execution'
+      )
+      expect(fixture.cacheDirectories()).toEqual([])
+      expect(existsSync(path.join(fixture.project, 'worker-pid'))).toBe(false)
+      expect(fixture.events).toEqual([[], []])
+    } finally {
+      fixture.cleanup()
+    }
+  })
+
+  it('publishes actual snapshot bytes only after worker fixture disposal, process exit and cache removal', async () => {
+    const fixture = parentFixture('snapshots')
+    try {
+      for (const [index, value] of fixture.options.entries())
+        value.onEvent = (event) => {
+          fixture.events[index].push(event)
+          if (event.type === 'case-end')
+            expect(
+              fixture.snapshotFiles.every((file) => !existsSync(file))
+            ).toBe(true)
+          if (event.type === 'file-end') {
+            expect(fixture.cacheDirectories()).toEqual([])
+            expect(
+              readFileSync(
+                path.join(fixture.project, 'worker-disposed'),
+                'utf8'
+              )
+            ).toBe('1')
+            fixture.assertExited()
+            expect(
+              readFileSync(fixture.snapshotFiles[index], 'utf8')
+            ).toContain(`${index ? 'second' : 'first'} staged`)
+          }
+        }
+      expect((await fixture.run()).map((value) => value.status)).toEqual([
+        'passed',
+        'passed',
+      ])
+      expect(
+        readFileSync(path.join(fixture.project, 'worker-created'), 'utf8')
+      ).toBe('1')
+      expect(fixture.snapshotFiles.every((file) => existsSync(file))).toBe(true)
+    } finally {
+      fixture.cleanup()
+    }
+  })
+
+  it.each(['source-edit', 'output-edit', 'cleanup-failure', 'cancel'] as const)(
+    'vetoes snapshots and reclaims actual caches after %s',
+    async (mode) => {
+      const fixture = parentFixture(
+        mode === 'cleanup-failure' ? 'cleanup-failure' : 'snapshots'
+      )
+      const before =
+        '// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\n'
+      let provisional = 0
+      let edited: string | undefined
+      try {
+        mkdirSync(path.dirname(fixture.snapshotFiles[0]), { recursive: true })
+        for (const file of fixture.snapshotFiles) writeFileSync(file, before)
+        fixture.options.forEach((value, index) => {
+          value.onEvent = (event) => {
+            fixture.events[index].push(event)
+            if (event.type !== 'case-end') return
+            expect(event.status).toBe('passed')
+            provisional++
+            if (index !== 1) return
+            if (mode === 'source-edit') {
+              edited =
+                readFileSync(fixture.options[0].entry.file, 'utf8') +
+                '\n// user source change\n'
+              writeFileSync(fixture.options[0].entry.file, edited)
+            } else if (mode === 'output-edit') {
+              const output = path.join(fixture.rootDir, 'entry.cjs')
+              edited =
+                readFileSync(output, 'utf8') + '\n// emitted byte change\n'
+              writeFileSync(output, edited)
+            } else if (mode === 'cancel')
+              fixture.controller.abort(
+                new Error('parent cancellation sentinel')
+              )
+          }
+        })
+        await expect(fixture.run()).rejects.toThrow()
+        expect(provisional).toBe(2)
+        expect(fixture.cacheDirectories()).toEqual([])
+        fixture.assertExited()
+        for (const file of fixture.snapshotFiles)
+          expect(readFileSync(file, 'utf8')).toBe(before)
+        expect(
+          fixture.events.flat().filter((event) => event.type === 'file-end')
+        ).toEqual([])
+        if (mode === 'source-edit')
+          expect(readFileSync(fixture.options[0].entry.file, 'utf8')).toBe(
+            edited
+          )
+        if (mode === 'output-edit')
+          expect(
+            readFileSync(path.join(fixture.rootDir, 'entry.cjs'), 'utf8')
+          ).toBe(edited)
+        if (mode === 'cleanup-failure')
+          expect(
+            fixture.events
+              .flat()
+              .some(
+                (event) =>
+                  (event.type === 'diagnostic' &&
+                    event.diagnostic.message.includes(
+                      'parent worker cleanup sentinel'
+                    )) ||
+                  (event.type === 'output' &&
+                    event.text.includes('parent worker cleanup sentinel'))
+              )
+          ).toBe(true)
+      } finally {
+        fixture.cleanup()
+      }
+    }
+  )
+
+  it.each(['source-edit', 'output-edit', 'cancel'] as const)(
+    'certifies actual parent broker closure without publishing after %s',
+    async (mode) => {
+      const fixture = parentFixture('snapshots')
+      const messages: ExecutionBrokerResponse[] = []
+      let client: ReturnType<typeof createExecutionBrokerClient>
+      const publications: string[] = []
+      const host = createExecutionBrokerHost({
+        signal: new AbortController().signal,
+        allowCohorts: true,
+        async onSnapshotUpdates(_, file) {
+          publications.push(file)
+        },
+        async send(message) {
+          messages.push(message)
+          client.handle(message)
+        },
+      })
+      client = createExecutionBrokerClient({
+        allowCohorts: true,
+        async send(message) {
+          host.handle(message)
+        },
+      })
+      const before =
+        '// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\n'
+      try {
+        mkdirSync(path.dirname(fixture.snapshotFiles[0]), { recursive: true })
+        for (const file of fixture.snapshotFiles) writeFileSync(file, before)
+        fixture.options.forEach((value, index) => {
+          value.onEvent = (event) => {
+            fixture.events[index].push(event)
+            if (index !== 1 || event.type !== 'case-end') return
+            if (mode === 'cancel')
+              fixture.controller.abort(
+                new Error('certified cancellation sentinel')
+              )
+            else {
+              const file =
+                mode === 'source-edit'
+                  ? fixture.options[0].entry.file
+                  : path.join(fixture.rootDir, 'entry.cjs')
+              writeFileSync(
+                file,
+                readFileSync(file, 'utf8') + '\n// parent edit control\n'
+              )
+            }
+          }
+        })
+        const failure = await fixture.run(client.executeCohort).then(
+          () => undefined,
+          (error) => error
+        )
+        expect(isCohortExecutionClosedError(failure)).toBe(true)
+        if (mode === 'cancel') {
+          expect(failure.cancelled).toBe(true)
+          expect(failure.cause).toBe(fixture.controller.signal.reason)
+        }
+        await expect(host.close()).resolves.toBeUndefined()
+        expect(host.ownershipClosed).toBe(true)
+        expect(
+          messages.some(
+            (message) =>
+              message.action === 'error' && message.ownershipClosed === true
+          )
+        ).toBe(true)
+        expect(publications).toEqual([])
+        expect(
+          fixture.events
+            .flat()
+            .filter(
+              (event) => event.type === 'case-end' && event.status === 'passed'
+            )
+        ).toHaveLength(2)
+        expect(
+          fixture.events.flat().filter((event) => event.type === 'file-end')
+        ).toEqual([])
+        expect(fixture.cacheDirectories()).toEqual([])
+        fixture.assertExited()
+        for (const file of fixture.snapshotFiles)
+          expect(readFileSync(file, 'utf8')).toBe(before)
+      } finally {
+        client.disconnect(new Error('test cleanup'))
+        await host.close().catch(() => {})
+        fixture.cleanup()
+      }
+    }
+  )
+
+  it('retains uncertain parent ownership when an actual cache release fails', async () => {
+    const fixture = parentFixture('snapshots')
+    const messages: ExecutionBrokerResponse[] = []
+    let client: ReturnType<typeof createExecutionBrokerClient>
+    let publications = 0
+    const host = createExecutionBrokerHost({
+      signal: new AbortController().signal,
+      allowCohorts: true,
+      async onSnapshotUpdates() {
+        publications++
+      },
+      async send(message) {
+        messages.push(message)
+        client.handle(message)
+      },
+    })
+    client = createExecutionBrokerClient({
+      allowCohorts: true,
+      async send(message) {
+        host.handle(message)
+      },
+    })
+    const remove = fileSystem.rm
+    let retained: string | undefined
+    const failingRelease = jest
+      .spyOn(fileSystem, 'rm')
+      .mockImplementation(async (file, settings) => {
+        if (
+          typeof file === 'string' &&
+          path.basename(file).startsWith('next-test-cache-') &&
+          !retained
+        ) {
+          retained = file
+          throw new Error('actual parent cache release sentinel')
+        }
+        return remove(file, settings)
+      })
+    try {
+      const failure = await fixture.run(client.executeCohort).then(
+        () => undefined,
+        (error) => error
+      )
+      expect(isCohortExecutionClosedError(failure)).toBe(false)
+      await expect(host.close()).rejects.toThrow()
+      expect(host.ownershipClosed).toBe(false)
+      expect(
+        messages.some(
+          (message) =>
+            message.action === 'error' && message.ownershipClosed === true
+        )
+      ).toBe(false)
+      expect(publications).toBe(0)
+      expect(retained).toBeDefined()
+      expect(existsSync(retained!)).toBe(true)
+      expect(fixture.snapshotFiles.every((file) => !existsSync(file))).toBe(
+        true
+      )
+      fixture.assertExited()
+    } finally {
+      failingRelease.mockRestore()
+      client.disconnect(new Error('test cleanup'))
+      await host.close().catch(() => {})
+      fixture.cleanup()
+    }
+  })
+})
+
+describe('compiler-owned cache activation in the real file worker', () => {
+  it.each([
+    { marked: true, expose: true, tracker: true, status: 'passed' },
+    { marked: false, expose: true, tracker: true, status: 'passed' },
+    { marked: true, expose: false, tracker: true, status: 'failed' },
+    { marked: true, expose: true, tracker: false, status: 'failed' },
+    {
+      marked: true,
+      expose: true,
+      tracker: true,
+      status: 'failed',
+      collectOnly: true,
+    },
+  ])(
+    'binds marker=$marked initializer=$expose tracker=$tracker collection=$collectOnly',
+    async ({ marked, expose, tracker, status, collectOnly }) => {
+      const rootDir = mkdtempSync(
+        path.join(tmpdir(), 'next-worker-cache-marker-')
+      )
+      try {
+        copyFileSync(
+          path.join(__dirname, 'cache-marker-entry.cjs'),
+          path.join(rootDir, 'entry.cjs')
+        )
+        const trace = path.join(rootDir, 'trace.txt')
+        writeFileSync(
+          path.join(rootDir, 'runtime-paths.json'),
+          JSON.stringify({
+            runner: require.resolve('next/dist/experimental/testing/runner'),
+            vitest: require.resolve('next/dist/experimental/testing/vitest'),
+            moduleCache: require.resolve(
+              'next/dist/experimental/testing/mocking/module-cache'
+            ),
+            imports: require.resolve(
+              'next/dist/experimental/testing/runner/imports'
+            ),
+            marked,
+            expose,
+            tracker,
+            trace,
+          })
+        )
+        const profile = {
+          id: 'unit',
+          mode: 'development' as const,
+          environment: 'node' as const,
+          runtime: 'nodejs' as const,
+          bundler: 'turbopack' as const,
+        }
+        const entry = {
+          id: 'unit:cache',
+          file: path.join(rootDir, 'spec.ts'),
+          profile,
+        }
+        const input: WorkerInput = {
+          artifact: {
+            version: 2,
+            kind: 'node',
+            entryId: entry.id,
+            profile,
+            revision: 'cache-marker-protocol',
+            rootDir,
+            entryPath: 'entry.cjs',
+            files: ['entry.cjs', 'runtime-paths.json'],
+            diagnostics: [],
+            ...(marked ? { moduleCache: { version: 1 as const } } : {}),
+          },
+          options: {
+            runId: 'cache-marker',
+            projectDir: rootDir,
+            entry,
+            setupFiles: [],
+            collectOnly,
+            testTimeout: 1000,
+            hookTimeout: 1000,
+            fileTimeout: 5000,
+          },
+          cacheScope: { type: 'file', directory: path.join(rootDir, 'cache') },
+        }
+        const messages: WorkerMessage[] = []
+        const exit = await runTestProcess(
+          require.resolve('next/dist/experimental/testing/execution/worker'),
+          {
+            ...options,
+            cwd: rootDir,
+            input,
+            onMessage(message) {
+              messages.push(message as WorkerMessage)
+            },
+          }
+        )
+        expect(exit.code).toBe(0)
+        expect(messages.find((message) => message.type === 'complete')).toEqual(
+          { type: 'complete', result: expect.objectContaining({ status }) }
+        )
+        const phases = existsSync(trace)
+          ? readFileSync(trace, 'utf8').trim().split('\n')
+          : []
+        if (collectOnly) {
+          expect(phases).toEqual([])
+          expect(JSON.stringify(messages)).toContain(
+            'Unsupported compiled module cache reset profile'
+          )
+        } else if (status === 'passed')
+          expect(phases).toEqual(
+            marked
+              ? [
+                  'bootstrap',
+                  'cache-initialize',
+                  'collect',
+                  'case',
+                  'cache-dispose',
+                  'imports-dispose',
+                ]
+              : ['bootstrap', 'collect', 'case', 'imports-dispose']
+          )
+        else {
+          expect(phases).toEqual([
+            'bootstrap',
+            ...(tracker ? ['imports-dispose'] : []),
+          ])
+          expect(JSON.stringify(messages)).toContain(
+            'missing its native manifest or import tracker'
+          )
+        }
+      } finally {
+        rmSync(rootDir, { recursive: true, force: true })
+      }
+    }
+  )
+})
+
+describe('RSC mock worker admission', () => {
+  it.each([
+    'route',
+    'setup',
+    'serializers',
+    'realm',
+    'coverage',
+    'reset',
+    'in-source',
+    'production',
+  ] as const)(
+    'rejects unsupported RSC mock %s before evaluating an entry',
+    async (mode) => {
+      const rootDir = mkdtempSync(
+        path.join(tmpdir(), 'next-rsc-mock-admission-')
+      )
+      try {
+        const sentinel = path.join(rootDir, 'unexpected-evaluation')
+        writeFileSync(
+          path.join(rootDir, 'entry.cjs'),
+          `require('node:fs').writeFileSync(${JSON.stringify(sentinel)},'unexpected evaluation')`
+        )
+        const profile = {
+          id: 'rsc',
+          environment: 'rsc' as const,
+          mode:
+            mode === 'production'
+              ? ('production' as const)
+              : ('development' as const),
+          runtime: 'nodejs' as const,
+          bundler: 'turbopack' as const,
+          ...(mode === 'route' ? { route: '/reference' } : {}),
+        }
+        const setup = mode === 'setup' ? [path.join(rootDir, 'setup.ts')] : []
+        const serializers =
+          mode === 'serializers' ? [path.join(rootDir, 'serializer.ts')] : []
+        const entry = {
+          id: 'rsc:admission',
+          file: path.join(rootDir, 'spec.ts'),
+          profile,
+          ...(mode === 'realm'
+            ? { executionEnvironment: { name: 'node' } }
+            : {}),
+          ...(mode === 'in-source' ? { inSource: true as const } : {}),
+        }
+        const artifact = {
+          version: 2 as const,
+          kind: 'rsc' as const,
+          entryId: entry.id,
+          profile,
+          revision: 'admission',
+          rootDir,
+          entryPath: 'entry.cjs',
+          files: ['entry.cjs'],
+          diagnostics: [],
+          setupFiles: setup,
+          snapshotSerializers: serializers,
+          manifestPage: '/__next_test__/admission/page',
+          manifests: {
+            clientReference: 'client.js',
+            serverActions: 'actions.json',
+          },
+          moduleMocking: { version: 1 as const },
+          ...(mode === 'reset' ? { moduleCache: { version: 1 } } : {}),
+        }
+        const input: WorkerInput = {
+          artifact,
+          options: {
+            runId: 'rsc-mock-admission',
+            projectDir: rootDir,
+            entry,
+            setupFiles: setup,
+            snapshotSerializers: serializers,
+            testTimeout: 1000,
+            hookTimeout: 1000,
+            fileTimeout: 5000,
+            ...(mode === 'coverage'
+              ? {
+                  coverage: { version: 1 as const, kind: 'node-line' as const },
+                }
+              : {}),
+          },
+          cacheScope: { type: 'file', directory: path.join(rootDir, 'cache') },
+        }
+        const messages: WorkerMessage[] = []
+        const exit = await runTestProcess(
+          require.resolve('next/dist/experimental/testing/execution/worker'),
+          {
+            ...options,
+            cwd: rootDir,
+            env: { ...process.env, NODE_ENV: profile.mode },
+            input,
+            onMessage(message) {
+              messages.push(message as WorkerMessage)
+            },
+          }
+        )
+        expect(exit.code).toBe(0)
+        expect(messages.find((message) => message.type === 'complete')).toEqual(
+          {
+            type: 'complete',
+            result: expect.objectContaining({ status: 'failed' }),
+            ...(mode === 'coverage'
+              ? {
+                  coverage: expect.objectContaining({
+                    version: 1,
+                    entryId: entry.id,
+                    runId: input.options.runId,
+                    complete: false,
+                    error: expect.objectContaining({
+                      message: 'Test coverage collection did not start',
+                    }),
+                  }),
+                }
+              : {}),
+          }
+        )
+        expect(existsSync(sentinel)).toBe(false)
+        expect(JSON.stringify(messages)).toContain(
+          mode === 'realm'
+            ? 'require a Node compiler profile'
+            : 'Unsupported compiled module mocking profile or version'
+        )
+      } finally {
+        rmSync(rootDir, { recursive: true, force: true })
+      }
+    }
+  )
+  it.each([
+    'version',
+    'setup',
+    'serializers',
+    'realm',
+    'coverage',
+    'in-source',
+    'inspector',
+  ] as const)(
+    'rejects unsupported CommonJS named-import spy %s before entry evaluation',
+    async (mode) => {
+      const rootDir = mkdtempSync(
+        path.join(tmpdir(), 'next-cjs-spy-admission-')
+      )
+      try {
+        const sentinel = path.join(rootDir, 'unexpected-evaluation')
+        writeFileSync(
+          path.join(rootDir, 'entry.cjs'),
+          `require('node:fs').writeFileSync(${JSON.stringify(sentinel)},'unexpected evaluation')`
+        )
+        const profile = {
+          id: 'node',
+          environment: 'node' as const,
+          mode: 'development' as const,
+          runtime: 'nodejs' as const,
+          bundler: 'turbopack' as const,
+        }
+        const setup = mode === 'setup' ? [path.join(rootDir, 'setup.ts')] : []
+        const serializers =
+          mode === 'serializers' ? [path.join(rootDir, 'serializer.ts')] : []
+        const entry = {
+          id: 'node:cjs-spy-admission',
+          file: path.join(rootDir, 'spec.ts'),
+          profile,
+          ...(mode === 'realm'
+            ? { executionEnvironment: { name: 'node' } }
+            : {}),
+          ...(mode === 'in-source' ? { inSource: true as const } : {}),
+        }
+        const input: WorkerInput = {
+          artifact: {
+            version: 2,
+            kind: 'node',
+            entryId: entry.id,
+            profile,
+            revision: 'admission',
+            rootDir,
+            entryPath: 'entry.cjs',
+            files: ['entry.cjs'],
+            diagnostics: [],
+            setupFiles: setup,
+            snapshotSerializers: serializers,
+            moduleMocking: {
+              version: 1,
+              cjsNamedSpy: (mode === 'version' ? 2 : 1) as 1,
+            },
+          },
+          options: {
+            runId: 'cjs-spy-admission',
+            projectDir: rootDir,
+            entry,
+            setupFiles: setup,
+            snapshotSerializers: serializers,
+            testTimeout: 1000,
+            hookTimeout: 1000,
+            fileTimeout: 5000,
+            ...(mode === 'coverage'
+              ? {
+                  coverage: { version: 1 as const, kind: 'node-line' as const },
+                }
+              : {}),
+            ...(mode === 'inspector' ? { inspect: '127.0.0.1:0' } : {}),
+          },
+          cacheScope: { type: 'file', directory: path.join(rootDir, 'cache') },
+        }
+        const messages: WorkerMessage[] = []
+        const exit = await runTestProcess(
+          require.resolve('next/dist/experimental/testing/execution/worker'),
+          {
+            ...options,
+            cwd: rootDir,
+            env: { ...process.env, NODE_ENV: profile.mode },
+            input,
+            onMessage(message) {
+              messages.push(message as WorkerMessage)
+            },
+          }
+        )
+        expect(exit.code).toBe(0)
+        expect(messages.find((message) => message.type === 'complete')).toEqual(
+          expect.objectContaining({
+            result: expect.objectContaining({ status: 'failed' }),
+          })
+        )
+        expect(existsSync(sentinel)).toBe(false)
+        expect(JSON.stringify(messages)).toContain(
+          'Unsupported CommonJS named-import spy execution profile'
+        )
+      } finally {
+        rmSync(rootDir, { recursive: true, force: true })
+      }
+    }
+  )
+})
+
+describe('production factory mock ownership in the real file worker', () => {
+  it.each([
+    'normal',
+    'missing-marker',
+    'invalid-native-marker',
+    'changed-output-before',
+    'changed-source-before',
+    'source-edit-in-dispose',
+    'output-edit-in-dispose',
+    'output-link-in-dispose',
+    'cleanup-error',
+  ] as const)('handles %s without publishing unowned results', async (mode) => {
+    const rootDir = mkdtempSync(
+      path.join(tmpdir(), 'next-production-mock-owner-')
+    )
+    try {
+      const source = path.join(rootDir, 'spec.ts')
+      const sentinel = path.join(rootDir, 'evaluated')
+      const disposed = path.join(rootDir, 'disposed')
+      writeFileSync(source, '// controlled worker protocol source')
+      const entryFile = path.join(rootDir, 'entry.cjs')
+      const mutation =
+        mode === 'source-edit-in-dispose'
+          ? `fs.writeFileSync(${JSON.stringify(source)}, 'edited after registry teardown')`
+          : mode === 'output-edit-in-dispose'
+            ? `fs.appendFileSync(__filename, '\\n// edited after registry teardown')`
+            : mode === 'output-link-in-dispose'
+              ? `const p = require('node:path'); const original = p.join(__dirname, 'runtime-paths.json'); fs.renameSync(original, original + '.retained'); fs.symlinkSync(original + '.retained', original)`
+              : mode === 'cleanup-error'
+                ? `throw new Error('controlled production registry cleanup failure')`
+                : ''
+      writeFileSync(
+        entryFile,
+        `const fs = require('node:fs'); fs.writeFileSync(${JSON.stringify(sentinel)}, 'evaluated');\n` +
+          readFileSync(path.join(__dirname, 'mock-marker-entry.cjs'), 'utf8') +
+          `\nconst initialize = exports.mockTesting.initializeModuleMocking; exports.mockTesting.initializeModuleMocking = (...args) => { const binding = initialize(...args); return { ...binding, async dispose() { await binding.dispose(); fs.writeFileSync(${JSON.stringify(disposed)}, 'disposed'); ${mutation} } } };\n`
+      )
+      writeFileSync(
+        path.join(rootDir, 'runtime-paths.json'),
+        JSON.stringify({
+          runner: require.resolve('next/dist/experimental/testing/runner'),
+          mocking: require.resolve(
+            'next/dist/experimental/testing/mocking/runtime'
+          ),
+          marked: true,
+          expose: true,
+        })
+      )
+      const digest = (file: string) =>
+        createHash('sha256')
+          .update(readFileSync(path.join(rootDir, file)))
+          .digest('hex')
+      const sourceHash = digest('spec.ts')
+      writeFileSync(
+        path.join(rootDir, 'source.json'),
+        JSON.stringify({ version: 1, sha256: sourceHash })
+      )
+      writeFileSync(
+        path.join(rootDir, 'metadata.json'),
+        JSON.stringify({
+          moduleMocking: {
+            version: 1,
+            productionStaticFactory: mode === 'invalid-native-marker' ? 2 : 1,
+          },
+        })
+      )
+      const files = [
+        'entry.cjs',
+        'runtime-paths.json',
+        'source.json',
+        'metadata.json',
+      ]
+      const profile = {
+        id: 'production-owner',
+        mode: 'production' as const,
+        environment: 'node' as const,
+        runtime: 'nodejs' as const,
+        bundler: 'turbopack' as const,
+      }
+      const entry = { id: 'production:owner', file: source, profile }
+      const artifact = {
+        version: 2 as const,
+        kind: 'node' as const,
+        entryId: entry.id,
+        profile,
+        revision: 'production-owner',
+        sourceHash,
+        rootDir,
+        entryPath: 'entry.cjs',
+        files,
+        diagnostics: [],
+        setupFiles: [],
+        snapshotSerializers: [],
+        moduleMocking: {
+          version: 1 as const,
+          ...(mode === 'missing-marker'
+            ? {}
+            : {
+                productionStaticFactory: {
+                  version: 1 as const,
+                  metadata: {
+                    path: 'metadata.json',
+                    sha256: digest('metadata.json'),
+                  },
+                  sourceMetadata: {
+                    path: 'source.json',
+                    sha256: digest('source.json'),
+                  },
+                  outputs: files.map((file) => ({
+                    path: file,
+                    sha256: digest(file),
+                  })),
+                },
+              }),
+        },
+      }
+      if (mode === 'changed-output-before')
+        writeFileSync(path.join(rootDir, 'runtime-paths.json'), '{}')
+      if (mode === 'changed-source-before')
+        writeFileSync(source, '// edited before execution')
+      const events: ResultEvent[] = []
+      const result = await execute(artifact, {
+        runId: 'production-owner',
+        entry,
+        projectDir: rootDir,
+        signal: new AbortController().signal,
+        setupFiles: [],
+        snapshotSerializers: [],
+        updateSnapshots: false,
+        snapshotUpdateMode: 'none',
+        testTimeout: 1000,
+        hookTimeout: 1000,
+        fileTimeout: 5000,
+        onEvent(event) {
+          events.push(event)
+        },
+      })
+      expect(result.status).toBe(mode === 'normal' ? 'passed' : 'failed')
+      const before = [
+        'missing-marker',
+        'invalid-native-marker',
+        'changed-output-before',
+        'changed-source-before',
+      ].includes(mode)
+      expect(existsSync(sentinel)).toBe(!before)
+      expect(existsSync(disposed)).toBe(!before)
+      expect(events.filter((event) => event.type === 'case-end')).toHaveLength(
+        before ? 0 : 1
+      )
+      if (mode === 'cleanup-error')
+        expect(JSON.stringify(events)).toContain(
+          'controlled production registry cleanup failure'
+        )
+      else if (mode !== 'normal')
+        expect(events.some((event) => event.type === 'diagnostic')).toBe(true)
+    } finally {
+      rmSync(rootDir, { recursive: true, force: true })
+    }
+  })
+})
+
+it('defers client Browser Mode snapshot publication to the owning watch parent', async () => {
+  const client = await import('next/dist/experimental/testing/client/execute')
+  const execution = await import(
+    'next/dist/experimental/testing/execution/execute'
+  )
+  const updates: any[] = [
+    { path: '/project/example.snap', content: 'new', previousContent: 'old' },
+  ]
+  const defer = jest.fn(async () => {})
+  const spy = jest
+    .spyOn(client, 'executeClient')
+    .mockImplementation(async (artifact, options) => {
+      expect(options.onSnapshotUpdates).toBe(defer)
+      await options.onSnapshotUpdates!('/project/example.ts', updates)
+      return { entryId: artifact.entryId, status: 'passed', durationMs: 1 }
+    })
+  try {
+    const result = await execution.executeWithEnvironment(
+      { kind: 'browser' } as any,
+      { signal: new AbortController().signal, updateSnapshots: true } as any,
+      { ...process.env },
+      defer
+    )
+    expect(result.status).toBe('passed')
+    expect(defer).toHaveBeenCalledWith('/project/example.ts', updates)
+  } finally {
+    spy.mockRestore()
+  }
 })
 
 describe('client Browser console output forwarding', () => {
@@ -2295,6 +4716,69 @@ describe('Browser console same-stream boundaries', () => {
   )
 })
 
+it('classifies a structured artifact as an execution fact during collection', async () => {
+  const rootDir = mkdtempSync(path.join(tmpdir(), 'next-collection-artifact-'))
+  try {
+    copyFileSync(
+      path.join(__dirname, 'collection-entry.cjs'),
+      path.join(rootDir, 'entry.cjs')
+    )
+    writeFileSync(
+      path.join(rootDir, 'runtime-paths.json'),
+      JSON.stringify({
+        runner: require.resolve('next/dist/experimental/testing/runner'),
+        vitest: require.resolve('next/dist/experimental/testing/vitest'),
+        mode: 'execution-fact-test-artifact',
+        marker: path.join(rootDir, 'cleanup.txt'),
+      })
+    )
+    const profile = {
+      id: 'unit',
+      mode: 'development' as const,
+      environment: 'node' as const,
+      runtime: 'nodejs' as const,
+      bundler: 'turbopack' as const,
+    }
+    const entry = {
+      id: 'unit:list',
+      file: path.join(rootDir, 'spec.ts'),
+      profile,
+    }
+    const events: ResultEvent[] = []
+    await expect(
+      execute(
+        {
+          version: 2,
+          kind: 'node',
+          entryId: entry.id,
+          profile,
+          revision: 'collection',
+          rootDir,
+          entryPath: 'entry.cjs',
+          files: ['entry.cjs', 'runtime-paths.json'],
+          diagnostics: [],
+        },
+        {
+          runId: 'collection',
+          projectDir: rootDir,
+          entry,
+          setupFiles: [],
+          collectOnly: true,
+          snapshotUpdateMode: 'none',
+          testTimeout: 1000,
+          hookTimeout: 1000,
+          fileTimeout: 5000,
+          signal: new AbortController().signal,
+          onEvent: (event) => events.push(event),
+        }
+      )
+    ).rejects.toThrow('Collection worker returned execution facts')
+    expect(events.some((event) => event.type === 'test-artifact')).toBe(false)
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true })
+  }
+})
+
 describe('Browser progress reporting', () => {
   it.each(['ordered', 'transport-error', 'serialization-error'] as const)(
     'queues progress without blocking execution and preserves cleanup for %s',
@@ -3090,6 +5574,49 @@ it('keeps native clipboard shortcuts on their owning keyboard instance and prese
 })
 
 it.each([
+  'body',
+  'during-capture',
+  'after-capture',
+  'same-error-after-capture',
+  'post-receipt',
+  'missing-receipt',
+  'incomplete-receipt',
+  'mismatched-receipt',
+])(
+  'retains actual V8 capture and native completion fences: %s',
+  (mode) => {
+    const stdout = execFileSync(
+      process.execPath,
+      [
+        path.join(__dirname, 'native-coverage.cjs'),
+        path.join(
+          require.resolve('next/dist/experimental/testing/runner'),
+          '..',
+          '..'
+        ),
+        mode,
+      ],
+      { encoding: 'utf8', timeout: 20000 }
+    )
+    expect(JSON.parse(stdout)).toEqual({
+      mode,
+      realInspectorCapture: true,
+      actualNativeEvents: [
+        'during-capture',
+        'after-capture',
+        'same-error-after-capture',
+        'post-receipt',
+      ].includes(mode)
+        ? 2
+        : 1,
+      coveragePublished: mode === 'body',
+      sourceHashesHeld: true,
+    })
+  },
+  25000
+)
+
+it.each([
   {
     name: 'default strict native diagnostic',
     deferred: false,
@@ -3706,6 +6233,601 @@ it.each(['development', 'production'] as const)(
   }
 )
 
+it.each([undefined, 'chromium', 'firefox'] as const)(
+  'forwards the selected %s client engine and selects the Firefox owned Frame',
+  async (browserEngine) => {
+    const client = await import('next/dist/experimental/testing/client/execute')
+    const execution = await import(
+      'next/dist/experimental/testing/execution/execute'
+    )
+    const spy = jest.spyOn(client, 'executeClient').mockResolvedValue({
+      entryId: 'engine-entry',
+      status: 'passed',
+      durationMs: 1,
+    })
+    try {
+      await execution.executeWithEnvironment(
+        { kind: 'browser' } as any,
+        {
+          signal: new AbortController().signal,
+          ...(browserEngine === undefined ? {} : { browserEngine }),
+        } as any,
+        { ...process.env }
+      )
+      const forwarded = spy.mock.calls[0][1]
+      if (browserEngine === undefined)
+        expect(forwarded).not.toHaveProperty('browserEngine')
+      else expect(forwarded.browserEngine).toBe(browserEngine)
+      if (browserEngine === 'firefox') expect(forwarded.testFrame).toBe(true)
+      else expect(forwarded).not.toHaveProperty('testFrame')
+    } finally {
+      spy.mockRestore()
+    }
+  }
+)
+
+it.each(['chromium', 'firefox'] as const)(
+  'observes the actual first %s case before forwarding scheduling events',
+  async (browserEngine) => {
+    const client = await import('next/dist/experimental/testing/client/execute')
+    const execution = await import(
+      'next/dist/experimental/testing/execution/execute'
+    )
+    const order: string[] = []
+    const caseStart = { type: 'case-start' } as any
+    const spy = jest
+      .spyOn(client, 'executeClient')
+      .mockImplementation(async (_artifact, input) => {
+        order.push('entered')
+        input.onEvent({ type: 'file-start' } as any)
+        input.onEvent(caseStart)
+        input.onEvent(caseStart)
+        return { entryId: 'engine-entry', status: 'passed', durationMs: 1 }
+      })
+    try {
+      await execution.executeWithEnvironment(
+        { kind: 'browser', profile: { browserClient: true } } as any,
+        {
+          signal: new AbortController().signal,
+          userCancelSignal: new AbortController().signal,
+          browserEngine,
+          onEvent(event: ResultEvent) {
+            order.push(event.type)
+          },
+        } as any,
+        { ...process.env },
+        undefined,
+        () => {
+          order.push('actual-owner')
+        }
+      )
+      expect(order).toEqual([
+        'entered',
+        'file-start',
+        'actual-owner',
+        'case-start',
+        'case-start',
+      ])
+    } finally {
+      spy.mockRestore()
+    }
+  }
+)
+
+it.each([
+  ['node', 'chromium'],
+  ['node', 'firefox'],
+  ['browser', 'invalid-browser'],
+  ['browser', null],
+])(
+  'rejects engine %s/%s before runtime acquisition',
+  async (kind, browserEngine) => {
+    const { executeWithEnvironment } = await import(
+      'next/dist/experimental/testing/execution/execute'
+    )
+    const onEvent = jest.fn()
+    await expect(
+      executeWithEnvironment(
+        { kind } as any,
+        { browserEngine, onEvent } as any,
+        { ...process.env }
+      )
+    ).rejects.toThrow(
+      'Browser engine selection requires an actual Chromium, Firefox, or WebKit client artifact.'
+    )
+    expect(onEvent).not.toHaveBeenCalled()
+  }
+)
+
+describe('private actual module completion transport', () => {
+  const identity = {
+    version: 1 as const,
+    runId: 'private-module-run',
+    entryId: 'private-module-entry',
+    revision: 'private-module-revision',
+  }
+  const fulfilled = {
+    ...identity,
+    kind: 'fulfilled' as const,
+    resultVersion: 2 as const,
+    finalState: 'pass' as const,
+    durationMs: 0,
+    containsOnly: false,
+    interrupted: false,
+  }
+
+  it.each([
+    ['version', 2],
+    ['runId', 'foreign'],
+    ['entryId', 'foreign'],
+    ['revision', 'foreign'],
+    ['kind', 'foreign'],
+    ['resultVersion', 1],
+    ['resultVersion', undefined],
+    ['finalState', undefined],
+    ['finalState', 'passed'],
+    ['finalState', 0],
+    ['durationMs', -1],
+    ['durationMs', Infinity],
+    ['durationMs', NaN],
+    ['durationMs', '1'],
+    ['containsOnly', 1],
+    ['interrupted', undefined],
+    ['extra', true],
+  ])('rejects malformed actual completion %s=%s', (key, value) => {
+    expect(() =>
+      assertRuntimeModuleCompletion(
+        { ...fulfilled, [key]: value },
+        identity,
+        'passed',
+        []
+      )
+    ).toThrow()
+  })
+
+  it('admits genuine failed and interrupted fulfilled metadata without inferring it from status', () => {
+    expect(() =>
+      assertRuntimeModuleCompletion(fulfilled, identity, 'failed', [])
+    ).not.toThrow()
+    expect(() =>
+      assertRuntimeModuleCompletion(
+        { ...fulfilled, interrupted: true },
+        identity,
+        'cancelled',
+        []
+      )
+    ).not.toThrow()
+  })
+
+  it('retains unavailable actual publication state without fabricating a failed or passed file', () => {
+    expect(() =>
+      assertRuntimeModuleCompletion(
+        { ...fulfilled, finalState: null },
+        identity,
+        'passed',
+        []
+      )
+    ).not.toThrow()
+  })
+
+  it('requires the original observed unavailable failure and a failed terminal result', () => {
+    const failure = { name: 'Error', message: 'original failure' }
+    const unavailable = {
+      ...identity,
+      kind: 'unavailable',
+      phase: 'collection',
+      failure,
+    }
+    expect(() =>
+      assertRuntimeModuleCompletion(unavailable, identity, 'failed', [
+        JSON.parse(JSON.stringify(failure)),
+      ])
+    ).not.toThrow()
+    for (const [value, status, observed] of [
+      [unavailable, 'passed', [failure]],
+      [unavailable, 'failed', []],
+      [unavailable, 'failed', [{ ...failure, message: 'different' }]],
+      [{ ...unavailable, phase: 'cleanup' }, 'failed', [failure]],
+      [{ ...unavailable, failure: undefined }, 'failed', [failure]],
+    ] as const)
+      expect(() =>
+        assertRuntimeModuleCompletion(value, identity, status, observed)
+      ).toThrow()
+  })
+
+  it.each(['development', 'production'] as const)(
+    'carries actual runtime facts and original unavailable failures in %s workers',
+    async (mode) => {
+      for (const variant of [
+        { name: 'off', capture: false, mode: 'passed' },
+        { name: 'passed', capture: true, mode: 'passed' },
+        { name: 'failed', capture: true, mode: 'failed' },
+        { name: 'afterAll', capture: true, mode: 'afterAll-failure' },
+        { name: 'focus', capture: true, mode: 'focus' },
+        {
+          name: 'filter',
+          capture: true,
+          mode: 'passed',
+          pattern: '^nested > selected$',
+        },
+        {
+          name: 'load',
+          capture: true,
+          mode: 'bootstrap-failure',
+          phase: 'load',
+        },
+        {
+          name: 'collection',
+          capture: true,
+          mode: 'collection-failure',
+          phase: 'collection',
+        },
+        {
+          name: 'collection-undefined',
+          capture: true,
+          mode: 'collection-undefined',
+          phase: 'collection',
+        },
+        {
+          name: 'rejected-run',
+          capture: true,
+          mode: 'passed',
+          phase: 'run',
+          concurrency: 0,
+        },
+        {
+          name: 'rejected-reuse',
+          capture: true,
+          mode: 'reuse-rejected-run',
+          phase: 'run',
+        },
+        { name: 'missing', capture: true, mode: 'missing-fact', missing: true },
+      ]) {
+        const rootDir = mkdtempSync(
+          path.join(tmpdir(), `next-private-module-${mode}-${variant.name}-`)
+        )
+        try {
+          copyFileSync(
+            path.join(__dirname, 'completed-module-entry.cjs'),
+            path.join(rootDir, 'entry.cjs')
+          )
+          const trace = path.join(rootDir, 'getter-trace.txt')
+          writeFileSync(
+            path.join(rootDir, 'runtime-paths.json'),
+            JSON.stringify({
+              runner: require.resolve('next/dist/experimental/testing/runner'),
+              vitest: require.resolve('next/dist/experimental/testing/vitest'),
+              mode: variant.mode,
+              trace,
+            })
+          )
+          const profile = {
+            id: 'module',
+            mode,
+            environment: 'node' as const,
+            runtime: 'nodejs' as const,
+            bundler: 'turbopack' as const,
+          }
+          const entry = {
+            id: identity.entryId,
+            file: path.join(rootDir, 'contract.test.mjs'),
+            profile,
+          }
+          const events: ResultEvent[] = []
+          const executing = execute(
+            {
+              version: 2,
+              kind: 'node',
+              entryId: entry.id,
+              revision: identity.revision,
+              rootDir,
+              entryPath: 'entry.cjs',
+              files: ['entry.cjs', 'runtime-paths.json'],
+              diagnostics: [],
+              profile,
+            },
+            {
+              ...(variant.capture
+                ? { captureCompletedModuleResult: true }
+                : {}),
+              runId: identity.runId,
+              projectDir: rootDir,
+              entry,
+              setupFiles: [],
+              testTimeout: 1000,
+              hookTimeout: 1000,
+              fileTimeout: 5000,
+              allowOnly: true,
+              testNamePattern: variant.pattern,
+              ...(variant.concurrency === undefined
+                ? {}
+                : { maxConcurrency: variant.concurrency }),
+              signal: new AbortController().signal,
+              onEvent: (event) => events.push(event),
+            }
+          )
+          if (variant.missing) {
+            await expect(executing).rejects.toThrow(
+              'Test worker omitted requested private module completion.'
+            )
+            expect(
+              events.flatMap((event) =>
+                event.type === 'diagnostic' ? [event.diagnostic.message] : []
+              )
+            ).toContain('Actual fulfilled module completion is missing.')
+            expect(readFileSync(trace, 'utf8')).toBe('actual getter\n')
+            continue
+          }
+          const result = await executing
+          expect(
+            events.some(
+              (event) =>
+                'moduleCompletion' in event || 'moduleExecution' in event
+            )
+          ).toBe(false)
+          if (!variant.capture) {
+            expect(result.moduleExecution).toBeUndefined()
+            expect(existsSync(trace)).toBe(false)
+            continue
+          }
+          expect(result.moduleExecution?.closed).toBe(true)
+          const completion = result.moduleExecution!.completion!
+          expect(completion).toMatchObject(identity)
+          const diagnostics = events.flatMap((event) =>
+            event.type === 'diagnostic' ? [event.diagnostic] : []
+          )
+          if (variant.phase) {
+            expect(result.status).toBe('failed')
+            expect(completion).toMatchObject({
+              kind: 'unavailable',
+              phase: variant.phase,
+            })
+            expect(completion.kind).toBe('unavailable')
+            if (completion.kind !== 'unavailable')
+              throw new Error('Expected actual unavailable module metadata.')
+            expect(diagnostics).toContainEqual(completion.failure)
+            expect(existsSync(trace)).toBe(false)
+          } else {
+            expect(completion.kind).toBe('fulfilled')
+            if (completion.kind !== 'fulfilled')
+              throw new Error('Expected actual fulfilled module metadata.')
+            const rootSuite = events.find(
+              (event) =>
+                event.type === 'suite-end' && event.suiteId === entry.id
+            )
+            expect(rootSuite).toBeDefined()
+            expect(completion.durationMs).toBe(
+              Math.max((rootSuite as any).durationMs, 0)
+            )
+            expect(completion.containsOnly).toBe(variant.name === 'focus')
+            expect(
+              events.flatMap((event) =>
+                event.type === 'case-end' ? [event.status] : []
+              )
+            ).toEqual(
+              variant.name === 'focus' || variant.name === 'filter'
+                ? ['passed', 'skipped']
+                : [variant.name === 'failed' ? 'failed' : 'passed', 'passed']
+            )
+            expect(completion.resultVersion).toBe(2)
+            expect(completion.finalState).toBe(
+              ['failed', 'afterAll'].includes(variant.name) ? 'fail' : 'pass'
+            )
+            expect(completion.interrupted).toBe(false)
+            expect(result.status).toBe(
+              ['failed', 'afterAll'].includes(variant.name)
+                ? 'failed'
+                : 'passed'
+            )
+            expect(readFileSync(trace, 'utf8')).toBe('actual getter\n')
+          }
+        } finally {
+          rmSync(rootDir, { recursive: true, force: true })
+        }
+      }
+    },
+    30000
+  )
+})
+
+it.each([false, true])(
+  'refuses headless=%s for ordinary Node artifacts before acquisition',
+  async (browserHeadless) => {
+    const profile = {
+      id: 'headless-node',
+      mode: 'development' as const,
+      environment: 'node' as const,
+      runtime: 'nodejs' as const,
+      bundler: 'turbopack' as const,
+    }
+    const entry = {
+      id: 'headless-node:file',
+      file: '/headless-node.test.mjs',
+      profile,
+    }
+    const onEvent = jest.fn()
+    await expect(
+      execute(
+        {
+          version: 2,
+          kind: 'node',
+          entryId: entry.id,
+          revision: 'r',
+          rootDir: '/unused-headless-node',
+          entryPath: 'entry.cjs',
+          files: ['entry.cjs'],
+          profile,
+          diagnostics: [],
+        },
+        {
+          runId: 'headless-node',
+          projectDir: '/',
+          entry,
+          setupFiles: [],
+          testTimeout: 100,
+          hookTimeout: 100,
+          fileTimeout: 100,
+          signal: new AbortController().signal,
+          browserHeadless,
+          onEvent,
+        }
+      )
+    ).rejects.toThrow(
+      'Browser headless selection requires an actual Browser client artifact and boolean mode.'
+    )
+    expect(onEvent).not.toHaveBeenCalled()
+  }
+)
+
+it.each(['development', 'production'] as const)(
+  'records only actual joined Node host cleanup in %s',
+  async (mode) => {
+    for (const variant of [
+      { mode: 'passed', closed: true },
+      { mode: 'failed', closed: true },
+      { mode: 'afterAll-failure', closed: true },
+      { mode: 'settled-deadline', closed: true },
+      { mode: 'dispose-failure', closed: false },
+      { mode: 'hard-deadline', closed: false },
+      { mode: 'lifetime-abort', closed: false },
+      {
+        mode: 'passed',
+        protocol: 'missing',
+        error:
+          'Test worker omitted requested private module host cleanup completion.',
+      },
+      {
+        mode: 'passed',
+        protocol: 'invalid',
+        error: 'Invalid private module host cleanup completion.',
+      },
+      {
+        mode: 'passed',
+        protocol: 'unsolicited',
+        error: 'Invalid private module host cleanup completion.',
+      },
+    ]) {
+      const rootDir = mkdtempSync(
+        path.join(tmpdir(), `next-module-host-${mode}-${variant.mode}-`)
+      )
+      try {
+        copyFileSync(
+          path.join(__dirname, 'completed-module-entry.cjs'),
+          path.join(rootDir, 'entry.cjs')
+        )
+        writeFileSync(
+          path.join(rootDir, 'runtime-paths.json'),
+          JSON.stringify({
+            runner: require.resolve('next/dist/experimental/testing/runner'),
+            vitest: require.resolve('next/dist/experimental/testing/vitest'),
+            mode: variant.mode,
+            protocol: variant.protocol,
+            trace: path.join(rootDir, 'getter-trace.txt'),
+          })
+        )
+        const profile = {
+          id: 'module-host',
+          mode,
+          environment: 'node' as const,
+          runtime: 'nodejs' as const,
+          bundler: 'turbopack' as const,
+        }
+        const entry = {
+          id: 'module-host:file',
+          file: path.join(rootDir, 'contract.case.mjs'),
+          profile,
+        }
+        const events: ResultEvent[] = []
+        const controller = new AbortController()
+        const executing = execute(
+          {
+            version: 2,
+            kind: 'node',
+            entryId: entry.id,
+            revision: 'host-r',
+            rootDir,
+            entryPath: 'entry.cjs',
+            files: ['entry.cjs', 'runtime-paths.json'],
+            profile,
+            diagnostics: [],
+          },
+          {
+            ...(variant.protocol === 'unsolicited'
+              ? {}
+              : { captureCompletedModuleResult: true }),
+            runId: 'module-host-run',
+            projectDir: rootDir,
+            entry,
+            setupFiles: [],
+            testTimeout: variant.mode === 'settled-deadline' ? 5 : 0,
+            hookTimeout: 1000,
+            fileTimeout: variant.mode === 'hard-deadline' ? 300 : 5000,
+            signal: controller.signal,
+            onEvent(event) {
+              events.push(event)
+              if (
+                event.type === 'case-start' &&
+                variant.mode === 'lifetime-abort'
+              )
+                controller.abort(
+                  new Error('actual module host lifetime aborted')
+                )
+            },
+          }
+        )
+        if (variant.error) {
+          await expect(executing).rejects.toThrow(variant.error)
+          continue
+        }
+        const result = await executing
+        expect(result.moduleExecution?.closed).toBe(variant.closed)
+        const diagnostics = events.flatMap((event) =>
+          event.type === 'diagnostic' ? [event.diagnostic.message] : []
+        )
+        if (
+          variant.mode === 'hard-deadline' ||
+          variant.mode === 'lifetime-abort'
+        ) {
+          expect(result.moduleExecution?.completion).toBeUndefined()
+          expect(result.status).toBe(
+            variant.mode === 'lifetime-abort' ? 'cancelled' : 'failed'
+          )
+        } else {
+          expect(result.moduleExecution?.completion).toMatchObject({
+            kind: 'fulfilled',
+            resultVersion: 2,
+            finalState: [
+              'failed',
+              'afterAll-failure',
+              'settled-deadline',
+            ].includes(variant.mode)
+              ? 'fail'
+              : 'pass',
+          })
+          expect(result.status).toBe(
+            variant.mode === 'passed' ? 'passed' : 'failed'
+          )
+        }
+        if (variant.mode === 'dispose-failure')
+          expect(diagnostics).toContain('actual worker owner disposal failure')
+        if (variant.mode === 'settled-deadline')
+          expect(result.moduleExecution?.completion).toMatchObject({
+            interrupted: true,
+          })
+        expect(
+          events.some(
+            (event) =>
+              'moduleHostCleanupComplete' in event || 'moduleExecution' in event
+          )
+        ).toBe(false)
+      } finally {
+        rmSync(rootDir, { recursive: true, force: true })
+      }
+    }
+  },
+  30000
+)
+
 describe('live deferred clear admission', () => {
   it.each([
     'click',
@@ -3884,6 +7006,35 @@ it('retains actual console delivery failures while restoring capture after a fai
   )
 })
 
+it.each(['passed', 'failed'] as const)(
+  'cancels actual file ownership after a %s case while its console callback remains unsettled',
+  (outcome) => {
+    const child = require('node:child_process').spawnSync(
+      process.execPath,
+      [
+        path.join(__dirname, 'console-drain-cancellation.cjs'),
+        process.cwd(),
+        outcome,
+      ],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(child.error).toBeUndefined()
+    expect(child.signal).toBeNull()
+    expect(child.status).toBe(0)
+    expect(child.stderr).toBe('')
+    expect(JSON.parse(child.stdout)).toMatchObject({
+      actualCaseOutcome: outcome,
+      actualFileOutcome: outcome === 'failed' ? 'failed' : 'cancelled',
+      earlierCaseErrorRetained: outcome === 'failed' ? true : null,
+      actualConsoleDelivered: true,
+      unsettledCallbackDoesNotHoldExecution: true,
+      realEnvironmentTeardown: true,
+      fileProcessAndGroupAbsent: true,
+      signalListenersRemoved: true,
+    })
+  }
+)
+
 it('removes console drain abort listeners and observes a real callback rejection after cancellation', async () => {
   const {
     drainConsoleCallbacks,
@@ -4039,6 +7190,30 @@ describe('shared RSC compiler and per-file rendering contracts', () => {
   })
 })
 
+// Admission stays closed until the real native shared AppPage contract is qualified.
+describe('shared RSC watch generation foundation', () => {
+  it.each(['scope', 'selection', 'join'])(
+    'validates %s with existing closed-generation semantics',
+    (mode) => {
+      const stdout = execFileSync(
+        process.execPath,
+        [
+          path.join(__dirname, 'shared-rsc-watch-contract.cjs'),
+          path.join(__dirname, '../../..'),
+          mode,
+        ],
+        { encoding: 'utf8', timeout: 10000 }
+      )
+      expect(JSON.parse(stdout)).toMatchObject({
+        mode,
+        pureContractOnly: true,
+        actualWatchAdmissionOpen: false,
+        actualNativeWatchQualified: false,
+      })
+    }
+  )
+})
+
 describe('actual host console task preservation', () => {
   it.each(['actual', 'absent'])(
     'preserves %s task capability while capturing and restoring output',
@@ -4125,6 +7300,208 @@ it.each(['cold', 'authored-nonconfig'])(
   }
 )
 
+describe('original CommonJS require reset activation in the real file worker', () => {
+  it.each([
+    'valid',
+    'version',
+    'missing-cache',
+    'extra-cache',
+    'extra-mock',
+    'dynamic',
+    'production',
+    'rsc',
+    'browser',
+    'route',
+    'setup',
+    'serializers',
+    'coverage',
+    'realm',
+    'in-source',
+    'collect',
+    'inspector',
+    'cohort',
+  ] as const)(
+    'validates the original-require role before entry evaluation: %s',
+    async (mode) => {
+      const rootDir = mkdtempSync(
+        path.join(tmpdir(), 'next-original-require-reset-role-')
+      )
+      try {
+        copyFileSync(
+          path.join(__dirname, 'original-require-reset-marker-entry.cjs'),
+          path.join(rootDir, 'entry.cjs')
+        )
+        const trace = path.join(rootDir, 'trace.txt')
+        writeFileSync(
+          path.join(rootDir, 'runtime-paths.json'),
+          JSON.stringify({
+            runner: require.resolve('next/dist/experimental/testing/runner'),
+            mocking: require.resolve(
+              'next/dist/experimental/testing/mocking/runtime'
+            ),
+            moduleCache: require.resolve(
+              'next/dist/experimental/testing/mocking/module-cache'
+            ),
+            vitest: require.resolve('next/dist/experimental/testing/vitest'),
+            imports: require.resolve(
+              'next/dist/experimental/testing/runner/imports'
+            ),
+            trace,
+          })
+        )
+        const profile = {
+          id: 'original-require-reset',
+          environment:
+            mode === 'rsc'
+              ? ('rsc' as const)
+              : mode === 'browser'
+                ? ('browser' as const)
+                : ('node' as const),
+          mode:
+            mode === 'production'
+              ? ('production' as const)
+              : ('development' as const),
+          runtime: 'nodejs' as const,
+          bundler: 'turbopack' as const,
+          ...(mode === 'route' ? { route: '/unsupported' } : {}),
+        }
+        const setup = mode === 'setup' ? [path.join(rootDir, 'setup.ts')] : []
+        const serializers =
+          mode === 'serializers' ? [path.join(rootDir, 'serializer.ts')] : []
+        const entry = {
+          id: 'original-require-reset:role',
+          file: path.join(rootDir, 'spec.ts'),
+          profile,
+          ...(mode === 'realm'
+            ? { executionEnvironment: { name: 'node' } }
+            : {}),
+          ...(mode === 'in-source' ? { inSource: true as const } : {}),
+        }
+        const artifact: any = {
+          version: 2,
+          kind: 'node',
+          entryId: entry.id,
+          profile,
+          revision: 'role-protocol',
+          rootDir,
+          entryPath: 'entry.cjs',
+          files: ['entry.cjs', 'runtime-paths.json'],
+          diagnostics: [],
+          setupFiles: setup,
+          snapshotSerializers: serializers,
+          moduleCache: {
+            version: 1,
+            ...(mode === 'extra-cache' ? { extra: 1 } : {}),
+          },
+          moduleMocking: {
+            version: 1,
+            originalCommonJsRequireReset: mode === 'version' ? 2 : 1,
+            ...(mode === 'extra-mock' ? { cjsNamedSpy: 1 } : {}),
+          },
+          ...(mode === 'dynamic'
+            ? { dynamicModuleMocking: { version: 1, staticMocks: 1 } }
+            : {}),
+          ...(mode === 'cohort' ? { cohort: { version: 1, entries: [] } } : {}),
+        }
+        if (mode === 'missing-cache') delete artifact.moduleCache
+        const input: WorkerInput = {
+          artifact,
+          options: {
+            runId: 'original-require-role',
+            projectDir: rootDir,
+            entry,
+            setupFiles: setup,
+            snapshotSerializers: serializers,
+            testTimeout: 1000,
+            hookTimeout: 1000,
+            fileTimeout: 5000,
+            ...(mode === 'coverage'
+              ? {
+                  coverage: { version: 1 as const, kind: 'node-line' as const },
+                }
+              : {}),
+            ...(mode === 'collect' ? { collectOnly: true } : {}),
+            ...(mode === 'inspector' ? { inspect: '127.0.0.1:0' } : {}),
+          },
+          cacheScope: { type: 'file', directory: path.join(rootDir, 'cache') },
+        }
+        const messages: WorkerMessage[] = []
+        const exit = await runTestProcess(
+          require.resolve('next/dist/experimental/testing/execution/worker'),
+          {
+            ...options,
+            cwd: rootDir,
+            env: { ...process.env, NODE_ENV: profile.mode },
+            input,
+            onMessage(message) {
+              messages.push(message as WorkerMessage)
+            },
+          }
+        )
+        expect(exit.code).toBe(0)
+        expect(messages.find((message) => message.type === 'complete')).toEqual(
+          {
+            type: 'complete',
+            result: expect.objectContaining({
+              status:
+                mode === 'valid' || mode === 'production' ? 'passed' : 'failed',
+            }),
+            ...(mode === 'coverage'
+              ? {
+                  coverage: expect.objectContaining({
+                    version: 1,
+                    entryId: entry.id,
+                    runId: input.options.runId,
+                    complete: false,
+                    error: expect.objectContaining({
+                      message: 'Test coverage collection did not start',
+                    }),
+                  }),
+                }
+              : {}),
+          }
+        )
+        const phases = existsSync(trace)
+          ? readFileSync(trace, 'utf8').trim().split('\n')
+          : []
+        if (mode === 'valid' || mode === 'production') {
+          expect(phases).toEqual([
+            'bootstrap',
+            'cache-initialize',
+            'mock-initialize',
+            'collect',
+            'mock-case',
+            'reset-case',
+            'mock-dispose',
+            'cache-dispose',
+            'imports-dispose',
+          ])
+          const cases = messages.filter(
+            (message) =>
+              message.type === 'event' && message.event.type === 'case-end'
+          )
+          expect(cases).toHaveLength(2)
+          expect(
+            cases.every(
+              (message) =>
+                message.type === 'event' &&
+                message.event.type === 'case-end' &&
+                message.event.status === 'passed'
+            )
+          ).toBe(true)
+        } else {
+          expect(phases).toEqual([])
+          expect(JSON.stringify(messages)).toContain(
+            'Unsupported original CommonJS require reset activation'
+          )
+        }
+      } finally {
+        rmSync(rootDir, { recursive: true, force: true })
+      }
+    }
+  )
+})
+
 describe('ordinary Node worker raw error stacks', () => {
   it.each(['native', 'custom-data'])(
     'retains the original %s preparer and compiler source locations',
@@ -4182,6 +7559,270 @@ describe('native-authored Node stack consumers', () => {
         rawStackUnchanged: true,
         nativeAddonsLoaded: 0,
       })
+    }
+  )
+})
+
+describe('isolated Node record RPC ownership and completion', () => {
+  it.each([
+    [
+      'concurrent',
+      { requests: 3, responseOrder: [2, 1, 0], flushJoined: true },
+    ],
+    ['raw outcomes', { rawFailures: 10, rawUndefined: true }],
+    ['send failure', { isolatedSendFailure: true }],
+    [
+      'identity faults',
+      { refusedForeignOrDuplicateResponses: 5, otherRequestsPreserved: true },
+    ],
+    ['abort', { abortedRequests: 2, noLateRequest: true }],
+    [
+      'executor default',
+      {
+        unchangedGenericRecords: 2,
+        noRPCResponse: true,
+        defaultWorkerInputExact: true,
+      },
+    ],
+    [
+      'executor concurrent',
+      {
+        actualEvents: 3,
+        callbacks: 3,
+        responseOrder: [3, 2, 1],
+        callbackStrippedFromInput: true,
+      },
+    ],
+    [
+      'executor raw outcomes',
+      {
+        explicitRawThrownOutcomes: 10,
+        undefinedSuccess: true,
+        noGenericReporterFailure: true,
+      },
+    ],
+    ['executor faults', { rejectedBeforeCallbackOrEvent: 7 }],
+    [
+      'executor abort',
+      {
+        actualEvents: 1,
+        heldCallbackObserved: true,
+        noAcknowledgementAfterOwnerClosed: true,
+      },
+    ],
+    [
+      'executor owner close',
+      {
+        actualEvents: 1,
+        heldCallbackObserved: true,
+        noAcknowledgementAfterOwnerClosed: true,
+      },
+    ],
+    ['executor admission', { refusedBeforeLaunch: 9 }],
+    [
+      'executor cohort admission',
+      { refusedBeforeCohortLaunch: 2, actualForks: 0 },
+    ],
+  ] as const)(
+    'settles actual %s requests without another owner',
+    (mode, expected) => {
+      const stdout = execFileSync(
+        process.execPath,
+        [
+          path.join(__dirname, 'record-rpc-transport.cjs'),
+          path.dirname(require.resolve('next/package.json')),
+          mode,
+        ],
+        { encoding: 'utf8', timeout: 15000 }
+      )
+      expect(JSON.parse(stdout)).toEqual({
+        mode,
+        ...expected,
+        nativeLoads: 0,
+        protocolOnly: true,
+      })
+    }
+  )
+})
+
+describe('production compiled runtime mock activation in the real file worker', () => {
+  it.each([
+    'valid',
+    'zero',
+    'boolean',
+    'version',
+    'development',
+    'mixed-static',
+    'mixed-original-initial',
+    'missing-cache',
+    'extra-cache',
+    'extra-dynamic',
+    'module-mocking',
+    'artifact-coverage',
+    'native-tsconfig-inputs',
+    'unmarked',
+  ] as const)(
+    'validates the compiled runtime role before entry evaluation: %s',
+    async (mode) => {
+      const rootDir = mkdtempSync(
+        path.join(tmpdir(), 'next-production-compiled-runtime-role-')
+      )
+      try {
+        copyFileSync(
+          path.join(__dirname, 'production-compiled-runtime-marker-entry.cjs'),
+          path.join(rootDir, 'entry.cjs')
+        )
+        const trace = path.join(rootDir, 'trace.txt')
+        writeFileSync(
+          path.join(rootDir, 'runtime-paths.json'),
+          JSON.stringify({
+            runner: require.resolve('next/dist/experimental/testing/runner'),
+            dynamic: require.resolve(
+              'next/dist/experimental/testing/mocking/dynamic'
+            ),
+            moduleCache: require.resolve(
+              'next/dist/experimental/testing/mocking/module-cache'
+            ),
+            vitest: require.resolve('next/dist/experimental/testing/vitest'),
+            imports: require.resolve(
+              'next/dist/experimental/testing/runner/imports'
+            ),
+            trace,
+          })
+        )
+        const profile = {
+          id: 'production-compiled-runtime',
+          environment: 'node' as const,
+          mode:
+            mode === 'development'
+              ? ('development' as const)
+              : ('production' as const),
+          runtime: 'nodejs' as const,
+          bundler: 'turbopack' as const,
+        }
+        const entry = {
+          id: 'production-compiled-runtime:role',
+          file: path.join(rootDir, 'spec.ts'),
+          profile,
+        }
+        const artifact: any = {
+          version: 2,
+          kind: 'node',
+          entryId: entry.id,
+          profile,
+          revision: 'role-protocol',
+          rootDir,
+          entryPath: 'entry.cjs',
+          files: ['entry.cjs', 'runtime-paths.json'],
+          diagnostics: [],
+          setupFiles: [],
+          snapshotSerializers: [],
+          moduleCache: {
+            version: 1,
+            ...(mode === 'extra-cache' ? { extra: 1 } : {}),
+          },
+          dynamicModuleMocking: {
+            version: 1,
+            productionCompiled:
+              mode === 'zero'
+                ? 0
+                : mode === 'boolean'
+                  ? true
+                  : mode === 'version'
+                    ? 2
+                    : 1,
+            ...(mode === 'mixed-static' ? { staticMocks: 1 } : {}),
+            ...(mode === 'mixed-original-initial'
+              ? { nativeOriginalInitial: 1 }
+              : {}),
+            ...(mode === 'extra-dynamic' ? { extra: 1 } : {}),
+          },
+          ...(mode === 'module-mocking'
+            ? { moduleMocking: { version: 1 } }
+            : {}),
+          ...(mode === 'artifact-coverage' ? { coverage: null } : {}),
+          ...(mode === 'native-tsconfig-inputs'
+            ? { nativeTsConfigInputs: null }
+            : {}),
+        }
+        if (mode === 'missing-cache') delete artifact.moduleCache
+        if (mode === 'unmarked')
+          delete artifact.dynamicModuleMocking.productionCompiled
+        const input: WorkerInput = {
+          artifact,
+          options: {
+            runId: 'production-compiled-runtime-role',
+            projectDir: rootDir,
+            entry,
+            setupFiles: [],
+            snapshotSerializers: [],
+            testTimeout: 1000,
+            hookTimeout: 1000,
+            fileTimeout: 5000,
+          },
+          cacheScope: { type: 'file', directory: path.join(rootDir, 'cache') },
+        }
+        const messages: WorkerMessage[] = []
+        const exit = await runTestProcess(
+          require.resolve('next/dist/experimental/testing/execution/worker'),
+          {
+            ...options,
+            cwd: rootDir,
+            env: { ...process.env, NODE_ENV: profile.mode },
+            input,
+            onMessage(message) {
+              messages.push(message as WorkerMessage)
+            },
+          }
+        )
+        expect(exit.code).toBe(0)
+        expect(messages.find((message) => message.type === 'complete')).toEqual(
+          {
+            type: 'complete',
+            result: expect.objectContaining({
+              status: mode === 'valid' ? 'passed' : 'failed',
+            }),
+          }
+        )
+        const phases = existsSync(trace)
+          ? readFileSync(trace, 'utf8').trim().split('\n')
+          : []
+        if (mode === 'valid') {
+          expect(phases).toEqual([
+            'bootstrap',
+            'cache-initialize',
+            'dynamic-initialize',
+            'collect',
+            'mock-case',
+            'reset-case',
+            'dynamic-dispose',
+            'cache-dispose',
+            'imports-dispose',
+          ])
+          const cases = messages.filter(
+            (message) =>
+              message.type === 'event' && message.event.type === 'case-end'
+          )
+          expect(cases).toHaveLength(2)
+          expect(
+            cases.every(
+              (message) =>
+                message.type === 'event' &&
+                message.event.type === 'case-end' &&
+                message.event.status === 'passed'
+            )
+          ).toBe(true)
+        } else {
+          expect(phases).toEqual([])
+          expect(JSON.stringify(messages)).toContain(
+            mode === 'unmarked'
+              ? 'Unsupported compiled module cache reset profile'
+              : 'Unsupported production compiled runtime mock activation'
+          )
+        }
+      } finally {
+        rmSync(rootDir, { recursive: true, force: true })
+      }
     }
   )
 })

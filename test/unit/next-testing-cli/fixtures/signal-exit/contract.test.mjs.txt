@@ -1,0 +1,30 @@
+import { test, expect, afterAll } from 'vitest'
+import { readFileSync, writeFileSync } from 'node:fs'
+
+const control = JSON.parse(readFileSync('control.json', 'utf8'))
+if (control.failed) {
+  test('settled failure', () => {
+    expect(1).toBe(2)
+  })
+}
+test('held', async (context) => {
+  if (!control.hold) {
+    expect(1).toBe(1)
+    return
+  }
+  writeFileSync('phase-ready.json', JSON.stringify({
+    realSignal: context.signal instanceof AbortSignal,
+    abortedAtEntry: context.signal.aborted,
+  }))
+  await new Promise((resolve) => {
+    context.signal.addEventListener('abort', () => {
+      writeFileSync('phase-aborted.json', JSON.stringify({
+        aborted: context.signal.aborted,
+      }))
+      resolve()
+    }, { once: true })
+  })
+})
+afterAll(() => {
+  writeFileSync('phase-after-all.json', JSON.stringify({ closed: true }))
+})
