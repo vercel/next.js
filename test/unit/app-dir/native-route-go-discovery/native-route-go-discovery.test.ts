@@ -89,7 +89,7 @@ describe('native route discovery', () => {
     expect(result.page).toBe('/native/route')
     expect(normalizePathSep(result.filename)).toContain('/app/native/route.go')
   })
-  it('requires opt-in and Turbopack for Go proxies, and statically builds matchers', async () => {
+  it('requires opt-in and Turbopack for Go proxies, and uses an all-paths matcher', async () => {
     const saved = process.env.TURBOPACK
     const params = {
       pageFilePath: '/project/proxy.go',
@@ -107,35 +107,11 @@ describe('native route discovery', () => {
       await expect(getPagesPageStaticInfo(params)).rejects.toThrow(
         'experimental.goRoutes'
       )
-      await expect(
-        getPagesPageStaticInfo({
-          ...params,
-          nextConfig: { experimental: { goProxy: {} } },
-        })
-      ).rejects.toThrow('experimental.goRoutes')
       const defaults = await getPagesPageStaticInfo({
         ...params,
         nextConfig: { experimental: { goRoutes: true } },
       })
       expect(defaults.middleware!.matchers![0].originalSource).toBe('/:path*')
-      const info = await getPagesPageStaticInfo({
-        ...params,
-        nextConfig: {
-          basePath: '/base',
-          experimental: {
-            goRoutes: true,
-            goProxy: {
-              matcher: ['/protected/:path*'],
-              maxDuration: 42,
-              preferredRegion: 'iad1',
-            },
-          },
-        },
-      })
-      const matcher = info.middleware!.matchers![0]
-      expect(new RegExp(matcher.regexp).test('/base/protected/one')).toBe(true)
-      expect(new RegExp(matcher.regexp).test('/base/public')).toBe(false)
-      expect(info).toMatchObject({ maxDuration: 42, preferredRegion: ['iad1'] })
     } finally {
       if (saved === undefined) delete process.env.TURBOPACK
       else process.env.TURBOPACK = saved

@@ -819,22 +819,15 @@ export async function getPagesPageStaticInfo({
       throw new Error('proxy.go requires Turbopack; remove --webpack')
     if (!nextConfig.experimental?.goRoutes)
       throw new Error('proxy.go requires experimental.goRoutes: true')
-    const config = nextConfig.experimental.goProxy ?? {}
     return {
       type: PAGE_TYPES.PAGES,
       config: undefined,
       runtime: 'nodejs',
       middleware: {
-        matchers: getMiddlewareMatchers(
-          config.matcher ?? '/:path*',
-          nextConfig
-        ),
+        matchers: getMiddlewareMatchers('/:path*', nextConfig),
       },
-      preferredRegion:
-        typeof config.preferredRegion === 'string'
-          ? [config.preferredRegion]
-          : config.preferredRegion,
-      maxDuration: config.maxDuration,
+      preferredRegion: undefined,
+      maxDuration: undefined,
       hadUnsupportedValue: false,
     }
   }

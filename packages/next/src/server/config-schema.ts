@@ -1,5 +1,4 @@
 import type { NextConfig } from './config'
-import { MiddlewareConfigInputSchema } from '../build/segment-config/middleware/middleware-config'
 import { VALID_LOADERS } from '../shared/lib/image-config'
 
 import { z } from 'next/dist/compiled/zod'
@@ -426,13 +425,6 @@ export const experimentalSchema = {
     ])
     .optional(),
   goRoutes: z.boolean().optional(),
-  goProxy: MiddlewareConfigInputSchema.pick({ matcher: true })
-    .extend({
-      maxDuration: z.number().int().positive().optional(),
-      preferredRegion: z.union([z.string(), z.array(z.string())]).optional(),
-    })
-    .strict()
-    .optional(),
   turbopackFileSystemCacheForDev: z.boolean().optional(),
   turbopackFileSystemCacheForBuild: z.boolean().optional(),
   turbopackSeedCacheFromWorktree: z.boolean().optional(),

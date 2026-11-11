@@ -11,11 +11,11 @@ import { once } from 'events'
 describe('native-proxy-go', () => {
   const { next, isNextStart } = nextTestSetup({ files: __dirname })
 
-  it('continues to a JS handler and respects matchers', async () => {
+  it('continues to a JS handler and matches all paths', async () => {
     const response = await next.fetch('/native-proxy/inspect')
     expect(response.status).toBe(200)
     expect(response.headers.get('x-go-proxy')).toBe('yes')
-    expect((await next.fetch('/')).headers.get('x-go-proxy')).toBeNull()
+    expect((await next.fetch('/')).headers.get('x-go-proxy')).toBe('yes')
   })
 
   it('returns a terminal response', async () => {
@@ -118,7 +118,7 @@ describe('native-proxy-go', () => {
         sourcePage: '/proxy',
       })
       expect(output.config.matchers).toEqual([
-        expect.objectContaining({ source: '/native-proxy/:path*' }),
+        expect.objectContaining({ source: '/:path*' }),
       ])
       const directory = await fs.mkdtemp(join(tmpdir(), 'go-proxy-function-'))
       const binary = join(

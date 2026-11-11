@@ -1,9 +1,7 @@
 # Native Go proxy
 
 Enable both `route.go` and `proxy.go` with `experimental.goRoutes: true`.
-Optionally configure the proxy with
-`experimental.goProxy: { matcher: ['/protected/:path*'] }`; without settings it
-matches all paths.
+The proxy matches all paths in this first version.
 Put `proxy.go` beside `app` or `pages` (including in `src`) and provide:
 
 ```go
@@ -21,9 +19,7 @@ The generated helpers are `Next(w)`, `Rewrite(w, destination)`, and
 `OverrideRequestHeaders(w, headers)`. A response without a continuation or rewrite
 header finishes the request. Ordinary Go HTTP handlers, cookies, redirects and
 streaming are supported. Relative rewrite and redirect URLs resolve against the
-incoming public URL. Matchers use the existing Next.js matcher syntax, including
-`has`, `missing`, and locale rules. `maxDuration` and `preferredRegion` can also be
-set in `experimental.goProxy`.
+incoming public URL.
 
 Only one proxy is allowed; Go and JavaScript proxies cannot be combined.
 Go compilation requires Turbopack and a Go toolchain. There is no Edge runtime.
