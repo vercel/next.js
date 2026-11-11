@@ -1,0 +1,49 @@
+import * as hiddenDefault from './self-hidden-default.cjs'
+import { test, expect, vi } from 'vitest'
+
+const importUnused = () => vi.importMock('./unused.cjs')
+
+test('creates independent automatic mocks for aliases of a self-default callable', async () => {
+  const first = await vi.importMock('./root.cjs')
+  const second = await vi.importMock('././root.cjs')
+
+  expect(first).not.toBe(second)
+  expect(first.default).not.toBe(second.default)
+  expect(first.default.default).toBe(first.default)
+  expect(second.default.default).toBe(second.default)
+  expect(first.method).toBe(first.default.method)
+  expect(first.default.method).not.toBe(second.default.method)
+
+  first.default.label = 'changed'
+  expect(first.default(4)).toBeUndefined()
+  expect(first.default.method()).toBeUndefined()
+  expect(first.default.mock.calls).toEqual([[4]])
+  expect(first.default.method.mock.calls).toEqual([[]])
+  expect(second.default.mock.calls).toEqual([])
+  expect(second.default.method.mock.calls).toEqual([])
+  expect(first.label).toBe('root')
+  expect(first.default.label).toBe('changed')
+  expect(second.default.label).toBe('root')
+  expect(globalThis.__ws2CallableAlias).toBe(1)
+  expect(typeof importUnused).toBe('function')
+  expect(globalThis.__ws2CallableUnused ?? 0).toBe(0)
+})
+
+test('preserves a hidden self-default after the original callable is published', async () => {
+  Object.defineProperty(hiddenDefault.default, 'default', { enumerable: false })
+  const first = await vi.importMock('./self-hidden-default.cjs')
+  const second = await vi.importMock('./self-hidden-default.cjs')
+
+  expect(
+    Object.getOwnPropertyDescriptor(hiddenDefault.default, 'default').enumerable
+  ).toBe(false)
+  expect(vi.isMockFunction(first.default)).toBe(true)
+  expect(first.default.default).toBe(first.default)
+  expect(first.default).not.toBe(second.default)
+  expect(first.method).toBe(first.default.method)
+  expect(first.default.method).not.toBe(second.default.method)
+  expect(first.default(7)).toBeUndefined()
+  expect(first.default.mock.calls).toEqual([[7]])
+  expect(second.default.mock.calls).toEqual([])
+  expect(globalThis.__ws2CallableAutomaticCounts['self-hidden-default']).toBe(1)
+})

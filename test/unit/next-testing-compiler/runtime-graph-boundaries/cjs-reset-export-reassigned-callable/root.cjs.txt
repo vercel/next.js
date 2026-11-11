@@ -1,0 +1,2 @@
+const dependency=require('./dependency.cjs')
+function exported(){return dependency};exported=()=>dependency;module.exports=exported

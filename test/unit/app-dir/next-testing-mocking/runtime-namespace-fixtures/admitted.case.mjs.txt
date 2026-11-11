@@ -1,0 +1,99 @@
+import { expect, test, vi } from 'vitest'
+
+test('ordinary CommonJS runtime namespaces retain exports and cache identity across reset', async () => {
+  const token = {}
+  let calls = 0
+  vi.doMock('./subject.cjs', () => {
+    calls++
+    return {
+      value: 'mocked',
+      default: { token },
+      explicit: undefined,
+      method() {
+        return this.value
+      },
+    }
+  })
+  const first = await import('./subject.cjs')
+  const again = await import('./subject.cjs')
+  vi.resetModules()
+  const reset = await import('./subject.cjs')
+  expect(first).toBe(again)
+  expect(reset).toBe(first)
+  expect(calls).toBe(1)
+  expect(first.value).toBe('mocked')
+  expect(first.default.token).toBe(token)
+  expect(first.method()).toBe('mocked')
+  expect(first.method.call({ value: 'receiver' })).toBe('receiver')
+  expect(Object.hasOwn(first, 'explicit')).toBe(true)
+  expect(first.explicit).toBeUndefined()
+  expect(first[Symbol.iterator]).toBeUndefined()
+  expect(() => first.absent).toThrow(
+    /No "absent" export is defined on the "\.\/subject.cjs" mock/
+  )
+})
+
+test('a pending CommonJS runtime namespace retains registration through reset', async () => {
+  let enter, release
+  const entered = new Promise((resolve) => {
+    enter = resolve
+  })
+  const gate = new Promise((resolve) => {
+    release = resolve
+  })
+  let calls = 0
+  vi.doMock('./subject.cjs', async () => {
+    calls++
+    enter()
+    await gate
+    return { value: 'pending', default: { pending: true } }
+  })
+  const pending = import('./subject.cjs')
+  await entered
+  vi.resetModules()
+  release()
+  const first = await pending
+  const again = await import('./subject.cjs')
+  expect(first.value).toBe('pending')
+  expect(first.default.pending).toBe(true)
+  expect(again).toBe(first)
+  expect(calls).toBe(1)
+  expect(() => first.absent).toThrow(/No "absent" export/)
+})
+
+test('a replacement keeps the older pending namespace and its late cache publication', async () => {
+  let enter, release
+  const entered = new Promise((resolve) => {
+    enter = resolve
+  })
+  const gate = new Promise((resolve) => {
+    release = resolve
+  })
+  let oldCalls = 0,
+    nextCalls = 0
+  vi.doMock('./subject.cjs', async () => {
+    oldCalls++
+    enter()
+    await gate
+    return { value: 'old' }
+  })
+  const pending = import('./subject.cjs')
+  await entered
+  vi.resetModules()
+  vi.doMock('./subject.cjs', () => {
+    nextCalls++
+    return { value: 'next' }
+  })
+  const next = await import('./subject.cjs')
+  release()
+  const old = await pending
+  const later = await import('./subject.cjs')
+  expect(next.value).toBe('actual')
+  expect(old.value).toBe('old')
+  expect(later).toBe(old)
+  expect(next).not.toBe(old)
+  expect(oldCalls).toBe(1)
+  expect(nextCalls).toBe(0)
+  expect(next.absent).toBeUndefined()
+  expect(() => old.absent).toThrow(/No "absent" export/)
+})

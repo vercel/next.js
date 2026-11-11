@@ -1,0 +1,3 @@
+import {test,expect,vi} from 'vitest'
+vi.doMock('./root.cjs',()=>({default:{value:'mock'}}))
+test('never evaluates an uncertified compiled CommonJS runtime entry',async()=>{console.log('WS2_CJS_NEGATIVE_BODY');await import('./root.cjs');expect(true).toBe(true)})

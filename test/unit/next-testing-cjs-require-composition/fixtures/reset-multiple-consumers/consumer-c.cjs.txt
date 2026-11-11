@@ -1,0 +1,4 @@
+const fs=require('node:fs');const read=()=>{fs.appendFileSync(process.env.NEXT_REQUIRE_EVENTS,JSON.stringify({name:"consumer-c-require"})+'\n');
+return require('./target.cjs')};
+fs.appendFileSync(process.env.NEXT_REQUIRE_EVENTS,JSON.stringify({name:"consumer-c-evaluate"})+'\n');
+module.exports={initial:read(),read};

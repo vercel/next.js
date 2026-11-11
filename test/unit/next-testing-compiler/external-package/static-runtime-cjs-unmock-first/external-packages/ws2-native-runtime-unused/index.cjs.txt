@@ -1,0 +1,2 @@
+globalThis.ws2UnusedNativeEvaluations = (globalThis.ws2UnusedNativeEvaluations ?? 0) + 1
+module.exports = { value: 17 }

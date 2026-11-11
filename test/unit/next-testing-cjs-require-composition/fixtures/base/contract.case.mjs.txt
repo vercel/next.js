@@ -1,0 +1,18 @@
+import { test, expect, vi } from 'vitest'
+import * as mocked from './target.cjs'
+import required from './consumer.cjs'
+const counts = vi.hoisted(() => ({ factory: 0 }))
+vi.mock('./target.cjs', () => {
+  counts.factory++
+  return { value: 'mocked', default: { value: 'mock-default', token: {} } }
+})
+test('original CommonJS require and mocked ESM remain separate', async () => {
+  const raw = required.read(),
+    dynamic = await import('./target.cjs')
+  expect(raw).toBe(required.initial)
+  expect(raw.value).toBe('actual')
+  expect(mocked.value).toBe('mocked')
+  expect(mocked.default.value).toBe('mock-default')
+  expect(dynamic).toBe(mocked)
+  expect(counts.factory).toBe(1)
+})

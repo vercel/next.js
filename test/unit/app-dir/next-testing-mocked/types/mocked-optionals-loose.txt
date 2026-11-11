@@ -1,0 +1,8 @@
+import { vi } from 'vitest'
+const fn = (value: number) => value
+vi.mocked(fn, undefined)
+vi.mocked(fn, {})
+vi.mocked(fn, { partial: false })
+vi.mocked(fn, { deep: undefined })
+vi.mocked(fn, { partial: undefined })
+vi.mocked(fn, { partial: true, deep: undefined })

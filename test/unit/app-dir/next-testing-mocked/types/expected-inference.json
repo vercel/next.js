@@ -1,0 +1,47 @@
+{
+  "baseline": "Vitest 5.0.4 / TypeScript 6.0.2 observed consumer results; expectation data only, no reference declaration",
+  "main": [
+    {
+      "name": "probeGenericCall",
+      "type": "string | number"
+    },
+    {
+      "name": "probeGenericGetter",
+      "type": "((value: string | number) => string | number) | undefined"
+    },
+    {
+      "name": "probeOverloadedCall",
+      "type": "number"
+    },
+    {
+      "name": "probeOverloadedGetter",
+      "type": "((value: number) => number) | undefined"
+    },
+    {
+      "name": "probeReadonlyLabel",
+      "type": "\"fixed\""
+    },
+    {
+      "name": "probePrimitiveNull",
+      "type": "null"
+    },
+    {
+      "name": "probeNumericPrimitiveLiteral",
+      "type": "1"
+    },
+    {
+      "name": "probeStringPrimitiveLiteral",
+      "type": "\"value\""
+    }
+  ],
+  "readonly": [
+    {
+      "name": "probeReadonlyValue",
+      "type": "1"
+    },
+    {
+      "name": "probeReadonlyNestedLabel",
+      "type": "\"fixed\""
+    }
+  ]
+}

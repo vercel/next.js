@@ -1,0 +1,50 @@
+import { vi } from 'vitest'
+
+type Equal<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
+    ? (<T>() => T extends B ? 1 : 2) extends <T>() => T extends A ? 1 : 2
+      ? true
+      : false
+    : false
+type Assert<T extends true> = T
+
+function withReceiver(this: { base: number }, value: number): number {
+  return this.base + value
+}
+const receiverHelper = vi.defineHelper(withReceiver)
+type ReceiverTypeExact = Assert<Equal<typeof receiverHelper, typeof withReceiver>>
+const receiverResult: number = receiverHelper.call({ base: 1 }, 2)
+// @ts-expect-error the original receiver requires a number
+receiverHelper.call({ base: 'wrong' }, 2)
+// @ts-expect-error the original argument requires a number
+receiverHelper.call({ base: 1 }, 'wrong')
+
+const generic = <T>(value: T): T => value
+const genericHelper = vi.defineHelper(generic)
+type GenericTypeExact = Assert<Equal<typeof genericHelper, typeof generic>>
+const literal: 'literal' = genericHelper('literal' as const)
+const numberLiteral: 42 = genericHelper(42 as const)
+
+declare function overloaded(value: string): string
+declare function overloaded(value: number): number
+const overloadHelper = vi.defineHelper(overloaded)
+type OverloadTypeExact = Assert<Equal<typeof overloadHelper, typeof overloaded>>
+const text: string = overloadHelper('text')
+const number: number = overloadHelper(2)
+// @ts-expect-error the original overloads do not accept a boolean
+overloadHelper(true)
+
+async function asynchronous(this: { prefix: string }, value: number) {
+  return this.prefix + value
+}
+const asyncHelper = vi.defineHelper(asynchronous)
+type AsyncTypeExact = Assert<Equal<typeof asyncHelper, typeof asynchronous>>
+const promised: Promise<string> = asyncHelper.call({ prefix: 'x' }, 2)
+
+export type Cases = [
+  ReceiverTypeExact,
+  GenericTypeExact,
+  OverloadTypeExact,
+  AsyncTypeExact,
+]
+export const observations = [receiverResult, literal, numberLiteral, text, number, promised]

@@ -1,0 +1,147 @@
+{
+  "qualified": true,
+  "vitest": "5.0.4",
+  "typescript": "6.0.2",
+  "results": {
+    "main-loose": {
+      "diagnostics": [],
+      "probes": [
+        {
+          "name": "probeContextCalls",
+          "type": "[id: number][]"
+        },
+        {
+          "name": "probeContextSettled",
+          "type": "MockSettledResult<{ ok: true; }>[]"
+        },
+        {
+          "name": "probeRawThrowAny",
+          "type": "any"
+        },
+        {
+          "name": "probeRejectedAny",
+          "type": "any"
+        },
+        {
+          "name": "probeFunctionReturn",
+          "type": "Promise<{ ok: true; }>"
+        },
+        {
+          "name": "probeGenericGetter",
+          "type": "((value: string | number) => string | number) | undefined"
+        },
+        {
+          "name": "probeOverloadedGetter",
+          "type": "((value: number) => number) | undefined"
+        },
+        {
+          "name": "probeConstructor",
+          "type": "Service"
+        }
+      ]
+    },
+    "main-exact": {
+      "diagnostics": [],
+      "probes": [
+        {
+          "name": "probeContextCalls",
+          "type": "[id: number][]"
+        },
+        {
+          "name": "probeContextSettled",
+          "type": "MockSettledResult<{ ok: true; }>[]"
+        },
+        {
+          "name": "probeRawThrowAny",
+          "type": "any"
+        },
+        {
+          "name": "probeRejectedAny",
+          "type": "any"
+        },
+        {
+          "name": "probeFunctionReturn",
+          "type": "Promise<{ ok: true; }>"
+        },
+        {
+          "name": "probeGenericGetter",
+          "type": "((value: string | number) => string | number) | undefined"
+        },
+        {
+          "name": "probeOverloadedGetter",
+          "type": "((value: number) => number) | undefined"
+        },
+        {
+          "name": "probeConstructor",
+          "type": "Service"
+        }
+      ]
+    },
+    "augmentation-loose": {
+      "diagnostics": [],
+      "probes": [
+        {
+          "name": "probeDirectReturnType",
+          "type": "\"return\""
+        },
+        {
+          "name": "probeDirectReturnValue",
+          "type": "number"
+        },
+        {
+          "name": "probeDirectReturnMarker",
+          "type": "number | undefined"
+        },
+        {
+          "name": "probeContextResults",
+          "type": "import(\"vitest\").MockResult<number>[]"
+        },
+        {
+          "name": "probeContextReturnType",
+          "type": "\"return\""
+        },
+        {
+          "name": "probeContextReturnValue",
+          "type": "number"
+        },
+        {
+          "name": "probeContextReturnMarker",
+          "type": "number | undefined"
+        }
+      ]
+    },
+    "augmentation-exact": {
+      "diagnostics": [],
+      "probes": [
+        {
+          "name": "probeDirectReturnType",
+          "type": "\"return\""
+        },
+        {
+          "name": "probeDirectReturnValue",
+          "type": "number"
+        },
+        {
+          "name": "probeDirectReturnMarker",
+          "type": "number | undefined"
+        },
+        {
+          "name": "probeContextResults",
+          "type": "import(\"vitest\").MockResult<number>[]"
+        },
+        {
+          "name": "probeContextReturnType",
+          "type": "\"return\""
+        },
+        {
+          "name": "probeContextReturnValue",
+          "type": "number"
+        },
+        {
+          "name": "probeContextReturnMarker",
+          "type": "number | undefined"
+        }
+      ]
+    }
+  }
+}

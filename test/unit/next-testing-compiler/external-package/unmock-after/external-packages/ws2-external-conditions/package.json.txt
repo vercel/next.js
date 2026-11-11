@@ -1,0 +1,1 @@
+{"name": "ws2-external-conditions", "type": "module", "exports": {"import": "./import.mjs", "require": "./require.cjs"}}

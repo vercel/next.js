@@ -1,0 +1,1 @@
+import * as original from './root.cjs';globalThis.__ws2Foreign=original

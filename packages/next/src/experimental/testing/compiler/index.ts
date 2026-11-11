@@ -519,6 +519,243 @@ export async function createTestCompilerSession(
           )
         }
       }
+      const mockMetadataPath = `server/next-test/${nativeId}.metadata.json`
+      let moduleMocking: CompiledTestArtifact['moduleMocking']
+      let moduleCache:
+        | {
+            version: 1
+          }
+        | undefined
+      let dynamicModuleMocking:
+        | {
+            version: 1
+            staticMocks?: 1
+            nativeOriginalInitial?: 1
+            productionCompiled?: 1
+          }
+        | undefined
+      if (files.includes(mockMetadataPath)) {
+        const nativeMockBytes = await readFile(
+          artifactPath(staging, mockMetadataPath)
+        )
+        const metadata = JSON.parse(nativeMockBytes.toString('utf8'))
+        const staticRuntimeMocks =
+          metadata.dynamicModuleMocking?.staticMocks === 1
+        const originalInitialMocks =
+          metadata.dynamicModuleMocking?.nativeOriginalInitial === 1
+        const nativeRuntimeMocks = staticRuntimeMocks || originalInitialMocks
+        const productionCompiledRuntimeMocks =
+          typeof metadata.dynamicModuleMocking === 'object' &&
+          metadata.dynamicModuleMocking?.productionCompiled === 1
+        if (
+          metadata.dynamicModuleMocking &&
+          typeof metadata.dynamicModuleMocking === 'object' &&
+          'productionCompiled' in metadata.dynamicModuleMocking &&
+          (!productionCompiledRuntimeMocks ||
+            metadata.dynamicModuleMocking.version !== 1 ||
+            Array.isArray(metadata.dynamicModuleMocking) ||
+            Object.keys(metadata.dynamicModuleMocking).length !== 2 ||
+            Object.keys(metadata.dynamicModuleMocking).some(
+              (key) => key !== 'version' && key !== 'productionCompiled'
+            ) ||
+            metadata.moduleCache?.version !== 1 ||
+            Array.isArray(metadata.moduleCache) ||
+            Object.keys(metadata.moduleCache).length !== 1 ||
+            Object.keys(metadata.moduleCache)[0] !== 'version' ||
+            metadata.moduleMocking !== undefined ||
+            Object.keys(metadata).length !== 2 ||
+            Object.keys(metadata).some(
+              (key) => key !== 'moduleCache' && key !== 'dynamicModuleMocking'
+            ) ||
+            profile.mode !== 'production' ||
+            profile.runtime !== 'nodejs' ||
+            profile.bundler !== 'turbopack' ||
+            cohortInputs ||
+            setupFiles.length ||
+            snapshotSerializers.length ||
+            dependencyPlan ||
+            usesInSource ||
+            entry.executionEnvironment)
+        )
+          throw new Error(
+            'Production compiled runtime mocks require isolated ordinary Node metadata'
+          )
+        const originalCommonJsRequireReset =
+          metadata.moduleMocking?.originalCommonJsRequireReset === 1
+        if (
+          metadata.moduleMocking?.originalCommonJsRequireReset !== undefined &&
+          (!originalCommonJsRequireReset ||
+            metadata.moduleMocking?.version !== 1 ||
+            Object.keys(metadata.moduleMocking).length !== 2 ||
+            metadata.moduleCache?.version !== 1 ||
+            Object.keys(metadata.moduleCache).length !== 1 ||
+            Object.keys(metadata).length !== 2 ||
+            metadata.dynamicModuleMocking !== undefined ||
+            !['development', 'production'].includes(profile.mode) ||
+            (profile.mode === 'production' &&
+              (profile.runtime !== 'nodejs' ||
+                profile.bundler !== 'turbopack' ||
+                dependencyPlan)) ||
+            cohortInputs ||
+            setupFiles.length ||
+            snapshotSerializers.length ||
+            usesInSource ||
+            entry.executionEnvironment)
+        )
+          throw new Error(
+            'Original CommonJS require resets require isolated ordinary development Node metadata'
+          )
+        const productionOriginalCommonJsRequireReset =
+          originalCommonJsRequireReset && profile.mode === 'production'
+        if (metadata.dynamicModuleMocking !== undefined) {
+          if (
+            metadata.dynamicModuleMocking?.version !== 1 ||
+            metadata.moduleCache?.version !== 1 ||
+            (metadata.dynamicModuleMocking.staticMocks !== undefined &&
+              !staticRuntimeMocks) ||
+            (metadata.dynamicModuleMocking.nativeOriginalInitial !==
+              undefined &&
+              !originalInitialMocks) ||
+            (staticRuntimeMocks && originalInitialMocks) ||
+            (nativeRuntimeMocks
+              ? metadata.moduleMocking?.version !== 1 ||
+                Object.keys(metadata.moduleMocking).length !== 1
+              : metadata.moduleMocking)
+          )
+            throw new Error(
+              'Invalid native runtime module mock ownership metadata'
+            )
+          dynamicModuleMocking = {
+            version: 1,
+            ...(staticRuntimeMocks ? { staticMocks: 1 as const } : {}),
+            ...(originalInitialMocks
+              ? { nativeOriginalInitial: 1 as const }
+              : {}),
+            ...(productionCompiledRuntimeMocks
+              ? { productionCompiled: 1 as const }
+              : {}),
+          }
+        }
+        if (metadata.moduleCache !== undefined) {
+          const productionReset =
+            profile.mode === 'production' &&
+            ((!metadata.moduleMocking && !metadata.dynamicModuleMocking) ||
+              nativeRuntimeMocks ||
+              productionOriginalCommonJsRequireReset ||
+              productionCompiledRuntimeMocks)
+          if (
+            metadata.moduleCache?.version !== 1 ||
+            (profile.mode !== 'development' && !productionReset) ||
+            cohortInputs ||
+            (metadata.moduleMocking &&
+              !nativeRuntimeMocks &&
+              !originalCommonJsRequireReset) ||
+            setupFiles.length ||
+            snapshotSerializers.length ||
+            usesInSource ||
+            entry.executionEnvironment
+          )
+            throw new Error(
+              'Module cache resets require isolated development Node without setup, serializers, coverage or custom realms'
+            )
+          moduleCache = { version: 1 }
+          if (nativeRuntimeMocks) moduleMocking = { version: 1 }
+          else if (originalCommonJsRequireReset)
+            moduleMocking = { version: 1, originalCommonJsRequireReset: 1 }
+        } else {
+          const productionStaticFactory =
+            profile.mode === 'production' &&
+            metadata.moduleMocking?.productionStaticFactory === 1 &&
+            metadata.moduleMocking?.coverage === undefined &&
+            metadata.moduleMocking?.cjsNamedSpy === undefined &&
+            !setupFiles.length &&
+            !snapshotSerializers.length &&
+            !cohortInputs &&
+            !usesInSource &&
+            !entry.executionEnvironment &&
+            true
+          if (
+            (!['node', 'rsc'].includes('node') && !productionStaticFactory) ||
+            (profile.mode !== 'development' && !productionStaticFactory) ||
+            (profile.mode !== 'production' &&
+              metadata.moduleMocking?.productionStaticFactory !== undefined) ||
+            metadata.moduleMocking?.version !== 1
+          )
+            throw new Error('Invalid compiled module mocking metadata')
+          if (
+            metadata.moduleMocking.setupInputs !== undefined &&
+            (metadata.moduleMocking.setupInputs !== 1 ||
+              profile.mode !== 'development' ||
+              !setupFiles.length ||
+              cohortInputs ||
+              metadata.moduleMocking.cjsNamedSpy !== undefined)
+          )
+            throw new Error('Invalid compiled setup module mock inputs')
+          if (
+            metadata.moduleMocking.cjsNamedSpy !== undefined &&
+            (metadata.moduleMocking.cjsNamedSpy !== 1 ||
+              profile.mode !== 'development' ||
+              cohortInputs ||
+              setupFiles.length ||
+              snapshotSerializers.length ||
+              usesInSource ||
+              entry.executionEnvironment)
+          )
+            throw new Error(
+              'CommonJS named-import spies require isolated development Node without setup, serializers, coverage or custom realms'
+            )
+          let productionSourceMetadata:
+            | {
+                path: string
+                sha256: string
+              }
+            | undefined
+          if (productionStaticFactory) {
+            const path = `server/next-test/${nativeId}.source.json`
+            if (!files.includes(path))
+              throw new Error(
+                'Production static mocks require native source identity'
+              )
+            const bytes = await readFile(artifactPath(staging, path))
+            const nativeSource = JSON.parse(bytes.toString('utf8'))
+            if (
+              nativeSource.version !== 1 ||
+              nativeSource.sha256 !== sourceHash
+            )
+              throw new Error(
+                'Production mock source differs from native compilation'
+              )
+            productionSourceMetadata = {
+              path,
+              sha256: createHash('sha256').update(bytes).digest('hex'),
+            }
+          }
+          moduleMocking = {
+            version: 1,
+            ...(metadata.moduleMocking.setupInputs === 1
+              ? { setupInputs: 1 as const }
+              : {}),
+            ...(metadata.moduleMocking.cjsNamedSpy === 1
+              ? { cjsNamedSpy: 1 as const }
+              : {}),
+            ...(productionStaticFactory
+              ? {
+                  productionStaticFactory: {
+                    version: 1 as const,
+                    metadata: {
+                      path: mockMetadataPath,
+                      sha256: createHash('sha256')
+                        .update(nativeMockBytes)
+                        .digest('hex'),
+                    },
+                    sourceMetadata: productionSourceMetadata!,
+                    outputs: [],
+                  },
+                }
+              : {}),
+          }
+        }
+      }
       // As in the dev server output directory, emitted Node chunks are CJS even
       // when the application's package.json declares type: module.
       if (!files.includes('package.json')) {
@@ -526,6 +763,13 @@ export async function createTestCompilerSession(
         files.push('package.json')
         files.sort()
       }
+      if (
+        configuredCompilerTransforms &&
+        (moduleMocking || moduleCache || dynamicModuleMocking)
+      )
+        throw new Error(
+          'Transform-only compiler plugins cannot yet combine with module mock or cache compiler helpers.'
+        )
       signal.throwIfAborted()
       const publishedSourceHash = createHash('sha256')
         .update(await readFile(entry.file))
@@ -544,6 +788,16 @@ export async function createTestCompilerSession(
             )
           }
         }
+      }
+      if (moduleMocking?.productionStaticFactory) {
+        moduleMocking.productionStaticFactory.outputs = await Promise.all(
+          files.map(async (path) => ({
+            path,
+            sha256: createHash('sha256')
+              .update(await readFile(artifactPath(staging, path)))
+              .digest('hex'),
+          }))
+        )
       }
       const cohortOutputs = cohortInputs
         ? await Promise.all(
@@ -581,6 +835,9 @@ export async function createTestCompilerSession(
         entryId: entry.id,
         setupFiles: [...setupFiles],
         snapshotSerializers: [...snapshotSerializers],
+        ...(moduleMocking ? { moduleMocking } : {}),
+        ...(moduleCache ? { moduleCache } : {}),
+        ...(dynamicModuleMocking ? { dynamicModuleMocking } : {}),
         revision,
         sourceHash,
         rootDir,

@@ -1,0 +1,1 @@
+globalThis.__nativeHelpers300_cjs=(globalThis.__nativeHelpers300_cjs??0)+1;module.exports={value:20,phase:'actual'};
