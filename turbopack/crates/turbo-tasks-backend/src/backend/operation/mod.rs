@@ -624,7 +624,8 @@ impl<'e> ExecuteContext<'e> {
                 }
                 _ => {
                     // Each result is stored in its entry as soon as it is decoded, possibly
-                    // concurrently. Every index is reported at most once.
+                    // concurrently. `batch_get` reports every index exactly once, so a
+                    // duplicate or missing report is a bug and panics.
                     let batch_result = {
                         let tasks = &tasks;
                         self.restore_task_data_batch(task_ids, category, |i, storage| {
@@ -633,7 +634,10 @@ impl<'e> ExecuteContext<'e> {
                                 .set(Ok(storage))
                                 .is_err()
                             {
-                                anyhow::bail!("task {} was restored twice", task_ids[i]);
+                                panic!(
+                                    "Batch {category:?} restore reported task {} twice",
+                                    task_ids[i]
+                                );
                             }
                             Ok(())
                         })
@@ -641,13 +645,11 @@ impl<'e> ExecuteContext<'e> {
                     match batch_result {
                         Ok(()) => {
                             for (&task_id, &idx) in task_ids.iter().zip(indices) {
-                                let result = tasks[idx].restore_result_mut(category);
-                                if result.get().is_none() {
-                                    // Unreachable: `batch_get` reports every index.
-                                    *result = OnceLock::from(Err(anyhow::anyhow!(
-                                        "Batch {category:?} restore returned no result for \
+                                if tasks[idx].restore_result(category).get().is_none() {
+                                    panic!(
+                                        "Batch {category:?} restore returned no result for task \
                                          {task_id}"
-                                    )));
+                                    );
                                 }
                             }
                         }
