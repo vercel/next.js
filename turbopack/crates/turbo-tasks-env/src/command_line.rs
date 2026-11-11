@@ -25,6 +25,6 @@ fn env_snapshot() -> FxIndexMap<RcStr, RcStr> {
 impl ProcessEnv for CommandLineProcessEnv {
     #[turbo_tasks::function(session_dependent)]
     fn read_all(&self) -> Vc<TransientEnvMap> {
-        Vc::cell(env_snapshot())
+        Vc::cell(env_snapshot().into())
     }
 }
