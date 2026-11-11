@@ -9,6 +9,7 @@ import {
   assertOwnedNodeCompleted,
 } from '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
 import { projectCleanupReport } from '../../e2e/app-dir/next-testing-package/browser-public-default-cleanup/project.mjs'
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
 const [consumerArg, outputArg, playwrightArg] = process.argv.slice(2)
 assert(
   consumerArg && outputArg,
@@ -103,9 +104,11 @@ for (const [kind, name] of Object.entries(fixtureFiles))
     assert.equal(hash(source), expected.inputs[name])
     fs.writeFileSync(path.join(fixture, 'fixtures.test.mjs'), source)
     fs.copyFileSync(
-      path.join(
-        directory,
-        '../../e2e/app-dir/next-testing-package/browser-public-default-cleanup/reporter.mjs'
+      resolveFixturePath(
+        path.join(
+          directory,
+          '../../e2e/app-dir/next-testing-package/browser-public-default-cleanup/reporter.mjs'
+        )
       ),
       path.join(fixture, 'reporter.mjs')
     )

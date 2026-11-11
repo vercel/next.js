@@ -1,10 +1,10 @@
-/* eslint-disable no-empty-pattern -- Fixture callbacks require explicit destructuring. */
 import {
   initializeModuleCache,
   resetModules,
 } from 'next/dist/experimental/testing/mocking/module-cache'
 import { createModuleImportTracker } from 'next/dist/experimental/testing/runner/imports'
 import { createAsyncScope } from 'next/dist/experimental/testing/runner/async-context'
+/* eslint-disable no-empty-pattern -- Fixture callbacks require explicit destructuring. */
 import {
   createCollector,
   collectTestCases,
@@ -7395,6 +7395,163 @@ describe('raw test declaration fn', () => {
   })
 })
 
+function declarationProfiles(
+  groups: Array<[group: string, cases: number, rows?: number]>
+) {
+  return ['development', 'production'].flatMap((mode) =>
+    groups.map(([group, cases, rows = 1]) => ({ mode, group, cases, rows }))
+  )
+}
+
+it('matches complete compiled raw fn declaration rows in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs')],
+    { encoding: 'utf8', timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['contract', 14, 2],
+      ['focus', 3],
+      ['retention', 9, 2],
+      ['suite-collector', 3, 2],
+      ['suite-queue', 10],
+      ['task-scope', 8],
+      ['task-publish', 3],
+      ['task-context', 2],
+      ['task-context-positive', 2],
+      ['task-context-signals', 4],
+      ['task-context-handled', 2],
+      ['task-context-late-active', 1],
+      ['task-context-late-closed', 1],
+      ['task-context-late-foreign', 2],
+      ['task-context-late-hard-chain', 1],
+      ['task-context-late', 2],
+      ['task-context-precreated-chain', 1],
+      ['task-context-precreated-receivers', 1],
+      ['task-context-precreated-foreign', 2],
+      ['task-context-late-deep', 1],
+      ['task-context-late-equality-testers', 1],
+      ['task-context-deep-foreign-receivers', 2],
+    ])
+  )
+}, 130000)
+
+it('matches custom matcher Task ownership and native assertion identity in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs'), 'custom-owner'],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-late-builtin-overrides', 1],
+      ['task-context-custom-task-state', 3],
+      ['task-context-custom-unawaited', 1],
+      ['task-context-custom-prepared', 1],
+      ['task-context-readonly-own-native-get', 1],
+      ['task-context-readonly-own-method', 1],
+      ['task-context-custom-assertion-view', 2],
+    ])
+  )
+}, 70000)
+it('matches native own assertion functions and getter alias ownership in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs'), 'own-property'],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-owned-properties', 1],
+      ['task-context-owned-getter-view', 1],
+      ['task-context-owned-function-receivers', 1],
+      ['task-context-owned-getter-capture', 1],
+      ['task-context-owned-getter-returned-chain', 1],
+    ])
+  )
+}, 70000)
+
+it('matches native returned assertions and receiver Task lineage in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs'), 'native-return'],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-owned-getter-builtin-chain', 1],
+      ['task-context-owned-getter-native-calls', 2],
+      ['task-context-owned-getter-native-properties', 1],
+    ])
+  )
+}, 70000)
+
+it('matches actual transferred Task flags, partial setters and matcher invocation reads in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs'), 'transfer-hard'],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-transfer-effects', 2],
+      ['task-context-transfer-plain', 1],
+      ['task-context-transfer-setters', 2],
+      ['task-context-transfer-invocations', 1],
+    ])
+  )
+}, 70000)
+
+it('publishes child Task IDs on the same objects after collection and keeps cleared tasks unpublished in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs'), 'id-publication'],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-id-publication', 2],
+      ['task-context-id-suite', 2],
+    ])
+  )
+}, 70000)
+
+it('retains actual Task assertion flags through foreign and afterAll transfers and native async bookkeeping in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs'), 'actual-task-flags'],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-late-source-flags', 2],
+      ['task-context-actual-task-async', 3],
+    ])
+  )
+}, 70000)
+
+it('retains the pinned public fn receiver and fixture type contract', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-types.cjs')],
+    { encoding: 'utf8', timeout: 30000 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(actual.rootConfigAndGlobalAugmentations).toBe(true)
+  expect(actual.results[0]).toEqual({ kind: 'positive', diagnostics: [] })
+  expect(actual.results[1].diagnostics.map(({ code }) => code)).toEqual([
+    2345, 2559, 2339, 2339, 2322,
+  ])
+}, 35000)
+
 describe('raw suite declaration collectors', () => {
   const flags = () => ({
     concurrent: false,
@@ -7510,6 +7667,20 @@ describe('raw suite declaration collectors', () => {
     expect(invoked).toBe(1)
   })
 })
+
+it('retains the pinned public suite collector receiver, method and context types', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-suite-types.cjs')],
+    { encoding: 'utf8', timeout: 30000 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(actual.rootConfigAndGlobalAugmentations).toBe(true)
+  expect(actual.results[0]).toEqual({ kind: 'positive', diagnostics: [] })
+  expect(actual.results[1].diagnostics.map(({ code }) => code)).toEqual([
+    2345, 2345, 2322, 2339, 2345, 2339, 2339, 2345,
+  ])
+}, 35000)
 
 describe('retained body deadlines within one actual test', () => {
   it.each(['retry', 'afterAll'] as const)(
@@ -7797,6 +7968,91 @@ describe('retained body deadlines within one actual test', () => {
     }
   )
 })
+
+it('retains genuine hard builtins through foreign, bound and borrowed Task receivers in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs'), 'hard-builtins'],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-late-hard-builtins', 2],
+      ['task-context-hard-builtin-receivers', 2],
+    ])
+  )
+}, 70000)
+
+it('retains genuine synchronous throw matcher callbacks, counters and borrowed receivers in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs'), 'throw-builtins'],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-late-throw-builtins', 2],
+      ['task-context-throw-builtin-receivers', 2],
+      ['task-context-throw-callbacks', 2],
+    ])
+  )
+}, 70000)
+
+it('preserves fluent Chai hard callbacks, counters and borrowed receivers in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'declaration-fn-integration.cjs'), 'chai-fluent'],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-chai-hard-fluent', 2],
+      ['task-context-chai-fluent-receivers', 2],
+      ['task-context-chai-fluent-callbacks', 2],
+    ])
+  )
+}, 70000)
+
+it('retains genuine native Chai chainable functions, raw aliases and Task receivers in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [
+      join(__dirname, 'declaration-fn-integration.cjs'),
+      'chai-chainable-functions',
+    ],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-chai-chainable-functions', 2],
+      ['task-context-chai-chainable-function-receivers', 2],
+      ['task-context-chai-chainable-raw-alias', 2],
+    ])
+  )
+}, 70000)
+
+it('retains genuine nested native Chai callable receivers and raw aliases in both Node modes', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [
+      join(__dirname, 'declaration-fn-integration.cjs'),
+      'chai-nested-functions',
+    ],
+    { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  const actual = JSON.parse(stdout)
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-chai-nested-chainables', 2],
+      ['task-context-chai-nested-function-receivers', 2],
+      ['task-context-chai-nested-raw-alias', 2],
+    ])
+  )
+}, 70000)
 
 it('captures only actual fulfilled module results for internal scheduling', async () => {
   const { stdout, stderr } = await promisify(execFile)(
@@ -8474,6 +8730,62 @@ it.each([
   25000
 )
 
+it.each(
+  [
+    'lowered-arguments',
+    'lowered-array',
+    'lowered-null',
+    'builder-lowered',
+    'test-lowered',
+    'table-lowered',
+  ].flatMap((family) => [
+    ['development', 'js', family],
+    ['production', 'mjs', family],
+  ])
+)(
+  'matches genuine lowered fixture grammar in %s %s %s',
+  async (mode, extension, family) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+        join(tmpdir(), 'next-lowered-fixture-public-')
+      ),
+      output = join(directory, 'observed')
+    let completed = false
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'fixture-lowered-public.mjs'),
+          'source',
+          process.cwd(),
+          output,
+          mode,
+          extension,
+          family,
+        ],
+        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        exactGenuineAuthorRows: true,
+        exactCaseStatesAndStandardCounts: true,
+        originalBoundsHeld: true,
+        allOwnersJoined: true,
+      })
+      completed = true
+    } finally {
+      if (completed) await rm(directory, { recursive: true, force: true })
+      else
+        console.error(
+          'Retained failed lowered fixture observations at ' + directory
+        )
+    }
+  },
+  130000
+)
+
 it.each([
   'utility-stubs',
   'utility-config-counter',
@@ -8505,6 +8817,64 @@ it.each([
     })
   },
   25000
+)
+
+it.each(
+  [
+    'utility-stubs',
+    'utility-config-counter',
+    'utility-config-clock',
+    'utility-require-registration',
+    'utility-require-capture-rows',
+    'utility-require-physical-flow',
+  ].flatMap((family) => [
+    ['development', 'js', family],
+    ['production', 'mjs', family],
+  ])
+)(
+  'matches genuine shared utility and requireAssertions lifecycle in %s %s %s',
+  async (mode, extension, family) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+        join(tmpdir(), 'next-concurrent-utilities-public-')
+      ),
+      output = join(directory, 'observed')
+    let completed = false
+    try {
+      await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'concurrent-utilities-public.mjs'),
+          'source',
+          process.cwd(),
+          output,
+          mode,
+          extension,
+          family,
+        ],
+        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+      ).toMatchObject({
+        exactGenuineAuthorRows: true,
+        exactCaseStatesAndStandardCounts: true,
+        exactGenuineFailureProjection: true,
+        exactUndefinedErrorPayloads: true,
+        originalBoundsHeld: true,
+        allOwnersJoined: true,
+      })
+      completed = true
+    } finally {
+      if (completed) await rm(directory, { recursive: true, force: true })
+      else
+        console.error(
+          'Retained failed concurrent utility observations at ' + directory
+        )
+    }
+  },
+  130000
 )
 
 describe('normal SuiteAPI collector ownership', () => {
@@ -8647,6 +9017,49 @@ describe('normal SuiteAPI collector ownership', () => {
   })
 })
 
+it('retains the exact public normal SuiteAPI generic and predicate-chain contracts', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'normal-suite-types.cjs')],
+    { encoding: 'utf8', timeout: 30000 }
+  )
+  expect(JSON.parse(stdout)).toMatchObject({
+    rootConfigAndGlobalAugmentations: true,
+    noExternalVitestViteFormatterDeclarations: true,
+    programs: 28,
+    accepted: 17,
+    rejected: 11,
+  })
+}, 35000)
+
+it('retains normal SuiteAPI collectors through real Chromium execution', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises')
+  const { tmpdir } = await import('node:os')
+  const temporary = await mkdtemp(join(tmpdir(), 'next-normal-suite-browser-'))
+  let completed = false
+  try {
+    const { stdout } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'normal-suite-browser.mjs'),
+        join(__dirname, '../../..'),
+        join(temporary, 'profiles'),
+        'source149',
+      ],
+      { encoding: 'utf8', timeout: 280000 }
+    )
+    expect(JSON.parse(stdout)).toEqual({
+      allPassed: true,
+      profiles: 2,
+      cases: 12,
+    })
+    completed = true
+  } finally {
+    if (completed) await rm(temporary, { recursive: true, force: true })
+    else console.error('Retained SuiteAPI Browser evidence: ' + temporary)
+  }
+}, 290000)
+
 describe('normal SuiteAPI failed-load ownership', () => {
   it('leaves every unstarted normal factory unstarted when collection is stopped', async () => {
     const c = createCollector('normal-suite-load-stop', {
@@ -8733,6 +9146,79 @@ describe('normal SuiteAPI failed-load ownership', () => {
     20000
   )
 })
+
+it.each(['development', 'production'])(
+  'preserves normal collection, load failures and already-owned async work in %s',
+  async (mode) => {
+    const { mkdtemp, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-normal-suite-load-report-')
+    )
+    let completed = false
+    try {
+      for (const group of [
+        'positive',
+        'exact-multiple',
+        'load-failure',
+        'load-owned',
+      ]) {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'normal-suite-api.mjs'),
+            join(__dirname, '../../..'),
+            join(directory, group),
+            mode,
+            group,
+          ],
+          { encoding: 'utf8', timeout: 125000 }
+        )
+      }
+      completed = true
+    } finally {
+      if (completed) await rm(directory, { recursive: true, force: true })
+      else
+        console.error(
+          'Retained normal suite load-failure report observations: ' + directory
+        )
+    }
+  },
+  260000
+)
+
+it('retains complete Browser load-failure reports without starting unowned factories', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises')
+  const { tmpdir } = await import('node:os')
+  const directory = await mkdtemp(
+    join(tmpdir(), 'next-normal-suite-browser-load-')
+  )
+  let completed = false
+  try {
+    for (const group of ['load-failure', 'load-owned']) {
+      const { stdout } = await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'normal-suite-browser.mjs'),
+          join(__dirname, '../../..'),
+          join(directory, group),
+          'source149',
+          group,
+        ],
+        { encoding: 'utf8', timeout: 280000 }
+      )
+      expect(JSON.parse(stdout)).toEqual({
+        allPassed: true,
+        profiles: 2,
+        cases: 0,
+      })
+    }
+    completed = true
+  } finally {
+    if (completed) await rm(directory, { recursive: true, force: true })
+    else console.error('Retained Browser suite load observations: ' + directory)
+  }
+}, 570000)
 
 it.each([
   'load-error',
