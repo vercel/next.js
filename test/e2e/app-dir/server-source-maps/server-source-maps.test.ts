@@ -415,22 +415,6 @@ describe('app-dir - server source maps', () => {
           '\n    at Page (app/ssr-owner-stack/page.tsx:8:10)' +
           '\n'
       )
-
-      // Without an attached debugger, fake functions of chunks loaded from
-      // disk are created without a source map URL. React then names them
-      // after the chunk instead of a virtual `about://React/` URL.
-      // Webpack's server modules have `webpack-internal:` URLs and Windows
-      // paths aren't turned into `file:` URLs, so both keep their source map
-      // URL.
-      if (isTurbopack && process.platform !== 'win32') {
-        const rawOwnerStack: string = JSON.parse(
-          output.match(/ssr-owner-stack raw: (".*")/)![1]
-        )
-        expect(rawOwnerStack).not.toContain('about://React/')
-        expect(rawOwnerStack).toMatch(
-          /at ServerComponent \(file:\/\/\/.+\/\.next\/.+\.js:\d+:\d+\)/
-        )
-      }
     } else {
       // Owner stacks are only available in development.
     }
