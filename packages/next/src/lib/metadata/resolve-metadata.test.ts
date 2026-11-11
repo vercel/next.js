@@ -605,7 +605,7 @@ describe('accumulateMetadata', () => {
         ],
       ])
 
-      expect(metadata.alternates.canonical).toEqual({
+      expect(metadata.alternates?.canonical).toEqual({
         url: 'https://example.com/article',
         title: 'Article',
       })
