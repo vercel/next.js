@@ -1,0 +1,88 @@
+{
+  "rows": [
+    {
+      "name": "v8-development-visible",
+      "provider": "v8",
+      "mode": "development",
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"development\",\"mode\":\"development\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":false,\"skipFull\":false,\"maxCols\":80}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "text": "-------------------|---------|----------|---------|---------|-------------------\nFile               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n-------------------|---------|----------|---------|---------|-------------------\nAll files          |      75 |       50 |     100 |   66.66 |                   \n subjects          |     100 |      100 |     100 |     100 |                   \n  empty.js         |       0 |        0 |       0 |       0 |                   \n  full.js          |     100 |      100 |     100 |     100 |                   \n ...exercise-width |   66.66 |       50 |     100 |      50 |                   \n  partial.js       |   66.66 |       50 |     100 |      50 | 3                 \n-------------------|---------|----------|---------|---------|-------------------\n"
+    },
+    {
+      "name": "v8-development-compact",
+      "provider": "v8",
+      "mode": "development",
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"development\",\"mode\":\"development\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":true,\"skipFull\":false,\"maxCols\":65}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "text": "----|---------|----------|---------|---------|-------------------\n... | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----|---------|----------|---------|---------|-------------------\n... |      75 |       50 |     100 |   66.66 |                   \n ... |     100 |      100 |     100 |     100 |                   \n  ... |     100 |      100 |     100 |     100 |                   \n ... |   66.66 |       50 |     100 |      50 |                   \n  ... |   66.66 |       50 |     100 |      50 | 3                 \n----|---------|----------|---------|---------|-------------------\n"
+    },
+    {
+      "name": "v8-development-unlimited",
+      "provider": "v8",
+      "mode": "development",
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"development\",\"mode\":\"development\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":true,\"skipFull\":true,\"maxCols\":0}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "text": "---------------------------------------------------------|---------|----------|---------|---------|-------------------\nFile                                                     | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n---------------------------------------------------------|---------|----------|---------|---------|-------------------\nAll files                                                |      75 |       50 |     100 |   66.66 |                   \n subjects/a-directory-name-long-enough-to-exercise-width |   66.66 |       50 |     100 |      50 |                   \n  partial.js                                             |   66.66 |       50 |     100 |      50 | 3                 \n---------------------------------------------------------|---------|----------|---------|---------|-------------------\n"
+    },
+    {
+      "name": "v8-production-visible",
+      "provider": "v8",
+      "mode": "production",
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":false,\"skipFull\":false,\"maxCols\":80}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "text": "-------------------|---------|----------|---------|---------|-------------------\nFile               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n-------------------|---------|----------|---------|---------|-------------------\nAll files          |      75 |       50 |     100 |   66.66 |                   \n subjects          |     100 |      100 |     100 |     100 |                   \n  empty.js         |       0 |        0 |       0 |       0 |                   \n  full.js          |     100 |      100 |     100 |     100 |                   \n ...exercise-width |   66.66 |       50 |     100 |      50 |                   \n  partial.js       |   66.66 |       50 |     100 |      50 | 3                 \n-------------------|---------|----------|---------|---------|-------------------\n"
+    },
+    {
+      "name": "v8-production-compact",
+      "provider": "v8",
+      "mode": "production",
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":true,\"skipFull\":false,\"maxCols\":65}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "text": "----|---------|----------|---------|---------|-------------------\n... | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----|---------|----------|---------|---------|-------------------\n... |      75 |       50 |     100 |   66.66 |                   \n ... |     100 |      100 |     100 |     100 |                   \n  ... |     100 |      100 |     100 |     100 |                   \n ... |   66.66 |       50 |     100 |      50 |                   \n  ... |   66.66 |       50 |     100 |      50 | 3                 \n----|---------|----------|---------|---------|-------------------\n"
+    },
+    {
+      "name": "v8-production-unlimited",
+      "provider": "v8",
+      "mode": "production",
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":true,\"skipFull\":true,\"maxCols\":0}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "text": "---------------------------------------------------------|---------|----------|---------|---------|-------------------\nFile                                                     | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n---------------------------------------------------------|---------|----------|---------|---------|-------------------\nAll files                                                |      75 |       50 |     100 |   66.66 |                   \n subjects/a-directory-name-long-enough-to-exercise-width |   66.66 |       50 |     100 |      50 |                   \n  partial.js                                             |   66.66 |       50 |     100 |      50 | 3                 \n---------------------------------------------------------|---------|----------|---------|---------|-------------------\n"
+    },
+    {
+      "name": "istanbul-development-visible",
+      "provider": "istanbul",
+      "mode": "development",
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"development\",\"mode\":\"development\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":false,\"skipFull\":false,\"maxCols\":80}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "text": "-------------------|---------|----------|---------|---------|-------------------\nFile               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n-------------------|---------|----------|---------|---------|-------------------\nAll files          |      75 |       50 |     100 |   66.66 |                   \n subjects          |     100 |      100 |     100 |     100 |                   \n  full.js          |     100 |      100 |     100 |     100 |                   \n ...exercise-width |   66.66 |       50 |     100 |      50 |                   \n  partial.js       |   66.66 |       50 |     100 |      50 | 3                 \n-------------------|---------|----------|---------|---------|-------------------\n"
+    },
+    {
+      "name": "istanbul-development-compact",
+      "provider": "istanbul",
+      "mode": "development",
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"development\",\"mode\":\"development\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":true,\"skipFull\":false,\"maxCols\":65}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "text": "----|---------|----------|---------|---------|-------------------\n... | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----|---------|----------|---------|---------|-------------------\n... |      75 |       50 |     100 |   66.66 |                   \n ... |     100 |      100 |     100 |     100 |                   \n  ... |     100 |      100 |     100 |     100 |                   \n ... |   66.66 |       50 |     100 |      50 |                   \n  ... |   66.66 |       50 |     100 |      50 | 3                 \n----|---------|----------|---------|---------|-------------------\n"
+    },
+    {
+      "name": "istanbul-development-unlimited",
+      "provider": "istanbul",
+      "mode": "development",
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"development\",\"mode\":\"development\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":true,\"skipFull\":true,\"maxCols\":0}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "text": "---------------------------------------------------------|---------|----------|---------|---------|-------------------\nFile                                                     | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n---------------------------------------------------------|---------|----------|---------|---------|-------------------\nAll files                                                |      75 |       50 |     100 |   66.66 |                   \n subjects/a-directory-name-long-enough-to-exercise-width |   66.66 |       50 |     100 |      50 |                   \n  partial.js                                             |   66.66 |       50 |     100 |      50 | 3                 \n---------------------------------------------------------|---------|----------|---------|---------|-------------------\n"
+    },
+    {
+      "name": "istanbul-production-visible",
+      "provider": "istanbul",
+      "mode": "production",
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":false,\"skipFull\":false,\"maxCols\":80}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "text": "-------------------|---------|----------|---------|---------|-------------------\nFile               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n-------------------|---------|----------|---------|---------|-------------------\nAll files          |      75 |       50 |     100 |   66.66 |                   \n subjects          |     100 |      100 |     100 |     100 |                   \n  full.js          |     100 |      100 |     100 |     100 |                   \n ...exercise-width |   66.66 |       50 |     100 |      50 |                   \n  partial.js       |   66.66 |       50 |     100 |      50 | 3                 \n-------------------|---------|----------|---------|---------|-------------------\n"
+    },
+    {
+      "name": "istanbul-production-compact",
+      "provider": "istanbul",
+      "mode": "production",
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":true,\"skipFull\":false,\"maxCols\":65}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "text": "----|---------|----------|---------|---------|-------------------\n... | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----|---------|----------|---------|---------|-------------------\n... |      75 |       50 |     100 |   66.66 |                   \n ... |     100 |      100 |     100 |     100 |                   \n  ... |     100 |      100 |     100 |     100 |                   \n ... |   66.66 |       50 |     100 |      50 |                   \n  ... |   66.66 |       50 |     100 |      50 | 3                 \n----|---------|----------|---------|---------|-------------------\n"
+    },
+    {
+      "name": "istanbul-production-unlimited",
+      "provider": "istanbul",
+      "mode": "production",
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subjects/**/*.js\"],\"reporter\":[[\"text\",{\"skipEmpty\":true,\"skipFull\":true,\"maxCols\":0}],\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "text": "---------------------------------------------------------|---------|----------|---------|---------|-------------------\nFile                                                     | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n---------------------------------------------------------|---------|----------|---------|---------|-------------------\nAll files                                                |      75 |       50 |     100 |   66.66 |                   \n subjects/a-directory-name-long-enough-to-exercise-width |   66.66 |       50 |     100 |      50 |                   \n  partial.js                                             |   66.66 |       50 |     100 |      50 | 3                 \n---------------------------------------------------------|---------|----------|---------|---------|-------------------\n"
+    }
+  ]
+}

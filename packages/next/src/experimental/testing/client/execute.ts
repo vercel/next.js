@@ -33,6 +33,7 @@ import { serializeDiagnostic } from '../reporting/diagnostics'
 import type { ResultEvent } from '../reporting/events'
 import { createClientServer } from './server'
 import { createClientResultCollector } from './results'
+import { createClientCoverage } from './coverage'
 import { createClientEngineBrand } from './engine-brand'
 import { clientConsoleBoundary } from './protocol'
 import { runClientBrowserAction } from './action-error'
@@ -60,7 +61,14 @@ export async function executeClient(
   )
     throw new Error('Browser headless mode must be a boolean.')
   const engine = options.browserEngine ?? 'chromium'
-  if (options.userCancelSignal && resolveSnapshotUpdateMode(options) === 'all')
+  if (engine === 'firefox' && options.coverage)
+    throw new Error('Firefox Browser Mode V8 coverage is not implemented.')
+  if (engine === 'webkit' && options.coverage)
+    throw new Error('WebKit Browser Mode V8 coverage is not implemented.')
+  if (
+    options.userCancelSignal &&
+    (options.coverage || resolveSnapshotUpdateMode(options) === 'all')
+  )
     throw new Error(
       'Browser scheduling cancellation does not yet support coverage or snapshot replacement.'
     )
@@ -74,6 +82,12 @@ export async function executeClient(
       artifact.profile.mode !== 'production') ||
     options.browser ||
     options.collectOnly ||
+    (options.coverage &&
+      (options.coverage.version !== 1 ||
+        options.coverage.kind !== 'browser-v8' ||
+        !options.onCoverage)) ||
+    options.customCoverage ||
+    (options.setupFiles.length && options.coverage) ||
     options.snapshotSerializers?.length ||
     options.inspect ||
     (options.retry !== undefined &&
@@ -149,6 +163,7 @@ export async function executeClient(
     frameOwner: BrowserFrameOwner | FirefoxFrameOwner | undefined,
     webKitOwner: WebKitPageOwner | undefined,
     server: Awaited<ReturnType<typeof createClientServer>> | undefined,
+    coverage: ReturnType<typeof createClientCoverage> | undefined,
     engineBrand: ReturnType<typeof createClientEngineBrand> | undefined
   let closing = false,
     cleanCompletion = false,
@@ -907,6 +922,21 @@ export async function executeClient(
         : {}),
     })
     await Promise.race([engineBrand.start(), interrupted])
+    if (options.coverage) {
+      coverage = createClientCoverage({
+        artifact,
+        browser,
+        context,
+        page,
+        url: server.url,
+        contextOptions,
+        engineBrandFact: () => engineBrand!.fact(),
+        ...(frameOwner ? { frameOwner, hostURL: server.hostURL } : {}),
+        signal: controller.signal,
+        onFailure: fail,
+      })
+      await Promise.race([coverage.start(), interrupted])
+    }
     await Promise.race([
       (testFrame ?? page).goto(server.url, {
         waitUntil: 'load',
@@ -915,6 +945,7 @@ export async function executeClient(
       interrupted,
     ])
     await Promise.race([server.completion, interrupted])
+    if (coverage) await Promise.race([coverage.take(), interrupted])
     engineBrand.fact()
     cleanCompletion = true
   } catch (error) {
@@ -922,6 +953,7 @@ export async function executeClient(
   } finally {
     closing = true
     const engineClosing = engineBrand?.close()
+    coverage?.close()
     clearTimeout(timer)
     controller.signal.removeEventListener('abort', abort)
     options.signal.removeEventListener('abort', onAbort)
@@ -934,6 +966,7 @@ export async function executeClient(
       () => browser?.close(),
       () => host?.dispose(),
       () => engineBrand?.afterOwnersClosed(),
+      () => coverage?.afterOwnersClosed(),
       () => server?.dispose(),
       // The server has joined all command handlers; no new cleanup can start.
       () => Promise.all([...optionHandleCleanups]),
@@ -990,6 +1023,35 @@ export async function executeClient(
       ? 'cancelled'
       : (facts?.status ?? 'failed')
   if (actualErrors.length) status = 'failed'
+  if (
+    coverage &&
+    cleanCompletion &&
+    !actualErrors.length &&
+    !options.signal.aborted
+  ) {
+    try {
+      const data = await coverage.result()
+      await server!.verify()
+      server!.assertClean()
+      await options.onCoverage!({
+        version: 1,
+        runId: options.runId,
+        entryId: artifact.entryId,
+        revision: artifact.revision,
+        complete: true,
+        data,
+      })
+    } catch (error) {
+      status = 'failed'
+      options.onEvent({
+        ...envelope(),
+        type: 'diagnostic',
+        entryId: artifact.entryId,
+        revision: artifact.revision,
+        diagnostic: serializeDiagnostic(error, { phase: 'cleanup' }),
+      })
+    }
+  }
   if (status === 'passed' && facts?.updates.length) {
     try {
       options.signal.throwIfAborted()

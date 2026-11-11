@@ -1,10 +1,11 @@
 import { readCoverageInput } from '../coverage/source-analysis-plan'
-import { writeFile } from 'fs/promises'
+import { lstat, realpath, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { isDeepStrictEqual } from 'util'
 import type { CompiledTestArtifact } from '../contracts'
 import { coverageHash, readArtifactFile } from '../coverage/artifact'
 import { assertConfigurationImportFiles } from './config-import-facts'
+import { assertBrowserCoverageArtifact } from '../client/coverage-artifact'
 import type {
   ConfigurationImportAuthorization,
   ConfigurationImportProof,
@@ -28,14 +29,20 @@ function assertRuntimeArtifact(
   if (
     artifact.version !== 2 ||
     !(
-      artifact.kind === 'node' &&
-      artifact.profile.environment === 'node' &&
-      !artifact.profile.browserClient
+      (artifact.kind === 'node' &&
+        artifact.profile.environment === 'node' &&
+        !artifact.profile.browserClient) ||
+      (artifact.kind === 'browser' &&
+        artifact.profile.environment === 'browser' &&
+        artifact.profile.browserClient === true)
     ) ||
     artifact.profile.runtime !== 'nodejs' ||
     artifact.profile.bundler !== 'turbopack' ||
     artifact.profile.route !== undefined ||
     !['development', 'production'].includes(artifact.profile.mode) ||
+    (artifact.profile.environment === 'browser' &&
+      artifact.profile.mode === 'production' &&
+      artifact.coverage?.browser?.version !== 2) ||
     artifact.entryId !== entry.id ||
     artifact.sourceHash !== entry.sha256 ||
     !entry.revision ||
@@ -67,6 +74,37 @@ function identity(
   }
 }
 
+/** Parent-authored proof is pinned separately from the native browser closure. */
+async function assertPrivateBrowserProof(
+  artifact: CompiledTestArtifact,
+  requireFile: boolean
+) {
+  if (artifact.kind !== 'browser') return
+  if (artifact.profile.mode === 'production')
+    await assertBrowserCoverageArtifact(artifact)
+  if (
+    artifact.files.includes(path) ||
+    artifact.client.outputs.some((output) => output.path === path)
+  )
+    throw new Error(
+      'Runtime config proof collides with native Browser Mode output.'
+    )
+  if (
+    (await realpath(artifact.rootDir)) !== artifact.rootDir ||
+    !(await lstat(artifact.rootDir)).isDirectory()
+  )
+    throw new Error(
+      'Runtime config proof lacks its canonical Browser Mode root.'
+    )
+  if (requireFile) {
+    const file = join(artifact.rootDir, path)
+    if (!(await lstat(file)).isFile() || (await realpath(file)) !== file)
+      throw new Error(
+        'Runtime config proof requires its private regular Browser Mode file.'
+      )
+  }
+}
+
 /** Distinct runtime role; source-analysis permission never authorizes this file. */
 export async function writeRuntimeConfigurationImportProof(
   artifact: CompiledTestArtifact,
@@ -85,13 +123,18 @@ export async function writeRuntimeConfigurationImportProof(
   await assertConfigurationImportFiles(graph, authorization.configFile, signal)
   if (artifact.files.includes(path))
     throw new Error('Runtime config proof collides with emitted output.')
+  await assertPrivateBrowserProof(artifact, false)
   const bytes = JSON.stringify({
     ...identity(artifact, authorization, entry),
     graph,
   })
   await writeFile(join(artifact.rootDir, path), bytes, { flag: 'wx', signal })
-  artifact.files.push(path)
-  artifact.files.sort()
+  if (artifact.kind === 'browser')
+    await assertPrivateBrowserProof(artifact, true)
+  else {
+    artifact.files.push(path)
+    artifact.files.sort()
+  }
   await assertConfigurationImportFiles(graph, authorization.configFile, signal)
   return { path, sha256: coverageHash(bytes) }
 }
@@ -116,10 +159,12 @@ export async function readRuntimeConfigurationImportProof(
     Object.keys(reference).sort().join(',') !== 'path,sha256' ||
     reference.path !== path ||
     !/^[a-f0-9]{64}$/.test(reference.sha256) ||
-    !artifact.files.includes(path)
+    (artifact.kind !== 'browser' && !artifact.files.includes(path))
   )
     throw new Error('Missing or incompatible runtime config module proof.')
+  await assertPrivateBrowserProof(artifact, true)
   const bytes = await readArtifactFile(artifact.rootDir, path)
+  await assertPrivateBrowserProof(artifact, true)
   if (coverageHash(bytes) !== reference.sha256)
     throw new Error('Runtime config module proof bytes changed.')
   const value = JSON.parse(bytes.toString('utf8'))

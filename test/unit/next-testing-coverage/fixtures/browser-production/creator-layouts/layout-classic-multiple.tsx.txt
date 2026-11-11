@@ -1,0 +1,4 @@
+/** @jsxRuntime classic */
+import React from 'react'
+export class View extends React.Component<{label:string}> { render(){ return <b>{this.props.label}</b> } extra(){ return <i>{this.props.label}</i> } }
+export const Unused = () => <i />

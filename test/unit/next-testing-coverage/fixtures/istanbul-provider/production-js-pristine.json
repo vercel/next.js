@@ -1,0 +1,708 @@
+{
+  "defaults": {
+    "entryExtension": "mjs",
+    "subjectExtension": "mjs",
+    "specFile": "suite.test.mjs",
+    "subjectFile": "subject.mjs",
+    "sourceFiles": {
+      "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production true', () => {\n  trace('body:true')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(true)\n  expect(actual).toBe(1)\n})\ntest('production false', () => {\n  trace('body:false')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(false)\n  expect(actual).toBe(2)\n})\n",
+      "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+    },
+    "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+    "caseNames": ["production zero"],
+    "coverageHits": {
+      "subject.mjs": {
+        "statements": [0, 0, 0, 0],
+        "functions": [0, 0],
+        "branches": [[0, 0]]
+      }
+    },
+    "lifecycle": "before-all\nbefore-each\nbody:zero\nafter-each\nafter-all\n"
+  },
+  "rows": [
+    {
+      "name": "mjs-mjs-production-explicit-both",
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "caseNames": ["production true", "production false"],
+      "coverageHits": {
+        "subject.mjs": {
+          "statements": [2, 1, 1, 0],
+          "functions": [2, 0],
+          "branches": [[1, 1]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:true\nafter-each\nbefore-each\nbody:false\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "mjs-mjs-production-explicit-false",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production false', () => {\n  trace('body:false')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(false)\n  expect(actual).toBe(2)\n})\n",
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "caseNames": ["production false"],
+      "coverageHits": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:false\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "mjs-mjs-production-explicit-imported-zero",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport './subject.mjs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production zero', () => {\n  trace('body:zero')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production"
+    },
+    {
+      "name": "mjs-mjs-production-explicit-true",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production true', () => {\n  trace('body:true')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(true)\n  expect(actual).toBe(1)\n})\n",
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "caseNames": ["production true"],
+      "coverageHits": {
+        "subject.mjs": {
+          "statements": [1, 1, 0, 0],
+          "functions": [1, 0],
+          "branches": [[1, 0]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:true\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "mjs-mjs-production-explicit-unimported-zero",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production zero', () => {\n  trace('body:zero')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production"
+    },
+    {
+      "name": "mjs-mjs-production-imported-both",
+      "mode": "production",
+      "caseNames": ["production true", "production false"],
+      "coverageHits": {
+        "subject.mjs": {
+          "statements": [2, 1, 1, 0],
+          "functions": [2, 0],
+          "branches": [[1, 1]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:true\nafter-each\nbefore-each\nbody:false\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "mjs-mjs-production-imported-false",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production false', () => {\n  trace('body:false')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(false)\n  expect(actual).toBe(2)\n})\n",
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "mode": "production",
+      "caseNames": ["production false"],
+      "coverageHits": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:false\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "mjs-mjs-production-imported-imported-zero",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport './subject.mjs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production zero', () => {\n  trace('body:zero')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "mode": "production"
+    },
+    {
+      "name": "mjs-mjs-production-imported-true",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production true', () => {\n  trace('body:true')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(true)\n  expect(actual).toBe(1)\n})\n",
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "mode": "production",
+      "caseNames": ["production true"],
+      "coverageHits": {
+        "subject.mjs": {
+          "statements": [1, 1, 0, 0],
+          "functions": [1, 0],
+          "branches": [[1, 0]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:true\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "mjs-mjs-production-imported-unimported-zero",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production zero', () => {\n  trace('body:zero')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "mode": "production",
+      "coverageHits": {}
+    },
+    {
+      "name": "mjs-js-production-explicit-both",
+      "subjectExtension": "js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.js'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production true', () => {\n  trace('body:true')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(true)\n  expect(actual).toBe(1)\n})\ntest('production false', () => {\n  trace('body:false')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(false)\n  expect(actual).toBe(2)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.js\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "caseNames": ["production true", "production false"],
+      "coverageHits": {
+        "subject.js": {
+          "statements": [2, 1, 1, 0],
+          "functions": [2, 0],
+          "branches": [[1, 1]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:true\nafter-each\nbefore-each\nbody:false\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "mjs-js-production-explicit-false",
+      "subjectExtension": "js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.js'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production false', () => {\n  trace('body:false')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(false)\n  expect(actual).toBe(2)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.js\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "caseNames": ["production false"],
+      "coverageHits": {
+        "subject.js": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:false\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "mjs-js-production-explicit-imported-zero",
+      "subjectExtension": "js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport './subject.js'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production zero', () => {\n  trace('body:zero')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.js\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "coverageHits": {
+        "subject.js": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      }
+    },
+    {
+      "name": "mjs-js-production-explicit-true",
+      "subjectExtension": "js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.js'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production true', () => {\n  trace('body:true')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(true)\n  expect(actual).toBe(1)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.js\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "caseNames": ["production true"],
+      "coverageHits": {
+        "subject.js": {
+          "statements": [1, 1, 0, 0],
+          "functions": [1, 0],
+          "branches": [[1, 0]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:true\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "mjs-js-production-explicit-unimported-zero",
+      "subjectExtension": "js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production zero', () => {\n  trace('body:zero')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.js\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "coverageHits": {
+        "subject.js": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      }
+    },
+    {
+      "name": "mjs-js-production-imported-both",
+      "subjectExtension": "js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.js'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production true', () => {\n  trace('body:true')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(true)\n  expect(actual).toBe(1)\n})\ntest('production false', () => {\n  trace('body:false')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(false)\n  expect(actual).toBe(2)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "mode": "production",
+      "caseNames": ["production true", "production false"],
+      "coverageHits": {
+        "subject.js": {
+          "statements": [2, 1, 1, 0],
+          "functions": [2, 0],
+          "branches": [[1, 1]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:true\nafter-each\nbefore-each\nbody:false\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "mjs-js-production-imported-false",
+      "subjectExtension": "js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.js'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production false', () => {\n  trace('body:false')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(false)\n  expect(actual).toBe(2)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "mode": "production",
+      "caseNames": ["production false"],
+      "coverageHits": {
+        "subject.js": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:false\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "mjs-js-production-imported-imported-zero",
+      "subjectExtension": "js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport './subject.js'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production zero', () => {\n  trace('body:zero')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "mode": "production",
+      "coverageHits": {
+        "subject.js": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      }
+    },
+    {
+      "name": "mjs-js-production-imported-true",
+      "subjectExtension": "js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.js'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production true', () => {\n  trace('body:true')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(true)\n  expect(actual).toBe(1)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "mode": "production",
+      "caseNames": ["production true"],
+      "coverageHits": {
+        "subject.js": {
+          "statements": [1, 1, 0, 0],
+          "functions": [1, 0],
+          "branches": [[1, 0]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:true\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "mjs-js-production-imported-unimported-zero",
+      "subjectExtension": "js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production zero', () => {\n  trace('body:zero')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "mode": "production",
+      "coverageHits": {}
+    },
+    {
+      "name": "js-mjs-production-explicit-both",
+      "entryExtension": "js",
+      "specFile": "suite.test.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production true', () => {\n  trace('body:true')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(true)\n  expect(actual).toBe(1)\n})\ntest('production false', () => {\n  trace('body:false')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(false)\n  expect(actual).toBe(2)\n})\n",
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "caseNames": ["production true", "production false"],
+      "coverageHits": {
+        "subject.mjs": {
+          "statements": [2, 1, 1, 0],
+          "functions": [2, 0],
+          "branches": [[1, 1]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:true\nafter-each\nbefore-each\nbody:false\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "js-mjs-production-explicit-false",
+      "entryExtension": "js",
+      "specFile": "suite.test.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production false', () => {\n  trace('body:false')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(false)\n  expect(actual).toBe(2)\n})\n",
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "caseNames": ["production false"],
+      "coverageHits": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:false\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "js-mjs-production-explicit-imported-zero",
+      "entryExtension": "js",
+      "specFile": "suite.test.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport './subject.mjs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production zero', () => {\n  trace('body:zero')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production"
+    },
+    {
+      "name": "js-mjs-production-explicit-true",
+      "entryExtension": "js",
+      "specFile": "suite.test.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production true', () => {\n  trace('body:true')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(true)\n  expect(actual).toBe(1)\n})\n",
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "caseNames": ["production true"],
+      "coverageHits": {
+        "subject.mjs": {
+          "statements": [1, 1, 0, 0],
+          "functions": [1, 0],
+          "branches": [[1, 0]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:true\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "js-mjs-production-explicit-unimported-zero",
+      "entryExtension": "js",
+      "specFile": "suite.test.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production zero', () => {\n  trace('body:zero')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production"
+    },
+    {
+      "name": "js-mjs-production-imported-both",
+      "entryExtension": "js",
+      "specFile": "suite.test.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production true', () => {\n  trace('body:true')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(true)\n  expect(actual).toBe(1)\n})\ntest('production false', () => {\n  trace('body:false')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(false)\n  expect(actual).toBe(2)\n})\n",
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "caseNames": ["production true", "production false"],
+      "coverageHits": {
+        "subject.mjs": {
+          "statements": [2, 1, 1, 0],
+          "functions": [2, 0],
+          "branches": [[1, 1]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:true\nafter-each\nbefore-each\nbody:false\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "js-mjs-production-imported-false",
+      "entryExtension": "js",
+      "specFile": "suite.test.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production false', () => {\n  trace('body:false')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(false)\n  expect(actual).toBe(2)\n})\n",
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "caseNames": ["production false"],
+      "coverageHits": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:false\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "js-mjs-production-imported-imported-zero",
+      "entryExtension": "js",
+      "specFile": "suite.test.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport './subject.mjs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production zero', () => {\n  trace('body:zero')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production"
+    },
+    {
+      "name": "js-mjs-production-imported-true",
+      "entryExtension": "js",
+      "specFile": "suite.test.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production true', () => {\n  trace('body:true')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(true)\n  expect(actual).toBe(1)\n})\n",
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "caseNames": ["production true"],
+      "coverageHits": {
+        "subject.mjs": {
+          "statements": [1, 1, 0, 0],
+          "functions": [1, 0],
+          "branches": [[1, 0]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:true\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "js-mjs-production-imported-unimported-zero",
+      "entryExtension": "js",
+      "specFile": "suite.test.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production zero', () => {\n  trace('body:zero')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "coverageHits": {}
+    },
+    {
+      "name": "js-js-production-explicit-both",
+      "entryExtension": "js",
+      "subjectExtension": "js",
+      "specFile": "suite.test.js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.js'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production true', () => {\n  trace('body:true')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(true)\n  expect(actual).toBe(1)\n})\ntest('production false', () => {\n  trace('body:false')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(false)\n  expect(actual).toBe(2)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.js\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "caseNames": ["production true", "production false"],
+      "coverageHits": {
+        "subject.js": {
+          "statements": [2, 1, 1, 0],
+          "functions": [2, 0],
+          "branches": [[1, 1]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:true\nafter-each\nbefore-each\nbody:false\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "js-js-production-explicit-false",
+      "entryExtension": "js",
+      "subjectExtension": "js",
+      "specFile": "suite.test.js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.js'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production false', () => {\n  trace('body:false')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(false)\n  expect(actual).toBe(2)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.js\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "caseNames": ["production false"],
+      "coverageHits": {
+        "subject.js": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:false\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "js-js-production-explicit-imported-zero",
+      "entryExtension": "js",
+      "subjectExtension": "js",
+      "specFile": "suite.test.js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport './subject.js'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production zero', () => {\n  trace('body:zero')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.js\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "coverageHits": {
+        "subject.js": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      }
+    },
+    {
+      "name": "js-js-production-explicit-true",
+      "entryExtension": "js",
+      "subjectExtension": "js",
+      "specFile": "suite.test.js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.js'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production true', () => {\n  trace('body:true')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(true)\n  expect(actual).toBe(1)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.js\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "caseNames": ["production true"],
+      "coverageHits": {
+        "subject.js": {
+          "statements": [1, 1, 0, 0],
+          "functions": [1, 0],
+          "branches": [[1, 0]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:true\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "js-js-production-explicit-unimported-zero",
+      "entryExtension": "js",
+      "subjectExtension": "js",
+      "specFile": "suite.test.js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production zero', () => {\n  trace('body:zero')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.js\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "coverageHits": {
+        "subject.js": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      }
+    },
+    {
+      "name": "js-js-production-imported-both",
+      "entryExtension": "js",
+      "subjectExtension": "js",
+      "specFile": "suite.test.js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.js'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production true', () => {\n  trace('body:true')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(true)\n  expect(actual).toBe(1)\n})\ntest('production false', () => {\n  trace('body:false')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(false)\n  expect(actual).toBe(2)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "caseNames": ["production true", "production false"],
+      "coverageHits": {
+        "subject.js": {
+          "statements": [2, 1, 1, 0],
+          "functions": [2, 0],
+          "branches": [[1, 1]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:true\nafter-each\nbefore-each\nbody:false\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "js-js-production-imported-false",
+      "entryExtension": "js",
+      "subjectExtension": "js",
+      "specFile": "suite.test.js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.js'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production false', () => {\n  trace('body:false')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(false)\n  expect(actual).toBe(2)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "caseNames": ["production false"],
+      "coverageHits": {
+        "subject.js": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:false\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "js-js-production-imported-imported-zero",
+      "entryExtension": "js",
+      "subjectExtension": "js",
+      "specFile": "suite.test.js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport './subject.js'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production zero', () => {\n  trace('body:zero')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "coverageHits": {
+        "subject.js": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      }
+    },
+    {
+      "name": "js-js-production-imported-true",
+      "entryExtension": "js",
+      "subjectExtension": "js",
+      "specFile": "suite.test.js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.js'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production true', () => {\n  trace('body:true')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = choose(true)\n  expect(actual).toBe(1)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "caseNames": ["production true"],
+      "coverageHits": {
+        "subject.js": {
+          "statements": [1, 1, 0, 0],
+          "functions": [1, 0],
+          "branches": [[1, 0]]
+        }
+      },
+      "lifecycle": "before-all\nbefore-each\nbody:true\nafter-each\nafter-all\n"
+    },
+    {
+      "name": "js-js-production-imported-unimported-zero",
+      "entryExtension": "js",
+      "subjectExtension": "js",
+      "specFile": "suite.test.js",
+      "subjectFile": "subject.js",
+      "sourceFiles": {
+        "suite.test.js": "import {test,expect,beforeAll,beforeEach,afterEach,afterAll} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nconst trace = value => appendFileSync('lifecycle.log', value + '\\n')\nbeforeAll(() => trace('before-all'))\nbeforeEach(() => trace('before-each'))\nafterEach(() => trace('after-each'))\nafterAll(() => trace('after-all'))\ntest('production zero', () => {\n  trace('body:zero')\n  expect(process.env.NODE_ENV).toBe('production')\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.js": "export function choose(value) {\n  if (value) return 1\n  return 2\n}\nexport function unused() { return 0 }\n"
+      },
+      "config": "export default {\"test\":{\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.js\"]}}],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "production",
+      "coverageHits": {}
+    }
+  ]
+}

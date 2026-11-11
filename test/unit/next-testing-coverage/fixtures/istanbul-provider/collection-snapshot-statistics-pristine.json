@@ -1,0 +1,666 @@
+{
+  "description": "Snapshot accounting, case outcomes, and exact coverage after collection and execution failures.",
+  "rows": [
+    {
+      "name": "afterAll-failure-disabled",
+      "scenario": "afterAll-failure",
+      "provider": "disabled",
+      "authored": {
+        "files": {
+          "package.json": "{\"type\":\"module\"}\n",
+          "contract.test.mjs": "import {test,expect,beforeEach,afterAll} from 'vitest'\ntest('prior snapshot control',()=>{expect('prior').toMatchSnapshot()})\nafterAll(()=>{throw new Error('actual successful-collection afterAll failure')})\n"
+        },
+        "config": "export default {\"test\":{\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"include\":[\"contract.test.mjs\"],\"coverage\":{\"provider\":\"v8\",\"enabled\":false,\"reporter\":[\"json\"],\"include\":[]}}}\n",
+        "snapshots": {
+          "contract.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`prior snapshot control 1`] = `\"prior\"`;\n"
+        }
+      },
+      "expected": {
+        "exit": 1,
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 1,
+          "total": 1,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "files": [["contract.test.mjs", "failed"]],
+        "cases": [["prior snapshot control", "passed", []]],
+        "fileErrors": ["actual successful-collection afterAll failure"]
+      }
+    },
+    {
+      "name": "beforeEach-failure-disabled",
+      "scenario": "beforeEach-failure",
+      "provider": "disabled",
+      "authored": {
+        "files": {
+          "package.json": "{\"type\":\"module\"}\n",
+          "contract.test.mjs": "import {test,expect,beforeEach,afterAll} from 'vitest'\nbeforeEach(()=>{throw new Error('actual successful-collection beforeEach failure')})\ntest('prior snapshot control',()=>{expect('prior').toMatchSnapshot()})\n"
+        },
+        "config": "export default {\"test\":{\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"include\":[\"contract.test.mjs\"],\"coverage\":{\"provider\":\"v8\",\"enabled\":false,\"reporter\":[\"json\"],\"include\":[]}}}\n",
+        "snapshots": {
+          "contract.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`prior snapshot control 1`] = `\"prior\"`;\n"
+        }
+      },
+      "expected": {
+        "exit": 1,
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "pending": 0,
+        "todo": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 1,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "contract.test.mjs",
+              "keys": ["prior snapshot control 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "files": [["contract.test.mjs", "failed"]],
+        "cases": [
+          [
+            "prior snapshot control",
+            "failed",
+            ["Error: actual successful-collection beforeEach failure"]
+          ]
+        ],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ]
+      }
+    },
+    {
+      "name": "body-failure-disabled",
+      "scenario": "body-failure",
+      "provider": "disabled",
+      "authored": {
+        "files": {
+          "package.json": "{\"type\":\"module\"}\n",
+          "contract.test.mjs": "import {test,expect,beforeEach,afterAll} from 'vitest'\ntest('prior snapshot control',()=>{throw new Error('actual successful-collection body failure');expect('prior').toMatchSnapshot()})\n"
+        },
+        "config": "export default {\"test\":{\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"include\":[\"contract.test.mjs\"],\"coverage\":{\"provider\":\"v8\",\"enabled\":false,\"reporter\":[\"json\"],\"include\":[]}}}\n",
+        "snapshots": {
+          "contract.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`prior snapshot control 1`] = `\"prior\"`;\n"
+        }
+      },
+      "expected": {
+        "exit": 1,
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "pending": 0,
+        "todo": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 1,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "contract.test.mjs",
+              "keys": ["prior snapshot control 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "files": [["contract.test.mjs", "failed"]],
+        "cases": [
+          [
+            "prior snapshot control",
+            "failed",
+            ["Error: actual successful-collection body failure"]
+          ]
+        ],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ]
+      }
+    },
+    {
+      "name": "failed-partial-spec-disabled",
+      "scenario": "failed-partial-spec",
+      "provider": "disabled",
+      "authored": {
+        "files": {
+          "contract.test.mjs": "import {test,expect} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst record=event=>appendFileSync('authored-trace.jsonl',JSON.stringify({event,pid:process.pid})+'\\n')\nrecord('module-enter')\nchoose(false)\ntest('declared before failed spec load',()=>{record('BODY_MUST_NOT_START');expect(choose(true)).toBe(1)})\nrecord('test-declared')\nawait Promise.resolve()\nthrow new Error('actual async partial spec load failed')\n",
+          "failed-dependency.mjs": "throw new Error('actual spec dependency load failed')\n",
+          "subject.mjs": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+          "package.json": "{\"type\":\"module\"}\n"
+        },
+        "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"v8\",\"enabled\":false,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
+        "snapshots": {
+          "contract.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`declared before failed spec load 1`] = `\"prior\"`;\n"
+        }
+      },
+      "expected": {
+        "exit": 1,
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "files": [["contract.test.mjs", "failed"]],
+        "cases": [],
+        "fileErrors": ["actual async partial spec load failed"]
+      }
+    },
+    {
+      "name": "failed-partial-spec-istanbul",
+      "scenario": "failed-partial-spec",
+      "provider": "istanbul",
+      "authored": {
+        "files": {
+          "contract.test.mjs": "import {test,expect} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst record=event=>appendFileSync('authored-trace.jsonl',JSON.stringify({event,pid:process.pid})+'\\n')\nrecord('module-enter')\nchoose(false)\ntest('declared before failed spec load',()=>{record('BODY_MUST_NOT_START');expect(choose(true)).toBe(1)})\nrecord('test-declared')\nawait Promise.resolve()\nthrow new Error('actual async partial spec load failed')\n",
+          "failed-dependency.mjs": "throw new Error('actual spec dependency load failed')\n",
+          "subject.mjs": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+          "package.json": "{\"type\":\"module\"}\n"
+        },
+        "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
+        "snapshots": {
+          "contract.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`declared before failed spec load 1`] = `\"prior\"`;\n"
+        }
+      },
+      "expected": {
+        "exit": 1,
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "files": [["contract.test.mjs", "failed"]],
+        "cases": [],
+        "fileErrors": ["actual async partial spec load failed"],
+        "coverageMap": {
+          "subject.mjs": {
+            "$coverage": "range-tuples-v1",
+            "path": "subject.mjs",
+            "statements": {
+              "0": [2, 2, 2, null],
+              "1": [2, 12, 2, null],
+              "2": [3, 2, 3, null],
+              "3": [6, 2, 6, null]
+            },
+            "functions": {
+              "0": {
+                "name": "choose",
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 4, null]
+              },
+              "1": {
+                "name": "unused",
+                "decl": [5, 16, 5, 22],
+                "loc": [5, 25, 7, null]
+              }
+            },
+            "branches": {
+              "0": {
+                "loc": [2, 2, 2, null],
+                "type": "if",
+                "locations": [
+                  [2, 2, 2, null],
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 0,
+              "2": 1,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [0, 1]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "failed-partial-spec-v8",
+      "scenario": "failed-partial-spec",
+      "provider": "v8",
+      "authored": {
+        "files": {
+          "contract.test.mjs": "import {test,expect} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst record=event=>appendFileSync('authored-trace.jsonl',JSON.stringify({event,pid:process.pid})+'\\n')\nrecord('module-enter')\nchoose(false)\ntest('declared before failed spec load',()=>{record('BODY_MUST_NOT_START');expect(choose(true)).toBe(1)})\nrecord('test-declared')\nawait Promise.resolve()\nthrow new Error('actual async partial spec load failed')\n",
+          "failed-dependency.mjs": "throw new Error('actual spec dependency load failed')\n",
+          "subject.mjs": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+          "package.json": "{\"type\":\"module\"}\n"
+        },
+        "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"v8\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
+        "snapshots": {
+          "contract.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`declared before failed spec load 1`] = `\"prior\"`;\n"
+        }
+      },
+      "expected": {
+        "exit": 1,
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "files": [["contract.test.mjs", "failed"]],
+        "cases": [],
+        "fileErrors": ["actual async partial spec load failed"],
+        "coverageMap": {
+          "subject.mjs": {
+            "$coverage": "range-tuples-v1",
+            "path": "subject.mjs",
+            "statements": {
+              "0": [2, 2, 2, null],
+              "1": [2, 12, 2, null],
+              "2": [3, 2, 3, null],
+              "3": [6, 2, 6, null]
+            },
+            "functions": {
+              "0": {
+                "name": "choose",
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 4, null],
+                "line": 1
+              },
+              "1": {
+                "name": "unused",
+                "decl": [5, 16, 5, 22],
+                "loc": [5, 25, 7, null],
+                "line": 5
+              }
+            },
+            "branches": {
+              "0": {
+                "loc": [2, 2, 2, null],
+                "type": "if",
+                "locations": [
+                  [2, 2, 2, null],
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 0,
+              "2": 1,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [0, 1]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 2,
+              "lastStatement": 4,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:12:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2,
+                "f:5:16:5:22": 1,
+                "s:6:2:6:Infinity": 3
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "failed-setup-disabled",
+      "scenario": "failed-setup",
+      "provider": "disabled",
+      "authored": {
+        "files": {
+          "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "setup.mjs": "import {choose} from './subject.mjs'\nchoose(false)\nthrow new Error('owned settled setup import failure')\n",
+          "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n"
+        },
+        "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":false,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+        "snapshots": {
+          "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
+        }
+      },
+      "expected": {
+        "exit": 1,
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "files": [["suite.test.mjs", "failed"]],
+        "cases": [],
+        "fileErrors": ["owned settled setup import failure"]
+      }
+    },
+    {
+      "name": "failed-setup-istanbul",
+      "scenario": "failed-setup",
+      "provider": "istanbul",
+      "authored": {
+        "files": {
+          "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "setup.mjs": "import {choose} from './subject.mjs'\nchoose(false)\nthrow new Error('owned settled setup import failure')\n",
+          "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n"
+        },
+        "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+        "snapshots": {
+          "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
+        }
+      },
+      "expected": {
+        "exit": 1,
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "files": [["suite.test.mjs", "failed"]],
+        "cases": [],
+        "fileErrors": ["owned settled setup import failure"],
+        "coverageMap": {
+          "subject.mjs": {
+            "$coverage": "range-tuples-v1",
+            "path": "subject.mjs",
+            "statements": {
+              "0": [2, 2, 2, null],
+              "1": [2, 13, 2, null],
+              "2": [3, 2, 3, null],
+              "3": [5, 27, 5, 35]
+            },
+            "functions": {
+              "0": {
+                "name": "choose",
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 30, 4, null]
+              },
+              "1": {
+                "name": "unused",
+                "decl": [5, 16, 5, 22],
+                "loc": [5, 25, 5, null]
+              }
+            },
+            "branches": {
+              "0": {
+                "loc": [2, 2, 2, null],
+                "type": "if",
+                "locations": [
+                  [2, 2, 2, null],
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ]
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 0,
+              "2": 1,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [0, 1]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "failed-setup-v8",
+      "scenario": "failed-setup",
+      "provider": "v8",
+      "authored": {
+        "files": {
+          "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "setup.mjs": "import {choose} from './subject.mjs'\nchoose(false)\nthrow new Error('owned settled setup import failure')\n",
+          "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n"
+        },
+        "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+        "snapshots": {
+          "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
+        }
+      },
+      "expected": {
+        "exit": 1,
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "files": [["suite.test.mjs", "failed"]],
+        "cases": [],
+        "fileErrors": ["owned settled setup import failure"],
+        "coverageMap": {
+          "subject.mjs": {
+            "$coverage": "range-tuples-v1",
+            "path": "subject.mjs",
+            "statements": {
+              "0": [2, 2, 2, null],
+              "1": [2, 13, 2, null],
+              "2": [3, 2, 3, null],
+              "3": [5, 27, 5, 35]
+            },
+            "functions": {
+              "0": {
+                "name": "choose",
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 30, 4, null],
+                "line": 1
+              },
+              "1": {
+                "name": "unused",
+                "decl": [5, 16, 5, 22],
+                "loc": [5, 25, 5, null],
+                "line": 5
+              }
+            },
+            "branches": {
+              "0": {
+                "loc": [2, 2, 2, null],
+                "type": "if",
+                "locations": [
+                  [2, 2, 2, null],
+                  {
+                    "start": {},
+                    "end": {}
+                  }
+                ],
+                "line": 2
+              }
+            },
+            "s": {
+              "0": 1,
+              "1": 0,
+              "2": 1,
+              "3": 0
+            },
+            "f": {
+              "0": 1,
+              "1": 0
+            },
+            "b": {
+              "0": [0, 1]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 2,
+              "lastStatement": 4,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+                "s:2:2:2:Infinity": 0,
+                "s:2:13:2:Infinity": 1,
+                "s:3:2:3:Infinity": 2,
+                "f:5:16:5:22": 1,
+                "s:5:27:5:35": 3
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      }
+    }
+  ]
+}

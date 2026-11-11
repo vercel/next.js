@@ -1,0 +1,5 @@
+import React from 'react'
+import { label } from './helper.js'
+export function Nested({ name }) {
+  return <section data-name={name}><span>{label(name)}</span><em>{label('tail')}</em></section>
+}

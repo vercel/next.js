@@ -1,0 +1,913 @@
+{
+  "rows": [
+    {
+      "name": "v8-skip-todo-body",
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value){return value?1:2}\n"
+        },
+        "modes.case.mjs": {
+          "source": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\n"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "flags": ["-t", ".*"],
+      "exitCode": 0,
+      "coverageFiles": {
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "statements": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "functions": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "branches": {
+              "total": 2,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": "Unknown"
+            }
+          },
+          "<fixture>/subject.mjs": {
+            "lines": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "functions": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "statements": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "branches": {
+              "total": 2,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFNF:1\nFNH:0\nFNDA:0,choose\nDA:1,0\nLF:1\nLH:0\nBRDA:1,0,0,0\nBRDA:1,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
+        "coverage-final.json": {
+          "<fixture>/subject.mjs": {
+            "$coverage": "range-tuples-v1",
+            "path": "<fixture>/subject.mjs",
+            "statements": {
+              "0": [1, 30, 1, 46]
+            },
+            "functions": {
+              "0": {
+                "name": "choose",
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 1, null],
+                "line": 1
+              }
+            },
+            "branches": {
+              "0": {
+                "loc": [1, 37, 1, 46],
+                "type": "cond-expr",
+                "locations": [
+                  [1, 43, 1, 44],
+                  [1, 45, 1, 46]
+                ],
+                "line": 1
+              }
+            },
+            "s": {
+              "0": 0
+            },
+            "f": {
+              "0": 0
+            },
+            "b": {
+              "0": [0, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 1,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "s:1:30:1:46": 0,
+                "b:1:43:1:44:1:45:1:46": 0
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "caseStarts": 0,
+      "caseStatuses": ["pending"],
+      "passedCases": 0,
+      "authorEvents": ["module-enter"]
+    },
+    {
+      "name": "v8-skip-todo-empty",
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value){return value?1:2}\n"
+        },
+        "modes.case.mjs": {
+          "source": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit empty',()=>{})})})\n"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "flags": ["-t", ".*"],
+      "exitCode": 0,
+      "coverageFiles": {
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "statements": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "functions": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "branches": {
+              "total": 2,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": "Unknown"
+            }
+          },
+          "<fixture>/subject.mjs": {
+            "lines": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "functions": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "statements": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "branches": {
+              "total": 2,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFNF:1\nFNH:0\nFNDA:0,choose\nDA:1,0\nLF:1\nLH:0\nBRDA:1,0,0,0\nBRDA:1,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
+        "coverage-final.json": {
+          "<fixture>/subject.mjs": {
+            "$coverage": "range-tuples-v1",
+            "path": "<fixture>/subject.mjs",
+            "statements": {
+              "0": [1, 30, 1, 46]
+            },
+            "functions": {
+              "0": {
+                "name": "choose",
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 1, null],
+                "line": 1
+              }
+            },
+            "branches": {
+              "0": {
+                "loc": [1, 37, 1, 46],
+                "type": "cond-expr",
+                "locations": [
+                  [1, 43, 1, 44],
+                  [1, 45, 1, 46]
+                ],
+                "line": 1
+              }
+            },
+            "s": {
+              "0": 0
+            },
+            "f": {
+              "0": 0
+            },
+            "b": {
+              "0": [0, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 1,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "s:1:30:1:46": 0,
+                "b:1:43:1:44:1:45:1:46": 0
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "caseStarts": 0,
+      "caseStatuses": [],
+      "passedCases": 0,
+      "authorEvents": ["module-enter"]
+    },
+    {
+      "name": "v8-todo-skip-body",
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value){return value?1:2}\n"
+        },
+        "modes.case.mjs": {
+          "source": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.todo('outer',()=>{describe.skip('explicit skip',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\n"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "flags": ["-t", ".*"],
+      "exitCode": 0,
+      "coverageFiles": {
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "statements": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "functions": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "branches": {
+              "total": 2,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": "Unknown"
+            }
+          },
+          "<fixture>/subject.mjs": {
+            "lines": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "functions": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "statements": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "branches": {
+              "total": 2,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFNF:1\nFNH:0\nFNDA:0,choose\nDA:1,0\nLF:1\nLH:0\nBRDA:1,0,0,0\nBRDA:1,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
+        "coverage-final.json": {
+          "<fixture>/subject.mjs": {
+            "$coverage": "range-tuples-v1",
+            "path": "<fixture>/subject.mjs",
+            "statements": {
+              "0": [1, 30, 1, 46]
+            },
+            "functions": {
+              "0": {
+                "name": "choose",
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 1, null],
+                "line": 1
+              }
+            },
+            "branches": {
+              "0": {
+                "loc": [1, 37, 1, 46],
+                "type": "cond-expr",
+                "locations": [
+                  [1, 43, 1, 44],
+                  [1, 45, 1, 46]
+                ],
+                "line": 1
+              }
+            },
+            "s": {
+              "0": 0
+            },
+            "f": {
+              "0": 0
+            },
+            "b": {
+              "0": [0, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 1,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "s:1:30:1:46": 0,
+                "b:1:43:1:44:1:45:1:46": 0
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "caseStarts": 0,
+      "caseStatuses": ["pending"],
+      "passedCases": 0,
+      "authorEvents": ["module-enter"]
+    },
+    {
+      "name": "v8-todo-skip-empty",
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value){return value?1:2}\n"
+        },
+        "modes.case.mjs": {
+          "source": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.todo('outer',()=>{describe.skip('explicit skip',()=>{describe('implicit empty',()=>{})})})\n"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "flags": ["-t", ".*"],
+      "exitCode": 0,
+      "coverageFiles": {
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "statements": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "functions": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "branches": {
+              "total": 2,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": "Unknown"
+            }
+          },
+          "<fixture>/subject.mjs": {
+            "lines": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "functions": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "statements": {
+              "total": 1,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            },
+            "branches": {
+              "total": 2,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 0
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFNF:1\nFNH:0\nFNDA:0,choose\nDA:1,0\nLF:1\nLH:0\nBRDA:1,0,0,0\nBRDA:1,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
+        "coverage-final.json": {
+          "<fixture>/subject.mjs": {
+            "$coverage": "range-tuples-v1",
+            "path": "<fixture>/subject.mjs",
+            "statements": {
+              "0": [1, 30, 1, 46]
+            },
+            "functions": {
+              "0": {
+                "name": "choose",
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 1, null],
+                "line": 1
+              }
+            },
+            "branches": {
+              "0": {
+                "loc": [1, 37, 1, 46],
+                "type": "cond-expr",
+                "locations": [
+                  [1, 43, 1, 44],
+                  [1, 45, 1, 46]
+                ],
+                "line": 1
+              }
+            },
+            "s": {
+              "0": 0
+            },
+            "f": {
+              "0": 0
+            },
+            "b": {
+              "0": [0, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 1,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "s:1:30:1:46": 0,
+                "b:1:43:1:44:1:45:1:46": 0
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "caseStarts": 0,
+      "caseStatuses": [],
+      "passedCases": 0,
+      "authorEvents": ["module-enter"]
+    },
+    {
+      "name": "v8-choose-both",
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value){return value?1:2}\n"
+        },
+        "modes.case.mjs": {
+          "source": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ntest('true body',()=>{record('true-body');choose(true)});test('false body',()=>{record('false-body');choose(false)})\n"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "flags": ["-t", ".*"],
+      "exitCode": 0,
+      "coverageFiles": {
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 2,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": "Unknown"
+            }
+          },
+          "<fixture>/subject.mjs": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 2,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFNF:1\nFNH:1\nFNDA:2,choose\nDA:1,2\nLF:1\nLH:1\nBRDA:1,0,0,1\nBRDA:1,0,1,1\nBRF:2\nBRH:2\nend_of_record\n",
+        "coverage-final.json": {
+          "<fixture>/subject.mjs": {
+            "$coverage": "range-tuples-v1",
+            "path": "<fixture>/subject.mjs",
+            "statements": {
+              "0": [1, 30, 1, 46]
+            },
+            "functions": {
+              "0": {
+                "name": "choose",
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 1, null],
+                "line": 1
+              }
+            },
+            "branches": {
+              "0": {
+                "loc": [1, 37, 1, 46],
+                "type": "cond-expr",
+                "locations": [
+                  [1, 43, 1, 44],
+                  [1, 45, 1, 46]
+                ],
+                "line": 1
+              }
+            },
+            "s": {
+              "0": 2
+            },
+            "f": {
+              "0": 2
+            },
+            "b": {
+              "0": [1, 1]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 1,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "s:1:30:1:46": 0,
+                "b:1:43:1:44:1:45:1:46": 0
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "caseStarts": 2,
+      "caseStatuses": ["passed", "passed"],
+      "passedCases": 2,
+      "authorEvents": [
+        "module-enter",
+        "before-all",
+        "true-body",
+        "false-body",
+        "after-all"
+      ]
+    },
+    {
+      "name": "v8-choose-false",
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value){return value?1:2}\n"
+        },
+        "modes.case.mjs": {
+          "source": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ntest('false body',()=>{record('false-body');choose(false)})\n"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "flags": ["-t", ".*"],
+      "exitCode": 0,
+      "coverageFiles": {
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": "Unknown"
+            }
+          },
+          "<fixture>/subject.mjs": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFNF:1\nFNH:1\nFNDA:1,choose\nDA:1,1\nLF:1\nLH:1\nBRDA:1,0,0,0\nBRDA:1,0,1,1\nBRF:2\nBRH:1\nend_of_record\n",
+        "coverage-final.json": {
+          "<fixture>/subject.mjs": {
+            "$coverage": "range-tuples-v1",
+            "path": "<fixture>/subject.mjs",
+            "statements": {
+              "0": [1, 30, 1, 46]
+            },
+            "functions": {
+              "0": {
+                "name": "choose",
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 1, null],
+                "line": 1
+              }
+            },
+            "branches": {
+              "0": {
+                "loc": [1, 37, 1, 46],
+                "type": "cond-expr",
+                "locations": [
+                  [1, 43, 1, 44],
+                  [1, 45, 1, 46]
+                ],
+                "line": 1
+              }
+            },
+            "s": {
+              "0": 1
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [0, 1]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 1,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "s:1:30:1:46": 0,
+                "b:1:43:1:44:1:45:1:46": 0
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "caseStarts": 1,
+      "caseStatuses": ["passed"],
+      "passedCases": 1,
+      "authorEvents": ["module-enter", "before-all", "false-body", "after-all"]
+    },
+    {
+      "name": "v8-choose-true",
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value){return value?1:2}\n"
+        },
+        "modes.case.mjs": {
+          "source": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ntest('true body',()=>{record('true-body');choose(true)})\n"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "flags": ["-t", ".*"],
+      "exitCode": 0,
+      "coverageFiles": {
+        "coverage-summary.json": {
+          "total": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            },
+            "branchesTrue": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": "Unknown"
+            }
+          },
+          "<fixture>/subject.mjs": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 2,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 50
+            }
+          }
+        },
+        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFNF:1\nFNH:1\nFNDA:1,choose\nDA:1,1\nLF:1\nLH:1\nBRDA:1,0,0,1\nBRDA:1,0,1,0\nBRF:2\nBRH:1\nend_of_record\n",
+        "coverage-final.json": {
+          "<fixture>/subject.mjs": {
+            "$coverage": "range-tuples-v1",
+            "path": "<fixture>/subject.mjs",
+            "statements": {
+              "0": [1, 30, 1, 46]
+            },
+            "functions": {
+              "0": {
+                "name": "choose",
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 1, null],
+                "line": 1
+              }
+            },
+            "branches": {
+              "0": {
+                "loc": [1, 37, 1, 46],
+                "type": "cond-expr",
+                "locations": [
+                  [1, 43, 1, 44],
+                  [1, 45, 1, 46]
+                ],
+                "line": 1
+              }
+            },
+            "s": {
+              "0": 1
+            },
+            "f": {
+              "0": 1
+            },
+            "b": {
+              "0": [1, 0]
+            },
+            "meta": {
+              "lastBranch": 1,
+              "lastFunction": 1,
+              "lastStatement": 1,
+              "seen": {
+                "f:1:16:1:22": 0,
+                "s:1:30:1:46": 0,
+                "b:1:43:1:44:1:45:1:46": 0
+              },
+              "fnNames": {}
+            }
+          }
+        }
+      },
+      "caseStarts": 1,
+      "caseStatuses": ["passed"],
+      "passedCases": 1,
+      "authorEvents": ["module-enter", "before-all", "true-body", "after-all"]
+    }
+  ]
+}

@@ -1,0 +1,150 @@
+{
+  "sourceFiles": {
+    "package.json": "{\"type\":\"module\"}\n",
+    "contract.test.mjs": "import {test,expect} from 'vitest'\nimport {writeFileSync,appendFileSync} from 'node:fs'\nimport {choose} from './subject.ts'\ntest('pending spec cannot start body',()=>{appendFileSync('trace.jsonl',JSON.stringify({event:'BODY_MUST_NOT_START'})+'\\n');throw new Error('pending spec must not start body')})\ntest('spec recovery',()=>{appendFileSync('trace.jsonl',JSON.stringify({event:'RECOVERY_BODY'})+'\\n');expect(choose(false)).toBe(0);expect('prior').toMatchSnapshot()})\nif(process.env.NEXT_TEST_SPEC_CANCEL==='1'){writeFileSync('gate.txt','ACTUAL_PENDING_SPEC_LOAD');await new Promise(()=>{})}\n",
+    "subject.ts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+  },
+  "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":5000,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.ts\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":false,\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"contract.test.mjs\"]}}]}}\n",
+  "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`spec recovery 1`] = `\"prior\"`;\n",
+  "sentinel": "prior actual report\n",
+  "recovery": {
+    "exit": 0,
+    "passed": 1,
+    "failed": 0,
+    "pending": 1,
+    "cases": [
+      ["pending spec cannot start body", "skipped", []],
+      ["spec recovery", "passed", []]
+    ],
+    "fileErrors": [""],
+    "fileStates": ["passed"],
+    "snapshot": {
+      "added": 0,
+      "failure": false,
+      "filesAdded": 0,
+      "filesRemoved": 0,
+      "filesRemovedList": [],
+      "filesUnmatched": 0,
+      "filesUpdated": 0,
+      "matched": 1,
+      "total": 1,
+      "unchecked": 0,
+      "uncheckedKeysByFile": [],
+      "unmatched": 0,
+      "updated": 0,
+      "didUpdate": false
+    },
+    "coverageMap": {
+      "subject.ts": {
+        "$coverage": "range-tuples-v1",
+        "path": "subject.ts",
+        "statements": {
+          "0": [3, 2, 3, null],
+          "1": [3, 13, 3, null],
+          "2": [4, 2, 4, null],
+          "3": [6, 35, 6, 44]
+        },
+        "functions": {
+          "0": {
+            "name": "choose",
+            "decl": [2, 16, 2, 23],
+            "loc": [2, 45, 5, null]
+          },
+          "1": {
+            "name": "unused",
+            "decl": [6, 16, 6, 33],
+            "loc": [6, 33, 6, null]
+          }
+        },
+        "branches": {
+          "0": {
+            "loc": [3, 2, 3, null],
+            "type": "if",
+            "locations": [
+              [3, 2, 3, null],
+              {
+                "start": {},
+                "end": {}
+              }
+            ]
+          }
+        },
+        "s": {
+          "0": 1,
+          "1": 0,
+          "2": 1,
+          "3": 0
+        },
+        "f": {
+          "0": 1,
+          "1": 0
+        },
+        "b": {
+          "0": [0, 1]
+        }
+      }
+    },
+    "summary": {
+      "total": {
+        "lines": {
+          "total": 3,
+          "covered": 2,
+          "skipped": 0,
+          "pct": 66.66
+        },
+        "statements": {
+          "total": 4,
+          "covered": 2,
+          "skipped": 0,
+          "pct": 50
+        },
+        "functions": {
+          "total": 2,
+          "covered": 1,
+          "skipped": 0,
+          "pct": 50
+        },
+        "branches": {
+          "total": 2,
+          "covered": 1,
+          "skipped": 0,
+          "pct": 50
+        },
+        "branchesTrue": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": "Unknown"
+        }
+      },
+      "subject.ts": {
+        "lines": {
+          "total": 3,
+          "covered": 2,
+          "skipped": 0,
+          "pct": 66.66
+        },
+        "functions": {
+          "total": 2,
+          "covered": 1,
+          "skipped": 0,
+          "pct": 50
+        },
+        "statements": {
+          "total": 4,
+          "covered": 2,
+          "skipped": 0,
+          "pct": 50
+        },
+        "branches": {
+          "total": 2,
+          "covered": 1,
+          "skipped": 0,
+          "pct": 50
+        }
+      }
+    },
+    "lcov": "TN:\nSF:subject.ts\nFN:2,choose\nFN:6,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:3,1\nDA:4,1\nDA:6,0\nLF:3\nLH:2\nBRDA:3,0,0,0\nBRDA:3,0,1,1\nBRF:2\nBRH:1\nend_of_record\n",
+    "trace": "{\"event\":\"RECOVERY_BODY\"}\n"
+  }
+}

@@ -1,0 +1,7 @@
+import React from 'react'
+import { label } from './helper.js'
+type Props = { active: boolean }
+export function Conditional({ active }: Props) {
+  const value = active ? 'yes' : 'no'
+  return active ? <p>{label(value)}</p> : <span>{label(value)}</span>
+}

@@ -1,0 +1,9 @@
+import { expect, test } from 'vitest'
+import { Card as Card4 } from './creator-named-expression.tsx'
+import { Card as Card5 } from './creator-named-declaration.tsx'
+import { Card as Card6 } from './creator-named-classexpression.tsx'
+import { Card as Card7 } from './creator-named-member.tsx'
+test('named expression preserves actual component construction and props',()=>{const yes=Card4({active:true,label:'hello'}),no=Card4({active:false,label:'world'});for(const [element,label]of [[yes.props.children,'hello'],[no.props.children,'fallback']]){const output=element.type(element.props);expect(output.type).toBe('b');expect(output.props.children).toBe(label)}})
+test('named declaration preserves actual component construction and props',()=>{const yes=Card5({active:true,label:'hello'}),no=Card5({active:false,label:'world'});for(const [element,label]of [[yes.props.children,'hello'],[no.props.children,'fallback']]){const output=new element.type(element.props).render();expect(output.type).toBe('b');expect(output.props.children).toBe(label)}})
+test('named classexpression preserves actual component construction and props',()=>{const yes=Card6({active:true,label:'hello'}),no=Card6({active:false,label:'world'});for(const [element,label]of [[yes.props.children,'hello'],[no.props.children,'fallback']]){const output=new element.type(element.props).render();expect(output.type).toBe('b');expect(output.props.children).toBe(label)}})
+test('named member preserves actual component construction and props',()=>{const yes=Card7({active:true,label:'hello'}),no=Card7({active:false,label:'world'});for(const [element,label]of [[yes.props.children,'hello'],[no.props.children,'fallback']]){const output=new element.type(element.props).render();expect(output.type).toBe('b');expect(output.props.children).toBe(label)}})

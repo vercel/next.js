@@ -1,0 +1,37 @@
+import { expect, test } from 'vitest'
+import { Card as Card0 } from './shape-classic-empty.tsx'
+import { Card as Card1 } from './shape-classic-attributes.tsx'
+import { Card as Card2 } from './shape-classic-boolean.tsx'
+import { Card as Card3 } from './shape-classic-combined.tsx'
+import { Card as Card4 } from './shape-classic-nested.tsx'
+import { Card as Card5 } from './shape-classic-paired.tsx'
+import { Card as Card6 } from './shape-named-empty.tsx'
+import { Card as Card7 } from './shape-named-attributes.tsx'
+import { Card as Card8 } from './shape-named-boolean.tsx'
+import { Card as Card9 } from './shape-named-combined.tsx'
+import { Card as Card10 } from './shape-named-nested.tsx'
+import { Card as Card11 } from './shape-named-paired.tsx'
+import { Card as Card12 } from './shape-automatic-empty.tsx'
+import { Card as Card13 } from './shape-automatic-attributes.tsx'
+import { Card as Card14 } from './shape-automatic-boolean.tsx'
+import { Card as Card15 } from './shape-automatic-combined.tsx'
+import { Card as Card16 } from './shape-automatic-nested.tsx'
+import { Card as Card17 } from './shape-automatic-paired.tsx'
+test('classic empty preserves authored child and prop behavior',()=>{const yes=Card0({active:true,label:'hello'}),no=Card0({active:false,label:'world'});expect(yes.type).toBe('input');expect(yes.props).toEqual({});expect(no.props).toEqual({})})
+test('classic attributes preserves authored child and prop behavior',()=>{const yes=Card1({active:true,label:'hello'}),no=Card1({active:false,label:'world'});expect(yes.props).toEqual({title:'on',value:'hello'});expect(no.props).toEqual({title:'off',value:'world'})})
+test('classic boolean preserves authored child and prop behavior',()=>{const yes=Card2({active:true,label:'hello'}),no=Card2({active:false,label:'world'});expect(yes.props).toEqual({disabled:true,children:'hello'});expect(no.props).toEqual({disabled:true,children:'world'})})
+test('classic combined preserves authored child and prop behavior',()=>{const yes=Card3({active:true,label:'hello'}),no=Card3({active:false,label:'world'});expect(yes.props).toEqual({disabled:true,title:'on'});expect(no.props).toEqual({disabled:true,title:'off'})})
+test('classic nested preserves authored child and prop behavior',()=>{const yes=Card4({active:true,label:'hello'}),no=Card4({active:false,label:'world'});expect(yes.props.children.type).toBe('input');expect(yes.props.children.props.title).toBe('hello');expect(no.props.children.type).toBe('br');expect(no.props.children.props).toEqual({})})
+test('classic paired preserves authored child and prop behavior',()=>{const yes=Card5({active:true,label:'hello'}),no=Card5({active:false,label:'world'});expect(yes.type).toBe('p');expect(yes.props).toEqual({});expect(no.props).toEqual({})})
+test('named empty preserves authored child and prop behavior',()=>{const yes=Card6({active:true,label:'hello'}),no=Card6({active:false,label:'world'});expect(yes.type).toBe('input');expect(yes.props).toEqual({});expect(no.props).toEqual({})})
+test('named attributes preserves authored child and prop behavior',()=>{const yes=Card7({active:true,label:'hello'}),no=Card7({active:false,label:'world'});expect(yes.props).toEqual({title:'on',value:'hello'});expect(no.props).toEqual({title:'off',value:'world'})})
+test('named boolean preserves authored child and prop behavior',()=>{const yes=Card8({active:true,label:'hello'}),no=Card8({active:false,label:'world'});expect(yes.props).toEqual({disabled:true,children:'hello'});expect(no.props).toEqual({disabled:true,children:'world'})})
+test('named combined preserves authored child and prop behavior',()=>{const yes=Card9({active:true,label:'hello'}),no=Card9({active:false,label:'world'});expect(yes.props).toEqual({disabled:true,title:'on'});expect(no.props).toEqual({disabled:true,title:'off'})})
+test('named nested preserves authored child and prop behavior',()=>{const yes=Card10({active:true,label:'hello'}),no=Card10({active:false,label:'world'});expect(yes.props.children.type).toBe('input');expect(yes.props.children.props.title).toBe('hello');expect(no.props.children.type).toBe('br');expect(no.props.children.props).toEqual({})})
+test('named paired preserves authored child and prop behavior',()=>{const yes=Card11({active:true,label:'hello'}),no=Card11({active:false,label:'world'});expect(yes.type).toBe('p');expect(yes.props).toEqual({});expect(no.props).toEqual({})})
+test('automatic empty preserves authored child and prop behavior',()=>{const yes=Card12({active:true,label:'hello'}),no=Card12({active:false,label:'world'});expect(yes.type).toBe('input');expect(yes.props).toEqual({});expect(no.props).toEqual({})})
+test('automatic attributes preserves authored child and prop behavior',()=>{const yes=Card13({active:true,label:'hello'}),no=Card13({active:false,label:'world'});expect(yes.props).toEqual({title:'on',value:'hello'});expect(no.props).toEqual({title:'off',value:'world'})})
+test('automatic boolean preserves authored child and prop behavior',()=>{const yes=Card14({active:true,label:'hello'}),no=Card14({active:false,label:'world'});expect(yes.props).toEqual({disabled:true,children:'hello'});expect(no.props).toEqual({disabled:true,children:'world'})})
+test('automatic combined preserves authored child and prop behavior',()=>{const yes=Card15({active:true,label:'hello'}),no=Card15({active:false,label:'world'});expect(yes.props).toEqual({disabled:true,title:'on'});expect(no.props).toEqual({disabled:true,title:'off'})})
+test('automatic nested preserves authored child and prop behavior',()=>{const yes=Card16({active:true,label:'hello'}),no=Card16({active:false,label:'world'});expect(yes.props.children.type).toBe('input');expect(yes.props.children.props.title).toBe('hello');expect(no.props.children.type).toBe('br');expect(no.props.children.props).toEqual({})})
+test('automatic paired preserves authored child and prop behavior',()=>{const yes=Card17({active:true,label:'hello'}),no=Card17({active:false,label:'world'});expect(yes.type).toBe('p');expect(yes.props).toEqual({});expect(no.props).toEqual({})})

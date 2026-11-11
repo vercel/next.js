@@ -1,0 +1,289 @@
+{
+  "file": "/Users/timneutkens/projects/next-testing-workspaces/work-3/.next-conditional-literal98-7B62PD/subject.mjs",
+  "sourceSha256": "1815c2d1db6af6e07d8b0097f7d80c8044e9913cc45ec201c05c5756d342e117",
+  "codeSha256": "e16977fe4140a427b33bd114ce8c2bf48f41d2bfd996ddd86bf032f8f5fe92fb",
+  "sourceMapSha256": "adf25da68568ae6c649c78373e580a466a196ddfcd58e5194d09ac598ac71506",
+  "model": {
+    "$coverage": "range-tuples-v1",
+    "path": "/Users/timneutkens/projects/next-testing-workspaces/work-3/.next-conditional-literal98-7B62PD/subject.mjs",
+    "statements": {
+      "0": [1, 30, 1, 46]
+    },
+    "functions": {
+      "0": {
+        "name": "choose",
+        "decl": [1, 16, 1, 22],
+        "loc": [1, 29, 1, null],
+        "line": 1
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [1, 37, 1, 46],
+        "type": "cond-expr",
+        "locations": [
+          [1, 43, 1, 44],
+          [1, 45, 1, 46]
+        ],
+        "line": 1
+      }
+    },
+    "s": {
+      "0": 0
+    },
+    "f": {
+      "0": 0
+    },
+    "b": {
+      "0": [0, 0]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:1:16:1:22": 0,
+        "s:1:30:1:46": 0,
+        "b:1:43:1:44:1:45:1:46": 0
+      },
+      "fnNames": {}
+    }
+  },
+  "observed": {
+    "$coverage": "range-tuples-v1",
+    "path": "/Users/timneutkens/projects/next-testing-workspaces/work-3/.next-conditional-literal98-7B62PD/subject.mjs",
+    "statements": {
+      "0": [1, 30, 1, 46]
+    },
+    "functions": {
+      "0": {
+        "name": "choose",
+        "decl": [1, 16, 1, 22],
+        "loc": [1, 29, 1, null],
+        "line": 1
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [1, 37, 1, 46],
+        "type": "cond-expr",
+        "locations": [
+          [1, 43, 1, 45],
+          [1, 45, 1, 46]
+        ],
+        "line": 1
+      }
+    },
+    "s": {
+      "0": 0
+    },
+    "f": {
+      "0": 0
+    },
+    "b": {
+      "0": [0, 0]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "b:1:43:1:45:1:45:1:46": 0,
+        "f:1:16:1:22": 0,
+        "s:1:30:1:46": 0
+      },
+      "fnNames": {}
+    }
+  },
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [
+        {
+          "startOffset": 0,
+          "endOffset": 4240,
+          "count": 1
+        }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        {
+          "startOffset": 1,
+          "endOffset": 4157,
+          "count": 1
+        }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        {
+          "startOffset": 132,
+          "endOffset": 3900,
+          "count": 1
+        }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        {
+          "startOffset": 207,
+          "endOffset": 3890,
+          "count": 1
+        },
+        {
+          "startOffset": 1513,
+          "endOffset": 1547,
+          "count": 0
+        },
+        {
+          "startOffset": 3845,
+          "endOffset": 3888,
+          "count": 0
+        }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "record",
+      "ranges": [
+        {
+          "startOffset": 1570,
+          "endOffset": 1813,
+          "count": 1
+        }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        {
+          "startOffset": 2025,
+          "endOffset": 2049,
+          "count": 0
+        }
+      ],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        {
+          "startOffset": 2237,
+          "endOffset": 2260,
+          "count": 0
+        }
+      ],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        {
+          "startOffset": 2457,
+          "endOffset": 3810,
+          "count": 1
+        }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        {
+          "startOffset": 2669,
+          "endOffset": 3806,
+          "count": 1
+        }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        {
+          "startOffset": 2967,
+          "endOffset": 3788,
+          "count": 1
+        }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        {
+          "startOffset": 3175,
+          "endOffset": 3199,
+          "count": 0
+        }
+      ],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        {
+          "startOffset": 3403,
+          "endOffset": 3426,
+          "count": 0
+        }
+      ],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        {
+          "startOffset": 3732,
+          "endOffset": 3754,
+          "count": 0
+        }
+      ],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        {
+          "startOffset": 3994,
+          "endOffset": 4151,
+          "count": 1
+        }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        {
+          "startOffset": 4082,
+          "endOffset": 4092,
+          "count": 0
+        }
+      ],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "choose",
+      "ranges": [
+        {
+          "startOffset": 4097,
+          "endOffset": 4149,
+          "count": 0
+        }
+      ],
+      "isBlockCoverage": false
+    }
+  ],
+  "actualArtifactRevision": "8a506c6b-a709-430c-a022-c0f30640d4dc",
+  "actualCaptureComplete": true,
+  "sourceMapBytes": "{\n  \"version\": 3,\n  \"sources\": [],\n  \"sections\": [\n    {\"offset\": {\"line\": 5, \"column\": 0}, \"map\": {\"version\":3,\"sources\":[\"file:///Users/timneutkens/projects/next-testing-workspaces/work-3/.next-conditional-literal98-7B62PD/modes.case.mjs\"],\"sourcesContent\":[\"import{choose}from'./subject.mjs'\\nimport{test,describe,beforeAll,afterAll}from'vitest'\\nimport{appendFileSync}from'node:fs'\\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\\\n')\\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\\n\"],\"names\":[\"record\",\"event\",\"process\",\"env\",\"MODE_TRACE\",\"JSON\",\"stringify\",\"actor\",\"skip\",\"todo\",\"__next_test_declaration__\"],\"mappings\":\"A;AAAA;AACA;AACA;;;;;;;;AACA,MAAMA,SAAOC,CAAAA,QAAO,IAAA,sIAAc,EAACC,QAAQC,GAAG,CAACC,UAAU,EAACC,KAAKC,SAAS,CAAC;QAACC,OAAM;QAASN;IAAK,KAAG;AACjGD,OAAO;AAAgB,IAAA,oLAAS,EAAC,IAAIA,OAAO;AAAe,IAAA,mLAAQ,EAAC,IAAIA,OAAO;AAC/E,mLAAQ,CAACQ,IAAI,CAAC,SAAQ;IAAK,mLAAQ,CAACC,IAAI,CAAC,iBAAgB;QAAKC;8CAAAA,mLAAQ;YAARA,yBAAQ,CAAC,iBAAgB;gBAAK,IAAA,oLAAS,EAAC,IAAIV,OAAO;gBAAe,IAAA,mLAAQ,EAAC,IAAIA,OAAO;gBAAcU;sDAAAA,+KAAI;oBAAJA,yBAAI,CAAC,QAAO,IAAIV,OAAO;gBAAW;YAAC;QAAC;IAAC;AAAE\"}},\n    {\"offset\": {\"line\": 43, \"column\": 0}, \"map\": {\"version\":3,\"sources\":[\"file:///Users/timneutkens/projects/next-testing-workspaces/work-3/.next-conditional-literal98-7B62PD/subject.mjs\"],\"sourcesContent\":[\"export function choose(value){return value?1:2}\\n\"],\"names\":[\"choose\",\"value\"],\"mappings\":\"A;;;;AAAO,SAASA,OAAOC,KAAK;IAAE,OAAOA,QAAM,IAAE;AAAC\"}}]\n}"
+}

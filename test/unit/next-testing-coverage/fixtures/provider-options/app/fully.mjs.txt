@@ -1,0 +1,1 @@
+export function fully(value) { return value + 1 }

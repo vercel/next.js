@@ -1,0 +1,1222 @@
+{
+  "coverageMaps": {
+    "js-partial-sync": {
+      "subject.mjs": {
+        "statements": [1, 0, 1, 0],
+        "functions": [1, 0],
+        "branches": [[0, 1]]
+      }
+    }
+  },
+  "defaults": {
+    "sourceFiles": {
+      "contract.test.js": {
+        "source": "import './failed-dependency.mjs'\n",
+        "sha256": "88f62a27c17f259cb049078de97306420a74b9ae9bc339cf1dc3583d87ee1f84"
+      },
+      "failed-dependency.mjs": {
+        "source": "throw new Error('actual spec dependency load failed')\n",
+        "sha256": "5af49d0eb0a3083def037018e0274cd3bb4221bc43999e52b39fea10e2af439c"
+      },
+      "subject.mjs": {
+        "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+        "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
+      },
+      "package.json": {
+        "source": "{\"type\":\"module\"}\n",
+        "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
+      }
+    },
+    "snapshots": {},
+    "exitCode": 1,
+    "coverage": {
+      "subject.mjs": {
+        "statements": [0, 0, 0, 0],
+        "functions": [0, 0],
+        "branches": [[0, 0]]
+      }
+    },
+    "reportFiles": ["coverage-final.json", "coverage-summary.json", "lcov.info"]
+  },
+  "rows": [
+    {
+      "name": "js-no-case-sync",
+      "entryName": "contract.test.js",
+      "config": "export default {\"test\":{\"include\":[\"contract.test.js\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
+      "authoredTrace": "",
+      "reporterTrace": [
+        {
+          "event": "module-end",
+          "file": "contract.test.js",
+          "state": "failed",
+          "errors": [
+            {
+              "name": "Error",
+              "message": "actual spec dependency load failed",
+              "stack": "Error: actual spec dependency load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-p4Nf6Y/failed-dependency.mjs:1:7\n    at VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:189)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:62\n    at Traces.$ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/traces.js:143:27)\n    at VitestModuleEvaluator.runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:21)\n    at VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:80)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "file": "contract.test.js",
+              "state": "failed",
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "actual spec dependency load failed",
+                  "stack": "Error: actual spec dependency load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-p4Nf6Y/failed-dependency.mjs:1:7\n    at VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:189)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:62\n    at Traces.$ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/traces.js:143:27)\n    at VitestModuleEvaluator.runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:21)\n    at VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:80)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)"
+                }
+              ]
+            }
+          ],
+          "errors": []
+        }
+      ],
+      "referenceEarlyTrace": [
+        {
+          "event": "module-queued",
+          "file": "contract.test.js",
+          "state": "pending"
+        },
+        {
+          "event": "module-collected",
+          "file": "contract.test.js",
+          "state": "failed"
+        },
+        {
+          "event": "module-end",
+          "file": "contract.test.js",
+          "state": "failed",
+          "errors": [
+            {
+              "name": "Error",
+              "message": "actual spec dependency load failed",
+              "stack": "Error: actual spec dependency load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-PHoUV7/failed-dependency.mjs:1:7\n    at VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:189)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:62\n    at Traces.$ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/traces.js:143:27)\n    at VitestModuleEvaluator.runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:21)\n    at VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:80)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "file": "contract.test.js",
+              "state": "failed",
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "actual spec dependency load failed",
+                  "stack": "Error: actual spec dependency load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-PHoUV7/failed-dependency.mjs:1:7\n    at VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:189)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:62\n    at Traces.$ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/traces.js:143:27)\n    at VitestModuleEvaluator.runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:21)\n    at VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:80)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)"
+                }
+              ]
+            }
+          ],
+          "errors": []
+        }
+      ],
+      "referenceSHA256": {
+        "AUTHORED.json": "8ffde2bef5725df4ffd24931151cccdffa36954f6cdfb715321544ebca626b7d",
+        "cases.json": "3637810223d2068bf6ad67154c8c527c99418406eef24a902447928a705a99e3",
+        "OBSERVED.json": "623fea68f641975233973fa4f61527836b3185953da7cf71411ea3a6b0ab37b9"
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-p4Nf6Y/contract.test.js",
+            "status": "failed",
+            "message": "actual spec dependency load failed",
+            "assertionResults": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "js-no-case-sync-report-false",
+      "entryName": "contract.test.js",
+      "config": "export default {\"test\":{\"include\":[\"contract.test.js\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":false}}}\n",
+      "authoredTrace": "",
+      "reporterTrace": [
+        {
+          "event": "module-end",
+          "file": "contract.test.js",
+          "state": "failed",
+          "errors": [
+            {
+              "name": "Error",
+              "message": "actual spec dependency load failed",
+              "stack": "Error: actual spec dependency load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-YiyYzH/failed-dependency.mjs:1:7\n    at VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:189)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:62\n    at Traces.$ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/traces.js:143:27)\n    at VitestModuleEvaluator.runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:21)\n    at VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:80)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "file": "contract.test.js",
+              "state": "failed",
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "actual spec dependency load failed",
+                  "stack": "Error: actual spec dependency load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-YiyYzH/failed-dependency.mjs:1:7\n    at VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:189)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:62\n    at Traces.$ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/traces.js:143:27)\n    at VitestModuleEvaluator.runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:21)\n    at VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:80)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)"
+                }
+              ]
+            }
+          ],
+          "errors": []
+        }
+      ],
+      "referenceEarlyTrace": [
+        {
+          "event": "module-queued",
+          "file": "contract.test.js",
+          "state": "pending"
+        },
+        {
+          "event": "module-collected",
+          "file": "contract.test.js",
+          "state": "failed"
+        },
+        {
+          "event": "module-end",
+          "file": "contract.test.js",
+          "state": "failed",
+          "errors": [
+            {
+              "name": "Error",
+              "message": "actual spec dependency load failed",
+              "stack": "Error: actual spec dependency load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-uF8kdn/failed-dependency.mjs:1:7\n    at VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:189)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:62\n    at Traces.$ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/traces.js:143:27)\n    at VitestModuleEvaluator.runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:21)\n    at VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:80)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "file": "contract.test.js",
+              "state": "failed",
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "actual spec dependency load failed",
+                  "stack": "Error: actual spec dependency load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-uF8kdn/failed-dependency.mjs:1:7\n    at VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:189)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:62\n    at Traces.$ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/traces.js:143:27)\n    at VitestModuleEvaluator.runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:21)\n    at VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:80)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)"
+                }
+              ]
+            }
+          ],
+          "errors": []
+        }
+      ],
+      "referenceSHA256": {
+        "AUTHORED.json": "491d1cf4779ee7ba5818ce540109032662e49be3734633d0aaadccb07194e95f",
+        "cases.json": "fcef32239c060201b31c8bfa9f600fc294d771ad2ad988fe17c40d975f13dfed",
+        "OBSERVED.json": "44a4014cf284a4171995e54440003fb37ab8035c9a16b5d93dc44d257d2ab7af"
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-YiyYzH/contract.test.js",
+            "status": "failed",
+            "message": "actual spec dependency load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "reportFiles": []
+    },
+    {
+      "name": "js-partial-sync",
+      "entryName": "contract.test.js",
+      "sourceFiles": {
+        "contract.test.js": {
+          "source": "import {test,expect} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst record=event=>appendFileSync('authored-trace.jsonl',JSON.stringify({event,pid:process.pid})+'\\n')\nrecord('module-enter')\nchoose(false)\ntest('declared before failed spec load',()=>{record('BODY_MUST_NOT_START');expect(choose(true)).toBe(1)})\nrecord('test-declared')\nthrow new Error('actual partial spec load failed')\n",
+          "sha256": "bde0c6db51dc1b079e905bb3551ec150a1f8eea3a54c021c478dff98fd3d75f1"
+        },
+        "failed-dependency.mjs": {
+          "source": "throw new Error('actual spec dependency load failed')\n",
+          "sha256": "5af49d0eb0a3083def037018e0274cd3bb4221bc43999e52b39fea10e2af439c"
+        },
+        "subject.mjs": {
+          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+          "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
+        },
+        "package.json": {
+          "source": "{\"type\":\"module\"}\n",
+          "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"contract.test.js\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
+      "authoredTrace": "{\"event\":\"module-enter\",\"pid\":84443}\n{\"event\":\"test-declared\",\"pid\":84443}\n",
+      "reporterTrace": [
+        {
+          "event": "module-end",
+          "file": "contract.test.js",
+          "state": "failed",
+          "errors": [
+            {
+              "name": "Error",
+              "message": "actual partial spec load failed",
+              "stack": "Error: actual partial spec load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-hOWEBn/contract.test.js:9:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3461:5\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/base.CYbb9pQW.js:96:6"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "file": "contract.test.js",
+              "state": "failed",
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "actual partial spec load failed",
+                  "stack": "Error: actual partial spec load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-hOWEBn/contract.test.js:9:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3461:5\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/base.CYbb9pQW.js:96:6"
+                }
+              ]
+            }
+          ],
+          "errors": []
+        }
+      ],
+      "referenceEarlyTrace": [
+        {
+          "event": "module-queued",
+          "file": "contract.test.js",
+          "state": "pending"
+        },
+        {
+          "event": "module-collected",
+          "file": "contract.test.js",
+          "state": "failed"
+        },
+        {
+          "event": "module-end",
+          "file": "contract.test.js",
+          "state": "failed",
+          "errors": [
+            {
+              "name": "Error",
+              "message": "actual partial spec load failed",
+              "stack": "Error: actual partial spec load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-cesPwu/contract.test.js:9:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3461:5\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/base.CYbb9pQW.js:96:6"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "file": "contract.test.js",
+              "state": "failed",
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "actual partial spec load failed",
+                  "stack": "Error: actual partial spec load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-cesPwu/contract.test.js:9:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3461:5\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/base.CYbb9pQW.js:96:6"
+                }
+              ]
+            }
+          ],
+          "errors": []
+        }
+      ],
+      "referenceSHA256": {
+        "AUTHORED.json": "a8bebf4d96b9a4e4813f405105eb9388596f95f61246a9db11adc8cf308cd791",
+        "cases.json": "192afb04e47ed7d950e550216635760aab8ab5dfea65f1ab4481efe8c3d26c46",
+        "OBSERVED.json": "7f15f9b94f8d2d97dea185e78b4be7b1d9d36ec303ebd3f382eafeb2e2eafe3b"
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-hOWEBn/contract.test.js",
+            "status": "failed",
+            "message": "actual partial spec load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": "js-partial-sync"
+    },
+    {
+      "name": "js-partial-sync-report-false",
+      "entryName": "contract.test.js",
+      "sourceFiles": {
+        "contract.test.js": {
+          "source": "import {test,expect} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst record=event=>appendFileSync('authored-trace.jsonl',JSON.stringify({event,pid:process.pid})+'\\n')\nrecord('module-enter')\nchoose(false)\ntest('declared before failed spec load',()=>{record('BODY_MUST_NOT_START');expect(choose(true)).toBe(1)})\nrecord('test-declared')\nthrow new Error('actual partial spec load failed')\n",
+          "sha256": "bde0c6db51dc1b079e905bb3551ec150a1f8eea3a54c021c478dff98fd3d75f1"
+        },
+        "failed-dependency.mjs": {
+          "source": "throw new Error('actual spec dependency load failed')\n",
+          "sha256": "5af49d0eb0a3083def037018e0274cd3bb4221bc43999e52b39fea10e2af439c"
+        },
+        "subject.mjs": {
+          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+          "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
+        },
+        "package.json": {
+          "source": "{\"type\":\"module\"}\n",
+          "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"contract.test.js\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":false}}}\n",
+      "authoredTrace": "{\"event\":\"module-enter\",\"pid\":84665}\n{\"event\":\"test-declared\",\"pid\":84665}\n",
+      "reporterTrace": [
+        {
+          "event": "module-end",
+          "file": "contract.test.js",
+          "state": "failed",
+          "errors": [
+            {
+              "name": "Error",
+              "message": "actual partial spec load failed",
+              "stack": "Error: actual partial spec load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-5Pkp66/contract.test.js:9:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3461:5\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/base.CYbb9pQW.js:96:6"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "file": "contract.test.js",
+              "state": "failed",
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "actual partial spec load failed",
+                  "stack": "Error: actual partial spec load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-5Pkp66/contract.test.js:9:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3461:5\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/base.CYbb9pQW.js:96:6"
+                }
+              ]
+            }
+          ],
+          "errors": []
+        }
+      ],
+      "referenceEarlyTrace": [
+        {
+          "event": "module-queued",
+          "file": "contract.test.js",
+          "state": "pending"
+        },
+        {
+          "event": "module-collected",
+          "file": "contract.test.js",
+          "state": "failed"
+        },
+        {
+          "event": "module-end",
+          "file": "contract.test.js",
+          "state": "failed",
+          "errors": [
+            {
+              "name": "Error",
+              "message": "actual partial spec load failed",
+              "stack": "Error: actual partial spec load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-f4IZmL/contract.test.js:9:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3461:5\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/base.CYbb9pQW.js:96:6"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "file": "contract.test.js",
+              "state": "failed",
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "actual partial spec load failed",
+                  "stack": "Error: actual partial spec load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-f4IZmL/contract.test.js:9:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3461:5\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/base.CYbb9pQW.js:96:6"
+                }
+              ]
+            }
+          ],
+          "errors": []
+        }
+      ],
+      "referenceSHA256": {
+        "AUTHORED.json": "1432800e653a13155567762ed502d53c705924341e56555f0fbefe5c886fe7f9",
+        "cases.json": "a0a2a79acc30e53b2cfa26c75b9232f45a6a8004c5729f5cf484bc77463aa8fe",
+        "OBSERVED.json": "1789f9b8a38327adbcd7e5e51d79677436d39be4da860c6cbb8e563ccd0befe5"
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-5Pkp66/contract.test.js",
+            "status": "failed",
+            "message": "actual partial spec load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": "js-partial-sync",
+      "reportFiles": []
+    },
+    {
+      "name": "mjs-no-case-sync",
+      "entryName": "contract.test.mjs",
+      "sourceFiles": {
+        "contract.test.mjs": {
+          "source": "import './failed-dependency.mjs'\n",
+          "sha256": "88f62a27c17f259cb049078de97306420a74b9ae9bc339cf1dc3583d87ee1f84"
+        },
+        "failed-dependency.mjs": {
+          "source": "throw new Error('actual spec dependency load failed')\n",
+          "sha256": "5af49d0eb0a3083def037018e0274cd3bb4221bc43999e52b39fea10e2af439c"
+        },
+        "subject.mjs": {
+          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+          "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
+        },
+        "package.json": {
+          "source": "{\"type\":\"module\"}\n",
+          "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
+      "authoredTrace": "",
+      "reporterTrace": [
+        {
+          "event": "module-end",
+          "file": "contract.test.mjs",
+          "state": "failed",
+          "errors": [
+            {
+              "name": "Error",
+              "message": "actual spec dependency load failed",
+              "stack": "Error: actual spec dependency load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-54UWGg/failed-dependency.mjs:1:7\n    at VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:189)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:62\n    at Traces.$ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/traces.js:143:27)\n    at VitestModuleEvaluator.runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:21)\n    at VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:80)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "file": "contract.test.mjs",
+              "state": "failed",
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "actual spec dependency load failed",
+                  "stack": "Error: actual spec dependency load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-54UWGg/failed-dependency.mjs:1:7\n    at VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:189)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:62\n    at Traces.$ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/traces.js:143:27)\n    at VitestModuleEvaluator.runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:21)\n    at VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:80)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)"
+                }
+              ]
+            }
+          ],
+          "errors": []
+        }
+      ],
+      "referenceEarlyTrace": [
+        {
+          "event": "module-queued",
+          "file": "contract.test.mjs",
+          "state": "pending"
+        },
+        {
+          "event": "module-collected",
+          "file": "contract.test.mjs",
+          "state": "failed"
+        },
+        {
+          "event": "module-end",
+          "file": "contract.test.mjs",
+          "state": "failed",
+          "errors": [
+            {
+              "name": "Error",
+              "message": "actual spec dependency load failed",
+              "stack": "Error: actual spec dependency load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-mgS1LM/failed-dependency.mjs:1:7\n    at VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:189)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:62\n    at Traces.$ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/traces.js:143:27)\n    at VitestModuleEvaluator.runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:21)\n    at VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:80)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "file": "contract.test.mjs",
+              "state": "failed",
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "actual spec dependency load failed",
+                  "stack": "Error: actual spec dependency load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-mgS1LM/failed-dependency.mjs:1:7\n    at VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:189)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:62\n    at Traces.$ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/traces.js:143:27)\n    at VitestModuleEvaluator.runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:21)\n    at VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:80)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)"
+                }
+              ]
+            }
+          ],
+          "errors": []
+        }
+      ],
+      "referenceSHA256": {
+        "AUTHORED.json": "48c041275a7a5ca05d0f6d2f77ff6d0d9744d19514d39093f586945f261c3709",
+        "cases.json": "5214c88d9fbd73450081d05a2cec59c2b67ae2551227762c10cc415858cfb395",
+        "OBSERVED.json": "828fc794d69331006c606803c4f70e2d949ea6e09c985d05a16c54ddaf8eb2d4"
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-54UWGg/contract.test.mjs",
+            "status": "failed",
+            "message": "actual spec dependency load failed",
+            "assertionResults": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "mjs-no-case-sync-report-false",
+      "entryName": "contract.test.mjs",
+      "sourceFiles": {
+        "contract.test.mjs": {
+          "source": "import './failed-dependency.mjs'\n",
+          "sha256": "88f62a27c17f259cb049078de97306420a74b9ae9bc339cf1dc3583d87ee1f84"
+        },
+        "failed-dependency.mjs": {
+          "source": "throw new Error('actual spec dependency load failed')\n",
+          "sha256": "5af49d0eb0a3083def037018e0274cd3bb4221bc43999e52b39fea10e2af439c"
+        },
+        "subject.mjs": {
+          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+          "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
+        },
+        "package.json": {
+          "source": "{\"type\":\"module\"}\n",
+          "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":false}}}\n",
+      "authoredTrace": "",
+      "reporterTrace": [
+        {
+          "event": "module-end",
+          "file": "contract.test.mjs",
+          "state": "failed",
+          "errors": [
+            {
+              "name": "Error",
+              "message": "actual spec dependency load failed",
+              "stack": "Error: actual spec dependency load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-mCgsAv/failed-dependency.mjs:1:7\n    at VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:189)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:62\n    at Traces.$ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/traces.js:143:27)\n    at VitestModuleEvaluator.runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:21)\n    at VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:80)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "file": "contract.test.mjs",
+              "state": "failed",
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "actual spec dependency load failed",
+                  "stack": "Error: actual spec dependency load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-mCgsAv/failed-dependency.mjs:1:7\n    at VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:189)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:62\n    at Traces.$ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/traces.js:143:27)\n    at VitestModuleEvaluator.runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:21)\n    at VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:80)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)"
+                }
+              ]
+            }
+          ],
+          "errors": []
+        }
+      ],
+      "referenceEarlyTrace": [
+        {
+          "event": "module-queued",
+          "file": "contract.test.mjs",
+          "state": "pending"
+        },
+        {
+          "event": "module-collected",
+          "file": "contract.test.mjs",
+          "state": "failed"
+        },
+        {
+          "event": "module-end",
+          "file": "contract.test.mjs",
+          "state": "failed",
+          "errors": [
+            {
+              "name": "Error",
+              "message": "actual spec dependency load failed",
+              "stack": "Error: actual spec dependency load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-ajV8rB/failed-dependency.mjs:1:7\n    at VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:189)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:62\n    at Traces.$ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/traces.js:143:27)\n    at VitestModuleEvaluator.runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:21)\n    at VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:80)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "file": "contract.test.mjs",
+              "state": "failed",
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "actual spec dependency load failed",
+                  "stack": "Error: actual spec dependency load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-ajV8rB/failed-dependency.mjs:1:7\n    at VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:189)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:62\n    at Traces.$ (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/traces.js:143:27)\n    at VitestModuleEvaluator.runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:130:21)\n    at VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:80)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)"
+                }
+              ]
+            }
+          ],
+          "errors": []
+        }
+      ],
+      "referenceSHA256": {
+        "AUTHORED.json": "7c8f76eb98d939b0d12205bbca77343ec8c25cde5c62798c95b94cb10ad58d2e",
+        "cases.json": "c217f4703398c030b1fb41cc7131b6618f349aa509e68cb24a27d6cfca835a9c",
+        "OBSERVED.json": "761983c35ba9b6348708864d5d6a075f996100ed05062161588e963078962ff3"
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-mCgsAv/contract.test.mjs",
+            "status": "failed",
+            "message": "actual spec dependency load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "reportFiles": []
+    },
+    {
+      "name": "mjs-partial-async",
+      "entryName": "contract.test.mjs",
+      "sourceFiles": {
+        "contract.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst record=event=>appendFileSync('authored-trace.jsonl',JSON.stringify({event,pid:process.pid})+'\\n')\nrecord('module-enter')\nchoose(false)\ntest('declared before failed spec load',()=>{record('BODY_MUST_NOT_START');expect(choose(true)).toBe(1)})\nrecord('test-declared')\nawait Promise.resolve()\nthrow new Error('actual async partial spec load failed')\n",
+          "sha256": "8d252c496f6db377151e31385ca8250f7c9232ea12ff6d3c126699e3aa6c0686"
+        },
+        "failed-dependency.mjs": {
+          "source": "throw new Error('actual spec dependency load failed')\n",
+          "sha256": "5af49d0eb0a3083def037018e0274cd3bb4221bc43999e52b39fea10e2af439c"
+        },
+        "subject.mjs": {
+          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+          "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
+        },
+        "package.json": {
+          "source": "{\"type\":\"module\"}\n",
+          "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
+      "authoredTrace": "{\"event\":\"module-enter\",\"pid\":84360}\n{\"event\":\"test-declared\",\"pid\":84360}\n",
+      "reporterTrace": [
+        {
+          "event": "module-end",
+          "file": "contract.test.mjs",
+          "state": "failed",
+          "errors": [
+            {
+              "name": "Error",
+              "message": "actual async partial spec load failed",
+              "stack": "Error: actual async partial spec load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-nvN7Mx/contract.test.mjs:10:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3461:5\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/base.CYbb9pQW.js:96:6"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "file": "contract.test.mjs",
+              "state": "failed",
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "actual async partial spec load failed",
+                  "stack": "Error: actual async partial spec load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-nvN7Mx/contract.test.mjs:10:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3461:5\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/base.CYbb9pQW.js:96:6"
+                }
+              ]
+            }
+          ],
+          "errors": []
+        }
+      ],
+      "referenceEarlyTrace": [
+        {
+          "event": "module-queued",
+          "file": "contract.test.mjs",
+          "state": "pending"
+        },
+        {
+          "event": "module-collected",
+          "file": "contract.test.mjs",
+          "state": "failed"
+        },
+        {
+          "event": "module-end",
+          "file": "contract.test.mjs",
+          "state": "failed",
+          "errors": [
+            {
+              "name": "Error",
+              "message": "actual async partial spec load failed",
+              "stack": "Error: actual async partial spec load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-OooQXv/contract.test.mjs:10:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3461:5\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/base.CYbb9pQW.js:96:6"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "file": "contract.test.mjs",
+              "state": "failed",
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "actual async partial spec load failed",
+                  "stack": "Error: actual async partial spec load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-OooQXv/contract.test.mjs:10:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3461:5\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/base.CYbb9pQW.js:96:6"
+                }
+              ]
+            }
+          ],
+          "errors": []
+        }
+      ],
+      "referenceSHA256": {
+        "AUTHORED.json": "4b16f22a7414b977aadc19e329b809bf09520c6696123cd2f664157016c6ee6e",
+        "cases.json": "84a8be071a5331afc5824effe63dd05db611d7a0f8690bbf766ae695ef4a33cd",
+        "OBSERVED.json": "66bc34cc4a29f4c1cfc87e79b7532d934e10a44387a519892beefd2921fd5755"
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-nvN7Mx/contract.test.mjs",
+            "status": "failed",
+            "message": "actual async partial spec load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": "js-partial-sync"
+    },
+    {
+      "name": "mjs-partial-async-report-false",
+      "entryName": "contract.test.mjs",
+      "sourceFiles": {
+        "contract.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst record=event=>appendFileSync('authored-trace.jsonl',JSON.stringify({event,pid:process.pid})+'\\n')\nrecord('module-enter')\nchoose(false)\ntest('declared before failed spec load',()=>{record('BODY_MUST_NOT_START');expect(choose(true)).toBe(1)})\nrecord('test-declared')\nawait Promise.resolve()\nthrow new Error('actual async partial spec load failed')\n",
+          "sha256": "8d252c496f6db377151e31385ca8250f7c9232ea12ff6d3c126699e3aa6c0686"
+        },
+        "failed-dependency.mjs": {
+          "source": "throw new Error('actual spec dependency load failed')\n",
+          "sha256": "5af49d0eb0a3083def037018e0274cd3bb4221bc43999e52b39fea10e2af439c"
+        },
+        "subject.mjs": {
+          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+          "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
+        },
+        "package.json": {
+          "source": "{\"type\":\"module\"}\n",
+          "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":false}}}\n",
+      "authoredTrace": "{\"event\":\"module-enter\",\"pid\":84405}\n{\"event\":\"test-declared\",\"pid\":84405}\n",
+      "reporterTrace": [
+        {
+          "event": "module-end",
+          "file": "contract.test.mjs",
+          "state": "failed",
+          "errors": [
+            {
+              "name": "Error",
+              "message": "actual async partial spec load failed",
+              "stack": "Error: actual async partial spec load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-FZa65u/contract.test.mjs:10:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3461:5\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/base.CYbb9pQW.js:96:6"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "file": "contract.test.mjs",
+              "state": "failed",
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "actual async partial spec load failed",
+                  "stack": "Error: actual async partial spec load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-FZa65u/contract.test.mjs:10:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3461:5\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/base.CYbb9pQW.js:96:6"
+                }
+              ]
+            }
+          ],
+          "errors": []
+        }
+      ],
+      "referenceEarlyTrace": [
+        {
+          "event": "module-queued",
+          "file": "contract.test.mjs",
+          "state": "pending"
+        },
+        {
+          "event": "module-collected",
+          "file": "contract.test.mjs",
+          "state": "failed"
+        },
+        {
+          "event": "module-end",
+          "file": "contract.test.mjs",
+          "state": "failed",
+          "errors": [
+            {
+              "name": "Error",
+              "message": "actual async partial spec load failed",
+              "stack": "Error: actual async partial spec load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-79DcQ4/contract.test.mjs:10:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3461:5\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/base.CYbb9pQW.js:96:6"
+            }
+          ]
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "modules": [
+            {
+              "file": "contract.test.mjs",
+              "state": "failed",
+              "errors": [
+                {
+                  "name": "Error",
+                  "message": "actual async partial spec load failed",
+                  "stack": "Error: actual async partial spec load failed\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-79DcQ4/contract.test.mjs:10:7\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3461:5\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/base.CYbb9pQW.js:96:6"
+                }
+              ]
+            }
+          ],
+          "errors": []
+        }
+      ],
+      "referenceSHA256": {
+        "AUTHORED.json": "25d9e8e89e125ec8357b0519a21fb20b8f27942904d457caeee7b65529f4e60d",
+        "cases.json": "1d5067a462738c27c6cdabb0ac7428689c9083f621b9892880e391cc14df69c5",
+        "OBSERVED.json": "517ea50ac0c4ea041e1fee58f4f0388765a0515bb55edc9fb92c5b887a18e18b"
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-FZa65u/contract.test.mjs",
+            "status": "failed",
+            "message": "actual async partial spec load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": "js-partial-sync",
+      "reportFiles": []
+    }
+  ],
+  "cancellation": {
+    "sourceFiles": {
+      "package.json": {
+        "source": "{\"type\":\"module\"}\n",
+        "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
+      },
+      "subject.mjs": {
+        "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+        "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
+      },
+      "contract.test.mjs": {
+        "source": "import {test,expect} from 'vitest'\nimport {writeFileSync,appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\ntest('pending spec cannot start body',()=>{appendFileSync('trace.jsonl',JSON.stringify({event:'BODY_MUST_NOT_START'})+'\\n');throw new Error('pending spec must not start body')})\ntest('spec recovery',()=>{appendFileSync('trace.jsonl',JSON.stringify({event:'RECOVERY_BODY'})+'\\n');expect(choose(false)).toBe(0);expect('prior').toMatchSnapshot()})\nif(process.env.NEXT_TEST_SPEC_CANCEL==='1'){writeFileSync('gate.txt','ACTUAL_PENDING_SPEC_LOAD');await new Promise(()=>{})}\n",
+        "sha256": "31d1975c5b287cb6db221754d29f890f695e4bce43834716fcf551c1259a65d6"
+      }
+    },
+    "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":5000,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":false,\"reportOnFailure\":true}}}\n",
+    "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`spec recovery 1`] = `\"prior\"`;\n",
+    "sentinel": "prior actual report\n",
+    "genuine": {
+      "cancel": {
+        "status": 130,
+        "signal": null,
+        "signalled": true,
+        "cancelledCoverage": [".tmp", "retained-sentinel.txt"],
+        "sentinelUnchanged": true,
+        "snapshotUnchanged": true,
+        "traceAfterCancel": ""
+      },
+      "recoveryExit": 0,
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 1,
+        "numTodoTests": 0,
+        "success": true,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 1,
+          "total": 1,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-spec-cancel81-ci4Pdn/contract.test.mjs",
+            "status": "passed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "pending spec cannot start body",
+                "status": "skipped",
+                "title": "pending spec cannot start body",
+                "failureMessages": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "spec recovery",
+                "status": "passed",
+                "title": "spec recovery",
+                "failureMessages": []
+              }
+            ]
+          }
+        ]
+      },
+      "recoveryTrace": "{\"event\":\"RECOVERY_BODY\"}\n",
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      },
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
+    }
+  }
+}

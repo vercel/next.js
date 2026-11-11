@@ -1,0 +1,324 @@
+{
+  "defaults": {
+    "entryExtension": "mjs",
+    "subjectExtension": "mts",
+    "specFile": "suite.test.mjs",
+    "subjectFile": "subject.mts",
+    "sourceFiles": {
+      "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mts'\ntest('typed true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual).toBe(1)\n})\ntest('typed false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual).toBe(0)\n})\n",
+      "subject.mts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+    },
+    "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+    "caseNames": ["typed zero"],
+    "coverageHits": {
+      "subject.mts": {
+        "statements": [0, 0, 0, 0],
+        "functions": [0, 0],
+        "branches": [[0, 0]]
+      }
+    }
+  },
+  "rows": [
+    {
+      "name": "mjs-mts-explicit-both",
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mts\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "development",
+      "caseNames": ["typed true", "typed false"],
+      "coverageHits": {
+        "subject.mts": {
+          "statements": [2, 1, 1, 0],
+          "functions": [2, 0],
+          "branches": [[1, 1]]
+        }
+      }
+    },
+    {
+      "name": "mjs-mts-explicit-false",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mts'\ntest('typed false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual).toBe(0)\n})\n",
+        "subject.mts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mts\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "development",
+      "caseNames": ["typed false"],
+      "coverageHits": {
+        "subject.mts": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      }
+    },
+    {
+      "name": "mjs-mts-explicit-imported-zero",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport './subject.mts'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.mts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mts\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "development"
+    },
+    {
+      "name": "mjs-mts-explicit-true",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mts'\ntest('typed true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual).toBe(1)\n})\n",
+        "subject.mts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mts\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "development",
+      "caseNames": ["typed true"],
+      "coverageHits": {
+        "subject.mts": {
+          "statements": [1, 1, 0, 0],
+          "functions": [1, 0],
+          "branches": [[1, 0]]
+        }
+      }
+    },
+    {
+      "name": "mjs-mts-explicit-unimported-zero",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect} from 'vitest'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.mts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mts\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "development"
+    },
+    {
+      "name": "mjs-mts-imported-both",
+      "mode": "development",
+      "caseNames": ["typed true", "typed false"],
+      "coverageHits": {
+        "subject.mts": {
+          "statements": [2, 1, 1, 0],
+          "functions": [2, 0],
+          "branches": [[1, 1]]
+        }
+      }
+    },
+    {
+      "name": "mjs-mts-imported-false",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mts'\ntest('typed false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual).toBe(0)\n})\n",
+        "subject.mts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      },
+      "mode": "development",
+      "caseNames": ["typed false"],
+      "coverageHits": {
+        "subject.mts": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      }
+    },
+    {
+      "name": "mjs-mts-imported-imported-zero",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport './subject.mts'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.mts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      },
+      "mode": "development"
+    },
+    {
+      "name": "mjs-mts-imported-true",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mts'\ntest('typed true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual).toBe(1)\n})\n",
+        "subject.mts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      },
+      "mode": "development",
+      "caseNames": ["typed true"],
+      "coverageHits": {
+        "subject.mts": {
+          "statements": [1, 1, 0, 0],
+          "functions": [1, 0],
+          "branches": [[1, 0]]
+        }
+      }
+    },
+    {
+      "name": "mjs-mts-imported-unimported-zero",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect} from 'vitest'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.mts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      },
+      "mode": "development",
+      "coverageHits": {}
+    },
+    {
+      "name": "mjs-ts-explicit-both",
+      "subjectExtension": "ts",
+      "subjectFile": "subject.ts",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.ts'\ntest('typed true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual).toBe(1)\n})\ntest('typed false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual).toBe(0)\n})\n",
+        "subject.ts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.ts\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "development",
+      "caseNames": ["typed true", "typed false"],
+      "coverageHits": {
+        "subject.ts": {
+          "statements": [2, 1, 1, 0],
+          "functions": [2, 0],
+          "branches": [[1, 1]]
+        }
+      }
+    },
+    {
+      "name": "mjs-ts-explicit-false",
+      "subjectExtension": "ts",
+      "subjectFile": "subject.ts",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.ts'\ntest('typed false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual).toBe(0)\n})\n",
+        "subject.ts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.ts\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "development",
+      "caseNames": ["typed false"],
+      "coverageHits": {
+        "subject.ts": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      }
+    },
+    {
+      "name": "mjs-ts-explicit-imported-zero",
+      "subjectExtension": "ts",
+      "subjectFile": "subject.ts",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport './subject.ts'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.ts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.ts\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "development",
+      "coverageHits": {
+        "subject.ts": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      }
+    },
+    {
+      "name": "mjs-ts-explicit-true",
+      "subjectExtension": "ts",
+      "subjectFile": "subject.ts",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.ts'\ntest('typed true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual).toBe(1)\n})\n",
+        "subject.ts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.ts\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "development",
+      "caseNames": ["typed true"],
+      "coverageHits": {
+        "subject.ts": {
+          "statements": [1, 1, 0, 0],
+          "functions": [1, 0],
+          "branches": [[1, 0]]
+        }
+      }
+    },
+    {
+      "name": "mjs-ts-explicit-unimported-zero",
+      "subjectExtension": "ts",
+      "subjectFile": "subject.ts",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect} from 'vitest'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.ts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.ts\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "mode": "development",
+      "coverageHits": {
+        "subject.ts": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      }
+    },
+    {
+      "name": "mjs-ts-imported-both",
+      "subjectExtension": "ts",
+      "subjectFile": "subject.ts",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.ts'\ntest('typed true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual).toBe(1)\n})\ntest('typed false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual).toBe(0)\n})\n",
+        "subject.ts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      },
+      "mode": "development",
+      "caseNames": ["typed true", "typed false"],
+      "coverageHits": {
+        "subject.ts": {
+          "statements": [2, 1, 1, 0],
+          "functions": [2, 0],
+          "branches": [[1, 1]]
+        }
+      }
+    },
+    {
+      "name": "mjs-ts-imported-false",
+      "subjectExtension": "ts",
+      "subjectFile": "subject.ts",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.ts'\ntest('typed false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual).toBe(0)\n})\n",
+        "subject.ts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      },
+      "mode": "development",
+      "caseNames": ["typed false"],
+      "coverageHits": {
+        "subject.ts": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      }
+    },
+    {
+      "name": "mjs-ts-imported-imported-zero",
+      "subjectExtension": "ts",
+      "subjectFile": "subject.ts",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport './subject.ts'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.ts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      },
+      "mode": "development",
+      "coverageHits": {
+        "subject.ts": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      }
+    },
+    {
+      "name": "mjs-ts-imported-true",
+      "subjectExtension": "ts",
+      "subjectFile": "subject.ts",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.ts'\ntest('typed true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual).toBe(1)\n})\n",
+        "subject.ts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      },
+      "mode": "development",
+      "caseNames": ["typed true"],
+      "coverageHits": {
+        "subject.ts": {
+          "statements": [1, 1, 0, 0],
+          "functions": [1, 0],
+          "branches": [[1, 0]]
+        }
+      }
+    },
+    {
+      "name": "mjs-ts-imported-unimported-zero",
+      "subjectExtension": "ts",
+      "subjectFile": "subject.ts",
+      "sourceFiles": {
+        "suite.test.mjs": "import {test,expect} from 'vitest'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n",
+        "subject.ts": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      },
+      "mode": "development",
+      "coverageHits": {}
+    }
+  ]
+}

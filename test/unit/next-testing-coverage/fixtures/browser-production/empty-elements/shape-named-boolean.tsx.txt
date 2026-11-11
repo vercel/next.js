@@ -1,0 +1,9 @@
+/** @jsxRuntime classic */
+/** @jsx h */
+/** @jsxFrag Frag */
+import { createElement as h, Fragment as Frag } from 'react'
+type Input = { active: boolean; label: string }
+export function Card({ active, label }: Input) {
+  return <button disabled>{label}</button>
+}
+export const Unused = () => <i />

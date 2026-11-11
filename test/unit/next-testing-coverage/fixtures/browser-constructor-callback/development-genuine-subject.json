@@ -1,0 +1,83 @@
+{
+  "$coverage": "range-tuples-v1",
+  "path": "/private/tmp/s46-real-creator-coverage/genuine-resolved-provider/source149/development/fixture/subject.jsx",
+  "statements": {
+    "0": [1, 7, 1, null],
+    "1": [1, 18, 1, null],
+    "2": [4, 18, 4, null],
+    "3": [4, 43, 4, 80],
+    "4": [5, 18, 5, null],
+    "5": [6, 18, 6, null],
+    "6": [7, 2, 7, null]
+  },
+  "functions": {
+    "0": {
+      "name": "createSubject",
+      "decl": [3, 16, 3, 30],
+      "loc": [3, 37, 8, null],
+      "line": 3
+    },
+    "1": {
+      "name": "(anonymous_1)",
+      "decl": [4, 22, 4, 31],
+      "loc": [4, 43, 4, 80],
+      "line": 4
+    }
+  },
+  "branches": {
+    "0": {
+      "loc": [4, 51, 4, 79],
+      "type": "cond-expr",
+      "locations": [
+        [4, 59, 4, 72],
+        [4, 72, 4, 79]
+      ],
+      "line": 4
+    },
+    "1": {
+      "loc": [6, 25, 6, 60],
+      "type": "cond-expr",
+      "locations": [
+        [6, 33, 6, 46],
+        [6, 46, 6, 60]
+      ],
+      "line": 6
+    }
+  },
+  "s": {
+    "0": 1,
+    "1": 1,
+    "2": 2,
+    "3": 2,
+    "4": 2,
+    "5": 2,
+    "6": 2
+  },
+  "f": {
+    "0": 2,
+    "1": 2
+  },
+  "b": {
+    "0": [1, 1],
+    "1": [1, 1]
+  },
+  "meta": {
+    "lastBranch": 2,
+    "lastFunction": 2,
+    "lastStatement": 7,
+    "seen": {
+      "s:1:7:1:Infinity": 0,
+      "s:1:18:1:Infinity": 1,
+      "f:3:16:3:30": 0,
+      "s:4:18:4:Infinity": 2,
+      "f:4:22:4:31": 1,
+      "s:4:43:4:80": 3,
+      "b:4:59:4:72:4:72:4:79": 0,
+      "s:5:18:5:Infinity": 4,
+      "s:6:18:6:Infinity": 5,
+      "b:6:33:6:46:6:46:6:60": 1,
+      "s:7:2:7:Infinity": 6
+    },
+    "fnNames": {}
+  }
+}

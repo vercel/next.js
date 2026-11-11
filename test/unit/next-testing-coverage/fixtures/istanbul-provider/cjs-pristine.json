@@ -1,0 +1,418 @@
+{
+  "coverageMaps": {
+    "default-imported": {
+      "subject.cjs": {
+        "statements": [1, 2, 1, 1, 1, 0],
+        "functions": [2, 0],
+        "branches": [[1, 1]]
+      }
+    }
+  },
+  "defaults": {
+    "actualCLI": true,
+    "exitCode": 0,
+    "allOwnersJoined": true,
+    "wholeCasesAndCoverage": false,
+    "sourceFiles": {
+      "subject.cjs": {
+        "source": "exports.choose = function choose(value) {\n  if (value) return 1\n  return 0\n}\nexports.unused = function unused() { return 9 }\n",
+        "sha256": "c242c7e126212b84c5f9e2d837fc004fc9b60c0398f9b4ba2eb6bffc8430364f"
+      },
+      "dependency.cjs": {
+        "source": "exports.offset = function offset(value) { return value + 2 }\n",
+        "sha256": "02e261b15a5ecfa93b5ecf1cf2dbcd0b87bab4b31411ef681409c210a037eed8"
+      },
+      "unimported.cjs": {
+        "source": "throw new Error('selected CommonJS source must not execute')\nexports.never = function never() { return 8 }\n",
+        "sha256": "61a07765ef83eeea54907de94a3c022941a0b5c7283c12c71fb1ee70aad6627e"
+      },
+      "suite.test.mjs": {
+        "source": "import {test,expect} from 'vitest'\nimport subject from './subject.cjs'\nconst choose = subject.choose\ntest('CommonJS true branch', () => expect(choose(true)).toBe(1))\ntest('CommonJS false branch', () => expect(choose(false)).toBe(0))\n",
+        "sha256": "32f1c0d28dc7a33108df280b4467e882f21c04f2f6232f9bd0baaf7d231b9394"
+      }
+    },
+    "snapshots": {},
+    "coverage": {
+      "subject.cjs": {
+        "statements": [1, 2, 1, 1, 1, 0],
+        "functions": [2, 0],
+        "branches": [[1, 1]]
+      },
+      "dependency.cjs": {
+        "statements": [0, 0],
+        "functions": [0],
+        "branches": []
+      },
+      "unimported.cjs": {
+        "statements": [0, 0, 0],
+        "functions": [0],
+        "branches": []
+      }
+    },
+    "reportFiles": ["coverage-final.json", "coverage-summary.json", "lcov.info"]
+  },
+  "rows": [
+    {
+      "name": "default-explicit",
+      "explicit": true,
+      "named": false,
+      "nested": false,
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"*.cjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": true,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-cjs74-ODYKUN/suite.test.mjs",
+            "status": "passed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "CommonJS true branch",
+                "status": "passed",
+                "title": "CommonJS true branch",
+                "failureMessages": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "CommonJS false branch",
+                "status": "passed",
+                "title": "CommonJS false branch",
+                "failureMessages": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "default-imported",
+      "explicit": false,
+      "named": false,
+      "nested": false,
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": true,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-cjs74-8fyx38/suite.test.mjs",
+            "status": "passed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "CommonJS true branch",
+                "status": "passed",
+                "title": "CommonJS true branch",
+                "failureMessages": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "CommonJS false branch",
+                "status": "passed",
+                "title": "CommonJS false branch",
+                "failureMessages": []
+              }
+            ]
+          }
+        ]
+      },
+      "coverage": "default-imported"
+    },
+    {
+      "name": "named-explicit",
+      "explicit": true,
+      "named": true,
+      "nested": false,
+      "sourceFiles": {
+        "subject.cjs": {
+          "source": "exports.choose = function choose(value) {\n  if (value) return 1\n  return 0\n}\nexports.unused = function unused() { return 9 }\n",
+          "sha256": "c242c7e126212b84c5f9e2d837fc004fc9b60c0398f9b4ba2eb6bffc8430364f"
+        },
+        "dependency.cjs": {
+          "source": "exports.offset = function offset(value) { return value + 2 }\n",
+          "sha256": "02e261b15a5ecfa93b5ecf1cf2dbcd0b87bab4b31411ef681409c210a037eed8"
+        },
+        "unimported.cjs": {
+          "source": "throw new Error('selected CommonJS source must not execute')\nexports.never = function never() { return 8 }\n",
+          "sha256": "61a07765ef83eeea54907de94a3c022941a0b5c7283c12c71fb1ee70aad6627e"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.cjs'\ntest('CommonJS true branch', () => expect(choose(true)).toBe(1))\ntest('CommonJS false branch', () => expect(choose(false)).toBe(0))\n",
+          "sha256": "368610e51dc279fe7bcb576c864c3a830169009c71fddae6de9e705f4e1bae2a"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"*.cjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": true,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-cjs74-zAqX6X/suite.test.mjs",
+            "status": "passed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "CommonJS true branch",
+                "status": "passed",
+                "title": "CommonJS true branch",
+                "failureMessages": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "CommonJS false branch",
+                "status": "passed",
+                "title": "CommonJS false branch",
+                "failureMessages": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "nested-imported",
+      "explicit": false,
+      "named": false,
+      "nested": true,
+      "sourceFiles": {
+        "subject.cjs": {
+          "source": "const { offset } = require('./dependency.cjs')\nexports.choose = function choose(value) {\n  if (value) return offset(1)\n  return offset(0)\n}\nexports.unused = function unused() { return 9 }\n",
+          "sha256": "e78aab3b84a1c6180b0e3656de9eb7dd2178dbf857082dadabceb1292ee65519"
+        },
+        "dependency.cjs": {
+          "source": "exports.offset = function offset(value) { return value + 2 }\n",
+          "sha256": "02e261b15a5ecfa93b5ecf1cf2dbcd0b87bab4b31411ef681409c210a037eed8"
+        },
+        "unimported.cjs": {
+          "source": "throw new Error('selected CommonJS source must not execute')\nexports.never = function never() { return 8 }\n",
+          "sha256": "61a07765ef83eeea54907de94a3c022941a0b5c7283c12c71fb1ee70aad6627e"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport subject from './subject.cjs'\nconst choose = subject.choose\ntest('CommonJS true branch', () => expect(choose(true)).toBe(3))\ntest('CommonJS false branch', () => expect(choose(false)).toBe(2))\n",
+          "sha256": "18bdcf73677614bc8fce938d4c2f5002e3fef89aebb5644e71952cdbd680ba3d"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": true,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-cjs74-lLxPrS/suite.test.mjs",
+            "status": "passed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "CommonJS true branch",
+                "status": "passed",
+                "title": "CommonJS true branch",
+                "failureMessages": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "CommonJS false branch",
+                "status": "passed",
+                "title": "CommonJS false branch",
+                "failureMessages": []
+              }
+            ]
+          }
+        ]
+      },
+      "coverage": {
+        "subject.cjs": {
+          "statements": [1, 1, 2, 1, 1, 1, 0],
+          "functions": [2, 0],
+          "branches": [[1, 1]]
+        }
+      }
+    },
+    {
+      "name": "malformed-imported",
+      "explicit": false,
+      "named": false,
+      "nested": false,
+      "sourceFiles": {
+        "subject.cjs": {
+          "source": "exports.choose = function choose(value) {\n  if (value) return 1\n  return 0\n}\nexports.unused = function unused() { return 9 }\n",
+          "sha256": "c242c7e126212b84c5f9e2d837fc004fc9b60c0398f9b4ba2eb6bffc8430364f"
+        },
+        "dependency.cjs": {
+          "source": "exports.offset = function offset(value) { return value + 2 }\n",
+          "sha256": "02e261b15a5ecfa93b5ecf1cf2dbcd0b87bab4b31411ef681409c210a037eed8"
+        },
+        "unimported.cjs": {
+          "source": "this is deliberately malformed CJS ?? ?\n",
+          "sha256": "bf522ded6cf6a11a0215e874d28f560441ff8cccd97e6266c95941c768d6b447"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport subject from './subject.cjs'\nconst choose = subject.choose\ntest('CommonJS true branch', () => expect(choose(true)).toBe(1))\ntest('CommonJS false branch', () => expect(choose(false)).toBe(0))\n",
+          "sha256": "32f1c0d28dc7a33108df280b4467e882f21c04f2f6232f9bd0baaf7d231b9394"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": true,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-cjs74-kNhoeq/suite.test.mjs",
+            "status": "passed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "CommonJS true branch",
+                "status": "passed",
+                "title": "CommonJS true branch",
+                "failureMessages": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "CommonJS false branch",
+                "status": "passed",
+                "title": "CommonJS false branch",
+                "failureMessages": []
+              }
+            ]
+          }
+        ]
+      },
+      "coverage": "default-imported"
+    }
+  ],
+  "notQualified": [
+    "CommonJS test entries",
+    "mock/reset combinations",
+    "external CommonJS sources",
+    "other profiles/languages"
+  ],
+  "unqualifiedProfiles": {
+    "nested-imported": "Genuine CommonJS require edges bypass instrumentation; Source loader edge attribution remains open. Raw complete reference and unbounded Source mismatch retained."
+  }
+}

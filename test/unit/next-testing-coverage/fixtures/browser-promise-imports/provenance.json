@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "source": "retained actual native Source149 compile captures; no authored inputs rewritten",
+  "authoredSha256": "9448efa5c6cd3bf645772f81237f36c9468426f94d74352f6cc88021d922c186",
+  "captures": [
+    {
+      "mode": "development",
+      "certificate": "/Users/timneutkens/projects/next-testing-handoffs/release-coverage343-real-creators/next-source149-development/actual-compile/before-coverage-metadata-12840-1/files/server/next-test/2a5a4e90765d3e34fc55262e38b490a574c08c636f4b49da0ba1ffa51496d2ac.browser-coverage.json",
+      "certificateSha256": "2fcc5fb8d5220206c3110d6b0c25282aa2517a3d0dc611b570dd8267f9b1a192",
+      "script": "static/chunks/_next-test-real-jsx-creator-coverage-Eavo2o_subject_jsx_0ay-_u3663_jh._.js",
+      "scriptSha256": "d3a196c24fc9a09ecacc4165f798aac5c932e4d71978d2e62fa10688f86ef276"
+    },
+    {
+      "mode": "production",
+      "certificate": "/Users/timneutkens/projects/next-testing-handoffs/release-coverage343-real-creators/next-source149-production/actual-compile/before-coverage-metadata-14218-1/files/server/next-test/7a9d963909b23b961e0206a0d91ef74369114aa389f6a6389b4d4fbcf7f3af3d.browser-coverage.json",
+      "certificateSha256": "f178c6ffd24f2758a1c975ba88e9fd7dca50c36e57c199d49dae8c5eee9e4694",
+      "script": "static/chunks/2_9lr346-5xqj.js",
+      "scriptSha256": "b4a3ea23e5a28b270fe79cba2817791fcc4ae963a848a5819f215dc9dbecdf1c"
+    }
+  ],
+  "fixtureFiles": {
+    "development-certificate.json.txt": "2fcc5fb8d5220206c3110d6b0c25282aa2517a3d0dc611b570dd8267f9b1a192",
+    "development.js.map.json.txt": "6e0ebad8304451c303c322cb49f7051f2a19a1f7621a0738c86fe4e2f9ef4711",
+    "development.js.txt": "d3a196c24fc9a09ecacc4165f798aac5c932e4d71978d2e62fa10688f86ef276",
+    "production-certificate.json.txt": "f178c6ffd24f2758a1c975ba88e9fd7dca50c36e57c199d49dae8c5eee9e4694",
+    "provenance.json": "671109e9570e4548930e594ca5cd372624626df2c280e968c80b4a24d1349710",
+    "subject.jsx.txt": "9448efa5c6cd3bf645772f81237f36c9468426f94d74352f6cc88021d922c186"
+  },
+  "consumerControl": {
+    "mode": "development",
+    "relocation": "Only indexed-map source identities are relocated to the owned temp subject.jsx. Authored bytes, emitted script bytes and selected native section are unchanged for the positive control.",
+    "certificateAssembly": "Bookkeeping script rows are omitted from the test-local proof; the original complete certificates are stored byte-for-byte. The unchanged outer certificate/output/hash/source-map/AST/context checks execute on the owned fixture.",
+    "counts": "Deterministic generated initializer count 1 isolates declaration association; this is not a measured runtime coverage or publication proof."
+  }
+}

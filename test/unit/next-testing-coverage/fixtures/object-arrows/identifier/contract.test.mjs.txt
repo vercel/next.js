@@ -1,0 +1,3 @@
+import { expect, test } from 'vitest'
+import { run } from './subject.ts'
+test('object property arrows retain authored coverage', async () => { expect(await run(3)).toBe(15) })

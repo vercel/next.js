@@ -1,0 +1,836 @@
+{
+  "sourceFiles": {
+    "contract.test.mjs": "import { test, expect } from 'vitest'\nimport { choose } from './subject.mjs'\ntest('only true branch is executed', () => expect(choose(true)).toBe(1))\n",
+    "subject.mjs": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+    "unimported.mjs": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+    "fully.mjs": "export function fully(value) { return value + 1 }\n",
+    "full.test.mjs": "import { test, expect } from 'vitest'\nimport { fully } from './fully.mjs'\ntest('fully covered control', () => expect(fully(2)).toBe(3))\n",
+    "failed.case.mjs": "import { test, expect } from 'vitest'\ntest('failed body still owns complete coverage', () => expect(1).toBe(2))\n",
+    "package.json": "{\"private\":true,\"type\":\"module\"}\n",
+    "throw-unimported.mjs": "globalThis.__unimported_was_evaluated = true\nthrow new Error('selected unimported must not evaluate')\n",
+    "cleanup-failure.case.mjs": "import {test,afterAll} from 'vitest'\ntest('body completes before settled cleanup error',()=>{})\nafterAll(()=>{throw new Error('owned settled cleanup failure')})\n"
+  },
+  "unqualifiedProfiles": {
+    "settled-cleanup-failure": "Coverage matches; shared JSON reporter file.message remains a separate implementation gap."
+  },
+  "defaults": {
+    "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+    "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+    "flags": [],
+    "exitCode": 0,
+    "directoryExists": true,
+    "cases": [
+      {
+        "file": "contract.test.mjs",
+        "status": "passed",
+        "message": "",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "only true branch is executed",
+            "status": "passed",
+            "title": "only true branch is executed",
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "file": "full.test.mjs",
+        "status": "passed",
+        "message": "",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "fully covered control",
+            "status": "passed",
+            "title": "fully covered control",
+            "failureMessages": []
+          }
+        ]
+      }
+    ],
+    "coverageText": null,
+    "thresholdErrors": [],
+    "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+    "coverage": {
+      "fully.mjs": {
+        "statements": [1],
+        "functions": [1],
+        "branches": []
+      },
+      "subject.mjs": {
+        "statements": [1, 1, 0, 0],
+        "functions": [1, 0],
+        "branches": [[1, 0]]
+      },
+      "unimported.mjs": {
+        "statements": [0, 0, 0, 0],
+        "functions": [0, 0],
+        "branches": [[0, 0]]
+      }
+    },
+    "summary": {
+      "files": ["fully.mjs", "subject.mjs", "total", "unimported.mjs"],
+      "total": {
+        "lines": {
+          "total": 7,
+          "covered": 2,
+          "skipped": 0,
+          "pct": 28.57
+        },
+        "statements": {
+          "total": 9,
+          "covered": 3,
+          "skipped": 0,
+          "pct": 33.33
+        },
+        "functions": {
+          "total": 5,
+          "covered": 2,
+          "skipped": 0,
+          "pct": 40
+        },
+        "branches": {
+          "total": 4,
+          "covered": 1,
+          "skipped": 0,
+          "pct": 25
+        },
+        "branchesTrue": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": "Unknown"
+        }
+      }
+    }
+  },
+  "rows": [
+    {
+      "name": "baseline"
+    },
+    {
+      "name": "configured-disabled",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
+    },
+    {
+      "name": "disabled-provider-only",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "flags": ["--coverage.provider=istanbul"],
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
+    },
+    {
+      "name": "disabled-coverage-true",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "flags": ["--coverage"]
+    },
+    {
+      "name": "enabled-coverage-false",
+      "flags": ["--coverage=false"],
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
+    },
+    {
+      "name": "false-before-provider",
+      "flags": ["--coverage=false", "--coverage.provider=istanbul"],
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
+    },
+    {
+      "name": "provider-before-false",
+      "flags": ["--coverage.provider=istanbul", "--coverage=false"],
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
+    },
+    {
+      "name": "configured-v8-cli-istanbul",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "flags": ["--coverage.provider=istanbul"]
+    },
+    {
+      "name": "configured-istanbul-cli-v8",
+      "flags": ["--coverage.provider=v8"]
+    },
+    {
+      "name": "configured-custom-cli-istanbul",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"custom\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"customProviderModule\": \"./does-not-exist.mjs\"\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"custom\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"customProviderModule\": \"./does-not-exist.mjs\"\n    }\n  }\n}\n",
+      "flags": ["--coverage.provider=istanbul"]
+    },
+    {
+      "name": "absent-provider-istanbul-cli",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "flags": ["--coverage.provider=istanbul"]
+    },
+    {
+      "name": "no-config-provider-only",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000\n  }\n}\n",
+      "flags": [
+        "--coverage.provider=istanbul",
+        "--coverage.include=subject.mjs",
+        "--coverage.include=fully.mjs",
+        "--coverage.include=unimported.mjs",
+        "--coverage.reporter=json",
+        "--coverage.reporter=json-summary",
+        "--coverage.reporter=lcovonly"
+      ],
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
+    },
+    {
+      "name": "empty-include",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "coverage": {},
+      "summary": {
+        "files": ["total"],
+        "total": {
+          "lines": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          },
+          "statements": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          },
+          "functions": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          },
+          "branches": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          },
+          "branchesTrue": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          }
+        }
+      }
+    },
+    {
+      "name": "missing-include",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "coverage": {
+        "fully.mjs": {
+          "statements": [1],
+          "functions": [1],
+          "branches": []
+        },
+        "subject.mjs": {
+          "statements": [1, 1, 0, 0],
+          "functions": [1, 0],
+          "branches": [[1, 0]]
+        }
+      },
+      "summary": {
+        "files": ["fully.mjs", "subject.mjs", "total"],
+        "total": {
+          "lines": {
+            "total": 4,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 50
+          },
+          "statements": {
+            "total": 5,
+            "covered": 3,
+            "skipped": 0,
+            "pct": 60
+          },
+          "functions": {
+            "total": 3,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 66.66
+          },
+          "branches": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          },
+          "branchesTrue": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          }
+        }
+      }
+    },
+    {
+      "name": "all-excluded",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [\n        \"*.mjs\"\n      ],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [\n        \"*.mjs\"\n      ],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "coverage": {},
+      "summary": {
+        "files": ["total"],
+        "total": {
+          "lines": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          },
+          "statements": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          },
+          "functions": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          },
+          "branches": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          },
+          "branchesTrue": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          }
+        }
+      }
+    },
+    {
+      "name": "overlap-exclude",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"*.mjs\"\n      ],\n      \"exclude\": [\n        \"unimported.mjs\",\n        \"failed.case.mjs\"\n      ],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"*.mjs\"\n      ],\n      \"exclude\": [\n        \"unimported.mjs\",\n        \"failed.case.mjs\"\n      ],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "coverage": {
+        "cleanup-failure.case.mjs": {
+          "statements": [0, 0, 0],
+          "functions": [0, 0],
+          "branches": []
+        },
+        "fully.mjs": {
+          "statements": [1],
+          "functions": [1],
+          "branches": []
+        },
+        "subject.mjs": {
+          "statements": [1, 1, 0, 0],
+          "functions": [1, 0],
+          "branches": [[1, 0]]
+        },
+        "throw-unimported.mjs": {
+          "statements": [0, 0],
+          "functions": [],
+          "branches": []
+        }
+      },
+      "summary": {
+        "files": [
+          "cleanup-failure.case.mjs",
+          "fully.mjs",
+          "subject.mjs",
+          "throw-unimported.mjs",
+          "total"
+        ],
+        "total": {
+          "lines": {
+            "total": 8,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 25
+          },
+          "statements": {
+            "total": 10,
+            "covered": 3,
+            "skipped": 0,
+            "pct": 30
+          },
+          "functions": {
+            "total": 5,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 40
+          },
+          "branches": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          },
+          "branchesTrue": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          }
+        }
+      }
+    },
+    {
+      "name": "unimported-throw",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"throw-unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"throw-unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "coverage": {
+        "fully.mjs": {
+          "statements": [1],
+          "functions": [1],
+          "branches": []
+        },
+        "subject.mjs": {
+          "statements": [1, 1, 0, 0],
+          "functions": [1, 0],
+          "branches": [[1, 0]]
+        },
+        "throw-unimported.mjs": {
+          "statements": [0, 0],
+          "functions": [],
+          "branches": []
+        }
+      },
+      "summary": {
+        "files": ["fully.mjs", "subject.mjs", "throw-unimported.mjs", "total"],
+        "total": {
+          "lines": {
+            "total": 6,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 33.33
+          },
+          "statements": {
+            "total": 7,
+            "covered": 3,
+            "skipped": 0,
+            "pct": 42.85
+          },
+          "functions": {
+            "total": 3,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 66.66
+          },
+          "branches": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          },
+          "branchesTrue": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          }
+        }
+      }
+    },
+    {
+      "name": "default-reporters",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "coverageText": "----------------|---------|----------|---------|---------|-------------------\nFile            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----------------|---------|----------|---------|---------|-------------------\nAll files       |   33.33 |       25 |      40 |   28.57 |                   \n subject.mjs    |      50 |       50 |      50 |   33.33 | 3-6               \n unimported.mjs |       0 |        0 |       0 |       0 | 2-6               \n----------------|---------|----------|---------|---------|-------------------\n\n=============================== Coverage summary ===============================\nStatements   : 33.33% ( 3/9 )\nBranches     : 25% ( 1/4 )\nFunctions    : 40% ( 2/5 )\nLines        : 28.57% ( 2/7 )\n================================================================================",
+      "files": [
+        "base.css",
+        "block-navigation.js",
+        "clover.xml",
+        "coverage-final.json",
+        "favicon.png",
+        "fully.mjs.html",
+        "index.html",
+        "prettify.css",
+        "prettify.js",
+        "sort-arrow-sprite.png",
+        "sorter.js",
+        "subject.mjs.html",
+        "unimported.mjs.html"
+      ],
+      "omit": ["summary"]
+    },
+    {
+      "name": "stdout-none",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"none\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"none\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "directoryExists": false,
+      "files": [],
+      "omit": ["coverage", "summary"]
+    },
+    {
+      "name": "threshold-minimum",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": 100\n      }\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": 100\n      }\n    }\n  }\n}\n",
+      "exitCode": 1,
+      "thresholdErrors": [
+        "Coverage for statements (33.33%) does not meet global threshold (100%)"
+      ]
+    },
+    {
+      "name": "threshold-uncovered",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": -1\n      }\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": -1\n      }\n    }\n  }\n}\n",
+      "exitCode": 1,
+      "thresholdErrors": [
+        "Uncovered statements (6) exceed global threshold (1)"
+      ]
+    },
+    {
+      "name": "threshold-per-file",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": 100,\n        \"perFile\": true\n      }\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": 100,\n        \"perFile\": true\n      }\n    }\n  }\n}\n",
+      "exitCode": 1,
+      "thresholdErrors": [
+        "Coverage for statements (50%) does not meet global threshold (100%) for subject.mjs",
+        "Coverage for statements (0%) does not meet global threshold (100%) for unimported.mjs"
+      ]
+    },
+    {
+      "name": "threshold-glob",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"**/subject.mjs\": {\n          \"statements\": 100\n        }\n      }\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"**/subject.mjs\": {\n          \"statements\": 100\n        }\n      }\n    }\n  }\n}\n",
+      "exitCode": 1,
+      "thresholdErrors": [
+        "Coverage for statements (50%) does not meet \"**/subject.mjs\" threshold (100%)"
+      ]
+    },
+    {
+      "name": "threshold-100",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"100\": true\n      }\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"100\": true\n      }\n    }\n  }\n}\n",
+      "exitCode": 1,
+      "thresholdErrors": [
+        "Coverage for lines (28.57%) does not meet global threshold (100%)",
+        "Coverage for functions (40%) does not meet global threshold (100%)",
+        "Coverage for statements (33.33%) does not meet global threshold (100%)",
+        "Coverage for branches (25%) does not meet global threshold (100%)"
+      ]
+    },
+    {
+      "name": "threshold-auto-update",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": 0,\n        \"functions\": 0,\n        \"branches\": 0,\n        \"lines\": 0,\n        \"autoUpdate\": true\n      }\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": 33.33,\n        \"functions\": 40,\n        \"branches\": 25,\n        \"lines\": 28.57,\n        \"autoUpdate\": true\n      }\n    }\n  }\n}\n"
+    },
+    {
+      "name": "threshold-auto-update-disabled",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": 0,\n        \"autoUpdate\": true\n      }\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": 0,\n        \"autoUpdate\": true\n      }\n    }\n  }\n}\n",
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
+    },
+    {
+      "name": "failure-default",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 1,
+      "directoryExists": false,
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "status": "passed",
+          "message": "",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": []
+            }
+          ]
+        },
+        {
+          "file": "failed.case.mjs",
+          "status": "failed",
+          "message": "",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "failed body still owns complete coverage",
+              "status": "failed",
+              "title": "failed body still owns complete coverage",
+              "failureMessages": [
+                "AssertionError: expected 1 to be 2 // Object.is equality"
+              ]
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "status": "passed",
+          "message": "",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": []
+            }
+          ]
+        }
+      ],
+      "files": [],
+      "omit": ["coverage", "summary"]
+    },
+    {
+      "name": "failure-report-on-failure",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "exitCode": 1,
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "status": "passed",
+          "message": "",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": []
+            }
+          ]
+        },
+        {
+          "file": "failed.case.mjs",
+          "status": "failed",
+          "message": "",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "failed body still owns complete coverage",
+              "status": "failed",
+              "title": "failed body still owns complete coverage",
+              "failureMessages": [
+                "AssertionError: expected 1 to be 2 // Object.is equality"
+              ]
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "status": "passed",
+          "message": "",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "failure-clean-true",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": true\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": true\n    }\n  }\n}\n",
+      "exitCode": 1,
+      "directoryExists": false,
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "status": "passed",
+          "message": "",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": []
+            }
+          ]
+        },
+        {
+          "file": "failed.case.mjs",
+          "status": "failed",
+          "message": "",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "failed body still owns complete coverage",
+              "status": "failed",
+              "title": "failed body still owns complete coverage",
+              "failureMessages": [
+                "AssertionError: expected 1 to be 2 // Object.is equality"
+              ]
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "status": "passed",
+          "message": "",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": []
+            }
+          ]
+        }
+      ],
+      "files": [],
+      "omit": ["coverage", "summary"]
+    },
+    {
+      "name": "failure-clean-false",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": false\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": false\n    }\n  }\n}\n",
+      "exitCode": 1,
+      "cases": [
+        {
+          "file": "contract.test.mjs",
+          "status": "passed",
+          "message": "",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": []
+            }
+          ]
+        },
+        {
+          "file": "failed.case.mjs",
+          "status": "failed",
+          "message": "",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "failed body still owns complete coverage",
+              "status": "failed",
+              "title": "failed body still owns complete coverage",
+              "failureMessages": [
+                "AssertionError: expected 1 to be 2 // Object.is equality"
+              ]
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "status": "passed",
+          "message": "",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": []
+            }
+          ]
+        }
+      ],
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
+    },
+    {
+      "name": "clean-true",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": true\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": true\n    }\n  }\n}\n"
+    },
+    {
+      "name": "clean-false",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": false\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": false\n    }\n  }\n}\n",
+      "files": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info",
+        "retained-sentinel.txt"
+      ]
+    },
+    {
+      "name": "disabled-clean-true",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": true\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": true\n    }\n  }\n}\n",
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
+    },
+    {
+      "name": "disabled-clean-false",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": false\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": false\n    }\n  }\n}\n",
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
+    },
+    {
+      "name": "settled-cleanup-failure",
+      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"cleanup-failure.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"cleanup-failure.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
+      "exitCode": 1,
+      "cases": [
+        {
+          "file": "cleanup-failure.case.mjs",
+          "status": "failed",
+          "message": "owned settled cleanup failure",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "body completes before settled cleanup error",
+              "status": "passed",
+              "title": "body completes before settled cleanup error",
+              "failureMessages": []
+            }
+          ]
+        },
+        {
+          "file": "contract.test.mjs",
+          "status": "passed",
+          "message": "",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "only true branch is executed",
+              "status": "passed",
+              "title": "only true branch is executed",
+              "failureMessages": []
+            }
+          ]
+        },
+        {
+          "file": "full.test.mjs",
+          "status": "passed",
+          "message": "",
+          "cases": [
+            {
+              "ancestorTitles": [],
+              "fullName": "fully covered control",
+              "status": "passed",
+              "title": "fully covered control",
+              "failureMessages": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+import { prefix, offset } from './helper.js'
+export class Reader {
+  read(value: number): number { return prefix(value) + offset; }
+}
+export function exercise(value: number): number { return new Reader().read(value); }

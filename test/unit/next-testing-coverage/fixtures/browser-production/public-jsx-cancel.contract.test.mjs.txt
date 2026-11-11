@@ -1,0 +1,3 @@
+import { expect, test } from 'vitest'
+import { Basic } from './subject.jsx'
+test('actual public JSX cancel after subject execution', async()=>{expect(Basic({name:'cancel'}).props.children).toBe('cancel!');console.log('NEXT_COVERAGE_BODY_STARTED');await new Promise(()=>{})})

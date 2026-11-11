@@ -1,0 +1,69 @@
+{
+  "$coverage": "range-tuples-v1",
+  "path": "<subject.ts>",
+  "statements": {
+    "0": [1, 23, 5, null],
+    "1": [2, 29, 2, null],
+    "2": [3, 41, 3, 58],
+    "3": [4, 18, 4, null],
+    "4": [7, 2, 7, null]
+  },
+  "functions": {
+    "0": {
+      "name": "(anonymous_0)",
+      "decl": [2, 2, 2, 11],
+      "loc": [2, 29, 2, null],
+      "line": 2
+    },
+    "1": {
+      "name": "(anonymous_1)",
+      "decl": [3, 14, 3, 21],
+      "loc": [3, 39, 3, null],
+      "line": 3
+    },
+    "2": {
+      "name": "(anonymous_2)",
+      "decl": [4, 2, 4, 18],
+      "loc": [4, 18, 4, null],
+      "line": 4
+    },
+    "3": {
+      "name": "run",
+      "decl": [6, 22, 6, 26],
+      "loc": [6, 41, 8, null],
+      "line": 6
+    }
+  },
+  "branches": {},
+  "s": {
+    "0": 1,
+    "1": 1,
+    "2": 1,
+    "3": 1,
+    "4": 1
+  },
+  "f": {
+    "0": 1,
+    "1": 1,
+    "2": 1,
+    "3": 1
+  },
+  "b": {},
+  "meta": {
+    "lastBranch": 0,
+    "lastFunction": 4,
+    "lastStatement": 5,
+    "seen": {
+      "s:1:23:5:Infinity": 0,
+      "f:2:2:2:11": 0,
+      "s:2:29:2:Infinity": 1,
+      "f:3:14:3:21": 1,
+      "s:3:41:3:58": 2,
+      "f:4:2:4:18": 2,
+      "s:4:18:4:Infinity": 3,
+      "f:6:22:6:26": 3,
+      "s:7:2:7:Infinity": 4
+    },
+    "fnNames": {}
+  }
+}
