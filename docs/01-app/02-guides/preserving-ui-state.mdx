@@ -30,7 +30,7 @@ When a user navigates away and returns, Activity preserves the open/closed state
 
 **When to keep it:** A sidebar with expanded sections, a FAQ accordion, or a filters panel. The user set up their view intentionally, and restoring it avoids re-doing that work.
 
-**When to reset it:** Transient UI, such as an options menu, that should be closed when the user returns.
+**When to reset it:** A dropdown menu or popover triggered by a button click, for example. These are transient interactions, not persistent view state. Returning to a page with a dropdown already open can be confusing.
 
 When React state should reset on hide, update it in a `useLayoutEffect` cleanup. For example, this dropdown closes when Activity hides the component:
 
