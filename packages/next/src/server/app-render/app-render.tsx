@@ -4505,6 +4505,17 @@ async function renderToStream(
         )
       }
 
+      // When the render was aborted by a redirect, the error document is the
+      // response that carries the redirect. If the shell already streamed,
+      // the 307 status and Location header can no longer be sent, so the
+      // redirect must be surfaced as a meta refresh tag instead. Seed the
+      // error document's captured errors with the redirect so
+      // `makeGetServerInsertedHTML` emits it. Other errors are left out:
+      // the error document renders those on its own.
+      const errorDocumentCapturedErrors: Array<unknown> = isRedirectError(err)
+        ? [err]
+        : []
+
       if (process.env.__NEXT_USE_NODE_STREAMS) {
         // MARK: nodeStreams errorRecovery RSC + HTML
         let errorRSCPayload: InitialRSCPayload
@@ -4580,7 +4591,7 @@ async function renderToStream(
             getServerInsertedHTML: makeGetServerInsertedHTML({
               polyfills,
               renderServerInsertedHTML,
-              serverCapturedErrors: [],
+              serverCapturedErrors: errorDocumentCapturedErrors,
               basePath,
               tracingMetadata: tracingMetadata,
             }),
@@ -4676,7 +4687,7 @@ async function renderToStream(
             getServerInsertedHTML: makeGetServerInsertedHTML({
               polyfills,
               renderServerInsertedHTML,
-              serverCapturedErrors: [],
+              serverCapturedErrors: errorDocumentCapturedErrors,
               basePath,
               tracingMetadata: tracingMetadata,
             }),
