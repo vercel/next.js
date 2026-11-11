@@ -411,8 +411,8 @@ describe('app-dir - server source maps', () => {
       // functions created by the SSR Flight client.
       expect(output).toContain(
         'Error: ssr-owner-stack' +
-          '\n    at ServerComponent (app/ssr-owner-stack/page.js:4:10)' +
-          '\n    at Page (app/ssr-owner-stack/page.js:8:10)' +
+          '\n    at ServerComponent (app/ssr-owner-stack/page.tsx:4:10)' +
+          '\n    at Page (app/ssr-owner-stack/page.tsx:8:10)' +
           '\n'
       )
 
