@@ -186,7 +186,7 @@ export async function updateUser(id) {
 }
 ```
 
-> **Good to know:** Prefer tag-based revalidation (`revalidateTag`/`updateTag`) over path-based when possible. Tags target server-side cached data more precisely and avoid over-invalidating it. [Client cache invalidation](/docs/app/api-reference/functions/cacheLife#client-cache-behavior) currently has a broader scope.
+> **Good to know:** Prefer tag-based revalidation (`revalidateTag`/`updateTag`) over path-based when possible. Tags target server-side cached data more precisely and avoid over-invalidating it. [Client cache invalidation](/docs/app/api-reference/functions/cacheLife#client-cache-behavior) has a broader scope.
 
 See the [`revalidatePath` API reference](/docs/app/api-reference/functions/revalidatePath) to learn more.
 
