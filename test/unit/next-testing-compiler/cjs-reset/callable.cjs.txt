@@ -1,0 +1,3 @@
+globalThis.__ws2ResetCallable = (globalThis.__ws2ResetCallable || 0) + 1
+const evaluation = globalThis.__ws2ResetCallable
+module.exports = function value() { return evaluation }

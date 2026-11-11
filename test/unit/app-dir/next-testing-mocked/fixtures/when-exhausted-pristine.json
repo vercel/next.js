@@ -1,0 +1,258 @@
+{
+  "names": [
+    "exhaustion supports positive and negated single-use behavior",
+    "exhaustion keeps empty chains and behavior without actions unexhausted",
+    "exhaustion reports remaining finite actions and passes after their final call",
+    "exhaustion preserves infinite-action and unreachable-action diagnostics",
+    "exhaustion rejects ordinary non-when inputs with the original diagnostic",
+    "exhaustion composes with promise chains and successful soft assertions"
+  ],
+  "rows": [
+    {
+      "label": "one-before-negated",
+      "value": {
+        "returnedType": "object",
+        "error": null,
+        "assertionCalls": 1
+      }
+    },
+    {
+      "label": "one-before-positive",
+      "value": {
+        "returnedType": null,
+        "error": {
+          "name": "AssertionError",
+          "message": "expected all behaviors to have been exhausted, but some remain:\n\n  calledWith(\"one\")\n    \u2717 thenReturn(1, { times: 1 })  1 remaining (out of 1)"
+        },
+        "assertionCalls": 2
+      }
+    },
+    {
+      "label": "one-after-positive",
+      "value": {
+        "returnedType": "object",
+        "error": null,
+        "assertionCalls": 3
+      }
+    },
+    {
+      "label": "one-after-negated",
+      "value": {
+        "returnedType": null,
+        "error": {
+          "name": "AssertionError",
+          "message": "expected at least one behavior to remain un-exhausted, but all were"
+        },
+        "assertionCalls": 4
+      }
+    },
+    {
+      "label": "empty-positive",
+      "value": {
+        "returnedType": null,
+        "error": {
+          "name": "AssertionError",
+          "message": "expected all behaviors to have been exhausted, but some remain:\n\n  "
+        },
+        "assertionCalls": 1
+      }
+    },
+    {
+      "label": "empty-negated",
+      "value": {
+        "returnedType": "object",
+        "error": null,
+        "assertionCalls": 2
+      }
+    },
+    {
+      "label": "no-action-positive",
+      "value": {
+        "returnedType": null,
+        "error": {
+          "name": "AssertionError",
+          "message": "expected all behaviors to have been exhausted, but some remain:\n\n  calledWith(\"missing\", Object {\n    \"nested\": true,\n  })  \u2192 no actions"
+        },
+        "assertionCalls": 3
+      }
+    },
+    {
+      "label": "no-action-negated",
+      "value": {
+        "returnedType": "object",
+        "error": null,
+        "assertionCalls": 4
+      }
+    },
+    {
+      "label": "finite-remaining",
+      "value": {
+        "returnedType": null,
+        "error": {
+          "name": "AssertionError",
+          "message": "expected all behaviors to have been exhausted, but some remain:\n\n  calledWith(\"finite\")\n    \u2717 thenReturn(11, { times: 3 })  2 remaining (out of 3)"
+        },
+        "assertionCalls": 1
+      }
+    },
+    {
+      "label": "finite-exhausted",
+      "value": {
+        "returnedType": "object",
+        "error": null,
+        "assertionCalls": 2
+      }
+    },
+    {
+      "label": "finite-values",
+      "value": {
+        "values": [11, 11, 11],
+        "calls": 3,
+        "assertionCalls": 2
+      }
+    },
+    {
+      "label": "unreachable-before",
+      "value": {
+        "returnedType": null,
+        "error": {
+          "name": "AssertionError",
+          "message": "expected all behaviors to have been exhausted, but some remain:\n\n  calledWith(\"stack\")\n    \u2717 thenReturn(\"hidden\", { times: 2 })  2 remaining (out of 2)  \u2192 unreachable action\n    \u2717 thenReturn(\"forever\")               never called"
+        },
+        "assertionCalls": 1
+      }
+    },
+    {
+      "label": "unreachable-after",
+      "value": {
+        "returnedType": null,
+        "error": {
+          "name": "AssertionError",
+          "message": "expected all behaviors to have been exhausted, but some remain:\n\n  calledWith(\"stack\")\n    \u2717 thenReturn(\"hidden\", { times: 2 })  2 remaining (out of 2)  \u2192 unreachable action\n    \u2713 thenReturn(\"forever\")               exhausted"
+        },
+        "assertionCalls": 2
+      }
+    },
+    {
+      "label": "unreachable-negated",
+      "value": {
+        "returnedType": "object",
+        "error": null,
+        "assertionCalls": 3
+      }
+    },
+    {
+      "label": "infinite-before",
+      "value": {
+        "returnedType": null,
+        "error": {
+          "name": "AssertionError",
+          "message": "expected all behaviors to have been exhausted, but some remain:\n\n  calledWith(\"infinite\")\n    \u2717 thenReturn(1)  never called"
+        },
+        "assertionCalls": 4
+      }
+    },
+    {
+      "label": "infinite-after",
+      "value": {
+        "returnedType": "object",
+        "error": null,
+        "assertionCalls": 5
+      }
+    },
+    {
+      "label": "infinite-after-negated",
+      "value": {
+        "returnedType": null,
+        "error": {
+          "name": "AssertionError",
+          "message": "expected at least one behavior to remain un-exhausted, but all were"
+        },
+        "assertionCalls": 6
+      }
+    },
+    {
+      "label": "infinite-values",
+      "value": {
+        "value": "forever",
+        "assertionCalls": 6
+      }
+    },
+    {
+      "label": "invalid-object",
+      "value": {
+        "returnedType": null,
+        "error": {
+          "name": "TypeError",
+          "message": "{ value: 1 } is not a `vi.when` instance"
+        },
+        "assertionCalls": 1
+      }
+    },
+    {
+      "label": "invalid-null",
+      "value": {
+        "returnedType": null,
+        "error": {
+          "name": "TypeError",
+          "message": "null is not a `vi.when` instance"
+        },
+        "assertionCalls": 2
+      }
+    },
+    {
+      "label": "invalid-function",
+      "value": {
+        "returnedType": null,
+        "error": {
+          "name": "TypeError",
+          "message": "[Function regular] is not a `vi.when` instance"
+        },
+        "assertionCalls": 3
+      }
+    },
+    {
+      "label": "promise-positive",
+      "value": {
+        "returnedType": "object",
+        "error": null,
+        "assertionCalls": 1
+      }
+    },
+    {
+      "label": "promise-negated",
+      "value": {
+        "returnedType": null,
+        "error": {
+          "name": "AssertionError",
+          "message": "expected at least one behavior to remain un-exhausted, but all were"
+        },
+        "assertionCalls": 2
+      }
+    },
+    {
+      "label": "promise-empty",
+      "value": {
+        "returnedType": "object",
+        "error": null,
+        "assertionCalls": 3
+      }
+    },
+    {
+      "label": "promise-rejected",
+      "value": {
+        "returnedType": "object",
+        "error": null,
+        "assertionCalls": 4
+      }
+    },
+    {
+      "label": "soft-positive",
+      "value": {
+        "returnedType": "object",
+        "error": null,
+        "assertionCalls": 5
+      }
+    }
+  ]
+}

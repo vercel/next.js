@@ -1,0 +1,1 @@
+import {vi} from 'vitest';const reset=vi.resetModules;Object.getOwnPropertyDescriptor(vi,'resetModules')

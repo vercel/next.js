@@ -1,0 +1,164 @@
+import { afterAll, expect, test, vi, vitest } from 'vitest'
+const key = Symbol.for('next-test-reset-utility-identity-counter')
+const originalGlobal = Object.getOwnPropertyDescriptor(globalThis, key)
+const collectionReset = vi.resetModules
+const metadata = (method) => ({
+  type: typeof method,
+  name: method?.name ?? null,
+  length: method?.length ?? null,
+})
+const collectionMetadata = metadata(vi.resetModules)
+const collectionNamespaceSame = collectionReset === vitest.resetModules
+
+afterAll(() => {
+  try {
+    expect(metadata(vi.resetModules)).toEqual({
+      type: 'function',
+      name: 'resetModules',
+      length: 0,
+    })
+    expect(vi.resetModules).toBe(collectionReset)
+    expect(vitest.resetModules).toBe(collectionReset)
+  } finally {
+    vi.resetModules = collectionReset
+    if (originalGlobal) Object.defineProperty(globalThis, key, originalGlobal)
+    else Reflect.deleteProperty(globalThis, key)
+  }
+})
+
+test('literal method metadata can be observed during collection without a case', () => {
+  expect(import.meta.env.MODE).toBe(process.env.RESET_EXPECTED_MODE)
+  expect(collectionMetadata).toEqual({
+    type: 'function',
+    name: 'resetModules',
+    length: 0,
+  })
+  expect(metadata(vi.resetModules)).toEqual(collectionMetadata)
+  expect(vi.resetModules).toBe(collectionReset)
+  expect(collectionNamespaceSame).toBe(true)
+})
+
+test('literal replacement uses the real assigned method and retained original cache owner', async () => {
+  const saved = vi.resetModules
+  const before = await import('./counter.mjs')
+  const calls = []
+  function replacement(...args) {
+    calls.push({ receiverIsVi: this === vi, arguments: args })
+    return 'replacement-return'
+  }
+  try {
+    vi.resetModules = replacement
+    expect(vi.resetModules).toBe(replacement)
+    expect(vi.resetModules()).toBe('replacement-return')
+    expect(calls).toEqual([{ receiverIsVi: true, arguments: [] }])
+    expect(metadata(vi.resetModules)).toEqual({
+      type: 'function',
+      name: 'replacement',
+      length: 0,
+    })
+    expect(await import('./counter.mjs')).toBe(before)
+    expect(saved()).toBe(vi)
+    const after = await import('./counter.mjs')
+    expect(after).not.toBe(before)
+    expect([before.ordinal, after.ordinal]).toEqual([1, 2])
+  } finally {
+    vi.resetModules = saved
+  }
+})
+
+test('literal deletion is visible while the retained method still resets the real cache', async () => {
+  const saved = vi.resetModules
+  const before = await import('./counter.mjs')
+  try {
+    expect(delete vitest.resetModules).toBe(true)
+    expect(vi.resetModules).toBeUndefined()
+    expect(saved()).toBe(vi)
+    const after = await import('./counter.mjs')
+    expect(after).not.toBe(before)
+    expect([before.ordinal, after.ordinal]).toEqual([2, 3])
+    expect(metadata(saved)).toEqual({
+      type: 'function',
+      name: 'resetModules',
+      length: 0,
+    })
+  } finally {
+    vi.resetModules = saved
+  }
+})
+
+test('literal postfix update keeps its actual numeric result and retained reset method', async () => {
+  const saved = vi.resetModules
+  const before = await import('./counter.mjs')
+  try {
+    const previous = vitest.resetModules++
+    expect(typeof previous).toBe('number')
+    expect(Number.isNaN(previous)).toBe(true)
+    expect(typeof vi.resetModules).toBe('number')
+    expect(Number.isNaN(vi.resetModules)).toBe(true)
+    expect(saved()).toBe(vi)
+    const after = await import('./counter.mjs')
+    expect(after).not.toBe(before)
+    expect([before.ordinal, after.ordinal]).toEqual([3, 4])
+  } finally {
+    vi.resetModules = saved
+  }
+})
+
+test('literal logical updates preserve the actual retained and assigned method values', async () => {
+  const saved = vi.resetModules
+  const before = await import('./counter.mjs')
+  let calls = 0
+  function replacement() {
+    calls++
+    return 'logical-return'
+  }
+  try {
+    expect((vi.resetModules ||= replacement)).toBe(saved)
+    vi.resetModules = null
+    expect((vitest.resetModules ??= replacement)).toBe(replacement)
+    expect(vi.resetModules).toBe(replacement)
+    expect(vi.resetModules()).toBe('logical-return')
+    expect(calls).toBe(1)
+    expect(saved()).toBe(vi)
+    const after = await import('./counter.mjs')
+    expect(after).not.toBe(before)
+    expect([before.ordinal, after.ordinal]).toEqual([4, 5])
+  } finally {
+    vi.resetModules = saved
+  }
+})
+
+test('retained aliases evaluate unused arguments and ignore foreign receivers', async () => {
+  const saved = vitest.resetModules
+  const effects = []
+  const argument = (label) => {
+    effects.push(label)
+    return { label }
+  }
+  const before = await import('./counter.mjs')
+  expect(saved('unused', argument('direct'))).toBe(vi)
+  const first = await import('./counter.mjs')
+  expect(saved.call({ receiver: 'call' }, 'unused', argument('call'))).toBe(vi)
+  const second = await import('./counter.mjs')
+  expect(
+    saved.apply({ receiver: 'apply' }, ['unused', argument('apply')])
+  ).toBe(vi)
+  const third = await import('./counter.mjs')
+  const bound = saved.bind({ receiver: 'bound' }, 'prebound')
+  expect(bound('unused', argument('bound'))).toBe(vi)
+  const fourth = await import('./counter.mjs')
+  expect(effects).toEqual(['direct', 'call', 'apply', 'bound'])
+  expect(
+    [before, first, second, third, fourth].map((value) => value.ordinal)
+  ).toEqual([5, 6, 7, 8, 9])
+  expect(first).not.toBe(before)
+  expect(second).not.toBe(first)
+  expect(third).not.toBe(second)
+  expect(fourth).not.toBe(third)
+  expect(saved).toBe(vi.resetModules)
+  expect(metadata(bound)).toEqual({
+    type: 'function',
+    name: 'bound resetModules',
+    length: 0,
+  })
+})

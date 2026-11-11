@@ -1,0 +1,3 @@
+globalThis.__ws2FactoryCallableEvaluated = true
+module.exports = function original() { return 'original' }
+module.exports.named = 'original'

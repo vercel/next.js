@@ -1,0 +1,10 @@
+import { expect, test, vi } from 'vitest'
+
+test('runtime missing export diagnostics retain the authored registration spelling', async () => {
+  vi.doMock('././subject.mjs', () => ({ value: 'alias' }))
+  const namespace = await import('./subject.mjs')
+  expect(namespace.value).toBe('alias')
+  expect(() => namespace.absent).toThrow(
+    /No "absent" export is defined on the "\.\/\.\/subject.mjs" mock/
+  )
+})

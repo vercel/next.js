@@ -1,0 +1,942 @@
+import { test, expect, vi } from 'vitest'
+import { types } from 'node:util'
+
+// Each family shares input cases across function declarations, expressions and arrows.
+const scenarios = {
+  'whole-object': [
+    { name: 'omitted', args: () => [] },
+    { name: 'undefined', args: () => [undefined] },
+    { name: 'empty', args: () => [{}] },
+    { name: 'zero', args: () => [{ source: 0 }] },
+    { name: 'null-value', args: () => [{ source: null }] },
+    { name: 'null', args: () => [null] },
+  ],
+  'object-rest': [
+    { name: 'omitted', args: () => [] },
+    { name: 'undefined', args: () => [undefined] },
+    { name: 'empty', args: () => [{}] },
+    { name: 'present', args: () => [{ head: 0, tail: 2, other: 3 }] },
+    { name: 'null', args: () => [null] },
+  ],
+  'array-rest': [
+    { name: 'omitted', args: () => [] },
+    { name: 'undefined', args: () => [undefined] },
+    { name: 'empty', args: () => [[]] },
+    { name: 'present', args: () => [[0, 2, 3]] },
+    { name: 'null', args: () => [null] },
+  ],
+  'nested-object': [
+    { name: 'omitted', args: () => [] },
+    { name: 'undefined', args: () => [undefined] },
+    { name: 'empty', args: () => [{}] },
+    { name: 'inner-empty', args: () => [{ outer: {} }] },
+    { name: 'present', args: () => [{ outer: { source: 0 } }] },
+    { name: 'inner-null', args: () => [{ outer: null }] },
+    { name: 'null', args: () => [null] },
+  ],
+  'nested-array': [
+    { name: 'omitted', args: () => [] },
+    { name: 'undefined', args: () => [undefined] },
+    { name: 'empty', args: () => [[]] },
+    { name: 'inner-empty', args: () => [[[]]] },
+    { name: 'present', args: () => [[[0]]] },
+    { name: 'inner-null', args: () => [[null]] },
+    { name: 'null', args: () => [null] },
+  ],
+  'computed-object': [
+    { name: 'omitted', args: () => [] },
+    { name: 'undefined', args: () => [undefined] },
+    { name: 'empty', args: () => [{}] },
+    { name: 'zero', args: () => [{ source: 0 }] },
+    { name: 'null-value', args: () => [{ source: null }] },
+    { name: 'null', args: () => [null] },
+  ],
+  'destructured-rest-array': [
+    { name: 'omitted', args: () => [] },
+    { name: 'undefined', args: () => [undefined] },
+    { name: 'zero', args: () => [0] },
+    { name: 'null', args: () => [null] },
+    { name: 'many', args: () => [0, 2, 3] },
+  ],
+  'whole-object-expression': [
+    { name: 'omitted', args: () => [] },
+    { name: 'undefined', args: () => [undefined] },
+    { name: 'empty', args: () => [{}] },
+    { name: 'zero', args: () => [{ source: 0 }] },
+    { name: 'null-value', args: () => [{ source: null }] },
+    { name: 'null', args: () => [null] },
+  ],
+  'destructured-rest-object': [
+    { name: 'omitted', args: () => [] },
+    { name: 'undefined', args: () => [undefined] },
+    { name: 'zero', args: () => [0] },
+    { name: 'null', args: () => [null] },
+    { name: 'many', args: () => [0, 2, 3] },
+  ],
+}
+
+const parameters = {
+  'whole-object': {
+    length: 0,
+    defaults: ['omitted', 'undefined', 'empty'],
+    errors: ['null'],
+  },
+  'object-rest': {
+    length: 1,
+    defaults: ['empty'],
+    errors: ['omitted', 'undefined', 'null'],
+  },
+  'array-rest': {
+    length: 1,
+    defaults: ['empty'],
+    errors: ['omitted', 'undefined', 'null'],
+  },
+  'nested-object': {
+    length: 0,
+    defaults: ['omitted', 'undefined', 'empty', 'inner-empty'],
+    errors: ['inner-null', 'null'],
+  },
+  'nested-array': {
+    length: 0,
+    defaults: ['omitted', 'undefined', 'empty', 'inner-empty'],
+    errors: ['inner-null', 'null'],
+  },
+  'computed-object': {
+    length: 1,
+    defaults: ['empty'],
+    errors: ['omitted', 'undefined', 'null'],
+  },
+  'destructured-rest-array': {
+    length: 0,
+    defaults: ['omitted', 'undefined'],
+    errors: [],
+  },
+  'whole-object-expression': {
+    length: 0,
+    defaults: ['omitted', 'undefined'],
+    errors: ['null'],
+  },
+  'destructured-rest-object': { length: 0, defaults: [], errors: [] },
+}
+
+function counts(form) {
+  return {
+    root: 0,
+    dependency: 0,
+    defaults: 0,
+    keys: 0,
+    ...globalThis.__cjsGrammarCounts?.[form.id],
+  }
+}
+
+function describe(value) {
+  return value === undefined
+    ? { type: 'undefined' }
+    : { type: typeof value, value }
+}
+
+function expectedBindings(form, scenario, args, evaluation) {
+  const family = form.id.split(':')[0]
+  const defaultValue = `dependency-${form.id}-1@${evaluation}`
+  const usesDefault = parameters[family].defaults.includes(scenario.name)
+  if (family === 'object-rest' || family === 'array-rest') {
+    return {
+      head: describe(usesDefault ? defaultValue : 0),
+      value: describe(
+        scenario.name === 'present'
+          ? family === 'object-rest'
+            ? { tail: 2, other: 3 }
+            : [2, 3]
+          : family === 'object-rest'
+            ? {}
+            : []
+      ),
+    }
+  }
+  let value
+  if (family === 'destructured-rest-object') value = args.length
+  else if (usesDefault) value = defaultValue
+  else if (scenario.name === 'null-value' || scenario.name === 'null')
+    value = null
+  else if (scenario.name === 'empty') value = undefined
+  else value = 0
+  return { value: describe(value) }
+}
+
+function checkCallable(namespace, form, held = false) {
+  const [family, kind, syntax] = form.id.split(':')
+  const raw = namespace.default
+  expect(typeof raw).toBe('function')
+  expect(raw.name).toBe(
+    held
+      ? 'owned-renamed-callable'
+      : syntax === 'named' || syntax === 'binding'
+        ? 'callable'
+        : ''
+  )
+  expect(raw.length).toBe(held ? 7 : parameters[family].length)
+  const hasPrototype =
+    kind === 'generator' ||
+    kind === 'async-generator' ||
+    (kind === 'sync' && syntax !== 'arrow')
+  expect(Object.hasOwn(raw, 'prototype')).toBe(hasPrototype)
+  if (kind === 'sync' && syntax !== 'arrow')
+    expect(raw.prototype.constructor).toBe(raw)
+  return raw
+}
+
+async function checkInvocations(namespace, form, evaluation, held = false) {
+  const [family, kind, syntax] = form.id.split(':')
+  const raw = checkCallable(namespace, form, held)
+  for (const scenario of scenarios[family]) {
+    const args = scenario.args()
+    const before = counts(form)
+    const execute = async () => {
+      const result = Reflect.apply(
+        raw,
+        { receiver: 'authored', current: raw },
+        args
+      )
+      if (kind === 'generator' || kind === 'async-generator') {
+        const iterator =
+          kind === 'generator' ? Symbol.iterator : Symbol.asyncIterator
+        expect(result[iterator]()).toBe(result)
+        const first = await result.next()
+        expect(first.done).toBe(false)
+        expect(await result.next()).toEqual({
+          value: { evaluation, returned: true },
+          done: true,
+        })
+        return first.value
+      }
+      expect(types.isPromise(result)).toBe(kind === 'async')
+      return await result
+    }
+    if (parameters[family].errors.includes(scenario.name)) {
+      await expect(execute()).rejects.toThrow(TypeError)
+    } else {
+      expect(await execute()).toEqual({
+        evaluation,
+        dependency: `dependency-${form.id}-1`,
+        bindings: expectedBindings(form, scenario, args, evaluation),
+        receiver: syntax === 'arrow' ? null : 'authored',
+        argumentCount: syntax === 'arrow' ? null : args.length,
+      })
+    }
+    const after = counts(form)
+    expect(after.root).toBe(before.root)
+    expect(after.dependency).toBe(before.dependency)
+    expect(after.defaults - before.defaults).toBe(
+      parameters[family].defaults.includes(scenario.name) ? 1 : 0
+    )
+    expect(after.keys - before.keys).toBe(
+      family === 'computed-object' &&
+        !parameters[family].errors.includes(scenario.name)
+        ? 1
+        : 0
+    )
+  }
+}
+
+const forms = [
+  {
+    id: 'whole-object:sync:anonymous',
+    load: () => import('./root-000.cjs'),
+    actual: () => vi.importActual('./root-000.cjs'),
+  },
+  {
+    id: 'whole-object:sync:named',
+    load: () => import('./root-001.cjs'),
+    actual: () => vi.importActual('./root-001.cjs'),
+  },
+  {
+    id: 'whole-object:sync:binding',
+    load: () => import('./root-002.cjs'),
+    actual: () => vi.importActual('./root-002.cjs'),
+  },
+  {
+    id: 'whole-object:async:anonymous',
+    load: () => import('./root-003.cjs'),
+    actual: () => vi.importActual('./root-003.cjs'),
+  },
+  {
+    id: 'whole-object:async:named',
+    load: () => import('./root-004.cjs'),
+    actual: () => vi.importActual('./root-004.cjs'),
+  },
+  {
+    id: 'whole-object:async:binding',
+    load: () => import('./root-005.cjs'),
+    actual: () => vi.importActual('./root-005.cjs'),
+  },
+  {
+    id: 'whole-object:generator:anonymous',
+    load: () => import('./root-006.cjs'),
+    actual: () => vi.importActual('./root-006.cjs'),
+  },
+  {
+    id: 'whole-object:generator:named',
+    load: () => import('./root-007.cjs'),
+    actual: () => vi.importActual('./root-007.cjs'),
+  },
+  {
+    id: 'whole-object:generator:binding',
+    load: () => import('./root-008.cjs'),
+    actual: () => vi.importActual('./root-008.cjs'),
+  },
+  {
+    id: 'whole-object:async-generator:anonymous',
+    load: () => import('./root-009.cjs'),
+    actual: () => vi.importActual('./root-009.cjs'),
+  },
+  {
+    id: 'whole-object:async-generator:named',
+    load: () => import('./root-010.cjs'),
+    actual: () => vi.importActual('./root-010.cjs'),
+  },
+  {
+    id: 'whole-object:async-generator:binding',
+    load: () => import('./root-011.cjs'),
+    actual: () => vi.importActual('./root-011.cjs'),
+  },
+  {
+    id: 'whole-object:sync:arrow',
+    load: () => import('./root-012.cjs'),
+    actual: () => vi.importActual('./root-012.cjs'),
+  },
+  {
+    id: 'whole-object:async:arrow',
+    load: () => import('./root-013.cjs'),
+    actual: () => vi.importActual('./root-013.cjs'),
+  },
+  {
+    id: 'object-rest:sync:anonymous',
+    load: () => import('./root-014.cjs'),
+    actual: () => vi.importActual('./root-014.cjs'),
+  },
+  {
+    id: 'object-rest:sync:named',
+    load: () => import('./root-015.cjs'),
+    actual: () => vi.importActual('./root-015.cjs'),
+  },
+  {
+    id: 'object-rest:sync:binding',
+    load: () => import('./root-016.cjs'),
+    actual: () => vi.importActual('./root-016.cjs'),
+  },
+  {
+    id: 'object-rest:async:anonymous',
+    load: () => import('./root-017.cjs'),
+    actual: () => vi.importActual('./root-017.cjs'),
+  },
+  {
+    id: 'object-rest:async:named',
+    load: () => import('./root-018.cjs'),
+    actual: () => vi.importActual('./root-018.cjs'),
+  },
+  {
+    id: 'object-rest:async:binding',
+    load: () => import('./root-019.cjs'),
+    actual: () => vi.importActual('./root-019.cjs'),
+  },
+  {
+    id: 'object-rest:generator:anonymous',
+    load: () => import('./root-020.cjs'),
+    actual: () => vi.importActual('./root-020.cjs'),
+  },
+  {
+    id: 'object-rest:generator:named',
+    load: () => import('./root-021.cjs'),
+    actual: () => vi.importActual('./root-021.cjs'),
+  },
+  {
+    id: 'object-rest:generator:binding',
+    load: () => import('./root-022.cjs'),
+    actual: () => vi.importActual('./root-022.cjs'),
+  },
+  {
+    id: 'object-rest:async-generator:anonymous',
+    load: () => import('./root-023.cjs'),
+    actual: () => vi.importActual('./root-023.cjs'),
+  },
+  {
+    id: 'object-rest:async-generator:named',
+    load: () => import('./root-024.cjs'),
+    actual: () => vi.importActual('./root-024.cjs'),
+  },
+  {
+    id: 'object-rest:async-generator:binding',
+    load: () => import('./root-025.cjs'),
+    actual: () => vi.importActual('./root-025.cjs'),
+  },
+  {
+    id: 'object-rest:sync:arrow',
+    load: () => import('./root-026.cjs'),
+    actual: () => vi.importActual('./root-026.cjs'),
+  },
+  {
+    id: 'object-rest:async:arrow',
+    load: () => import('./root-027.cjs'),
+    actual: () => vi.importActual('./root-027.cjs'),
+  },
+  {
+    id: 'array-rest:sync:anonymous',
+    load: () => import('./root-028.cjs'),
+    actual: () => vi.importActual('./root-028.cjs'),
+  },
+  {
+    id: 'array-rest:sync:named',
+    load: () => import('./root-029.cjs'),
+    actual: () => vi.importActual('./root-029.cjs'),
+  },
+  {
+    id: 'array-rest:sync:binding',
+    load: () => import('./root-030.cjs'),
+    actual: () => vi.importActual('./root-030.cjs'),
+  },
+  {
+    id: 'array-rest:async:anonymous',
+    load: () => import('./root-031.cjs'),
+    actual: () => vi.importActual('./root-031.cjs'),
+  },
+  {
+    id: 'array-rest:async:named',
+    load: () => import('./root-032.cjs'),
+    actual: () => vi.importActual('./root-032.cjs'),
+  },
+  {
+    id: 'array-rest:async:binding',
+    load: () => import('./root-033.cjs'),
+    actual: () => vi.importActual('./root-033.cjs'),
+  },
+  {
+    id: 'array-rest:generator:anonymous',
+    load: () => import('./root-034.cjs'),
+    actual: () => vi.importActual('./root-034.cjs'),
+  },
+  {
+    id: 'array-rest:generator:named',
+    load: () => import('./root-035.cjs'),
+    actual: () => vi.importActual('./root-035.cjs'),
+  },
+  {
+    id: 'array-rest:generator:binding',
+    load: () => import('./root-036.cjs'),
+    actual: () => vi.importActual('./root-036.cjs'),
+  },
+  {
+    id: 'array-rest:async-generator:anonymous',
+    load: () => import('./root-037.cjs'),
+    actual: () => vi.importActual('./root-037.cjs'),
+  },
+  {
+    id: 'array-rest:async-generator:named',
+    load: () => import('./root-038.cjs'),
+    actual: () => vi.importActual('./root-038.cjs'),
+  },
+  {
+    id: 'array-rest:async-generator:binding',
+    load: () => import('./root-039.cjs'),
+    actual: () => vi.importActual('./root-039.cjs'),
+  },
+  {
+    id: 'array-rest:sync:arrow',
+    load: () => import('./root-040.cjs'),
+    actual: () => vi.importActual('./root-040.cjs'),
+  },
+  {
+    id: 'array-rest:async:arrow',
+    load: () => import('./root-041.cjs'),
+    actual: () => vi.importActual('./root-041.cjs'),
+  },
+  {
+    id: 'nested-object:sync:anonymous',
+    load: () => import('./root-042.cjs'),
+    actual: () => vi.importActual('./root-042.cjs'),
+  },
+  {
+    id: 'nested-object:sync:named',
+    load: () => import('./root-043.cjs'),
+    actual: () => vi.importActual('./root-043.cjs'),
+  },
+  {
+    id: 'nested-object:sync:binding',
+    load: () => import('./root-044.cjs'),
+    actual: () => vi.importActual('./root-044.cjs'),
+  },
+  {
+    id: 'nested-object:async:anonymous',
+    load: () => import('./root-045.cjs'),
+    actual: () => vi.importActual('./root-045.cjs'),
+  },
+  {
+    id: 'nested-object:async:named',
+    load: () => import('./root-046.cjs'),
+    actual: () => vi.importActual('./root-046.cjs'),
+  },
+  {
+    id: 'nested-object:async:binding',
+    load: () => import('./root-047.cjs'),
+    actual: () => vi.importActual('./root-047.cjs'),
+  },
+  {
+    id: 'nested-object:generator:anonymous',
+    load: () => import('./root-048.cjs'),
+    actual: () => vi.importActual('./root-048.cjs'),
+  },
+  {
+    id: 'nested-object:generator:named',
+    load: () => import('./root-049.cjs'),
+    actual: () => vi.importActual('./root-049.cjs'),
+  },
+  {
+    id: 'nested-object:generator:binding',
+    load: () => import('./root-050.cjs'),
+    actual: () => vi.importActual('./root-050.cjs'),
+  },
+  {
+    id: 'nested-object:async-generator:anonymous',
+    load: () => import('./root-051.cjs'),
+    actual: () => vi.importActual('./root-051.cjs'),
+  },
+  {
+    id: 'nested-object:async-generator:named',
+    load: () => import('./root-052.cjs'),
+    actual: () => vi.importActual('./root-052.cjs'),
+  },
+  {
+    id: 'nested-object:async-generator:binding',
+    load: () => import('./root-053.cjs'),
+    actual: () => vi.importActual('./root-053.cjs'),
+  },
+  {
+    id: 'nested-object:sync:arrow',
+    load: () => import('./root-054.cjs'),
+    actual: () => vi.importActual('./root-054.cjs'),
+  },
+  {
+    id: 'nested-object:async:arrow',
+    load: () => import('./root-055.cjs'),
+    actual: () => vi.importActual('./root-055.cjs'),
+  },
+  {
+    id: 'nested-array:sync:anonymous',
+    load: () => import('./root-056.cjs'),
+    actual: () => vi.importActual('./root-056.cjs'),
+  },
+  {
+    id: 'nested-array:sync:named',
+    load: () => import('./root-057.cjs'),
+    actual: () => vi.importActual('./root-057.cjs'),
+  },
+  {
+    id: 'nested-array:sync:binding',
+    load: () => import('./root-058.cjs'),
+    actual: () => vi.importActual('./root-058.cjs'),
+  },
+  {
+    id: 'nested-array:async:anonymous',
+    load: () => import('./root-059.cjs'),
+    actual: () => vi.importActual('./root-059.cjs'),
+  },
+  {
+    id: 'nested-array:async:named',
+    load: () => import('./root-060.cjs'),
+    actual: () => vi.importActual('./root-060.cjs'),
+  },
+  {
+    id: 'nested-array:async:binding',
+    load: () => import('./root-061.cjs'),
+    actual: () => vi.importActual('./root-061.cjs'),
+  },
+  {
+    id: 'nested-array:generator:anonymous',
+    load: () => import('./root-062.cjs'),
+    actual: () => vi.importActual('./root-062.cjs'),
+  },
+  {
+    id: 'nested-array:generator:named',
+    load: () => import('./root-063.cjs'),
+    actual: () => vi.importActual('./root-063.cjs'),
+  },
+  {
+    id: 'nested-array:generator:binding',
+    load: () => import('./root-064.cjs'),
+    actual: () => vi.importActual('./root-064.cjs'),
+  },
+  {
+    id: 'nested-array:async-generator:anonymous',
+    load: () => import('./root-065.cjs'),
+    actual: () => vi.importActual('./root-065.cjs'),
+  },
+  {
+    id: 'nested-array:async-generator:named',
+    load: () => import('./root-066.cjs'),
+    actual: () => vi.importActual('./root-066.cjs'),
+  },
+  {
+    id: 'nested-array:async-generator:binding',
+    load: () => import('./root-067.cjs'),
+    actual: () => vi.importActual('./root-067.cjs'),
+  },
+  {
+    id: 'nested-array:sync:arrow',
+    load: () => import('./root-068.cjs'),
+    actual: () => vi.importActual('./root-068.cjs'),
+  },
+  {
+    id: 'nested-array:async:arrow',
+    load: () => import('./root-069.cjs'),
+    actual: () => vi.importActual('./root-069.cjs'),
+  },
+  {
+    id: 'computed-object:sync:anonymous',
+    load: () => import('./root-070.cjs'),
+    actual: () => vi.importActual('./root-070.cjs'),
+  },
+  {
+    id: 'computed-object:sync:named',
+    load: () => import('./root-071.cjs'),
+    actual: () => vi.importActual('./root-071.cjs'),
+  },
+  {
+    id: 'computed-object:sync:binding',
+    load: () => import('./root-072.cjs'),
+    actual: () => vi.importActual('./root-072.cjs'),
+  },
+  {
+    id: 'computed-object:async:anonymous',
+    load: () => import('./root-073.cjs'),
+    actual: () => vi.importActual('./root-073.cjs'),
+  },
+  {
+    id: 'computed-object:async:named',
+    load: () => import('./root-074.cjs'),
+    actual: () => vi.importActual('./root-074.cjs'),
+  },
+  {
+    id: 'computed-object:async:binding',
+    load: () => import('./root-075.cjs'),
+    actual: () => vi.importActual('./root-075.cjs'),
+  },
+  {
+    id: 'computed-object:generator:anonymous',
+    load: () => import('./root-076.cjs'),
+    actual: () => vi.importActual('./root-076.cjs'),
+  },
+  {
+    id: 'computed-object:generator:named',
+    load: () => import('./root-077.cjs'),
+    actual: () => vi.importActual('./root-077.cjs'),
+  },
+  {
+    id: 'computed-object:generator:binding',
+    load: () => import('./root-078.cjs'),
+    actual: () => vi.importActual('./root-078.cjs'),
+  },
+  {
+    id: 'computed-object:async-generator:anonymous',
+    load: () => import('./root-079.cjs'),
+    actual: () => vi.importActual('./root-079.cjs'),
+  },
+  {
+    id: 'computed-object:async-generator:named',
+    load: () => import('./root-080.cjs'),
+    actual: () => vi.importActual('./root-080.cjs'),
+  },
+  {
+    id: 'computed-object:async-generator:binding',
+    load: () => import('./root-081.cjs'),
+    actual: () => vi.importActual('./root-081.cjs'),
+  },
+  {
+    id: 'computed-object:sync:arrow',
+    load: () => import('./root-082.cjs'),
+    actual: () => vi.importActual('./root-082.cjs'),
+  },
+  {
+    id: 'computed-object:async:arrow',
+    load: () => import('./root-083.cjs'),
+    actual: () => vi.importActual('./root-083.cjs'),
+  },
+  {
+    id: 'destructured-rest-array:sync:anonymous',
+    load: () => import('./root-084.cjs'),
+    actual: () => vi.importActual('./root-084.cjs'),
+  },
+  {
+    id: 'destructured-rest-array:sync:named',
+    load: () => import('./root-085.cjs'),
+    actual: () => vi.importActual('./root-085.cjs'),
+  },
+  {
+    id: 'destructured-rest-array:sync:binding',
+    load: () => import('./root-086.cjs'),
+    actual: () => vi.importActual('./root-086.cjs'),
+  },
+  {
+    id: 'destructured-rest-array:async:anonymous',
+    load: () => import('./root-087.cjs'),
+    actual: () => vi.importActual('./root-087.cjs'),
+  },
+  {
+    id: 'destructured-rest-array:async:named',
+    load: () => import('./root-088.cjs'),
+    actual: () => vi.importActual('./root-088.cjs'),
+  },
+  {
+    id: 'destructured-rest-array:async:binding',
+    load: () => import('./root-089.cjs'),
+    actual: () => vi.importActual('./root-089.cjs'),
+  },
+  {
+    id: 'destructured-rest-array:generator:anonymous',
+    load: () => import('./root-090.cjs'),
+    actual: () => vi.importActual('./root-090.cjs'),
+  },
+  {
+    id: 'destructured-rest-array:generator:named',
+    load: () => import('./root-091.cjs'),
+    actual: () => vi.importActual('./root-091.cjs'),
+  },
+  {
+    id: 'destructured-rest-array:generator:binding',
+    load: () => import('./root-092.cjs'),
+    actual: () => vi.importActual('./root-092.cjs'),
+  },
+  {
+    id: 'destructured-rest-array:async-generator:anonymous',
+    load: () => import('./root-093.cjs'),
+    actual: () => vi.importActual('./root-093.cjs'),
+  },
+  {
+    id: 'destructured-rest-array:async-generator:named',
+    load: () => import('./root-094.cjs'),
+    actual: () => vi.importActual('./root-094.cjs'),
+  },
+  {
+    id: 'destructured-rest-array:async-generator:binding',
+    load: () => import('./root-095.cjs'),
+    actual: () => vi.importActual('./root-095.cjs'),
+  },
+  {
+    id: 'destructured-rest-array:sync:arrow',
+    load: () => import('./root-096.cjs'),
+    actual: () => vi.importActual('./root-096.cjs'),
+  },
+  {
+    id: 'destructured-rest-array:async:arrow',
+    load: () => import('./root-097.cjs'),
+    actual: () => vi.importActual('./root-097.cjs'),
+  },
+  {
+    id: 'whole-object-expression:sync:anonymous',
+    load: () => import('./root-098.cjs'),
+    actual: () => vi.importActual('./root-098.cjs'),
+  },
+  {
+    id: 'whole-object-expression:sync:named',
+    load: () => import('./root-099.cjs'),
+    actual: () => vi.importActual('./root-099.cjs'),
+  },
+  {
+    id: 'whole-object-expression:sync:binding',
+    load: () => import('./root-100.cjs'),
+    actual: () => vi.importActual('./root-100.cjs'),
+  },
+  {
+    id: 'whole-object-expression:async:anonymous',
+    load: () => import('./root-101.cjs'),
+    actual: () => vi.importActual('./root-101.cjs'),
+  },
+  {
+    id: 'whole-object-expression:async:named',
+    load: () => import('./root-102.cjs'),
+    actual: () => vi.importActual('./root-102.cjs'),
+  },
+  {
+    id: 'whole-object-expression:async:binding',
+    load: () => import('./root-103.cjs'),
+    actual: () => vi.importActual('./root-103.cjs'),
+  },
+  {
+    id: 'whole-object-expression:generator:anonymous',
+    load: () => import('./root-104.cjs'),
+    actual: () => vi.importActual('./root-104.cjs'),
+  },
+  {
+    id: 'whole-object-expression:generator:named',
+    load: () => import('./root-105.cjs'),
+    actual: () => vi.importActual('./root-105.cjs'),
+  },
+  {
+    id: 'whole-object-expression:generator:binding',
+    load: () => import('./root-106.cjs'),
+    actual: () => vi.importActual('./root-106.cjs'),
+  },
+  {
+    id: 'whole-object-expression:async-generator:anonymous',
+    load: () => import('./root-107.cjs'),
+    actual: () => vi.importActual('./root-107.cjs'),
+  },
+  {
+    id: 'whole-object-expression:async-generator:named',
+    load: () => import('./root-108.cjs'),
+    actual: () => vi.importActual('./root-108.cjs'),
+  },
+  {
+    id: 'whole-object-expression:async-generator:binding',
+    load: () => import('./root-109.cjs'),
+    actual: () => vi.importActual('./root-109.cjs'),
+  },
+  {
+    id: 'whole-object-expression:sync:arrow',
+    load: () => import('./root-110.cjs'),
+    actual: () => vi.importActual('./root-110.cjs'),
+  },
+  {
+    id: 'whole-object-expression:async:arrow',
+    load: () => import('./root-111.cjs'),
+    actual: () => vi.importActual('./root-111.cjs'),
+  },
+  {
+    id: 'destructured-rest-object:sync:anonymous',
+    load: () => import('./root-112.cjs'),
+    actual: () => vi.importActual('./root-112.cjs'),
+  },
+  {
+    id: 'destructured-rest-object:sync:named',
+    load: () => import('./root-113.cjs'),
+    actual: () => vi.importActual('./root-113.cjs'),
+  },
+  {
+    id: 'destructured-rest-object:sync:binding',
+    load: () => import('./root-114.cjs'),
+    actual: () => vi.importActual('./root-114.cjs'),
+  },
+  {
+    id: 'destructured-rest-object:async:anonymous',
+    load: () => import('./root-115.cjs'),
+    actual: () => vi.importActual('./root-115.cjs'),
+  },
+  {
+    id: 'destructured-rest-object:async:named',
+    load: () => import('./root-116.cjs'),
+    actual: () => vi.importActual('./root-116.cjs'),
+  },
+  {
+    id: 'destructured-rest-object:async:binding',
+    load: () => import('./root-117.cjs'),
+    actual: () => vi.importActual('./root-117.cjs'),
+  },
+  {
+    id: 'destructured-rest-object:generator:anonymous',
+    load: () => import('./root-118.cjs'),
+    actual: () => vi.importActual('./root-118.cjs'),
+  },
+  {
+    id: 'destructured-rest-object:generator:named',
+    load: () => import('./root-119.cjs'),
+    actual: () => vi.importActual('./root-119.cjs'),
+  },
+  {
+    id: 'destructured-rest-object:generator:binding',
+    load: () => import('./root-120.cjs'),
+    actual: () => vi.importActual('./root-120.cjs'),
+  },
+  {
+    id: 'destructured-rest-object:async-generator:anonymous',
+    load: () => import('./root-121.cjs'),
+    actual: () => vi.importActual('./root-121.cjs'),
+  },
+  {
+    id: 'destructured-rest-object:async-generator:named',
+    load: () => import('./root-122.cjs'),
+    actual: () => vi.importActual('./root-122.cjs'),
+  },
+  {
+    id: 'destructured-rest-object:async-generator:binding',
+    load: () => import('./root-123.cjs'),
+    actual: () => vi.importActual('./root-123.cjs'),
+  },
+  {
+    id: 'destructured-rest-object:sync:arrow',
+    load: () => import('./root-124.cjs'),
+    actual: () => vi.importActual('./root-124.cjs'),
+  },
+  {
+    id: 'destructured-rest-object:async:arrow',
+    load: () => import('./root-125.cjs'),
+    actual: () => vi.importActual('./root-125.cjs'),
+  },
+]
+
+for (const form of forms) {
+  test(form.id + ':reset', async () => {
+    const before = counts(form)
+    vi.resetModules()
+    const first = await form.load()
+    const cached = await form.load()
+    expect(cached).toBe(first)
+    expect(cached.default).toBe(first.default)
+    vi.resetModules()
+    const fresh = await form.load()
+    expect(fresh).not.toBe(first)
+    expect(fresh.default).not.toBe(first.default)
+    expect(counts(form)).toMatchObject({ root: before.root + 2, dependency: 1 })
+    await checkInvocations(first, form, before.root + 1)
+    await checkInvocations(cached, form, before.root + 1)
+    await checkInvocations(fresh, form, before.root + 2)
+  })
+
+  test(form.id + ':actual', async () => {
+    const before = counts(form)
+    vi.resetModules()
+    const first = await form.actual()
+    const ordinary = await form.load()
+    const again = await form.actual()
+    expect(ordinary).toBe(first)
+    expect(again).toBe(first)
+    expect(again.default).toBe(first.default)
+    vi.resetModules()
+    const fresh = await form.actual()
+    expect(fresh).not.toBe(first)
+    expect(fresh.default).not.toBe(first.default)
+    expect(counts(form)).toMatchObject({ root: before.root + 2, dependency: 1 })
+    await checkInvocations(first, form, before.root + 1)
+    await checkInvocations(ordinary, form, before.root + 1)
+    await checkInvocations(again, form, before.root + 1)
+    await checkInvocations(fresh, form, before.root + 2)
+  })
+
+  test(form.id + ':held', async () => {
+    const before = counts(form)
+    vi.resetModules()
+    const first = await form.load()
+    const raw = checkCallable(first, form)
+    const extra = { held: true }
+    raw.extra = extra
+    Object.defineProperty(raw, 'name', {
+      value: 'owned-renamed-callable',
+      configurable: true,
+    })
+    Object.defineProperty(raw, 'length', { value: 7, configurable: true })
+    if (raw.prototype !== undefined) raw.prototype.ownedPrototype = 'held'
+    await checkInvocations(first, form, before.root + 1, true)
+    vi.resetModules()
+    const fresh = await form.load()
+    expect(first.default).toBe(raw)
+    expect(raw.extra).toBe(extra)
+    expect(fresh.default).not.toBe(raw)
+    expect(Object.hasOwn(fresh.default, 'extra')).toBe(false)
+    if (raw.prototype !== undefined) {
+      expect(raw.prototype.ownedPrototype).toBe('held')
+      expect(Object.hasOwn(fresh.default.prototype, 'ownedPrototype')).toBe(
+        false
+      )
+    }
+    expect(counts(form)).toMatchObject({ root: before.root + 2, dependency: 1 })
+    await checkInvocations(first, form, before.root + 1, true)
+    await checkInvocations(fresh, form, before.root + 2)
+  })
+}

@@ -1,0 +1,10 @@
+import { vi } from 'vitest'
+const spy = vi.fn<(input: string) => number>()
+const chain = vi.when(spy).calledWith('value').thenReturn(3)
+const value: number = spy('value')
+const detected: boolean = vi.isWhenChain(chain)
+// @ts-expect-error The low-lib consumer keeps the real argument types.
+chain.calledWith(1)
+// @ts-expect-error The low-lib consumer keeps the real result type.
+const wrong: string = value
+void [value, detected, wrong]

@@ -1,0 +1,46 @@
+import deletedLabel from './deleted-label.cjs'
+import hiddenMethod from './hidden-method.cjs'
+import { test, expect, vi } from 'vitest'
+
+test('observes a deleted export when creating fresh automatic mocks', async () => {
+  delete deletedLabel.label
+  const first = await vi.importMock('./deleted-label.cjs')
+  const second = await vi.importMock('././deleted-label.cjs')
+
+  expect(Object.hasOwn(deletedLabel, 'label')).toBe(false)
+  expect(first.label).toBeUndefined()
+  expect(first.default.label).toBeUndefined()
+  expect(first).not.toBe(second)
+  expect(first.default).not.toBe(second.default)
+  expect(first.default.method).not.toBe(second.default.method)
+  expect(first.method).toBe(first.default.method)
+  expect(first.default(4)).toBeUndefined()
+  expect(first.default.method()).toBeUndefined()
+  expect(first.default.mock.calls).toEqual([[4]])
+  expect(first.default.method.mock.calls).toEqual([[]])
+  expect(second.default.mock.calls).toEqual([])
+  expect(second.default.method.mock.calls).toEqual([])
+  expect(globalThis.__ws2MutationCounts['deleted-label']).toBe(1)
+})
+
+test('automocks a hidden method without sharing its call state or reevaluating the original', async () => {
+  Object.defineProperty(hiddenMethod, 'method', { enumerable: false })
+  const first = await vi.importMock('./hidden-method.cjs')
+  const second = await vi.importMock('././hidden-method.cjs')
+
+  expect(
+    Object.getOwnPropertyDescriptor(hiddenMethod, 'method').enumerable
+  ).toBe(false)
+  expect(first.default.method).not.toBe(hiddenMethod.method)
+  expect(first.default.method).not.toBe(second.default.method)
+  expect(first.method).toBe(first.default.method)
+  expect(first.label).toBe('root')
+  expect(first.default.label).toBe('root')
+  expect(first.default(4)).toBeUndefined()
+  expect(first.default.method()).toBeUndefined()
+  expect(first.default.mock.calls).toEqual([[4]])
+  expect(first.default.method.mock.calls).toEqual([[]])
+  expect(second.default.mock.calls).toEqual([])
+  expect(second.default.method.mock.calls).toEqual([])
+  expect(globalThis.__ws2MutationCounts['hidden-method']).toBe(1)
+})

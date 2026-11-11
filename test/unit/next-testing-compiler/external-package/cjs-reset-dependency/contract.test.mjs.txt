@@ -1,0 +1,43 @@
+import { test, expect, vi } from 'vitest'
+test('observes the actual CommonJS require cache for dependency across repeated resets', async () => {
+  const first = await import('./root.cjs')
+  const cached = await import('./root.cjs')
+  vi.resetModules()
+  const second = await import('./root.cjs')
+  vi.resetModules()
+  const third = await import('./root.cjs')
+  const namespaces = [first, second, third]
+  const roots = namespaces.map((ns) => ns.default)
+  {
+    const observed = {
+      cached: first === cached,
+      namespaceIdentity: [first === second, second === third],
+      rootIdentity: [roots[0] === roots[1], roots[1] === roots[2]],
+      dependencyIdentity: [
+        roots[0].dependency === roots[1].dependency,
+        roots[1].dependency === roots[2].dependency,
+      ],
+      rootValues: roots.map((root) => root.evaluation),
+      dependencyValues: roots.map((root) => root.dependency.evaluation),
+      reads: roots.map((root) => root.read()),
+      rootSourceEvaluations: globalThis.__ws2CjsDependencyRoot,
+      dependencySourceEvaluations: globalThis.__ws2CjsDependencyLeaf,
+    }
+    expect(observed.cached).toBe(true)
+    expect(observed.namespaceIdentity).toEqual([false, false])
+    expect(observed.rootIdentity).toEqual([false, false])
+    expect(observed.dependencyIdentity).toEqual([true, true])
+    expect(observed.rootValues).toEqual([1, 2, 3])
+    expect(observed.dependencyValues).toEqual([1, 1, 1])
+    expect(observed.reads).toEqual([
+      [1, 1],
+      [2, 1],
+      [3, 1],
+    ])
+    expect(observed.rootSourceEvaluations).toBe(3)
+    expect(observed.dependencySourceEvaluations).toBe(1)
+  }
+  expect(first).toBe(cached)
+  expect(roots[1]).not.toBe(roots[0])
+  expect(roots[2]).not.toBe(roots[1])
+})

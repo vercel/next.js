@@ -1,0 +1,296 @@
+import { test, expect, vi } from 'vitest'
+
+function expectValue(namespace, evaluation) {
+  expect(namespace.evaluation).toBe(evaluation)
+  expect(namespace.default.evaluation).toBe(evaluation)
+  expect(namespace.read('named')).toEqual([evaluation, evaluation, 'named'])
+  expect(namespace.default.read('held')).toEqual([
+    evaluation,
+    evaluation,
+    'held',
+  ])
+}
+
+function clean() {
+  vi.doUnmock('./root.cjs')
+  vi.resetModules()
+}
+
+for (const warm of [false, true]) {
+  test('compiled CJS sync registration held/reset/unmock ' + warm, async () => {
+    clean()
+    const before = warm ? await import('./root.cjs') : null
+    let calls = 0
+    vi.doMock('./root.cjs', () => {
+      calls++
+      return {
+        evaluation: 901,
+        marker: { mock: true },
+        read(value) {
+          return [901, this.evaluation ?? null, value]
+        },
+        default: {
+          evaluation: 901,
+          read(value) {
+            return [901, this.evaluation, value]
+          },
+        },
+      }
+    })
+    const first = await import('./root.cjs')
+    expect(await import('./root.cjs')).toBe(first)
+    vi.resetModules()
+    expect(await import('./root.cjs')).toBe(first)
+    expectValue(first, 901)
+    expect(calls).toBe(1)
+
+    vi.doUnmock('./root.cjs')
+    const original = await import('./root.cjs')
+    expectValue(original, original.evaluation)
+    expect(original).not.toBe(first)
+    expect(original).not.toBe(before)
+    expect(await import('./root.cjs')).toBe(original)
+    vi.resetModules()
+    const fresh = await import('./root.cjs')
+    expect(fresh).not.toBe(original)
+    expect(fresh.default).not.toBe(original.default)
+    expectValue(fresh, original.evaluation + 1)
+    if (before) expectValue(before, original.evaluation - 1)
+  })
+}
+
+test('compiled CJS pending resolve original fallback and held reset', async () => {
+  clean()
+  let calls = 0
+  let entered
+  let release
+  const started = new Promise((resolve) => (entered = resolve))
+  const held = new Promise((resolve) => (release = resolve))
+  vi.doMock('./root.cjs', async () => {
+    calls++
+    entered()
+    await held
+    return {
+      evaluation: 902,
+      marker: { mock: true },
+      read(value) {
+        return [902, this.evaluation ?? null, value]
+      },
+      default: {
+        evaluation: 902,
+        read(value) {
+          return [902, this.evaluation, value]
+        },
+      },
+    }
+  })
+  const first = import('./root.cjs')
+  await started
+  const fallback = await import('./root.cjs')
+  expectValue(fallback, fallback.evaluation)
+  expect(fallback.evaluation).not.toBe(902)
+  release()
+  const mock = await first
+  expectValue(mock, 902)
+  expect(mock).not.toBe(fallback)
+  expect(await import('./root.cjs')).toBe(mock)
+  vi.resetModules()
+  expect(await import('./root.cjs')).toBe(mock)
+  expect(calls).toBe(1)
+  vi.doUnmock('./root.cjs')
+  const unmocked = await import('./root.cjs')
+  expectValue(unmocked, fallback.evaluation + 1)
+  expect(unmocked).not.toBe(fallback)
+})
+
+test('compiled CJS pending rejection fresh wrapped retry and reset', async () => {
+  clean()
+  let calls = 0
+  let entered
+  let reject
+  const started = new Promise((resolve) => (entered = resolve))
+  const held = new Promise((_, fail) => (reject = fail))
+  const raw = new TypeError('cjs runtime pending raw')
+  vi.doMock('./root.cjs', async () => {
+    calls++
+    if (calls === 1) {
+      entered()
+      await held
+    }
+    return {
+      evaluation: 903,
+      marker: { mock: true },
+      read(value) {
+        return [903, this.evaluation ?? null, value]
+      },
+      default: {
+        evaluation: 903,
+        read(value) {
+          return [903, this.evaluation, value]
+        },
+      },
+    }
+  })
+  const first = import('./root.cjs').catch((error) => error)
+  await started
+  const fallback = await import('./root.cjs')
+  reject(raw)
+  const error = await first
+  expect(error.name).toBe('Error')
+  expect(error.message).toContain('There was an error when mocking a module')
+  expect(error.cause).toBe(raw)
+  const retry = await import('./root.cjs')
+  expectValue(retry, 903)
+  expect(retry).not.toBe(fallback)
+  vi.resetModules()
+  expect(await import('./root.cjs')).toBe(retry)
+  expect(calls).toBe(2)
+  vi.doUnmock('./root.cjs')
+  expectValue(await import('./root.cjs'), fallback.evaluation + 1)
+})
+
+test('compiled CJS synchronous failed factory retries preserve cause', async () => {
+  clean()
+  let calls = 0
+  const raw = new RangeError('cjs runtime sync raw')
+  vi.doMock('./root.cjs', () => {
+    calls++
+    if (calls < 3) throw raw
+    return {
+      evaluation: 904,
+      marker: { mock: true },
+      read(value) {
+        return [904, this.evaluation ?? null, value]
+      },
+      default: {
+        evaluation: 904,
+        read(value) {
+          return [904, this.evaluation, value]
+        },
+      },
+    }
+  })
+  const errors = []
+  for (let index = 0; index < 2; index++) {
+    try {
+      await import('./root.cjs')
+    } catch (error) {
+      errors.push(error)
+    }
+  }
+  expect(errors).toHaveLength(2)
+  expect(errors[0]).not.toBe(errors[1])
+  for (const error of errors) {
+    expect(error.message).toContain('There was an error when mocking a module')
+    expect(error.cause).toBe(raw)
+  }
+  const success = await import('./root.cjs')
+  expectValue(success, 904)
+  vi.resetModules()
+  expect(await import('./root.cjs')).toBe(success)
+  expect(calls).toBe(3)
+})
+
+test('compiled CJS immediate async overlapping import ordering', async () => {
+  clean()
+  let calls = 0
+  vi.doMock('./root.cjs', async () => {
+    calls++
+    return {
+      evaluation: 905,
+      marker: { mock: true },
+      read(value) {
+        return [905, this.evaluation ?? null, value]
+      },
+      default: {
+        evaluation: 905,
+        read(value) {
+          return [905, this.evaluation, value]
+        },
+      },
+    }
+  })
+  const [first, fallback] = await Promise.all([
+    import('./root.cjs'),
+    import('./root.cjs'),
+  ])
+  expectValue(first, 905)
+  expect(fallback).not.toBe(first)
+  expect(fallback.evaluation).not.toBe(905)
+  expectValue(fallback, fallback.evaluation)
+  expect(await import('./root.cjs')).toBe(first)
+  expect(calls).toBe(1)
+})
+
+test('compiled CJS held factory across unregistration and replacement', async () => {
+  clean()
+  let calls = 0
+  let replacementCalls = 0
+  let entered
+  let release
+  const started = new Promise((resolve) => (entered = resolve))
+  const held = new Promise((resolve) => (release = resolve))
+  vi.doMock('./root.cjs', async () => {
+    calls++
+    entered()
+    await held
+    return {
+      evaluation: 906,
+      marker: { mock: true },
+      read(value) {
+        return [906, this.evaluation ?? null, value]
+      },
+      default: {
+        evaluation: 906,
+        read(value) {
+          return [906, this.evaluation, value]
+        },
+      },
+    }
+  })
+  const first = import('./root.cjs')
+  await started
+  vi.doUnmock('./root.cjs')
+  const original = await import('./root.cjs')
+  vi.doMock('./root.cjs', () => {
+    replacementCalls++
+    return {
+      evaluation: 907,
+      marker: { mock: true },
+      read(value) {
+        return [907, this.evaluation ?? null, value]
+      },
+      default: {
+        evaluation: 907,
+        read(value) {
+          return [907, this.evaluation, value]
+        },
+      },
+    }
+  })
+  expect(await import('./root.cjs')).toBe(original)
+  release()
+  const old = await first
+  expectValue(old, 906)
+  expect(old).not.toBe(original)
+  expect(await import('./root.cjs')).toBe(old)
+  vi.resetModules()
+  expect(await import('./root.cjs')).toBe(old)
+  expect(calls).toBe(1)
+  expect(replacementCalls).toBe(0)
+})
+
+test('compiled CJS unused registration/unregistration does not evaluate', async () => {
+  clean()
+  const before = globalThis.__ws2RuntimeLeafRoot
+  let calls = 0
+  vi.doMock('./unused.cjs', () => {
+    calls++
+    return { default: { unused: true } }
+  })
+  vi.doUnmock('./unused.cjs')
+  vi.resetModules()
+  expect(globalThis.__ws2RuntimeLeafRoot).toBe(before)
+  expect(globalThis.__ws2RuntimeUnused ?? 0).toBe(0)
+  expect(calls).toBe(0)
+})

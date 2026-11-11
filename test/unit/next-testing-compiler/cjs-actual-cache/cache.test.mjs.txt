@@ -1,0 +1,46 @@
+import { expect, test, vi } from 'vitest'
+const observe = (label, value) =>
+  console.log('WS2_CJS_CACHE_RAW:' + JSON.stringify({ label, ...value }))
+test('original imports retain fresh outer promises and one normalized namespace', async () => {
+  const first = vi.importActual('./object.cjs')
+  const second = vi.importActual('././object.cjs')
+  const [left, right] = await Promise.all([first, second])
+  const later = vi.importActual('./object.cjs')
+  expect(first).not.toBe(second)
+  expect(later).not.toBe(first)
+  expect(left).toBe(right)
+  expect(await later).toBe(left)
+  expect(left.default).toBe(right.default)
+  expect(globalThis.__ws2CjsObjectEvaluations).toBe(1)
+  observe('object', { evaluations: globalThis.__ws2CjsObjectEvaluations })
+})
+test('normalized original imports cache one successful then adoption', async () => {
+  const first = vi.importActual('./own.cjs')
+  const second = vi.importActual('././own.cjs')
+  const [left, right] = await Promise.all([first, second])
+  const later = vi.importActual('./own.cjs')
+  expect(first).not.toBe(second)
+  expect(later).not.toBe(first)
+  expect(left).toBe('then value')
+  expect(right).toBe(left)
+  expect(await later).toBe(left)
+  expect(globalThis.__ws2CachedThenCalls).toBe(1)
+  observe('then', { value: left, calls: globalThis.__ws2CachedThenCalls })
+})
+test('normalized original imports cache the original then rejection', async () => {
+  const first = vi.importActual('./reject.cjs')
+  const second = vi.importActual('././reject.cjs')
+  const [left, right] = await Promise.allSettled([first, second])
+  const later = await vi.importActual('./reject.cjs').catch((error) => error)
+  expect(first).not.toBe(second)
+  expect([left.status, right.status]).toEqual(['rejected', 'rejected'])
+  expect(left.reason.name).toBe('Error')
+  expect(left.reason.message).toBe('original then failure')
+  expect(right.reason).toBe(left.reason)
+  expect(later).toBe(left.reason)
+  expect(globalThis.__ws2RejectedThenCalls).toBe(1)
+  observe('rejection', {
+    message: left.reason.message,
+    calls: globalThis.__ws2RejectedThenCalls,
+  })
+})

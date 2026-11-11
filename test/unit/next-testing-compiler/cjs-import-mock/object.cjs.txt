@@ -1,0 +1,4 @@
+globalThis.__ws2CjsObjectEvaluations = (globalThis.__ws2CjsObjectEvaluations || 0) + 1
+exports.value = 42
+exports.identity = {}
+exports.fn = function plus(value) { return value + 1 }

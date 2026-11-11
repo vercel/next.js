@@ -1,0 +1,123 @@
+import { test, expect, vi } from 'vitest'
+for (const order of ['actual-first', 'ordinary-first']) {
+  test(
+    'matches nonleaf CommonJS actual/original cache generations ' + order,
+    async () => {
+      vi.resetModules()
+      const a =
+        order === 'actual-first'
+          ? await vi.importActual('./root.cjs')
+          : await import('./root.cjs')
+      const b =
+        order === 'actual-first'
+          ? await import('./root.cjs')
+          : await vi.importActual('./root.cjs')
+      const actualCached = await vi.importActual('./root.cjs')
+      const ordinaryCached = await import('./root.cjs')
+      vi.resetModules()
+      const afterActual = await vi.importActual('./root.cjs')
+      const afterOrdinary = await import('./root.cjs')
+      vi.resetModules()
+      const lastOrdinary = await import('./root.cjs')
+      const lastActual = await vi.importActual('./root.cjs')
+      const namespaces = [
+        a,
+        b,
+        actualCached,
+        ordinaryCached,
+        afterActual,
+        afterOrdinary,
+        lastOrdinary,
+        lastActual,
+      ]
+      const roots = namespaces.map((value) => value.default)
+      {
+        const observed = {
+          namespaceIdentities: [
+            a === b,
+            actualCached === ordinaryCached,
+            a === actualCached,
+            a === afterActual,
+            afterActual === afterOrdinary,
+            afterActual === lastActual,
+            lastOrdinary === lastActual,
+          ],
+          rootIdentities: [
+            roots[0] === roots[1],
+            roots[0] === roots[4],
+            roots[4] === roots[6],
+          ],
+          dependencyIdentities: roots.map(
+            (value) => value.dependency === roots[0].dependency
+          ),
+          rootValues: roots.map((value) => value.evaluation),
+          dependencyValues: roots.map((value) => value.dependency.evaluation),
+          calls: roots.map((value) =>
+            typeof value === 'function' ? value('held') : value.read()
+          ),
+          counts: [
+            globalThis.__ws2CjsDependencyRoot ?? globalThis.__ws2CallableRoot,
+            globalThis.__ws2CjsDependencyLeaf ??
+              globalThis.__ws2CallableDependency,
+          ],
+        }
+        expect(observed.namespaceIdentities).toEqual(
+          order === 'actual-first'
+            ? [true, true, true, false, true, false, true]
+            : [true, true, true, false, true, false, true]
+        )
+        expect(observed.rootIdentities).toEqual(
+          order === 'actual-first' ? [true, false, false] : [true, false, false]
+        )
+        expect(observed.dependencyIdentities).toEqual(
+          order === 'actual-first'
+            ? [true, true, true, true, true, true, true, true]
+            : [true, true, true, true, true, true, true, true]
+        )
+        expect(observed.rootValues).toEqual(
+          order === 'actual-first'
+            ? [1, 1, 1, 1, 2, 2, 3, 3]
+            : [4, 4, 4, 4, 5, 5, 6, 6]
+        )
+        expect(observed.dependencyValues).toEqual(
+          order === 'actual-first'
+            ? [1, 1, 1, 1, 1, 1, 1, 1]
+            : [1, 1, 1, 1, 1, 1, 1, 1]
+        )
+        expect(observed.calls).toEqual(
+          order === 'actual-first'
+            ? [
+                [1, 1],
+                [1, 1],
+                [1, 1],
+                [1, 1],
+                [2, 1],
+                [2, 1],
+                [3, 1],
+                [3, 1],
+              ]
+            : [
+                [4, 1],
+                [4, 1],
+                [4, 1],
+                [4, 1],
+                [5, 1],
+                [5, 1],
+                [6, 1],
+                [6, 1],
+              ]
+        )
+        expect(observed.counts).toEqual(
+          order === 'actual-first' ? [3, 1] : [6, 1]
+        )
+      }
+      expect(
+        roots.every(
+          (value) =>
+            value !== null &&
+            (typeof value === 'object' || typeof value === 'function')
+        )
+      ).toBe(true)
+    }
+  )
+}

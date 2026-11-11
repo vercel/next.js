@@ -1,0 +1,88 @@
+import { test, expect, vi } from 'vitest'
+import * as mocked from './target.cjs'
+import required from './consumer.cjs'
+vi.mock('./target.cjs', () => {
+  globalThis.__requireReset126FactoryCount =
+    (globalThis.__requireReset126FactoryCount ?? 0) + 1
+  return { value: 'mocked', default: { value: 'mock-default', token: {} } }
+})
+const reset = vi.resetModules
+test('original CommonJS require and mocked ESM remain separate', async () => {
+  const raw = required.read(),
+    dynamic = await import('./target.cjs')
+  expect(raw).toBe(required.initial)
+  expect(raw.value).toBe('actual')
+  expect(mocked.value).toBe('mocked')
+  expect(mocked.default.value).toBe('mock-default')
+  expect(dynamic).toBe(mocked)
+  expect(globalThis.__requireReset126FactoryCount).toBe(1)
+})
+
+test('reset composes the original require cache with the mocked ESM namespace', async () => {
+  const beforeRaw = required.read()
+  const beforeMocked = await import('./target.cjs')
+  const beforeConsumer = await import('./consumer.cjs')
+  const returned = vi.resetModules()
+  const afterMocked = await import('./target.cjs')
+  const afterConsumer = await import('./consumer.cjs')
+  const heldRaw = required.read()
+  const afterRaw = afterConsumer.default.read()
+  expect(heldRaw.value).toBe('actual')
+  expect(afterRaw.value).toBe('actual')
+  expect(afterMocked.value).toBe('mocked')
+  expect(returned).toBe(vi)
+  expect(heldRaw).toBe(beforeRaw)
+  expect(afterRaw).toBe(beforeRaw)
+  expect(afterRaw.token).toBe(beforeRaw.token)
+  expect(afterConsumer.default).not.toBe(required)
+  expect(afterConsumer).not.toBe(beforeConsumer)
+  expect(afterConsumer.default.initial).toBe(beforeRaw)
+  expect(afterMocked).toBe(beforeMocked)
+  expect(afterMocked).toBe(mocked)
+  expect(afterMocked.default.token).toBe(beforeMocked.default.token)
+  expect(globalThis.__requireReset126FactoryCount).toBe(1)
+  expect(afterMocked.default.value).toBe('mock-default')
+})
+test('consumer require cycle keeps its own roots while sharing the original leaf', async () => {
+  const beforeNamespace = await import('./consumer.cjs')
+  const before = beforeNamespace.default
+  const heldPeer = required.peer
+  const beforePeer = before.peer
+  const beforeRaw = [
+    required.read(),
+    before.read(),
+    heldPeer.read(),
+    beforePeer.read(),
+  ]
+  const returned = reset()
+  const afterNamespace = await import('./consumer.cjs')
+  const after = afterNamespace.default
+  const afterPeer = after.peer
+  const afterRaw = [
+    required.read(),
+    after.read(),
+    heldPeer.read(),
+    afterPeer.read(),
+  ]
+  const raw = [...beforeRaw, ...afterRaw]
+  expect(raw.map((value) => value.value)).toEqual(
+    Array(raw.length).fill('actual')
+  )
+  expect(mocked.value).toBe('mocked')
+  expect(returned).toBe(vi)
+  expect(new Set([required, before, after]).size).toBe(3)
+  expect(heldPeer.root).toBe(beforePeer.root)
+  expect(beforePeer.root).toBe(afterPeer.root)
+  expect(new Set([required, before, after, heldPeer.root]).size).toBe(4)
+  expect(new Set([heldPeer, beforePeer, afterPeer]).size).toBe(1)
+  expect(new Set([beforeNamespace, afterNamespace]).size).toBe(2)
+  expect(new Set(raw).size).toBe(1)
+  expect(new Set(raw.map((value) => value.token)).size).toBe(1)
+  expect(globalThis.__requireReset126FactoryCount).toBe(1)
+  for (const peer of [heldPeer, beforePeer, afterPeer]) {
+    expect(typeof peer.root.read).toBe('function')
+    expect(peer.initial).toBe(peer.root.initial)
+    expect(typeof peer.root.peer).toBe('object')
+    expect(peer.root.peer).not.toBe(peer)
+  }
+})

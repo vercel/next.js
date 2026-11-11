@@ -1,0 +1,8 @@
+import {test,expect,vi} from 'vitest'
+const load=()=>import('./root.cjs')
+globalThis.__ws2NegativeRoot=load
+globalThis.__ws2PromiseLeaf=()=>import('./promise.cjs')
+test('does not execute an unsupported nonleaf export cohort',async()=>{
+ console.log('WS2_CJS_NEGATIVE_BODY')
+ vi.resetModules();await load();expect(true).toBe(true)
+})

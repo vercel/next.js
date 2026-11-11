@@ -1,0 +1,1 @@
+const id="destructured-rest-object:async-generator:anonymous";const counts=(globalThis.__cjsGrammarCounts??=Object.create(null));const record=(counts[id]??={root:0,dependency:0,defaults:0,keys:0});record.dependency++;module.exports={value:'dependency-'+id+'-'+record.dependency};

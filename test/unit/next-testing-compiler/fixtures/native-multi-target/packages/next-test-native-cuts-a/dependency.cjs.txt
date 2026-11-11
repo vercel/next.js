@@ -1,0 +1,6 @@
+globalThis.__nativeCutsADependency=(globalThis.__nativeCutsADependency??0)+1
+exports.evaluation=globalThis.__nativeCutsADependency
+exports.marker={}
+const root=require('./index.cjs')
+exports.root=root
+exports.rootHadFunctionDuringCycle=Object.hasOwn(root,'fn')
