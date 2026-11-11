@@ -31,6 +31,7 @@
 use std::{
     alloc::{self, Layout},
     fmt::{Debug, Formatter},
+    iter::FusedIterator,
     mem::{ManuallyDrop, MaybeUninit},
     num::NonZeroU8,
     ops::{Deref, DerefMut},
@@ -617,9 +618,31 @@ impl<T, const INLINE: usize, const MAX: usize> Iterator for IntoIter<T, INLINE, 
         let rem = self.end - self.idx;
         (rem, Some(rem))
     }
+
+    #[inline]
+    fn fold<B, F>(mut self, init: B, mut f: F) -> B
+    where
+        F: FnMut(B, T) -> B,
+    {
+        // `self` is a local now and doesn't move during the loop, so the pointer into its
+        // (possibly inline) buffer stays valid.
+        let base = self.vec.as_ptr();
+        let mut acc = init;
+        while self.idx < self.end {
+            // SAFETY: element `idx` is still initialized and not yet yielded.
+            let v = unsafe { base.add(self.idx).read() };
+            // Advance before calling `f`, so that `Drop` only drops the unyielded elements if
+            // `f` panics.
+            self.idx += 1;
+            acc = f(acc, v);
+        }
+        acc
+    }
 }
 
 impl<T, const INLINE: usize, const MAX: usize> ExactSizeIterator for IntoIter<T, INLINE, MAX> {}
+
+impl<T, const INLINE: usize, const MAX: usize> FusedIterator for IntoIter<T, INLINE, MAX> {}
 
 impl<T, const INLINE: usize, const MAX: usize> Drop for IntoIter<T, INLINE, MAX> {
     fn drop(&mut self) {
@@ -699,9 +722,29 @@ impl<T, const INLINE: usize, const MAX: usize> Iterator for Drain<'_, T, INLINE,
         let rem = self.end - self.idx;
         (rem, Some(rem))
     }
+
+    #[inline]
+    fn fold<B, F>(mut self, init: B, mut f: F) -> B
+    where
+        F: FnMut(B, T) -> B,
+    {
+        let base = self.vec.as_ptr();
+        let mut acc = init;
+        while self.idx < self.end {
+            // SAFETY: element `idx` is initialized and unyielded (vec len is 0).
+            let v = unsafe { base.add(self.idx).read() };
+            // Advance before calling `f`, so that `Drop` only drops the unyielded elements if
+            // `f` panics.
+            self.idx += 1;
+            acc = f(acc, v);
+        }
+        acc
+    }
 }
 
 impl<T, const INLINE: usize, const MAX: usize> ExactSizeIterator for Drain<'_, T, INLINE, MAX> {}
+
+impl<T, const INLINE: usize, const MAX: usize> FusedIterator for Drain<'_, T, INLINE, MAX> {}
 
 impl<T, const INLINE: usize, const MAX: usize> Drop for Drain<'_, T, INLINE, MAX> {
     fn drop(&mut self) {
@@ -1015,5 +1058,100 @@ mod tests {
             }
         }
         assert_eq!(changes, vec![2, 4, 8, 10]);
+    }
+
+    fn filled<const INLINE: usize>(n: u32) -> TinyVec<u32, INLINE> {
+        let mut v = TinyVec::new();
+        v.extend(0..n);
+        v
+    }
+
+    /// `fold` yields the same items as `next`, for inline and heap buffers, also after `next`.
+    #[test]
+    fn fold_matches_next() {
+        for n in [0, 3, 10] {
+            let expected: Vec<u32> = (0..n).collect();
+            let folded = filled::<4>(n).into_iter().fold(Vec::new(), |mut acc, v| {
+                acc.push(v);
+                acc
+            });
+            assert_eq!(folded, expected);
+            let mut v = filled::<4>(n);
+            let folded = v.drain().fold(Vec::new(), |mut acc, x| {
+                acc.push(x);
+                acc
+            });
+            assert_eq!(folded, expected);
+            assert!(v.is_empty());
+
+            let mut it = filled::<4>(n).into_iter();
+            let first = it.next();
+            let rest: Vec<u32> = it.fold(Vec::new(), |mut acc, v| {
+                acc.push(v);
+                acc
+            });
+            assert_eq!(first.into_iter().chain(rest).collect::<Vec<_>>(), expected);
+            let mut v = filled::<4>(n);
+            let mut d = v.drain();
+            let first = d.next();
+            let rest: Vec<u32> = d.fold(Vec::new(), |mut acc, x| {
+                acc.push(x);
+                acc
+            });
+            assert_eq!(first.into_iter().chain(rest).collect::<Vec<_>>(), expected);
+        }
+    }
+
+    /// A panic in the `fold` closure drops every element exactly once.
+    #[test]
+    fn fold_panic_drops_once() {
+        for n in [3, 10] {
+            assert_balanced(|c| {
+                let mut v: TinyVec<DropTok, 4> = TinyVec::new();
+                for _ in 0..n {
+                    v.push(DropTok::new(c));
+                }
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    v.into_iter().fold(0, |i, tok| {
+                        drop(tok);
+                        if i == 1 {
+                            panic!("fold");
+                        }
+                        i + 1
+                    })
+                }));
+                assert!(result.is_err());
+            });
+            assert_balanced(|c| {
+                let mut v: TinyVec<DropTok, 4> = TinyVec::new();
+                for _ in 0..n {
+                    v.push(DropTok::new(c));
+                }
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    v.drain().fold(0, |i, tok| {
+                        drop(tok);
+                        if i == 1 {
+                            panic!("fold");
+                        }
+                        i + 1
+                    })
+                }));
+                assert!(result.is_err());
+                assert!(v.is_empty());
+            });
+        }
+    }
+
+    #[test]
+    fn iterators_are_fused() {
+        let mut it = filled::<4>(2).into_iter();
+        assert_eq!(it.by_ref().count(), 2);
+        assert_eq!(it.next(), None);
+        assert_eq!(it.next(), None);
+        let mut v = filled::<4>(2);
+        let mut d = v.drain();
+        assert_eq!(d.by_ref().count(), 2);
+        assert_eq!(d.next(), None);
+        assert_eq!(d.next(), None);
     }
 }
