@@ -10,4 +10,16 @@ if (process.env.NEXT_TEST_DISABLE_TELEMETRY_IN_CONFIG) {
   process.env.NEXT_TELEMETRY_DISABLED = '1'
 }
 
-export default { distDir: 'custom-output' } satisfies NextConfig
+export default {
+  distDir: 'custom-output',
+  async rewrites() {
+    if (process.env.NEXT_TEST_FAIL_DEV_STARTUP) {
+      writeFileSync(
+        'startup-config-loaded',
+        process.env.NEXT_TELEMETRY_DISABLED || ''
+      )
+      throw new Error('Intentional startup failure after config evaluation')
+    }
+    return []
+  },
+} satisfies NextConfig

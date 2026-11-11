@@ -82,7 +82,7 @@ let dir: string
 let child: undefined | ChildProcess
 // distDir is received from the child process via IPC, used for telemetry and trace.
 let distDir: string | undefined
-let serverTelemetryDisabled: string | undefined
+let serverTelemetrySettings: { disabled: string | undefined } | undefined
 let isTurbopack: boolean
 let traceUploadUrl: string
 let sessionStopHandled = false
@@ -185,18 +185,21 @@ const handleSessionStop = async (
 
     // The CLI parent does not load config; read .env opt-outs before creating telemetry.
     loadEnvConfig(dir, true)
-    if (serverTelemetryDisabled) {
-      process.env.NEXT_TELEMETRY_DISABLED = serverTelemetryDisabled
+    if (serverTelemetrySettings?.disabled) {
+      process.env.NEXT_TELEMETRY_DISABLED = serverTelemetrySettings.disabled
     }
-    const telemetry =
-      (traceGlobals.get('telemetry') as InstanceType<
-        typeof import('../telemetry/storage').Telemetry
-      >) ||
-      new Telemetry({
-        distDir: path.join(dir, distDir || '.next'),
-      })
+    // Config may have opted out before startup failed. Do not assume telemetry
+    // is enabled until the current server child has reported its setting.
+    const telemetry = serverTelemetrySettings
+      ? (traceGlobals.get('telemetry') as InstanceType<
+          typeof import('../telemetry/storage').Telemetry
+        >) ||
+        new Telemetry({
+          distDir: path.join(dir, distDir || '.next'),
+        })
+      : undefined
 
-    telemetry.record(
+    telemetry?.record(
       eventCliSessionStopped({
         cliCommand: 'dev',
         turboFlag: isTurbopack,
@@ -206,7 +209,7 @@ const handleSessionStop = async (
       }),
       true
     )
-    telemetry.flushDetached({ mode: 'dev', dir, events: null })
+    telemetry?.flushDetached({ mode: 'dev', dir, events: null })
   } catch (_) {
     // errors here aren't actionable so don't add
     // noise to the output
@@ -520,6 +523,8 @@ const nextDev = async (
       const { nodeOptions: formattedNodeOptions, execArgv } =
         formatNodeOptions(nodeOptions)
 
+      // A restarted worker must report its own config-derived opt-out.
+      serverTelemetrySettings = undefined
       // Pipe output through us so it can be held while the menu is open.
       child = fork(startServerPath, {
         stdio: humanUpgrade ? ['inherit', 'pipe', 'pipe', 'ipc'] : 'inherit',
@@ -575,7 +580,7 @@ const nextDev = async (
           } else if (msg.nextUpgradeContext) {
             const context = msg.nextUpgradeContext as UpgradeContext
             distDir = context.distDir
-            serverTelemetryDisabled = msg.telemetryDisabled
+            serverTelemetrySettings = { disabled: msg.telemetryDisabled }
             const initialAssessment =
               msg.nextUpgradeAssessment !== undefined
                 ? Promise.resolve(msg.nextUpgradeAssessment)
@@ -593,7 +598,7 @@ const nextDev = async (
             child?.send({ nextWorkerOptions: startServerOptions })
           } else if (msg.nextServerReady && !resolved) {
             // Preserve opt-outs set by config already evaluated in the server child.
-            serverTelemetryDisabled = msg.telemetryDisabled
+            serverTelemetrySettings = { disabled: msg.telemetryDisabled }
             if (msg.port) {
               // Store the used port in case a random one was selected, so that
               // it can be re-used on automatic dev server restarts.
