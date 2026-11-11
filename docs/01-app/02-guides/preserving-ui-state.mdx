@@ -71,6 +71,38 @@ When Activity hides this component, the cleanup function runs and resets `isOpen
 
 You can also use `Link`'s [`onNavigate`](/docs/app/api-reference/components/link#onnavigate) callback to close dropdowns immediately when a navigation link is clicked.
 
+#### Native popovers
+
+A native popover stores its open state in the DOM rather than React state. Call [`hidePopover()`](https://developer.mozilla.org/docs/Web/API/HTMLElement/hidePopover) in the cleanup to close it when Activity hides the component:
+
+```tsx highlight={9-12}
+'use client'
+
+import { useId, useLayoutEffect, useRef } from 'react'
+
+function SettingsPopover() {
+  const popoverId = useId()
+  const popoverRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const popover = popoverRef.current
+    return () => popover?.hidePopover()
+  }, [])
+
+  return (
+    <>
+      <button popoverTarget={popoverId}>Options</button>
+      <div id={popoverId} ref={popoverRef} popover="auto">
+        <button>Edit Profile</button>
+        <button>Change Password</button>
+      </div>
+    </>
+  )
+}
+```
+
+Hidden pages remain in the document, so a hard-coded ID can match an element on a preserved page instead of the visible one. [`useId`](https://react.dev/reference/react/useId) gives each component instance a unique ID, keeping the button associated with its own popover. The same applies to IDs used by labels, `aria-describedby`, and the `form` attribute.
+
 ### Dialog and initialization logic
 
 Activity preserves dialog open/closed state. This also affects Effects that run based on that state.
@@ -230,23 +262,31 @@ The `shouldReset` ref ensures the cleanup only runs after a successful submissio
 If you use [`useActionState`](https://react.dev/reference/react/useActionState), the same approach applies. See [Reset state](https://react.dev/reference/react/useActionState#reset-state) in the React docs for how to add a `RESET` action to your reducer. For more on building responsive interactions with these hooks, see the [Building interactive apps](/docs/app/guides/interactive-apps) guide.
 
 <details>
-<summary>Resetting all form fields with a callback ref</summary>
+<summary>Resetting uncontrolled form fields with a callback ref</summary>
 
-You can use a callback ref to call `form.reset()` when Activity hides the component:
+For uncontrolled inputs, a callback ref can call [`form.reset()`](https://developer.mozilla.org/docs/Web/API/HTMLFormElement/reset) when Activity hides the component. This restores the inputs to their default values:
 
-```tsx
-<form
-  ref={(form) => {
+```tsx highlight={6-8}
+'use client'
+
+import { useCallback } from 'react'
+
+function ContactForm() {
+  const resetOnHide = useCallback((form: HTMLFormElement | null) => {
     return () => form?.reset()
-  }}
->
-  <input name="email" />
-  <input name="message" />
-  <button type="submit">Send</button>
-</form>
+  }, [])
+
+  return (
+    <form ref={resetOnHide}>
+      <input name="email" />
+      <input name="message" />
+      <button type="submit">Send</button>
+    </form>
+  )
+}
 ```
 
-This resets all fields whenever the user navigates away.
+`useCallback` keeps the ref callback stable. An inline callback would also run its cleanup whenever the component re-renders, resetting fields while the user is editing. `form.reset()` does not reset React state. For controlled inputs, reset the state passed to `value` or `checked`, as in the examples above.
 
 </details>
 
