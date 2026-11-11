@@ -160,7 +160,7 @@ function ProductDialog() {
 }
 ```
 
-The [`Suspense` boundary](/docs/app/api-reference/functions/use-search-params#static-rendering) lets the rest of the page prerender while the dialog reads the current search parameters.
+The [`Suspense` boundary](/docs/app/api-reference/functions/use-search-params#prerendering) lets the rest of the page prerender while the dialog reads the current search parameters.
 
 Returning through a link without `?edit=true` closes the dialog. Browser back and forward navigation restore the URL for that history entry, so returning to a URL with `?edit=true` opens it again.
 
