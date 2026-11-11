@@ -60,6 +60,20 @@ export function parseDevServerInfo(content: string): DevServerInfo | undefined {
   }
 }
 
+export interface TryAcquireOptions {
+  /** Whether to unlock the file on process exit. Defaults to `true`. */
+  unlockOnExit?: boolean
+  /** Content to write to the lockfile (e.g., JSON with server info). */
+  content?: string
+}
+
+export interface AcquireWithRetriesOrExitOptions extends TryAcquireOptions {
+  /** Project directory, used for enhanced error messages. */
+  projectDir?: string
+  /** Relative dist directory path (e.g., '.next/dev'). */
+  relativeDistDir?: string
+}
+
 /**
  * A cross-platform on-disk best-effort advisory exclusive lockfile
  * implementation.
@@ -112,13 +126,10 @@ export class Lockfile {
    * - I/O failures throw an error with the lockfile path and filesystem error message.
    *
    * @param path - Path to the lock file
-   * @param unlockOnExit - Whether to unlock the file on process exit
-   * @param content - Optional content to write to the lockfile (e.g., JSON with server info)
    */
   static tryAcquire(
     path: string,
-    unlockOnExit: boolean = true,
-    content?: string
+    { unlockOnExit = true, content }: TryAcquireOptions = {}
   ): Lockfile | undefined {
     const bindings = getBindingsSync()
     if (bindings.isWasm) {
@@ -173,25 +184,23 @@ export class Lockfile {
    *
    * @param path - Path to the lock file
    * @param processName - Name of the process for error messages (e.g., 'next dev')
-   * @param unlockOnExit - Whether to unlock the file on process exit
-   * @param content - Optional content to write to the lockfile (e.g., JSON with server info)
-   * @param projectDir - Optional project directory for enhanced error messages
-   * @param relativeDistDir - Optional relative dist directory path (e.g., '.next/dev')
    */
   static async acquireWithRetriesOrExit(
     path: string,
     processName: string,
-    unlockOnExit: boolean = true,
-    content?: string,
-    projectDir?: string,
-    relativeDistDir?: string
+    {
+      unlockOnExit = true,
+      content,
+      projectDir,
+      relativeDistDir,
+    }: AcquireWithRetriesOrExitOptions = {}
   ): Promise<Lockfile> {
     const startMs = Date.now()
     let lockfile
     let lastError: LockfileError | undefined
     while (Date.now() - startMs < MAX_RETRY_MS) {
       try {
-        lockfile = Lockfile.tryAcquire(path, unlockOnExit, content)
+        lockfile = Lockfile.tryAcquire(path, { unlockOnExit, content })
         lastError = undefined
       } catch (error) {
         if (!(error instanceof LockfileError) || !error.transient) throw error

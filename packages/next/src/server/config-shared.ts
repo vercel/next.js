@@ -12,6 +12,8 @@ import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import { INFINITE_CACHE } from '../lib/constants'
+import { cloneObject } from './lib/clone-object'
+import { deepFreeze } from '../shared/lib/deep-freeze'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
@@ -509,6 +511,8 @@ export interface DeprecatedConfig {
 }
 
 export interface ExperimentalConfig {
+  /** Native Go App Router handlers. Turbopack and self-hosted next start only. */
+  goRoutes?: boolean
   /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
   agentUpgrade?: 'security' | 'latest' | 'experimental-future' | false
   /**
@@ -1670,19 +1674,6 @@ export interface ExperimentalConfig {
   exposeRuntimeErrorsToHMR?: boolean
 
   /**
-   * Acquires a lockfile at `<distDir>/lock` when starting `next dev` or `next
-   * build`. Failing to acquire the lock causes the process to exit with an
-   * error message.
-   *
-   * This is because if multiple processes write to the same `distDir` at the
-   * same time, it can mangle the state of the directory. Disabling this option
-   * is not recommended.
-   *
-   * @default true
-   */
-  lockDistDir?: boolean
-
-  /**
    * Hide logs that occur after a render has already aborted.
    * This can help reduce noise in the console when dealing with aborted renders.
    *
@@ -1990,6 +1981,15 @@ export interface NextConfig {
    * Each entry may be a bare npm package name or a path relative to the project root.
    */
   instrumentationClientInject?: string[]
+
+  /**
+   * Module specifiers compiled into the server `instrumentation` slot, ahead
+   * of the project's own `instrumentation.{ts,js}` file. Every entry's
+   * `register` and `onRequestError` run in array order, then the project
+   * file's. A hook that throws does not stop the others. Each entry may be a bare
+   * npm package name, a path relative to the project root, or an absolute path.
+   */
+  instrumentationInject?: string[]
 
   /** @see [Compression documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/compress) */
   compress?: boolean
@@ -2366,6 +2366,7 @@ export const defaultConfig = Object.freeze({
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   instrumentationClientInject: [],
+  instrumentationInject: [],
   poweredByHeader: true,
   compress: true,
   images: imageConfigDefault,
@@ -2545,7 +2546,6 @@ export const defaultConfig = Object.freeze({
     explicitParallelRouteChildren: true,
     strictRouteMatching: true,
     browserDebugInfoInTerminal: 'warn',
-    lockDistDir: true,
     disableResumeDataCacheCompression: false,
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
@@ -2566,9 +2566,24 @@ export const defaultConfig = Object.freeze({
   bundlePagesRouterDependencies: false,
 } satisfies NextConfig)
 
+// In tests, deeply freeze the shared defaults (this also covers
+// `imageConfigDefault`, which `defaultConfig.images` points to). A write to
+// them would leak into every later `loadConfig` in the process, so make it
+// throw instead. `defaultConfig` itself is already shallowly frozen, which
+// makes `deepFreeze` stop at the top level, so freeze what it contains.
+if (process.env.__NEXT_TEST_MODE) {
+  for (const value of Object.values(defaultConfig)) {
+    if (value && typeof value === 'object') deepFreeze(value)
+  }
+}
+
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
-    config = config(phase, { defaultConfig })
+    // Pass a copy so a config function that writes into the nested defaults
+    // (e.g. `defaultConfig.images`) cannot change them for later loads.
+    config = config(phase, {
+      defaultConfig: Object.freeze(cloneObject(defaultConfig)),
+    })
   }
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
@@ -2626,6 +2641,7 @@ export interface NextConfigRuntime {
 
   experimental: Pick<
     NextConfigComplete['experimental'],
+    | 'goRoutes'
     | 'taint'
     | 'agentFeedback'
     | 'serverActions'
@@ -2750,6 +2766,7 @@ export function getNextConfigRuntime(
     requestInsights: ex.requestInsights,
     externalBrowserRuntime: ex.externalBrowserRuntime,
 
+    goRoutes: ex.goRoutes,
     trustHostHeader: ex.trustHostHeader,
     isExperimentalCompile: ex.isExperimentalCompile,
   } satisfies Requiredish<NextConfigRuntime['experimental']>

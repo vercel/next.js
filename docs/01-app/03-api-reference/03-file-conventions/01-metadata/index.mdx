@@ -12,5 +12,6 @@ Once a file is defined, Next.js will automatically serve the file (with hashes i
 
 > **Good to know**:
 >
+> - A page's explicit `openGraph.images` or `twitter.images` metadata overrides the corresponding file-based images, including files in the same segment. See [image precedence](/docs/app/api-reference/file-conventions/metadata/opengraph-image#precedence-with-metadata-exports).
 > - Special Route Handlers like [`sitemap.ts`](/docs/app/api-reference/file-conventions/metadata/sitemap), [`opengraph-image.tsx`](/docs/app/api-reference/file-conventions/metadata/opengraph-image), and [`icon.tsx`](/docs/app/api-reference/file-conventions/metadata/app-icons), and other [metadata files](/docs/app/api-reference/file-conventions/metadata) are cached by default.
 > - If using along with [`proxy.ts`](/docs/app/api-reference/file-conventions/proxy), [configure the matcher](/docs/app/api-reference/file-conventions/proxy#matcher) to exclude the metadata files.

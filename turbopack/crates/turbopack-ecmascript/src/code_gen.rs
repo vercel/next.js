@@ -1,14 +1,11 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use swc_core::{
-    base::SwcComments,
-    ecma::{
-        ast::{
-            BlockStmt, CallExpr, Expr, FunctionBody, Lit, MemberExpr, ModuleDecl, ModuleItem, Pat,
-            Program, Prop, SimpleAssignTarget, Stmt, Str, SwitchCase,
-        },
-        visit::AstParentKind,
+use swc_core::ecma::{
+    ast::{
+        BlockStmt, CallExpr, Expr, FunctionBody, Lit, MemberExpr, ModuleDecl, ModuleItem, Pat,
+        Program, Prop, SimpleAssignTarget, Stmt, Str, SwitchCase,
     },
+    visit::AstParentKind,
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat};
@@ -36,13 +33,13 @@ use crate::{
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         hot_module::ModuleHotReferenceCodeGen,
         ident::IdentReplacement,
-        import_meta_glob::ImportMetaGlobAssetReferenceCodeGen,
         member::MemberReplacement,
         removal::RemovalCodeGen,
         require_context::RequireContextAssetReferenceCodeGen,
         service_worker::ServiceWorkerAssetReferenceCodeGen,
         worker::{WorkerAssetReferenceCodeGen, WorkerGlobalsReplacementCodeGen},
     },
+    swc_comments::MutableComments,
 };
 
 #[derive(Default)]
@@ -53,7 +50,7 @@ pub struct CodeGeneration {
     pub early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
     pub late_stmts: Vec<CodeGenerationHoistedStmt>,
     pub early_late_stmts: Vec<CodeGenerationHoistedStmt>,
-    pub comments: Option<SwcComments>,
+    pub comments: Option<MutableComments>,
 }
 
 impl CodeGeneration {
@@ -82,7 +79,7 @@ impl CodeGeneration {
 
     pub fn visitors_with_comments(
         visitors: Vec<(AstPathId, Box<dyn AstModifier>)>,
-        comments: SwcComments,
+        comments: MutableComments,
     ) -> Self {
         CodeGeneration {
             visitors,
@@ -201,7 +198,6 @@ pub enum CodeGen {
     CjsRequireResolveAssetReferenceCodeGen(CjsRequireResolveAssetReferenceCodeGen),
     EsmAsyncAssetReferenceCodeGen(EsmAsyncAssetReferenceCodeGen),
     EsmModuleIdAssetReferenceCodeGen(EsmModuleIdAssetReferenceCodeGen),
-    ImportMetaGlobAssetReferenceCodeGen(ImportMetaGlobAssetReferenceCodeGen),
     RequireContextAssetReferenceCodeGen(RequireContextAssetReferenceCodeGen),
     UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen),
     WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen),
@@ -239,7 +235,6 @@ impl CodeGen {
             Self::CjsRequireResolveAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::EsmAsyncAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::EsmModuleIdAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
-            Self::ImportMetaGlobAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::UrlAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,

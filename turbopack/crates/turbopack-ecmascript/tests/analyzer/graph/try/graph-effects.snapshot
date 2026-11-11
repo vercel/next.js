@@ -61,6 +61,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -168,6 +169,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -227,6 +229,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,

@@ -24,6 +24,7 @@ mod dyn_task_inputs;
 mod effect;
 mod error;
 pub mod event;
+mod fixint;
 pub mod graph;
 mod id;
 mod id_factory;
@@ -39,6 +40,7 @@ mod marker_trait;
 pub mod message_queue;
 mod native_function;
 mod once_map;
+mod ordered_json;
 mod output;
 pub mod panic_hooks;
 pub mod parallel;
@@ -91,6 +93,7 @@ pub use crate::{
         resolve_strongly_consistent_and_take_and_apply_effects, take_effects,
     },
     error::PrettyPrintError,
+    fixint::{FixintU64, FixintU128},
     id::{
         ExecutionId, FunctionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId,
     },
@@ -100,13 +103,13 @@ pub use crate::{
     },
     join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt},
     manager::{
-        CellKey, CurrentCellRef, GcRoot, InputResolution, ReadCellTracking, ReadConsistency,
-        ReadTracking, ScheduleKey, TaskPersistence, TaskPriority, TurboTasks, TurboTasksApi,
-        TurboTasksCallApi, Unused, UpdateInfo, dynamic_call, emit, get_serialization_invalidator,
-        mark_finished, mark_stateful, mark_top_level_task, prevent_gc, run, run_once,
-        run_once_with_reason, trait_call, try_turbo_tasks, turbo_tasks, turbo_tasks_scope,
-        turbo_tasks_weak, unmark_top_level_task_may_leak_eventually_consistent_state,
-        with_turbo_tasks,
+        CellKey, CellKeyKind, CurrentCellRef, GcRoot, InputResolution, ReadCellTracking,
+        ReadConsistency, ReadTracking, ScheduleKey, TaskPersistence, TaskPriority, TurboTasks,
+        TurboTasksApi, TurboTasksCallApi, Unused, UpdateInfo, dynamic_call, emit,
+        get_serialization_invalidator, mark_finished, mark_stateful, mark_top_level_task,
+        prevent_gc, run, run_once, run_once_with_reason, trait_call, try_turbo_tasks, turbo_tasks,
+        turbo_tasks_scope, turbo_tasks_weak,
+        unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
     mapped_read_ref::MappedReadRef,
     output::OutputContent,
@@ -136,6 +139,10 @@ pub use crate::{
 
 pub type FxIndexSet<T> = indexmap::IndexSet<T, BuildHasherDefault<FxHasher>>;
 pub type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
+/// Insertion ordered maps and sets with order sensitive equality, see [`auto_hash_map`].
+pub use auto_hash_map::{OrderedAutoMap, OrderedAutoSet};
+
+pub use crate::ordered_json::{OrderedJsonMap, OrderedJsonValue};
 pub type FxDashMap<K, V> = dashmap::DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
 // Copied from indexmap! and indexset!
