@@ -1073,6 +1073,68 @@ describe('compiler-owned runtime mock dispatch components (not native conformanc
       h.tracker.dispose()
     }
   })
+  it('preserves CommonJS reset, replacement and authored ESM alias diagnostics', () => {
+    const { mkdtempSync, rmSync } = require('node:fs')
+    const output = mkdtempSync(
+      join(require('node:os').tmpdir(), 'next-runtime-namespace-')
+    )
+    rmSync(output, { recursive: true })
+    let passed = false
+    try {
+      const result = JSON.parse(
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'verify-runtime-namespace.mjs'),
+            process.cwd(),
+            output,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 150000 }
+        )
+      )
+      expect(result).toMatchObject({
+        passed: true,
+        cases: 4,
+      })
+      passed = true
+    } finally {
+      if (passed) rmSync(output, { recursive: true, force: true })
+      else console.error('Runtime namespace evidence retained at', output)
+    }
+  }, 180000)
+  it('preserves production CommonJS reset, replacement and authored ESM alias diagnostics', () => {
+    const { mkdtempSync, rmSync } = require('node:fs')
+    const output = mkdtempSync(
+      join(require('node:os').tmpdir(), 'next-runtime-namespace-')
+    )
+    rmSync(output, { recursive: true })
+    let passed = false
+    try {
+      const result = JSON.parse(
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'verify-runtime-namespace.mjs'),
+            process.cwd(),
+            output,
+            '--source',
+            'production',
+          ],
+          { encoding: 'utf8', timeout: 150000 }
+        )
+      )
+      expect(result).toMatchObject({
+        passed: true,
+        mode: 'production',
+        cases: 4,
+      })
+      passed = true
+    } finally {
+      if (passed) rmSync(output, { recursive: true, force: true })
+      else console.error('Runtime namespace evidence retained at', output)
+    }
+  }, 180000)
 })
 
 describe('compiler importMock runtime selections (not native compiler conformance)', () => {

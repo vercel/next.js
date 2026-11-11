@@ -1,3 +1,40 @@
+import { execFile } from 'node:child_process'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { promisify } from 'node:util'
+
+it('publishes real Browser task updates without reading authored Promise.resolve and retains constructor veto/input behavior', async () => {
+  const retained = process.env.NEXT_TESTING_TASK_UPDATE_PROMISES_EVIDENCE
+  const temporary =
+    retained ?? (await mkdtemp(join(tmpdir(), 'next-task-update-promises-')))
+  let complete = false
+  try {
+    const evidence = retained ?? join(temporary, 'evidence')
+    await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'verify.mjs'), join(__dirname, '../../..'), evidence],
+      { timeout: 510000, maxBuffer: 1024 * 1024 }
+    )
+    const verified = JSON.parse(
+      await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
+    )
+    expect(verified.profiles).toBe(4)
+    expect(verified.cases).toBe(8)
+    expect(verified.genuineInputDescriptorGetterAndVetoFieldsExact).toBe(true)
+    expect(verified.rawConstructorAndFrameRowsRetained).toBe(true)
+    expect(verified.allOwnersJoined).toBe(true)
+    complete = true
+  } catch (error) {
+    throw new Error(`Task-update Promise evidence retained at ${temporary}`, {
+      cause: error,
+    })
+  } finally {
+    if (complete && !retained)
+      await rm(temporary, { recursive: true, force: true })
+  }
+}, 540000)
+
 it.each(['void', 'promise'] as const)(
   'keeps the actual %s callback result independent of an authored resolve getter',
   async (kind) => {

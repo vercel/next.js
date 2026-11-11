@@ -4256,6 +4256,24 @@ describe('live custom console reporter callbacks', () => {
   })
 })
 
+it('delivers actual module completion callbacks with stable final task identities in both Node profiles', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'module-end-reporter.cjs')],
+    { encoding: 'utf8', timeout: 100000 }
+  )
+  expect(JSON.parse(result)).toEqual({ cases: 12, callbacks: 2, profiles: 2 })
+}, 110000)
+
+it('drains rejected module completion callbacks through following files, run end and close', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'module-end-failure.cjs')],
+    { encoding: 'utf8', timeout: 100000 }
+  )
+  expect(JSON.parse(result)).toEqual({ cases: 4, callbacks: 4, profiles: 2 })
+}, 110000)
+
 it('proves body timeout declaration origins from real leased chunks and refuses incomplete or foreign associations', () => {
   const result = execFileSync(
     process.execPath,
@@ -4423,6 +4441,55 @@ it('reports lexical parents without moving raw collector children or replacing t
     expect(outside.result().state).toBe('passed')
   }
 })
+
+it('matches actual raw collector parents in supported case and completion reporter callbacks', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'logical-case-parent.cjs')],
+    { encoding: 'utf8', timeout: 150000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 2,
+    cases: 16,
+    authoredRows: 2,
+    callbackRows: 48,
+    fullReferenceRows: true,
+  })
+}, 160000)
+
+it('captures actual physical order and lexical parents for completion-only custom reporters', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'logical-case-parent.cjs'), 'completion'],
+    { encoding: 'utf8', timeout: 150000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 2,
+    cases: 16,
+    authoredRows: 2,
+    callbackRows: 32,
+    fullReferenceRows: true,
+  })
+}, 160000)
+
+it.each(['module', 'run'])(
+  'captures actual task snapshots when only the %s completion hook is present',
+  (variant) => {
+    const result = execFileSync(
+      process.execPath,
+      [join(__dirname, 'logical-case-parent.cjs'), variant],
+      { encoding: 'utf8', timeout: 150000 }
+    )
+    expect(JSON.parse(result)).toEqual({
+      profiles: 2,
+      cases: 16,
+      authoredRows: 2,
+      callbackRows: 16,
+      fullReferenceRows: true,
+    })
+  },
+  160000
+)
 
 it('retains actual collected hierarchy and live task identities before following bodies complete', async () => {
   const { createCollector } = await import(
@@ -4747,6 +4814,67 @@ it('rejects absent task pack identities before changing an actual reporter tree'
   expect(checked).toBe(true)
 })
 
+it('delivers compiled logical callbacks with full actual task rows before a held following body finishes', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'logical-case-reporter.cjs')],
+    { encoding: 'utf8', timeout: 90000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    cases: 4,
+    profiles: 2,
+    earlyCallbacks: 2,
+    fullTaskRows: true,
+  })
+}, 100000)
+
+it('matches actual case/module callback order and rejected reporters through following files and shared cleanup', () => {
+  const { execFileSync } = require('node:child_process')
+  const output = execFileSync(
+    process.execPath,
+    [join(__dirname, 'logical-case-order.cjs')],
+    { encoding: 'utf8', timeout: 140000 }
+  )
+  expect(JSON.parse(output)).toEqual({
+    profiles: 3,
+    cases: 6,
+    callbacks: 6,
+    followingBodyRequiresActualModuleCallback: true,
+  })
+}, 150000)
+
+it('replays recorded terminal task graphs and both reporter errors without compiling authored tests', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'logical-blob-replay.cjs')],
+    { encoding: 'utf8', timeout: 170000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 6,
+    cases: 9,
+    callbackRows: 30,
+    recordedAndReplayErrorsRetained: true,
+    noAuthoredTestsInMergeRoot: true,
+    jsonAndJUnitRetained: true,
+  })
+}, 180000)
+
+it('replays genuine terminal Vitest blob task views and reporter failures without authored tests', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'foreign-blob-replay.cjs')],
+    { encoding: 'utf8', timeout: 230000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    corpora: 8,
+    callbacks: 20,
+    fullRows: 48,
+    noAuthoredTests: true,
+    completeForeignReports: 8,
+    originalAndReplayErrors: true,
+  })
+}, 240000)
+
 it('keeps legacy JSON blob projection while refusing absent reporter facts before loading adapters', async () => {
   const root = await mkdtemp(join(tmpdir(), 'next-foreign-reporter-facts-'))
   const input = join(root, 'blobs')
@@ -4798,6 +4926,38 @@ it('keeps legacy JSON blob projection while refusing absent reporter facts befor
     await rm(root, { recursive: true, force: true })
   }
 })
+
+it('loads TypeScript and MTS reporters with real local typed imports and exact terminal task views', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'typescript-reporter-import.cjs')],
+    { encoding: 'utf8', timeout: 100000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 4,
+    callbacks: 8,
+    fullRows: 24,
+    noAuthoredTests: true,
+    completeForeignReports: 4,
+    typedLocalDependencyAndOriginalErrors: true,
+  })
+}, 110000)
+
+it('loads typed directory, output-suffix, dynamic and mixed reporter dependency graphs', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'reporter-import-graphs.cjs')],
+    { encoding: 'utf8' }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 8,
+    callbacks: 16,
+    fullRows: 48,
+    noAuthoredTests: true,
+    completeForeignReports: 8,
+    typedDirectoryOutputDynamicAndMixedImports: true,
+  })
+}, 180000)
 
 describe('actual custom reporter cancellation ownership', () => {
   it.each([
@@ -4938,6 +5098,24 @@ describe('actual custom reporter cancellation ownership', () => {
     }
   )
 })
+
+it('loads native package reporters from the actual project root in both Node profiles', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'reporter-packages.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 8,
+    callbacks: 16,
+    fullRows: 48,
+    noAuthoredTests: true,
+    completeForeignReports: 8,
+    nativeImportConditionsCommonJsSubpathAndUnscoped: true,
+  })
+}, 190000)
 
 it('keeps unimplemented built-in reporter names separate from package entries', () => {
   for (const reporter of [
@@ -5128,6 +5306,38 @@ it('keeps actual native entry rejections global across standard, TAP and stable/
     reporter.dispose()
   }
 })
+
+it('loads JSX and TSX completion reporters with actual React evaluation and exact terminal task views', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'jsx-reporter-import.cjs')],
+    { encoding: 'utf8', timeout: 100000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 4,
+    callbacks: 8,
+    fullRows: 28,
+    noAuthoredTests: true,
+    completeForeignReports: 4,
+    jsxEvaluationAndOriginalErrors: true,
+  })
+}, 110000)
+
+it('loads relative JSX/TSX reporter graphs with pinned file, index and output suffix precedence', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'jsx-reporter-graphs.cjs')],
+    { encoding: 'utf8', timeout: 170000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 6,
+    callbacks: 12,
+    fullRows: 42,
+    noAuthoredTests: true,
+    completeForeignReports: 6,
+    jsxRelativeGraphsAndResolverOrder: true,
+  })
+}, 180000)
 
 it.each([
   'unowned-relative',
@@ -5341,6 +5551,20 @@ it.each([
     }
   }
 )
+
+it('retains genuine All-hook suite/module error ownership through the ordinary public CLI', async () => {
+  const output = execFileSync(
+    process.execPath,
+    [join(__dirname, 'suite-error-ownership.cjs')],
+    { encoding: 'utf8', timeout: 520000 }
+  )
+  expect(JSON.parse(output)).toEqual({
+    completeProfiles: 12,
+    genuineProfiles: 12,
+    allCaseEventCallbackAndErrorRowsExact: true,
+    actualSuiteSlotAssociations: 12,
+  })
+}, 530000)
 
 describe('closed watch file JSON history', () => {
   function historicalFile(status: 'passed' | 'failed' = 'passed') {
@@ -6344,6 +6568,102 @@ it('retains exact Browser intrinsic raw declarations and the existing closed-sco
     frozenUnknownTargetGuarded: true,
     guardCalls: 11,
   })
+})
+
+describe('pinned JSON file error messages', () => {
+  it('retains exact root/diagnostic slots through closed history while preserving prior JUnit nonmetadata bytes and original evidence', () => {
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'json-suite-message-unit.cjs')],
+        { encoding: 'utf8', timeout: 30000 }
+      )
+    )
+    expect(actual).toEqual({
+      scenarios: 20,
+      exactRawMessages: true,
+      priorJUnitNonMetadataBytesHeld: true,
+      originalEvidenceHeld: true,
+      closedHistoryOwnedSlots: true,
+    })
+  })
+  it('matches whole genuine JSON reports for root/nested hooks, aggregate/primitive errors, case and collection failures in both modes', async () => {
+    const output = await mkdtemp(join(tmpdir(), 'next-json-suite-messages-'))
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'json-suite-message-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        {
+          encoding: 'utf8',
+          timeout: 300000,
+          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+        }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+      ).toMatchObject({
+        profiles: 24,
+        wholeReportsEqual: 24,
+        rawFileAndCaseMessagesExact: true,
+        authoredBytesHeld: true,
+        allOwnersClosed: true,
+      })
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 310000)
+})
+
+describe('standard JSON coverage with custom reporter completion and close', () => {
+  it.each([
+    'close',
+    'config-close',
+    'end',
+    'end-close',
+    'end-config-close',
+    'success',
+  ])(
+    'publishes case results and coverage while retaining independent errors for %s',
+    async (name: string) => {
+      const output = await mkdtemp(join(tmpdir(), 'next-custom-json-coverage-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'json-coverage-custom-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 125000 }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          name,
+          caseResultsAndCoveragePublication: true,
+          exactCallbackAndFileOrder: true,
+          allIndependentAuthoredErrorsRetained: true,
+          ownedProcessTreeClosed: true,
+        })
+      } finally {
+        if (process.env.NEXT_TESTING_CUSTOM_JSON_COVERAGE_EVIDENCE)
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_CUSTOM_JSON_COVERAGE_EVIDENCE, name),
+            { recursive: true }
+          )
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
 })
 
 it.each(['worker-only', 'mixed-cleanup', 'case-failed', 'cancelled'])(
@@ -7786,6 +8106,50 @@ it.each([
   35000
 )
 
+it.each(
+  (['development', 'production'] as const).flatMap((mode) =>
+    [
+      'all-skip-dir',
+      'load-failure-dir',
+      'passing-dir',
+      'empty-dir',
+      'empty-pass-dir',
+      'undefined-snapshot-read',
+      'same-error-load-and-read',
+    ].map((profile) => ({ mode, profile }))
+  )
+)(
+  'preserves actual one-shot public snapshot preparation JSON for $mode $profile',
+  async ({ mode, profile }) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-public-snapshot-json-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'public-snapshot-preparation.mjs'),
+          profile,
+          mode,
+          output,
+        ],
+        { timeout: 130000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        profile,
+        mode,
+        completeReferenceReportEqual: true,
+        unchangedAuthorRowsEqual: true,
+        allPhysicalOwnersJoined: true,
+        execPath: process.execPath,
+        version: process.version,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  140000
+)
+
 it.each([
   'skipped',
   'todo',
@@ -7866,6 +8230,60 @@ it.each([
   },
   35000
 )
+
+describe('actual piped default snapshot preparation public compatibility', () => {
+  it.each(
+    (['development', 'production'] as const).flatMap((mode) =>
+      [
+        'passing-dir',
+        'all-skip-dir',
+        'load-failure-dir',
+        'empty-dir',
+        'empty-pass-dir',
+        'undefined-snapshot-read',
+        'same-error-load-and-read',
+      ].flatMap((profile) =>
+        ['default', 'default-json'].map((sink) => ({ profile, mode, sink }))
+      )
+    )
+  )(
+    'preserves unchanged $mode $profile body and genuine $sink summary',
+    async ({ profile, mode, sink }) => {
+      const directory = await mkdtemp(
+        join(tmpdir(), 'next-public-default-preparation-')
+      )
+      try {
+        const output = join(directory, 'observed.json')
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'public-default-snapshot-preparation.mjs'),
+            profile,
+            mode,
+            sink,
+            output,
+          ],
+          { timeout: 145000, encoding: 'utf8' }
+        )
+        expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+          profile,
+          mode,
+          sink,
+          wholeGenuineHumanSummaryEqual: true,
+          completeReferenceJSONEqual: sink === 'default-json',
+          unchangedAuthorRowsEqual: true,
+          allPhysicalOwnersJoined: true,
+          sdkAbsent: false,
+          execPath: process.execPath,
+          version: process.version,
+        })
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    },
+    150000
+  )
+})
 
 it('uses actual final Browser root error data without suppressing independent failures', () => {
   const stdout = execFileSync(
@@ -7981,6 +8399,39 @@ it('preserves actual JUnit suite cardinality without observable task reads or un
     await rm(directory, { recursive: true, force: true })
   }
 }, 35000)
+
+it.each([
+  ['development', 'root-two-errors'],
+  ['development', 'nested-two-errors'],
+  ['development', 'root-same-object'],
+  ['production', 'root-two-errors'],
+  ['production', 'nested-two-errors'],
+  ['production', 'root-same-object'],
+  ['development', 'error-getters'],
+  ['development', 'task-meta-getter'],
+])(
+  'reports actual JUnit suite/error occurrences without adding getter effects (%s %s)',
+  async (mode, profile) => {
+    const directory = await mkdtemp(join(tmpdir(), 'next-junit-suite-public-'))
+    try {
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'junit-suite-public.mjs'), mode, profile, directory],
+        { timeout: 125000, encoding: 'utf8' }
+      )
+      expect(
+        JSON.parse(await readFile(join(directory, 'observed.json'), 'utf8'))
+      ).toMatchObject({
+        status: 'passed',
+        fullXMLParityQualified: false,
+        stackFramePresentationRemainsOpen: true,
+      })
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  },
+  150000
+)
 
 it.each(['omitted', 'false', 'one', 'true'])(
   'finalizes filtered modes only for the actual readonly selection owner: %s',
@@ -8195,6 +8646,43 @@ it.each(['success', 'setup-failure', 'cleanup-failure'] as const)(
     }
   },
   35000
+)
+
+it.each(['development', 'production'] as const)(
+  'matches complete ModuleStart reporter and author streams with actual causal ordering in %s',
+  async (mode) => {
+    const root = await mkdtemp(
+      join(tmpdir(), 'next-public-module-start-causal-')
+    )
+    try {
+      for (const profile of ['success', 'setup-failure', 'cleanup-failure']) {
+        const output = join(root, profile + '.json')
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'public-module-start-causal.mjs'),
+            profile,
+            mode,
+            output,
+          ],
+          { encoding: 'utf8', timeout: 125000 }
+        )
+        expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+          profile,
+          mode,
+          wholeReporterStreamEqual: true,
+          wholeAuthorStreamEqual: true,
+          actualEndGatedCausalOrderHeld: true,
+          standardCountsStatesAndFileMessagesEqual: true,
+          allOriginalBodyAndReporterBytesHeld: true,
+          allPhysicalOwnersJoined: true,
+        })
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  380000
 )
 
 it('validates every ModuleStart stream field while retaining only actual causal edges', async () => {
@@ -8825,6 +9313,41 @@ describe('actual synchronous custom JSON ordering', () => {
   )
 })
 
+describe('actual custom synchronous JSON publication', () => {
+  it.each(completionProfiles['sync-json'] as string[])(
+    'preserves JSON publication and reporter errors for %s',
+    async (name) => {
+      const output = await mkdtemp(join(tmpdir(), 'next-sync-json-public-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'custom-sync-json.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_SYNC_JSON_EVIDENCE)
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_SYNC_JSON_EVIDENCE, name),
+            { recursive: true }
+          )
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
 describe('actual mixed custom completion dispatch', () => {
   it.each([
     [
@@ -8910,6 +9433,41 @@ describe('actual mixed custom completion dispatch', () => {
       }
     },
     30000
+  )
+})
+
+describe('actual mixed custom reporter publication', () => {
+  it.each(completionProfiles['dispatch'] as string[])(
+    'preserves reporter dispatch and JSON publication for %s',
+    async (name) => {
+      const output = await mkdtemp(join(tmpdir(), 'next-dispatch-public116-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'custom-dispatch-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_DISPATCH_EVIDENCE)
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_DISPATCH_EVIDENCE, name),
+            { recursive: true }
+          )
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
   )
 })
 
@@ -9030,6 +9588,41 @@ describe('actual prior custom completion ownership through close', () => {
       }
     },
     30000
+  )
+})
+
+describe('actual custom pending completion lifecycle publication', () => {
+  it.each(completionProfiles['pending'] as string[])(
+    'matches actual close and retained completion lifecycle for %s',
+    async (name) => {
+      const output = await mkdtemp(join(tmpdir(), 'next-pending-public117-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'custom-pending-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_PENDING_EVIDENCE)
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_PENDING_EVIDENCE, name),
+            { recursive: true }
+          )
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
   )
 })
 
@@ -9173,6 +9766,50 @@ describe('actual ordinary end hook descriptor planning', () => {
       }
     },
     30000
+  )
+})
+
+describe('actual getter planning provider lifecycle', () => {
+  it.each([
+    'function',
+    'undefined',
+    'null',
+    'inherited-function',
+    'shadow-undefined',
+    'proxy-instance',
+    'proxy-prototype',
+    'throw-before',
+  ])(
+    'defers end-hook access until provider completion for %s',
+    async (name) => {
+      const output = await mkdtemp(join(tmpdir(), 'next-getter-public118-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'custom-getter-planning.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_GETTER_EVIDENCE)
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_GETTER_EVIDENCE, name),
+            { recursive: true }
+          )
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
   )
 })
 
@@ -9440,6 +10077,41 @@ describe('actual completion failure prefix ownership', () => {
   )
 })
 
+describe('actual completion failure mapping publication', () => {
+  it.each(completionProfiles['completion-failure'] as string[])(
+    'matches JSON-after failure dispatch for %s',
+    async (name) => {
+      const output = await mkdtemp(join(tmpdir(), 'next-failure-public119-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'custom-completion-failure.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_FAILURE_EVIDENCE)
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_FAILURE_EVIDENCE, name),
+            { recursive: true }
+          )
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
 describe('actual pre-call completion failure owns earlier callbacks until close', () => {
   const leaves = (error: unknown): Error[] =>
     error instanceof AggregateError
@@ -9557,6 +10229,50 @@ describe('actual pre-call completion failure owns earlier callbacks until close'
       }
     },
     30000
+  )
+})
+
+describe('actual pre-call pending completion lifecycle publication', () => {
+  it.each([
+    'getter-reject',
+    'getter-close-throw',
+    'getter-reject-close-throw',
+    'invalid-reject',
+    'invalid-close-throw',
+    'invalid-reject-close-throw',
+  ])(
+    'matches actual close and retained completion lifecycle for %s',
+    async (name) => {
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-access-pending-public416-')
+      )
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'custom-access-pending-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_ACCESS_PENDING_EVIDENCE)
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_ACCESS_PENDING_EVIDENCE, name),
+            { recursive: true }
+          )
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
   )
 })
 
@@ -10341,6 +11057,34 @@ describe('completion task ownership without authored collection hooks', () => {
     }
   })
 })
+
+it('retains canonical reporter logs from real producer events and watch generations', () => {
+  const stdout = execFileSync(
+    process.execPath,
+    [join(__dirname, 'reporter-task-logs.cjs')],
+    { encoding: 'utf8', timeout: 240000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 10,
+    oneShotProfiles: 8,
+    watchGenerations: 4,
+    retainedConsoleRows: 142,
+    comparedRows: 128,
+    engineConsoleRows: 7,
+    publicCLIProfiles: 8,
+    engineComponentProfiles: 2,
+    publicWatchReporterAdmission: false,
+    realProducerRows: true,
+    noConsoleObserverRetainsLogs: true,
+    pendingStateAndEventualCallbackRowIdentity: true,
+    freshArraysWithRetainedRows: true,
+    fileLogsSharedAcrossWatchGenerations: true,
+    absentFileListsRetainTheirActualOwner: true,
+    queuedAndCollectedFileSlotsMatchProducer: true,
+    priorTestViewsRetainTheirGeneration: true,
+    callbackSchedulingParityClaimed: false,
+  })
+}, 245000)
 
 describe('custom reporter actual watch generation ownership', () => {
   async function withWatchReporter(

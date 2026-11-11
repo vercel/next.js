@@ -16,6 +16,7 @@ import semver from 'next/dist/compiled/semver'
 import { bold, cyan, italic } from '../lib/picocolors'
 import { formatCliHelpOutput } from '../lib/format-cli-help-output'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
+import { createTestTypecheckCliArguments } from '../experimental/testing/typecheck-cli'
 import {
   getParsedDebugAddress,
   parseValidPositiveInteger,
@@ -80,6 +81,8 @@ if (
 process.env.NEXT_PRIVATE_START_TIME = Date.now().toString()
 
 class NextRootCommand extends Command {
+  declare rawArgs: string[]
+
   createCommand(name: string) {
     const command = new Command(name)
 
@@ -106,10 +109,14 @@ class NextRootCommand extends Command {
         }
       }
 
+      // Testing selects its own environment for each execution profile.
       // The upgrade harness may run both dev and production checks. Preserve
       // its caller's environment instead of forcing all child commands into
       // production mode merely because they were launched through this CLI.
-      if (commandName !== 'upgrade' || !event.getOptionValue('agent')) {
+      if (
+        commandName !== 'test' &&
+        (commandName !== 'upgrade' || !event.getOptionValue('agent'))
+      ) {
         ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
         ;(process.env as any).NEXT_RUNTIME = 'nodejs'
       }
@@ -130,6 +137,7 @@ class NextRootCommand extends Command {
       if (
         commandName !== 'dev' &&
         commandName !== 'start' &&
+        commandName !== 'test' &&
         event.getOptionValue('inspect') === true
       ) {
         console.error(
@@ -677,6 +685,415 @@ program
     )
   })
 
+const testTypecheckArguments = createTestTypecheckCliArguments()
+
+let testWatchArgument: boolean | boolean[] | undefined
+function appendTestWatchArgument(value: boolean) {
+  testWatchArgument =
+    testWatchArgument === undefined
+      ? value
+      : [
+          ...(Array.isArray(testWatchArgument)
+            ? testWatchArgument
+            : [testWatchArgument]),
+          value,
+        ]
+}
+let testCoverageArgument: boolean | boolean[] | undefined
+let testFileParallelismArgument: boolean | boolean[] | undefined
+function appendTestFileParallelismArgument() {
+  testFileParallelismArgument =
+    testFileParallelismArgument === undefined
+      ? true
+      : [
+          ...(Array.isArray(testFileParallelismArgument)
+            ? testFileParallelismArgument
+            : [testFileParallelismArgument]),
+          true,
+        ]
+}
+function appendTestCoverageArgument(value: boolean) {
+  testCoverageArgument =
+    testCoverageArgument === undefined
+      ? value
+      : [
+          ...(Array.isArray(testCoverageArgument)
+            ? testCoverageArgument
+            : [testCoverageArgument]),
+          value,
+        ]
+}
+program
+  .command('test')
+  .description(
+    'Run tests through the experimental Next-owned compiler and runtime.'
+  )
+  .argument('[directory]', 'The Next.js project directory.')
+  .option(
+    '--list',
+    'List selected test files and their requested Next profiles.'
+  )
+  .option(
+    '--json',
+    'With --list, print collected test names and files as JSON.'
+  )
+  .option(
+    '--staticParse <boolean>',
+    'With --list --json, parse declarations statically by default; false explicitly evaluates setup and test modules for collection.'
+  )
+  .option(
+    '--run',
+    'Run selected tests once instead of watching an interactive terminal.'
+  )
+  .option('-w, --watch', 'Watch for changes (requires watch capability).')
+  .addOption(new Option('--watch=true').hideHelp())
+  .addOption(new Option('--watch=false').hideHelp())
+  .addOption(
+    new Option(
+      '--no-watch',
+      'Run selected tests once without watching.'
+    ).default(undefined)
+  )
+  .option(
+    '--includeTaskLocation [boolean]',
+    'Collect actual test and suite declaration locations.'
+  )
+  .addOption(
+    new Option(
+      '--no-includeTaskLocation',
+      'Disable test and suite declaration locations.'
+    ).default(undefined)
+  )
+  .option(
+    '--browser.headless [boolean]',
+    'Run enabled Browser projects without a graphical window.'
+  )
+  .addOption(
+    new Option(
+      '--no-browser.headless',
+      'Run enabled Browser projects in a graphical window.'
+    ).default(undefined)
+  )
+  .option(
+    '--update',
+    'Update snapshots in an explicitly requested one-shot run.'
+  )
+  .option(
+    '--api [port]',
+    'Open a loopback discovery and cancellation API for a one-shot run (0 selects a free port).'
+  )
+  .option('--capabilities', 'Print the supported test capabilities as JSON.')
+  .option('--coverage', 'Collect one-shot development Node line coverage.')
+  .option('--no-coverage', 'Disable configured V8 coverage collection.')
+  .addOption(new Option('--coverage=true').hideHelp())
+  .addOption(new Option('--coverage=false').hideHelp())
+  .addOption(new Option('--coverage=').hideHelp())
+  .option('--coverage.provider <name>', 'Standard coverage provider: v8.')
+  .option(
+    '--coverage.reporter <name>',
+    'Standard coverage reporter: json, json-summary, text, text-summary, html, clover, lcov, or lcovonly.',
+    (value: string, previous?: string[]) => [...(previous ?? []), value]
+  )
+  .option(
+    '--coverage.include <glob>',
+    'Include original JavaScript sources in standard coverage.',
+    (value: string, previous?: string[]) => [...(previous ?? []), value]
+  )
+  .option(
+    '--coverage.exclude <glob>',
+    'Exclude original sources from standard coverage.',
+    (value: string, previous?: string[]) => [...(previous ?? []), value]
+  )
+  .option(
+    '--coverage.reportsDirectory <path>',
+    'Dedicated standard coverage report directory inside the project.'
+  )
+  .option(
+    '--coverage.cleanOnRerun [boolean]',
+    'Replace prior standard coverage on watch reruns (default: true).'
+  )
+  .option(
+    '--coverage.reportOnFailure [boolean]',
+    'Publish complete standard coverage after failed test execution.'
+  )
+  .option(
+    '--coverage.thresholds.100 [boolean]',
+    'Require all four standard coverage metrics to reach 100 percent.'
+  )
+  .option(
+    '--coverage.thresholds.perFile [boolean]',
+    'Apply global standard coverage thresholds to each source file.'
+  )
+  .option(
+    '--coverage.thresholds.autoUpdate [boolean]',
+    'Update configured standard coverage thresholds after a complete one-shot run.'
+  )
+  .option(
+    '--coverage.thresholds.statements <number>',
+    'Global standard statement coverage percentage or negative maximum uncovered count.'
+  )
+  .option(
+    '--coverage.thresholds.functions <number>',
+    'Global standard function coverage percentage or negative maximum uncovered count.'
+  )
+  .option(
+    '--coverage.thresholds.branches <number>',
+    'Global standard branch coverage percentage or negative maximum uncovered count.'
+  )
+  .option(
+    '--coverage.thresholds.lines <number>',
+    'Global standard line coverage percentage or negative maximum uncovered count.'
+  )
+  .option(
+    '--typecheck',
+    'Check type-test files with the project TypeScript compiler.'
+  )
+  .option('--no-typecheck', 'Disable configured type-test checking.')
+  .option('--typecheck.enabled', 'Enable configured type-test checking.')
+  .addOption(new Option('--typecheck.enabled=true').hideHelp())
+  .addOption(new Option('--typecheck.enabled=false').hideHelp())
+  .addOption(
+    new Option(
+      '--no-typecheck.enabled',
+      'Disable configured type-test checking.'
+    ).default(undefined)
+  )
+  .option(
+    '--typecheck.only',
+    'Check type-test files without running runtime tests.'
+  )
+  .addOption(
+    new Option(
+      '--no-typecheck.only',
+      'Run runtime tests alongside type tests.'
+    ).default(undefined)
+  )
+  .option(
+    '--typecheck.spawnTimeout [time]',
+    'Maximum wait in milliseconds for spawning the TypeScript checker.'
+  )
+  .addOption(
+    new Option(
+      '--no-typecheck.spawnTimeout',
+      'Use the native minimum checker spawn deadline.'
+    ).default(undefined)
+  )
+  .on('option:typecheck', () => testTypecheckArguments.enabled(true))
+  .on('option:no-typecheck', () => testTypecheckArguments.enabled(false, true))
+  .on('option:typecheck.enabled', () =>
+    testTypecheckArguments.dottedEnabled(true)
+  )
+  .on('option:typecheck.enabled=true', () =>
+    testTypecheckArguments.dottedEnabled(true)
+  )
+  .on('option:typecheck.enabled=false', () =>
+    testTypecheckArguments.dottedEnabled(false)
+  )
+  .on('option:no-typecheck.enabled', () =>
+    testTypecheckArguments.dottedEnabled(false, true)
+  )
+  .on('option:typecheck.only', () => testTypecheckArguments.only(true))
+  .on('option:no-typecheck.only', () =>
+    testTypecheckArguments.only(false, true)
+  )
+  .on('option:typecheck.spawnTimeout', (value: string | null | undefined) =>
+    testTypecheckArguments.timeout(value)
+  )
+  .on('option:no-typecheck.spawnTimeout', () =>
+    testTypecheckArguments.noTimeout()
+  )
+  .option(
+    '--inspect [address]',
+    'Inspect the actual test worker at [host:]port (default 127.0.0.1:9229).'
+  )
+  .addOption(
+    new Option(
+      '--no-inspect',
+      'Disable configured test worker inspection.'
+    ).default(undefined)
+  )
+  .option(
+    '--inspectBrk [address]',
+    'Inspect and pause the test worker before entry evaluation (default 127.0.0.1:9229).'
+  )
+  .option('--inspect-brk [address]', 'Alias for --inspectBrk.')
+  .option('--file-parallelism', 'Allow independent file workers to overlap.')
+  .option('--no-file-parallelism', 'Run one file worker at a time.')
+  .option('--retry <count>', 'Retry a failing test up to this many times.')
+  .option('--bail <count>', 'Stop starting tests after this many failed tests.')
+  .option(
+    '--testTimeout <milliseconds>',
+    'Default test timeout; 0 disables it.'
+  )
+  .option(
+    '--hookTimeout <milliseconds>',
+    'Default hook timeout; 0 disables it.'
+  )
+  .option(
+    '--allowOnly',
+    'Allow focused tests and suites (defaults to false in CI).'
+  )
+  .option('--no-allowOnly', 'Fail focused tests and suites.')
+  .option('--passWithNoTests', 'Succeed when no test files or tests are found.')
+  .option('--no-passWithNoTests', 'Fail when no test files or tests are found.')
+  .option(
+    '--cache',
+    'Store test results to run failed and longer files first.',
+    true
+  )
+  .addOption(new Option('--cache=true').hideHelp())
+  .addOption(new Option('--cache=false').hideHelp())
+  .option(
+    '--no-cache',
+    'Run isolated one-shot tests without test result caching.'
+  )
+  .option('--project <name>', 'Select a project from next.test.config.json.')
+  .option(
+    '--max-workers <count>',
+    'Maximum concurrent file workers (1–64 or a host-relative percentage; default 1). Browser files remain serial.'
+  )
+  .option('--maxWorkers <count>', 'Alias for --max-workers.')
+  .option(
+    '--shard <index/count>',
+    'Run a deterministic, one-based shard of the selected files.'
+  )
+  .option(
+    '--related <file...>',
+    'Run tests depending on the given source files.'
+  )
+  .option(
+    '--changed [since]',
+    'Run tests affected by Git changes since an optional revision.'
+  )
+  .option(
+    '--filter <substring...>',
+    'Select files containing any given substring.'
+  )
+  .option(
+    '-t, --testNamePattern <pattern>',
+    'Run tests whose full suite and test name matches this regular expression.'
+  )
+  .option(
+    '--reporter <name...>',
+    'Result reporter: default, verbose, dot, tap, tap-flat, github-actions, json, junit, or blob.',
+    (value: string, previous?: string[]) => [...(previous ?? []), value]
+  )
+  .option('--outputFile <path>', 'Write a machine result report to this file.')
+  .option(
+    '--merge-reports <directory>',
+    'Merge Next test result blobs without executing tests.'
+  )
+  .on('option:watch', () => {
+    appendTestWatchArgument(true)
+  })
+  .on('option:no-watch', () => {
+    testWatchArgument = false
+  })
+  .on('option:watch=true', function (this: Command) {
+    this.setOptionValueWithSource('watch', true, 'cli')
+    appendTestWatchArgument(true)
+  })
+  .on('option:watch=false', function (this: Command) {
+    this.setOptionValueWithSource('watch', false, 'cli')
+    appendTestWatchArgument(false)
+  })
+  .on('option:cache=true', function (this: Command) {
+    this.setOptionValueWithSource('cache', true, 'cli')
+  })
+  .on('option:file-parallelism', () => {
+    appendTestFileParallelismArgument()
+  })
+  .on('option:no-file-parallelism', () => {
+    testFileParallelismArgument = false
+  })
+  .on('option:cache=false', function (this: Command) {
+    this.setOptionValueWithSource('cache', false, 'cli')
+  })
+  .on('option:coverage', () => {
+    appendTestCoverageArgument(true)
+  })
+  .on('option:coverage=true', function (this: Command) {
+    this.setOptionValueWithSource('coverage', true, 'cli')
+    appendTestCoverageArgument(true)
+  })
+  .on('option:coverage=false', function (this: Command) {
+    this.setOptionValueWithSource('coverage', false, 'cli')
+    appendTestCoverageArgument(false)
+  })
+  .on('option:coverage=', function (this: Command) {
+    this.setOptionValueWithSource('coverage', true, 'cli')
+    appendTestCoverageArgument(true)
+  })
+  .on('option:no-coverage', () => {
+    testCoverageArgument = false
+  })
+  .action(async (directory, options, command: Command) => {
+    const finalExit = { observed: false }
+    let testRunnerStarted = false
+    try {
+      if (Array.isArray(testWatchArgument))
+        throw new Error(
+          `Expected a single value for option "-w, --watch", received [${testWatchArgument.join(', ')}]`
+        )
+      if (Array.isArray(testFileParallelismArgument))
+        throw new Error(
+          `Expected a single value for option "--fileParallelism", received [${testFileParallelismArgument.join(', ')}]`
+        )
+      if (Array.isArray(testCoverageArgument))
+        throw new Error(
+          `Expected a single value for option "--coverage ", received [${testCoverageArgument.join(', ')}]`
+        )
+      const typecheck = testTypecheckArguments.resolve(program.rawArgs)
+      const { nextTestRunner } = await import('../cli/next-test-runner.js')
+      const explicitCache = command.getOptionValueSource('cache') === 'cli'
+      const explicitFileParallelism =
+        command.getOptionValueSource('fileParallelism') === 'cli'
+      const runnerOptions = {
+        ...options,
+        onFinalProcessExit() {
+          finalExit.observed = true
+        },
+        typecheck: typecheck.enabled,
+        'typecheck.only': typecheck.only,
+        'typecheck.spawnTimeout': typecheck.spawnTimeout,
+        fileParallelism: explicitFileParallelism
+          ? options.fileParallelism
+          : undefined,
+        cache: explicitCache ? options.cache : undefined,
+        cacheDefault: explicitCache ? undefined : options.cache,
+      }
+      testRunnerStarted = true
+      await nextTestRunner(directory, runnerOptions)
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error instanceof AggregateError || error.cause !== undefined)
+      ) {
+        const { serializeDiagnostic } = await import(
+          '../experimental/testing/reporting/diagnostics.js'
+        )
+        const { formatDiagnostic } = await import(
+          '../experimental/testing/reporting/reporter.js'
+        )
+        console.error(
+          formatDiagnostic(
+            serializeDiagnostic(error, { phase: 'configuration' }),
+            directory
+          )
+        )
+      } else {
+        console.error(
+          error instanceof Error
+            ? testRunnerStarted
+              ? (error.stack ?? error.message)
+              : error.message
+            : String(error)
+        )
+      }
+      if (!finalExit.observed) process.exitCode = 1
+    }
+  })
+
 program
   .command('experimental-test')
   .description(
@@ -943,4 +1360,38 @@ internal
   )
   .usage('[directory] [options]')
 
-program.parse(process.argv)
+const argv = process.argv
+if (argv[2] === 'test') {
+  const testArgv = argv.slice(0, 3)
+  for (let index = 3; index < argv.length; index++) {
+    const argument = argv[index]
+    if (argument === '--') {
+      testArgv.push(...argv.slice(index))
+      break
+    }
+    if (argument === '--typecheck.spawnTimeout=') {
+      if (argv[index + 1] !== undefined && !argv[index + 1].startsWith('-')) {
+        testArgv.push('--typecheck.spawnTimeout', argv[++index])
+      } else testArgv.push('--typecheck.spawnTimeout')
+    } else if (argument === '--typecheck.enabled=') {
+      if (argv[index + 1] === 'true' || argv[index + 1] === 'false') {
+        testArgv.push(`--typecheck.enabled=${argv[++index]}`)
+      } else testArgv.push('--typecheck.enabled')
+    } else if (
+      (argument === '--coverage' ||
+        argument === '--typecheck.enabled' ||
+        argument === '--watch' ||
+        argument === '-w') &&
+      (argv[index + 1] === 'true' || argv[index + 1] === 'false')
+    ) {
+      testArgv.push(
+        `${argument === '-w' ? '--watch' : argument}=${argv[++index]}`
+      )
+    } else {
+      testArgv.push(argument)
+    }
+  }
+  program.parse(testArgv)
+} else {
+  program.parse(argv)
+}

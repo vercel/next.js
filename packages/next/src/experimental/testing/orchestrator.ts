@@ -2037,6 +2037,74 @@ export async function runTests(
             await runIsolatedProject([project])
             continue
           }
+          const typeEntries = project.entries.filter((entry) => entry.typecheck)
+          if (typeEntries.length) {
+            try {
+              const { runTypecheckProject } = await import('./typecheck.js')
+              const completion = await runTypecheckProject(
+                projectDir,
+                project,
+                {
+                  signal: controller.signal,
+                  testNamePattern:
+                    options.testNamePattern ?? project.testNamePattern,
+                }
+              )
+              for (const error of completion.sourceErrors) {
+                failed = true
+                onEvent({
+                  ...envelope(),
+                  type: 'diagnostic',
+                  diagnostic: error,
+                })
+              }
+              for (const file of completion.files) {
+                const entry = typeEntries.find(
+                  (item) => item.id === file.entryId
+                )!
+                onEvent({
+                  ...envelope(),
+                  type: 'file-start',
+                  entry,
+                  revision: file.revision,
+                })
+                for (const test of file.cases) {
+                  onEvent({ ...envelope(), type: 'case-end', ...test })
+                }
+                for (const suite of file.suites) {
+                  onEvent({
+                    ...envelope(),
+                    type: 'suite-end',
+                    ...suite,
+                    revision: file.revision,
+                  })
+                }
+                for (const error of file.errors) {
+                  onEvent({
+                    ...envelope(),
+                    type: 'diagnostic',
+                    entryId: entry.id,
+                    revision: file.revision,
+                    diagnostic: error,
+                  })
+                }
+                onEvent({
+                  ...envelope(),
+                  type: 'file-end',
+                  entryId: entry.id,
+                  status: file.status,
+                  durationMs: file.durationMs,
+                })
+                if (file.status !== 'passed') failed = true
+              }
+            } catch (error) {
+              for (const entry of typeEntries) {
+                if (!isOnlyCancellation(error))
+                  diagnostic(error, 'compilation', entry)
+                finishFailedFile(entry, started)
+              }
+            }
+          }
           const runtimeEntries = project.entries.filter(
             (entry) => !entry.typecheck
           )
