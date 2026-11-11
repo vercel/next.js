@@ -1,5 +1,6 @@
 import type { Linter, Rule } from 'eslint'
 
+import deferMcpToolImports from './rules/defer-mcp-tool-imports'
 import googleFontDisplay from './rules/google-font-display'
 import googleFontPreconnect from './rules/google-font-preconnect'
 import inlineScriptId from './rules/inline-script-id'
@@ -21,11 +22,13 @@ import noScriptComponentInHead from './rules/no-script-component-in-head'
 import noStyledJsxInDocument from './rules/no-styled-jsx-in-document'
 import noSyncScripts from './rules/no-sync-scripts'
 import noTitleInDocumentHead from './rules/no-title-in-document-head'
+import noTopLevelAwaitInMcp from './rules/no-top-level-await-in-mcp'
 import noTypos from './rules/no-typos'
 import noUnwantedPolyfillio from './rules/no-unwanted-polyfillio'
 
 const recommendedRules = {
   // warnings
+  '@next/next/defer-mcp-tool-imports': 'warn',
   '@next/next/google-font-display': 'warn',
   '@next/next/google-font-preconnect': 'warn',
   '@next/next/next-script-for-ga': 'warn',
@@ -40,6 +43,7 @@ const recommendedRules = {
   '@next/next/no-styled-jsx-in-document': 'warn',
   '@next/next/no-sync-scripts': 'warn',
   '@next/next/no-title-in-document-head': 'warn',
+  '@next/next/no-top-level-await-in-mcp': 'warn',
   '@next/next/no-typos': 'warn',
   '@next/next/no-unwanted-polyfillio': 'warn',
   // errors
@@ -62,6 +66,7 @@ const plugin = {
     name: '@next/eslint-plugin-next',
   },
   rules: {
+    'defer-mcp-tool-imports': deferMcpToolImports,
     'google-font-display': googleFontDisplay,
     'google-font-preconnect': googleFontPreconnect,
     'inline-script-id': inlineScriptId,
@@ -84,6 +89,7 @@ const plugin = {
     'no-styled-jsx-in-document': noStyledJsxInDocument,
     'no-sync-scripts': noSyncScripts,
     'no-title-in-document-head': noTitleInDocumentHead,
+    'no-top-level-await-in-mcp': noTopLevelAwaitInMcp,
     'no-typos': noTypos,
     'no-unwanted-polyfillio': noUnwantedPolyfillio,
   } satisfies Record<string, Rule.RuleModule>,
