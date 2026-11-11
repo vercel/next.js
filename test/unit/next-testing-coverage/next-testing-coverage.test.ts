@@ -1,3 +1,4 @@
+const { readCoverageFixture } = require('./coverage-fixtures.cjs')
 const {
   expandExpectedCoverageFixture,
   parseExpectedCoverageFixture,
@@ -11292,6 +11293,65 @@ it('preserves the reference Unknown text summary for an empty coverage map', asy
   )
 })
 
+it('maps actual typed callback functions and statements to the complete reference reports', async () => {
+  const { stdout } = await runNodeHelper(
+    [join(__dirname, 'typescript-callbacks.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 4,
+    cases: 4,
+    completeReports: 4,
+  })
+}, 190000)
+
+it('maps computed-member typed callbacks to complete reference reports in both Node profiles', async () => {
+  const { stdout } = await runNodeHelper(
+    [join(__dirname, 'computed-callbacks.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 4,
+    cases: 4,
+    completeReports: 4,
+  })
+}, 190000)
+
+it('maps static object-property typed arrows to complete reference reports in both Node profiles', async () => {
+  const result = await runNodeHelper([join(__dirname, 'object-arrows.cjs')], {
+    timeout: 180_000,
+  })
+  expect(JSON.parse(result.stdout.trim())).toEqual({
+    profiles: 4,
+    cases: 4,
+    completeReports: 4,
+  })
+}, 180_000)
+
+it('maps function-expression callback boundaries to complete reference reports in both Node profiles', async () => {
+  const { stdout } = await runNodeHelper(
+    [join(__dirname, 'function-callbacks.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 4,
+    cases: 4,
+    completeReports: 4,
+  })
+}, 190000)
+
+it('publishes complete pristine JSX and TSX standard coverage through the ordinary Node CLI in both profiles', async () => {
+  const { stdout } = await runNodeHelper(
+    [join(__dirname, 'jsx-standard.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 4,
+    cases: 4,
+    completeReports: 4,
+  })
+}, 190000)
+
 it('keeps JSX report ownership bound to the current source/profile/entry/revision plans', async () => {
   const { stdout } = await runNodeHelper(
     [join(__dirname, 'jsx-ownership.cjs')],
@@ -11307,6 +11367,30 @@ it('retains actual JSX initializer and logical-child ownership while rejecting a
   )
   expect(JSON.parse(stdout)).toEqual({ controls: 46, passed: 46 })
 }, 40000)
+
+it('publishes complete pristine nested, logical-child and typed-arrow JSX coverage in both Node profiles', async () => {
+  const { stdout } = await runNodeHelper(
+    [join(__dirname, 'jsx-owner-reports.cjs')],
+    { timeout: 240000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 6,
+    cases: 6,
+    completeReports: 6,
+  })
+}, 250000)
+
+it('retains logical branch counters across typed fragment arrow conversions in both Node profiles', async () => {
+  const { stdout } = await runNodeHelper(
+    [join(__dirname, 'jsx-fragment-reports.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 2,
+    cases: 4,
+    completeReports: 2,
+  })
+}, 190000)
 
 it('keeps fragment endpoints bound to unique compiler owners and the actual JSX profile', async () => {
   const { stdout } = await runNodeHelper(
@@ -11332,6 +11416,20 @@ it('accepts and deduplicates explicit lcovonly while preserving the existing def
   expect(parseStandardCoverageOptions({ coverage: true })).toBeUndefined()
 })
 
+it('matches complete genuine development/production LCOV-only bytes with and without JSON', () => {
+  const result = runNodeHelperSync([join(__dirname, 'lcovonly.cjs')], {
+    encoding: 'utf8',
+    timeout: 180000,
+  })
+  expect(JSON.parse(result)).toEqual({
+    profiles: 2,
+    flavors: 2,
+    cases: 8,
+    completeCoverageReports: 2,
+    exactLcovReports: 4,
+  })
+}, 190000)
+
 it('binds same-line if-return branch endpoints through actual compiler roles without changing counters', () => {
   const result = runNodeHelperSync([join(__dirname, 'if-return-maps.cjs')], {
     encoding: 'utf8',
@@ -11348,6 +11446,18 @@ it('binds conditional operands to unique authored and emitted roles without chan
   expect(JSON.parse(result)).toEqual({ profiles: 2, controls: 42, passed: 42 })
 })
 
+it('matches complete genuine conditional coverage in development and production', () => {
+  const result = runNodeHelperSync(
+    [join(__dirname, 'conditional-reports.cjs')],
+    { encoding: 'utf8', timeout: 90000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 2,
+    cases: 2,
+    completeReports: 2,
+  })
+}, 100000)
+
 it('associates multiline JSX arrow endpoints only with unique real compiler terminal facts', async () => {
   const { stdout } = await runNodeHelper(
     [join(__dirname, 'jsx-multiline-maps.cjs')],
@@ -11355,6 +11465,18 @@ it('associates multiline JSX arrow endpoints only with unique real compiler term
   )
   expect(JSON.parse(stdout)).toEqual({ controls: 34, passed: 34 })
 }, 40000)
+
+it('publishes complete pristine multiline typed-arrow JSX coverage in both Node profiles', async () => {
+  const { stdout } = await runNodeHelper(
+    [join(__dirname, 'jsx-multiline-reports.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 2,
+    cases: 2,
+    completeReports: 2,
+  })
+}, 190000)
 
 it('binds parenthesized JSX return endpoints only through real unique compiler facts', async () => {
   const { stdout } = await runNodeHelper(
@@ -11364,6 +11486,18 @@ it('binds parenthesized JSX return endpoints only through real unique compiler f
   expect(JSON.parse(stdout)).toEqual({ controls: 46, passed: 46 })
 }, 40000)
 
+it('publishes complete pristine parenthesized multiline JSX return coverage in both Node profiles', async () => {
+  const { stdout } = await runNodeHelper(
+    [join(__dirname, 'jsx-return-reports.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 2,
+    cases: 2,
+    completeReports: 2,
+  })
+}, 190000)
+
 it('binds multiline parenthesized logical JSX only through unique native compiler roles', async () => {
   const { stdout } = await runNodeHelper(
     [join(__dirname, 'jsx-multiline-logical-maps.cjs')],
@@ -11371,6 +11505,45 @@ it('binds multiline parenthesized logical JSX only through unique native compile
   )
   expect(JSON.parse(stdout)).toEqual({ controls: 92, passed: 92 })
 }, 40000)
+
+it('publishes complete pristine multiline logical JSX reports in both Node profiles', async () => {
+  const { stdout } = await runNodeHelper(
+    [join(__dirname, 'jsx-multiline-logical-reports.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 2,
+    cases: 2,
+    completeReports: 2,
+  })
+}, 190000)
+
+it('retains prior multiline fragment coverage when the logical element repair is selected', async () => {
+  const { stdout } = await runNodeHelper(
+    [join(__dirname, 'jsx-multiline-fragment-reports.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 2,
+    cases: 2,
+    completeReports: 2,
+    genuineReports: 2,
+    retainedDevelopmentDelta: false,
+  })
+}, 190000)
+
+it('retains complete pristine ownerless multiline logical return reports', async () => {
+  const { stdout } = await runNodeHelper(
+    [join(__dirname, 'jsx-multiline-ownerless-reports.cjs')],
+    { timeout: 180000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 2,
+    cases: 2,
+    completeReports: 2,
+    genuineReports: 2,
+  })
+}, 190000)
 
 it('binds multiline Fragment coverage to actual native child and sibling mappings', async () => {
   const { stdout } = await runNodeHelper(
@@ -11388,6 +11561,20 @@ it('retains actual parenthesis and owner map certificates for multiline JSX logi
   expect(JSON.parse(result)).toEqual({ controls: 172, passed: 172 })
 })
 
+it('matches complete original-source coverage for parenthesized Fragment and unparenthesized element children', () => {
+  const result = runNodeHelperSync(
+    [join(__dirname, 'jsx-logical-shapes-reports.cjs')],
+    { encoding: 'utf8', timeout: 190000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 4,
+    cases: 4,
+    completeReports: 4,
+    genuineReports: 4,
+    retainedDevelopmentDelta: false,
+  })
+}, 200000)
+
 it('binds constructor property descriptors only through actual compiler assignments and maps', () => {
   const result = runNodeHelperSync(
     [join(__dirname, 'parameter-property-maps.cjs')],
@@ -11395,6 +11582,19 @@ it('binds constructor property descriptors only through actual compiler assignme
   )
   expect(JSON.parse(result)).toEqual({ controls: 170, passed: 170 })
 })
+
+it('matches complete pristine coverage for constructor parameter properties in both Node profiles', () => {
+  const result = runNodeHelperSync(
+    [join(__dirname, 'parameter-property-reports.cjs')],
+    { encoding: 'utf8', timeout: 420000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 10,
+    cases: 10,
+    completeReports: 10,
+    genuineReports: 10,
+  })
+}, 430000)
 
 it('binds runtime namespace descriptors through actual compiler IIFEs and publication mappings', () => {
   const result = runNodeHelperSync([join(__dirname, 'namespace-maps.cjs')], {
@@ -11404,6 +11604,19 @@ it('binds runtime namespace descriptors through actual compiler IIFEs and public
   expect(JSON.parse(result)).toEqual({ controls: 68, passed: 68 })
 })
 
+it('matches complete pristine runtime namespace coverage through the public CLI in both Node profiles', () => {
+  const result = runNodeHelperSync([join(__dirname, 'namespace-reports.cjs')], {
+    encoding: 'utf8',
+    timeout: 120000,
+  })
+  expect(JSON.parse(result)).toEqual({
+    profiles: 2,
+    cases: 2,
+    completeReports: 2,
+    genuineReports: 2,
+  })
+}, 130000)
+
 it('binds enum member counters only through actual compiler owners, literal writes and maps', () => {
   const result = runNodeHelperSync([join(__dirname, 'enum-maps.cjs')], {
     encoding: 'utf8',
@@ -11412,6 +11625,19 @@ it('binds enum member counters only through actual compiler owners, literal writ
   expect(JSON.parse(result)).toEqual({ controls: 270, passed: 270 })
 })
 
+it('matches complete pristine enum coverage through the public CLI in both Node profiles', () => {
+  const result = runNodeHelperSync([join(__dirname, 'enum-reports.cjs')], {
+    encoding: 'utf8',
+    timeout: 420000,
+  })
+  expect(JSON.parse(result)).toEqual({
+    profiles: 10,
+    cases: 10,
+    completeReports: 10,
+    genuineReports: 10,
+  })
+}, 430000)
+
 it('binds typed class arrow fields only through actual class, key and terminal maps', () => {
   const result = runNodeHelperSync([join(__dirname, 'class-arrows-maps.cjs')], {
     encoding: 'utf8',
@@ -11419,6 +11645,32 @@ it('binds typed class arrow fields only through actual class, key and terminal m
   })
   expect(JSON.parse(result)).toEqual({ controls: 60, passed: 60 })
 })
+
+it('matches complete pristine class arrow coverage and existing methods in both Node profiles', () => {
+  const result = runNodeHelperSync(
+    [join(__dirname, 'class-arrows-reports.cjs')],
+    { encoding: 'utf8', timeout: 250000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 6,
+    cases: 6,
+    completeReports: 6,
+    genuineReports: 6,
+  })
+}, 260000)
+
+it('matches complete genuine imported and untouched TypeScript reports while preserving selected JavaScript and JSX plans', async () => {
+  const { stdout } = await runNodeHelper(
+    [join(__dirname, 'typescript-import-reports.cjs')],
+    { timeout: 300000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 14,
+    cases: 14,
+    completeReports: 14,
+    genuineReports: 14,
+  })
+}, 310000)
 
 it('binds class function endpoints only through actual owner, function, body and terminal roles', () => {
   const result = require('child_process').execFileSync(
@@ -11435,6 +11687,19 @@ it('binds class function endpoints only through actual owner, function, body and
   })
 })
 
+it('matches full genuine executed and untouched class function reports in both Node modes', async () => {
+  const { stdout } = await runNodeHelper(
+    [join(__dirname, 'class-functions-reports.cjs')],
+    { timeout: 240000, maxBuffer: 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 8,
+    cases: 8,
+    completeReports: 8,
+    genuineReports: 8,
+  })
+}, 250000)
+
 it('binds constructor property call defaults only through unique real compiler roles', () => {
   const result = runNodeHelperSync(
     [join(__dirname, 'parameter-property-call-maps.cjs')],
@@ -11443,12 +11708,389 @@ it('binds constructor property call defaults only through unique real compiler r
   expect(JSON.parse(result)).toEqual({ controls: 72, passed: 72 })
 })
 
+it('matches complete pristine constructor call-default coverage for executed and untouched sources', () => {
+  const result = runNodeHelperSync(
+    [join(__dirname, 'parameter-property-call-reports.cjs')],
+    { encoding: 'utf8', timeout: 180000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 4,
+    cases: 4,
+    completeReports: 4,
+    genuineReports: 4,
+  })
+}, 190000)
+
 it('binds constructor property single-numeric-argument defaults through unique real compiler roles', () => {
   const result = runNodeHelperSync(
     [join(__dirname, 'parameter-property-literal-call-maps.cjs')],
     { encoding: 'utf8', timeout: 30000 }
   )
   expect(JSON.parse(result)).toEqual({ controls: 128, passed: 128 })
+})
+
+it('matches complete pristine numeric-call-default coverage for executed and untouched sources', () => {
+  const result = runNodeHelperSync(
+    [join(__dirname, 'parameter-property-literal-call-reports.cjs')],
+    { encoding: 'utf8', timeout: 180000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 4,
+    cases: 4,
+    completeReports: 4,
+    genuineReports: 4,
+  })
+}, 190000)
+
+describe('project-configured standard V8 coverage', () => {
+  it('matches complete pristine configured reports and case rows through ordinary CLI execution', () => {
+    const result = runNodeHelperSync(
+      [join(__dirname, 'project-configured-reports.cjs')],
+      { encoding: 'utf8', timeout: 300000 }
+    )
+    expect(JSON.parse(result)).toEqual({
+      profiles: 10,
+      cases: 10,
+      completeReports: 8,
+      genuineReports: 8,
+    })
+  }, 310000)
+  it('retains configured fields while replacing only explicit CLI values', async () => {
+    const {
+      parseProjectStandardCoverage,
+      parseStandardCoverageOptions,
+      resolveProjectStandardCoverage,
+    } = await import('next/dist/experimental/testing/coverage/options')
+    const configured = parseProjectStandardCoverage({
+      provider: 'v8',
+      enabled: false,
+      include: ['configured.mjs'],
+      exclude: ['excluded.mjs'],
+      reporter: ['lcovonly'],
+      reportsDirectory: 'configured-output',
+      clean: false,
+      reportOnFailure: true,
+      thresholds: { lines: 100, branches: -9 },
+    })!
+    const flags = {
+      coverage: true,
+      'coverage.reporter': ['json'],
+      'coverage.include': ['selected.mjs'],
+      'coverage.thresholds.lines': '0',
+    }
+    const resolved = resolveProjectStandardCoverage(
+      [{ standardCoverage: configured }],
+      flags,
+      parseStandardCoverageOptions(flags)
+    )
+    expect(resolved).toEqual({
+      enabled: true,
+      configured: true,
+      options: {
+        ...configured.options,
+        reporter: ['json'],
+        include: ['selected.mjs'],
+        thresholds: { lines: 0, branches: -9 },
+      },
+    })
+    expect(configured.options.include).toEqual(['configured.mjs'])
+    expect(configured.options.thresholds.lines).toBe(100)
+  })
+
+  it('publishes genuine default formatter names instead of CLI defaults', async () => {
+    const { parseProjectStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/options'
+    )
+    const configured = parseProjectStandardCoverage({
+      provider: 'v8',
+      enabled: true,
+    })!
+    expect(configured.options.reporter.slice(0, 4)).toEqual([
+      'text',
+      'html',
+      'clover',
+      'json',
+    ])
+    expect(configured.options.clean).toBe(true)
+    expect(configured.options.formatterReports).toBe(true)
+    expect(parseProjectStandardCoverage({ provider: 'custom' })).toBeUndefined()
+  })
+
+  it('disables configured capture without discarding its later explicit CLI enable defaults', async () => {
+    const { parseProjectStandardCoverage, resolveProjectStandardCoverage } =
+      await import('next/dist/experimental/testing/coverage/options')
+    const configured = parseProjectStandardCoverage({
+      provider: 'v8',
+      enabled: true,
+      reporter: ['json'],
+    })!
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: configured }],
+        { coverage: false },
+        undefined
+      )
+    ).toEqual({ enabled: false, configured: true })
+    configured.enabled = false
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: configured }],
+        {},
+        undefined
+      ).enabled
+    ).toBe(false)
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: configured }],
+        { coverage: true },
+        undefined
+      ).options?.reporter
+    ).toEqual(['json'])
+  })
+
+  it('does not choose one incompatible selected project configuration silently', async () => {
+    const { parseProjectStandardCoverage, resolveProjectStandardCoverage } =
+      await import('next/dist/experimental/testing/coverage/options')
+    const configured = parseProjectStandardCoverage({
+      enabled: true,
+      reporter: ['json'],
+    })!
+    expect(() =>
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: configured }, {}],
+        {},
+        undefined
+      )
+    ).toThrow('same V8 coverage configuration')
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: configured }, {}],
+        { coverage: false },
+        undefined
+      )
+    ).toEqual({ enabled: false, configured: true })
+    expect(
+      parseProjectStandardCoverage({
+        enabled: true,
+        thresholds: { autoUpdate: true },
+      })
+    ).toMatchObject({
+      enabled: true,
+      options: { thresholds: { autoUpdate: true } },
+    })
+    expect(() =>
+      parseProjectStandardCoverage({
+        enabled: true,
+        reporter: [['json', { file: '../file.json' }]],
+      })
+    ).toThrow('Unsupported V8 coverage reporter option')
+  })
+
+  it('preserves unrelated prior report files with clean false through actual formatter publication', async () => {
+    const { mkdir } = await import('fs/promises')
+    const { publishStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-standard'
+    )
+    const { parseProjectStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/options'
+    )
+    const f = await standardReportFixture()
+    try {
+      await mkdir(join(f.root, 'coverage'))
+      await writeFile(join(f.root, 'coverage/sentinel.txt'), 'retain')
+      const config = parseProjectStandardCoverage({
+        provider: 'v8',
+        enabled: true,
+        reporter: ['json', 'html', 'clover'],
+        include: ['*.mjs'],
+        exclude: ['excluded.mjs'],
+        clean: false,
+      })!.options
+      const result = await publishStandardCoverage({
+        ...f,
+        projectDir: f.root,
+        config,
+        status: 'passed',
+      })
+      expect(result.published).toBe(true)
+      // A second real HTML publication retains its regular nested assets.
+      expect(
+        (
+          await publishStandardCoverage({
+            ...f,
+            projectDir: f.root,
+            config,
+            status: 'passed',
+          })
+        ).published
+      ).toBe(true)
+      expect(
+        await readFile(join(f.root, 'coverage/sentinel.txt'), 'utf8')
+      ).toBe('retain')
+      expect(
+        await readFile(join(f.root, 'coverage/index.html'), 'utf8')
+      ).toContain('subject.mjs')
+      expect(
+        await readFile(join(f.root, 'coverage/clover.xml'), 'utf8')
+      ).toContain('subject.mjs')
+      expect(
+        JSON.parse(
+          await readFile(join(f.root, 'coverage/coverage-final.json'), 'utf8')
+        )[f.file].s
+      ).toEqual(f.data.s)
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+
+  it('cleans the actual dedicated directory before a failed unreported run', async () => {
+    const { mkdir } = await import('fs/promises')
+    const { prepareStandardCoverageDirectory, publishStandardCoverage } =
+      await import('next/dist/experimental/testing/coverage/report-standard')
+    const f = await standardReportFixture()
+    try {
+      await mkdir(join(f.root, 'coverage'))
+      await writeFile(join(f.root, 'coverage/sentinel.txt'), 'prior')
+      const config = { ...f.config, clean: true }
+      await prepareStandardCoverageDirectory(
+        f.root,
+        config,
+        new AbortController().signal
+      )
+      await expect(
+        readFile(join(f.root, 'coverage/sentinel.txt'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+      expect(
+        await publishStandardCoverage({
+          ...f,
+          projectDir: f.root,
+          config,
+          status: 'failed',
+        })
+      ).toEqual({ published: false, thresholdErrors: [] })
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('explicitly disabled custom coverage', () => {
+  it('rejects a disabled run carrying an actual parent-owned provider session before execution', async () => {
+    const { copyFile } = await import('fs/promises')
+    const { parseTestConfig } = await import(
+      'next/dist/experimental/testing/config'
+    )
+    const { discoverTests } = await import(
+      'next/dist/experimental/testing/discovery'
+    )
+    const { runTests } = await import(
+      'next/dist/experimental/testing/orchestrator'
+    )
+    const { openCustomCoverageSession } = await import(
+      'next/dist/experimental/testing/coverage/custom-session'
+    )
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), 'next-custom-disable-session-'))
+    )
+    const source = join(
+      __dirname,
+      '../app-dir/next-testing-stable-release-gaps/fixtures/custom-coverage-provider'
+    )
+    let session:
+      | Awaited<ReturnType<typeof openCustomCoverageSession>>
+      | undefined
+    try {
+      for (const name of ['contract.case.mjs', 'coverage-provider.mjs'])
+        await copyFile(join(source, name), join(root, name))
+      const projects = await discoverTests(
+        root,
+        parseTestConfig({
+          projects: [
+            {
+              name: 'disabled-session',
+              include: ['contract.case.mjs'],
+              coverage: {
+                enabled: true,
+                provider: 'custom',
+                customProviderModule: './coverage-provider.mjs',
+              },
+            },
+          ],
+        })
+      )
+      const signal = new AbortController().signal
+      session = await openCustomCoverageSession({
+        projectDir: root,
+        config: projects[0].customCoverage!,
+        signal,
+      })
+      await expect(
+        runTests(root, projects, {
+          signal,
+          write() {},
+          customCoverageDisabled: true,
+          customCoverageRequests: { [projects[0].profile.id]: session.request },
+        })
+      ).rejects.toThrow(
+        'Disabled custom coverage cannot receive provider sessions'
+      )
+      const trace = (await readFile(join(root, 'provider-trace.jsonl'), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line).name)
+      expect(trace).toEqual([
+        'get-provider',
+        'initialize',
+        'resolve',
+        'clean',
+        'run-start',
+      ])
+      await expect(
+        readFile(join(root, 'custom-coverage.json'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      await session?.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('matches pristine disabled cases and preserves the actual enabled provider trace and report', () => {
+    const result = runNodeHelperSync(
+      [join(__dirname, 'custom-disable-reports.cjs')],
+      { encoding: 'utf8', timeout: 150000 }
+    )
+    expect(JSON.parse(result)).toEqual({
+      profiles: 3,
+      cases: 3,
+      referenceDisabledProfiles: 2,
+      preservedEnabledProfiles: 1,
+      customReports: 1,
+    })
+  }, 160000)
+})
+
+describe('project-configured V8 coverage watch', () => {
+  it.each([
+    ['matrix', { profiles: 8, generations: 16, completeReports: 16 }],
+    ['refresh', { profiles: 2, generations: 10, completeReports: 8 }],
+    ['empty', { profiles: 6, generations: 12, completeReports: 12 }],
+    ['overrides', { profiles: 2, generations: 4, completeReports: 4 }],
+    ['defaults', { profiles: 2, generations: 2, completeReports: 2 }],
+    ['disabled', { profiles: 4, generations: 8, completeReports: 0 }],
+    ['enable', { profiles: 2, generations: 4, completeReports: 4 }],
+  ])(
+    'matches complete pristine development and production reports for %s',
+    (scenario, expected) => {
+      const result = runNodeHelperSync(
+        [
+          join(__dirname, 'configured-watch-reports.cjs'),
+          `--scenario=${scenario}`,
+        ],
+        { encoding: 'utf8', timeout: 300000 }
+      )
+      expect(JSON.parse(result)).toEqual(expected)
+    },
+    310000
+  )
 })
 
 it('captures fresh orderly-cancel coverage only after actual dev/prod worker closure', () => {
@@ -11746,6 +12388,77 @@ it.each(['development', 'production'] as const)(
     })
   },
   100000
+)
+
+it.each(
+  (['development', 'production'] as const).flatMap((mode) =>
+    (['initial', 'prior'] as const).map((kind) => ({ mode, kind }))
+  )
+)(
+  'matches genuine public $mode watch $kind cancellation reports and recovery',
+  ({ mode, kind }) => {
+    const stdout = runNodeHelperSync(
+      [
+        join(__dirname, 'watch-user-cancel-reports.cjs'),
+        `--mode=${mode}`,
+        `--kind=${kind}`,
+      ],
+      { encoding: 'utf8', timeout: 180000 }
+    )
+    const rows = stdout
+      .split('\n')
+      .filter((line: string) => line.startsWith('{"mode":'))
+    expect(rows).toHaveLength(1)
+    const profiles = kind === 'prior' ? 2 : 1
+    expect(JSON.parse(rows[0])).toEqual({
+      mode,
+      kind,
+      profiles,
+      completeReports: profiles * 2,
+      closedWorkers: profiles,
+    })
+  },
+  190000
+)
+
+it.each(['development', 'production'] as const)(
+  'preserves genuine parallel watch cancellation case, map and selected-file order in %s',
+  (mode) => {
+    const stdout = runNodeHelperSync(
+      [
+        join(__dirname, 'watch-user-cancel-reports.cjs'),
+        `--mode=${mode}`,
+        '--kind=parallel',
+      ],
+      { encoding: 'utf8', timeout: 180000 }
+    )
+    const rows = stdout
+      .split('\n')
+      .filter((line: string) => line.startsWith('{"mode":'))
+    expect(rows).toHaveLength(1)
+    const row = JSON.parse(rows[0])
+    expect(row).toMatchObject({
+      mode,
+      kind: 'parallel',
+      profiles: 1,
+      completeReports: 2,
+      closedWorkers: 2,
+    })
+    expect(
+      row.parallelObservations.map(
+        (observation: { phase: string }) => observation.phase
+      )
+    ).toEqual(['cancelled', 'recovery'])
+    for (const observation of row.parallelObservations) {
+      expect(observation.trace).toEqual(expect.any(Array))
+      expect(observation.processExit).toEqual({
+        reference: expect.any(Array),
+        actual: expect.any(Array),
+        compatible: expect.any(Boolean),
+      })
+    }
+  },
+  190000
 )
 
 describe('actual Browser import statement composition', () => {
@@ -13166,6 +13879,307 @@ describe('configured development Browser coverage profile boundaries', () => {
   })
 })
 
+describe('configured coverage threshold 100 shorthand', () => {
+  it('matches complete genuine shorthand CLI reports and exits in both modes', async () => {
+    await withOutputDirectory(
+      'next-threshold-100-proof-',
+      async (root) => {
+        for (const mode of ['development', 'production']) {
+          const output = join(root, mode)
+          runNodeHelperSync(
+            [
+              join(__dirname, 'threshold-100-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+            ],
+            { encoding: 'utf8', timeout: 180000 }
+          )
+          const profiles = mode === 'development' ? 12 : 8
+          expect(
+            JSON.parse(await readFile(join(output, 'RESULTS.json'), 'utf8'))
+          ).toMatchObject({
+            status: 'passed',
+            mode,
+            profiles,
+            cases: profiles,
+            completeReports: profiles,
+            fullFileModels: profiles * 2,
+          })
+        }
+      },
+      { cleanup: 'always' }
+    )
+  }, 370000)
+
+  it('retains shorthand until ordinary overrides merge, and replaces configured groups only for explicit CLI 100', async () => {
+    const {
+      parseProjectStandardCoverage,
+      parseStandardCoverageOptions,
+      resolveProjectStandardCoverage,
+    } = await import('next/dist/experimental/testing/coverage/options')
+    const configured = parseProjectStandardCoverage({
+      enabled: true,
+      thresholds: {
+        100: true,
+        lines: 0,
+        '*.mjs': { 100: true, perFile: true },
+      },
+    })!
+    const before = structuredClone(configured)
+    const flags = { 'coverage.thresholds.lines': '0' }
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: configured }],
+        flags,
+        parseStandardCoverageOptions(flags)
+      ).options
+    ).toMatchObject({
+      thresholds: { 100: true, lines: 0 },
+      thresholdGroups: [
+        { pattern: '*.mjs', thresholds: { 100: true, perFile: true } },
+      ],
+    })
+    const explicit = {
+      'coverage.thresholds.100': 'false',
+      'coverage.thresholds.lines': '0',
+    }
+    const resolved = resolveProjectStandardCoverage(
+      [{ standardCoverage: configured }],
+      explicit,
+      parseStandardCoverageOptions(explicit)
+    ).options!
+    expect(resolved.thresholds).toEqual({ 100: false, lines: 0 })
+    expect(resolved.thresholdGroups).toBeUndefined()
+    expect(configured).toEqual(before)
+  })
+
+  it.each([true, false, 'true', 'false'])(
+    'parses the explicit CLI shorthand %p',
+    async (value) => {
+      const { parseStandardCoverageOptions } = await import(
+        'next/dist/experimental/testing/coverage/options'
+      )
+      expect(
+        parseStandardCoverageOptions({ 'coverage.thresholds.100': value })!
+          .thresholds
+      ).toEqual({ 100: value === true || value === 'true' })
+    }
+  )
+  it.each([0, 1, 'sometimes', {}, []])(
+    'rejects invalid shorthand booleans %p',
+    async (value) => {
+      const { parseProjectStandardCoverage, parseStandardCoverageOptions } =
+        await import('next/dist/experimental/testing/coverage/options')
+      expect(() =>
+        parseStandardCoverageOptions({ 'coverage.thresholds.100': value })
+      ).toThrow('must be true or false')
+      expect(() =>
+        parseProjectStandardCoverage({
+          enabled: true,
+          thresholds: { 100: value },
+        })
+      ).toThrow('must be true or false')
+      expect(() =>
+        parseProjectStandardCoverage({
+          enabled: true,
+          thresholds: { '*.mjs': { 100: value } },
+        })
+      ).toThrow('must be true or false')
+    }
+  )
+})
+
+describe('configured coverage threshold glob groups', () => {
+  it('matches complete genuine development and production CLI reports, cases and threshold exits', async () => {
+    await withOutputDirectory(
+      'next-threshold-glob-cli-proof-',
+      async (root) => {
+        for (const mode of ['development', 'production']) {
+          const output = join(root, mode)
+          runNodeHelperSync(
+            [
+              join(__dirname, 'threshold-glob-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+            ],
+            { encoding: 'utf8', timeout: 180000 }
+          )
+          const result = JSON.parse(
+            await readFile(join(output, 'RESULTS.json'), 'utf8')
+          )
+          expect(result).toMatchObject({
+            status: 'passed',
+            mode,
+            profiles: 12,
+            cases: 12,
+            completeReports: 12,
+            fullFileModels: 24,
+          })
+        }
+      },
+      { cleanup: 'always' }
+    )
+  }, 370000)
+
+  const pristine = readExpectedCoverageFixture(
+    require.resolve('./fixtures/threshold-globs/pristine.json')
+  ) as {
+    sourceFiles: Record<string, { source: string; sha256: string }>
+    coverage: Record<string, Pick<StandardCoverageData, 's' | 'f' | 'b'>>
+    rows: {
+      name: string
+      thresholds: Record<string, unknown>
+      thresholdErrors: string[]
+    }[]
+  }
+
+  it.each(pristine.rows)(
+    'matches genuine threshold groups without changing complete file reports: $name',
+    async ({ thresholds, thresholdErrors }) => {
+      const { parseProjectStandardCoverage } = await import(
+        'next/dist/experimental/testing/coverage/options'
+      )
+      const { createUncoveredJavaScript } = await import(
+        'next/dist/experimental/testing/coverage/istanbul'
+      )
+      const { publishStandardCoverage } = await import(
+        'next/dist/experimental/testing/coverage/report-standard'
+      )
+      const f = await standardReportFixture()
+      try {
+        const files = []
+        for (const [name, reference] of Object.entries(pristine.coverage)) {
+          const source = pristine.sourceFiles[name]
+          const file = join(f.root, name)
+          expect(coverageHash(source.source)).toBe(source.sha256)
+          await writeFile(file, source.source)
+          const data = await createUncoveredJavaScript(file, source.source)
+          // Publisher-only inputs use saved genuine counters. Public CLI
+          // execution independently verifies their compiler/runtime origin.
+          data.s = structuredClone(reference.s)
+          data.f = structuredClone(reference.f)
+          data.b = structuredClone(reference.b)
+          expect(JSON.parse(JSON.stringify({ ...data, path: name }))).toEqual(
+            reference
+          )
+          files.push({ file, sha256: source.sha256, data })
+        }
+        const config = parseProjectStandardCoverage({
+          provider: 'v8',
+          enabled: true,
+          include: ['subject.mjs', 'unimported.mjs'],
+          reporter: ['json', 'json-summary', 'lcovonly'],
+          reportsDirectory: 'glob-reports',
+          thresholds,
+        })!.options
+        const result = await publishStandardCoverage({
+          projectDir: f.root,
+          facts: [{ ...f.facts[0], files }],
+          expected: f.expected,
+          excludedFiles: [],
+          config,
+          status: 'passed',
+          includeUnimported: false,
+        })
+        expect(result.published).toBe(true)
+        expect(result.thresholdErrors).toEqual(thresholdErrors)
+        const report = JSON.parse(
+          await readFile(
+            join(f.root, 'glob-reports/coverage-final.json'),
+            'utf8'
+          )
+        )
+        expect(
+          Object.fromEntries(
+            Object.entries(report).map(([file, data]) => [
+              file.slice(f.root.length + 1),
+              { ...(data as object), path: file.slice(f.root.length + 1) },
+            ])
+          )
+        ).toEqual(pristine.coverage)
+      } finally {
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('keeps independent ordered patterns through explicit global CLI overrides', async () => {
+    const {
+      parseProjectStandardCoverage,
+      parseStandardCoverageOptions,
+      resolveProjectStandardCoverage,
+    } = await import('next/dist/experimental/testing/coverage/options')
+    const configured = parseProjectStandardCoverage({
+      enabled: true,
+      thresholds: {
+        lines: 100,
+        perFile: true,
+        'subject.mjs': { lines: 50 },
+        '*.mjs': { functions: -1, perFile: false },
+      },
+    })!
+    const before = structuredClone(configured)
+    const flags = {
+      'coverage.thresholds.lines': '0',
+      'coverage.thresholds.perFile': false,
+    }
+    const resolved = resolveProjectStandardCoverage(
+      [{ standardCoverage: configured }],
+      flags,
+      parseStandardCoverageOptions(flags)
+    )
+    expect(resolved.options!.thresholds).toEqual({ lines: 0, perFile: false })
+    expect(resolved.options!.thresholdGroups).toEqual([
+      { pattern: 'subject.mjs', thresholds: { lines: 50 } },
+      { pattern: '*.mjs', thresholds: { functions: -1, perFile: false } },
+    ])
+    expect(configured).toEqual(before)
+    expect(() =>
+      resolveProjectStandardCoverage(
+        [
+          { standardCoverage: configured },
+          {
+            standardCoverage: {
+              ...configured,
+              options: {
+                ...configured.options,
+                thresholdGroups: configured.options
+                  .thresholdGroups!.slice()
+                  .reverse(),
+              },
+            },
+          },
+        ],
+        {},
+        undefined
+      )
+    ).toThrow('must share the same V8 coverage configuration')
+  })
+
+  it.each([
+    { '*.mjs': 1 },
+    { '*.mjs': [] },
+    { '*.mjs': { lines: 101 } },
+    { '*.mjs': { functions: Infinity } },
+    { '*.mjs': { perFile: 'sometimes' } },
+    { '*.mjs': { nested: { lines: 100 } } },
+    { '*.mjs': { autoUpdate: true } },
+    { '*.mjs': { '100': 'sometimes' } },
+  ])(
+    'rejects invalid or unimplemented nested threshold settings: %p',
+    async (thresholds) => {
+      const { parseProjectStandardCoverage } = await import(
+        'next/dist/experimental/testing/coverage/options'
+      )
+      expect(() =>
+        parseProjectStandardCoverage({ enabled: true, thresholds })
+      ).toThrow()
+    }
+  )
+})
+
 it('maps native development JSX generated import owners to complete genuine models and case rows', async () => {
   const { resolve } = await import('path')
   await withOutputDirectory(
@@ -13209,6 +14223,390 @@ it('maps native development JSX generated import owners to complete genuine mode
     { cleanup: 'always' }
   )
 }, 420000)
+
+it('routes configured development Browser JSX coverage through the actual CLI', async () => {
+  const { resolve } = await import('path')
+  const project = resolve(__dirname, '../../..')
+  await withOutputDirectory(
+    'next-development-jsx-cli-',
+    async (root) => {
+      for (const kind of ['tsx', 'jsx']) {
+        runNodeHelperSync(
+          [
+            join(__dirname, 'browser-development-jsx-cli-reports.mjs'),
+            project,
+            project,
+            join(root, kind),
+            kind,
+            'development',
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 240000 }
+        )
+      }
+    },
+    { cleanup: 'always' }
+  )
+}, 600000)
+
+describe('configured coverage threshold autoUpdate', () => {
+  const pristine = require('./fixtures/threshold-autoupdate/expectations.json')
+  const rows = [...pristine.rows, ...pristine.sharedCliRows] as any[]
+  const global = rows.find((row) => row.name === 'global')
+  const metrics = ['lines', 'functions', 'statements', 'branches']
+  const candidates = rows.filter((row) =>
+    [
+      'global',
+      'unchanged',
+      'per-file-minimum',
+      'negative',
+      'negative-zero',
+      'overlapping-globs',
+      'empty-per-file',
+      'threshold-failure',
+      'cli-enable',
+      'cli-disable',
+      'cli-add-metric',
+      'cli-100',
+      'cli-100-then-update',
+      'cli-update-then-100',
+      'name-filter',
+      'file-filter',
+      'compact-insert',
+      'trailing-comma-insert',
+      'empty-object-insert',
+      'cli-auto-yes',
+      'cli-auto-no',
+      'cli-auto-maybe',
+      'cli-auto-0',
+      'cli-auto-empty',
+    ].includes(row.name)
+  )
+
+  it('updates configured coverage thresholds and report publication through the development CLI', async () => {
+    const output = await mkdtemp(
+      join(tmpdir(), 'next-coverage-autoupdate-cli-')
+    )
+    try {
+      runNodeHelperSync(
+        [
+          join(__dirname, 'threshold-autoupdate-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          'development',
+          '--source',
+          '--writer',
+        ],
+        { encoding: 'utf8', timeout: 600000 }
+      )
+      const result = JSON.parse(
+        await readFile(join(output, 'RESULTS.json'), 'utf8')
+      )
+      expect(result).toMatchObject({
+        status: 'passed',
+        mode: 'development',
+        profiles: 34,
+      })
+    } catch (error) {
+      const evidence = process.env.NEXT_TESTING_AUTOUPDATE_EVIDENCE
+      if (evidence) {
+        try {
+          const { cp } = await import('fs/promises')
+          await cp(output, join(evidence, 'maintained-cli-failure'), {
+            recursive: true,
+          })
+        } catch {}
+      }
+      throw error
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 610000)
+
+  it.each(candidates)(
+    'derives threshold improvements from explicit execution counters: $name',
+    async (row) => {
+      const {
+        parseProjectStandardCoverage,
+        parseStandardCoverageOptions,
+        resolveProjectStandardCoverage,
+      } = await import('next/dist/experimental/testing/coverage/options')
+      const { createUncoveredJavaScript } = await import(
+        'next/dist/experimental/testing/coverage/istanbul'
+      )
+      const { publishStandardCoverage } = await import(
+        'next/dist/experimental/testing/coverage/report-standard'
+      )
+      const f = await standardReportFixture()
+      try {
+        const counters = structuredClone(pristine.counters)
+        if (!row.fullTestRan)
+          counters['fully.mjs'] = { s: { 0: 0 }, f: { 0: 0 }, b: {} }
+        const files = []
+        for (const [name, expected] of Object.entries(counters) as [
+          string,
+          any,
+        ][]) {
+          const source = await readFile(
+            join(
+              __dirname,
+              'fixtures/threshold-autoupdate/sources',
+              name + '.txt'
+            ),
+            'utf8'
+          )
+          const file = join(f.root, name)
+          await writeFile(file, source)
+          const data = await createUncoveredJavaScript(file, source)
+          for (const field of ['s', 'f', 'b'] as const)
+            data[field] = structuredClone(expected[field])
+          files.push({ file, sha256: coverageHash(source), data })
+        }
+        const configured = parseProjectStandardCoverage({
+          enabled: true,
+          provider: 'v8',
+          reporter: ['json', 'json-summary', 'lcovonly'],
+          include: Object.keys(counters),
+          thresholds: row.profile.thresholds,
+        })!
+        const flags = Object.fromEntries(
+          (row.profile.flags ?? [])
+            .filter((flag: string) => flag.startsWith('--coverage.'))
+            .map((flag: string) => {
+              const [key, value] = flag.slice(2).split('=')
+              return [key, value]
+            })
+        )
+        const config = resolveProjectStandardCoverage(
+          [{ standardCoverage: configured }],
+          flags,
+          parseStandardCoverageOptions(flags)
+        ).options!
+        const result = await publishStandardCoverage({
+          projectDir: f.root,
+          facts: [{ ...f.facts[0], files }],
+          expected: f.expected,
+          excludedFiles: [],
+          config,
+          status: 'passed',
+          includeUnimported: false,
+        })
+        expect(result.published).toBe(true)
+        expect(result.thresholdUpdates ?? []).toEqual(row.measuredUpdates)
+        const actual = JSON.parse(
+          await readFile(join(f.root, 'coverage/coverage-final.json'), 'utf8')
+        )
+        expect(
+          Object.fromEntries(
+            Object.entries(actual).map(([file, data]: [string, any]) => [
+              basename(file),
+              { s: data.s, f: data.f, b: data.b },
+            ])
+          )
+        ).toEqual(counters)
+      } finally {
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it.each(
+    rows.filter(
+      (row) => row.configChanged && row.name !== 'body-failure-report-enabled'
+    )
+  )(
+    'preserves configuration bytes around threshold edits: $name',
+    async (row) => {
+      const { updateCoverageThresholds } = await import(
+        'next/dist/experimental/testing/coverage/threshold-update'
+      )
+      const directory = await mkdtemp(
+        join(tmpdir(), 'next-coverage-threshold-update-')
+      )
+      const file = join(directory, 'vitest.config.mjs')
+      try {
+        await writeFile(file, row.before)
+        expect(
+          await updateCoverageThresholds({
+            configFile: file,
+            updates: row.measuredUpdates,
+          })
+        ).toBe(true)
+        expect(await readFile(file, 'utf8')).toBe(row.after)
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('reads actual edits made after config evaluation and retains their comments', async () => {
+    const { updateCoverageThresholds } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const row = pristine.currentEditRows.find(
+      (row: any) => row.name === 'disk-edit-numeric'
+    )
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-coverage-current-threshold-')
+    )
+    const file = join(directory, 'vitest.config.mjs')
+    try {
+      const current =
+        row.before.replace('"lines": 0', '"lines": 90') +
+        '\n// actual on-disk user edit retained\n'
+      await writeFile(file, current)
+      expect(
+        await updateCoverageThresholds({
+          configFile: file,
+          updates: global.measuredUpdates,
+        })
+      ).toBe(true)
+      expect(await readFile(file, 'utf8')).toBe(row.after)
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  it.each(['complex-config', 'missing-threshold-object', 'missing-config'])(
+    'keeps the genuine config writer failure separate from published reports: %s',
+    async (name) => {
+      const { updateCoverageThresholds } = await import(
+        'next/dist/experimental/testing/coverage/threshold-update'
+      )
+      const row = rows.find((row) => row.name === name)
+      const directory = await mkdtemp(
+        join(tmpdir(), 'next-coverage-config-shape-')
+      )
+      const file = join(directory, 'vitest.config.mjs')
+      try {
+        if (row.before !== null) await writeFile(file, row.before)
+        const message = row.error
+        expect(message).toBeDefined()
+        await expect(
+          updateCoverageThresholds({
+            configFile: row.before === null ? undefined : file,
+            updates: global.measuredUpdates,
+          })
+        ).rejects.toThrow(message)
+        if (row.before !== null)
+          expect(await readFile(file, 'utf8')).toBe(row.before)
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('preserves JSON config syntax and skips a cancelled writer without touching its current source', async () => {
+    const { updateCoverageThresholds } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-coverage-json-threshold-')
+    )
+    const file = join(directory, 'next.test.config.json')
+    try {
+      const before =
+        JSON.stringify(
+          {
+            test: { coverage: { thresholds: { autoUpdate: true, lines: 0 } } },
+          },
+          null,
+          2
+        ) + '\n'
+      await writeFile(file, before)
+      const controller = new AbortController()
+      controller.abort(new Error('actual writer cancellation'))
+      await expect(
+        updateCoverageThresholds({
+          configFile: file,
+          updates: global.measuredUpdates,
+          signal: controller.signal,
+        })
+      ).rejects.toBe(controller.signal.reason)
+      expect(await readFile(file, 'utf8')).toBe(before)
+      expect(
+        await updateCoverageThresholds({
+          configFile: file,
+          updates: global.measuredUpdates,
+        })
+      ).toBe(true)
+      const updated = JSON.parse(await readFile(file, 'utf8')).test.coverage
+        .thresholds
+      expect(updated.autoUpdate).toBe(true)
+      for (const update of global.measuredUpdates)
+        expect(updated[update.metric]).toBe(update.value)
+      expect(Object.keys(updated).sort()).toEqual(
+        ['autoUpdate', ...metrics].sort()
+      )
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('explicit V8 provider and formatter CLI routes', () => {
+  it('keeps legacy standard flags intact while explicit provider selects existing configured formatters', async () => {
+    const { parseStandardCoverageOptions } = await import(
+      'next/dist/experimental/testing/coverage/options'
+    )
+    expect(parseStandardCoverageOptions({ coverage: true })).toBeUndefined()
+    expect(
+      parseStandardCoverageOptions({ 'coverage.reporter': ['json'] })
+    ).not.toHaveProperty('formatterReports')
+    expect(
+      parseStandardCoverageOptions({ 'coverage.provider': 'v8' })
+    ).toMatchObject({
+      formatterReports: true,
+      clean: true,
+      reporter: expect.arrayContaining(['text', 'html', 'clover', 'json']),
+    })
+    const flags = { 'coverage.reporter': ['text', 'json', 'text'] }
+    const before = structuredClone(flags)
+    expect(parseStandardCoverageOptions(flags)).toMatchObject({
+      formatterReports: true,
+      reporter: expect.arrayContaining(['text', 'json']),
+    })
+    expect(flags).toEqual(before)
+    expect(
+      parseStandardCoverageOptions({ 'coverage.provider': 'istanbul' })
+    ).toMatchObject({ provider: 'istanbul', formatterReports: true })
+  })
+
+  it('selects V8 reporters and omits disabled coverage outputs', async () => {
+    const output = await mkdtemp(join(tmpdir(), 'next-provider-text-cli-'))
+    try {
+      runNodeHelperSync(
+        [
+          join(__dirname, 'provider-text-cli-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        { encoding: 'utf8', timeout: 240000 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'RESULTS.json'), 'utf8'))
+      ).toMatchObject({ status: 'passed', profiles: 8 })
+    } catch (error) {
+      if (process.env.NEXT_TESTING_PROVIDER_EVIDENCE) {
+        try {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(
+              process.env.NEXT_TESTING_PROVIDER_EVIDENCE,
+              'maintained-failure'
+            ),
+            { recursive: true }
+          )
+        } catch {}
+      }
+      throw error
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 250000)
+})
 
 it.each(['next.test.config.mjs', 'vitest.config.mjs', 'vite.config.mjs'])(
   'separates test configuration edits from actual compiler inputs: %s',
@@ -13318,6 +14716,628 @@ it.each(['next.test.config.mjs', 'vitest.config.mjs', 'vite.config.mjs'])(
     }
   }
 )
+
+describe('retained coverage threshold formatter closures', () => {
+  it('retains the actual closure and normalizes only its IPC flag without mutating the authored value', async () => {
+    const { retainCoverageThresholdFormatter, formatCoverageThresholdUpdates } =
+      await import('next/dist/experimental/testing/coverage/threshold-format')
+    let calls = 0
+    const receivers: unknown[] = []
+    const formatter = function (
+      this: unknown,
+      value: number,
+      previous: number
+    ) {
+      receivers.push(this)
+      calls++
+      return Math.floor(value) - previous - calls / 10
+    }
+    const config = {
+      test: { coverage: { thresholds: { autoUpdate: formatter, lines: 0 } } },
+    }
+    const retained = retainCoverageThresholdFormatter(config)
+    expect(config.test.coverage.thresholds.autoUpdate).toBe(formatter)
+    expect(retained.value).toEqual({
+      test: { coverage: { thresholds: { autoUpdate: true, lines: 0 } } },
+    })
+    expect(structuredClone(retained.value)).toEqual(retained.value)
+    const updates = [
+      { metric: 'lines' as const, value: 28.57, previous: 0 },
+      {
+        pattern: 'subject.mjs',
+        metric: 'functions' as const,
+        value: -3,
+        previous: -20,
+      },
+    ]
+    expect(formatCoverageThresholdUpdates(retained.formatter, updates)).toEqual(
+      [
+        { ...updates[0], value: 27.9 },
+        { ...updates[1], value: 16.8 },
+      ]
+    )
+    expect(updates[0].value).toBe(28.57)
+    expect(receivers).toEqual([undefined, undefined])
+    const ordinary = {
+      test: { coverage: { thresholds: { autoUpdate: true } } },
+    }
+    expect(retainCoverageThresholdFormatter(ordinary)).toEqual({
+      value: ordinary,
+    })
+    expect(retainCoverageThresholdFormatter(ordinary).value).toBe(ordinary)
+  })
+
+  it('selects one effective inline owner and keeps multiple/external formatter ownership explicit', async () => {
+    const { retainCoverageThresholdFormatter, formatCoverageThresholdUpdates } =
+      await import('next/dist/experimental/testing/coverage/threshold-format')
+    const first = () => 1
+    const second = () => 2
+    const coverage = (autoUpdate: boolean | (() => number)) => ({
+      thresholds: { autoUpdate },
+    })
+    expect(
+      retainCoverageThresholdFormatter({
+        projects: [{ coverage: coverage(first) }],
+      }).formatter
+    ).toBe(first)
+    expect(
+      retainCoverageThresholdFormatter({
+        test: {
+          coverage: coverage(first),
+          projects: [{ test: { coverage: coverage(second) } }],
+        },
+      }).formatter
+    ).toBe(second)
+    expect(
+      retainCoverageThresholdFormatter({
+        test: {
+          coverage: coverage(first),
+          projects: [{ coverage: coverage(false) }],
+        },
+      }).formatter
+    ).toBeUndefined()
+    expect(() =>
+      retainCoverageThresholdFormatter({
+        test: {
+          projects: [
+            { coverage: coverage(first) },
+            { coverage: coverage(second) },
+          ],
+        },
+      })
+    ).toThrow('one inline project')
+    expect(() =>
+      retainCoverageThresholdFormatter({
+        test: { coverage: coverage(first), projects: ['./vitest.project.mjs'] },
+      })
+    ).toThrow('one inline project')
+    expect(() =>
+      retainCoverageThresholdFormatter(
+        { test: { coverage: coverage(first) } },
+        true
+      )
+    ).toThrow('one inline project')
+    expect(() => formatCoverageThresholdUpdates(undefined, [])).toThrow(
+      'No coverage threshold formatter belongs'
+    )
+  })
+
+  it('uses the real child closure across requests and closes it after formatter errors and global teardown', async () => {
+    const { openTestConfigModule } = await import(
+      'next/dist/experimental/testing/config-modules'
+    )
+    const root = await mkdtemp(
+      join(tmpdir(), 'next-threshold-formatter-realm-')
+    )
+    const trace = join(root, 'trace.jsonl')
+    const config = join(root, 'vitest.config.mjs')
+    const source = `import { appendFileSync } from 'node:fs'\nlet calls = 0\nexport default { test: { coverage: { thresholds: { autoUpdate: function(value, previous) { calls++; appendFileSync(${JSON.stringify(trace)}, JSON.stringify({ kind: 'format', calls, value, previous, receiver: this === undefined }) + '\\n'); if (calls === 2) throw new Error('actual retained formatter error'); return value - 0.25 } } } } }\n`
+    await writeFile(config, source)
+    const setup = join(root, 'setup.mjs')
+    await writeFile(
+      setup,
+      `import { appendFileSync } from 'node:fs'\nconst emit = kind => appendFileSync(${JSON.stringify(trace)}, JSON.stringify({kind})+'\\n')\nexport default function() { emit('setup'); return () => emit('teardown') }\n`
+    )
+    let realm: Awaited<ReturnType<typeof openTestConfigModule>> | undefined
+    try {
+      realm = await openTestConfigModule(config, root)
+      expect(realm.value).toEqual({
+        test: { coverage: { thresholds: { autoUpdate: true } } },
+      })
+      await realm.setup([
+        { name: 'control', globalSetup: [setup], provide: {} },
+      ])
+      expect(
+        await realm.formatCoverageThresholdUpdates!([
+          { metric: 'lines', previous: 0, value: 28.57 },
+        ])
+      ).toEqual([{ metric: 'lines', previous: 0, value: 28.32 }])
+      await expect(
+        realm.formatCoverageThresholdUpdates!([
+          { metric: 'functions', previous: -20, value: -3 },
+        ])
+      ).rejects.toThrow('actual retained formatter error')
+      await realm.dispose()
+      await expect(realm.formatCoverageThresholdUpdates!([])).rejects.toThrow(
+        'session is unavailable'
+      )
+      expect(
+        (await readFile(trace, 'utf8'))
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line))
+      ).toEqual([
+        { kind: 'setup' },
+        { kind: 'format', calls: 1, value: 28.57, previous: 0, receiver: true },
+        { kind: 'format', calls: 2, value: -3, previous: -20, receiver: true },
+        { kind: 'teardown' },
+      ])
+      expect(await readFile(config, 'utf8')).toBe(source)
+    } finally {
+      await realm?.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('preserves actual formatter and nested teardown errors and causes across the existing config IPC', async () => {
+    const { openTestConfigModule } = await import(
+      'next/dist/experimental/testing/config-modules'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-threshold-error-tree-'))
+    const trace = join(root, 'trace.json')
+    const config = join(root, 'vitest.config.mjs')
+    await writeFile(
+      config,
+      `export const cause = new Error('actual formatter cause')\nexport const leaf = new TypeError('actual formatter leaf', {cause})\nexport const noStack = new Error('actual error without stack')\ndelete noStack.stack\nexport const originalStack = leaf.stack\nexport const originalKeys = Object.getOwnPropertyNames(leaf)\nexport default {test:{coverage:{thresholds:{autoUpdate:()=>{throw leaf}}}}}\n`
+    )
+    const setup = join(root, 'setup.mjs')
+    await writeFile(
+      setup,
+      `import {writeFileSync} from 'node:fs'\nimport {leaf,noStack,cause,originalStack,originalKeys} from './vitest.config.mjs'\nexport default function() { return () => {writeFileSync(${JSON.stringify(trace)}, JSON.stringify({sameCause:leaf.cause===cause,stackUnchanged:leaf.stack===originalStack,keysUnchanged:JSON.stringify(Object.getOwnPropertyNames(leaf))===JSON.stringify(originalKeys)}));throw new AggregateError([leaf,noStack],'actual nested teardown',{cause:new Error('actual group cause')})} }\n`
+    )
+    let realm: Awaited<ReturnType<typeof openTestConfigModule>> | undefined
+    try {
+      realm = await openTestConfigModule(config, root)
+      await realm.setup([
+        { name: 'control', globalSetup: [setup], provide: {} },
+      ])
+      const formatterError = await realm.formatCoverageThresholdUpdates!([
+        { metric: 'lines', previous: 0, value: 20 },
+      ]).catch((error: Error) => error)
+      expect(formatterError).toMatchObject({
+        name: 'TypeError',
+        message: 'actual formatter leaf',
+        cause: { message: 'actual formatter cause' },
+      })
+      const teardownError = await realm.dispose().catch((error: Error) => error)
+      expect(teardownError).toBeInstanceOf(AggregateError)
+      expect(teardownError).toMatchObject({
+        message: 'Global setup teardown failed.',
+        errors: [
+          {
+            name: 'AggregateError',
+            message: 'actual nested teardown',
+            cause: { message: 'actual group cause' },
+            errors: [formatterError, { message: 'actual error without stack' }],
+          },
+        ],
+      })
+      if (
+        !(formatterError instanceof Error) ||
+        !(teardownError instanceof AggregateError)
+      )
+        throw new Error(
+          'The actual formatter and aggregate errors were not retained.'
+        )
+      expect(teardownError.errors[0].errors[0].stack).toBe(formatterError.stack)
+      expect(teardownError.errors[0].errors[1].stack).toBeUndefined()
+      expect(JSON.parse(await readFile(trace, 'utf8'))).toEqual({
+        sameCause: true,
+        stackUnchanged: true,
+        keysUnchanged: true,
+      })
+    } finally {
+      await realm?.dispose().catch(() => {})
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('updates threshold configuration with exact formatter and setup/teardown ordering', async () => {
+    const output = await mkdtemp(
+      join(tmpdir(), 'next-threshold-formatter-cli-')
+    )
+    try {
+      runNodeHelperSync(
+        [
+          join(__dirname, 'threshold-formatter-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        { encoding: 'utf8', timeout: 240000 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'RESULTS.json'), 'utf8'))
+      ).toMatchObject({ status: 'passed', profiles: 8 })
+    } catch (error) {
+      if (process.env.NEXT_TESTING_FORMATTER_EVIDENCE) {
+        try {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(
+              process.env.NEXT_TESTING_FORMATTER_EVIDENCE,
+              'maintained-failure'
+            ),
+            { recursive: true }
+          )
+        } catch {}
+      }
+      throw error
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 250000)
+})
+
+describe('disabled formatter configuration cleanup before ordinary result cache publication', () => {
+  it('retains the passing case and original teardown failure without publishing cached facts', async () => {
+    const output = await mkdtemp(
+      join(tmpdir(), 'next-disabled-formatter-cache-')
+    )
+    try {
+      runNodeHelperSync(
+        [
+          join(__dirname, 'threshold-formatter-cache-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        { encoding: 'utf8', timeout: 150000 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+      ).toEqual({
+        status: 'passed',
+        casePassed: true,
+        teardownFailed: true,
+        formatterNotCalled: true,
+        cacheNotPublished: true,
+        noCoveragePublished: true,
+        teardownOnce: true,
+      })
+    } catch (error) {
+      if (process.env.NEXT_TESTING_FORMATTER_CACHE_EVIDENCE) {
+        try {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(
+              process.env.NEXT_TESTING_FORMATTER_CACHE_EVIDENCE,
+              'maintained-failure'
+            ),
+            { recursive: true }
+          )
+        } catch {}
+      }
+      throw error
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 160000)
+})
+
+describe('explicit CLI V8 configured provider overrides', () => {
+  it('applies the parent-selected provider before provider-specific parsing without changing authored objects', async () => {
+    const { applyCoverageProviderOverride } = await import(
+      'next/dist/experimental/testing/coverage/provider-override'
+    )
+    const formatter = (value: number) => Math.floor(value)
+    const coverage = {
+      provider: 'custom',
+      customProviderModule: './missing-provider.mjs',
+      enabled: false,
+      clean: false,
+      reportsDirectory: 'selected',
+      reportOnFailure: true,
+      thresholds: { autoUpdate: formatter, lines: 0 },
+    }
+    const input = {
+      test: {
+        include: ['*.test.mjs'],
+        coverage,
+        projects: [{ test: { coverage: { ...coverage, enabled: true } } }],
+      },
+    }
+    expect(applyCoverageProviderOverride(input, undefined)).toBe(input)
+    const normalized = applyCoverageProviderOverride(
+      input,
+      'v8'
+    ) as typeof input
+    expect(normalized.test.coverage).toEqual({
+      provider: 'v8',
+      enabled: false,
+      clean: false,
+      reportsDirectory: 'selected',
+      reportOnFailure: true,
+      thresholds: { autoUpdate: formatter, lines: 0 },
+    })
+    expect(normalized.test.projects[0].test.coverage).toEqual({
+      ...normalized.test.coverage,
+      enabled: true,
+    })
+    expect(input.test.coverage).toBe(coverage)
+    expect(input.test.coverage.customProviderModule).toBe(
+      './missing-provider.mjs'
+    )
+    expect(normalized.test.coverage.thresholds.autoUpdate).toBe(formatter)
+    expect(
+      applyCoverageProviderOverride({ projects: [{ coverage }] }, 'v8')
+    ).toEqual({ projects: [{ coverage: normalized.test.coverage }] })
+    expect(
+      applyCoverageProviderOverride({ test: { include: ['*.mjs'] } }, 'v8')
+    ).toEqual({ test: { include: ['*.mjs'] } })
+  })
+
+  it('preserves explicit provider enable/disable precedence and leaves legacy flag absence unchanged', async () => {
+    const {
+      parseProjectStandardCoverage,
+      parseStandardCoverageOptions,
+      resolveProjectStandardCoverage,
+    } = await import('next/dist/experimental/testing/coverage/options')
+    const flags = { 'coverage.provider': 'v8' },
+      cli = parseStandardCoverageOptions(flags)
+    const configured = parseProjectStandardCoverage({
+      provider: 'v8',
+      enabled: false,
+    })!
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: configured }],
+        flags,
+        cli
+      )
+    ).toEqual({ enabled: false, configured: true })
+    expect(resolveProjectStandardCoverage([{}], flags, cli)).toEqual({
+      enabled: false,
+      configured: false,
+    })
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: configured }],
+        { ...flags, coverage: true },
+        cli
+      )
+    ).toMatchObject({
+      enabled: true,
+      configured: true,
+      options: { reporter: expect.arrayContaining(['json']) },
+    })
+    configured.enabled = true
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: configured }],
+        { ...flags, coverage: false },
+        cli
+      )
+    ).toEqual({ enabled: false, configured: true })
+    const legacy = { 'coverage.reporter': ['json'] },
+      old = parseStandardCoverageOptions(legacy)
+    expect(resolveProjectStandardCoverage([{}], legacy, old)).toEqual({
+      enabled: false,
+      configured: false,
+    })
+  })
+
+  it.each(['mjs', 'json'])(
+    'normalizes actual %s configuration after evaluation while preserving its raw provider bytes',
+    async (extension) => {
+      const { openTestConfiguration } = await import(
+        'next/dist/experimental/testing/config'
+      )
+      const root = await mkdtemp(
+        join(tmpdir(), 'next-provider-override-config-')
+      )
+      const filename = join(
+        root,
+        extension === 'json' ? 'next.test.config.json' : 'vitest.config.mjs'
+      )
+      const value = {
+        test: {
+          include: ['*.test.mjs'],
+          coverage: {
+            enabled: false,
+            provider: 'custom',
+            customProviderModule: './deliberately-missing.mjs',
+            clean: false,
+            reportsDirectory: 'configured-reports',
+            reportOnFailure: true,
+          },
+        },
+      }
+      const source =
+        (extension === 'json' ? '' : 'export default ') +
+        JSON.stringify(value) +
+        '\n'
+      await writeFile(filename, source)
+      let config: Awaited<ReturnType<typeof openTestConfiguration>> | undefined
+      try {
+        config = await openTestConfiguration(root, undefined, 'v8')
+        expect(config.config.projects[0].standardCoverage).toMatchObject({
+          enabled: false,
+          options: {
+            clean: false,
+            reportsDirectory: 'configured-reports',
+            reportOnFailure: true,
+          },
+        })
+        expect(config.config.projects[0].customCoverage).toBeUndefined()
+        expect(await readFile(filename, 'utf8')).toBe(source)
+      } finally {
+        await config?.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('applies CLI provider overrides without loading ignored providers', async () => {
+    const output = await mkdtemp(join(tmpdir(), 'next-provider-override-cli-'))
+    try {
+      runNodeHelperSync(
+        [
+          join(__dirname, 'provider-override-cli-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        { encoding: 'utf8', timeout: 360000 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'RESULTS.json'), 'utf8'))
+      ).toMatchObject({ status: 'passed', profiles: 13 })
+    } catch (error) {
+      if (process.env.NEXT_TESTING_PROVIDER_OVERRIDE_EVIDENCE) {
+        try {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(
+              process.env.NEXT_TESTING_PROVIDER_OVERRIDE_EVIDENCE,
+              'maintained-failure'
+            ),
+            { recursive: true }
+          )
+        } catch {}
+      }
+      throw error
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 375000)
+})
+
+describe('production retained coverage threshold formatter closures', () => {
+  it('updates all eight production threshold formatter configurations and lifecycle traces', async () => {
+    const output = await mkdtemp(
+      join(tmpdir(), 'next-production-threshold-formatter-cli-')
+    )
+    try {
+      runNodeHelperSync(
+        [
+          join(__dirname, 'threshold-formatter-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--mode=production',
+          '--source',
+        ],
+        { encoding: 'utf8', timeout: 240000 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'RESULTS.json'), 'utf8'))
+      ).toMatchObject({ status: 'passed', mode: 'production', profiles: 8 })
+    } catch (error) {
+      if (process.env.NEXT_TESTING_PRODUCTION_FORMATTER_EVIDENCE) {
+        try {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(
+              process.env.NEXT_TESTING_PRODUCTION_FORMATTER_EVIDENCE,
+              'maintained-failure'
+            ),
+            { recursive: true }
+          )
+        } catch {}
+      }
+      throw error
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 250000)
+})
+
+describe('dotted standard coverage flags configure collection without activating it', () => {
+  it.each([
+    { 'coverage.reporter': ['json'] },
+    { 'coverage.include': ['subject.mjs'] },
+    { 'coverage.thresholds.lines': '99' },
+    { 'coverage.provider': 'v8' },
+  ])(
+    'resolves actual collection intent independently of standard options: %j',
+    async (flags) => {
+      const {
+        parseStandardCoverageOptions,
+        parseProjectStandardCoverage,
+        resolveProjectStandardCoverage,
+      } = await import('next/dist/experimental/testing/coverage/options')
+      const cli = parseStandardCoverageOptions(flags),
+        disabled = parseProjectStandardCoverage({ enabled: false })!,
+        enabled = parseProjectStandardCoverage({ enabled: true })!
+      expect(resolveProjectStandardCoverage([{}], flags, cli)).toEqual({
+        enabled: false,
+        configured: false,
+      })
+      expect(
+        resolveProjectStandardCoverage(
+          [{ standardCoverage: disabled }],
+          flags,
+          cli
+        )
+      ).toEqual({ enabled: false, configured: true })
+      expect(
+        resolveProjectStandardCoverage(
+          [{ standardCoverage: enabled }],
+          flags,
+          cli
+        )
+      ).toMatchObject({ enabled: true, configured: true })
+      expect(
+        resolveProjectStandardCoverage([{}], { ...flags, coverage: true }, cli)
+      ).toMatchObject({ enabled: true, options: cli, configured: false })
+      expect(
+        resolveProjectStandardCoverage(
+          [{ standardCoverage: enabled }],
+          { ...flags, coverage: false },
+          cli
+        )
+      ).toEqual({ enabled: false, configured: true })
+    }
+  )
+  it('enables coverage only through configuration or explicit CLI flags', async () => {
+    const output = await mkdtemp(join(tmpdir(), 'next-coverage-enable-cli-'))
+    try {
+      runNodeHelperSync(
+        [
+          join(__dirname, 'coverage-enable-cli-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        { encoding: 'utf8', timeout: 300000 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'RESULTS.json'), 'utf8'))
+      ).toMatchObject({ status: 'passed', profiles: 11 })
+    } catch (error) {
+      if (process.env.NEXT_TESTING_ENABLE_EVIDENCE) {
+        try {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(
+              process.env.NEXT_TESTING_ENABLE_EVIDENCE,
+              'maintained-failure'
+            ),
+            { recursive: true }
+          )
+        } catch {}
+      }
+      throw error
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 315000)
+})
 
 describe('formatter current AST preparation before caller-owned commit', () => {
   const rows = require('./fixtures/formatter-ast/cases.json').rows as {
@@ -13490,6 +15510,73 @@ describe('formatter current AST preparation before caller-owned commit', () => {
       await rm(root, { recursive: true, force: true })
     }
   })
+})
+
+describe('remaining built-in standard coverage reporters', () => {
+  it.each(['cobertura', 'html-spa', 'teamcity', 'text-lcov', 'none'])(
+    'routes %s through the actual formatter without enabling collection',
+    async (reporter) => {
+      const {
+        parseStandardCoverageOptions,
+        parseProjectStandardCoverage,
+        resolveProjectStandardCoverage,
+      } = await import('next/dist/experimental/testing/coverage/options')
+      const flags = { 'coverage.reporter': [reporter] }
+      const options = parseStandardCoverageOptions(flags)!
+      expect(options).toMatchObject({
+        reporter: [reporter],
+        formatterReports: true,
+      })
+      expect(resolveProjectStandardCoverage([{}], flags, options)).toEqual({
+        enabled: false,
+        configured: false,
+      })
+      expect(
+        parseProjectStandardCoverage({
+          enabled: true,
+          reporter: [reporter],
+        })
+      ).toMatchObject({
+        enabled: true,
+        options: { reporter: [reporter], formatterReports: true },
+      })
+    }
+  )
+
+  it('checks reporter output, cleanup, disable, failure and config-update behavior', async () => {
+    const output = await mkdtemp(join(tmpdir(), 'next-standard-reporters-'))
+    try {
+      runNodeHelperSync(
+        [
+          join(__dirname, 'standard-reporter-reports.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        { encoding: 'utf8', timeout: 600000 }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'RESULTS.json'), 'utf8'))
+      ).toMatchObject({ status: 'passed', profiles: 34 })
+    } catch (error) {
+      if (process.env.NEXT_TESTING_STANDARD_REPORTERS_EVIDENCE) {
+        try {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(
+              process.env.NEXT_TESTING_STANDARD_REPORTERS_EVIDENCE,
+              'maintained-failure'
+            ),
+            { recursive: true }
+          )
+        } catch {}
+      }
+      throw error
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 615000)
 })
 
 describe('private Istanbul JavaScript producer', () => {
@@ -14515,6 +16602,179 @@ describe('Istanbul mapped fact wire and publication contract', () => {
   })
 })
 
+describe('public Istanbul CommonJS sources', () => {
+  it.each([
+    "require('./dependency.cjs')",
+    "module.require('./dependency.cjs')",
+    "module['require']('./dependency.cjs')",
+  ])(
+    'retains the measured unimplemented CommonJS edge bound for %s',
+    async (expression) => {
+      const { assertIstanbulCjsSource } = await import(
+        'next/dist/experimental/testing/coverage/istanbul-cjs'
+      )
+      expect(() =>
+        assertIstanbulCjsSource(
+          'exports.value = ' + expression,
+          '/project/subject.cjs'
+        )
+      ).toThrow('CommonJS require dependency coverage is not implemented')
+    }
+  )
+  it('distinguishes real CommonJS calls from exported names and string contents', async () => {
+    const { assertIstanbulCjsSource } = await import(
+      'next/dist/experimental/testing/coverage/istanbul-cjs'
+    )
+    expect(() =>
+      assertIstanbulCjsSource(
+        `exports.require = "require('./unused.cjs')"`,
+        '/project/subject.cjs'
+      )
+    ).not.toThrow()
+    expect(() =>
+      assertIstanbulCjsSource(
+        `export const value = require('./unused.cjs')`,
+        '/project/subject.mjs'
+      )
+    ).not.toThrow()
+  })
+  const pristine = readCoverageFixture(
+    require.resolve('./fixtures/istanbul-provider/cjs-pristine.json')
+  )
+  it.each(
+    pristine.rows.filter(
+      (row) => !Object.hasOwn(pristine.unqualifiedProfiles, row.name)
+    )
+  )(
+    'checks CommonJS case outcomes, counters and reports for $name',
+    async (row) => {
+      const output = await mkdtemp(join(tmpdir(), 'next-istanbul-cjs-'))
+      try {
+        runNodeHelperSync(
+          [
+            join(__dirname, 'istanbul-cjs-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            row.name,
+            '--source',
+          ],
+          {
+            encoding: 'utf8',
+            timeout: 125000,
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualPublicCLI: true,
+          caseStatusesAndErrors: true,
+          coverageCountersAndReportFiles: true,
+          allOwnersJoined: true,
+        })
+        expect(
+          JSON.parse(await readFile(join(output, 'CLOSED.json'), 'utf8'))
+        ).toEqual({ fixtureRetired: true })
+      } finally {
+        if (process.env.NEXT_TESTING_ISTANBUL_CJS_EVIDENCE) {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_ISTANBUL_CJS_EVIDENCE, row.name),
+            { recursive: true }
+          )
+        }
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('public Istanbul JavaScript coverage', () => {
+  const pristine = readCoverageFixture(
+    require.resolve('./fixtures/istanbul-provider/public-pristine.json')
+  )
+  it.each(
+    pristine.rows
+      .filter((row) => !Object.hasOwn(pristine.unqualifiedProfiles, row.name))
+      .map((row) => row.name)
+  )(
+    'checks case outcomes, coverage hits and report formats for %s',
+    async (profile) => {
+      await withOutputDirectory(
+        'next-public-istanbul-',
+        async (output) => {
+          runNodeHelperSync(
+            [
+              join(__dirname, 'istanbul-public-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              encoding: 'utf8',
+              timeout: 125000,
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            profile,
+            actualPublicCLI: true,
+            caseOutcomes: true,
+            coverageHitsSummariesAndAssetFormats: true,
+            actualThresholdsAndConfigBytes: true,
+            ownedProcessTreeClosed: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
+describe('public Istanbul file workers', () => {
+  it.each(['default', 'two-workers'])(
+    'matches actual whole reports and worker ownership for %s',
+    async (profile) => {
+      await withOutputDirectory(
+        'next-istanbul-workers-',
+        async (output) => {
+          runNodeHelperSync(
+            [
+              join(__dirname, 'istanbul-worker-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              encoding: 'utf8',
+              timeout: 125000,
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toEqual({
+            profile,
+            completeCasesAndReports: true,
+            actualParallelBarrier: profile === 'two-workers',
+            defaultConfigurationReportEquality: true,
+            allOwnersClosed: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
 describe('Istanbul loaded-source metadata', () => {
   const profile = {
     id: 'loaded',
@@ -14732,6 +16992,52 @@ describe('Istanbul loaded-source metadata', () => {
   })
 })
 
+describe('public Istanbul loaded sources', () => {
+  const pristine = readCoverageFixture(
+    require.resolve('./fixtures/istanbul-provider/loaded-pristine.json')
+  )
+  it.each(
+    pristine.rows
+      .filter((row) => !Object.hasOwn(pristine.unqualifiedProfiles, row.name))
+      .map((row) => row.name)
+  )(
+    'matches actual loaded-source reports for %s',
+    async (profile) => {
+      await withOutputDirectory(
+        'next-istanbul-loaded-',
+        async (output) => {
+          runNodeHelperSync(
+            [
+              join(__dirname, 'istanbul-loaded-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              encoding: 'utf8',
+              timeout: 125000,
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toEqual({
+            profile,
+            completeCasesAndReports: true,
+            actualLoadedSourcesOnly: true,
+            actualParallelBarrier: profile === 'two-worker-loaded-only',
+            defaultConfigurationReportEquality: true,
+            allOwnersClosed: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
 describe('owned configuration readiness before prepared coverage', () => {
   it('retains a real ready realm until disposal and rejects the closed owner', async () => {
     const { openTestConfigModule } = await import(
@@ -14839,6 +17145,146 @@ describe('owned configuration readiness before prepared coverage', () => {
       await rm(root, { recursive: true, force: true })
     }
   }, 30000)
+})
+
+describe('prepared JSON coverage maps', () => {
+  const pristine = readCoverageFixture(
+    require.resolve('./fixtures/istanbul-provider/json-map-pristine.json')
+  )
+  it.each(pristine.rows.map((row: { name: string }) => row.name))(
+    'includes the actual complete prepared coverage map for %s',
+    async (profile: string) => {
+      const output = await mkdtemp(join(tmpdir(), 'next-json-coverage-map-'))
+      try {
+        runNodeHelperSync(
+          [
+            join(__dirname, 'json-coverage-map-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          {
+            encoding: 'utf8',
+            timeout: 125000,
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          }
+        )
+        expect(
+          JSON.parse(
+            await readFile(join(output, 'JSON-MAP-CHECKS.json'), 'utf8')
+          )
+        ).toMatchObject({
+          profile,
+          actualPublicCLI: true,
+          exactPreparedCoverageMap: true,
+          preservedCaseAndCoverageAssetChecks: true,
+          originalOwnedProcessChecksPassed: true,
+        })
+      } finally {
+        if (process.env.NEXT_TESTING_JSON_MAP_EVIDENCE) {
+          const { cp } = await import('node:fs/promises')
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_JSON_MAP_EVIDENCE, profile),
+            { recursive: true }
+          )
+        }
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('coverage publication before authored global teardown', () => {
+  const expected = readCoverageFixture(
+    require.resolve(
+      './fixtures/istanbul-provider/global-teardown.expected.json'
+    )
+  )
+  it.each(expected.rows.map((row: { profile: string }) => row.profile))(
+    'publishes exact coverage before global teardown for %s',
+    async (profile: string) => {
+      const output = await mkdtemp(
+        join(tmpdir(), 'next-global-coverage-order-')
+      )
+      try {
+        runNodeHelperSync(
+          [
+            join(__dirname, 'global-teardown-coverage-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 125000 }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          profile,
+          coveragePublishedBeforeGlobalTeardown: true,
+          caseStatesSnapshotsAndExactMap: true,
+          authoredBytesHeld: true,
+          ownedProcessTreeClosed: true,
+        })
+      } finally {
+        if (process.env.NEXT_TESTING_GLOBAL_COVERAGE_EVIDENCE) {
+          const { cp } = await import('node:fs/promises')
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_GLOBAL_COVERAGE_EVIDENCE, profile),
+            { recursive: true }
+          )
+        }
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('real configuration failure vetoes coverage publication', () => {
+  it.each(['configuration'] as const)(
+    'retains previous JSON and coverage after actual %s owner loss',
+    async (profile) => {
+      const output = await mkdtemp(join(tmpdir(), 'next-coverage-owner-loss-'))
+      try {
+        runNodeHelperSync(
+          [
+            join(__dirname, 'configuration-loss-coverage.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 125000 }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          profile,
+          actualPassingBodyCompleted: true,
+          actualConfigurationFailureRetained: true,
+          priorJSONAndCoverageBytesHeld: true,
+          authoredBytesHeld: true,
+          ownedProcessTreeClosed: true,
+        })
+      } finally {
+        if (process.env.NEXT_TESTING_CONFIGURATION_LOSS_EVIDENCE) {
+          const { cp } = await import('node:fs/promises')
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_CONFIGURATION_LOSS_EVIDENCE, profile),
+            { recursive: true }
+          )
+        }
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
 })
 
 describe('private settled file fixture coverage slots', () => {
@@ -14977,6 +17423,90 @@ it('authorizes actual file-fixture carriers separately when final disposal reuse
   expect(result.errors.map((row) => row.error)).toEqual([error, error])
   expect(result.errors.map(isSettledCoverageFailure)).toEqual([true, false])
   expect(Object.getOwnPropertyDescriptors(error)).toEqual(before)
+})
+
+describe('settled Istanbul assertion and file-fixture continuation', () => {
+  it.each([
+    'fixture-only',
+    'scope-before-run',
+    'scope-fulfilled',
+    'scope-pending',
+    'scope-foreign',
+    'scope-foreign-return',
+    'scope-mixed-same-error',
+  ])(
+    'verifies actual compiled %s without changing native error behavior',
+    async (scenario) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-istanbul-settled-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'istanbul-afterall-finalization.cjs'),
+              'supervise',
+              join(__dirname, '../../..'),
+              output,
+              scenario,
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          const observed = JSON.parse(
+            await readFile(join(output, 'OBSERVED.json'), 'utf8')
+          )
+          expect(observed.results[2].status).toBe('failed')
+          expect(observed.captures).toHaveLength(
+            scenario === 'scope-foreign' ||
+              scenario === 'scope-mixed-same-error'
+              ? 2
+              : 3
+          )
+        },
+        { cleanup: 'always' }
+      )
+    },
+    125000
+  )
+  it.each(['scope-finalization', 'disposal', 'fixture-only'])(
+    'publishes exact reports while the public %s file and run stay failed',
+    async (scenario) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-istanbul-settled-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'istanbul-afterall-finalization.cjs'),
+              'supervise',
+              join(__dirname, '../../..'),
+              output,
+              scenario,
+              'source-public',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          const report = JSON.parse(
+            await readFile(join(output, 'cases.json'), 'utf8')
+          )
+          expect(report.numPassedTests).toBe(3)
+          expect(report.numFailedTestSuites).toBe(1)
+          expect(report.success).toBe(false)
+        },
+        { cleanup: 'always' }
+      )
+    },
+    125000
+  )
 })
 
 describe('actual Istanbul native setup and serializer source roles', () => {
@@ -15287,6 +17817,1324 @@ describe('actual Istanbul native setup and serializer source roles', () => {
   })
 })
 
+describe('public Istanbul setup and snapshot serializers', () => {
+  it.each([
+    'combined',
+    'combined-case-failure',
+    'serializer-explicit',
+    'serializer-imported',
+    'setup-explicit',
+    'setup-imported',
+  ])(
+    'checks coverage counters, case outcomes and snapshots for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-istanbul-setup-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'istanbul-setup-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
+// Suite callback failures retain their real skipped descendants and exact carrier.
+describe('settled Istanbul beforeAll callback completion', () => {
+  it('marks only the authored beforeAll carrier when disposal reuses the same Error', async () => {
+    const { createCollector } = await import(
+      'next/dist/experimental/testing/runner/collector'
+    )
+    const { runCollected, isSettledCoverageFailure } = await import(
+      'next/dist/experimental/testing/runner/lifecycle'
+    )
+    const collector = createCollector('beforeall-stage-identity')
+    const error = new Error('same authored and disposal error')
+    const before = Object.getOwnPropertyDescriptors(error)
+    collector.api.test('unstarted descendant', () => {
+      throw new Error('body must remain unstarted')
+    })
+    collector.api.beforeAll(() => {
+      throw error
+    })
+    await collector.settle()
+    const starts: unknown[] = []
+    const result = await runCollected(
+      collector.close(),
+      {
+        runId: 'beforeall-stage-run',
+        signal: new AbortController().signal,
+        captureCoverageCompletion: true,
+        onCaseStart: (context) => {
+          starts.push(context)
+        },
+      },
+      () => {},
+      {
+        beginFileFixtures: () => ({ async finalize() {}, async dispose() {} }),
+        beginHook: (context) => ({
+          async finalize() {},
+          async dispose() {
+            if (context.hook === 'beforeAll') throw error
+          },
+        }),
+        setActiveHook() {},
+      }
+    )
+    expect(starts).toEqual([])
+    expect(
+      result.cases.map((row) => ({ status: row.status, errors: row.errors }))
+    ).toEqual([{ status: 'skipped', errors: [] }])
+    expect(result.errors.map((row) => row.error)).toEqual([error, error])
+    expect(result.errors.map(isSettledCoverageFailure)).toEqual([true, false])
+    expect(Object.getOwnPropertyDescriptors(error)).toEqual(before)
+  })
+
+  it('keeps an actual beforeAll deadline unmarked with no descendant body starts', async () => {
+    const { createCollector } = await import(
+      'next/dist/experimental/testing/runner/collector'
+    )
+    const { runCollected, isSettledCoverageFailure } = await import(
+      'next/dist/experimental/testing/runner/lifecycle'
+    )
+    const collector = createCollector('beforeall-deadline')
+    collector.api.test('unstarted descendant', () => {
+      throw new Error('body must remain unstarted')
+    })
+    collector.api.beforeAll(() => new Promise(() => {}), 10)
+    await collector.settle()
+    const starts: unknown[] = []
+    const result = await runCollected(
+      collector.close(),
+      {
+        runId: 'beforeall-timeout-run',
+        signal: new AbortController().signal,
+        captureCoverageCompletion: true,
+        onCaseStart: (context) => {
+          starts.push(context)
+        },
+      },
+      () => {}
+    )
+    expect(starts).toEqual([])
+    expect(result.interrupted).toBe(true)
+    expect(result.errors.length).toBeGreaterThan(0)
+    expect(result.errors.map(isSettledCoverageFailure)).not.toContain(true)
+  })
+
+  it.each([
+    'beforeall-sync',
+    'beforeall-async',
+    'beforeall-sync-report-false',
+    'beforeall-async-report-false',
+  ])(
+    'checks cases, file messages and report policy for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-istanbul-beforeall-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'istanbul-beforeall-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualSettledBeforeAllFailure: true,
+            caseStatusesAndErrors: true,
+            coverageCountersAndReportFiles: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
+describe('settled Istanbul beforeEach callback completion', () => {
+  async function observeCallback(mode: string) {
+    const { createCollector } = await import(
+      'next/dist/experimental/testing/runner/collector'
+    )
+    const { runCollected, isSettledBeforeEachCoverageFailure } = await import(
+      'next/dist/experimental/testing/runner/lifecycle'
+    )
+    const collector = createCollector('beforeeach-' + mode)
+    const error = new Error('same actual setup and later-stage error')
+    const original = Object.getOwnPropertyDescriptors(error)
+    let bodies = 0
+    const api =
+      mode === 'fixtures'
+        ? collector.api.test.extend({ value: 1 })
+        : collector.api.test
+    api.beforeEach(
+      mode === 'deadline'
+        ? () => new Promise(() => {})
+        : mode === 'throwing-wrapper' ||
+            mode === 'duplicate-wrapper' ||
+            mode === 'outer-throwing-wrapper'
+          ? () => undefined
+          : mode === 'async' ||
+              mode === 'async-array' ||
+              mode === 'substituted-wrapper' ||
+              mode === 'outer-substituted-wrapper'
+            ? async () => {
+                await Promise.resolve()
+                throw mode === 'async-array' ? [error] : error
+              }
+            : () => {
+                throw mode === 'array' ? [error] : error
+              },
+      mode === 'deadline' ? 10 : undefined
+    )
+    if (mode === 'mixed-stage')
+      api.afterEach(() => {
+        throw error
+      })
+    api('actual attempt', () => {
+      bodies++
+    })
+    await collector.settle()
+    const options: Parameters<typeof runCollected>[1] = {
+      runId: 'beforeeach-run-' + mode,
+      signal: new AbortController().signal,
+      ...(mode !== 'disabled' ? { captureCoverageCompletion: true } : {}),
+      ...(mode === 'parallel'
+        ? { sequence: { hooks: 'parallel' as const } }
+        : {}),
+    }
+    if (mode.endsWith('-wrapper'))
+      options.runWithCasePhase = (phase, fn, authored) => {
+        const value = fn()
+        if (mode === 'outer-throwing-wrapper') {
+          if (phase === 'beforeEach' && !authored) throw error
+          return value
+        }
+        if (mode === 'outer-substituted-wrapper')
+          return phase === 'beforeEach' && !authored
+            ? (Promise.resolve(value).then((value) => value) as typeof value)
+            : value
+        if (phase !== 'beforeEach' || !authored) return value
+        if (mode === 'substituted-wrapper')
+          return Promise.resolve(value).then((value) => value) as typeof value
+        if (mode === 'duplicate-wrapper') fn()
+        throw error
+      }
+    const result = await runCollected(collector.close(), options, () => {})
+    const test = result.cases[0]
+    expect(bodies).toBe(0)
+    expect(test.status).toBe('failed')
+    expect(test.errors.length).toBeGreaterThan(0)
+    expect(Object.getOwnPropertyDescriptors(error)).toEqual(original)
+    return {
+      result,
+      failures: test.errors,
+      marked: test.errors.map((failure) =>
+        isSettledBeforeEachCoverageFailure(failure, test.attempt.id)
+      ),
+      wrongAttempt: test.errors.map((failure) =>
+        isSettledBeforeEachCoverageFailure(
+          failure,
+          test.attempt.id + '/foreign'
+        )
+      ),
+      clonedCarrier: test.errors.map((failure) =>
+        isSettledBeforeEachCoverageFailure({ ...failure }, test.attempt.id)
+      ),
+    }
+  }
+
+  it.each(['sync', 'async', 'array', 'async-array'])(
+    'marks only the actual settled %s callback carrier and attempt',
+    async (mode) => {
+      const actual = await observeCallback(mode)
+      expect(actual.marked).toEqual([true])
+      expect(actual.wrongAttempt).toEqual([false])
+      expect(actual.clonedCarrier).toEqual([false])
+      expect(actual.result.interrupted).toBe(false)
+    }
+  )
+
+  it('keeps the same Error in an independent afterEach carrier unmarked', async () => {
+    const actual = await observeCallback('mixed-stage')
+    expect(actual.failures.map((failure) => failure.phase)).toEqual([
+      'beforeEach',
+      'afterEach',
+    ])
+    expect(actual.failures[0].error).toBe(actual.failures[1].error)
+    expect(actual.marked).toEqual([true, false])
+    expect(actual.wrongAttempt).toEqual([false, false])
+  })
+
+  it.each([
+    'disabled',
+    'parallel',
+    'fixtures',
+    'deadline',
+    'throwing-wrapper',
+    'substituted-wrapper',
+    'outer-substituted-wrapper',
+    'outer-throwing-wrapper',
+    'duplicate-wrapper',
+  ])('retains the separate %s boundary', async (mode) => {
+    const actual = await observeCallback(mode)
+    expect(actual.marked).not.toContain(true)
+    expect(actual.wrongAttempt).not.toContain(true)
+    if (mode === 'deadline') expect(actual.result.interrupted).toBe(true)
+  })
+
+  it('preserves successful callback microtask and teardown order', async () => {
+    const { createCollector } = await import(
+      'next/dist/experimental/testing/runner/collector'
+    )
+    const { runCollected } = await import(
+      'next/dist/experimental/testing/runner/lifecycle'
+    )
+    const traces: string[][] = []
+    for (const captureCoverageCompletion of [false, true]) {
+      const trace: string[] = []
+      const collector = createCollector('beforeeach-order')
+      collector.api.beforeEach(async () => {
+        trace.push('setup')
+        queueMicrotask(() => {
+          trace.push('microtask')
+          queueMicrotask(() => trace.push('nested microtask'))
+        })
+        await Promise.resolve()
+        trace.push('setup settled')
+      })
+      collector.api.test('body', () => trace.push('body'))
+      collector.api.afterEach(() => trace.push('teardown'))
+      await collector.settle()
+      const result = await runCollected(
+        collector.close(),
+        {
+          runId: 'beforeeach-order-' + captureCoverageCompletion,
+          signal: new AbortController().signal,
+          ...(captureCoverageCompletion
+            ? { captureCoverageCompletion: true }
+            : {}),
+        },
+        () => {}
+      )
+      expect(result.cases[0].status).toBe('passed')
+      traces.push(trace)
+    }
+    expect(traces[1]).toEqual(traces[0])
+    expect(traces[1]).toEqual([
+      'setup',
+      'microtask',
+      'setup settled',
+      'nested microtask',
+      'body',
+      'teardown',
+    ])
+  })
+
+  it.each([
+    'beforeeach-sync-no-snapshots',
+    'beforeeach-async-no-snapshots',
+    'beforeeach-sync-no-snapshots-report-false',
+    'beforeeach-async-no-snapshots-report-false',
+  ])(
+    'checks authored error headings, setup frames and report policy for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-istanbul-beforeeach-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'istanbul-beforeeach-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualSettledBeforeEachFailure: true,
+            authoredErrorHeadings: true,
+            authoredFileAndLine: true,
+            rawFrameEqualityQualified: false,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
+describe('settled Istanbul collection load completion', () => {
+  const owner = {
+    runId: 'load-run',
+    entryId: 'load-entry',
+    revision: 'load-revision',
+  }
+  const diagnostic = {
+    severity: 'error' as const,
+    phase: 'collection' as const,
+    name: 'Error',
+    message: 'actual settled loader failure',
+    stack: 'original authored load frame',
+  }
+  const failure: ResultEvent = {
+    version: 1,
+    timestamp: 0,
+    type: 'diagnostic',
+    ...owner,
+    coverageFileError: { index: 0 },
+    diagnostic,
+  }
+  async function tracker() {
+    const { createCoverageAttemptTracker } = await import(
+      'next/dist/experimental/testing/execution/coverage'
+    )
+    return createCoverageAttemptTracker({
+      deferSettledFileErrors: true,
+      fileErrorOwner: owner,
+    })
+  }
+  it('authorizes the actual no-case collection slot only after joined completion', async () => {
+    const actual = await tracker()
+    actual.observe(failure)
+    expect(actual.complete).toBe(false)
+    expect(() =>
+      actual.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    ).toThrow('Unrequested')
+    actual.observeCoverageCompletion(true)
+    actual.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    expect(actual.complete).toBe(true)
+    expect(() =>
+      actual.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    ).toThrow('repeated')
+  })
+  it('retains ordinary V8 collection failure vetoes', async () => {
+    const { createCoverageAttemptTracker } = await import(
+      'next/dist/experimental/testing/execution/coverage'
+    )
+    const actual = createCoverageAttemptTracker()
+    actual.observe(failure)
+    actual.observeCoverageCompletion(true)
+    expect(actual.complete).toBe(false)
+    expect(() =>
+      actual.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    ).toThrow('Unrequested')
+  })
+  it('rejects missing, duplicate, malformed, foreign and changed collection tuples', async () => {
+    for (const references of [
+      [],
+      [
+        { index: 0, diagnostic },
+        { index: 0, diagnostic },
+      ],
+      [{ index: -1, diagnostic }],
+      [{ index: 1, diagnostic }],
+      [{ index: 0, diagnostic, unknown: true }],
+      [{ index: 0, diagnostic: { ...diagnostic, message: 'other stage' } }],
+      [{ index: 0, diagnostic: { ...diagnostic, phase: 'runtime' } }],
+    ]) {
+      const actual = await tracker()
+      actual.observe(failure)
+      actual.observeCoverageCompletion(true)
+      expect(() => actual.authorizeSettledFileErrors(references)).toThrow()
+      expect(actual.complete).toBe(false)
+    }
+    for (const changed of [
+      { ...failure, runId: 'foreign' },
+      { ...failure, entryId: 'foreign' },
+      { ...failure, revision: 'foreign' },
+      { ...failure, diagnostic: { ...diagnostic, phase: 'runtime' as const } },
+      {
+        ...failure,
+        diagnostic: { ...diagnostic, unhandled: 'rejection' as const },
+      },
+    ]) {
+      const actual = await tracker()
+      actual.observe(changed)
+      actual.observeCoverageCompletion(true)
+      expect(() =>
+        actual.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+      ).toThrow()
+      expect(actual.complete).toBe(false)
+    }
+  })
+  it('keeps duplicate or late collection diagnostics incomplete', async () => {
+    const duplicate = await tracker()
+    duplicate.observe(failure)
+    duplicate.observe(failure)
+    duplicate.observeCoverageCompletion(true)
+    duplicate.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    expect(duplicate.complete).toBe(false)
+    const late = await tracker()
+    late.observeCoverageCompletion(true)
+    late.observe(failure)
+    expect(() =>
+      late.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    ).toThrow()
+    expect(late.complete).toBe(false)
+  })
+
+  it.each([
+    'import-sync',
+    'import-async',
+    'import-undefined',
+    'import-sync-report-false',
+    'import-async-report-false',
+  ])(
+    'checks no-case results, file messages and report policy for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-istanbul-collection-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'istanbul-collection-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualSettledCollectionFailure: true,
+            noCaseStartsInvented: true,
+            coverageCountersAndReportFiles: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
+it('reports original-source V8 coverage after a failed asynchronous assertion', async () => {
+  await withOutputDirectory(
+    'next-pure-node-v8-',
+    async (output) => {
+      const { stdout } = await runNodeHelper(
+        [
+          join(__dirname, 'pure-node-v8-preservation.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        { timeout: 250000, maxBuffer: 8 * 1024 * 1024 }
+      )
+      expect(JSON.parse(stdout)).toEqual({
+        failedAsyncAssertionReported: true,
+        followingCasePassed: true,
+        exactOriginalSourceCoverage: true,
+        sourceFrameLine: 4,
+        reports: 3,
+        ownersJoined: true,
+      })
+    },
+    { cleanup: 'always' }
+  )
+}, 260000)
+
+describe('settled Istanbul spec-module collection completion', () => {
+  const profiles = [
+    'mjs-no-case-sync',
+    'mjs-no-case-sync-report-false',
+    'js-no-case-sync',
+    'js-no-case-sync-report-false',
+    'mjs-partial-async',
+    'mjs-partial-async-report-false',
+    'js-partial-sync',
+    'js-partial-sync-report-false',
+  ]
+
+  it.each(profiles)(
+    'checks no-case spec outcomes, counters and failure policy for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-istanbul-spec-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'istanbul-spec-collection-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualSettledCollectionFailure: true,
+            noCaseStartsInvented: true,
+            coverageCountersAndReportFiles: true,
+            exactExistingSnapshots: true,
+            configUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
+describe('Istanbul spec-load cancellation and recovery', () => {
+  it('preserves reports and snapshots during cancellation, then checks recovery outcomes and counters', async () => {
+    const { execFileSync } = await import('node:child_process')
+    await withOutputDirectory(
+      'next-istanbul-spec-cancel-',
+      async (output) => {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-spec-collection-cancel.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 245000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualPendingSpecLoad: true,
+          actualSIGINTAfterSpecGate: true,
+          cancelExit: 130,
+          noBodyOnCancellation: true,
+          noCancelledPublication: true,
+          priorReportUnchanged: true,
+          priorSnapshotUnchanged: true,
+          recoveryExit: 0,
+          recoveryCoverageCountersAndReports: true,
+          exactExistingSnapshot: true,
+          allOwnersClosed: true,
+        })
+      },
+      { cleanup: 'always' }
+    )
+  }, 250000)
+})
+
+describe('actual Node V8 setup and serializer source roles', () => {
+  it.each([
+    'combined',
+    'combined-case-failure',
+    'serializer-explicit',
+    'setup-explicit',
+    'setup-imported',
+  ])(
+    'checks V8 coverage counters, reports and snapshots for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-v8-harness-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'v8-harness-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualPublicCLI: true,
+            actualJSONCoverageCounters: true,
+            coverageCountersAndReportFiles: true,
+            exactExistingSnapshots: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
+describe('actual V8 default-object initializer association', () => {
+  it('uses unique unchanged Native AST and map roles while retaining authored counters and strict refusals', async () => {
+    await withOutputDirectory(
+      'next-v8-default-object-',
+      async (output) => {
+        const stdout = runNodeHelperSync(
+          [
+            join(__dirname, 'v8-default-object-association.mjs'),
+            join(__dirname, '../../..'),
+            output,
+          ],
+          { encoding: 'utf8', stdio: 'pipe', timeout: 30000 }
+        )
+        expect(JSON.parse(stdout)).toEqual({
+          positive: 1,
+          controls: 10,
+          rawPreserved: true,
+        })
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          uniqueActualSemanticSubtree: true,
+          exactObjectClosingKeysAndReturns: true,
+          rawDataUnchanged: true,
+          actualInitializerExcludedOnly: true,
+          authoredHitsUnchanged: true,
+          existingStrictCountChecksRetained: true,
+        })
+      },
+      { cleanup: 'always' }
+    )
+  }, 35000)
+  it('checks V8 counters with the imported serializer and its lowered default object', async () => {
+    const { execFileSync } = await import('node:child_process')
+    await withOutputDirectory(
+      'next-v8-default-object-public-',
+      async (output) => {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'v8-harness-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            'serializer-imported',
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualJSONCoverageCounters: true,
+          coverageCountersAndReportFiles: true,
+          exactExistingSnapshots: true,
+        })
+      },
+      { cleanup: 'always' }
+    )
+  }, 130000)
+})
+
+describe('settled V8 collection-only completion', () => {
+  const owner = {
+    runId: 'v8-load-run',
+    entryId: 'v8-load-entry',
+    revision: 'v8-load-revision',
+  }
+  const diagnostic = {
+    severity: 'error' as const,
+    phase: 'collection' as const,
+    name: 'Error',
+    message: 'actual settled V8 loader failure',
+    stack: 'original actual loader frame',
+  }
+  const failure: ResultEvent = {
+    version: 1,
+    timestamp: 0,
+    type: 'diagnostic',
+    ...owner,
+    coverageFileError: { index: 0 },
+    diagnostic,
+  }
+  async function tracker() {
+    const { createCoverageAttemptTracker } = await import(
+      'next/dist/experimental/testing/execution/coverage'
+    )
+    return createCoverageAttemptTracker({
+      deferSettledFileErrors: 'collection-only',
+      fileErrorOwner: owner,
+    })
+  }
+  it('authorizes the exact collection slot once after actual completion while retaining the original diagnostic', async () => {
+    const actual = await tracker(),
+      before = structuredClone(failure)
+    actual.observe(failure)
+    expect(actual.complete).toBe(false)
+    expect(() =>
+      actual.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    ).toThrow('Unrequested')
+    actual.observeCoverageCompletion(true)
+    actual.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    expect(actual.complete).toBe(true)
+    expect(failure).toEqual(before)
+    expect(() =>
+      actual.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    ).toThrow('repeated')
+  })
+  it('retains cleanup, runtime, unhandled, foreign-owner, missing and duplicate vetoes', async () => {
+    for (const changed of [
+      { ...failure, diagnostic: { ...diagnostic, phase: 'cleanup' as const } },
+      { ...failure, diagnostic: { ...diagnostic, phase: 'runtime' as const } },
+      {
+        ...failure,
+        diagnostic: { ...diagnostic, unhandled: 'rejection' as const },
+      },
+      { ...failure, runId: 'other' },
+      { ...failure, entryId: 'other' },
+      { ...failure, revision: 'other' },
+      { ...failure, coverageFileError: undefined },
+    ]) {
+      const actual = await tracker()
+      actual.observe(changed)
+      actual.observeCoverageCompletion(true)
+      expect(() =>
+        actual.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+      ).toThrow()
+      expect(actual.complete).toBe(false)
+    }
+    for (const references of [
+      [],
+      [
+        { index: 0, diagnostic },
+        { index: 0, diagnostic },
+      ],
+      [{ index: 1, diagnostic }],
+      [{ index: 0, diagnostic: { ...diagnostic, message: 'other stage' } }],
+    ]) {
+      const actual = await tracker()
+      actual.observe(failure)
+      actual.observeCoverageCompletion(true)
+      expect(() => actual.authorizeSettledFileErrors(references)).toThrow()
+      expect(actual.complete).toBe(false)
+    }
+    const duplicate = await tracker()
+    duplicate.observe(failure)
+    duplicate.observe(failure)
+    duplicate.observeCoverageCompletion(true)
+    duplicate.authorizeSettledFileErrors([{ index: 0, diagnostic }])
+    expect(duplicate.complete).toBe(false)
+  })
+  it('admits only the explicit isolated development Node request and keeps V8 suite slots refused', async () => {
+    const { assertCoverageCompletion, captureNodeV8CollectionCoverage } =
+      await import('next/dist/experimental/testing/execution/coverage')
+    const artifact: CompiledTestArtifact = {
+      version: 2,
+      kind: 'node',
+      profile,
+      ...owner,
+      rootDir: '/actual-protocol-control',
+      entryPath: 'entry.js',
+      files: [],
+      diagnostics: [],
+      coverage: { version: 1, scripts: [], sources: {} },
+    }
+    const entry = {
+      id: owner.entryId,
+      file: '/actual-protocol-control/entry.test.mjs',
+      profile,
+    }
+    const request = {
+      entry,
+      coverage: { version: 1 as const, kind: 'node-line' as const },
+    }
+    expect(captureNodeV8CollectionCoverage(artifact, request)).toBe(true)
+    for (const file of ['entry.test.cjs', 'entry.test.ts', 'entry.test.jsx'])
+      expect(
+        captureNodeV8CollectionCoverage(artifact, {
+          ...request,
+          entry: { ...entry, file },
+        })
+      ).toBe(false)
+    expect(
+      captureNodeV8CollectionCoverage(artifact, {
+        ...request,
+        collectOnly: true,
+      })
+    ).toBe(false)
+    expect(
+      captureNodeV8CollectionCoverage(
+        { ...artifact, profile: { ...profile, mode: 'production' } },
+        request
+      )
+    ).toBe(false)
+    const completion = {
+      version: 1,
+      ...owner,
+      complete: true,
+      data: { version: 1, scripts: [] },
+      settledFileErrors: [{ index: 0, diagnostic }],
+    }
+    expect(() =>
+      assertCoverageCompletion(completion, artifact, owner.runId)
+    ).not.toThrow()
+    expect(() =>
+      assertCoverageCompletion(
+        { ...completion, settledSuiteErrors: [] },
+        artifact,
+        owner.runId
+      )
+    ).toThrow('Unrequested')
+    expect(() =>
+      assertCoverageCompletion(
+        completion,
+        { ...artifact, profile: { ...profile, mode: 'production' } },
+        owner.runId
+      )
+    ).toThrow('Unrequested')
+  })
+  const profiles = [
+    'setup-import-sync',
+    'setup-import-async',
+    'setup-import-undefined',
+    'setup-import-sync-report-false',
+    'setup-import-async-report-false',
+    'spec-mjs-no-case-sync',
+    'spec-mjs-no-case-sync-report-false',
+    'spec-js-no-case-sync',
+    'spec-js-no-case-sync-report-false',
+    'spec-mjs-partial-async',
+    'spec-mjs-partial-async-report-false',
+    'spec-js-partial-sync',
+    'spec-js-partial-sync-report-false',
+  ]
+  it.each(profiles)(
+    'publishes exact genuine counters, report policy and no-case file fields for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-v8-load-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'v8-collection-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualSettledCollectionFailure: true,
+            noCaseStartsInvented: true,
+            coverageCountersAndReportFiles: true,
+            exactExistingSnapshots: true,
+            configUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
+describe('actual failed-collection snapshot statistics', () => {
+  it.each([
+    'failed-setup-disabled',
+    'failed-setup-v8',
+    'failed-setup-istanbul',
+    'failed-partial-spec-disabled',
+    'failed-partial-spec-v8',
+    'failed-partial-spec-istanbul',
+    'beforeEach-failure-disabled',
+    'body-failure-disabled',
+    'afterAll-failure-disabled',
+  ])(
+    'preserves snapshot accounting and failed case selection for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-collection-statistics-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'collection-snapshot-statistics.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            snapshotCountsAndUncheckedKeysExact: true,
+            selectedCaseAndFileStatesExact: true,
+            coverageMapsAndCountersExact: true,
+            originalSourceConfigSnapshotBytesExact: true,
+            allOwnersJoined: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+
+  it.each([
+    'failed-default',
+    'failed-truthy',
+    'failed-optin',
+    'failed-finalize-error',
+    'successful-optin',
+  ])(
+    'preserves actual finalization and snapshot policies for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-collection-finalization-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'collection-snapshot-side-effects.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+            ],
+            { env: process.env, stdio: 'pipe', timeout: 35000 }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualPrimitiveFinalizerCalledOnce: true,
+            actualPrimitiveSummaryRetained: true,
+            privateReportingOptInOnly: true,
+            snapshotEligibilityUnchanged: true,
+            priorSnapshotBytesExact: true,
+            rawAuthoredErrorUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    40000
+  )
+})
+
+describe('owned development Node V8 SIGINT exit', () => {
+  it.each(['mjs', 'js'])(
+    'preserves pending %s cancellation and recovery outcomes',
+    async (extension) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-v8-signal-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'v8-collection-cancel.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              extension,
+              '--source',
+            ],
+            { env: process.env, stdio: 'pipe', timeout: 125000 }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualSIGINTAfterSpecGate: true,
+            cancelExit: 130,
+            noCancelledPublication: true,
+            completeRecoveryMaps: true,
+            allOwnersClosed: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+  it.each([
+    'first',
+    'second-delivery',
+    'same-message',
+    'aggregate',
+    'preexisting-reporter',
+    'cleanup',
+    'lock',
+    'disabled',
+    'istanbul',
+  ])(
+    'preserves actual CLI reason and cleanup ownership for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-v8-signal-owner-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'v8-signal-ownership.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+            ],
+            { env: process.env, stdio: 'pipe', timeout: 35000 }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualCLIControllerAndFinally: true,
+            exactReasonIdentity: true,
+            independentFailuresPropagate: true,
+            listenersRemoved: true,
+            actualConfigAndLockJoined: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    40000
+  )
+})
+
+describe('settled beforeEach Array carrier coverage', () => {
+  const profiles = [
+    'beforeeach-array-sync-no-snapshots',
+    'beforeeach-array-sync-no-snapshots-report-false',
+    'beforeeach-array-async-no-snapshots',
+    'beforeeach-array-async-no-snapshots-report-false',
+  ]
+  it.each(profiles)(
+    'checks coverage counters and failure report policy for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-beforeeach-array-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'istanbul-beforeeach-array-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            { env: process.env, stdio: 'pipe', timeout: 125000 }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({ coverageCountersAndReportFiles: true })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+
+  it.each([
+    'sync',
+    'async',
+    'other-stage',
+    'borrowed',
+    'substituted',
+    'fixture',
+    'parallel',
+    'no-capture',
+  ])(
+    'preserves exact actual carrier and authored read ownership for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-beforeeach-array-carriers-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'beforeeach-array-carriers.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+            ],
+            { env: process.env, stdio: 'pipe', timeout: 35000 }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualAttemptCarrierOwnership: true,
+            noBodyInvocations: true,
+            exactlyOneAuthoredMapAndMemberReadPerInvocation: true,
+            rawErrorsUnchanged: true,
+            ...(name === 'substituted'
+              ? { privateWrapperDomain: true, snapshotPolicyTouched: false }
+              : { snapshotVetoUnchanged: true }),
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    40000
+  )
+})
+
+describe('actual settled V8 declaration collection occurrences', () => {
+  it.each([
+    'collector-basic',
+    'collector-pending',
+    'collector-undefined',
+    'collector-multiple',
+    'collector-repeat',
+    'collector-raw',
+    'collector-omitted',
+    'collector-nontrue',
+    'file-basic',
+    'file-omitted',
+    'file-assertion',
+  ])(
+    'preserves exact stage and requested-only ownership for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-v8-declaration-carrier-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'v8-declaration-carriers.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 35000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            mode: name,
+            actualDistinctOccurrences: true,
+            noInventedBodyObservation: true,
+            rawErrorFieldsUnchanged: true,
+            originalQueuesAndDisposalJoined: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    40000
+  )
+  it.each([
+    'setup-import-mixed-settle',
+    'setup-import-mixed-settle-report-false',
+  ])(
+    'publishes settled coverage counters with the report policy for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-v8-declaration-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'v8-declaration-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualSettledDeclarationFailure: true,
+            actualJSONCoverageCounters: true,
+            noCaseStartsInvented: true,
+            coverageCountersAndReportFiles: true,
+            exactExistingSnapshots: true,
+            allOwnersJoined: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
 describe('actual private mock restoration primitive', () => {
   it.each(['node', 'browser'])(
     'preserves exact restoration calls and inactive public shape for %s',
@@ -15453,6 +19301,172 @@ describe('actual one-shot V8 restoration owner', () => {
   })
 })
 
+describe('actual one-shot V8 load and restoration publication', () => {
+  it.each([
+    'setup-import-mixed-disposal',
+    'setup-import-mixed-disposal-report-false',
+  ])(
+    'checks settled counters and no-case outcomes: %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-v8-restoration-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'v8-restoration-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualPublicCLI: true,
+            actualSettledCollectionFailure: true,
+            actualSettledRestorationFailure: true,
+            actualJSONCoverageCounters: true,
+            noCaseStartsInvented: true,
+            coverageCountersAndReportFiles: true,
+            exactExistingSnapshots: true,
+            allOwnersJoined: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
+describe('actual readonly snapshot completion after settled beforeEach', () => {
+  it.each([
+    'plain',
+    'skipped-selection',
+    'async',
+    'omitted',
+    'body',
+    'afterAll',
+    'mixed-afterEach',
+    'finish-undefined',
+    'finish-same-error',
+    'cleanup-error',
+    'cleanup-same-obsolete',
+    'successful-requested',
+    'successful-omitted',
+    'pending-finish',
+    'pending-undefined',
+    'pending-abort',
+    'finalization-same-error',
+  ])(
+    'retains exact root and physical finish ownership for %s',
+    async (mode) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-readonly-snapshot-finish-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'read-only-snapshot-finish.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+            ],
+            {
+              env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+              stdio: 'pipe',
+              timeout: 35000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+          ).toMatchObject({
+            actualFile: true,
+            actualSnapshotFinishOnce: true,
+            snapshotBytesUnchanged: true,
+            rawErrorFieldsUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    40000
+  )
+
+  it('excludes the deferred snapshot preparation role from early finish', async () => {
+    const { execFileSync } = await import('node:child_process')
+    await withOutputDirectory(
+      'next-readonly-snapshot-deferred-',
+      async (output) => {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'read-only-snapshot-finish.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            'deferred-fence',
+          ],
+          {
+            env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+            stdio: 'pipe',
+            timeout: 35000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          syntheticDeferredExcluded: true,
+          newMethodFinishCalls: 0,
+          originalFinishCleanupInvoked: true,
+        })
+      },
+      { cleanup: 'always' }
+    )
+  }, 40000)
+
+  it('checks the obsolete-snapshot message and Istanbul coverage counters', async () => {
+    const { execFileSync } = await import('node:child_process')
+    await withOutputDirectory(
+      'next-readonly-snapshot-public-',
+      async (output) => {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-beforeeach-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            'beforeeach-async',
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualSettledBeforeEachFailure: true,
+          authoredErrorHeadings: true,
+          authoredFileAndLine: true,
+          rawFrameEqualityQualified: false,
+        })
+      },
+      { cleanup: 'always' }
+    )
+  }, 130000)
+})
+
 it('keeps readonly snapshot bookkeeping unobservable to ordinary Set constructors', async () => {
   const { execFileSync } = await import('node:child_process')
   const output = await mkdtemp(join(tmpdir(), 'next-readonly-snapshot-sets-'))
@@ -15491,6 +19505,315 @@ it('keeps readonly snapshot bookkeeping unobservable to ordinary Set constructor
     await rm(output, { recursive: true, force: true })
   }
 }, 80000)
+
+describe('actual readonly snapshot completion after settled afterAll', () => {
+  it.each([
+    'sync',
+    'async',
+    'skip-first',
+    'skip-second',
+    'omitted',
+    'empty',
+    'beforeAll',
+    'body-same-error',
+    'afterEach-same-error',
+    'cleanup-same-error',
+    'finish-undefined',
+    'pending-abort',
+    'timeout',
+    'abort-before-run',
+  ])(
+    'retains actual afterAll/root/physical ownership for %s',
+    async (mode) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-readonly-afterall-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'read-only-afterall-snapshot.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+            ],
+            {
+              env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+              stdio: 'pipe',
+              timeout: 35000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+          ).toMatchObject({
+            actualFile: true,
+            actualSnapshotFinishOnce: true,
+            rootEvents: 1,
+            snapshotBytesUnchanged: true,
+            rawErrorFieldsUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    40000
+  )
+
+  it.each([
+    'istanbul-afterAll-sync-report-true',
+    'istanbul-afterAll-sync-report-false',
+    'istanbul-afterAll-async-report-true',
+    'istanbul-afterAll-async-report-false',
+    'istanbul-afterAll-skip-first-report-true',
+    'istanbul-afterAll-skip-first-report-false',
+    'istanbul-afterAll-skip-second-report-true',
+    'istanbul-afterAll-skip-second-report-false',
+  ])(
+    'matches genuine whole reports and ordered errors for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-readonly-afterall-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'readonly-afterall-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualSettledAfterAll: true,
+            caseOutcomesAndSnapshotSummary: true,
+            selectedCoverageHitCounts: true,
+            snapshotBytesUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
+describe('actual readonly snapshot completion for passed files', () => {
+  it.each([
+    'obsolete',
+    'none',
+    'none-omitted',
+    'skip-first',
+    'filtered',
+    'focused',
+    'omitted',
+    'empty',
+    'all-skipped',
+    'body',
+    'beforeAll',
+    'afterEach',
+    'cleanup-same-obsolete',
+    'finish-undefined',
+    'pending-finish',
+    'pending-abort',
+    'abort-before-run',
+  ])(
+    'retains actual SDK/root/physical ownership for %s',
+    async (mode) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-readonly-passing-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'read-only-passing-snapshot.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+            ],
+            {
+              env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+              stdio: 'pipe',
+              timeout: 35000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+          ).toMatchObject({
+            actualFile: true,
+            actualSnapshotFinishOnce: true,
+            rootEvents: 1,
+            snapshotBytesUnchanged: true,
+            rawErrorFieldsUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    40000
+  )
+
+  it.each([
+    'istanbul-passing-plain-original-report-true',
+    'istanbul-passing-plain-original-report-false',
+    'istanbul-passing-plain-removed-formatted-report-true',
+    'istanbul-passing-filtered-removed-formatted-report-true',
+    'istanbul-passing-focused-removed-formatted-report-true',
+    'istanbul-passing-skip-first-removed-formatted-report-true',
+    'istanbul-passing-no-obsolete-report-true',
+  ])(
+    'checks snapshot accounting, root errors and coverage hit counts for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-readonly-passing-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'readonly-passing-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualOrdinaryPassedCase: true,
+            actualOrderedRootErrors: true,
+            caseOutcomesAndSnapshotSummary: true,
+            selectedCoverageHitCounts: true,
+            snapshotBytesUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
+describe('actual one-shot V8 readonly snapshot completion for passed files', () => {
+  it.each([
+    'obsolete',
+    'none',
+    'none-omitted',
+    'skip-first',
+    'filtered',
+    'focused',
+    'omitted',
+    'empty',
+    'all-skipped',
+    'body',
+    'beforeAll',
+    'afterEach',
+    'cleanup-same-obsolete',
+    'finish-undefined',
+    'pending-finish',
+    'pending-abort',
+    'abort-before-run',
+    'nontrue',
+    'cleanup-undefined',
+    'pending-undefined',
+  ])(
+    'retains actual SDK/root/physical ownership for %s',
+    async (mode) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-readonly-passing-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'read-only-v8-passing-snapshot.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+            ],
+            {
+              env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+              stdio: 'pipe',
+              timeout: 35000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+          ).toMatchObject({
+            actualFile: true,
+            actualSnapshotFinishOnce: true,
+            rootEvents: 1,
+            snapshotBytesUnchanged: true,
+            rawErrorFieldsUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    40000
+  )
+
+  it.each([
+    'v8-passing-plain-original-report-true',
+    'v8-passing-plain-original-report-false',
+    'v8-passing-plain-removed-formatted-report-true',
+    'v8-passing-filtered-removed-formatted-report-true',
+    'v8-passing-focused-removed-formatted-report-true',
+    'v8-passing-skip-first-removed-formatted-report-true',
+    'v8-passing-no-obsolete-report-true',
+  ])(
+    'checks snapshot accounting, root errors and coverage hit counts for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-readonly-passing-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'readonly-v8-passing-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualOrdinaryPassedCase: true,
+            actualOrderedRootErrors: true,
+            caseOutcomesAndSnapshotSummary: true,
+            selectedCoverageHitCounts: true,
+            snapshotBytesUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
 
 describe('actual one-shot V8 readonly completion owner and suite slots', () => {
   it('requires the exact positive owner, readonly mode and eligible artifact', async () => {
@@ -15652,6 +19975,712 @@ describe('actual one-shot V8 readonly completion owner and suite slots', () => {
   })
 })
 
+describe('actual readonly snapshot completion for literal public empty files', () => {
+  it.each([
+    'v8:obsolete',
+    'v8:none',
+    'v8:omitted-public',
+    'v8:nontrue-public',
+    'v8:false-public',
+    'v8:omitted-runtime',
+    'v8:pass-false',
+    'v8:nested-skip',
+    'v8:case-skip',
+    'v8:beforeAll',
+    'v8:aroundAll',
+    'v8:finish-undefined',
+    'v8:pending-finish',
+    'v8:pending-undefined',
+    'v8:pending-abort',
+    'v8:cleanup-same-error',
+    'v8:cleanup-undefined',
+    'v8:abort-before-run',
+    'istanbul:obsolete',
+    'istanbul:none',
+    'istanbul:omitted-public',
+    'istanbul:nontrue-public',
+    'istanbul:false-public',
+    'istanbul:omitted-runtime',
+    'istanbul:pass-false',
+    'istanbul:nested-skip',
+    'istanbul:case-skip',
+    'istanbul:beforeAll',
+    'istanbul:aroundAll',
+    'istanbul:finish-undefined',
+    'istanbul:pending-finish',
+    'istanbul:pending-undefined',
+    'istanbul:pending-abort',
+    'istanbul:cleanup-same-error',
+    'istanbul:cleanup-undefined',
+    'istanbul:abort-before-run',
+  ])(
+    'retains actual empty/root/physical ownership for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-readonly-empty-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'read-only-empty-snapshot.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+            ],
+            {
+              env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+              stdio: 'pipe',
+              timeout: 35000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+          ).toMatchObject({
+            actualRootEvents: 1,
+            actualBodies: 0,
+            actualSDKFinishOnce: true,
+            freshCarrierOnly: true,
+            allPhysicalVetoesRetained: true,
+            snapshotBytesUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    40000
+  )
+  it.each([
+    'istanbul-empty-empty-import-no-obsolete-report-true',
+    'istanbul-empty-empty-import-original-report-false',
+    'istanbul-empty-empty-import-original-report-true',
+    'istanbul-empty-empty-import-removed-report-true',
+    'v8-empty-empty-import-no-obsolete-report-true',
+    'v8-empty-empty-import-original-report-false',
+    'v8-empty-empty-import-original-report-true',
+    'v8-empty-empty-import-removed-report-true',
+  ])(
+    'matches unchanged genuine0case reports and root errors for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-readonly-empty-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'readonly-empty-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              env: {
+                ...process.env,
+                CI: '1',
+                TURBO_TASKS_AVAILABLE_PARALLELISM: '4',
+              },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualZeroCases: true,
+            actualOrderedRootErrors: true,
+            caseOutcomesAndSnapshotSummary: true,
+            selectedCoverageHitCounts: true,
+            snapshotBytesUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
+describe('actual serial beforeAll Array coverage carriers', () => {
+  it.each([
+    'sync',
+    'async',
+    'repeated',
+    'primitive-sync',
+    'primitive-async',
+    'no-capture',
+    'parallel',
+    'fixture',
+    'pending',
+    'abort-pending',
+    'disposal-same',
+    'finalizer-same',
+    'scope-dispose-same',
+    'borrowed',
+    'mixed-borrowed',
+    'duplicate-fresh',
+    'missing-map',
+    'deadline',
+    'late',
+  ])(
+    'keeps exact current capture and physical completion for %s',
+    async (mode) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-beforeall-array-carriers-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'beforeall-array-carriers.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+            ],
+            {
+              env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+              stdio: 'pipe',
+              timeout: 35000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualCallbackCarrierOwnership: true,
+            noBodyInvocations: true,
+            noInventedStarts: true,
+            actualOperationJoins: mode !== 'deadline',
+            otherStageAndBorrowedVeto: true,
+            originalArrayReadsPreserved: true,
+            rawErrorsUnchanged: true,
+            snapshotPolicyTouched: false,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    40000
+  )
+  it.each([
+    'istanbul-beforeall-array-async-report-false',
+    'istanbul-beforeall-array-async-report-true',
+    'istanbul-beforeall-array-repeated-report-true',
+    'istanbul-beforeall-array-sync-report-false',
+    'istanbul-beforeall-array-sync-report-true',
+    'istanbul-beforeall-primitive-async-report-true',
+    'istanbul-beforeall-primitive-sync-report-true',
+  ])(
+    'checks beforeAll errors, skipped cases and exact coverage maps for %s',
+    async (profile) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-beforeall-array-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'istanbul-beforeall-array-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              env: {
+                ...process.env,
+                CI: '1',
+                TURBO_TASKS_AVAILABLE_PARALLELISM: '4',
+              },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualBeforeAllArray: true,
+            actualOrderedRootErrors: true,
+            caseOutcomesAndSnapshotSummary: true,
+            exactCoverageMaps: true,
+            snapshotBytesUnchanged: true,
+            lifecycleOrder: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
+describe('actual skipped-file snapshot preparation', () => {
+  it.each(
+    ['v8', 'istanbul'].flatMap((provider) =>
+      [
+        'all-skipped',
+        'selected',
+        'literal-empty',
+        'empty-no-pass',
+        'omitted',
+        'nontrue',
+        'no-mode',
+        'setup-error',
+        'setup-undefined',
+        'read-error',
+        'pending',
+        'abort-pending',
+        'finish-undefined',
+        'cleanup-undefined',
+      ].map((mode) => `${provider}:${mode}`)
+    )
+  )(
+    'keeps actual SDK selection and cleanup ownership for %s',
+    async (profile) => {
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-skipped-preparation-'))
+      try {
+        await runNodeHelper(
+          [
+            join(__dirname, 'skipped-snapshot-preparation.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+          ],
+          { encoding: 'utf8', timeout: 40000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    50000
+  )
+
+  it.each(['v8-all-skipped-orphan', 'istanbul-all-skipped-orphan'])(
+    'matches the complete genuine skipped report and counters for %s',
+    async (profile) => {
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-skipped-snapshot-'))
+      try {
+        await runNodeHelper(
+          [
+            join(__dirname, 'readonly-skipped-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 130000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    140000
+  )
+})
+
+describe('actual regex-selected snapshot preparation', () => {
+  it.each([
+    'two-arg-order',
+    'zero',
+    'one',
+    'literal-empty',
+    'missing',
+    'foreign',
+    'invalid',
+    'throw-undefined',
+  ])(
+    'keeps actual task identity and finalized selection for %s',
+    async (mode) => {
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-task-selection-'))
+      try {
+        await runNodeHelper(
+          [
+            join(__dirname, 'task-mode-selection.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            mode,
+          ],
+          { encoding: 'utf8', timeout: 40000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    50000
+  )
+  it.each(
+    ['v8', 'istanbul'].flatMap((provider) =>
+      [
+        'all-skipped',
+        'selected',
+        'literal-empty',
+        'empty-no-pass',
+        'setup-error',
+        'setup-undefined',
+        'read-error',
+        'pending',
+        'abort-pending',
+        'finish-undefined',
+        'cleanup-undefined',
+      ].map((mode) => `${provider}:${mode}`)
+    )
+  )(
+    'keeps actual name-filter SDK preparation and physical vetoes for %s',
+    async (profile) => {
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-namefilter-preparation-'))
+      try {
+        await runNodeHelper(
+          [
+            join(__dirname, 'namefilter-snapshot-preparation.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+          ],
+          { encoding: 'utf8', timeout: 40000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    50000
+  )
+
+  it.each([
+    'v8-namefilter-0',
+    'v8-namefilter-1',
+    'istanbul-namefilter-0',
+    'istanbul-namefilter-1',
+  ])(
+    'matches the complete genuine selected report and counters for %s',
+    async (profile) => {
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-namefilter-snapshot-'))
+      try {
+        await runNodeHelper(
+          [
+            join(__dirname, 'readonly-namefilter-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 130000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    140000
+  )
+})
+
+describe('actual name-filter untouched excluded descendants', () => {
+  it.each(
+    ['v8', 'istanbul'].flatMap((provider) =>
+      [
+        'skip-todo-body',
+        'todo-skip-body',
+        'skip-todo-empty',
+        'todo-skip-empty',
+      ].map((mode) => `${provider}-${mode}`)
+    )
+  )(
+    'checks excluded descendant states and coverage hit counts for %s',
+    async (profile) => {
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-namefilter-excluded-'))
+      try {
+        await runNodeHelper(
+          [
+            join(__dirname, 'namefilter-excluded-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 130000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    140000
+  )
+})
+
+describe('actual compact conditional operand mapping', () => {
+  it.each([
+    'v8-skip-todo-body',
+    'v8-todo-skip-body',
+    'v8-skip-todo-empty',
+    'v8-todo-skip-empty',
+    'v8-choose-true',
+    'v8-choose-false',
+    'v8-choose-both',
+  ])(
+    'executes selected compact-source cases with exact counters for %s',
+    async (profile) => {
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-compact-conditional-'))
+      try {
+        await runNodeHelper(
+          [
+            join(__dirname, 'conditional-literal-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 130000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    140000
+  )
+  it('binds only the exact actual literal roles and preserves all raw counters and inputs', async () => {
+    const { mkdtempSync, rmSync } = require('node:fs')
+    const { tmpdir } = require('node:os')
+    const output = mkdtempSync(join(tmpdir(), 'next-compact-association-'))
+    try {
+      await runNodeHelper(
+        [
+          join(__dirname, 'conditional-literal-association.mjs'),
+          join(__dirname, '../../..'),
+          output,
+        ],
+        { encoding: 'utf8', timeout: 40000, maxBuffer: 4 * 1024 * 1024 }
+      )
+    } finally {
+      rmSync(output, { recursive: true, force: true })
+    }
+  }, 50000)
+})
+
+describe('actual readonly focused task selection', () => {
+  it.each(
+    readCoverageFixture(
+      require.resolve(
+        './fixtures/istanbul-provider/readonly-focused-pristine.json'
+      )
+    ).rows.map(({ name }: { name: string }) => name)
+  )(
+    'checks focused selection, snapshot accounting and coverage hit counts for %s',
+    async (profile) => {
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-focused-report-'))
+      try {
+        await runNodeHelper(
+          [
+            join(__dirname, 'focused-snapshot-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 130000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    140000
+  )
+  it.each(
+    ['v8', 'istanbul'].flatMap((provider) =>
+      [
+        'all-skipped',
+        'selected',
+        'literal-empty',
+        'empty-no-pass',
+        'setup-error',
+        'setup-undefined',
+        'read-error',
+        'pending',
+        'abort-pending',
+        'finish-undefined',
+        'cleanup-undefined',
+      ].map((mode) => `${provider}:${mode}`)
+    )
+  )(
+    'preserves real focused SDK lifetime and physical vetoes for %s',
+    async (profile) => {
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-focused-sdk-'))
+      try {
+        await runNodeHelper(
+          [
+            join(__dirname, 'focused-snapshot-preparation.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+          ],
+          { encoding: 'utf8', timeout: 40000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    50000
+  )
+  it.each([
+    'omitted',
+    'false',
+    'one',
+    'allowed',
+    'forbidden',
+    'empty',
+    'under-skip',
+    'suite-under-todo',
+    'file-inactive-injected',
+    'file-no-public',
+    'file-no-prepare',
+    'file-no-finalize',
+    'file-not-readonly',
+  ])(
+    'preserves actual private mode ownership and unstarted tasks for %s',
+    async (mode) => {
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-focused-owner-'))
+      try {
+        await runNodeHelper(
+          [
+            join(__dirname, 'focused-mode-owner.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            mode,
+          ],
+          { encoding: 'utf8', timeout: 40000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    50000
+  )
+})
+
+describe('actual excluded only declaration options', () => {
+  it('uses only actual no-result nodes and validated excluded suite parents', async () => {
+    const { mkdtempSync, rmSync } = require('node:fs')
+    const { tmpdir } = require('node:os')
+    const output = mkdtempSync(join(tmpdir(), 'next-focused-live-options-'))
+    try {
+      await runNodeHelper(
+        [
+          join(__dirname, 'focused-live-options.mjs'),
+          join(__dirname, '../../..'),
+          output,
+        ],
+        { encoding: 'utf8', timeout: 40000, maxBuffer: 4 * 1024 * 1024 }
+      )
+    } finally {
+      rmSync(output, { recursive: true, force: true })
+    }
+  }, 50000)
+  it.each(['focused-simple-active', 'focused-inactive-excluded-only'])(
+    'preserves inactive focused declarations, outcomes and snapshot counts for %s',
+    async (profile) => {
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-focused-inactive-'))
+      try {
+        await runNodeHelper(
+          [
+            join(__dirname, 'focused-inactive-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+          ],
+          { encoding: 'utf8', timeout: 130000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    140000
+  )
+})
+
+describe('actual inactive focused task selection', () => {
+  it.each(
+    readCoverageFixture(
+      require.resolve(
+        './fixtures/istanbul-provider/inactive-focused-pristine.json'
+      )
+    ).rows.map(({ name }: { name: string }) => name)
+  )(
+    'checks inactive focus modes, task states and case outcomes for %s',
+    async (profile) => {
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(
+        join(tmpdir(), 'next-inactive-focused-report-')
+      )
+      try {
+        await runNodeHelper(
+          [
+            join(__dirname, 'inactive-focused-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 130000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    140000
+  )
+})
+
+describe('actual Istanbul typed test entries with JavaScript source coverage', () => {
+  it.each(
+    readCoverageFixture(
+      require.resolve('./fixtures/istanbul-provider/typed-entry-pristine.json')
+    ).rows.map(({ name }: { name: string }) => name)
+  )(
+    'runs typed entries with the selected JavaScript coverage hits for %s',
+    async (profile) => {
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-istanbul-typed-entry-'))
+      try {
+        await runNodeHelper(
+          [
+            join(__dirname, 'typed-entry-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 130000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    140000
+  )
+})
+
 it('retains actual Istanbul typed-entry metadata and unsupported-source boundaries', async () => {
   const { mkdtempSync, rmSync } = require('node:fs')
   const { tmpdir } = require('node:os')
@@ -15767,6 +20796,111 @@ describe('Istanbul TypeScript function body map association', () => {
       }
     },
     50000
+  )
+})
+
+describe('Istanbul typed subject compiler lowering', () => {
+  const profiles = ['ts', 'mts'].flatMap((extension) =>
+    ['explicit', 'imported'].flatMap((selection) =>
+      ['true', 'false', 'both', 'imported-zero', 'unimported-zero'].map(
+        (hit) => `mjs-${extension}-${selection}-${hit}`
+      )
+    )
+  )
+  it.each(profiles)(
+    'collects the selected typed subject and branch hits for %s',
+    async (profile) => {
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-istanbul-typed-subject-'))
+      try {
+        await runNodeHelper(
+          [
+            join(__dirname, 'typed-source-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 140000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    150000
+  )
+  it('keeps actual typed compiler declarations, runtime counters and config publication separate', async () => {
+    const { mkdtempSync, rmSync } = require('node:fs')
+    const { tmpdir } = require('node:os')
+    const output = mkdtempSync(join(tmpdir(), 'next-istanbul-typed-owners-'))
+    try {
+      await runNodeHelper(
+        [
+          join(__dirname, 'typed-source-declarations.cjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        { encoding: 'utf8', timeout: 120000, maxBuffer: 4 * 1024 * 1024 }
+      )
+    } finally {
+      rmSync(output, { recursive: true, force: true })
+    }
+  }, 130000)
+})
+
+describe('Istanbul actual JSX and TSX source lowering', () => {
+  it.each([
+    'unchanged',
+    'missing-branch',
+    'duplicate-branch',
+    'different-branch-location',
+    'changed-consequent-range',
+    'counter-cardinality',
+    'conflicting-closing-role',
+    'changed-child-value',
+  ])(
+    'retains exact report-only JSX child token ownership for %s',
+    async (mutation) => {
+      await runNodeHelper(
+        [
+          join(__dirname, 'istanbul-jsx-child-token.mjs'),
+          join(__dirname, '../../..'),
+          mutation,
+        ],
+        { encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024 }
+      )
+    },
+    40000
+  )
+
+  it.each(
+    readCoverageFixture(
+      require.resolve('./fixtures/istanbul-provider/jsx-source-pristine.json')
+    ).rows.map(({ name }: { name: string }) => name)
+  )(
+    'collects the selected JSX subject and branch hits for %s',
+    async (profile) => {
+      const { mkdtempSync, rmSync } = require('node:fs')
+      const { tmpdir } = require('node:os')
+      const output = mkdtempSync(join(tmpdir(), 'next-istanbul-jsx-source-'))
+      try {
+        await runNodeHelper(
+          [
+            join(__dirname, 'jsx-source-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            profile,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 140000, maxBuffer: 4 * 1024 * 1024 }
+        )
+      } finally {
+        rmSync(output, { recursive: true, force: true })
+      }
+    },
+    150000
   )
 })
 
@@ -15956,6 +21090,79 @@ describe('production ordinary JS/MJS Istanbul admission', () => {
         await rm(root, { recursive: true, force: true })
       }
     }
+  )
+})
+
+describe('production ordinary JS/MJS Istanbul source coverage', () => {
+  const models = readCoverageFixture(
+    require.resolve('./fixtures/istanbul-provider/production-js-pristine.json')
+  )
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'runs production cases and collects only selected source hits for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-production-istanbul-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'production-istanbul-js-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
+describe('production ordinary Istanbul no-evaluation and cancellation', () => {
+  it.each([
+    [
+      'unimported poison source',
+      'production-istanbul-js-reports.mjs',
+      'ordinary-js-unimported-poison-production',
+      '--poison',
+    ],
+    ['actual SIGINT and recovery', 'production-istanbul-cancel-recovery.mjs'],
+  ])(
+    'preserves coverage publication and process cleanup for %s',
+    async (_name, helper, ...args) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-production-istanbul-boundary-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, helper),
+              join(__dirname, '../../..'),
+              output,
+              ...args,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 245000,
+            }
+          )
+        },
+        { cleanup: 'always' }
+      )
+    },
+    250000
   )
 })
 
@@ -17175,6 +22382,379 @@ describe('native-qualified Browser Promise executor arrow coverage', () => {
   })
 })
 
+describe('production intrinsic JSX/TSX Istanbul source coverage', () => {
+  const models = readCoverageFixture(
+    require.resolve('./fixtures/istanbul-provider/production-jsx-pristine.json')
+  )
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'runs production cases and collects only selected source hits for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-production-intrinsic-istanbul-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'production-istanbul-jsx-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+
+  it('preserves actual spec-load SIGINT, no publication and recovery for production intrinsic JSX', async () => {
+    const { execFileSync } = await import('node:child_process')
+    await withOutputDirectory(
+      'next-production-intrinsic-istanbul-cancel-',
+      async (output) => {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'production-istanbul-jsx-cancel-recovery.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 245000,
+          }
+        )
+      },
+      { cleanup: 'always' }
+    )
+  }, 250000)
+})
+
+describe('production ordinary TypeScript/MTS Istanbul source coverage', () => {
+  const models = readCoverageFixture(
+    require.resolve(
+      './fixtures/istanbul-provider/production-typescript-pristine.json'
+    )
+  )
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'runs production cases and collects only selected source hits for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-production-typescript-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'production-istanbul-typescript-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+  it('preserves actual spec-load SIGINT, no publication and recovery for production TypeScript', async () => {
+    const { execFileSync } = await import('node:child_process')
+    await withOutputDirectory(
+      'next-production-typescript-cancel-',
+      async (output) => {
+        execFileSync(
+          process.execPath,
+          [
+            join(
+              __dirname,
+              'production-istanbul-typescript-cancel-recovery.mjs'
+            ),
+            join(__dirname, '../../..'),
+            output,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 245000,
+          }
+        )
+      },
+      { cleanup: 'always' }
+    )
+  }, 250000)
+})
+
+describe('configured coverage text skipEmpty and maxCols', () => {
+  it.each(['v8', 'istanbul'] as const)(
+    'preserves exact configured %s options without mutating authored input',
+    async (provider) => {
+      const { parseProjectStandardCoverage, resolveProjectStandardCoverage } =
+        await import('next/dist/experimental/testing/coverage/options')
+      for (const options of [
+        { skipEmpty: true, skipFull: false, maxCols: 65 },
+        { skipEmpty: false, maxCols: 0 },
+        { maxCols: -1 },
+        { maxCols: 80.5 },
+        { skipFull: true, skipEmpty: true, maxCols: 120 },
+      ]) {
+        const authored = {
+          enabled: true,
+          provider,
+          reporter: [['text', options], 'json'],
+        }
+        const before = structuredClone(authored)
+        const configured = parseProjectStandardCoverage(authored)!
+        expect(configured.options.reporterOptions?.text).toMatchObject(options)
+        const resolved = resolveProjectStandardCoverage(
+          [{ standardCoverage: configured }],
+          {},
+          undefined
+        )
+        expect(resolved.options?.reporterOptions?.text).toEqual(
+          configured.options.reporterOptions?.text
+        )
+        expect(resolved.options?.reporterOptions?.text).not.toBe(
+          configured.options.reporterOptions?.text
+        )
+        expect(authored).toEqual(before)
+      }
+    }
+  )
+  it.each([
+    ['skipEmpty', 'true'],
+    ['skipEmpty', 1],
+    ['skipFull', null],
+    ['maxCols', '80'],
+    ['maxCols', null],
+    ['maxCols', NaN],
+    ['maxCols', Infinity],
+    ['file', 'coverage.txt'],
+    ['unknown', true],
+  ])('keeps unqualified configured text %s=%j closed', async (key, value) => {
+    const { parseProjectStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/options'
+    )
+    expect(() =>
+      parseProjectStandardCoverage({ reporter: [['text', { [key]: value }]] })
+    ).toThrow('Unsupported V8 coverage reporter option: ' + key)
+  })
+  it('does not forward text-only options into another reporter', async () => {
+    const { parseProjectStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/options'
+    )
+    for (const reporter of [
+      'json',
+      'json-summary',
+      'lcovonly',
+      'text-summary',
+      'html',
+    ])
+      expect(() =>
+        parseProjectStandardCoverage({
+          reporter: [[reporter, { skipEmpty: true, maxCols: 65 }]],
+        })
+      ).toThrow('Unsupported V8 coverage reporter option')
+  })
+  const models = require('./fixtures/coverage-text-options.expected.json')
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'renders exact coverage text and counter totals for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-coverage-text-options-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'coverage-text-options-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
+describe('root coverage formatter inherited by multiple inline projects', () => {
+  it.each([2, 3, 6])(
+    'retains one real root closure for %i inheriting inline projects',
+    async (length) => {
+      const {
+        retainCoverageThresholdFormatter,
+        formatCoverageThresholdUpdates,
+      } = await import(
+        'next/dist/experimental/testing/coverage/threshold-format'
+      )
+      const receivers: unknown[] = []
+      let calls = 0
+      const formatter = function (
+        this: unknown,
+        value: number,
+        previous: number
+      ) {
+        receivers.push(this)
+        calls++
+        return value - previous - calls / 10
+      }
+      const projects = Array.from({ length }, (_, i) => ({
+        test: { name: 'project-' + i, include: ['contract.test.mjs'] },
+      }))
+      const authored = {
+        test: {
+          projects,
+          coverage: { thresholds: { lines: 0, autoUpdate: formatter } },
+        },
+      }
+      const retained = retainCoverageThresholdFormatter(authored)
+      expect(retained.formatter).toBe(formatter)
+      expect(retained.value).toEqual({
+        test: {
+          projects,
+          coverage: { thresholds: { lines: 0, autoUpdate: true } },
+        },
+      })
+      expect(structuredClone(retained.value)).toEqual(retained.value)
+      expect(authored.test.coverage.thresholds.autoUpdate).toBe(formatter)
+      expect(
+        formatCoverageThresholdUpdates(retained.formatter, [
+          { metric: 'lines', value: 80, previous: 0 },
+          { metric: 'functions', value: 60, previous: 0 },
+        ])
+      ).toEqual([
+        { metric: 'lines', value: 79.9, previous: 0 },
+        { metric: 'functions', value: 59.8, previous: 0 },
+      ])
+      expect(calls).toBe(2)
+      expect(receivers).toEqual([undefined, undefined])
+    }
+  )
+  it.each([
+    undefined,
+    false,
+    {},
+    { enabled: false },
+    { thresholds: { autoUpdate: false } },
+    { thresholds: { autoUpdate: () => 2 } },
+  ])('keeps an explicit child coverage owner closed: %j', async (coverage) => {
+    const { retainCoverageThresholdFormatter } = await import(
+      'next/dist/experimental/testing/coverage/threshold-format'
+    )
+    expect(() =>
+      retainCoverageThresholdFormatter({
+        test: {
+          coverage: { thresholds: { autoUpdate: () => 1 } },
+          projects: [
+            { test: { name: 'a' } },
+            { test: { name: 'b', coverage } },
+          ],
+        },
+      })
+    ).toThrow('one inline project')
+  })
+  it('keeps mixed external project ownership closed', async () => {
+    const { retainCoverageThresholdFormatter } = await import(
+      'next/dist/experimental/testing/coverage/threshold-format'
+    )
+    expect(() =>
+      retainCoverageThresholdFormatter({
+        test: {
+          coverage: { thresholds: { autoUpdate: () => 1 } },
+          projects: [{ test: { name: 'a' } }, './external-project.mjs'],
+        },
+      })
+    ).toThrow('one inline project')
+  })
+  it('preserves the original thrown value from the one inherited closure', async () => {
+    const { retainCoverageThresholdFormatter, formatCoverageThresholdUpdates } =
+      await import('next/dist/experimental/testing/coverage/threshold-format')
+    const error = new Error('original inherited root formatter failure'),
+      formatter = () => {
+        throw error
+      }
+    const retained = retainCoverageThresholdFormatter({
+      test: {
+        coverage: { thresholds: { autoUpdate: formatter } },
+        projects: [{}, {}],
+      },
+    })
+    expect(() =>
+      formatCoverageThresholdUpdates(retained.formatter, [
+        { metric: 'lines', value: 100, previous: 0 },
+      ])
+    ).toThrow(error)
+  })
+  it('keeps ordinary multiple-project configuration by identity when there is no callback', async () => {
+    const { retainCoverageThresholdFormatter } = await import(
+      'next/dist/experimental/testing/coverage/threshold-format'
+    )
+    const config = {
+      test: {
+        coverage: { thresholds: { autoUpdate: true } },
+        projects: [{}, {}],
+      },
+    }
+    expect(retainCoverageThresholdFormatter(config).value).toBe(config)
+  })
+  const models = require('./fixtures/threshold-formatter-multiproject-cases.json')
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'merges project coverage counts with exact root formatter callbacks and final config for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-root-formatter-projects-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'threshold-formatter-multiproject-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
 describe('root coverage formatter inherited by multiple inline projects admission facts', () => {
   const projects = () =>
     ['a', 'b'].map((id) => {
@@ -17325,6 +22905,631 @@ describe('root coverage formatter inherited by multiple inline projects admissio
       ).toBe(false)
     }
   )
+})
+
+describe('root coverage formatter inherited by multiple inline projects actual CLI refusals', () => {
+  it.each(['watch', 'shared', 'realm', 'mixed-mode'])(
+    'retains %s refusal before any callback, report or edit',
+    async (policy) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-root-formatter-refusal-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'threshold-formatter-multiproject-admission.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              policy,
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
+describe('formatter same-stack configuration publication', () => {
+  const original =
+    'export default {test:{coverage:{thresholds:{lines:0,functions:0}}}}\n'
+  const updates = [
+    { metric: 'lines' as const, value: 10, previous: 0 },
+    { metric: 'functions' as const, value: 20, previous: 0 },
+  ]
+  it('publishes before native queued edits and returns the exact written receipt', async () => {
+    const { publishCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-formatter-stack-')),
+      file = join(root, 'vitest.config.mjs')
+    await writeFile(file, original)
+    try {
+      let calls = 0
+      const { appendFileSync, readFileSync } = await import('node:fs')
+      let atJob = ''
+      const source = await publishCoverageThresholdUpdate({
+        configFile: file,
+        updates,
+        formatter: (value) => {
+          if (++calls === 1)
+            queueMicrotask(() => {
+              atJob = readFileSync(file, 'utf8')
+              appendFileSync(file, '// actual queued edit\n')
+            })
+          return value
+        },
+      })
+      expect(calls).toBe(2)
+      expect(atJob).toBe(source)
+      expect(await readFile(file, 'utf8')).toBe(
+        source + '// actual queued edit\n'
+      )
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('keeps synchronous edits before the provider write on their genuine earlier boundary', async () => {
+    const { publishCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-formatter-sync-edit-')),
+      file = join(root, 'vitest.config.mjs')
+    await writeFile(file, original)
+    try {
+      const { appendFileSync } = await import('node:fs')
+      let calls = 0
+      const source = await publishCoverageThresholdUpdate({
+        configFile: file,
+        updates,
+        formatter: (value) => {
+          if (++calls === 1)
+            appendFileSync(file, '// earlier synchronous edit\n')
+          return value
+        },
+      })
+      expect(await readFile(file, 'utf8')).toBe(source)
+      expect(source).not.toContain('earlier synchronous edit')
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('preserves a real abort before dispatch without calling the formatter', async () => {
+    const { publishCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-formatter-abort-before-')),
+      file = join(root, 'vitest.config.mjs')
+    await writeFile(file, original)
+    try {
+      const controller = new AbortController(),
+        reason = new Error('actual abort before formatter operation'),
+        formatter = jest.fn((value) => value)
+      controller.abort(reason)
+      await expect(
+        publishCoverageThresholdUpdate({
+          configFile: file,
+          updates,
+          formatter,
+          signal: controller.signal,
+        })
+      ).rejects.toBe(reason)
+      expect(formatter).not.toHaveBeenCalled()
+      expect(await readFile(file, 'utf8')).toBe(original)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('retains an actual supplied abort raised by a callback before any write', async () => {
+    const { publishCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const root = await mkdtemp(
+        join(tmpdir(), 'next-formatter-abort-callback-')
+      ),
+      file = join(root, 'vitest.config.mjs')
+    await writeFile(file, original)
+    try {
+      const controller = new AbortController(),
+        reason = new Error('actual callback abort')
+      let calls = 0
+      await expect(
+        publishCoverageThresholdUpdate({
+          configFile: file,
+          updates,
+          signal: controller.signal,
+          formatter: (value) => {
+            calls++
+            controller.abort(reason)
+            return value
+          },
+        })
+      ).rejects.toBe(reason)
+      expect(calls).toBe(2)
+      expect(await readFile(file, 'utf8')).toBe(original)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('leaves no partial thresholds when the second actual callback throws', async () => {
+    const { publishCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const root = await mkdtemp(
+        join(tmpdir(), 'next-formatter-throw-before-write-')
+      ),
+      file = join(root, 'vitest.config.mjs')
+    await writeFile(file, original)
+    try {
+      const reason = new Error('second original formatter error')
+      let calls = 0
+      await expect(
+        publishCoverageThresholdUpdate({
+          configFile: file,
+          updates,
+          formatter: (value) => {
+            if (++calls === 2) throw reason
+            return value
+          },
+        })
+      ).rejects.toBe(reason)
+      expect(calls).toBe(2)
+      expect(await readFile(file, 'utf8')).toBe(original)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('keeps the direct readonly preparation helper available with no write', async () => {
+    const { prepareCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const root = await mkdtemp(
+        join(tmpdir(), 'next-formatter-readonly-helper-')
+      ),
+      file = join(root, 'vitest.config.mjs')
+    await writeFile(file, original)
+    try {
+      const source = await prepareCoverageThresholdUpdate({
+        configFile: file,
+        updates,
+        formatter: (value) => value,
+      })
+      expect(source).toContain('lines:10')
+      expect(await readFile(file, 'utf8')).toBe(original)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('does not publish or invoke a formatter when no improvement exists', async () => {
+    const { publishCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-formatter-no-update-')),
+      file = join(root, 'vitest.config.mjs')
+    await writeFile(file, original)
+    try {
+      const formatter = jest.fn((value) => value)
+      await expect(
+        publishCoverageThresholdUpdate({
+          configFile: file,
+          updates: [],
+          formatter,
+        })
+      ).resolves.toBeUndefined()
+      expect(formatter).not.toHaveBeenCalled()
+      expect(await readFile(file, 'utf8')).toBe(original)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('retains native write errors after all callbacks and preserves original bytes', async () => {
+    const { publishCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const { chmodSync } = await import('node:fs')
+    const root = await mkdtemp(join(tmpdir(), 'next-formatter-write-error-')),
+      file = join(root, 'vitest.config.mjs')
+    await writeFile(file, original)
+    try {
+      let calls = 0
+      await expect(
+        publishCoverageThresholdUpdate({
+          configFile: file,
+          updates,
+          formatter: (value) => {
+            calls++
+            chmodSync(file, 0o444)
+            return value
+          },
+        })
+      ).rejects.toMatchObject({ code: 'EACCES' })
+      expect(calls).toBe(2)
+      expect(await readFile(file, 'utf8')).toBe(original)
+    } finally {
+      chmodSync(file, 0o644)
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  const models = readExpectedCoverageFixture(
+    require.resolve('./fixtures/threshold-user-edits/expected.json')
+  )
+  it.each(models.rows.map((row: { variant: string }) => row.variant))(
+    'preserves coverage, formatter order and concurrent config edits for %s',
+    async (variant) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-formatter-user-edits-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'threshold-user-edits-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              variant,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
+describe('configured coverage watermarks', () => {
+  it.each(['v8', 'istanbul'] as const)(
+    'retains %s serializable metric values for the actual formatter fallback',
+    async (provider) => {
+      const { parseProjectStandardCoverage, resolveProjectStandardCoverage } =
+        await import('next/dist/experimental/testing/coverage/options')
+      const maps = [
+        {},
+        { lines: [0, 0], functions: [40, 60] },
+        { lines: [NaN, Infinity] },
+        { lines: [Infinity, Infinity] },
+        { lines: [10] },
+        { lines: [10, 20, 30] },
+        { lines: ['10', '20'] },
+        { extra: [0, 100] },
+        { lines: undefined },
+        [],
+        { lines: [undefined, undefined] },
+        { lines: null },
+      ]
+      for (const watermarks of maps) {
+        const authored = { enabled: true, provider, watermarks }
+        const before = structuredClone(authored)
+        const config = parseProjectStandardCoverage(authored)!
+        expect(config.options.watermarks).toEqual(watermarks)
+        expect(config.options.watermarks).not.toBe(watermarks)
+        const selected = resolveProjectStandardCoverage(
+          [{ standardCoverage: config }],
+          {},
+          undefined
+        )
+        expect(selected.options!.watermarks).toEqual(watermarks)
+        expect(selected.options!.watermarks).not.toBe(config.options.watermarks)
+        expect(authored).toEqual(before)
+      }
+    }
+  )
+  it('preserves the absent option footprint and configured activation semantics', async () => {
+    const { parseProjectStandardCoverage, resolveProjectStandardCoverage } =
+      await import('next/dist/experimental/testing/coverage/options')
+    for (const authored of [{}, { watermarks: undefined }])
+      expect(
+        Object.hasOwn(
+          parseProjectStandardCoverage(authored)!.options,
+          'watermarks'
+        )
+      ).toBe(false)
+    const config = parseProjectStandardCoverage({
+      watermarks: { lines: [0, 0] },
+    })!
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: config }],
+        {},
+        undefined
+      )
+    ).toEqual({ enabled: false, configured: true })
+    expect(
+      resolveProjectStandardCoverage(
+        [{ standardCoverage: config }],
+        { coverage: true },
+        undefined
+      ).options!.watermarks
+    ).toEqual({ lines: [0, 0] })
+  })
+  it('preserves actual report context defaults without mutating a frozen partial map', async () => {
+    const { writeReports } = await import(
+      'next/dist/compiled/next-test-coverage'
+    )
+    const models = require('./fixtures/coverage-watermarks.expected.json')
+    const row = models.rows.find(
+      (row: { name: string }) => row.name === 'v8-development-partial'
+    )
+    const watermarks = Object.freeze({
+      lines: Object.freeze([0, 0]),
+      functions: Object.freeze([40, 60]),
+    })
+    const root = await mkdtemp(join(tmpdir(), 'next-watermarks-context-'))
+    const relocate = (value: any): any =>
+      typeof value === 'string'
+        ? value.replaceAll('<fixture>', root)
+        : Array.isArray(value)
+          ? value.map(relocate)
+          : value && typeof value === 'object'
+            ? Object.fromEntries(
+                Object.entries(value).map(([key, value]) => [
+                  key.replaceAll('<fixture>', root),
+                  relocate(value),
+                ])
+              )
+            : value
+    const saved = process.env.FORCE_COLOR
+    process.env.FORCE_COLOR = '1'
+    try {
+      const text = await writeReports(
+        relocate(
+          readExpectedCoverageFixture(
+            require.resolve('./fixtures/coverage-text/map.expected.json')
+          )
+        ),
+        root,
+        ['text', 'text-summary'],
+        { text: { maxCols: 90, skipFull: true } },
+        watermarks as any
+      )
+      expect(text).toBe(row.text + row.textSummary)
+      expect(Object.keys(watermarks)).toEqual(['lines', 'functions'])
+    } finally {
+      if (saved === undefined) delete process.env.FORCE_COLOR
+      else process.env.FORCE_COLOR = saved
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  const models = require('./fixtures/coverage-watermarks.expected.json')
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'renders exact ANSI coverage watermarks and counter totals for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-coverage-watermarks-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'coverage-watermarks-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_WATERMARK_EVIDENCE) {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_WATERMARK_EVIDENCE, name),
+            { recursive: true }
+          )
+        }
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('actual custom provider generated JSON results', () => {
+  const { generatedScenarios } = require('./custom-provider-scenarios.cjs')
+  it.each(generatedScenarios)(
+    'preserves generated values, provider identity and callback ordering for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-custom-generated-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'custom-generated-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_CUSTOM_GENERATED_EVIDENCE) {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_CUSTOM_GENERATED_EVIDENCE, name),
+            { recursive: true }
+          )
+        }
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('actual failed custom coverage hook publication', () => {
+  const { failureScenarios } = require('./custom-provider-scenarios.cjs')
+  it.each(failureScenarios)(
+    'retains custom maps, hook order and report identity for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-failed-custom-hooks-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'custom-failure-hooks.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_FAILED_CUSTOM_HOOK_EVIDENCE) {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_FAILED_CUSTOM_HOOK_EVIDENCE, name),
+            { recursive: true }
+          )
+        }
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('actual production custom coverage', () => {
+  const { productionScenarios } = require('./custom-provider-scenarios.cjs')
+  it.each(productionScenarios)(
+    'retains production outcomes, custom maps and provider lifecycle for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      const output = await mkdtemp(join(tmpdir(), 'next-production-custom-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'custom-production-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            name,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+      } finally {
+        if (process.env.NEXT_TESTING_PRODUCTION_CUSTOM_EVIDENCE) {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_PRODUCTION_CUSTOM_EVIDENCE, name),
+            { recursive: true }
+          )
+        }
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
+})
+
+describe('public Browser coverage regressions', () => {
+  const shapes =
+    require('./fixtures/browser-production/shapes.expected.json') as Record<
+      string,
+      { cases: string[]; coverage: Record<string, unknown> }
+    >
+  async function runBrowserCoverageRegression(
+    script: string,
+    args: string[] = []
+  ) {
+    const { resolve } = await import('path')
+    const project = resolve(__dirname, '../../..')
+    return withOutputDirectory(
+      'next-browser-coverage-',
+      async (output) => {
+        const { stdout } = await runNodeHelper(
+          [join(__dirname, script), project, output, 'production', ...args],
+          { cwd: project, timeout: 270000, maxBuffer: 10 * 1024 * 1024 }
+        )
+        return JSON.parse(stdout)
+      },
+      { cleanup: 'always' }
+    )
+  }
+
+  it.each(
+    Object.entries(shapes).map(
+      ([shape, { cases, coverage }]) =>
+        [shape, cases.length, Object.keys(coverage).length] as const
+    )
+  )(
+    'preserves source coverage counts and locations for %s',
+    async (shape, cases, coveredFiles) => {
+      expect(
+        await runBrowserCoverageRegression('browser-coverage-shapes.mjs', [
+          shape,
+        ])
+      ).toEqual({
+        mode: 'production',
+        groups: 1,
+        cases,
+        coveredFiles,
+        thresholdFailure: false,
+      })
+    },
+    300000
+  )
+
+  it('publishes Browser reports while failing all configured coverage thresholds', async () => {
+    expect(
+      await runBrowserCoverageRegression('browser-coverage-shapes.mjs', [
+        'threshold',
+      ])
+    ).toEqual({
+      mode: 'production',
+      groups: 1,
+      cases: 2,
+      coveredFiles: 3,
+      thresholdFailure: true,
+    })
+  }, 300000)
+
+  it('withholds Browser coverage after SIGINT and captures a fresh recovery run', async () => {
+    expect(
+      await runBrowserCoverageRegression('browser-coverage-cancel-recovery.mjs')
+    ).toEqual({
+      mode: 'production',
+      cancelled: true,
+      recovered: true,
+      cases: 1,
+    })
+  }, 300000)
 })
 
 describe('independent expected coverage fixture encoding', () => {
