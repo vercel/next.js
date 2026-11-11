@@ -69,7 +69,15 @@ import {
 } from '../../app-render/dynamic-rendering'
 import { ReflectAdapter } from '../../web/spec-extension/adapters/reflect'
 import { CacheSignal } from '../../app-render/cache-signal'
-import { scheduleImmediate } from '../../../lib/scheduler'
+import { runInSequentialTasks } from '../../app-render/app-render-render-utils'
+import {
+  DANGEROUSLY_runPendingImmediatesAfterCurrentTask,
+  expectNoPendingImmediates,
+  ImmediateTracker,
+  runWithNativeImmediateTracking,
+  unpatchedSetImmediate,
+} from '../../node-environment-extensions/fast-set-immediate.external'
+import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 import { createServerParamsForRoute } from '../../request/params'
 import type { AppSegment } from '../../../build/segment-config/app/app-segments'
 import {
@@ -571,27 +579,14 @@ export class AppRouteRouteModule extends RouteModule<
           : userlandRevalidate
 
       if (cacheComponentsEnabled) {
-        /**
-         * When we are attempting to statically prerender the GET handler of a route.ts module
-         * and cacheComponents is on we follow a similar pattern to rendering.
-         *
-         * We first run the handler letting caches fill. If something synchronously dynamic occurs
-         * during this prospective render then we can infer it will happen on every render and we
-         * just bail out of prerendering.
-         *
-         * Next we run the handler again and we check if we get a result back in a microtask.
-         * Next.js expects the return value to be a Response or a Thenable that resolves to a Response.
-         * Unfortunately Response's do not allow for accessing the response body synchronously or in
-         * a microtask so we need to allow one more task to unwrap the response body. This is a slightly
-         * different semantic than what we have when we render and it means that certain tasks can still
-         * execute before a prerender completes such as a carefully timed setImmediate.
-         *
-         * Functionally though IO should still take longer than the time it takes to unwrap the response body
-         * so our heuristic of excluding any IO should be preserved.
-         */
+        // The prospective pass fills caches, including reads reached through
+        // immediate callbacks. The final pass then runs the handler with fast
+        // immediates before checking whether it completed. A returned Response
+        // gets a separate native immediate deadline for body consumption.
         const prospectiveController = new AbortController()
         let prospectiveRenderIsDynamic = false
-        const cacheSignal = new CacheSignal(null)
+        const immediateTracker = new ImmediateTracker()
+        const cacheSignal = new CacheSignal(immediateTracker)
         let dynamicTracking = createDynamicTrackingState(undefined)
 
         // TODO: Route handlers are never resumed, so it's counter-intuitive
@@ -634,6 +629,8 @@ export class AppRouteRouteModule extends RouteModule<
         try {
           prospectiveResult = this.workUnitAsyncStorage.run(
             prospectiveRoutePrerenderStore,
+            runWithNativeImmediateTracking,
+            immediateTracker,
             handler,
             request,
             handlerContext
@@ -729,81 +726,140 @@ export class AppRouteRouteModule extends RouteModule<
           isFallbackUpgradeable: false,
         })
 
-        let responseHandled = false
-        res = await new Promise((resolve, reject) => {
-          scheduleImmediate(async () => {
-            try {
-              const result = await (this.workUnitAsyncStorage.run(
-                finalRoutePrerenderStore,
-                handler,
-                request,
-                handlerContext
-              ) as Promise<Response>)
-              if (responseHandled) {
-                // we already rejected in the followup task
-                return
-              } else if (!(result instanceof Response)) {
-                // This is going to error but we let that happen below
-                resolve(result)
-                return
-              }
+        const result: {
+          status: 'pending-handler' | 'pending-body' | 'complete' | 'failed'
+          value: unknown
+        } = { status: 'pending-handler', value: undefined }
+        const bodyWindow = createPromiseWithResolvers<void>()
+        let bodyDeadline: NodeJS.Immediate | undefined
+        let waitForBody = false
 
-              responseHandled = true
+        function fail(error: unknown) {
+          if (
+            result.status === 'pending-handler' ||
+            result.status === 'pending-body'
+          ) {
+            result.status = 'failed'
+            result.value = error
+          }
+        }
 
-              const init: ResponseInit = {
-                headers: result.headers,
-                status: result.status,
-                statusText: result.statusText,
-              }
-
-              // There's nothing to buffer, and rebuilding with the empty buffer
-              // from `arrayBuffer()` would throw for null body statuses (e.g.
-              // the 204 from an auto-implemented OPTIONS handler).
-              if (result.body === null) {
-                resolve(new Response(null, init))
-                return
-              }
-
-              let bodyHandled = false
-              result
-                .arrayBuffer()
-                .then((body) => {
-                  if (!bodyHandled) {
-                    bodyHandled = true
-                    resolve(new Response(body, init))
-                  }
-                })
-                // Ensure anything thrown above rejects instead of becoming an
-                // unhandled rejection that leaves the prerender hanging.
-                .catch(reject)
-              scheduleImmediate(() => {
-                if (!bodyHandled) {
-                  bodyHandled = true
-                  finalController.abort()
-                  reject(createCacheComponentsError(workStore.route))
-                }
-              })
-            } catch (err) {
-              reject(err)
-            }
-          })
-          scheduleImmediate(() => {
-            if (!responseHandled) {
-              responseHandled = true
-              finalController.abort()
-              reject(createCacheComponentsError(workStore.route))
-            }
-          })
-        })
-        if (finalController.signal.aborted) {
-          // We aborted from within the execution
-          throw createCacheComponentsError(workStore.route)
-        } else {
-          // We didn't abort during the execution. We can abort now as a matter of semantics
-          // though at the moment nothing actually consumes this signal so it won't halt any
-          // inflight work.
+        function abort() {
+          // A handler can catch a synchronous dynamic-access error and return a
+          // Response. Preserve that bailout before our own cleanup abort.
+          if (finalController.signal.aborted && result.status !== 'failed') {
+            result.status = 'failed'
+            result.value = createCacheComponentsError(workStore.route)
+          }
           finalController.abort()
         }
+
+        try {
+          await runInSequentialTasks(
+            () => {
+              void (async () => {
+                try {
+                  const response = await this.workUnitAsyncStorage.run(
+                    finalRoutePrerenderStore,
+                    handler,
+                    request,
+                    handlerContext
+                  )
+                  if (result.status !== 'pending-handler') {
+                    return
+                  }
+                  if (!(response instanceof Response)) {
+                    // Let finalizeResponse report invalid handler return
+                    // values.
+                    result.status = 'complete'
+                    result.value = response
+                    return
+                  }
+
+                  const init: ResponseInit = {
+                    headers: response.headers,
+                    status: response.status,
+                    statusText: response.statusText,
+                  }
+                  if (response.body === null) {
+                    result.value = new Response(null, init)
+                    result.status = 'complete'
+                    return
+                  }
+
+                  result.status = 'pending-body'
+                  const pendingBody = response.arrayBuffer()
+
+                  // Node's Blob reader can use a native immediate captured
+                  // before the timer patch. Queue the deadline after starting
+                  // consumption so that reader can finish its current turn.
+                  bodyDeadline = unpatchedSetImmediate(() => {
+                    try {
+                      DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
+                      fail(createCacheComponentsError(workStore.route))
+                      abort()
+                    } catch (error) {
+                      result.status = 'failed'
+                      result.value = error
+                    } finally {
+                      unpatchedSetImmediate(() => {
+                        try {
+                          expectNoPendingImmediates()
+                        } catch (error) {
+                          result.status = 'failed'
+                          result.value = error
+                        }
+                        bodyWindow.resolve()
+                      })
+                    }
+                  })
+
+                  const body = await pendingBody
+                  if (result.status === 'pending-body') {
+                    result.value = new Response(body, init)
+                    result.status = 'complete'
+                  }
+                } catch (error) {
+                  fail(error)
+                }
+              })()
+            },
+            () => {
+              if (result.status === 'pending-handler') {
+                fail(createCacheComponentsError(workStore.route))
+              }
+              if (
+                result.status === 'pending-body' &&
+                !finalController.signal.aborted
+              ) {
+                waitForBody = true
+                return
+              }
+
+              if (bodyDeadline !== undefined) {
+                clearImmediate(bodyDeadline)
+              }
+              abort()
+            }
+          )
+
+          if (waitForBody) {
+            await bodyWindow.promise
+          }
+        } catch (error) {
+          fail(error)
+          throw error
+        } finally {
+          if (bodyDeadline !== undefined) {
+            clearImmediate(bodyDeadline)
+          }
+          finalController.abort()
+        }
+
+        if (result.status === 'failed') {
+          throw result.value
+        }
+        res = result.value
       } else {
         prerenderStore = {
           type: 'prerender-legacy',
