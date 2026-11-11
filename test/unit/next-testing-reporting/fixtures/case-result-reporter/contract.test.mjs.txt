@@ -1,0 +1,11 @@
+import {test,expect,describe} from 'vitest'
+import {watch,writeFileSync} from 'node:fs'
+describe('observed completion',()=>{
+ test('first',{meta:{authored:'first'}},({task,onTestFinished})=>{onTestFinished(()=>{task.meta.finished=true});expect(1).toBe(1)})
+ test('held second',{meta:{authored:'second'}},async()=>{
+  const release=new Promise(resolve=>{const observer=watch(process.env.CASE_RESULT_GATE,()=>{observer.close();resolve()})})
+  writeFileSync(process.env.CASE_RESULT_MARKER,'second body is actually running')
+  await release
+  expect(2).toBe(2)
+ })
+})

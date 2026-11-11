@@ -1,0 +1,2 @@
+import { test } from 'vitest'
+for (const [name, stacks] of [['null', null], ['false', false], ['zero', 0], ['empty string', '']]) test(name, () => { throw { message: name, stacks } })

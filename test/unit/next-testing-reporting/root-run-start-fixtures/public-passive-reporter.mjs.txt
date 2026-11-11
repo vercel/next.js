@@ -1,0 +1,25 @@
+import { appendFileSync, writeFileSync } from 'node:fs'
+const emit = (row) => appendFileSync(process.env.PASSIVE_TRACE, JSON.stringify(row) + '\n')
+const keys = ['taskId', 'project', 'moduleId', 'pool', 'testLines', 'testNamePattern', 'testIds', 'testTagsFilter']
+export default class PassiveReporter {
+  reads = 0
+  onInit(context) {
+    emit({ kind: 'init', reads: this.reads })
+    context.onClose(() => emit({ kind: 'close', reads: this.reads }))
+  }
+  get onTestRunStart() {
+    this.reads++
+    emit({ kind: 'get-start', reads: this.reads })
+    const callback = function (...args) {
+      emit({ kind: 'start', argc: args.length, receiver: this instanceof PassiveReporter, array: Array.isArray(args[0]), arrayFrozen: Object.isFrozen(args[0]), specifications: args[0].map((spec) => ({ taskId: spec.taskId, moduleId: spec.moduleId, pool: spec.pool, projectName: spec.project.name, projectRoot: spec.project.config.root, ownPublicKeys: keys.map((key) => [key, Object.hasOwn(spec, key)]), testModuleUndefined: spec.testModule === undefined, descriptors: Object.fromEntries(keys.map((key) => { const d = Object.getOwnPropertyDescriptor(spec, key); return [key, d ? { enumerable: d.enumerable, configurable: d.configurable, writable: d.writable, accessor: !('value' in d) } : null] })), serialized: spec.toJSON() })) })
+      writeFileSync(process.env.PASSIVE_STARTED, 'started')
+      emit({ kind: 'start-finished' })
+    }
+    callback.call = () => { throw new Error('passive poisoned call') }
+    callback.apply = () => { throw new Error('passive poisoned apply') }
+    return callback
+  }
+  onTestRunEnd(modules, errors, reason) {
+    emit({ kind: 'end', argc: arguments.length, reads: this.reads, reason, errors, modules: modules.map((module) => ({ id: module.id, relativeModuleId: module.relativeModuleId, state: module.state(), errors: module.errors(), tests: module.children.array().map((test) => ({ name: test.name, fullName: test.fullName, state: test.result().state })) })) })
+  }
+}

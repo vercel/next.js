@@ -1,0 +1,26 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.results = void 0;
+const results = {};
+exports.results = results;
+function aroundAll() { const error = new Error('actual lexical registration'); Error.captureStackTrace(error, aroundAll); return error; }
+function invoke(factory) { return factory(); }
+results.anonymous = invoke(() => aroundAll());
+results.functionArgument = invoke(function () { return aroundAll(); });
+function declaredNamedFactory() { return aroundAll(); }
+results.declaration = declaredNamedFactory();
+const expression = function namedExpression() { return aroundAll(); };
+results.expression = expression();
+const inferredArrow = () => aroundAll();
+results.inferredArrow = inferredArrow();
+const anonymousAssigned = function () { return aroundAll(); };
+results.anonymousAssigned = anonymousAssigned();
+const holder = { method() { return aroundAll(); } };
+results.objectMethod = holder.method();
+class Holder {
+    method() { return aroundAll(); }
+}
+results.classMethod = new Holder().method();
+results.iife = (function () { return aroundAll(); })();
+results.module = aroundAll();
+//# sourceMappingURL=native-scopes.js.map

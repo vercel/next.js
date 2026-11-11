@@ -1,0 +1,182 @@
+{
+  "rows": [
+    {
+      "phase": "live",
+      "name": "null",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": []
+        }
+      ],
+      "errors": [
+        {
+          "message": "null",
+          "stacks": []
+        }
+      ]
+    },
+    {
+      "phase": "live",
+      "name": "false",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": []
+        }
+      ],
+      "errors": [
+        {
+          "message": "false",
+          "stacks": []
+        }
+      ]
+    },
+    {
+      "phase": "live",
+      "name": "zero",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": []
+        }
+      ],
+      "errors": [
+        {
+          "message": "zero",
+          "stacks": []
+        }
+      ]
+    },
+    {
+      "phase": "live",
+      "name": "empty string",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": []
+        }
+      ],
+      "errors": [
+        {
+          "message": "empty string",
+          "stacks": []
+        }
+      ]
+    },
+    {
+      "phase": "terminal",
+      "name": "null",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": []
+        }
+      ],
+      "errors": [
+        {
+          "message": "null",
+          "stacks": []
+        }
+      ]
+    },
+    {
+      "phase": "terminal",
+      "name": "false",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": []
+        }
+      ],
+      "errors": [
+        {
+          "message": "false",
+          "stacks": []
+        }
+      ]
+    },
+    {
+      "phase": "terminal",
+      "name": "zero",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": []
+        }
+      ],
+      "errors": [
+        {
+          "message": "zero",
+          "stacks": []
+        }
+      ]
+    },
+    {
+      "phase": "terminal",
+      "name": "empty string",
+      "state": "failed",
+      "sameArray": true,
+      "sameErrors": [true],
+      "errorKeys": [["message", "stacks"]],
+      "stacksDescriptors": [
+        {
+          "enumerable": true,
+          "writable": true,
+          "configurable": true,
+          "value": []
+        }
+      ],
+      "errors": [
+        {
+          "message": "empty string",
+          "stacks": []
+        }
+      ]
+    }
+  ],
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "c69625afbbc05b2dc0d7abab98d504f2f937e39b88e73206a04bbf18f62bfe96"
+}

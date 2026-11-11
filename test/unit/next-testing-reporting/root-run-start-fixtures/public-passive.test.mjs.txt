@@ -1,0 +1,10 @@
+import { test, expect } from 'vitest'
+import { appendFileSync, existsSync } from 'node:fs'
+const emit = (row) => appendFileSync(process.env.PASSIVE_TRACE, JSON.stringify(row) + '\n')
+emit({ kind: 'evaluate', startFinished: existsSync(process.env.PASSIVE_STARTED) })
+test('actual passive Run Start body', () => {
+  const startFinished = existsSync(process.env.PASSIVE_STARTED)
+  emit({ kind: 'body', startFinished })
+  expect(startFinished).toBe(true)
+  expect(1 + 2).toBe(3)
+})

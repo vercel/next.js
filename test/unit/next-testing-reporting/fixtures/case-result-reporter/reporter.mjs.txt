@@ -1,0 +1,11 @@
+import {writeFileSync} from 'node:fs'
+const rows=[],seen=[]
+const diagnostic=e=>({name:e.name,message:e.message})
+const queried=t=>({type:t.type,name:t.name,fullName:t.fullName,mode:t.options.mode,tags:t.options.tags,meta:t.meta(),result:t.result()===undefined?null:{state:t.result().state,errors:t.result().errors?.map(diagnostic),note:t.result().note},annotations:t.annotations(),artifacts:t.artifacts()})
+const view=m=>({type:m.type,state:m.state(),ok:m.ok(),errors:m.errors().map(diagnostic),cases:Array.from(m.children.allTests()).map(queried)})
+export default class Reporter {
+ onInit(context){this.root=context.config.root;rows.push({event:'init'})}
+ async onTestCaseResult(test){seen.push(test);const row={event:'case-result',test:queried(test),module:view(test.module)};rows.push(row);writeFileSync(this.root+'/live-rows.json',JSON.stringify(rows,null,2));writeFileSync(this.root+'/raw-current-results.json',JSON.stringify(Array.from(test.module.children.allTests()).map(t=>({name:t.name,result:t.result(),options:t.options})),null,2));await Promise.resolve()}
+ onTestModuleEnd(module){rows.push({event:'module-end',module:view(module)})}
+ onTestRunEnd(modules,errors,reason){rows.push({event:'run-end',reason,errors:errors.map(diagnostic),modules:modules.map(view),sameActualCaseObjects:seen.map(test=>modules.some(module=>Array.from(module.children.allTests()).includes(test)))});writeFileSync(this.root+'/final-rows.json',JSON.stringify(rows,null,2))}
+}

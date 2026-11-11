@@ -1,0 +1,1 @@
+export default 'directory-jsx-before-tsx'

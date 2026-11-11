@@ -1,0 +1,200 @@
+{
+  "sdkVersion": "5.0.4",
+  "nodeVersion": "v26.12.1",
+  "rows": [
+    {
+      "id": "ascii-forbidden",
+      "title": "unicode-0-\u0000\u0001\b\u000b\f\u000e\u001f-end",
+      "content": "log-0-\u0000\u0001\b\u000b\f\u000e\u001f-end",
+      "encodedName": "unicode-0--end",
+      "encodedConsoleOut": "log-0--end",
+      "encodedConsoleErr": "log-0--end",
+      "compareGenuine": true,
+      "sourceBeforeEncodedName": "unicode-0--end"
+    },
+    {
+      "id": "xml-whitespace",
+      "title": "unicode-1-\t\n\r-end",
+      "content": "log-1-\t\n\r-end",
+      "encodedName": "unicode-1-\t\n\r-end",
+      "encodedConsoleOut": "log-1-\t\n\r-end",
+      "encodedConsoleErr": "log-1-\t\n\r-end",
+      "compareGenuine": true,
+      "sourceBeforeEncodedName": "unicode-1-\t\n\n-end"
+    },
+    {
+      "id": "c1-discouraged",
+      "title": "unicode-2-\u007f\u0084\u0086\u009f-end",
+      "content": "log-2-\u007f\u0084\u0086\u009f-end",
+      "encodedName": "unicode-2--end",
+      "encodedConsoleOut": "log-2--end",
+      "encodedConsoleErr": "log-2--end",
+      "compareGenuine": true,
+      "sourceBeforeEncodedName": "unicode-2-\u007f\u0084\u0086\u009f-end"
+    },
+    {
+      "id": "c1-next-line",
+      "title": "unicode-3-\u0085-end",
+      "content": "log-3-\u0085-end",
+      "encodedName": "unicode-3-\u0085-end",
+      "encodedConsoleOut": "log-3-\u0085-end",
+      "encodedConsoleErr": "log-3-\u0085-end",
+      "compareGenuine": true,
+      "sourceBeforeEncodedName": "unicode-3-\u0085-end"
+    },
+    {
+      "id": "bmp-noncharacters",
+      "title": "unicode-4-\ufdd0\ufdef\ufffd\ufffe\uffff-end",
+      "content": "log-4-\ufdd0\ufdef\ufffd\ufffe\uffff-end",
+      "encodedName": "unicode-4--end",
+      "encodedConsoleOut": "log-4--end",
+      "encodedConsoleErr": "log-4--end",
+      "compareGenuine": true,
+      "sourceBeforeEncodedName": "unicode-4-\ufdd0\ufdef\ufffd\ufffe\uffff-end"
+    },
+    {
+      "id": "high-surrogate",
+      "title": "unicode-5-\ud800-end",
+      "content": "log-5-\ud800-end",
+      "encodedName": "unicode-5--end",
+      "encodedConsoleOut": "log-5--end",
+      "encodedConsoleErr": "log-5--end",
+      "compareGenuine": true,
+      "sourceBeforeEncodedName": "unicode-5-\ufffd-end"
+    },
+    {
+      "id": "low-surrogate",
+      "title": "unicode-6-\udc00-end",
+      "content": "log-6-\udc00-end",
+      "encodedName": "unicode-6-end",
+      "encodedConsoleOut": "log-6--end",
+      "encodedConsoleErr": "log-6--end",
+      "compareGenuine": false,
+      "sourceBeforeEncodedName": "unicode-6-\ufffd-end"
+    },
+    {
+      "id": "two-low-surrogates",
+      "title": "unicode-7-\udc00\udc01-end",
+      "content": "log-7-\udc00\udc01-end",
+      "encodedName": "unicode-7\ufffd-end",
+      "encodedConsoleOut": "log-7--end",
+      "encodedConsoleErr": "log-7--end",
+      "compareGenuine": false,
+      "sourceBeforeEncodedName": "unicode-7-\ufffd\ufffd-end"
+    },
+    {
+      "id": "high-ascii",
+      "title": "unicode-8-\ud800X-end",
+      "content": "log-8-\ud800X-end",
+      "encodedName": "unicode-8-X-end",
+      "encodedConsoleOut": "log-8-X-end",
+      "encodedConsoleErr": "log-8-X-end",
+      "compareGenuine": true,
+      "sourceBeforeEncodedName": "unicode-8-\ufffdX-end"
+    },
+    {
+      "id": "ascii-low",
+      "title": "unicode-9-X\udc00-end",
+      "content": "log-9-X\udc00-end",
+      "encodedName": "unicode-9--end",
+      "encodedConsoleOut": "log-9-X-end",
+      "encodedConsoleErr": "log-9-X-end",
+      "compareGenuine": false,
+      "sourceBeforeEncodedName": "unicode-9-X\ufffd-end"
+    },
+    {
+      "id": "valid-emoji",
+      "title": "unicode-10-\ud83d\ude42-end",
+      "content": "log-10-\ud83d\ude42-end",
+      "encodedName": "unicode-10-\ud83d\ude42-end",
+      "encodedConsoleOut": "log-10-\ud83d\ude42-end",
+      "encodedConsoleErr": "log-10-\ud83d\ude42-end",
+      "compareGenuine": true,
+      "sourceBeforeEncodedName": "unicode-10-\ud83d\ude42-end"
+    },
+    {
+      "id": "valid-musical",
+      "title": "unicode-11-\ud834\udd1e-end",
+      "content": "log-11-\ud834\udd1e-end",
+      "encodedName": "unicode-11-\ud834\udd1e-end",
+      "encodedConsoleOut": "log-11-\ud834\udd1e-end",
+      "encodedConsoleErr": "log-11-\ud834\udd1e-end",
+      "compareGenuine": true,
+      "sourceBeforeEncodedName": "unicode-11-\ud834\udd1e-end"
+    },
+    {
+      "id": "plane1-noncharacter",
+      "title": "unicode-12-\ud83f\udffe-end",
+      "content": "log-12-\ud83f\udffe-end",
+      "encodedName": "unicode-12--end",
+      "encodedConsoleOut": "log-12--end",
+      "encodedConsoleErr": "log-12--end",
+      "compareGenuine": false,
+      "sourceBeforeEncodedName": "unicode-12-\ud83f\udffe-end"
+    },
+    {
+      "id": "plane2-noncharacter",
+      "title": "unicode-13-\ud87f\udfff-end",
+      "content": "log-13-\ud87f\udfff-end",
+      "encodedName": "unicode-13--end",
+      "encodedConsoleOut": "log-13--end",
+      "encodedConsoleErr": "log-13--end",
+      "compareGenuine": false,
+      "sourceBeforeEncodedName": "unicode-13-\ud87f\udfff-end"
+    },
+    {
+      "id": "plane16-noncharacter",
+      "title": "unicode-14-\udbff\udfff-end",
+      "content": "log-14-\udbff\udfff-end",
+      "encodedName": "unicode-14-end",
+      "encodedConsoleOut": "log-14-end",
+      "encodedConsoleErr": "log-14-end",
+      "compareGenuine": false,
+      "sourceBeforeEncodedName": "unicode-14-\udbff\udfff-end"
+    },
+    {
+      "id": "ansi",
+      "title": "unicode-15-\u001b[31mred\u001b[39m-end",
+      "content": "log-15-\u001b[31mred\u001b[39m-end",
+      "encodedName": "unicode-15-red-end",
+      "encodedConsoleOut": "log-15-red-end",
+      "encodedConsoleErr": "log-15-red-end",
+      "compareGenuine": true,
+      "sourceBeforeEncodedName": "unicode-15-red-end"
+    },
+    {
+      "id": "entities",
+      "title": "unicode-16-<>&\"'-end",
+      "content": "log-16-<>&\"'-end",
+      "encodedName": "unicode-16-&lt;&gt;&amp;&quot;&apos;-end",
+      "encodedConsoleOut": "log-16-&lt;&gt;&amp;&quot;&apos;-end",
+      "encodedConsoleErr": "log-16-&lt;&gt;&amp;&quot;&apos;-end",
+      "compareGenuine": true,
+      "sourceBeforeEncodedName": "unicode-16-&lt;&gt;&amp;&quot;&apos;-end"
+    },
+    {
+      "id": "entity-low",
+      "title": "unicode-17-&\udc00-end",
+      "content": "log-17-&\udc00-end",
+      "encodedName": "unicode-17-&amp-end",
+      "encodedConsoleOut": "log-17-&amp;-end",
+      "encodedConsoleErr": "log-17-&amp;-end",
+      "compareGenuine": false,
+      "sourceBeforeEncodedName": "unicode-17-&amp;\ufffd-end"
+    },
+    {
+      "id": "control-low",
+      "title": "unicode-18-\u0001\udc00-end",
+      "content": "log-18-\u0001\udc00-end",
+      "encodedName": "unicode-18-\ufffd-end",
+      "encodedConsoleOut": "log-18--end",
+      "encodedConsoleErr": "log-18--end",
+      "compareGenuine": false,
+      "sourceBeforeEncodedName": "unicode-18-\ufffd-end"
+    }
+  ],
+  "knownReferenceInvalidXML": "entity-low retained as explicit unqualified raw divergence; current valid Source entity delimiter must be preserved",
+  "noUnconditionalXMLValidityClaim": true,
+  "scope": "BMP invalid/discouraged +unpaired high only; lone-low and supplementary parity remain required",
+  "validReferenceRowsCompared": 11
+}

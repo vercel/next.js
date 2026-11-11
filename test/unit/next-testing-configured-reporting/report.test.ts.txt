@@ -1,0 +1,4 @@
+import{test,expect}from'vitest'
+test('configured reporter passes',()=>{console.log('CONFIG_REPORT_ROW '+JSON.stringify({label:'body',answer:42}));expect(21*2).toBe(42)})
+test.skip('configured reporter skips',()=>{throw new Error('must not run')})
+test.todo('configured reporter todo')

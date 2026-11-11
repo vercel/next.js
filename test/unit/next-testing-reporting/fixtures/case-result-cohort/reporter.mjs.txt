@@ -1,0 +1,8 @@
+import fs from 'node:fs'
+const rows=[],seen=[]
+export default class Reporter {
+ onInit(context){this.root=context.config.root;context.onClose(()=>{rows.push({event:'close'});fs.writeFileSync(this.root+'/rows.json',JSON.stringify(rows,null,2))})}
+ async onTestCaseResult(test){seen.push(test);rows.push({event:'case-result',name:test.name,result:test.result(),module:test.module.relativeModuleId});await Promise.resolve();if(test.name==='first')throw new Error('case result hook rejected')}
+ onTestModuleEnd(module){if(module.relativeModuleId==='first.test.mjs')fs.writeFileSync(this.root+'/first-module-closed.txt','released');rows.push({event:'module-end',file:module.relativeModuleId,state:module.state()})}
+ onTestRunEnd(modules,errors,reason){rows.push({event:'run-end',reason,files:modules.map(m=>m.relativeModuleId),states:modules.map(m=>m.state()),errors:errors.map(e=>({name:e.name,message:e.message})),sameObjects:seen.map(test=>[...test.module.children.allTests()].includes(test))});fs.writeFileSync(this.root+'/rows.json',JSON.stringify(rows,null,2))}
+}

@@ -1,0 +1,7 @@
+import { test } from 'vitest'
+test('primitive undefined',()=>{throw undefined})
+test('primitive string',()=>{throw 'stackless string'})
+test('message object',()=>{throw {message:'stackless object'}})
+test('Error without stack',()=>{const error=new Error('stackless Error');delete error.stack;throw error})
+test('empty stack',()=>{throw {message:'empty stack',stack:''}})
+test('authored stacks retained',()=>{throw {message:'authored frames',stacks:[{file:'authored-frame.mjs',method:'authored',line:7,column:9}]}})

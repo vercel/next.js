@@ -1,0 +1,111 @@
+[
+  {
+    "event": "case-result",
+    "test": {
+      "type": "test",
+      "id": "227028844_0",
+      "name": "passed before unhandled",
+      "fullName": "passed before unhandled",
+      "project": "",
+      "options": {
+        "tags": [],
+        "timeout": 5000,
+        "mode": "run"
+      },
+      "tags": [],
+      "meta": {},
+      "result": {
+        "state": "passed"
+      },
+      "annotations": [],
+      "artifacts": []
+    },
+    "moduleId": "/private/tmp/next-testing-vitest-blob-slice/unhandled-error-zRRyz7/contract.case.mjs",
+    "relativeModuleId": "contract.case.mjs",
+    "parent": "227028844"
+  },
+  {
+    "event": "module-end",
+    "moduleId": "/private/tmp/next-testing-vitest-blob-slice/unhandled-error-zRRyz7/contract.case.mjs",
+    "relativeModuleId": "contract.case.mjs",
+    "module": {
+      "type": "module",
+      "id": "227028844",
+      "project": "",
+      "meta": {},
+      "state": "passed",
+      "errors": [],
+      "children": [
+        {
+          "type": "test",
+          "id": "227028844_0",
+          "name": "passed before unhandled",
+          "fullName": "passed before unhandled",
+          "project": "",
+          "options": {
+            "tags": [],
+            "timeout": 5000,
+            "mode": "run"
+          },
+          "tags": [],
+          "meta": {},
+          "result": {
+            "state": "passed"
+          },
+          "annotations": [],
+          "artifacts": []
+        }
+      ]
+    }
+  },
+  {
+    "event": "run-end",
+    "reason": "passed",
+    "modules": [
+      {
+        "type": "module",
+        "id": "227028844",
+        "project": "",
+        "meta": {},
+        "state": "passed",
+        "errors": [],
+        "children": [
+          {
+            "type": "test",
+            "id": "227028844_0",
+            "name": "passed before unhandled",
+            "fullName": "passed before unhandled",
+            "project": "",
+            "options": {
+              "tags": [],
+              "timeout": 5000,
+              "mode": "run"
+            },
+            "tags": [],
+            "meta": {},
+            "result": {
+              "state": "passed"
+            },
+            "annotations": [],
+            "artifacts": []
+          }
+        ]
+      }
+    ],
+    "errors": [
+      {
+        "name": "Error",
+        "message": "foreign unhandled failure"
+      },
+      {
+        "name": "Error",
+        "message": "foreign replay rejection"
+      }
+    ],
+    "sameModules": [true],
+    "sameCases": [true]
+  },
+  {
+    "event": "close"
+  }
+]

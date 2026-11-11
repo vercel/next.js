@@ -1,0 +1,71 @@
+{
+  "numTotalTestSuites": 2,
+  "numPassedTestSuites": 2,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 2,
+  "numPassedTests": 2,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1792514928537,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "first",
+          "status": "passed",
+          "title": "first",
+          "duration": 1.3074169999999867,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1792501317584,
+      "endTime": 1792501317585.3074,
+      "status": "passed",
+      "message": "",
+      "name": "/private/tmp/next-testing-ws4-blob158/reference03/development/first.test.mjs"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "second",
+          "status": "passed",
+          "title": "second",
+          "duration": 23.93216700000002,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1792501317842,
+      "endTime": 1792501317865.9321,
+      "status": "passed",
+      "message": "",
+      "name": "/private/tmp/next-testing-ws4-blob158/reference03/development/second.test.mjs"
+    }
+  ]
+}

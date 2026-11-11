@@ -1,0 +1,69 @@
+[
+  {
+    "event": "module-end",
+    "moduleId": "/private/tmp/next-testing-vitest-blob-slice/collection-error-1iLfJR/contract.case.mjs",
+    "relativeModuleId": "contract.case.mjs",
+    "module": {
+      "type": "module",
+      "id": "227028844",
+      "project": "",
+      "meta": {},
+      "state": "failed",
+      "errors": [
+        {
+          "stack": "Error: foreign collection failed\n    at /private/tmp/next-testing-vitest-blob-slice/collection-error-1iLfJR/contract.case.mjs:1:7\n    at VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/module-evaluator.js:261:189)\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/module-evaluator.js:130:62\n    at Traces.$ (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/traces.js:143:27)\n    at VitestModuleEvaluator.runInlinedModule (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/module-evaluator.js:130:21)\n    at VitestModuleRunner.directRequest (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:80)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)",
+          "message": "foreign collection failed",
+          "constructor": "Function<Error>",
+          "name": "Error",
+          "toString": "Function<toString>",
+          "stacks": [
+            {
+              "method": "",
+              "file": "/private/tmp/next-testing-vitest-blob-slice/collection-error-1iLfJR/contract.case.mjs",
+              "line": 1,
+              "column": 7
+            }
+          ]
+        }
+      ],
+      "children": []
+    }
+  },
+  {
+    "event": "run-end",
+    "reason": "failed",
+    "modules": [
+      {
+        "type": "module",
+        "id": "227028844",
+        "project": "",
+        "meta": {},
+        "state": "failed",
+        "errors": [
+          {
+            "stack": "Error: foreign collection failed\n    at /private/tmp/next-testing-vitest-blob-slice/collection-error-1iLfJR/contract.case.mjs:1:7\n    at VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/module-evaluator.js:261:189)\n    at file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/module-evaluator.js:130:62\n    at Traces.$ (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/traces.js:143:27)\n    at VitestModuleEvaluator.runInlinedModule (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vitest@5.0.4_vite@8.3.4/node_modules/vitest/dist/module-evaluator.js:130:21)\n    at VitestModuleRunner.directRequest (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:80)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-vitest-5.0.4/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)",
+            "message": "foreign collection failed",
+            "constructor": "Function<Error>",
+            "name": "Error",
+            "toString": "Function<toString>",
+            "stacks": [
+              {
+                "method": "",
+                "file": "/private/tmp/next-testing-vitest-blob-slice/collection-error-1iLfJR/contract.case.mjs",
+                "line": 1,
+                "column": 7
+              }
+            ]
+          }
+        ],
+        "children": []
+      }
+    ],
+    "errors": [],
+    "sameModules": [true],
+    "sameCases": []
+  },
+  {
+    "event": "close"
+  }
+]

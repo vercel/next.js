@@ -1,0 +1,4 @@
+import { test } from 'vitest'
+const generation = 1
+if (generation === 2) console.log('watch-empty-collection-' + generation)
+test('watch empty file logs', () => console.log('watch-empty-body-' + generation))

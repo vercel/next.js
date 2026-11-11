@@ -1,0 +1,59 @@
+{
+  "sourceHash": "4489d97b2d27c05f7b0e3b0d42d0a894f62a5898b33c388ccc60e5f5252ff39e",
+  "entry": "/Users/timneutkens/projects/next-testing-workspaces/work-1/.next-around-empty-cross-qMkMEc/sub/deep/contract.test.mjs",
+  "codeHash": "995a69288e884f36abe9d8e324ce3e5ef7f7f2ea1a203f0c382212eae3835ad7",
+  "mapHash": "087c5eb674cb8278096401763a2df854bc9611c542f87ed11481babc0385d18c",
+  "around": {
+    "stack": "Error: The setup phase of \"aroundAll\" hook timed out after 100ms.\n    at Object.aroundAll (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/collector.ts:1816:25)\n    at aroundAll (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/vitest.ts:545:19)\n    at <anonymous> (/Users/timneutkens/projects/next-testing-workspaces/work-1/.next-around-empty-cross-qMkMEc/sub/deep/contract.test.mjs:9:11)\n    at <anonymous> (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/collector.ts:1070:48)\n    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:66:14)\n    at collectOwned (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/collector.ts:1070:32)\n    at Object.collect (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/collector.ts:1049:25)\n    at Object.settle (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/collector.ts:1897:23)\n    at <anonymous> (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/index.ts:848:29)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)",
+    "message": "The setup phase of \"aroundAll\" hook timed out after 100ms.",
+    "name": "AroundHookSetupError",
+    "constructor": "Function<AroundHookSetupError>",
+    "toString": "Function<toString>",
+    "stacks": [
+      {
+        "method": "<anonymous>",
+        "file": "/Users/timneutkens/projects/next-testing-workspaces/work-1/.next-around-empty-cross-qMkMEc/sub/deep/contract.test.mjs",
+        "line": 9,
+        "column": 11
+      }
+    ]
+  },
+  "empty": {
+    "stack": "Error: No test found in suite following empty\n    at runSuite (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/lifecycle.ts:3033:16)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async runSuiteInner (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/lifecycle.ts:2851:40)\n    at async hookErrors (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/lifecycle.ts:2952:9)\n    at async aroundHooks (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/lifecycle.ts:706:7)\n    at async runSuite (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/lifecycle.ts:2947:28)\n    at async runCollected (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/lifecycle.ts:3160:5)\n    at async Object.run (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/index.ts:1008:24)\n    at async run (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/execution/worker.ts:1367:22)",
+    "message": "No test found in suite following empty",
+    "constructor": "Function<Error>",
+    "name": "Error",
+    "toString": "Function<toString>",
+    "stacks": [
+      {
+        "method": "async run",
+        "file": "/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/execution/worker.ts",
+        "line": 1367,
+        "column": 22
+      }
+    ]
+  },
+  "late": {
+    "stack": "Error: __VITEST_INTERNAL_AROUND_HOOK_ABORT__\n    at runInner (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/lifecycle.ts:784:17)\n    at Object.suspend (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/assertions/index.ts:3978:24)\n    at execute (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/lifecycle.ts:2967:31)\n    at <anonymous> (/Users/timneutkens/projects/next-testing-workspaces/work-1/.next-around-empty-cross-qMkMEc/sub/deep/contract.test.mjs:14:15)\n    at async capture (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/lifecycle.ts:856:14)\n    at async <anonymous> (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/lifecycle.ts:1023:25)\n    at async invokeSuiteHook (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/lifecycle.ts:988:14)\n    at async <anonymous> (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/lifecycle.ts:2956:9)\n    at async <anonymous> (/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/src/experimental/testing/runner/lifecycle.ts:812:11)",
+    "message": "__VITEST_INTERNAL_AROUND_HOOK_ABORT__"
+  },
+  "genuineRegistrationFrame": {
+    "method": "",
+    "line": 9,
+    "column": 2
+  },
+  "nativeMappedFrame": {
+    "method": "<anonymous>",
+    "line": 9,
+    "column": 11
+  },
+  "lateAuthoredPoint": {
+    "line": 14,
+    "column": 15
+  },
+  "capturedFromRealSource312Native6c": true,
+  "wholePublicGraphPilotWasRed": true,
+  "hostCompiledFile": "/Users/timneutkens/projects/next-testing-workspaces/work-1/packages/next/dist/experimental/testing/execution/worker.js",
+  "hostMapHash": "38cdd950f7ad1e7a7a654172b50e8dd19639ee0d03c040073ecde6eef957b6a7",
+  "hostSourceHash": "6b2c3b875498454b3d101d32c43a9ce5673b58824a150ad7a5ea4616c4eaa945"
+}

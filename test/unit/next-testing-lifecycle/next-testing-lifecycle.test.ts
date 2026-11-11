@@ -3674,6 +3674,22 @@ it('preserves recording rejection identity without appending or failing a handle
   expect(result.errors).toEqual([])
 })
 
+it('records genuine artifact data and public types in a fresh process', async () => {
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      '--import',
+      require.resolve('tsx'),
+      join(__dirname, 'artifact-integration.ts'),
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_CHAI145_EVIDENCE',
+      prefix: 'next-artifact-data-',
+      tests: 2,
+    }
+  )
+}, 30000)
+
 it('resolves Node artifact attachment paths from cwd without an explicit project directory', async () => {
   const fs = await import('node:fs/promises')
   const { tmpdir } = await import('node:os')

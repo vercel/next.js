@@ -1,4 +1,15 @@
-import { readFile } from 'node:fs/promises'
+const { resolveFixturePath } = require('../../lib/next-testing-fixtures.cjs')
+import {
+  cp,
+  realpath,
+  mkdtemp,
+  mkdir,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises'
+import { killApp, retry } from 'next-test-utils'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import 'next/dist/server/node-environment-baseline'
 import { execFileSync } from 'node:child_process'
@@ -13,13 +24,25 @@ import {
   formatWatchStatus,
   type TestReporterOptions,
 } from 'next/dist/experimental/testing/reporting/reporter'
+import {
+  createMachineReporter,
+  parseResultReporters,
+  mergeResultReports,
+} from 'next/dist/experimental/testing/reporting/machine'
 import { createTestTerminal } from 'next/dist/experimental/testing/reporting/terminal'
+import { getFinalCaseResults } from 'next/dist/experimental/testing/reporting/final-cases'
 import { serializeDiagnostic } from 'next/dist/experimental/testing/reporting/diagnostics'
 import type {
   ResultEvent,
   CaseResult,
 } from 'next/dist/experimental/testing/reporting/events'
 import type { TestEntry } from 'next/dist/experimental/testing/contracts'
+import type { Suite } from 'next/dist/experimental/testing/runner/tasks'
+
+const {
+  completionInputs,
+  profiles: completionProfiles,
+} = require('./custom-completion-inputs.cjs')
 
 const entry: TestEntry = {
   id: 'node:example',
@@ -37,6 +60,132 @@ const envelope = {
   runId: 'run',
   timestamp: new Date(2026, 0, 1, 12, 34, 56).getTime(),
 }
+
+describe('persistent custom completion reporter ownership', () => {
+  it.each([false, true])(
+    'joins one watch reporter across generations with closeError=%s',
+    async (closeError) => {
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-persistent-reporter-'))
+      let session: Awaited<ReturnType<typeof openCustomReporters>> | undefined
+      let disposed = false
+      try {
+        await cp(
+          join(__dirname, 'fixtures/persistent-watch-reporter.mjs'),
+          join(root, 'reporter.mjs')
+        )
+        await writeFile(
+          join(root, 'persistent-options.json'),
+          JSON.stringify({ closeError })
+        )
+        session = await openCustomReporters({
+          projectDir: root,
+          reporters: ['./reporter.mjs'],
+          watch: true,
+          write() {},
+        })
+        const trace = async () =>
+          (await readFile(join(root, 'persistent-rows.jsonl'), 'utf8'))
+            .trim()
+            .split('\n')
+            .map((line) => JSON.parse(line))
+        for (const generation of [1, 2]) {
+          await session.beginWatchRun()
+          const machine = createMachineReporter({
+            projectDir: root,
+            reporters: parseResultReporters(['./reporter.mjs']),
+            customReporterSession: session,
+            write() {},
+          })
+          try {
+            await machine.initialize()
+            expect(machine.captureTaskResults).toBe(true)
+            const fact = { ...envelope, runId: `persistent-${generation}` }
+            machine.onEvent({ ...fact, type: 'run-start' })
+            machine.onEvent({
+              ...fact,
+              type: 'file-start',
+              entry,
+              revision: `revision-${generation}`,
+            })
+            machine.onEvent({
+              ...fact,
+              type: 'case-end',
+              ...result(0, 'passed'),
+              name: `generation ${generation}`,
+            })
+            machine.onEvent({
+              ...fact,
+              type: 'file-end',
+              entryId: entry.id,
+              status: 'passed',
+              durationMs: 3,
+            })
+            machine.onEvent({
+              ...fact,
+              type: 'run-end',
+              status: 'passed',
+              durationMs: 3,
+            })
+            await machine.finish()
+          } finally {
+            await machine.dispose()
+          }
+          expect((await trace()).some((row) => row.type === 'close')).toBe(
+            false
+          )
+        }
+        const first = session.dispose()
+        expect(session.dispose()).toBe(first)
+        disposed = true
+        if (closeError)
+          await expect(first).rejects.toThrow(
+            'actual persistent watch close failure'
+          )
+        else await first
+        const rows = await trace()
+        expect(rows[0]).toMatchObject({ type: 'init', watch: true })
+        expect(rows[0].pid).not.toBe(process.pid)
+        expect(rows.slice(1)).toEqual([
+          {
+            type: 'module',
+            names: ['generation 1'],
+            previousNames: null,
+            state: 'passed',
+          },
+          {
+            type: 'end',
+            run: 1,
+            names: [['generation 1']],
+            sameModule: true,
+            errors: [],
+            reason: 'passed',
+          },
+          {
+            type: 'module',
+            names: ['generation 2'],
+            previousNames: ['generation 1'],
+            state: 'passed',
+          },
+          {
+            type: 'end',
+            run: 2,
+            names: [['generation 2']],
+            sameModule: true,
+            errors: [],
+            reason: 'passed',
+          },
+          { type: 'close', runs: 2 },
+        ])
+      } finally {
+        if (!disposed) await session?.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+})
 function setup(options: Partial<TestReporterOptions> = {}) {
   let output = ''
   const reporter = createTestReporter({
@@ -1061,6 +1210,1957 @@ describe('Next structured source attribution', () => {
   })
 })
 
+describe('Next machine result reporters', () => {
+  it.each(['BigInt', 'cycle'] as const)(
+    'retains original mapped JSON serialization failure timing for %s metadata before other reporters',
+    async (kind) => {
+      const writes: string[] = []
+      const machine = createMachineReporter({
+        projectDir: '/project',
+        reporters: ['json', 'junit'],
+        write: (text) => writes.push(text),
+      })
+      const meta: Record<string, unknown> = {}
+      if (kind === 'BigInt') meta.value = 1n
+      else meta.self = meta
+      const emit = (event: object) =>
+        machine.onEvent({ ...envelope, ...event } as ResultEvent)
+      try {
+        emit({ type: 'run-start' })
+        emit({ type: 'file-start', entry })
+        emit({ type: 'case-end', ...result(0, 'passed'), meta })
+        emit({
+          type: 'file-end',
+          entryId: entry.id,
+          status: 'passed',
+          durationMs: 3,
+        })
+        emit({ type: 'run-end', status: 'passed', durationMs: 3 })
+        await expect(
+          machine.finish({ preparedCoverageMap: {} })
+        ).rejects.toThrow(TypeError)
+        expect(writes).toEqual([])
+      } finally {
+        await machine.dispose()
+      }
+    }
+  )
+
+  it.each([false, true])(
+    'publishes the actual prepared coverage map at JSON finish (empty=%s)',
+    async (empty) => {
+      const root = await mkdtemp(join(tmpdir(), 'next-json-prepared-coverage-'))
+      const outputFile = join(root, 'cases.json')
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: ['json'],
+        outputFile,
+      })
+      const emit = (event: object) =>
+        machine.onEvent({ ...envelope, ...event } as ResultEvent)
+      const map: NonNullable<
+        Parameters<typeof machine.finish>[0]
+      >['preparedCoverageMap'] = empty
+        ? {}
+        : {
+            '/project/subject.ts': {
+              path: '/project/subject.ts',
+              statementMap: {
+                '0': {
+                  start: { line: 1, column: 0 },
+                  end: { line: 1, column: 8 },
+                },
+              },
+              fnMap: {},
+              branchMap: {},
+              s: { '0': 3 },
+              f: {},
+              b: {},
+            },
+          }
+      try {
+        emit({ type: 'run-start' })
+        emit({ type: 'file-start', entry })
+        emit({ type: 'case-end', ...result(0, 'passed') })
+        emit({
+          type: 'file-end',
+          entryId: entry.id,
+          status: 'passed',
+          durationMs: 3,
+        })
+        emit({ type: 'run-end', status: 'passed', durationMs: 3 })
+        const report = machine.getJson()
+        await machine.finish({ preparedCoverageMap: map })
+        expect(JSON.parse(await readFile(outputFile, 'utf8'))).toEqual({
+          ...JSON.parse(JSON.stringify(report)),
+          coverageMap: map,
+        })
+        expect(machine.getJson()).not.toHaveProperty('coverageMap')
+      } finally {
+        await machine.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('omits coverageMap from original JSON finish when no actual map is supplied', async () => {
+    const writes: string[] = []
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+      write: (text) => writes.push(text),
+    })
+    try {
+      machine.onEvent({ ...envelope, type: 'run-start' })
+      machine.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 3,
+      })
+      await machine.finish()
+      expect(JSON.parse(writes[0])).toEqual(
+        JSON.parse(JSON.stringify(machine.getJson()))
+      )
+      expect(JSON.parse(writes[0])).not.toHaveProperty('coverageMap')
+    } finally {
+      await machine.dispose()
+    }
+  })
+
+  it('keeps prepared maps exclusively in JSON without changing JUnit bytes', async () => {
+    const writes: string[] = []
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json', 'junit'],
+      write: (text) => writes.push(text),
+    })
+    try {
+      machine.onEvent({ ...envelope, type: 'run-start' })
+      machine.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 3,
+      })
+      const xml = machine.getJUnit()
+      await machine.finish({ preparedCoverageMap: {} })
+      expect(JSON.parse(writes[0])).toMatchObject({
+        success: true,
+        coverageMap: {},
+      })
+      expect(writes[1]).toBe(xml)
+    } finally {
+      await machine.dispose()
+    }
+  })
+
+  it('retains original mapped JSON output failure timing before later reporters', async () => {
+    const root = await mkdtemp(
+      join(tmpdir(), 'next-json-coverage-write-error-')
+    )
+    const outputFile = join(root, 'cases.json')
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: ['json', 'junit'],
+      outputFile,
+    })
+    try {
+      await mkdir(outputFile)
+      machine.onEvent({ ...envelope, type: 'run-start' })
+      machine.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 3,
+      })
+      await expect(
+        machine.finish({ preparedCoverageMap: {} })
+      ).rejects.toMatchObject({
+        code: expect.stringMatching(/^(?:EISDIR|ENOTEMPTY|EPERM)$/),
+      })
+      const { readdir } = await import('node:fs/promises')
+      expect(await readdir(root)).toEqual(['cases.json'])
+    } finally {
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps an aborted mapped JSON finish unpublished', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-json-coverage-abort-'))
+    const outputFile = join(root, 'cases.json')
+    const controller = new AbortController()
+    const failure = new Error('prepared coverage observer cancelled')
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: ['json'],
+      outputFile,
+    })
+    try {
+      machine.onEvent({ ...envelope, type: 'run-start' })
+      machine.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 3,
+      })
+      controller.abort(failure)
+      await expect(
+        machine.finish({ signal: controller.signal, preparedCoverageMap: {} })
+      ).rejects.toBe(failure)
+      await expect(readFile(outputFile)).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+    } finally {
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it.each(
+    ([undefined, false, true] as const).flatMap(
+      (emptySelectionPassWithNoTests) =>
+        [false, true].map((hasEntry) => ({
+          emptySelectionPassWithNoTests,
+          hasEntry,
+        }))
+    )
+  )(
+    'keeps empty JSON policy $emptySelectionPassWithNoTests separate from owned outcomes (hasEntry=$hasEntry)',
+    ({ emptySelectionPassWithNoTests, hasEntry }) => {
+      const machine = createMachineReporter({
+        projectDir: '/project',
+        reporters: ['json'],
+        ...(emptySelectionPassWithNoTests === undefined
+          ? {}
+          : { emptySelectionPassWithNoTests }),
+      })
+      const emit = (event: object) =>
+        machine.onEvent({ ...envelope, ...event } as ResultEvent)
+      try {
+        emit({ type: 'run-start' })
+        if (hasEntry) {
+          emit({ type: 'file-start', entry })
+          emit({ type: 'case-end', ...result(0, 'passed') })
+          emit({
+            type: 'file-end',
+            entryId: entry.id,
+            status: 'passed',
+            durationMs: 3,
+          })
+        }
+        emit({ type: 'run-end', status: 'passed', durationMs: 3 })
+        const report = machine.getJson()
+        expect(report.success).toBe(
+          hasEntry || emptySelectionPassWithNoTests !== false
+        )
+        expect(report.numPassedTests).toBe(hasEntry ? 1 : 0)
+        expect(report.numFailedTests).toBe(0)
+        expect(report.next.summary.status).toBe('passed')
+        expect(
+          report.next.events.find((event) => event.type === 'run-end')
+        ).toMatchObject({ status: 'passed' })
+        expect(machine.getJUnit()).toContain(
+          hasEntry ? 'failures="0"' : '<testsuites></testsuites>'
+        )
+      } finally {
+        machine.dispose()
+      }
+    }
+  )
+
+  it('retains retry evidence while reporting final outcomes, todo, and collection errors', async () => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({ type: 'case-end', ...result(0, 'failed') })
+    emit({ type: 'case-end', ...result(1, 'passed') })
+    emit({
+      type: 'case-end',
+      ...result(0, 'skipped'),
+      caseId: 'todo',
+      attempt: { id: 'todo', retry: 0, repeat: 0 },
+      mode: 'todo',
+      name: 'todo',
+    })
+    emit({
+      type: 'diagnostic',
+      entryId: entry.id,
+      diagnostic: serializeDiagnostic(new Error('teardown <failed>'), {
+        phase: 'cleanup',
+      }),
+    })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      durationMs: 20,
+      status: 'failed',
+    })
+    emit({ type: 'run-end', status: 'failed', durationMs: 20 })
+    const report = machine.getJson()
+    expect(report).toMatchObject({
+      numTotalTests: 2,
+      numPassedTests: 1,
+      numFailedTests: 0,
+      numTodoTests: 1,
+      success: false,
+    })
+    expect(
+      report.next.events.filter((event) => event.type === 'case-end')
+    ).toHaveLength(3)
+    expect(report.testResults[0].message).toContain('teardown <failed>')
+    expect(machine.getJUnit()).toContain('teardown &lt;failed&gt;')
+    expect(machine.getJUnit()).toContain('<error')
+    machine.dispose()
+  })
+
+  it.each([
+    'rejection',
+    'case failure',
+    'cleanup failure',
+    'run error',
+    'cancelled',
+  ])('keeps task JSON separate from the command outcome for %s', (mode) => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({
+      type: 'case-end',
+      ...result(0, mode === 'case failure' ? 'failed' : 'passed'),
+    })
+    emit({
+      type: 'diagnostic',
+      entryId: entry.id,
+      diagnostic: {
+        ...serializeDiagnostic(new Error('real unhandled rejection'), {
+          phase: 'runtime',
+        }),
+        unhandled: 'rejection',
+      },
+    })
+    if (mode === 'cleanup failure' || mode === 'run error')
+      emit({
+        type: 'diagnostic',
+        ...(mode === 'cleanup failure' ? { entryId: entry.id } : {}),
+        diagnostic: serializeDiagnostic(new Error('separate failure'), {
+          phase: 'cleanup',
+        }),
+      })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      durationMs: 20,
+      status: mode === 'cancelled' ? 'cancelled' : 'failed',
+    })
+    emit({
+      type: 'run-end',
+      status: mode === 'cancelled' ? 'cancelled' : 'failed',
+      durationMs: 20,
+    })
+    const report = machine.getJson()
+    expect(report.success).toBe(mode === 'rejection')
+    expect(report.numPassedTests).toBe(mode === 'case failure' ? 0 : 1)
+    expect(report.numFailedTests).toBe(mode === 'case failure' ? 1 : 0)
+    expect(report.testResults[0].status).toBe(
+      mode === 'rejection' || mode === 'run error' ? 'passed' : 'failed'
+    )
+    expect(report.testResults[0].message).not.toContain(
+      'real unhandled rejection'
+    )
+    expect(report.next.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'diagnostic',
+          diagnostic: expect.objectContaining({
+            unhandled: 'rejection',
+            message: 'real unhandled rejection',
+          }),
+        }),
+        expect.objectContaining({
+          type: 'run-end',
+          status: mode === 'cancelled' ? 'cancelled' : 'failed',
+        }),
+      ])
+    )
+    machine.dispose()
+  })
+
+  it('uses source-file classnames and ancestor-qualified names for JUnit cases', () => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['junit'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({
+      type: 'case-end',
+      ...result(0, 'passed'),
+      testName: 'renders & reads',
+      ancestors: [{ id: 'suite', name: 'outer' }],
+    })
+    emit({
+      type: 'case-end',
+      ...result(0, 'skipped'),
+      caseId: 'unselected',
+      attempt: { id: 'unselected', retry: 0, repeat: 0 },
+      mode: 'skip',
+      durationMs: 0,
+    })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'passed',
+      durationMs: 3,
+    })
+    emit({ type: 'run-end', status: 'passed', durationMs: 3 })
+    expect(machine.getJUnit()).toContain(
+      '<testcase classname="example.test.ts" name="outer &gt; renders &amp; reads"'
+    )
+    expect(machine.getJUnit()).toContain('name="renders" time="0"><skipped/>')
+    machine.dispose()
+  })
+
+  it('retains empty and cleanup-failing suite metadata without failing their passing cases', () => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({ type: 'case-end', ...result(0, 'passed') })
+    for (const [suiteId, mode, status] of [
+      ['empty', 'run', 'failed'],
+      ['skipped', 'skip', 'skipped'],
+      ['todo', 'todo', 'skipped'],
+      [entry.id, 'run', 'failed'],
+    ]) {
+      emit({
+        type: 'suite-end',
+        entryId: entry.id,
+        suiteId,
+        name: suiteId,
+        mode,
+        status,
+        durationMs: 0,
+        ancestors: [],
+        errors: [],
+      })
+    }
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'failed',
+      durationMs: 3,
+    })
+    emit({ type: 'run-end', status: 'failed', durationMs: 3 })
+    expect(machine.getJson()).toMatchObject({
+      numTotalTestSuites: 4,
+      numFailedTestSuites: 2,
+      numPassedTestSuites: 1,
+      numPendingTestSuites: 1,
+      numPassedTests: 1,
+      numFailedTests: 0,
+    })
+    machine.dispose()
+  })
+
+  it('preserves complete bare JSON messages when failures have no saved stack', () => {
+    for (const thrown of [
+      null,
+      'first\nsecond',
+      { name: 'Fault', message: 'bare', stack: '' },
+    ]) {
+      const machine = createMachineReporter({
+        projectDir: '/project',
+        reporters: ['json'],
+      })
+      const emit = (event: object) =>
+        machine.onEvent({ ...envelope, ...event } as ResultEvent)
+      emit({ type: 'run-start' })
+      emit({ type: 'file-start', entry })
+      emit({
+        type: 'case-end',
+        ...result(0, 'failed'),
+        errors: [serializeDiagnostic(thrown, { phase: 'runtime' })],
+      })
+      emit({
+        type: 'file-end',
+        entryId: entry.id,
+        status: 'failed',
+        durationMs: 1,
+      })
+      emit({ type: 'run-end', status: 'failed', durationMs: 1 })
+      expect(
+        machine.getJson().testResults[0].assertionResults[0].failureMessages
+      ).toEqual([
+        typeof thrown === 'object' && thrown ? thrown.message : String(thrown),
+      ])
+      machine.dispose()
+    }
+  })
+
+  it('matches aggregate task failure messages while retaining the original diagnostic tree', () => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    const diagnostic = serializeDiagnostic(
+      new AggregateError([new Error('first'), new Error('second')], 'combined'),
+      { phase: 'runtime' }
+    )
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({ type: 'case-end', ...result(0, 'failed'), errors: [diagnostic] })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'failed',
+      durationMs: 3,
+    })
+    emit({ type: 'run-end', status: 'failed', durationMs: 3 })
+    const report = machine.getJson()
+    expect(
+      report.testResults[0].assertionResults[0].failureMessages.map(
+        (message) => message.split('\n')[0]
+      )
+    ).toEqual(['Error: first', 'Error: second'])
+    expect(
+      report.next.events.find((event) => event.type === 'case-end')
+    ).toMatchObject({
+      errors: [
+        {
+          name: 'AggregateError',
+          message: 'combined',
+          errors: [{ message: 'first' }, { message: 'second' }],
+        },
+      ],
+    })
+    machine.dispose()
+  })
+
+  it('preserves a saved async assertion stack heading without changing the structured error name', () => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    const error = new Error('async mismatch')
+    error.name = 'AssertionError'
+    error.stack =
+      'Error: async mismatch\n    at original (/project/example.test.ts:12:3)'
+    const diagnostic = serializeDiagnostic(error, { phase: 'runtime' })
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({ type: 'case-end', ...result(0, 'failed'), errors: [diagnostic] })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'failed',
+      durationMs: 3,
+    })
+    emit({ type: 'run-end', status: 'failed', durationMs: 3 })
+    const report = machine.getJson()
+    expect(
+      report.testResults[0].assertionResults[0].failureMessages[0].split(
+        '\n'
+      )[0]
+    ).toBe('Error: async mismatch')
+    expect(
+      report.next.events.find((event) => event.type === 'case-end')
+    ).toMatchObject({
+      errors: [{ name: 'AssertionError', stack: error.stack }],
+    })
+    machine.dispose()
+  })
+
+  it('retains the saved Browser hook stack in JSON with its mapped origin and public task results', async () => {
+    // Unmodified events captured from the real Browser parameter-default failure.
+    const events: ResultEvent[] = JSON.parse(
+      await readFile(
+        join(__dirname, 'fixtures/browser-hook-error.events.json'),
+        'utf8'
+      )
+    )
+    const before = structuredClone(events)
+    const started = events.find((event) => event.type === 'file-start')!
+    const ended = events.find((event) => event.type === 'case-end')!
+    const error = ended.errors[0]
+    const machine = createMachineReporter({
+      projectDir: join(started.entry.file, '..'),
+      reporters: ['json'],
+    })
+    try {
+      for (const event of events) machine.onEvent(event)
+      const report = machine.getJson()
+      expect(report.testResults[0].assertionResults[0].failureMessages).toEqual(
+        [error.stack]
+      )
+      expect(error.frames).toEqual([
+        {
+          file: started.entry.file,
+          line: 2,
+          column: 35,
+          original: true,
+        },
+      ])
+      const actualEnded = report.next.events.find(
+        (event) => event.type === 'case-end'
+      )!
+      expect(actualEnded.errors).toEqual(ended.errors)
+      const taskUpdates = report.next.events.filter(
+        (event) => event.type === 'task-update'
+      )
+      expect(taskUpdates).toEqual(
+        before.filter((event) => event.type === 'task-update')
+      )
+      for (const update of taskUpdates.slice(1)) {
+        expect(update.taskTree.tasks![0].result!.errors![0].stack).toBe(
+          error.stack
+        )
+      }
+      expect(report.next.events).toEqual(before)
+      expect(events).toEqual(before)
+    } finally {
+      machine.dispose()
+    }
+  })
+
+  it('a runtime skip overrides earlier repeat failures while retaining all error evidence', () => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    const first = result(0, 'failed')
+    const skipped = {
+      ...result(0, 'skipped', 1),
+      pending: true,
+      mode: 'skip' as const,
+      note: 'reason',
+      errors: first.errors,
+    }
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({ type: 'case-end', ...first })
+    emit({ type: 'case-end', ...skipped })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'passed',
+      durationMs: 3,
+    })
+    emit({ type: 'run-end', status: 'passed', durationMs: 3 })
+    const report = machine.getJson()
+    expect(report).toMatchObject({
+      success: true,
+      numPendingTests: 1,
+      numFailedTests: 0,
+    })
+    expect(report.testResults[0].assertionResults[0].failureMessages).toEqual(
+      []
+    )
+    expect(
+      report.next.events.filter((event) => event.type === 'case-end')
+    ).toMatchObject([
+      { status: 'failed', errors: [{ message: 'render failed' }] },
+      {
+        status: 'skipped',
+        pending: true,
+        note: 'reason',
+        errors: [{ message: 'render failed' }],
+      },
+    ])
+    expect(
+      getFinalCaseResults([first, skipped]).get(first.caseId)?.pending
+    ).toBe(true)
+    machine.dispose()
+  })
+
+  it('reports bailed declarations as unexecuted pending cases without hiding real cancellation', () => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({ type: 'case-end', ...result(0, 'failed') })
+    emit({
+      type: 'case-end',
+      ...result(0, 'cancelled'),
+      caseId: 'bailed',
+      mode: 'run',
+      bail: true,
+    })
+    emit({
+      type: 'case-end',
+      ...result(0, 'cancelled'),
+      caseId: 'cancelled',
+      mode: 'run',
+    })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'failed',
+      durationMs: 3,
+    })
+    emit({ type: 'run-end', status: 'failed', durationMs: 3 })
+    const report = machine.getJson()
+    expect(report).toMatchObject({
+      success: false,
+      numTotalTests: 3,
+      numFailedTests: 2,
+      numPendingTests: 0,
+      numPassedTests: 0,
+    })
+    expect(
+      report.testResults[0].assertionResults.map((test) => test.status)
+    ).toEqual(['failed', 'pending', 'failed'])
+    expect(report.testResults[0].assertionResults[1]).not.toHaveProperty(
+      'duration'
+    )
+    expect(
+      report.testResults[0].assertionResults[0].failureMessages[0]
+    ).toContain('render failed')
+    machine.dispose()
+  })
+
+  it('refuses incomplete reports and propagates output failures', async () => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+      write: () => {
+        throw new Error('reporter output failed')
+      },
+    })
+    machine.onEvent({ ...envelope, type: 'run-start' })
+    await expect(machine.finish()).rejects.toThrow(
+      'before authoritative run cleanup'
+    )
+    machine.onEvent({
+      ...envelope,
+      type: 'run-end',
+      status: 'passed',
+      durationMs: 0,
+    })
+    await expect(machine.finish()).rejects.toThrow('reporter output failed')
+    machine.dispose()
+  })
+
+  it('diagnoses unsupported and duplicate reporter selection', () => {
+    expect(() => parseResultReporters(['json', 'json'])).toThrow(
+      'without duplicates'
+    )
+    expect(parseResultReporters(['custom'])).toEqual(['custom'])
+  })
+})
+
+it('merges disjoint Next blobs while preserving failures and rejects duplicated shards', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'next-merged-reports-'))
+  const input = join(root, 'blobs')
+  const outputFile = join(root, 'merged.json')
+  await mkdir(input)
+  try {
+    for (let index = 0; index < 2; index++) {
+      const identity = `shard-${index}`
+      const selected = {
+        ...entry,
+        id: identity,
+        file: `/project/shard-${index}.test.ts`,
+      }
+      const wrap = (event: object) => ({
+        ...envelope,
+        runId: identity,
+        ...event,
+      })
+      const status = index ? 'failed' : 'passed'
+      const blob = {
+        version: 1,
+        kind: 'next-test-results',
+        referenceVersion: '5.0.4',
+        projectDir: '/project',
+        events: [
+          wrap({ type: 'run-start' }),
+          wrap({ type: 'file-start', entry: selected }),
+          wrap({ type: 'case-end', ...result(0, status), entryId: identity }),
+          wrap({
+            type: 'suite-end',
+            entryId: identity,
+            suiteId: `${identity}/empty`,
+            name: 'empty',
+            ancestors: [],
+            mode: 'skip',
+            status: 'skipped',
+            durationMs: 0,
+            errors: [],
+          }),
+          wrap({
+            type: 'suite-end',
+            entryId: identity,
+            suiteId: identity,
+            name: '',
+            ancestors: [],
+            mode: 'run',
+            status,
+            durationMs: 10,
+            errors: [],
+          }),
+          wrap({ type: 'file-end', entryId: identity, status, durationMs: 10 }),
+          wrap({ type: 'run-end', status, durationMs: 10 }),
+        ],
+      }
+      await writeFile(join(input, `shard-${index}.json`), JSON.stringify(blob))
+    }
+    expect(
+      await mergeResultReports(input, {
+        projectDir: root,
+        reporters: ['json'],
+        outputFile,
+      })
+    ).toBe('failed')
+    const content = await readFile(outputFile, 'utf8')
+    const merged = JSON.parse(content)
+    expect(merged).toMatchObject({
+      numTotalTests: 2,
+      numPassedTests: 1,
+      numFailedTests: 1,
+      numTotalTestSuites: 4,
+      numPassedTestSuites: 3,
+      numFailedTestSuites: 1,
+      success: false,
+    })
+    expect(merged.testResults[0].name).toBe(join(root, 'shard-0.test.ts'))
+    await writeFile(
+      join(input, 'duplicate.json'),
+      await readFile(join(input, 'shard-0.json'))
+    )
+    await expect(
+      mergeResultReports(input, {
+        projectDir: root,
+        reporters: ['json'],
+        outputFile,
+      })
+    ).rejects.toThrow('Duplicate or invalid blob run identity')
+    expect(await readFile(outputFile, 'utf8')).toBe(content)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+it('round-trips unstarted bail results without accepting an executed cancellation', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'next-bail-blob-'))
+  const input = join(root, 'blobs')
+  const outputFile = join(root, 'result.json')
+  await mkdir(input)
+  try {
+    const events = [
+      { type: 'run-start' },
+      { type: 'file-start', entry },
+      { type: 'case-start', ...result(0, 'failed') },
+      { type: 'case-end', ...result(0, 'failed') },
+      {
+        type: 'case-end',
+        ...result(0, 'cancelled'),
+        caseId: 'unstarted',
+        attempt: { id: 'unstarted', retry: 0, repeat: 0 },
+        mode: 'run',
+        bail: true,
+        durationMs: 0,
+      },
+      { type: 'file-end', entryId: entry.id, status: 'failed', durationMs: 3 },
+      { type: 'run-end', status: 'failed', durationMs: 3 },
+    ].map((event) => ({ ...envelope, ...event }))
+    await writeFile(
+      join(input, 'bail.json'),
+      JSON.stringify({
+        version: 1,
+        kind: 'next-test-results',
+        referenceVersion: '5.0.4',
+        projectDir: '/project',
+        events,
+      })
+    )
+    await expect(
+      mergeResultReports(input, {
+        projectDir: root,
+        reporters: ['json'],
+        outputFile,
+      })
+    ).resolves.toBe('failed')
+    const report = JSON.parse(await readFile(outputFile, 'utf8'))
+    expect(report).toMatchObject({
+      numTotalTests: 2,
+      numFailedTests: 1,
+      numPendingTests: 0,
+    })
+    expect(
+      report.testResults[0].assertionResults.map((test: any) => test.status)
+    ).toEqual(['failed', 'pending'])
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+it.each([
+  [
+    'bail after case start',
+    (events: any[]) => {
+      Object.assign(events[2], {
+        status: 'cancelled',
+        mode: 'run',
+        bail: true,
+        durationMs: 0,
+        errors: [],
+      })
+      events.splice(2, 0, { ...events[2], type: 'case-start' })
+    },
+  ],
+  [
+    'bail after earlier attempt',
+    (events: any[]) => {
+      Object.assign(events[2], {
+        status: 'cancelled',
+        mode: 'run',
+        bail: true,
+        durationMs: 0,
+        errors: [],
+      })
+      events.splice(2, 0, {
+        ...events[2],
+        bail: undefined,
+        status: 'passed',
+        attempt: { id: 'earlier', retry: 0, repeat: 0 },
+      })
+    },
+  ],
+  [
+    'bail with retry identity',
+    (events: any[]) => {
+      Object.assign(events[2], {
+        status: 'cancelled',
+        mode: 'run',
+        bail: true,
+        durationMs: 0,
+        errors: [],
+        attempt: { id: 'retry', retry: 1, repeat: 0 },
+      })
+    },
+  ],
+  [
+    'invalid bail flag',
+    (events: any[]) => {
+      events[2].bail = 'yes'
+    },
+  ],
+  [
+    'bailed passing result',
+    (events: any[]) => {
+      events[2].bail = true
+    },
+  ],
+  [
+    'bailed failed result',
+    (events: any[]) => {
+      events[2].bail = true
+      events[2].status = 'cancelled'
+      events[2].mode = 'run'
+      events[2].errors = [
+        serializeDiagnostic(new Error('original failure'), {
+          phase: 'runtime',
+        }),
+      ]
+    },
+  ],
+  [
+    'invalid pending flag',
+    (events: any[]) => {
+      events[2].pending = 'yes'
+    },
+  ],
+  [
+    'pending passing result',
+    (events: any[]) => {
+      events[2].pending = true
+    },
+  ],
+  [
+    'invalid skip note',
+    (events: any[]) => {
+      events[2].note = {}
+    },
+  ],
+  [
+    'missing root suite',
+    (events: any[]) =>
+      events.splice(3, 0, {
+        ...events[2],
+        type: 'suite-end',
+        suiteId: 'child',
+        mode: 'run',
+        ancestors: [],
+      }),
+  ],
+  [
+    'missing suite ancestor',
+    (events: any[]) => {
+      const suite = {
+        ...events[2],
+        type: 'suite-end',
+        mode: 'run',
+        suiteId: events[1].entry.id,
+        ancestors: [],
+      }
+      events.splice(
+        3,
+        0,
+        {
+          ...suite,
+          suiteId: 'child',
+          ancestors: [{ id: 'missing', name: 'missing' }],
+        },
+        suite
+      )
+    },
+  ],
+  [
+    'duplicate suite',
+    (events: any[]) => {
+      const suite = {
+        ...events[2],
+        type: 'suite-end',
+        suiteId: 'suite',
+        mode: 'run',
+        ancestors: [],
+      }
+      events.splice(3, 0, suite, { ...suite })
+    },
+  ],
+  [
+    'invalid suite ancestors',
+    (events: any[]) =>
+      events.splice(3, 0, {
+        ...events[2],
+        type: 'suite-end',
+        suiteId: 'suite',
+        mode: 'run',
+        ancestors: [{}],
+      }),
+  ],
+  [
+    'suite after file completion',
+    (events: any[]) =>
+      events.splice(4, 0, {
+        ...events[2],
+        type: 'suite-end',
+        suiteId: 'suite',
+        mode: 'run',
+        ancestors: [],
+      }),
+  ],
+  [
+    'nested run-start',
+    (events: any[]) => events.splice(2, 0, { ...events[0] }),
+  ],
+  [
+    'nested run-end',
+    (events: any[]) => events.splice(2, 0, { ...events.at(-1) }),
+  ],
+  [
+    'duplicate file-end',
+    (events: any[]) => events.splice(4, 0, { ...events[3] }),
+  ],
+  [
+    'duplicate attempt',
+    (events: any[]) => events.splice(3, 0, { ...events[2] }),
+  ],
+  ['missing file-end', (events: any[]) => events.splice(3, 1)],
+  [
+    'foreign shard ownership',
+    (events: any[]) => {
+      events[2].entryId = 'first'
+    },
+  ],
+  [
+    'invalid diagnostic',
+    (events: any[]) =>
+      events.splice(3, 0, {
+        ...events[0],
+        type: 'diagnostic',
+        diagnostic: {
+          severity: 'silenced',
+          message: 'lost failure',
+          phase: 'runtime',
+        },
+      }),
+  ],
+  [
+    'invalid case error',
+    (events: any[]) => {
+      events[2].errors = [{}]
+    },
+  ],
+  [
+    'invalid output',
+    (events: any[]) =>
+      events.splice(3, 0, {
+        ...events[0],
+        type: 'output',
+        stream: 'stdout',
+        text: {},
+      }),
+  ],
+  [
+    'invalid completion duration',
+    (events: any[]) => {
+      events.at(-1).durationMs = -1
+    },
+  ],
+] as const)(
+  'rejects %s before publishing a merged report',
+  async (_name, mutate) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-invalid-merge-'))
+    const input = join(root, 'blobs')
+    const outputFile = join(root, 'merged.json')
+    await mkdir(input)
+    await writeFile(outputFile, 'previous report')
+    try {
+      for (const id of ['first', 'second']) {
+        const events = [
+          { type: 'run-start' },
+          {
+            type: 'file-start',
+            entry: { ...entry, id, file: `/project/${id}.test.ts` },
+          },
+          { type: 'case-end', ...result(0, 'passed'), entryId: id },
+          { type: 'file-end', entryId: id, status: 'passed', durationMs: 1 },
+          { type: 'run-end', status: 'passed', durationMs: 1 },
+        ].map((event) => ({ ...envelope, runId: id, ...event }))
+        if (id === 'second') mutate(events)
+        await writeFile(
+          join(input, `${id}.json`),
+          JSON.stringify({
+            version: 1,
+            kind: 'next-test-results',
+            referenceVersion: '5.0.4',
+            projectDir: '/project',
+            events,
+          })
+        )
+      }
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).rejects.toThrow()
+      expect(await readFile(outputFile, 'utf8')).toBe('previous report')
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  }
+)
+
+it('replaces failed retries while retaining failed or cancelled repeats independently per case', () => {
+  const cases = getFinalCaseResults([
+    result(0, 'failed'),
+    result(1, 'passed'),
+    result(0, 'passed', 1),
+    { ...result(0, 'failed'), caseId: 'failed repeat' },
+    { ...result(0, 'passed', 1), caseId: 'failed repeat' },
+    { ...result(0, 'cancelled'), caseId: 'cancelled repeat' },
+    { ...result(0, 'passed', 1), caseId: 'cancelled repeat' },
+  ])
+  expect([...cases].map(([caseId, test]) => [caseId, test.status])).toEqual([
+    ['case', 'passed'],
+    ['failed repeat', 'failed'],
+    ['cancelled repeat', 'cancelled'],
+  ])
+  expect(
+    getFinalCaseResults([result(1, 'passed'), result(0, 'failed')]).get('case')
+      ?.status
+  ).toBe('passed')
+})
+
+it('retains real annotation metadata through Next blob merging and rejects forged annotation ownership before publishing', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'next-annotation-reports-'))
+  const input = join(root, 'blobs')
+  const outputFile = join(root, 'merged.json')
+  await mkdir(input)
+  const wrap = (event: object) => ({ ...envelope, ...event })
+  const annotation = {
+    message: 'release evidence',
+    type: 'issue',
+    location: { file: entry.file, line: 4, column: 7 },
+    attachment: { body: 'AQID', bodyEncoding: 'base64' },
+  }
+  const completed = {
+    ...result(0, 'passed'),
+    mode: 'run',
+    meta: { ticket: 42 },
+    tags: ['release'],
+    annotations: [annotation],
+  }
+  const start = {
+    type: 'case-start',
+    entryId: entry.id,
+    caseId: completed.caseId,
+    attempt: completed.attempt,
+    name: completed.name,
+  }
+  const note = {
+    type: 'test-annotation',
+    entryId: entry.id,
+    caseId: completed.caseId,
+    attempt: completed.attempt,
+    annotation,
+  }
+  const blob = {
+    version: 1,
+    kind: 'next-test-results',
+    referenceVersion: '5.0.4',
+    projectDir: '/project',
+    events: [
+      wrap({ type: 'run-start' }),
+      wrap({ type: 'file-start', entry }),
+      wrap(start),
+      wrap(note),
+      wrap({ type: 'case-end', ...completed }),
+      wrap({
+        type: 'suite-end',
+        entryId: entry.id,
+        suiteId: entry.id,
+        name: '',
+        ancestors: [],
+        mode: 'run',
+        status: 'passed',
+        durationMs: 3,
+        errors: [],
+      }),
+      wrap({
+        type: 'file-end',
+        entryId: entry.id,
+        status: 'passed',
+        durationMs: 3,
+      }),
+      wrap({ type: 'run-end', status: 'passed', durationMs: 3 }),
+    ],
+  }
+  const shard = join(input, 'shard.json')
+  try {
+    await writeFile(shard, JSON.stringify(blob))
+    expect(
+      await mergeResultReports(input, {
+        projectDir: root,
+        reporters: ['json'],
+        outputFile,
+      })
+    ).toBe('passed')
+    const merged = JSON.parse(await readFile(outputFile, 'utf8'))
+    expect(merged.testResults[0].assertionResults[0]).toMatchObject({
+      meta: { ticket: 42 },
+      tags: ['release'],
+    })
+    expect(
+      merged.next.events.find((event: any) => event.type === 'test-annotation')
+        .annotation
+    ).toEqual(annotation)
+    const validOutput = await readFile(outputFile, 'utf8')
+    for (const mutate of [
+      (events: any[]) => {
+        events[3].annotation.message = 42
+      },
+      (events: any[]) => {
+        events[3].annotation.location.line = 0
+      },
+      (events: any[]) => {
+        events[3].attempt.id = 'foreign'
+      },
+      (events: any[]) => {
+        events[3].caseId = 'foreign'
+      },
+      (events: any[]) => {
+        const [late] = events.splice(3, 1)
+        events.splice(4, 0, late)
+      },
+      (events: any[]) => {
+        events[4].meta = []
+      },
+      (events: any[]) => {
+        events[4].tags = [42]
+      },
+      (events: any[]) => {
+        events[4].annotations[0].type = 42
+      },
+    ]) {
+      const forged = JSON.parse(JSON.stringify(blob))
+      mutate(forged.events)
+      await writeFile(shard, JSON.stringify(forged))
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).rejects.toThrow(/Invalid|inactive/)
+      expect(await readFile(outputFile, 'utf8')).toBe(validOutput)
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+it('does not replace the completed report when a generation is cancelled during atomic publication', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'next-watch-report-cancel-'))
+  const target = join(root, 'result.json')
+  const controller = new AbortController()
+  const reason = new Error('Superseded before publication')
+  const machine = createMachineReporter({
+    projectDir: root,
+    reporters: ['json'],
+    outputFile: 'result.json',
+  })
+  const originalWrite = writeFile
+  await originalWrite(target, 'previous completed generation')
+  const filesystem =
+    require('node:fs/promises') as typeof import('node:fs/promises')
+  const write = jest
+    .spyOn(filesystem, 'writeFile')
+    .mockImplementation(async (...args: Parameters<typeof writeFile>) => {
+      const value = await originalWrite(...args)
+      if (String(args[0]).endsWith('.tmp')) controller.abort(reason)
+      return value
+    })
+  try {
+    machine.onEvent({ ...envelope, type: 'run-start' })
+    machine.onEvent({
+      ...envelope,
+      type: 'run-end',
+      status: 'passed',
+      durationMs: 1,
+    })
+    await expect(machine.finish({ signal: controller.signal })).rejects.toBe(
+      reason
+    )
+    expect(await readFile(target, 'utf8')).toBe('previous completed generation')
+    expect(await filesystem.readdir(root)).toEqual(['result.json'])
+  } finally {
+    write.mockRestore()
+    machine.dispose()
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+describe('pinned built-in result reporters', () => {
+  it('accepts built-ins alongside a machine reporter without replacing it', () => {
+    expect(
+      parseResultReporters([
+        'json',
+        'tap',
+        'tap-flat',
+        'verbose',
+        'dot',
+        'github-actions',
+      ])
+    ).toEqual(['json', 'tap', 'tap-flat', 'verbose', 'dot', 'github-actions'])
+  })
+
+  it('verbose renders fast passing declarations with their full file and suite identity', () => {
+    const { emit, output } = setup({ style: 'verbose' })
+    emit({
+      type: 'case-end',
+      ...result(0, 'passed'),
+      testName: 'renders',
+      ancestors: [{ id: 'suite', name: 'nested' }],
+    })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'passed',
+      durationMs: 3,
+    })
+    emit({ type: 'run-end', status: 'passed', durationMs: 3 })
+    expect(output()).toContain(
+      ' ✓ |node| example.test.ts > nested > renders 3ms\n'
+    )
+    expect(output()).not.toContain('example.test.ts (1 test)')
+    expect(output()).toContain('1 passed (1)')
+  })
+
+  it('dot uses final case glyphs and retains real failure diagnostics', () => {
+    const { emit, output } = setup({ style: 'dot' })
+    for (const [index, status] of [
+      'passed',
+      'failed',
+      'skipped',
+      'skipped',
+    ].entries()) {
+      emit({
+        type: 'case-end',
+        ...result(0, status as CaseResult['status']),
+        caseId: `case-${index}`,
+        mode: index === 3 ? 'todo' : index === 2 ? 'skip' : 'run',
+      })
+    }
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'failed',
+      durationMs: 3,
+    })
+    emit({ type: 'run-end', status: 'failed', durationMs: 3 })
+    expect(output()).toContain('·x--\n')
+    expect(output()).toContain('render failed')
+    expect(output()).not.toContain('example.test.ts (4 tests')
+  })
+
+  it.each(['tap', 'tap-flat'] as const)(
+    '%s emits real nested results while preserving the separate JSON file and retries',
+    async (name) => {
+      const root = await mkdtemp(join(tmpdir(), 'next-builtin-tap-'))
+      const write = jest.fn()
+      const machine = createMachineReporter({
+        projectDir: '/project',
+        reporters: ['json', name],
+        outputFile: join(root, 'result.json'),
+        write,
+      })
+      const emit = (event: object) =>
+        machine.onEvent({ ...envelope, ...event } as ResultEvent)
+      const failed = {
+        ...result(0, 'failed'),
+        caseId: `${entry.id}/0/0`,
+        testName: 'fails # literal',
+        ancestors: [{ id: `${entry.id}/0`, name: 'nested' }],
+      }
+      try {
+        emit({ type: 'run-start' })
+        emit({ type: 'file-start', entry })
+        emit({ type: 'case-end', ...failed })
+        emit({
+          type: 'case-end',
+          ...result(0, 'failed'),
+          caseId: `${entry.id}/1`,
+          testName: 'recovers',
+        })
+        emit({
+          type: 'case-end',
+          ...result(1, 'passed'),
+          caseId: `${entry.id}/1`,
+          testName: 'recovers',
+        })
+        emit({
+          type: 'suite-end',
+          entryId: entry.id,
+          suiteId: `${entry.id}/0`,
+          name: 'nested',
+          ancestors: [],
+          mode: 'run',
+          status: 'failed',
+          durationMs: 3,
+          errors: [],
+        })
+        emit({
+          type: 'file-end',
+          entryId: entry.id,
+          status: 'failed',
+          durationMs: 3,
+        })
+        emit({ type: 'run-end', status: 'failed', durationMs: 3 })
+        await machine.finish()
+        const json = JSON.parse(
+          await readFile(join(root, 'result.json'), 'utf8')
+        )
+        expect(json).toMatchObject({
+          success: false,
+          numTotalTests: 2,
+          numPassedTests: 1,
+          numFailedTests: 1,
+        })
+        expect(
+          json.testResults[0].assertionResults[1].failureMessages[0]
+        ).toContain('render failed')
+        const text = write.mock.calls.flat().join('')
+        expect(text).toContain('TAP version 13\n')
+        expect(text).toContain('message: "render failed"')
+        expect(text).toContain('fails \\# literal')
+        expect(text).toContain('ok 2 - ')
+        if (name === 'tap-flat') {
+          expect(text).toContain('not ok 1 - example.test.ts > nested > fails')
+          expect(text).not.toContain(' {\n')
+        } else {
+          expect(text).toContain('not ok 1 - example.test.ts # time=3.00ms {\n')
+          expect(text).toContain('    not ok 1 - nested # time=3.00ms {\n')
+        }
+      } finally {
+        machine.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('GitHub Actions escapes workflow commands and writes a result summary without swallowing failure evidence', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-builtin-github-'))
+    const previous = process.env.GITHUB_STEP_SUMMARY
+    process.env.GITHUB_STEP_SUMMARY = join(root, 'summary.md')
+    const write = jest.fn()
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['github-actions'],
+      write,
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    try {
+      emit({ type: 'run-start' })
+      emit({ type: 'file-start', entry })
+      emit({
+        type: 'case-end',
+        ...result(0, 'failed'),
+        errors: [
+          {
+            phase: 'runtime',
+            severity: 'error',
+            message: 'bad%\r\n::warning::injected',
+            location: { file: '/project/comma,name.ts', line: 2, column: 3 },
+          },
+        ],
+        annotations: [
+          {
+            type: 'review',
+            message: 'line one\nline two',
+            location: { file: '/project/test.ts', line: 4, column: 5 },
+          },
+        ],
+      })
+      emit({
+        type: 'file-end',
+        entryId: entry.id,
+        status: 'failed',
+        durationMs: 3,
+      })
+      emit({ type: 'run-end', status: 'failed', durationMs: 3 })
+      await machine.finish()
+      const text = write.mock.calls.flat().join('')
+      expect(text).toContain('::error file=/project/comma%2Cname.ts,')
+      expect(text).toContain('bad%25%0D%0A::warning::injected')
+      expect(text).toContain(
+        '::notice file=/project/test.ts,line=4,column=5,title=review::line one%0Aline two'
+      )
+      expect(await readFile(join(root, 'summary.md'), 'utf8')).toContain(
+        '| 0 | 1 | 0 |'
+      )
+    } finally {
+      if (previous === undefined) delete process.env.GITHUB_STEP_SUMMARY
+      else process.env.GITHUB_STEP_SUMMARY = previous
+      machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('does not publish a completed machine result after a built-in writer throws', async () => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json', 'verbose'],
+      write: () => {
+        throw new Error('builtin writer failed')
+      },
+    })
+    try {
+      expect(() => machine.onEvent({ ...envelope, type: 'run-start' })).toThrow(
+        'builtin writer failed'
+      )
+      await expect(machine.finish()).rejects.toThrow(
+        'authoritative run cleanup'
+      )
+    } finally {
+      machine.dispose()
+    }
+  })
+})
+
+describe('producer specification and declaration ordering', () => {
+  function orderedRun(specificationOrder?: string[]) {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+      write: jest.fn(),
+    })
+    const events: ResultEvent[] = []
+    const emit = (event: object) => {
+      const value = { ...envelope, ...event } as ResultEvent
+      events.push(value)
+      machine.onEvent(value)
+    }
+    // Two projects select the same physical path; their identities remain distinct.
+    const specifications = ['z', 'a'].flatMap((project) =>
+      ['b', 'c'].map((file) => ({
+        ...entry,
+        id: `${project}:${file}`,
+        file: `/project/${file}.case.mjs`,
+        profile: { ...entry.profile, id: project },
+      }))
+    )
+    emit({
+      type: 'run-start',
+      ...(specificationOrder ? { specificationOrder } : {}),
+    })
+    const declarations = [
+      '0',
+      '1',
+      ...Array.from({ length: 12 }, (_, index) => `2/${index}`),
+      ...Array.from({ length: 9 }, (_, index) => String(index + 3)),
+    ]
+    const execution = [...declarations].reverse()
+    for (const selected of [...specifications].reverse()) {
+      emit({ type: 'file-start', entry: selected })
+      for (const declaration of execution) {
+        const caseId = `${selected.id}/0/${declaration}`
+        emit({
+          type: 'case-end',
+          ...result(0, 'passed'),
+          entryId: selected.id,
+          caseId,
+          attempt: { id: `${caseId}/0/0`, retry: 0, repeat: 0 },
+          name: declaration,
+        })
+      }
+      emit({
+        type: 'file-end',
+        entryId: selected.id,
+        status: 'passed',
+        durationMs: 3,
+      })
+    }
+    emit({ type: 'run-end', status: 'passed', durationMs: 12 })
+    return { machine, events, declarations, execution, specifications }
+  }
+
+  it('retains original specification order and nested numeric declarations independently from seeded execution', async () => {
+    const order = ['z:b', 'z:c', 'a:b', 'a:c']
+    const c = orderedRun(order)
+    try {
+      const report = c.machine.getJson()
+      expect(report.testResults.map((file) => file.name)).toEqual(
+        c.specifications.map((selected) => selected.file)
+      )
+      for (const file of report.testResults)
+        expect(file.assertionResults.map((test) => test.title)).toEqual(
+          c.declarations
+        )
+      expect(report.next.events).toEqual(c.events)
+      expect(
+        report.next.events
+          .filter((event) => event.type === 'file-start')
+          .map((event) => event.entry.id)
+      ).toEqual([...order].reverse())
+      expect(
+        report.next.events
+          .filter(
+            (event): event is Extract<ResultEvent, { type: 'case-end' }> =>
+              event.type === 'case-end' && event.entryId === 'z:b'
+          )
+          .map((event) => event.name)
+      ).toEqual(c.execution)
+    } finally {
+      await c.machine.dispose()
+    }
+  })
+
+  it('preserves observed file order when no specification evidence is present', async () => {
+    const c = orderedRun()
+    try {
+      expect(c.machine.getJson().testResults.map((file) => file.name)).toEqual(
+        [...c.specifications].reverse().map((selected) => selected.file)
+      )
+    } finally {
+      await c.machine.dispose()
+    }
+  })
+
+  it('retains declaration/specification evidence through blob merging and rejects malformed ordering before publication', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-ordered-results-'))
+    const c = orderedRun(['z:b', 'z:c', 'a:b', 'a:c'])
+    const shard = join(root, 'shard.json')
+    const outputFile = join(root, 'result.json')
+    const blob = {
+      version: 1,
+      kind: 'next-test-results',
+      referenceVersion: '5.0.4',
+      projectDir: '/project',
+      events: c.events,
+    }
+    try {
+      await writeFile(shard, JSON.stringify(blob))
+      await mergeResultReports(root, {
+        projectDir: root,
+        reporters: ['json'],
+        outputFile,
+      })
+      const validOutput = await readFile(outputFile, 'utf8')
+      const merged = JSON.parse(validOutput)
+      expect(merged.testResults.map((file) => file.name)).toEqual(
+        c.specifications.map((selected) =>
+          join(root, selected.file.slice('/project/'.length))
+        )
+      )
+      for (const file of merged.testResults)
+        expect(file.assertionResults.map((test) => test.title)).toEqual(
+          c.declarations
+        )
+      // Use a separate input folder so the published JSON is not read as a blob.
+      const input = join(root, 'input')
+      await mkdir(input)
+      for (const invalid of [
+        null,
+        'z:b',
+        ['z:b', 42],
+        ['z:b', 'z:b'],
+        ['z:b'],
+      ]) {
+        const forged = JSON.parse(JSON.stringify(blob))
+        forged.events[0].specificationOrder = invalid
+        await writeFile(join(input, 'shard.json'), JSON.stringify(forged))
+        await expect(
+          mergeResultReports(input, {
+            projectDir: root,
+            reporters: ['json'],
+            outputFile,
+          })
+        ).rejects.toThrow('Invalid specification order')
+        expect(await readFile(outputFile, 'utf8')).toBe(validOutput)
+      }
+    } finally {
+      await c.machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('helper diagnostic presentation', () => {
+  afterEach(() => setBundlerFindSourceMapImplementation(() => undefined))
+
+  it('trims through the last mapped helper marker and preserves raw error stacks', () => {
+    setBundlerFindSourceMapImplementation((file) =>
+      file.startsWith('file:///define-helper/')
+        ? {
+            version: 3,
+            file,
+            sources: ['file:///project/helper.test.ts'],
+            sourcesContent: ['callHelper()\n'],
+            names: [],
+            mappings: 'AAAA',
+          }
+        : undefined
+    )
+    const error = new Error('helper failure')
+    error.stack = [
+      'Error: helper failure',
+      '    at assertion (/define-helper/assertion.js:1:1)',
+      '    at __VITEST_HELPER__ (/define-helper/inner.js:1:1)',
+      '    at nested (/define-helper/nested.js:1:1)',
+      '    at Object.__VITEST_HELPER__ (/define-helper/outer.js:1:1)',
+      '    at authoredCaller (/define-helper/caller.js:1:1)',
+    ].join('\n')
+    const raw = error.stack
+    const diagnostic = serializeSourceMappedDiagnostic(
+      new AggregateError([error], 'soft failure', { cause: error }),
+      { phase: 'runtime' }
+    )
+    for (const child of [diagnostic.errors![0], diagnostic.cause!]) {
+      expect(child.stack).toBe(raw)
+      expect(child.frames).toHaveLength(1)
+      expect(child.frames![0]).toMatchObject({
+        file: 'file:///project/helper.test.ts',
+        line: 1,
+        column: 1,
+        methodName: 'authoredCaller',
+        original: true,
+      })
+      expect(child.frames![0].codeFrame).toContain('callHelper()')
+      expect(formatDiagnostic(child)).not.toContain('__VITEST_HELPER__')
+    }
+    expect(error.stack).toBe(raw)
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    try {
+      emit({ type: 'run-start' })
+      emit({ type: 'file-start', entry })
+      emit({ type: 'case-end', ...result(0, 'failed'), errors: [diagnostic] })
+      emit({
+        type: 'file-end',
+        entryId: entry.id,
+        status: 'failed',
+        durationMs: 1,
+      })
+      emit({ type: 'run-end', status: 'failed', durationMs: 1 })
+      expect(
+        machine.getJson().testResults[0].assertionResults[0].failureMessages
+      ).toEqual([raw])
+    } finally {
+      machine.dispose()
+    }
+  })
+
+  it('retains ordinary mapped frames when no helper marker occurs', () => {
+    const error = new Error('ordinary failure')
+    error.stack =
+      'Error: ordinary failure\n    at authoredCaller (/project/plain.test.ts:9:3)'
+    const raw = error.stack
+    const diagnostic = serializeSourceMappedDiagnostic(error, {
+      phase: 'runtime',
+    })
+    expect(diagnostic.stack).toBe(raw)
+    expect(diagnostic.frames).toHaveLength(1)
+    expect(diagnostic.frames![0]).toMatchObject({
+      file: '/project/plain.test.ts',
+      line: 9,
+      column: 3,
+      methodName: 'authoredCaller',
+    })
+    expect(error.stack).toBe(raw)
+  })
+})
+
+it('retains late structured artifacts through JSON, blob merge and completion views', async () => {
+  const {
+    createCustomReporterModules,
+  } = require('next/dist/experimental/testing/reporting/custom-reporter-tasks')
+  const root = await mkdtemp(join(tmpdir(), 'next-artifact-reports-'))
+  const input = join(root, 'blobs')
+  await mkdir(input)
+  const completed = result(0, 'passed')
+  const first = {
+    type: 'custom:schema',
+    location: { file: entry.file, line: 4, column: 2 },
+    data: { valid: true },
+    attachments: [
+      { body: '', path: '/retained/source.txt', bodyEncoding: 'base64' },
+      { body: 'AP9B', bodyEncoding: 'base64' },
+    ],
+  }
+  const second = { type: 'custom:late', value: 7 }
+  const events: ResultEvent[] = [
+    { ...envelope, type: 'run-start' },
+    { ...envelope, type: 'file-start', entry },
+    {
+      ...envelope,
+      type: 'case-start',
+      entryId: entry.id,
+      caseId: completed.caseId,
+      attempt: completed.attempt,
+      name: completed.name,
+    },
+    {
+      ...envelope,
+      type: 'test-artifact',
+      entryId: entry.id,
+      caseId: completed.caseId,
+      attempt: completed.attempt,
+      artifact: first as any,
+    },
+    { ...envelope, type: 'case-end', ...completed },
+    {
+      ...envelope,
+      type: 'test-artifact',
+      entryId: entry.id,
+      caseId: completed.caseId,
+      attempt: completed.attempt,
+      artifact: second as any,
+    },
+    {
+      ...envelope,
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'passed',
+      durationMs: 1,
+    },
+    { ...envelope, type: 'run-end', status: 'passed', durationMs: 1 },
+  ]
+  const collector = createTestReporter({ write() {}, projectDir: '/project' })
+  try {
+    for (const event of events) collector.onEvent(event)
+    const module = createCustomReporterModules('/project', {
+      ...collector.getResults(),
+      events,
+      status: 'passed',
+    })[0]
+    const test = [...module.children.allTests()][0]
+    expect(test.artifacts()).toEqual([first, second])
+    expect(test.artifacts()).not.toBe(test.artifacts())
+    const blob = {
+      version: 1,
+      kind: 'next-test-results',
+      referenceVersion: '5.0.4',
+      projectDir: '/project',
+      events,
+    }
+    const shard = join(input, 'shard.json'),
+      outputFile = join(root, 'merged.json')
+    await writeFile(shard, JSON.stringify(blob))
+    await expect(
+      mergeResultReports(input, {
+        projectDir: root,
+        reporters: ['json'],
+        outputFile,
+      })
+    ).resolves.toBe('passed')
+    const merged = JSON.parse(await readFile(outputFile, 'utf8'))
+    expect(
+      merged.next.events
+        .filter((event: any) => event.type === 'test-artifact')
+        .map((event: any) => event.artifact)
+    ).toEqual([first, second])
+    expect(merged.testResults[0].assertionResults[0]).not.toHaveProperty(
+      'artifacts'
+    )
+    const previous = await readFile(outputFile)
+    for (const invalid of [
+      { artifact: { type: 'custom:bad', attachments: [{}] } },
+      { attempt: { id: 'not-started', retry: 0, repeat: 0 } },
+    ]) {
+      const copied = structuredClone(blob)
+      Object.assign(copied.events[3], invalid)
+      await writeFile(shard, JSON.stringify(copied))
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).rejects.toThrow()
+      expect(await readFile(outputFile)).toEqual(previous)
+    }
+  } finally {
+    collector.dispose()
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
 it('maps artifact ordinary and optional call forms to their genuine positions without changing computed calls', async () => {
   const {
     mapArtifactCallLocation,
@@ -1170,6 +3270,219 @@ it('normalizes only artifact locations from retained source while leaving annota
   }
 })
 
+describe('live custom console reporter callbacks', () => {
+  async function open(mode: string) {
+    const root = await mkdtemp(join(tmpdir(), 'next-live-console-'))
+    await cp(
+      join(__dirname, 'fixtures/live-console-reporter.mjs'),
+      join(root, 'reporter.mjs')
+    )
+    await writeFile(join(root, 'live-options.json'), JSON.stringify({ mode }))
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: parseResultReporters(['json', './reporter.mjs']),
+      outputFile: 'result.json',
+      write() {},
+    })
+    await machine.initialize()
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    const test = result(0, 'passed')
+    emit({
+      type: 'case-start',
+      entryId: entry.id,
+      caseId: test.caseId,
+      attempt: test.attempt,
+      name: test.name,
+    })
+    const output = (text: string, size: number, timestamp: number) =>
+      emit({
+        type: 'output',
+        entryId: entry.id,
+        caseId: test.caseId,
+        attempt: test.attempt,
+        stream: 'stdout',
+        text,
+        timestamp,
+        console: { taskId: test.caseId, size },
+      })
+    const complete = () => {
+      emit({ type: 'case-end', ...test })
+      emit({
+        type: 'file-end',
+        entryId: entry.id,
+        status: 'passed',
+        durationMs: 1,
+      })
+      emit({ type: 'run-end', status: 'passed', durationMs: 1 })
+    }
+    const trace = async () =>
+      (await readFile(join(root, 'live-trace.jsonl'), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+    return { root, machine, emit, output, complete, trace, test }
+  }
+
+  it('delivers actual payload fields live, preserves order and drains async callbacks before completion and close', async () => {
+    const c = await open('gate')
+    try {
+      c.output('first\n', 2, 42)
+      await retry(async () => expect((await c.trace())[0].hook).toBe('console'))
+      c.output('second\n', 1, 43)
+      // A raw pipe write is still reported, without inventing a console count.
+      c.emit({
+        type: 'output',
+        entryId: entry.id,
+        stream: 'stderr',
+        text: 'raw process output\n',
+      })
+      c.complete()
+      let finished = false
+      const finish = c.machine.finish().then(() => {
+        finished = true
+      })
+      await Promise.resolve()
+      expect(finished).toBe(false)
+      expect((await c.trace()).map((row) => row.hook)).toEqual(['console'])
+      await writeFile(join(c.root, 'release-console'), '')
+      await finish
+      await c.machine.dispose()
+      expect(await c.trace()).toEqual([
+        {
+          hook: 'console',
+          keys: ['type', 'content', 'taskId', 'time', 'size', 'origin'],
+          log: {
+            type: 'stdout',
+            content: 'first\n',
+            taskId: c.test.caseId,
+            time: 42,
+            size: 2,
+          },
+        },
+        { hook: 'settled', content: 'first\n' },
+        {
+          hook: 'console',
+          keys: ['type', 'content', 'taskId', 'time', 'size', 'origin'],
+          log: {
+            type: 'stdout',
+            content: 'second\n',
+            taskId: c.test.caseId,
+            time: 43,
+            size: 1,
+          },
+        },
+        { hook: 'settled', content: 'second\n' },
+        {
+          hook: 'end',
+          reason: 'passed',
+          errors: [],
+          tasks: [entry.id, c.test.caseId],
+        },
+        { hook: 'close' },
+      ])
+    } finally {
+      await writeFile(join(c.root, 'release-console'), '')
+      await c.machine.dispose()
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+
+  it('retains async callback errors for run-end, continues later logs and preserves passing test JSON', async () => {
+    const c = await open('reject')
+    try {
+      c.output('first\n', 1, 10)
+      c.output('second\n', 1, 11)
+      c.complete()
+      await expect(c.machine.finish()).rejects.toThrow('console hook rejected')
+      expect(
+        JSON.parse(await readFile(join(c.root, 'result.json'), 'utf8'))
+      ).toMatchObject({ success: true, numPassedTests: 1, numFailedTests: 0 })
+      await c.machine.dispose()
+      const rows = await c.trace()
+      expect(
+        rows
+          .filter((row) => row.hook === 'console')
+          .map((row) => row.log.content)
+      ).toEqual(['first\n', 'second\n'])
+      expect(rows.find((row) => row.hook === 'end')).toMatchObject({
+        errors: ['console hook rejected'],
+        reason: 'passed',
+        tasks: [entry.id, c.test.caseId],
+      })
+      expect(rows.at(-1)).toEqual({ hook: 'close' })
+    } finally {
+      await c.machine.dispose()
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+  it('preserves Browser raw content, zero and UTF-16 sizes and the measured Browser field shape', async () => {
+    const c = await open('normal')
+    try {
+      for (const [content, taskId] of [
+        ['', '__vitest__unknown_test__'],
+        ['kept newline\n', c.test.caseId],
+        ['😀', c.test.caseId],
+      ]) {
+        c.emit({
+          type: 'output',
+          entryId: entry.id,
+          stream: 'stdout',
+          text: content + '\n',
+          timestamp: 20,
+          console: { browser: true, taskId, size: content.length },
+        })
+      }
+      c.complete()
+      await c.machine.finish()
+      await c.machine.dispose()
+      const logs = (await c.trace()).filter((row) => row.hook === 'console')
+      expect(logs.map((row) => row.keys)).toEqual(
+        Array(3).fill([
+          'origin',
+          'content',
+          'browser',
+          'time',
+          'taskId',
+          'type',
+          'size',
+        ])
+      )
+      expect(logs.map((row) => row.log)).toEqual([
+        {
+          content: '',
+          browser: true,
+          time: 20,
+          taskId: '__vitest__unknown_test__',
+          type: 'stdout',
+          size: 0,
+        },
+        {
+          content: 'kept newline\n',
+          browser: true,
+          time: 20,
+          taskId: c.test.caseId,
+          type: 'stdout',
+          size: 13,
+        },
+        {
+          content: '😀',
+          browser: true,
+          time: 20,
+          taskId: c.test.caseId,
+          type: 'stdout',
+          size: 2,
+        },
+      ])
+    } finally {
+      await c.machine.dispose()
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+})
+
 describe('authored Browser instance reporter labels', () => {
   it.each(['', 'authored / client'])(
     'retains the exact public label %j without exposing its compiler ID',
@@ -1198,6 +3511,1741 @@ describe('authored Browser instance reporter labels', () => {
     }
   )
 })
+
+it('reports lexical parents without moving raw collector children or replacing task views', async () => {
+  const { createCollector } = await import(
+    'next/dist/experimental/testing/runner/collector'
+  )
+  const { runCollected } = await import(
+    'next/dist/experimental/testing/runner/lifecycle'
+  )
+  const { captureReporterTaskTree, assertReporterTaskTree } = await import(
+    'next/dist/experimental/testing/reporting/live-tasks'
+  )
+  const { createLiveReporterTaskStore } = await import(
+    'next/dist/experimental/testing/reporting/custom-reporter-live-tasks'
+  )
+  const c = createCollector('lexical-file')
+  const raw = c.api.describe.fn.call(
+    {
+      concurrent: false,
+      only: false,
+      skip: false,
+      todo: false,
+      shuffle: false,
+    },
+    'physical',
+    {},
+    () => {
+      raw.task('inside', { handler() {} })
+    }
+  )
+  raw.task('outside', { handler() {} })
+  c.api.describe('later lexical suite', () => {
+    raw.task('cross', { handler() {} })
+    c.api.test('ordinary lexical child', () => {})
+  })
+  await c.settle()
+  const store = createLiveReporterTaskStore('/project')
+  let tree!: ReturnType<typeof captureReporterTaskTree>
+  let early: unknown[] = []
+  const result = await runCollected(
+    c.close(),
+    {
+      runId: 'lexical-run',
+      signal: new AbortController().signal,
+      filePath: '/project/lexical.test.mjs',
+      onCollected(file) {
+        tree = captureReporterTaskTree(file)
+        store.update(tree)
+        early = [...store.get(file.id)!.children!.allTests()]
+      },
+      onCaseResult(task) {
+        store.update(captureReporterTaskTree(task.file), [task.id])
+      },
+    },
+    () => {}
+  )
+  expect(result.errors).toEqual([])
+  const module = store.get('lexical-file')!
+  const [physical, lexical] = module.children!.array()
+  const [outside, inside] = [...physical.children!.allTests()]
+  const stagedCross = raw.tasks[2]
+  if (stagedCross?.type !== 'test')
+    throw new Error('Expected the staged raw test.')
+  expect([...module.children!.allTests()]).toEqual(early)
+  expect([outside.name, inside.name]).toEqual(['outside', 'inside'])
+  expect(raw.tasks.map((task) => task.name)).toEqual([
+    'outside',
+    'inside',
+    'cross',
+  ])
+  expect(stagedCross.suite?.name).toBe('later lexical suite')
+  expect(stagedCross.result?.state).toBeUndefined()
+  expect(outside.parent).toBe(module)
+  expect(inside.parent).toBe(physical)
+  expect(lexical.children!.size).toBe(1)
+  expect(lexical.children!.at(0)!.parent).toBe(lexical)
+  expect(tree.parentSuiteId).toBeNull()
+  expect(tree.tasks![0].parentSuiteId).toBeNull()
+  expect(tree.tasks![0].tasks!.map((task) => task.parentSuiteId)).toEqual([
+    null,
+    tree.tasks![0].id,
+  ])
+  const legacy = structuredClone(tree)
+  const omitParent = (task: typeof tree) => {
+    delete task.parentSuiteId
+    task.tasks?.forEach(omitParent)
+  }
+  omitParent(legacy)
+  const legacyModule = createLiveReporterTaskStore('/project').update(legacy)
+  const legacyPhysical = legacyModule.children!.at(0)!
+  for (const task of legacyPhysical.children!.allTests())
+    expect(task.parent).toBe(legacyPhysical)
+  expect(() => store.update(legacy)).toThrow('declaration identity changed')
+  expect(outside.result().state).toBe('passed')
+  expect(inside.result().state).toBe('passed')
+  const assertTree: typeof assertReporterTaskTree = assertReporterTaskTree
+  const entryId = tree.id
+  for (const mutate of [
+    (changed: typeof tree) => {
+      changed.tasks![0].parentSuiteId = 'missing'
+    },
+    (changed: typeof tree) => {
+      changed.tasks![1].parentSuiteId = changed.tasks![0].tasks![0].id
+    },
+    (changed: typeof tree) => {
+      changed.tasks![0].parentSuiteId = changed.tasks![0].id
+    },
+    (changed: typeof tree) => {
+      changed.tasks![0].parentSuiteId = changed.tasks![1].id
+      changed.tasks![1].parentSuiteId = changed.tasks![0].id
+    },
+    (changed: typeof tree) => {
+      changed.parentSuiteId = changed.tasks![0].id
+    },
+    (changed: typeof tree) => {
+      changed.tasks![0].parentSuiteId = changed.id
+    },
+    (changed: typeof tree) => {
+      Object.assign(changed.tasks![0], { parentSuiteId: 4 })
+    },
+  ]) {
+    const changed = structuredClone(tree)
+    mutate(changed)
+    expect(() => assertTree(changed, entryId)).toThrow(/reporter.*parent/)
+    expect(() => store.update(changed)).toThrow(/reporter.*parent/)
+    expect(store.get(entryId)).toBe(module)
+    expect(outside.parent).toBe(module)
+    expect(inside.parent).toBe(physical)
+    expect(outside.result().state).toBe('passed')
+  }
+})
+
+it('retains actual collected hierarchy and live task identities before following bodies complete', async () => {
+  const { createCollector } = await import(
+    'next/dist/experimental/testing/runner/collector'
+  )
+  const { runCollected } = await import(
+    'next/dist/experimental/testing/runner/lifecycle'
+  )
+  const { captureReporterTaskTree } = await import(
+    'next/dist/experimental/testing/reporting/live-tasks'
+  )
+  const { createLiveReporterTaskStore } = await import(
+    'next/dist/experimental/testing/reporting/custom-reporter-live-tasks'
+  )
+  const c = createCollector('live-file')
+  const store = createLiveReporterTaskStore('/project')
+  let release!: () => void, entered!: () => void
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const secondEntered = new Promise<void>((resolve) => {
+    entered = resolve
+  })
+  const seen: unknown[] = []
+  let firstMeta: object | undefined
+  let early: unknown
+  c.api.describe('observed completion', () => {
+    c.api.test(
+      'first',
+      {
+        meta: Object.assign(
+          {} as import('next/dist/experimental/testing/runner/tasks').TaskMeta,
+          { authored: 'first' }
+        ),
+      },
+      ({ task, onTestFinished }) => {
+        onTestFinished(() => {
+          Object.assign(task.meta, { finished: true })
+        })
+      }
+    )
+    c.api.test(
+      'held second',
+      {
+        meta: Object.assign(
+          {} as import('next/dist/experimental/testing/runner/tasks').TaskMeta,
+          { authored: 'second' }
+        ),
+      },
+      async () => {
+        entered()
+        await gate
+      }
+    )
+  })
+  c.api.afterAll(
+    // eslint-disable-next-line no-empty-pattern -- Suite hooks require the fixture context before their Suite.
+    ({}, task?: Suite) => {
+      Object.assign(task!.meta, { fileFinished: true })
+    }
+  )
+  await c.settle()
+  const running = runCollected(
+    c.close(),
+    {
+      runId: 'live-run',
+      signal: new AbortController().signal,
+      filePath: '/project/contract.test.mjs',
+      onCollected(file) {
+        store.update(captureReporterTaskTree(file))
+      },
+      onCaseResult(task) {
+        const module = store.update(captureReporterTaskTree(task.file), [
+          task.id,
+        ])
+        const test = store.case(task.file.id, task.id)
+        seen.push(test)
+        if (task.name === 'first') {
+          firstMeta = test.meta()
+          early = {
+            state: module.state(),
+            cases: [...module.children!.allTests()].map((item) => ({
+              name: item.name,
+              result: item.result().state,
+              meta: { ...item.meta() },
+            })),
+          }
+        }
+      },
+      onSuiteEnd(_result, task) {
+        expect(task.file.file).toBe(task.file)
+        store.update(captureReporterTaskTree(task.file), [task.id])
+      },
+    },
+    () => {}
+  )
+  try {
+    await secondEntered
+    expect(early).toEqual({
+      state: 'pending',
+      cases: [
+        {
+          name: 'first',
+          result: 'passed',
+          meta: { authored: 'first', finished: true },
+        },
+        {
+          name: 'held second',
+          result: 'pending',
+          meta: { authored: 'second' },
+        },
+      ],
+    })
+  } finally {
+    release()
+  }
+  expect((await running).errors).toEqual([])
+  const module = store.get('live-file')!
+  expect(module.state()).toBe('passed')
+  expect(module.meta()).toEqual({ fileFinished: true })
+  const cases = [...module.children!.allTests()]
+  expect(cases).toEqual(seen)
+  expect(cases[0].meta()).toBe(firstMeta)
+  expect(cases.map((task) => task.result().state)).toEqual(['passed', 'passed'])
+})
+
+it('supplies the actual root suite task to completion callbacks even without cases', async () => {
+  const { createCollector } = await import(
+    'next/dist/experimental/testing/runner/collector'
+  )
+  const { runCollected } = await import(
+    'next/dist/experimental/testing/runner/lifecycle'
+  )
+  const { captureReporterTaskTree } = await import(
+    'next/dist/experimental/testing/reporting/live-tasks'
+  )
+  const c = createCollector('empty-live-file')
+  const root = c.close()
+  Object.assign(root.meta, { authored: 'empty' })
+  const seen: unknown[] = []
+  await runCollected(
+    root,
+    {
+      runId: 'empty-live-run',
+      signal: new AbortController().signal,
+      passWithNoTests: true,
+      onSuiteEnd(result, task) {
+        expect(task.file).toBe(task)
+        expect(result.suiteId).toBe(task.id)
+        seen.push(captureReporterTaskTree(task.file))
+      },
+    },
+    () => {}
+  )
+  expect(seen).toHaveLength(1)
+  expect(seen[0]).toMatchObject({
+    id: 'empty-live-file',
+    type: 'suite',
+    tasks: [],
+    meta: { authored: 'empty' },
+  })
+})
+
+it('rejects task snapshots without their real file, unique declarations or completed case identity', async () => {
+  const { createCollector } = await import(
+    'next/dist/experimental/testing/runner/collector'
+  )
+  const { runCollected } = await import(
+    'next/dist/experimental/testing/runner/lifecycle'
+  )
+  const { captureReporterTaskTree, assertReporterTaskTree } = await import(
+    'next/dist/experimental/testing/reporting/live-tasks'
+  )
+  const assertTree: typeof import('next/dist/experimental/testing/reporting/live-tasks').assertReporterTaskTree =
+    assertReporterTaskTree
+  const c = createCollector('validated-live-file')
+  c.api.test('real', () => {})
+  let checks = 0
+  await runCollected(
+    c.close(),
+    {
+      runId: 'validated-live-run',
+      signal: new AbortController().signal,
+      onCaseResult(task) {
+        const tree = captureReporterTaskTree(task.file)
+        expect(() => assertTree(tree, task.file.id, task.id)).not.toThrow()
+        const mutations = [
+          () => assertTree(tree, 'foreign', task.id),
+          () => assertTree(tree, task.file.id, 'absent'),
+          () => {
+            const changed = structuredClone(tree)
+            changed.tasks!.push(changed.tasks![0])
+            assertTree(changed, task.file.id, task.id)
+          },
+          () => {
+            const changed = structuredClone(tree)
+            Reflect.deleteProperty(changed.tasks![0], 'annotations')
+            assertTree(changed, task.file.id, task.id)
+          },
+          () => {
+            const changed = structuredClone(tree)
+            Object.assign(changed.tasks![0].result!, { state: 'invented' })
+            assertTree(changed, task.file.id, task.id)
+          },
+        ]
+        for (const mutation of mutations) {
+          expect(mutation).toThrow()
+          checks++
+        }
+        expect(tree.tasks).toHaveLength(1)
+      },
+    },
+    () => {}
+  )
+  expect(checks).toBe(5)
+})
+
+it('replaces only actual packed metadata while preserving prior reporter references', async () => {
+  const { createCollector } = await import(
+    'next/dist/experimental/testing/runner/collector'
+  )
+  const { runCollected } = await import(
+    'next/dist/experimental/testing/runner/lifecycle'
+  )
+  const { captureReporterTaskTree } = await import(
+    'next/dist/experimental/testing/reporting/live-tasks'
+  )
+  const { createLiveReporterTaskStore } = await import(
+    'next/dist/experimental/testing/reporting/custom-reporter-live-tasks'
+  )
+  const c = createCollector('packed-meta-file')
+  const store = createLiveReporterTaskStore('/project')
+  let futureMeta: object | undefined
+  let futureView: unknown
+  let firstTask: import('next/dist/experimental/testing/runner/tasks').Test
+  c.api.test('first', ({ task }) => {
+    firstTask = task
+    Object.assign(task.meta, { authored: 'first' })
+  })
+  c.api.test('second', ({ task }) => {
+    Object.assign(task.meta, { authored: 'second' })
+    Object.assign(firstTask.meta, { lateChildMutation: true })
+  })
+  const result = await runCollected(
+    c.close(),
+    {
+      runId: 'packed-meta-run',
+      signal: new AbortController().signal,
+      filePath: '/project/packed-meta.test.mjs',
+      onCollected(file) {
+        store.update(captureReporterTaskTree(file))
+      },
+      onCaseResult(task) {
+        store.update(captureReporterTaskTree(task.file), [task.id])
+        if (task.name === 'first') {
+          const second = [...store.get(task.file.id)!.children!.allTests()][1]
+          futureMeta = second.meta()
+          futureView = second
+        }
+      },
+      onSuiteEnd(_result, task) {
+        store.update(captureReporterTaskTree(task.file), [task.id])
+      },
+    },
+    () => {}
+  )
+  expect(result.errors).toEqual([])
+  const [first, second] = [
+    ...store.get('packed-meta-file')!.children!.allTests(),
+  ]
+  expect(first.meta()).toEqual({ authored: 'first' })
+  expect(second).toBe(futureView)
+  expect(second.meta()).not.toBe(futureMeta)
+  expect(futureMeta).toEqual({})
+  expect(second.meta()).toEqual({ authored: 'second' })
+})
+
+it('rejects absent task pack identities before changing an actual reporter tree', async () => {
+  const { createCollector } = await import(
+    'next/dist/experimental/testing/runner/collector'
+  )
+  const { runCollected } = await import(
+    'next/dist/experimental/testing/runner/lifecycle'
+  )
+  const { captureReporterTaskTree } = await import(
+    'next/dist/experimental/testing/reporting/live-tasks'
+  )
+  const { createLiveReporterTaskStore } = await import(
+    'next/dist/experimental/testing/reporting/custom-reporter-live-tasks'
+  )
+  const c = createCollector('pack-validation-file')
+  const store = createLiveReporterTaskStore('/project')
+  c.api.test('real', () => {})
+  let checked = false
+  await runCollected(
+    c.close(),
+    {
+      runId: 'pack-validation-run',
+      signal: new AbortController().signal,
+      filePath: '/project/pack-validation.test.mjs',
+      onCollected(file) {
+        store.update(captureReporterTaskTree(file))
+      },
+      onCaseResult(task) {
+        const module = store.get(task.file.id)!
+        const actual = store.case(task.file.id, task.id)
+        const previousMeta = actual.meta()
+        expect(actual.result().state).toBe('pending')
+        expect(() =>
+          store.update(captureReporterTaskTree(task.file), ['absent'])
+        ).toThrow('absent task')
+        expect(store.get(task.file.id)).toBe(module)
+        expect(actual.meta()).toBe(previousMeta)
+        expect(actual.result().state).toBe('pending')
+        store.update(captureReporterTaskTree(task.file), [task.id])
+        expect(actual.result().state).toBe('passed')
+        checked = true
+      },
+    },
+    () => {}
+  )
+  expect(checked).toBe(true)
+})
+
+it('keeps legacy JSON blob projection while refusing absent reporter facts before loading adapters', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'next-foreign-reporter-facts-'))
+  const input = join(root, 'blobs')
+  await mkdir(input)
+  const outputFile = join(root, 'result.json')
+  const marker = join(root, 'adapter-loaded')
+  const reporter = join(root, 'reporter.mjs')
+  const wire = await readFile(
+    join(__dirname, 'fixtures/vitest-5.0.4/original-public-merge.blob'),
+    'utf8'
+  )
+  try {
+    await writeFile(
+      reporter,
+      `import fs from 'node:fs'; fs.writeFileSync(${JSON.stringify(marker)}, 'loaded'); export default class { onTestCaseResult() {} }`
+    )
+    for (const change of [
+      (file: any, _test: any) => delete file.fullName,
+      (_file: any, test: any) => (test.each = 42),
+      (_file: any, test: any) => (test.timeout = -1),
+      (_file: any, test: any) => delete test.annotations,
+    ]) {
+      const table = JSON.parse(wire)
+      const files = table[Number(table[0][1])]
+      const file = table[Number(files[0])]
+      const tests = table[Number(file.tasks)]
+      change(file, table[Number(tests[0])])
+      await writeFile(join(input, 'actual.blob'), JSON.stringify(table))
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).resolves.toBe('passed')
+      expect(JSON.parse(await readFile(outputFile, 'utf8')).success).toBe(true)
+      await writeFile(outputFile, 'existing report')
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: parseResultReporters(['json', reporter]),
+          outputFile,
+        })
+      ).rejects.toThrow()
+      expect(await readFile(outputFile, 'utf8')).toBe('existing report')
+      await expect(readFile(marker)).rejects.toMatchObject({ code: 'ENOENT' })
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+describe('actual custom reporter cancellation ownership', () => {
+  it.each([
+    'normal',
+    'callback-error',
+    'close-error',
+    'callback-error-close-error',
+    'terminal-error-close-error',
+    'callback-error-terminal-error-close-error',
+    'transport-error',
+  ])(
+    'joins cancelled %s reporters while preserving actual errors',
+    async (mode) => {
+      const root = await mkdtemp(join(tmpdir(), 'next-cancel-reporter-'))
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const controller = new AbortController()
+      let session: Awaited<ReturnType<typeof openCustomReporters>> | undefined
+      try {
+        await cp(
+          join(__dirname, 'fixtures/cancellation-reporter.mjs'),
+          join(root, 'reporter.mjs')
+        )
+        await writeFile(
+          join(root, 'cancel-options.json'),
+          JSON.stringify({ mode })
+        )
+        session = await openCustomReporters({
+          projectDir: root,
+          reporters: ['./reporter.mjs'],
+          signal: controller.signal,
+          write() {},
+        })
+        const trace = async () =>
+          (await readFile(join(root, 'cancel-trace.jsonl'), 'utf8'))
+            .trim()
+            .split('\n')
+            .map((line) => JSON.parse(line))
+        const [{ pid }] = await trace()
+        expect(pid).not.toBe(process.pid)
+        expect(session.captureTaskResults).toBe(true)
+        const collector = createTestReporter({ projectDir: root, write() {} })
+        const completion = {
+          ...collector.getResults(),
+          events: [],
+          status: 'cancelled' as const,
+        }
+        if (mode.startsWith('callback-error')) {
+          session.onEvent({
+            ...envelope,
+            type: 'output',
+            entryId: entry.id,
+            stream: 'stdout',
+            text: 'before cancellation\n',
+            console: { taskId: '__vitest__unknown_test__', size: 19 },
+          })
+          expect(await session.collectErrors()).toEqual([
+            expect.objectContaining({
+              message: 'actual prior console callback rejected',
+            }),
+          ])
+        }
+        const leaves = (error: any): string[] =>
+          error instanceof AggregateError
+            ? error.errors.flatMap(leaves)
+            : [error.message]
+        if (mode.includes('terminal-error')) {
+          const prior = await session.finish(completion).then(
+            () => undefined,
+            (error) => error
+          )
+          expect(leaves(prior)).toContain(
+            'actual prior terminal callback rejected'
+          )
+        }
+        controller.abort(new Error('actual reporter owner cancelled'))
+        session.onEvent({
+          ...envelope,
+          type: 'output',
+          entryId: entry.id,
+          stream: 'stdout',
+          text: 'after cancellation\n',
+          console: { taskId: '__vitest__unknown_test__', size: 18 },
+        })
+        const finished = await session.finish(completion).then(
+          () => undefined,
+          (error) => error
+        )
+        const disposed = await session.dispose().then(
+          () => undefined,
+          (error) => error
+        )
+        const errors = [finished, disposed].filter(
+          (error) => error !== undefined
+        )
+        const messages = errors.flatMap(leaves).join('\n')
+        if (mode === 'normal') {
+          expect(errors).toEqual([])
+          expect(await session.collectErrors()).toEqual([])
+        }
+        if (mode.startsWith('callback-error'))
+          expect(messages).toContain('actual prior console callback rejected')
+        if (mode.includes('terminal-error'))
+          expect(messages).toContain('actual prior terminal callback rejected')
+        if (mode.includes('close-error'))
+          expect(messages).toContain('actual cancellation close rejected')
+        if (mode === 'transport-error')
+          expect(messages).toContain('Invalid custom reporter response')
+        const rows = await trace()
+        expect(rows.some((row) => row.hook === 'close-start')).toBe(true)
+        expect(
+          rows.filter((row) => row.hook === 'terminal-request')
+        ).toHaveLength(mode.includes('terminal-error') ? 1 : 0)
+        expect(errors.flatMap(leaves)).toEqual([
+          ...(mode.startsWith('callback-error')
+            ? ['actual prior console callback rejected']
+            : []),
+          ...(mode.includes('terminal-error')
+            ? ['actual prior terminal callback rejected']
+            : []),
+          ...(mode.includes('close-error')
+            ? ['actual cancellation close rejected']
+            : []),
+          ...(mode === 'transport-error'
+            ? ['Invalid custom reporter response.']
+            : []),
+        ])
+        expect(
+          rows.filter((row) => row.hook === 'console').map((row) => row.content)
+        ).not.toContain('after cancellation\n')
+        expect(() => process.kill(pid, 0)).toThrow()
+      } finally {
+        controller.abort()
+        await session?.dispose().catch(() => {})
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+})
+
+it('keeps unimplemented built-in reporter names separate from package entries', () => {
+  for (const reporter of [
+    'agent',
+    'minimal',
+    'tree',
+    'hanging-process',
+    'html',
+  ])
+    expect(() => parseResultReporters([reporter])).toThrow(
+      'Unsupported result reporter'
+    )
+  for (const reporter of [
+    'node:fs',
+    'https://example.invalid/reporter',
+    '@scope',
+    'name/../reporter',
+  ])
+    expect(() => parseResultReporters([reporter])).toThrow(
+      'Unsupported result reporter'
+    )
+})
+
+it('keeps actual native entry rejections global across standard, TAP and stable/live custom module views', async () => {
+  const { createCustomReporterModules } = await import(
+    'next/dist/experimental/testing/reporting/custom-reporter-tasks'
+  )
+  const { createLiveReporterTaskStore } = await import(
+    'next/dist/experimental/testing/reporting/custom-reporter-live-tasks'
+  )
+  const { renderTapReport } = await import(
+    'next/dist/experimental/testing/reporting/builtin-reporters'
+  )
+  const { createCollector } = await import(
+    'next/dist/experimental/testing/runner/collector'
+  )
+  const { runCollected } = await import(
+    'next/dist/experimental/testing/runner/lifecycle'
+  )
+  const { captureReporterTaskTree } = await import(
+    'next/dist/experimental/testing/reporting/live-tasks'
+  )
+  const diagnostics: ResultEvent[] = [
+    {
+      ...envelope,
+      type: 'diagnostic',
+      entryId: entry.id,
+      revision: 'rev-1',
+      diagnostic: {
+        phase: 'runtime',
+        severity: 'error',
+        message: 'ordinary suite failure',
+      },
+    },
+    {
+      ...envelope,
+      type: 'diagnostic',
+      entryId: entry.id,
+      revision: 'rev-1',
+      diagnostic: {
+        phase: 'runtime',
+        severity: 'error',
+        unhandled: 'rejection',
+        message: 'first native event',
+      },
+    },
+    {
+      ...envelope,
+      type: 'diagnostic',
+      entryId: entry.id,
+      revision: 'rev-1',
+      diagnostic: {
+        phase: 'cleanup',
+        severity: 'error',
+        message: 'ordinary cleanup failure',
+      },
+    },
+    {
+      ...envelope,
+      type: 'diagnostic',
+      diagnostic: {
+        phase: 'runtime',
+        severity: 'error',
+        message: 'ordinary global failure',
+      },
+    },
+    {
+      ...envelope,
+      type: 'diagnostic',
+      entryId: entry.id,
+      revision: 'rev-1',
+      diagnostic: {
+        phase: 'runtime',
+        severity: 'error',
+        unhandled: 'rejection',
+        message: 'second native event',
+      },
+    },
+  ]
+  const events: ResultEvent[] = [
+    { ...envelope, type: 'run-start' },
+    { ...envelope, type: 'file-start', entry, revision: 'rev-1' },
+    ...diagnostics,
+    {
+      ...envelope,
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'failed',
+      durationMs: 1,
+    },
+    { ...envelope, type: 'run-end', status: 'failed', durationMs: 1 },
+  ]
+  const original = JSON.stringify(events)
+  let text = ''
+  const reporter = createTestReporter({
+    projectDir: '/project',
+    write(value) {
+      text += value
+    },
+  })
+  try {
+    for (const event of events) reporter.onEvent(event)
+    expect(text).toContain('Failed Suites 1')
+    expect(text.match(/Unhandled Rejection/g)).toHaveLength(2)
+    expect(text).toContain('Errors  3 errors')
+    const suites = text.slice(
+      text.indexOf('Failed Suites'),
+      text.indexOf('Unhandled Errors')
+    )
+    expect(suites).toContain('ordinary suite failure')
+    expect(suites).toContain('ordinary cleanup failure')
+    expect(suites).not.toContain('first native event')
+    expect(suites).not.toContain('second native event')
+    const completion = {
+      ...reporter.getResults(),
+      events,
+      status: 'failed' as const,
+    }
+    const stable = createCustomReporterModules('/project', completion)[0]
+    expect(stable.errors()).toEqual([
+      {
+        phase: 'runtime',
+        severity: 'error',
+        message: 'ordinary suite failure',
+      },
+      {
+        phase: 'cleanup',
+        severity: 'error',
+        message: 'ordinary cleanup failure',
+      },
+    ])
+    const c = createCollector(entry.id)
+    c.api.test('real', () => {})
+    const live = createLiveReporterTaskStore('/project')
+    await runCollected(
+      c.close(),
+      {
+        runId: 'native-consumer',
+        signal: new AbortController().signal,
+        filePath: entry.file,
+        onCollected(file) {
+          live.update(captureReporterTaskTree(file))
+        },
+      },
+      () => {}
+    )
+    const module = live.finishModule(entry.id, completion)!
+    expect(module.errors()).toEqual([
+      {
+        phase: 'runtime',
+        severity: 'error',
+        message: 'ordinary suite failure',
+      },
+      {
+        phase: 'cleanup',
+        severity: 'error',
+        message: 'ordinary cleanup failure',
+      },
+    ])
+    const tap = renderTapReport(completion, events, { projectDir: '/project' })
+    expect(tap).toContain('[run errors]')
+    expect(tap.match(/first native event/g)).toHaveLength(1)
+    expect(tap.match(/second native event/g)).toHaveLength(1)
+    expect(tap.match(/ordinary suite failure/g)).toHaveLength(1)
+    expect(tap.match(/ordinary cleanup failure/g)).toHaveLength(1)
+    expect(JSON.stringify(events)).toBe(original)
+  } finally {
+    reporter.dispose()
+  }
+})
+
+it.each([
+  'unowned-relative',
+  'owned-package',
+  'unexpected-native-error',
+  'package-directory',
+])('preserves the native reporter resolution boundary for %s', async (kind) => {
+  const root = await mkdtemp(join(tmpdir(), 'next-jsx-reporter-boundary-'))
+  try {
+    const { pathToFileURL } = await import('node:url')
+    const loader = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter-loader'
+    )
+    const filename = join(root, 'reporter.mjs')
+    await writeFile(filename, 'export default class Reporter {}\n')
+    await writeFile(join(root, 'dependency.jsx'), 'export default 1\n')
+    await mkdir(join(root, 'dependency'))
+    await writeFile(join(root, 'dependency/index.jsx'), 'export default 2\n')
+    if (kind === 'package-directory')
+      await writeFile(
+        join(root, 'dependency/package.json'),
+        '{"type":"module"}\n'
+      )
+    await loader.initialize({ entries: [filename] })
+    const parentURL = pathToFileURL(
+      kind === 'unowned-relative' ? join(root, 'outside.mjs') : filename
+    ).href
+    const failure = Object.assign(
+      new Error('actual native resolution rejected'),
+      {
+        code:
+          kind === 'unexpected-native-error'
+            ? 'ERR_ACCESS_DENIED'
+            : 'ERR_MODULE_NOT_FOUND',
+      }
+    )
+    if (kind === 'package-directory') await rm(join(root, 'dependency.jsx'))
+    const nextResolve = jest.fn(async () => {
+      throw failure
+    })
+    await expect(
+      loader.resolve(
+        kind === 'owned-package' ? 'dependency' : './dependency',
+        { parentURL },
+        nextResolve
+      )
+    ).rejects.toBe(failure)
+    expect(nextResolve).toHaveBeenCalledTimes(1)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+it('preserves raw Error reflection while sharing exact frame boundaries across formatter copies and installations', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'error-reflection.cjs')],
+    { encoding: 'utf8' }
+  )
+  expect(JSON.parse(result)).toEqual({ reflections: 10, consumers: 7 })
+})
+
+it.each([
+  'valid',
+  'legacy',
+  'foreign-suite',
+  'slot-other-error',
+  'slot-absent',
+  'slot-negative',
+  'slot-fractional',
+  'slot-nan',
+  'slot-string',
+  'wrong-payload-name',
+  'wrong-payload-stack',
+  'wrong-run',
+  'wrong-entry',
+  'wrong-revision',
+  'missing-revision',
+  'later-owner',
+  'duplicate-equal',
+  'duplicate-different',
+])(
+  'retains exact suite error ownership in live and replayed module views: %s',
+  async (mode) => {
+    const { createCustomReporterModules, isReportedSuiteError } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter-tasks'
+    )
+    const { createLiveReporterTaskStore } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter-live-tasks'
+    )
+    const { createCollector } = await import(
+      'next/dist/experimental/testing/runner/collector'
+    )
+    const { runCollected } = await import(
+      'next/dist/experimental/testing/runner/lifecycle'
+    )
+    const { captureReporterTaskTree } = await import(
+      'next/dist/experimental/testing/reporting/live-tasks'
+    )
+    const first = {
+      phase: 'runtime' as const,
+      severity: 'error' as const,
+      name: 'Error',
+      message: 'same authored message',
+      stack: 'first actual authored stack',
+    }
+    const second = { ...first, stack: 'second actual authored stack' }
+    const suite: Extract<ResultEvent, { type: 'suite-end' }> = {
+      ...envelope,
+      type: 'suite-end',
+      entryId: entry.id,
+      revision: 'rev-1',
+      suiteId: entry.id,
+      name: '',
+      ancestors: [],
+      mode: 'run',
+      status: 'failed',
+      durationMs: 1,
+      errors: [first, second],
+    }
+    const diagnostic: Extract<ResultEvent, { type: 'diagnostic' }> = {
+      ...envelope,
+      type: 'diagnostic',
+      entryId: entry.id,
+      revision: 'rev-1',
+      suiteError: { suiteId: entry.id, index: 0 },
+      diagnostic: structuredClone(first),
+    }
+    const { reporter, emit } = setup()
+    try {
+      reporter.onEvent(suite)
+      reporter.onEvent(diagnostic)
+      emit({
+        type: 'file-end',
+        entryId: entry.id,
+        status: 'failed',
+        durationMs: 1,
+      })
+      const results = reporter.getResults()
+      const events = [structuredClone(suite), structuredClone(diagnostic)]
+      const owner = events[0] as typeof suite
+      const candidate = events[1] as typeof diagnostic
+      if (mode === 'legacy') delete candidate.suiteError
+      if (mode === 'foreign-suite') candidate.suiteError!.suiteId = 'foreign'
+      if (mode === 'slot-other-error') candidate.suiteError!.index = 1
+      if (mode === 'slot-absent') candidate.suiteError!.index = 2
+      if (mode === 'slot-negative') candidate.suiteError!.index = -1
+      if (mode === 'slot-fractional') candidate.suiteError!.index = 0.5
+      if (mode === 'slot-nan') candidate.suiteError!.index = NaN
+      if (mode === 'slot-string')
+        candidate.suiteError!.index = '0' as unknown as number
+      if (mode === 'wrong-payload-name')
+        candidate.diagnostic.name = 'OtherError'
+      if (mode === 'wrong-payload-stack')
+        candidate.diagnostic.stack = second.stack
+      if (mode === 'wrong-run') owner.runId = 'foreign-run'
+      if (mode === 'wrong-entry') owner.entryId = 'foreign-entry'
+      if (mode === 'wrong-revision') owner.revision = 'foreign-revision'
+      if (mode === 'missing-revision') delete candidate.revision
+      if (mode === 'later-owner') events.reverse()
+      if (mode === 'duplicate-equal') events.unshift(structuredClone(owner))
+      if (mode === 'duplicate-different') {
+        const duplicate = structuredClone(owner)
+        duplicate.errors[0] = structuredClone(second)
+        events.unshift(duplicate)
+      }
+      for (const replayed of [false, true]) {
+        const actualEvents: ResultEvent[] = replayed
+          ? JSON.parse(JSON.stringify(events))
+          : events
+        const actualDiagnostic = actualEvents.find(
+          (event) => event.type === 'diagnostic'
+        ) as typeof diagnostic
+        const original = JSON.stringify(actualEvents)
+        expect(isReportedSuiteError(actualDiagnostic, actualEvents)).toBe(
+          mode === 'valid'
+        )
+        const completion = {
+          ...results,
+          events: actualEvents,
+          status: 'failed' as const,
+        }
+        const expected =
+          mode === 'valid'
+            ? [first, second]
+            : [first, second, actualDiagnostic.diagnostic]
+        const stable = createCustomReporterModules('/project', completion)[0]
+        expect(stable.errors()).toEqual(expected)
+        const c = createCollector(entry.id)
+        c.api.test('actual declaration', () => {})
+        const live = createLiveReporterTaskStore('/project')
+        await runCollected(
+          c.close(),
+          {
+            runId: 'suite-error-owner',
+            signal: new AbortController().signal,
+            filePath: entry.file,
+            onCollected(file) {
+              live.update(captureReporterTaskTree(file))
+            },
+          },
+          () => {}
+        )
+        expect(live.finishModule(entry.id, completion)!.errors()).toEqual(
+          expected
+        )
+        expect(JSON.stringify(actualEvents)).toBe(original)
+      }
+    } finally {
+      reporter.dispose()
+    }
+  }
+)
+
+describe('closed watch file JSON history', () => {
+  function historicalFile(status: 'passed' | 'failed' = 'passed') {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({
+        ...envelope,
+        runId: 'old-run',
+        ...event,
+      } as ResultEvent)
+    emit({ type: 'run-start' })
+    emit({
+      type: 'file-start',
+      entry,
+      revision: 'old-revision',
+      timestamp: 500,
+    })
+    emit({ type: 'case-end', ...result(0, status), name: 'old actual title' })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status,
+      durationMs: 3,
+    })
+    emit({ type: 'run-end', status, durationMs: 3 })
+    const record = machine.snapshotClosedFiles(new Set([entry.id]))[0]
+    machine.dispose()
+    return record
+  }
+
+  it('retains original closed rows in selected specification order without replaying events', () => {
+    const old = historicalFile()
+    const active = { ...entry, id: 'active', file: '/project/active.test.ts' }
+    const unseen = { ...entry, id: 'unseen', file: '/project/unseen.test.ts' }
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({
+        ...envelope,
+        runId: 'new-run',
+        ...event,
+      } as ResultEvent)
+    try {
+      emit({ type: 'run-start' })
+      emit({
+        type: 'file-start',
+        entry: active,
+        revision: 'fresh-revision',
+        timestamp: 1,
+      })
+      emit({
+        type: 'case-end',
+        ...result(0, 'skipped'),
+        entryId: active.id,
+        name: 'actually cancelled case',
+      })
+      emit({
+        type: 'file-end',
+        entryId: active.id,
+        status: 'passed',
+        durationMs: 0,
+      })
+      machine.retainUnexecutedFiles(
+        [entry, unseen],
+        [old],
+        [entry.id, active.id, unseen.id]
+      )
+      old.result.cases[0].name = 'caller mutation'
+      emit({ type: 'run-end', status: 'passed', durationMs: 3 })
+      const report = machine.getJson()
+      expect(report.testResults.map((file) => file.name)).toEqual([
+        entry.file,
+        active.file,
+        unseen.file,
+      ])
+      expect(report.testResults[0]).toMatchObject({
+        startTime: 500,
+        endTime: 503,
+        status: 'passed',
+        assertionResults: [
+          expect.objectContaining({
+            fullName: 'old actual title',
+            status: 'passed',
+          }),
+        ],
+      })
+      expect(report.testResults[2]).toMatchObject({
+        status: 'passed',
+        assertionResults: [],
+      })
+      expect(report).toMatchObject({
+        success: true,
+        numTotalTests: 2,
+        numPassedTests: 1,
+        numPendingTests: 1,
+      })
+      expect(
+        report.next.events.every((event) => event.runId === 'new-run')
+      ).toBe(true)
+      expect(
+        report.next.events.filter((event) => event.type === 'case-end')
+      ).toHaveLength(1)
+      expect(
+        machine
+          .snapshotClosedFiles(new Set([entry.id, active.id]))
+          .map((record) => record.result.entry.entry.id)
+      ).toEqual([active.id])
+    } finally {
+      machine.dispose()
+    }
+  })
+
+  it('keeps current executed rows authoritative over historical data', () => {
+    const old = historicalFile()
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({
+        ...envelope,
+        runId: 'new-run',
+        ...event,
+      } as ResultEvent)
+    try {
+      emit({ type: 'run-start' })
+      emit({ type: 'file-start', entry, revision: 'fresh-revision' })
+      emit({
+        type: 'case-end',
+        ...result(0, 'passed'),
+        name: 'actual new title',
+      })
+      emit({
+        type: 'file-end',
+        entryId: entry.id,
+        status: 'passed',
+        durationMs: 1,
+      })
+      machine.retainUnexecutedFiles([entry], [old], [entry.id])
+      emit({ type: 'run-end', status: 'passed', durationMs: 1 })
+      expect(
+        machine
+          .getJson()
+          .testResults[0].assertionResults.map((test) => test.fullName)
+      ).toEqual(['actual new title'])
+      expect(machine.getJson().numTotalTests).toBe(1)
+    } finally {
+      machine.dispose()
+    }
+  })
+
+  it('preserves a real failed historical row and unsuccessful JSON after user cancellation', () => {
+    const old = historicalFile('failed')
+    const active = { ...entry, id: 'active', file: '/project/active.test.ts' }
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({
+        ...envelope,
+        runId: 'new-run',
+        ...event,
+      } as ResultEvent)
+    try {
+      emit({ type: 'run-start' })
+      emit({ type: 'file-start', entry: active, revision: 'new-revision' })
+      emit({ type: 'case-end', ...result(0, 'skipped'), entryId: active.id })
+      emit({
+        type: 'file-end',
+        entryId: active.id,
+        status: 'passed',
+        durationMs: 1,
+      })
+      machine.retainUnexecutedFiles([entry], [old], [active.id, entry.id])
+      emit({ type: 'run-end', status: 'passed', durationMs: 1 })
+      const report = machine.getJson()
+      expect(report).toMatchObject({
+        success: false,
+        numFailedTests: 1,
+        numFailedTestSuites: 1,
+        numPendingTests: 1,
+      })
+      expect(report.testResults[1]).toMatchObject({
+        status: 'failed',
+        startTime: 500,
+        endTime: 503,
+        assertionResults: [
+          expect.objectContaining({
+            fullName: 'old actual title',
+            status: 'failed',
+          }),
+        ],
+      })
+      expect(
+        report.next.events.every((event) => event.runId === 'new-run')
+      ).toBe(true)
+      expect(
+        report.next.events.filter((event) => event.type === 'case-end')
+      ).toHaveLength(1)
+    } finally {
+      machine.dispose()
+    }
+  })
+
+  it('refuses mixed historical ownership without adding any current case', () => {
+    const old = historicalFile()
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    try {
+      old.caseCompletions[0].runId = 'foreign'
+      expect(() =>
+        machine.retainUnexecutedFiles([entry], [old], [entry.id])
+      ).toThrow('Invalid closed watch file record')
+    } finally {
+      machine.dispose()
+    }
+  })
+})
+
+describe('actual custom watch hooks and worker ownership', () => {
+  it.each(['none', 'initial', 'later', 'rerun', 'removed'])(
+    'joins async watch callbacks with %s failure policy',
+    async (error) => {
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const { createCollector } = await import(
+        'next/dist/experimental/testing/runner/collector'
+      )
+      const { runCollected } = await import(
+        'next/dist/experimental/testing/runner/lifecycle'
+      )
+      const { captureReporterTaskTree } = await import(
+        'next/dist/experimental/testing/reporting/live-tasks'
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-watch-hooks-'))
+      let session: Awaited<ReturnType<typeof openCustomReporters>> | undefined
+      try {
+        await cp(
+          join(__dirname, 'fixtures/watch-hooks-reporter.mjs'),
+          join(root, 'reporter.mjs')
+        )
+        await writeFile(
+          join(root, 'watch-options.json'),
+          JSON.stringify({ error })
+        )
+        session = await openCustomReporters({
+          projectDir: root,
+          reporters: ['./reporter.mjs'],
+          watch: true,
+          write() {},
+        })
+        expect(session.captureTaskResults).toBe(true)
+        const empty = {
+          entries: [],
+          files: [],
+          cases: [],
+          suites: [],
+          events: [],
+          status: 'passed' as const,
+        }
+        await session.beginWatchRun()
+        await session.finish(empty)
+        const initialError = await session.readyWatchRun(true)
+        if (error === 'initial')
+          expect(initialError?.message).toBe('actual initial readiness failure')
+        else expect(initialError).toBeUndefined()
+        const rerun = session.beginWatchRun({
+          rerun: { files: [entry.file], trigger: 'subject.mjs' },
+        })
+        if (error === 'rerun')
+          await expect(rerun).rejects.toThrow('actual rerun failure')
+        else {
+          await rerun
+          const collector = createCollector(entry.id)
+          collector.api.describe('owned suite', () => {
+            collector.api.test('owned test', ({ task }) => {
+              Object.assign(task.meta, { authored: 'kept' })
+            })
+          })
+          await collector.settle()
+          let tree!: ReturnType<typeof captureReporterTaskTree>
+          await runCollected(
+            collector.close(),
+            {
+              runId: 'watch-hook-run',
+              filePath: entry.file,
+              signal: new AbortController().signal,
+              onSuiteEnd(_result, task) {
+                if (task.file === task)
+                  tree = captureReporterTaskTree(task.file)
+              },
+            },
+            () => {}
+          )
+          const completion = {
+            ...empty,
+            entries: [{ ...envelope, type: 'file-start' as const, entry }],
+            files: [
+              {
+                ...envelope,
+                type: 'file-end' as const,
+                entryId: entry.id,
+                status: 'passed' as const,
+                durationMs: 0,
+              },
+            ],
+          }
+          await session.replayFile(tree, completion)
+          await session.finish(completion)
+          const later = session.readyWatchRun(false)
+          if (error === 'later')
+            await expect(later).rejects.toThrow(
+              'actual later readiness failure'
+            )
+          else {
+            await expect(later).resolves.toBeUndefined()
+            const removed = session.removeWatchTests([entry.file])
+            if (error === 'removed')
+              await expect(removed).rejects.toThrow('actual removed failure')
+            else await removed
+          }
+        }
+        const closing = session.dispose()
+        expect(session.dispose()).toBe(closing)
+        await closing
+        const rows = (await readFile(join(root, 'watch-hooks.jsonl'), 'utf8'))
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line))
+        expect(rows[0]).toEqual({ type: 'ready', count: 1 })
+        expect(rows[1]).toEqual({
+          type: 'rerun',
+          files: [entry.file],
+          trigger: 'subject.mjs',
+        })
+        if (error !== 'rerun')
+          expect(rows[2]).toEqual({
+            type: 'ready',
+            count: 2,
+            files: [
+              {
+                name: 'example.test.ts',
+                mode: 'run',
+                state: 'pass',
+                self: true,
+                cases: [
+                  {
+                    name: 'owned suite',
+                    file: true,
+                    parent: true,
+                    tests: [
+                      {
+                        name: 'owned test',
+                        file: true,
+                        suite: true,
+                        privateParent: false,
+                        meta: { authored: 'kept' },
+                        state: 'pass',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          })
+        expect(rows.filter((row) => row.type === 'close')).toHaveLength(
+          ['none', 'initial'].includes(error) ? 1 : 0
+        )
+        if (['none', 'initial', 'removed'].includes(error))
+          expect(rows.some((row) => row.type === 'removed')).toBe(true)
+      } finally {
+        await session?.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+})
+
+it('settles initial related selection before a recovering reporter readiness failure', async () => {
+  const { spawn } = await import('node:child_process')
+  const root = await mkdtemp(
+    join(__dirname, '../../../.next-test-related-startup-')
+  )
+  const source = join(__dirname, 'fixtures/related-startup-watch-error')
+  let child: ReturnType<typeof spawn> | undefined
+  let closed:
+    | Promise<{ code: number | null; signal: NodeJS.Signals | null }>
+    | undefined
+  let output = ''
+  let outputRoot: string | undefined
+  function joinClosed() {
+    if (!closed) return Promise.resolve(undefined)
+    let timer: ReturnType<typeof setTimeout> | undefined
+    return Promise.race([
+      closed,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new Error('Owned related watch did not close.')),
+          10000
+        )
+      }),
+    ]).finally(() => clearTimeout(timer))
+  }
+  try {
+    outputRoot = await mkdtemp(join(tmpdir(), 'next-related-reporter-'))
+    for (const file of [
+      'alpha.mjs.txt',
+      'beta.mjs.txt',
+      'alpha.case.mjs.txt',
+      'beta.case.mjs.txt',
+      'reporter.mjs',
+      'watch.mjs',
+    ])
+      await cp(join(source, file), join(root, file.replace(/\.txt$/, '')))
+    await writeFile(
+      join(root, 'package.json'),
+      ' {"private":true,"type":"module"}\n'
+    )
+    await writeFile(
+      join(root, 'next.config.mjs'),
+      'export default ' +
+        JSON.stringify({ turbopack: { root: join(__dirname, '../../..') } }) +
+        '\n'
+    )
+    await writeFile(
+      join(root, 'next.test.config.json'),
+      JSON.stringify({
+        maxWorkers: 1,
+        projects: [
+          {
+            name: 'watch-node',
+            mode: 'development',
+            environment: 'node',
+            include: ['*.case.mjs'],
+          },
+        ],
+      })
+    )
+    const marker = join(outputRoot, 'events.jsonl')
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      NODE_ENV: 'development' as const,
+      NEXT_TELEMETRY_DISABLED: '1',
+      WATCH_EVENTS: marker,
+      WATCH_ERROR_KIND: 'ready',
+    }
+    delete env.CI
+    child = spawn(
+      process.execPath,
+      [
+        join(root, 'watch.mjs'),
+        root,
+        join(__dirname, '../../../packages/next/dist/experimental/testing'),
+      ],
+      { cwd: root, env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] }
+    )
+    child.stdout!.on('data', (chunk) => (output += chunk))
+    child.stderr!.on('data', (chunk) => (output += chunk))
+    child.on('message', (message: any) => {
+      if (message?.type === 'diagnostic')
+        output += JSON.stringify(message.event) + '\n'
+    })
+    closed = new Promise((resolve, reject) => {
+      child!.once('error', reject)
+      child!.once('close', (code, signal) => resolve({ code, signal }))
+    })
+    void closed.catch(() => {})
+    const rows = async () =>
+      (await readFile(marker, 'utf8'))
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+    await retry(
+      async () => {
+        expect((await rows()).some((row) => row.type === 'ready-error')).toBe(
+          true
+        )
+      },
+      60000,
+      500,
+      'actual initial related reporter failure'
+    )
+    await writeFile(join(root, 'beta.mjs'), 'export const value=2\n')
+    await retry(
+      async () => {
+        expect((await rows()).some((row) => row.type === 'ready-after')).toBe(
+          true
+        )
+      },
+      60000,
+      500,
+      'actual beta-only recovery'
+    )
+    child.send({ type: 'close' })
+    expect(await joinClosed()).toEqual({ code: 0, signal: null })
+    expect(await rows()).toEqual(
+      JSON.parse(
+        await readFile(join(source, 'pristine-development.json'), 'utf8')
+      )
+    )
+    expect(output).toContain('actual async ready rejection')
+  } catch (error) {
+    console.error(output)
+    throw error
+  } finally {
+    try {
+      if (child?.connected) child.send({ type: 'close' })
+      try {
+        await joinClosed()
+      } finally {
+        await killApp(child)
+        await closed?.catch(() => {})
+      }
+    } finally {
+      try {
+        await rm(root, { recursive: true, force: true })
+      } finally {
+        if (outputRoot) await rm(outputRoot, { recursive: true, force: true })
+      }
+    }
+  }
+}, 180000)
+
+it.each([false, true])(
+  'publishes an actual removal rejection before owned shutdown (writerFails=%s)',
+  async (writerFails) => {
+    const { spawn } = await import('node:child_process')
+    const root = await mkdtemp(
+      join(__dirname, '../../../.next-test-removed-watch-')
+    )
+    const source = join(__dirname, 'fixtures/removed-watch-error')
+    let outputRoot: string | undefined
+    let child: ReturnType<typeof spawn> | undefined
+    let closed:
+      | Promise<{ code: number | null; signal: NodeJS.Signals | null }>
+      | undefined
+    let output = ''
+    const messages: any[] = []
+    function joinClosed() {
+      if (!closed) return Promise.resolve(undefined)
+      let timer: ReturnType<typeof setTimeout> | undefined
+      return Promise.race([
+        closed,
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(
+            () => reject(new Error('Owned removal watch did not close.')),
+            10000
+          )
+        }),
+      ]).finally(() => clearTimeout(timer))
+    }
+    try {
+      outputRoot = await mkdtemp(join(tmpdir(), 'next-removed-reporter-'))
+      for (const file of [
+        'contract.case.mjs.txt',
+        'subject.mjs.txt',
+        'watch.mjs',
+      ])
+        await cp(join(source, file), join(root, file.replace(/\.txt$/, '')))
+      await cp(
+        join(__dirname, 'fixtures/related-startup-watch-error/reporter.mjs'),
+        join(root, 'reporter.mjs')
+      )
+      await writeFile(
+        join(root, 'package.json'),
+        '{"private":true,"type":"module"}\n'
+      )
+      await writeFile(
+        join(root, 'next.config.mjs'),
+        'export default ' +
+          JSON.stringify({ turbopack: { root: join(__dirname, '../../..') } }) +
+          '\n'
+      )
+      await writeFile(
+        join(root, 'next.test.config.json'),
+        JSON.stringify({
+          maxWorkers: 1,
+          projects: [
+            {
+              name: 'watch-node',
+              mode: 'development',
+              environment: 'node',
+              include: ['*.case.mjs'],
+            },
+          ],
+        })
+      )
+      const marker = join(outputRoot, 'events.jsonl')
+      const env: NodeJS.ProcessEnv = {
+        ...process.env,
+        NODE_ENV: 'development' as const,
+        NEXT_TELEMETRY_DISABLED: '1',
+        WATCH_EVENTS: marker,
+        WATCH_ERROR_KIND: 'removed',
+        WATCH_ERROR_WRITER: writerFails ? '1' : '0',
+      }
+      delete env.CI
+      child = spawn(
+        process.execPath,
+        [
+          join(root, 'watch.mjs'),
+          root,
+          join(__dirname, '../../../packages/next/dist/experimental/testing'),
+        ],
+        { cwd: root, env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] }
+      )
+      child.stdout!.on('data', (chunk) => (output += chunk))
+      child.stderr!.on('data', (chunk) => (output += chunk))
+      child.on('message', (message) => messages.push(message))
+      closed = new Promise((resolve, reject) => {
+        child!.once('error', reject)
+        child!.once('close', (code, signal) => resolve({ code, signal }))
+      })
+      void closed.catch(() => {})
+      const rows = async () =>
+        (await readFile(marker, 'utf8'))
+          .split('\n')
+          .filter(Boolean)
+          .map((line) => JSON.parse(line))
+      await retry(
+        async () => {
+          expect(
+            (await rows()).filter((row) => row.type === 'ready-after')
+          ).toHaveLength(1)
+        },
+        60000,
+        500,
+        'actual initial removal reporter readiness'
+      )
+      const added = join(root, 'added.case.mjs')
+      await writeFile(added, "import{test}from'vitest';test('added',()=>{})\n")
+      await retry(
+        async () => {
+          expect(
+            (await rows()).filter((row) => row.type === 'ready-after')
+          ).toHaveLength(2)
+        },
+        60000,
+        500,
+        'actual added reporter readiness'
+      )
+      await rm(added)
+      expect(await joinClosed()).toEqual({ code: 1, signal: null })
+      expect(await rows()).toEqual(
+        JSON.parse(await readFile(join(source, 'pristine.json'), 'utf8'))
+      )
+      expect(messages).toEqual([
+        {
+          type: 'write-error',
+          text: 'Test watch error: actual async removed rejection\n',
+        },
+        writerFails
+          ? { type: 'thrown', message: 'Owned watch error writer failed.' }
+          : { type: 'result', result: { status: 'failed' } },
+      ])
+    } catch (error) {
+      console.error(output, messages)
+      throw error
+    } finally {
+      try {
+        if (child?.connected) child.send({ type: 'close' })
+        try {
+          await joinClosed()
+        } finally {
+          await killApp(child)
+          await closed?.catch(() => {})
+        }
+      } finally {
+        try {
+          await rm(root, { recursive: true, force: true })
+        } finally {
+          if (outputRoot) await rm(outputRoot, { recursive: true, force: true })
+        }
+      }
+    }
+  },
+  180000
+)
 
 it('retains exact selected declaration columns without artifact-call snapping', () => {
   const {
@@ -1242,6 +5290,3042 @@ it('retains exact selected declaration columns without artifact-call snapping', 
   }
 })
 
+it('publishes actual collection locations while retaining mutable in-realm Tasks', async () => {
+  const { createCollector } = await import(
+    'next/dist/experimental/testing/runner/collector'
+  )
+  const { runCollected } = await import(
+    'next/dist/experimental/testing/runner/lifecycle'
+  )
+  const { captureReporterTaskTree, assertReporterTaskTree } = await import(
+    'next/dist/experimental/testing/reporting/live-tasks'
+  )
+  const { createLiveReporterTaskStore } = await import(
+    'next/dist/experimental/testing/reporting/custom-reporter-live-tasks'
+  )
+  const c = createCollector('location-file', {
+    filePath: '/project/location.test.mjs',
+    getTaskLocation: () => ({ line: 8, column: 5 }),
+  })
+  const raw = c.api.describe.fn.call(
+    {
+      concurrent: false,
+      only: false,
+      skip: false,
+      todo: false,
+      shuffle: false,
+    },
+    'located suite',
+    {},
+    () => {}
+  )
+  const task = raw.task('located case', {
+    handler({ task }) {
+      expect(task.location).toEqual({ line: 777, column: 5 })
+      task.location!.line = 888
+      task.location = { line: 999, column: 998 }
+    },
+  })
+  expect(Object.getOwnPropertyDescriptor(task, 'location')).toEqual({
+    value: { line: 8, column: 5 },
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  })
+  task.location!.line = 777
+  c.api.test.skip('located skipped', () => {})
+  c.api.test.todo('located todo')
+  const store = createLiveReporterTaskStore('/project')
+  const results = await runCollected(
+    c.close(),
+    {
+      runId: 'location-run',
+      filePath: '/project/location.test.mjs',
+      signal: new AbortController().signal,
+      onCollected(file) {
+        store.update(captureReporterTaskTree(file))
+      },
+      onCaseResult(current) {
+        store.update(captureReporterTaskTree(current.file), [current.id])
+      },
+    },
+    () => {}
+  )
+  expect(results.errors).toEqual([])
+  expect(results.cases.map((current) => current.location)).toEqual([
+    { file: '/project/location.test.mjs', line: 777, column: 5 },
+    { file: '/project/location.test.mjs', line: 8, column: 5 },
+    { file: '/project/location.test.mjs', line: 8, column: 5 },
+  ])
+  expect(task.location).toEqual({ line: 999, column: 998 })
+  const tree = captureReporterTaskTree(task.file)
+  const assertTree: typeof assertReporterTaskTree = assertReporterTaskTree
+  assertTree(tree, 'location-file')
+  expect(tree).not.toHaveProperty('location')
+  expect(tree.tasks![0].location).toEqual({ line: 8, column: 5 })
+  expect(tree.tasks![0].tasks![0].location).toEqual({ line: 777, column: 5 })
+  tree.tasks![0].tasks![0].location!.line = 123
+  expect(
+    captureReporterTaskTree(task.file).tasks![0].tasks![0].location
+  ).toEqual({ line: 777, column: 5 })
+  expect(
+    [...store.get('location-file')!.children!.allTests()].map(
+      (current) => current.location
+    )
+  ).toEqual([
+    { line: 777, column: 5 },
+    { line: 8, column: 5 },
+    { line: 8, column: 5 },
+  ])
+  const invalid = structuredClone(tree)
+  invalid.tasks![0].location!.column = 0
+  expect(() => assertTree(invalid, 'location-file')).toThrow(
+    'Invalid live reporter task graph'
+  )
+})
+
+it('keeps declaration file identity internal and projects only JSON line and column', () => {
+  const machine = createMachineReporter({
+    projectDir: '/project',
+    reporters: ['json'],
+  })
+  const emit = (event: object) =>
+    machine.onEvent({ ...envelope, ...event } as ResultEvent)
+  try {
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({
+      type: 'case-end',
+      ...result(0, 'passed'),
+      location: { file: entry.file, line: 8, column: 5 },
+    })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'passed',
+      durationMs: 3,
+    })
+    emit({ type: 'run-end', status: 'passed', durationMs: 3 })
+    const report = machine.getJson()
+    expect(report.testResults[0].assertionResults[0].location).toEqual({
+      line: 8,
+      column: 5,
+    })
+    expect(
+      report.next.events.find((event) => event.type === 'case-end')
+    ).toMatchObject({ location: { file: entry.file, line: 8, column: 5 } })
+  } finally {
+    machine.dispose()
+  }
+})
+
+it('captures producer-owned locations across reporting module instances', async () => {
+  const { createCollector } = await import(
+    'next/dist/experimental/testing/runner/collector'
+  )
+  const { runCollected } = await import(
+    'next/dist/experimental/testing/runner/lifecycle'
+  )
+  const { getPublishedTaskLocation } = await import(
+    'next/dist/experimental/testing/runner/tasks'
+  )
+  type LiveTasks =
+    typeof import('next/dist/experimental/testing/reporting/live-tasks')
+  type TaskUpdates =
+    typeof import('next/dist/experimental/testing/reporting/task-updates')
+  let capture!: LiveTasks['captureReporterTaskTree']
+  let createUpdates!: TaskUpdates['createReporterTaskUpdates']
+  jest.isolateModules(() => {
+    capture =
+      require('next/dist/experimental/testing/reporting/live-tasks').captureReporterTaskTree
+    createUpdates =
+      require('next/dist/experimental/testing/reporting/task-updates').createReporterTaskUpdates
+  })
+  const c = createCollector('producer-location-file', {
+    filePath: '/project/producer-location.test.mjs',
+    getTaskLocation: () => ({ line: 4, column: 7 }),
+  })
+  c.api.test('located case', ({ task }) => {
+    expect(Reflect.set(task, 'location', { line: 999, column: 998 })).toBe(true)
+  })
+  const snapshots: import('next/dist/experimental/testing/reporting/live-tasks').ReporterTaskSnapshot[] =
+    []
+  const resolved: import('next/dist/experimental/testing/runner/tasks').Task[] =
+    []
+  const resolveLocation: typeof getPublishedTaskLocation = (task) => {
+    resolved.push(task)
+    return getPublishedTaskLocation(task)
+  }
+  const updates = createUpdates({
+    getTaskLocation: resolveLocation,
+    onUpdate(update) {
+      snapshots.push(update.taskTree)
+    },
+  })
+  try {
+    const result = await runCollected(
+      c.close(),
+      {
+        runId: 'producer-location-run',
+        filePath: '/project/producer-location.test.mjs',
+        signal: new AbortController().signal,
+        onCollected(file) {
+          snapshots.push(capture(file, undefined, resolveLocation))
+          updates.collected(file)
+        },
+        onCaseResult(task, current) {
+          updates.caseResult(task, current)
+        },
+        onSuiteEnd(_, task) {
+          updates.suiteEnd(task)
+        },
+      },
+      () => {}
+    )
+    await updates.finish()
+    expect(result.errors).toEqual([])
+    expect(result.cases[0].status).toBe('passed')
+    expect(snapshots.length).toBeGreaterThan(2)
+    expect(
+      resolved.every(
+        (task) => task === task.file || task.file.tasks.includes(task)
+      )
+    ).toBe(true)
+    for (const snapshot of snapshots) {
+      expect(snapshot).not.toHaveProperty('location')
+      expect(snapshot.tasks![0].location).toEqual({ line: 4, column: 7 })
+    }
+    snapshots[0].tasks![0].location!.line = 123
+    expect(snapshots.at(-1)!.tasks![0].location).toEqual({ line: 4, column: 7 })
+  } finally {
+    updates.dispose()
+  }
+})
+
+it.each(['worker-only', 'mixed-cleanup', 'case-failed', 'cancelled'])(
+  'retains Browser worker cleanup as a separate run origin for %s',
+  async (mode) => {
+    const {
+      reportedRunError,
+      hasOnlyBrowserCleanupFailures,
+      hasOnlyBrowserCleanupRunFailures,
+    } = await import('next/dist/experimental/testing/reporting/run-errors')
+    let output = ''
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const human = createTestReporter({
+      projectDir: '/project',
+      write: (text) => {
+        output += text
+      },
+    })
+    const events: ResultEvent[] = []
+    const emit = (event: object) => {
+      const value = { ...envelope, ...event } as ResultEvent
+      events.push(value)
+      machine.onEvent(value)
+      human.onEvent(value)
+    }
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({
+      type: 'case-end',
+      ...result(0, mode === 'case-failed' ? 'failed' : 'passed'),
+    })
+    const error = {
+      name: 'FixtureCleanupError',
+      message: 'actual joined worker cleanup failed',
+      stack: '',
+      phase: 'cleanup' as const,
+      severity: 'error' as const,
+      runError: 'browser-worker-fixture-cleanup' as const,
+    }
+    emit({ type: 'diagnostic', entryId: entry.id, diagnostic: error })
+    if (mode === 'mixed-cleanup')
+      emit({
+        type: 'diagnostic',
+        entryId: entry.id,
+        diagnostic: {
+          phase: 'cleanup',
+          severity: 'error',
+          name: 'FixtureCleanupError',
+          message: 'same Error, ordinary file occurrence',
+          stack: '',
+        },
+      })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: mode === 'cancelled' ? 'cancelled' : 'failed',
+      durationMs: 1,
+    })
+    emit({
+      type: 'run-end',
+      status: mode === 'cancelled' ? 'cancelled' : 'failed',
+      durationMs: 1,
+    })
+    expect(human.getSummary().status).toBe('failed')
+    expect(machine.getJson().success).toBe(mode === 'worker-only')
+    expect(machine.getJson().testResults[0].status).toBe(
+      mode === 'worker-only' ? 'passed' : 'failed'
+    )
+    expect(machine.getJson().testResults[0].message).not.toContain(
+      error.message
+    )
+    expect(reportedRunError(error)).toEqual({
+      name: error.name,
+      message: error.message,
+      stack: '',
+      stacks: [],
+      type: 'Cleanup Error',
+    })
+    expect(
+      hasOnlyBrowserCleanupFailures(entry.id, {
+        ...human.getResults(),
+        events,
+      })
+    ).toBe(mode === 'worker-only')
+    expect(
+      hasOnlyBrowserCleanupRunFailures({
+        ...human.getResults(),
+        events,
+        status: mode === 'cancelled' ? 'cancelled' : 'failed',
+      })
+    ).toBe(mode === 'worker-only')
+    const { renderTapReport } = await import(
+      'next/dist/experimental/testing/reporting/builtin-reporters'
+    )
+    const tap = renderTapReport(human.getResults(), events, {
+      projectDir: '/project',
+    })
+    expect(tap).not.toContain('[run errors]')
+    const junit = machine.getJUnit()
+    expect(junit).toContain(
+      '<testsuite name="vitest unhandled errors" tests="1" failures="0" errors="1" skipped="0" time="0">'
+    )
+    expect(junit).toContain(
+      'name="Cleanup Error: actual joined worker cleanup failed"'
+    )
+    expect(junit).toContain(
+      'message="actual joined worker cleanup failed" type="FixtureCleanupError"'
+    )
+    expect(
+      hasOnlyBrowserCleanupRunFailures({
+        ...human.getResults(),
+        events,
+        status: 'failed',
+        recordedReporterErrors: [
+          serializeDiagnostic(
+            new Error('independent reporter callback failed'),
+            { phase: 'reporter' }
+          ),
+        ],
+      })
+    ).toBe(false)
+    expect(output).toContain('Cleanup Error')
+    expect(events.filter((event) => event.type === 'diagnostic')).toHaveLength(
+      mode === 'mixed-cleanup' ? 2 : 1
+    )
+    expect(events.find((event) => event.type === 'diagnostic')).toMatchObject({
+      diagnostic: { runError: 'browser-worker-fixture-cleanup' },
+    })
+    machine.dispose()
+    human.dispose()
+  }
+)
+
+it.each([
+  'component-only',
+  'component-worker-same',
+  'file-component-worker-same',
+  'recorded-reporter',
+])(
+  'keeps independently observed component cleanup errors separate for %s',
+  async (mode) => {
+    const { hasOnlyBrowserCleanupRunFailures, reportedRunError } = await import(
+      'next/dist/experimental/testing/reporting/run-errors'
+    )
+    const { renderTapReport } = await import(
+      'next/dist/experimental/testing/reporting/builtin-reporters'
+    )
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const human = createTestReporter({ projectDir: '/project', write() {} }),
+      events: ResultEvent[] = []
+    const emit = (event: object) => {
+      const value = { ...envelope, ...event } as ResultEvent
+      events.push(value)
+      machine.onEvent(value)
+      human.onEvent(value)
+    }
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({ type: 'case-end', ...result(0, 'passed') })
+    const error = {
+      phase: 'cleanup' as const,
+      severity: 'error' as const,
+      name: 'FixtureCleanupError',
+      message: 'same actual cleanup failure',
+      stack: '',
+    }
+    if (mode === 'file-component-worker-same')
+      emit({ type: 'diagnostic', entryId: entry.id, diagnostic: error })
+    const origins = [
+      'browser-component-cleanup' as const,
+      ...(mode === 'component-worker-same' ||
+      mode === 'file-component-worker-same'
+        ? ['browser-worker-fixture-cleanup' as const]
+        : []),
+    ]
+    for (const runError of origins)
+      emit({
+        type: 'diagnostic',
+        entryId: entry.id,
+        diagnostic: { ...error, runError },
+      })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'failed',
+      durationMs: 1,
+    })
+    emit({ type: 'run-end', status: 'failed', durationMs: 1 })
+    const recordedReporterErrors =
+      mode === 'recorded-reporter'
+        ? [
+            serializeDiagnostic(new Error('independent reporter failure'), {
+              phase: 'reporter',
+            }),
+          ]
+        : undefined
+    const completion = {
+      ...human.getResults(),
+      events,
+      status: 'failed' as const,
+      recordedReporterErrors,
+    }
+    expect(hasOnlyBrowserCleanupRunFailures(completion)).toBe(
+      mode === 'component-only' || mode === 'component-worker-same'
+    )
+    expect(machine.getJson().success).toBe(
+      mode !== 'file-component-worker-same'
+    )
+    expect(human.getSummary().status).toBe('failed')
+    expect(
+      renderTapReport(human.getResults(), events, { projectDir: '/project' })
+    ).not.toContain('[run errors]')
+    expect(machine.getJUnit()).toContain(
+      `<testsuite name="vitest unhandled errors" tests="${origins.length}" failures="0" errors="${origins.length}"`
+    )
+    const reported = events.flatMap((event) =>
+      event.type === 'diagnostic' && event.diagnostic.runError
+        ? [reportedRunError(event.diagnostic)]
+        : []
+    )
+    expect(reported).toHaveLength(origins.length)
+    expect(reported).toEqual(
+      origins.map(() => ({
+        name: error.name,
+        message: error.message,
+        stack: '',
+        stacks: [],
+        type: 'Cleanup Error',
+      }))
+    )
+    if (origins.length === 2) expect(reported[0]).not.toBe(reported[1])
+    machine.dispose()
+    human.dispose()
+  }
+)
+
+it.each([
+  'keyboard-only',
+  'keyboard-worker-same',
+  'ordinary-and-keyboard',
+  'recorded-reporter',
+])(
+  'keeps independently observed keyboard cleanup errors separate for %s',
+  async (mode) => {
+    const { hasOnlyBrowserCleanupRunFailures, reportedRunError } = await import(
+      'next/dist/experimental/testing/reporting/run-errors'
+    )
+    const { renderTapReport } = await import(
+      'next/dist/experimental/testing/reporting/builtin-reporters'
+    )
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const human = createTestReporter({ projectDir: '/project', write() {} }),
+      events: ResultEvent[] = []
+    const emit = (event: object) => {
+      const value = { ...envelope, ...event } as ResultEvent
+      events.push(value)
+      machine.onEvent(value)
+      human.onEvent(value)
+    }
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({ type: 'case-end', ...result(0, 'passed') })
+    const error = {
+      phase: 'cleanup' as const,
+      severity: 'error' as const,
+      name: 'FixtureCleanupError',
+      message: 'same actual cleanup failure',
+      stack: '',
+    }
+    if (mode === 'ordinary-and-keyboard')
+      emit({ type: 'diagnostic', entryId: entry.id, diagnostic: error })
+    const origins = [
+      'browser-keyboard-cleanup' as const,
+      ...(mode === 'keyboard-worker-same' || mode === 'ordinary-and-keyboard'
+        ? ['browser-worker-fixture-cleanup' as const]
+        : []),
+    ]
+    for (const runError of origins)
+      emit({
+        type: 'diagnostic',
+        entryId: entry.id,
+        diagnostic: { ...error, runError },
+      })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'failed',
+      durationMs: 1,
+    })
+    emit({ type: 'run-end', status: 'failed', durationMs: 1 })
+    const recordedReporterErrors =
+      mode === 'recorded-reporter'
+        ? [
+            serializeDiagnostic(new Error('independent reporter failure'), {
+              phase: 'reporter',
+            }),
+          ]
+        : undefined
+    const completion = {
+      ...human.getResults(),
+      events,
+      status: 'failed' as const,
+      recordedReporterErrors,
+    }
+    expect(hasOnlyBrowserCleanupRunFailures(completion)).toBe(
+      mode === 'keyboard-only' || mode === 'keyboard-worker-same'
+    )
+    expect(machine.getJson().success).toBe(mode !== 'ordinary-and-keyboard')
+    expect(human.getSummary().status).toBe('failed')
+    expect(
+      renderTapReport(human.getResults(), events, { projectDir: '/project' })
+    ).not.toContain('[run errors]')
+    expect(machine.getJUnit()).toContain(
+      `<testsuite name="vitest unhandled errors" tests="${origins.length}" failures="0" errors="${origins.length}"`
+    )
+    const reported = events.flatMap((event) =>
+      event.type === 'diagnostic' && event.diagnostic.runError
+        ? [reportedRunError(event.diagnostic)]
+        : []
+    )
+    expect(reported).toHaveLength(origins.length)
+    expect(reported).toEqual(
+      origins.map(() => ({
+        name: error.name,
+        message: error.message,
+        stack: '',
+        stacks: [],
+        type: 'Cleanup Error',
+      }))
+    )
+    if (origins.length === 2) expect(reported[0]).not.toBe(reported[1])
+    machine.dispose()
+    human.dispose()
+  }
+)
+
+describe('actual queued module reporter ownership', () => {
+  async function queuedReporter(reject = false) {
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), 'next-queued-reporter-'))
+    )
+    await cp(
+      join(__dirname, 'fixtures/module-queued.mjs'),
+      join(root, 'reporter.mjs')
+    )
+    await writeFile(
+      join(root, 'queued-options.json'),
+      JSON.stringify({ root, reject })
+    )
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: parseResultReporters(['json', './reporter.mjs']),
+      outputFile: 'result.json',
+      write() {},
+    })
+    await machine.initialize()
+    const files = ['alpha.case.mjs', 'beta.case.mjs'].map((file) => ({
+      ...entry,
+      id: file,
+      file: join(root, file),
+      projectName: 'named',
+    }))
+    const rows = async () =>
+      (await readFile(join(root, 'queued-trace.jsonl'), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+    const release = async () => {
+      await Promise.all(
+        files.map((file) => writeFile(`${file.file}.release`, 'release'))
+      )
+    }
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    return { root, machine, files, rows, release, emit }
+  }
+
+  it('starts both actual callbacks without blocking completed modules and joins before run-end', async () => {
+    const c = await queuedReporter()
+    try {
+      expect(c.machine.captureModuleQueued).toBe(true)
+      c.emit({ type: 'run-start' })
+      for (const file of c.files) {
+        c.machine.onModuleQueued(file)
+        c.emit({ type: 'file-start', entry: file })
+        c.emit({
+          type: 'file-end',
+          entryId: file.id,
+          status: 'passed',
+          durationMs: 1,
+        })
+      }
+      await retry(async () => {
+        expect((await c.rows()).map((row) => row.event)).toEqual([
+          'queued',
+          'queued',
+          'end',
+          'end',
+        ])
+      })
+      for (const row of await c.rows()) {
+        if (row.event === 'queued')
+          expect(row).toMatchObject({
+            id: row.file,
+            relative: row.file,
+            project: 'named',
+            type: 'module',
+            state: 'pending',
+            children: 0,
+            errors: [],
+          })
+        else
+          expect(row).toMatchObject({
+            same: false,
+            queuedState: 'pending',
+            queuedChildren: 0,
+            state: 'passed',
+          })
+      }
+      c.emit({ type: 'run-end', status: 'passed', durationMs: 2 })
+      let finished = false
+      const finish = c.machine.finish().then(() => {
+        finished = true
+      })
+      await retry(async () => {
+        expect(
+          (await c.rows()).filter((row) => row.event === 'end')
+        ).toHaveLength(2)
+      })
+      expect(finished).toBe(false)
+      await c.release()
+      await finish
+      expect((await c.rows()).map((row) => row.event)).toEqual([
+        'queued',
+        'queued',
+        'end',
+        'end',
+        'queued-return',
+        'queued-return',
+        'run-end',
+      ])
+      expect((await c.rows()).at(-1)).toMatchObject({
+        reason: 'passed',
+        errors: [],
+      })
+      await c.machine.dispose()
+      expect((await c.rows()).at(-1)).toEqual({ event: 'close' })
+    } finally {
+      await c.release()
+      await c.machine.dispose().catch(() => {})
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+
+  it('retains a queued callback rejection without changing passed module, JSON or run reason', async () => {
+    const c = await queuedReporter(true)
+    try {
+      c.emit({ type: 'run-start' })
+      c.machine.onModuleQueued(c.files[0])
+      c.emit({ type: 'file-start', entry: c.files[0] })
+      c.emit({
+        type: 'file-end',
+        entryId: c.files[0].id,
+        status: 'passed',
+        durationMs: 1,
+      })
+      c.emit({ type: 'run-end', status: 'passed', durationMs: 1 })
+      await expect(c.machine.finish()).rejects.toThrow(
+        'owned queued reporter failure'
+      )
+      const rows = await c.rows()
+      expect(rows.map((row) => row.event)).toEqual(['queued', 'end', 'run-end'])
+      expect(rows[1]).toMatchObject({
+        state: 'passed',
+        same: false,
+        queuedState: 'pending',
+      })
+      expect(rows[2]).toMatchObject({
+        reason: 'passed',
+        errors: ['owned queued reporter failure'],
+      })
+      expect(
+        JSON.parse(await readFile(join(c.root, 'result.json'), 'utf8'))
+      ).toMatchObject({
+        success: true,
+        numPassedTestSuites: 1,
+        numFailedTestSuites: 0,
+      })
+    } finally {
+      await c.machine.dispose().catch(() => {})
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+
+  it('retains duplicate queue occurrences as actual reporter errors without inventing a module result', async () => {
+    const c = await queuedReporter(true)
+    try {
+      c.emit({ type: 'run-start' })
+      c.machine.onModuleQueued(c.files[0])
+      c.machine.onModuleQueued(c.files[0])
+      c.emit({ type: 'run-end', status: 'passed', durationMs: 1 })
+      await expect(c.machine.finish()).rejects.toThrow(
+        'Custom reporter console callbacks failed.'
+      )
+      const rows = await c.rows()
+      expect(rows.filter((row) => row.event === 'queued')).toHaveLength(1)
+      expect(rows.at(-1).errors).toHaveLength(2)
+      expect(rows.at(-1)).toMatchObject({
+        event: 'run-end',
+        modules: [],
+        errors: expect.arrayContaining([
+          'Invalid selected module queue occurrence.',
+          'owned queued reporter failure',
+        ]),
+      })
+    } finally {
+      await c.machine.dispose().catch(() => {})
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+})
+
+it.each([
+  'plain',
+  'undefined-load',
+  'aggregate-load',
+  'nested-load',
+  'error-observer',
+  'undefined-observer',
+  'same-observer',
+] as const)(
+  'retains actual early failed collection File and physical observation fences for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-collected-file-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'collected-file-observation.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        originalIdentityHeld: true,
+        actualUnfinalizedFile: true,
+        observerOwnedUntilJoined: true,
+        runListDisposeFencesHeld: true,
+        bodyInvocations: 0,
+        completionNotCertifiedByObservation: true,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+describe('actual collected reporter live callback ownership', () => {
+  async function collectedReporter(reject = false) {
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), 'next-collected-reporter-'))
+    )
+    await cp(
+      join(__dirname, 'fixtures/module-collected.mjs'),
+      join(root, 'reporter.mjs')
+    )
+    await writeFile(
+      join(root, 'collected-options.json'),
+      JSON.stringify({ root, reject })
+    )
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: parseResultReporters(['json', './reporter.mjs']),
+      outputFile: 'result.json',
+      write() {},
+    })
+    await machine.initialize()
+    const file = {
+      ...entry,
+      id: 'actual:collected',
+      file: join(root, 'case.mjs'),
+    }
+    const tree: import('next/dist/experimental/testing/reporting/live-tasks').ReporterTaskSnapshot =
+      {
+        id: file.id,
+        type: 'suite',
+        name: 'case.mjs',
+        fullName: 'case.mjs',
+        parentSuiteId: null,
+        mode: 'run',
+        tags: [],
+        meta: {},
+        filepath: file.file,
+        projectName: '',
+        tasks: [
+          {
+            id: file.id + '/0',
+            type: 'test',
+            name: 'actual declaration',
+            fullName: 'case.mjs > actual declaration',
+            fullTestName: 'actual declaration',
+            mode: 'run',
+            tags: [],
+            meta: {},
+            annotations: [],
+            artifacts: [],
+            parentSuiteId: null,
+          },
+        ],
+      }
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    const rows = async () =>
+      (await readFile(join(root, 'collected-trace.jsonl'), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+    const release = () => writeFile(join(root, 'release'), 'release')
+    return { root, machine, file, tree, emit, rows, release }
+  }
+  it('keeps the actual live identity updating through module-end while its callback is held', async () => {
+    const c = await collectedReporter()
+    try {
+      expect(c.machine.captureModuleCollected).toBe(true)
+      expect(c.machine.captureModuleQueued).toBe(false)
+      c.emit({ type: 'run-start' })
+      c.emit({ type: 'file-start', entry: c.file, revision: 'owned-revision' })
+      c.emit({
+        type: 'file-collected',
+        entryId: c.file.id,
+        revision: 'owned-revision',
+        taskTree: c.tree,
+      })
+      await retry(async () => {
+        expect((await c.rows())[0]).toMatchObject({
+          event: 'collected',
+          state: 'pending',
+          children: 1,
+          tests: [{ state: 'pending' }],
+        })
+      })
+      const updated = {
+        ...c.tree,
+        result: { state: 'pass' as const },
+        tasks: c.tree.tasks!.map((task) => ({
+          ...task,
+          result: { state: 'pass' as const },
+        })),
+      }
+      c.emit({
+        type: 'task-update',
+        entryId: c.file.id,
+        revision: 'owned-revision',
+        taskTree: updated,
+        taskUpdateIds: [c.file.id, c.file.id + '/0'],
+        caseResults: [],
+      })
+      c.emit({
+        type: 'file-end',
+        entryId: c.file.id,
+        status: 'passed',
+        durationMs: 1,
+      })
+      await retry(async () => {
+        expect((await c.rows()).at(-1)).toMatchObject({
+          event: 'end',
+          same: true,
+          state: 'passed',
+          tests: [{ state: 'passed' }],
+        })
+      })
+      c.emit({ type: 'run-end', status: 'passed', durationMs: 1 })
+      let done = false
+      const finish = c.machine.finish().then(() => {
+        done = true
+      })
+      expect(done).toBe(false)
+      await c.release()
+      await finish
+      expect((await c.rows()).map((row) => row.event)).toEqual([
+        'collected',
+        'end',
+        'collected-return',
+        'run-end',
+      ])
+      expect((await c.rows())[2]).toMatchObject({
+        state: 'passed',
+        children: 1,
+        tests: [{ state: 'passed' }],
+      })
+    } finally {
+      await c.release()
+      await c.machine.dispose().catch(() => {})
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+  it('retains the collected callback rejection with passed file/JSON/reason and actual run error', async () => {
+    const c = await collectedReporter(true)
+    try {
+      c.emit({ type: 'run-start' })
+      c.emit({ type: 'file-start', entry: c.file, revision: 'owned-revision' })
+      c.emit({
+        type: 'file-collected',
+        entryId: c.file.id,
+        revision: 'owned-revision',
+        taskTree: c.tree,
+      })
+      c.emit({
+        type: 'file-end',
+        entryId: c.file.id,
+        status: 'passed',
+        durationMs: 1,
+      })
+      c.emit({ type: 'run-end', status: 'passed', durationMs: 1 })
+      await expect(c.machine.finish()).rejects.toThrow(
+        'owned collected reporter failure'
+      )
+      expect((await c.rows()).at(-1)).toMatchObject({
+        event: 'run-end',
+        reason: 'passed',
+        errors: ['owned collected reporter failure'],
+      })
+      expect(
+        JSON.parse(await readFile(join(c.root, 'result.json'), 'utf8'))
+      ).toMatchObject({ success: true, numPassedTestSuites: 1 })
+    } finally {
+      await c.machine.dispose().catch(() => {})
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('actual failed collected module final error projection', () => {
+  it.each([
+    'aggregate',
+    'nested',
+    'undefined',
+    'cleanup',
+    'nonobserved',
+  ] as const)(
+    'preserves measured final errors and independent occurrences for %s',
+    async (mode) => {
+      const { createLiveReporterTaskStore } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter-live-tasks'
+      )
+      const first = serializeDiagnostic(new Error('owned first'), {
+        phase: 'collection',
+      })
+      const second = serializeDiagnostic(new Error('owned second'), {
+        phase: 'collection',
+      })
+      const nested = {
+        ...serializeDiagnostic(new Error('owned nested'), {
+          phase: 'collection',
+        }),
+        name: 'AggregateError',
+        errors: [first],
+      }
+      const aggregate = {
+        ...serializeDiagnostic(new Error('owned aggregate'), {
+          phase: 'collection',
+        }),
+        name: 'AggregateError',
+        errors: [mode === 'nested' ? nested : first, second],
+      }
+      const collection =
+        mode === 'undefined'
+          ? serializeDiagnostic(undefined, { phase: 'collection' })
+          : aggregate
+      const events: ResultEvent[] = [
+        { ...envelope, type: 'run-start' },
+        { ...envelope, type: 'file-start', entry, revision: 'owned' },
+        {
+          ...envelope,
+          type: 'diagnostic',
+          entryId: entry.id,
+          revision: 'owned',
+          diagnostic: collection,
+        },
+        ...(mode === 'cleanup'
+          ? [0, 1].map(() => ({
+              ...envelope,
+              type: 'diagnostic' as const,
+              entryId: entry.id,
+              revision: 'owned',
+              diagnostic: { ...aggregate, phase: 'cleanup' as const },
+            }))
+          : []),
+        {
+          ...envelope,
+          type: 'file-end',
+          entryId: entry.id,
+          status: 'failed',
+          durationMs: 1,
+        },
+      ]
+      const reporter = createTestReporter({ write() {} })
+      events.forEach((event) => reporter.onEvent(event))
+      const live = createLiveReporterTaskStore('/project')
+      const observed = live.update({
+        id: entry.id,
+        type: 'suite',
+        name: 'example.test.ts',
+        fullName: 'example.test.ts',
+        mode: 'run',
+        meta: {},
+        tags: [],
+        tasks: [],
+        parentSuiteId: null,
+        filepath: entry.file,
+        projectName: '',
+        result: { state: 'fail', errors: [] },
+      })
+      const final = live.finishModule(
+        entry.id,
+        { ...reporter.getResults(), events, status: 'failed' },
+        mode !== 'nonobserved'
+      )!
+      expect(final).toBe(observed)
+      expect(final.errors()).toEqual(
+        mode === 'nonobserved'
+          ? [aggregate]
+          : mode === 'undefined'
+            ? [collection]
+            : [
+                mode === 'nested' ? nested : first,
+                second,
+                ...(mode === 'cleanup'
+                  ? [
+                      { ...aggregate, phase: 'cleanup' },
+                      { ...aggregate, phase: 'cleanup' },
+                    ]
+                  : []),
+              ]
+      )
+    }
+  )
+})
+
+it.each([
+  'empty',
+  'identity',
+  'pass',
+  'nonempty',
+  'all-skip',
+  'nested',
+  'cancelled',
+  'absent',
+  'truthy',
+] as const)(
+  'preserves actual empty public File preparation and owned cleanup for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-empty-preparation-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'empty-file-preparation.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        actualFileRootResultIdentityHeld: true,
+        originalScopesJoined: true,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it.each([
+  'skip-todo',
+  'nested',
+  'todo-suite',
+  'mixed',
+  'focus',
+  'filter',
+  'absent',
+  'truthy',
+  'cancelled',
+  'skip-todo-empty',
+  'todo-skip-empty',
+] as const)(
+  'finalizes actual public File modes without changing private declarations for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-public-modes-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'public-file-modes.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        privateDeclarationsUnchanged: true,
+        cachedIdentitiesHeld: true,
+        actualPlanUsedByExecution: true,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it.each([
+  'skip-todo',
+  'todo-skip',
+  'mixed',
+  'static',
+  'dynamic',
+  'blocked',
+  'bail',
+  'poisoned',
+  'abort',
+  'user-abort',
+  'focus',
+  'filter',
+  'absent',
+  'truthy',
+  'validation',
+] as const)(
+  'preserves actual unexecuted public case facts and callback ownership for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-public-unexecuted-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'public-unexecuted-cases.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({ mode })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it.each([
+  'default',
+  'truthy',
+  'runtime-join',
+  'runtime-active',
+  'runtime-undefined',
+  'failed-join',
+  'failed-error',
+  'failed-undefined',
+  'run-join',
+  'run-error',
+  'run-undefined',
+  'skip',
+  'skip-retained',
+  'empty',
+  'match',
+  'observer-error',
+  'observer-undefined',
+  'legacy-undefined',
+  'dispose-same',
+  'dispose-undefined',
+  'success-dispose-error',
+  'invalid-profile',
+] as const)(
+  'owns actual deferred snapshot preparation and disposal for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-snapshot-owner-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'snapshot-preparation-owned.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        exactSnapshotBytesHeld: true,
+        actualPhaseAndDisposalJoined: true,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it.each([
+  'runtime',
+  'runtime-undefined',
+  'file',
+  'file-undefined',
+  'runtime-constructor',
+  'file-constructor',
+  'runtime-turn',
+  'file-turn',
+] as const)(
+  'publishes the snapshot setup owner before synchronous resolver reentry for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-snapshot-reentry-owner-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'snapshot-preparation-reentry.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        resolutions: 1,
+        reads: 1,
+        sameOwnedPromise: true,
+        exactBytes: true,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+describe('actual interrupted execution JSON publication', () => {
+  it.each([undefined, false, 0, 'true', true] as const)(
+    'omits only an exact actual interrupted JSON fact: %s',
+    async (fact) => {
+      const root = await mkdtemp(join(tmpdir(), 'next-sigint-json-'))
+      const outputFile = join(root, 'results.json')
+      const previous = '{"previous":"valid-completed-report"}\n'
+      await writeFile(outputFile, previous)
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: ['json'],
+        outputFile,
+      })
+      const emit = (event: object) =>
+        machine.onEvent({ ...envelope, ...event } as ResultEvent)
+      try {
+        emit({ type: 'run-start' })
+        emit({ type: 'file-start', entry })
+        emit({ type: 'case-end', ...result(0, 'passed') })
+        emit({
+          type: 'file-end',
+          entryId: entry.id,
+          status: 'cancelled',
+          durationMs: 1,
+        })
+        emit({ type: 'run-end', status: 'cancelled', durationMs: 1 })
+        const retained = machine.getJson()
+        await machine.finish({
+          omitInterruptedExecutionJson: fact,
+        } as unknown as NonNullable<Parameters<typeof machine.finish>[0]>)
+        if (fact === true)
+          expect(await readFile(outputFile, 'utf8')).toBe(previous)
+        else
+          expect(JSON.parse(await readFile(outputFile, 'utf8'))).toEqual(
+            retained
+          )
+        expect(machine.getJson()).toEqual(retained)
+      } finally {
+        await machine.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('leaves an absent interrupted JSON target absent after real run-end evidence', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-sigint-json-absent-'))
+    const outputFile = join(root, 'results.json')
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: ['json'],
+      outputFile,
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    try {
+      await expect(
+        machine.finish({ omitInterruptedExecutionJson: true })
+      ).rejects.toThrow('authoritative run cleanup')
+      emit({ type: 'run-start' })
+      emit({ type: 'file-start', entry })
+      emit({
+        type: 'file-end',
+        entryId: entry.id,
+        status: 'cancelled',
+        durationMs: 1,
+      })
+      emit({ type: 'run-end', status: 'cancelled', durationMs: 1 })
+      await machine.finish({ omitInterruptedExecutionJson: true })
+      await expect(readFile(outputFile)).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+    } finally {
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it.each(['junit', 'blob'] as const)(
+    'retains existing %s publication despite an unrelated JSON omission fact',
+    async (reporter) => {
+      const execute = async (omit: boolean) => {
+        const writes: string[] = []
+        const machine = createMachineReporter({
+          projectDir: '/project',
+          reporters: [reporter],
+          write: (text) => writes.push(text),
+        })
+        const emit = (event: object) =>
+          machine.onEvent({ ...envelope, ...event } as ResultEvent)
+        try {
+          emit({ type: 'run-start' })
+          emit({ type: 'file-start', entry })
+          emit({ type: 'case-end', ...result(0, 'passed') })
+          emit({
+            type: 'file-end',
+            entryId: entry.id,
+            status: 'cancelled',
+            durationMs: 1,
+          })
+          emit({ type: 'run-end', status: 'cancelled', durationMs: 1 })
+          await machine.finish(
+            omit ? { omitInterruptedExecutionJson: true } : undefined
+          )
+          return writes
+        } finally {
+          await machine.dispose()
+        }
+      }
+      const expected = await execute(false)
+      expect(expected.length).toBeGreaterThan(0)
+      expect(await execute(true)).toEqual(expected)
+    }
+  )
+})
+
+it.each([
+  'skipped',
+  'todo',
+  'live',
+  'passed',
+  'failed',
+  'empty',
+  'cancelled',
+  'no-root',
+  'child-only',
+  'foreign-root',
+  'invalid-ancestry',
+  'root-error',
+  'nested-error',
+  'file-error',
+  'warning',
+  'cleanup-failed',
+] as const)(
+  'renders human skipped files only from actual root results while preserving physical ownership for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-human-skipped-file-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'human-skipped-file.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        actualRootOwned: true,
+        physicalResultsAndEventsHeld: true,
+        presentationOnly: true,
+        execPath: process.execPath,
+        version: process.version,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it('uses actual final Browser root error data without suppressing independent failures', () => {
+  const stdout = execFileSync(
+    process.execPath,
+    [join(__dirname, 'browser-module-raw-errors.cjs')],
+    { timeout: 15000, encoding: 'utf8' }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    comparisons: 44,
+    actualRootPackAndRevisionOnly: true,
+    absentErrorsDistinctFromNoSnapshot: true,
+    emptyArrayCannotPassFailedFile: true,
+    independentOccurrencesAndCompleteComparison: true,
+    nodeAndLegacyFallbackUnchanged: true,
+    receivedFactsUnchanged: true,
+    liveModuleIdentityRetained: true,
+    liveAndCompletionSelectorsAgree: true,
+  })
+}, 20000)
+
+it('publishes valid JUnit BMP/high-surrogate fields without copying the reference entity-delimiter defect', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'next-junit-character-test-'))
+  try {
+    const output = join(directory, 'observed.json')
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'junit-character-handling.mjs'), output],
+      { timeout: 30000, encoding: 'utf8' }
+    )
+    expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+      genuineValidRowsExact: 11,
+      all19SourceRowsValidXML: true,
+      knownReferenceDefectNotCopied: true,
+      physicalNamesAndEventsUnchanged: true,
+      sdkAbsent: false,
+      version: process.version,
+      execPath: process.execPath,
+    })
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+}, 35000)
+
+it('uses actual project-relative JUnit file metadata and render clock without changing physical evidence', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'next-junit-metadata-test-'))
+  try {
+    const output = join(directory, 'observed.json')
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'junit-file-metadata.mjs'), output],
+      {
+        timeout: 30000,
+        encoding: 'utf8',
+      }
+    )
+    expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+      metadataControls: 7,
+      actualRenderClockObserved: true,
+      currentAndRetainedPathsExact: true,
+      physicalEvidenceUnchanged: true,
+      mixedSinkMetadataExact: true,
+      emptyAndRunErrorBytesHeld: true,
+      durationAndCountsNotChanged: true,
+      sdkAbsent: false,
+    })
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+}, 35000)
+
+it('uses actual completed root-suite JUnit duration while preserving physical and missing-owner timing', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'next-junit-duration-test-'))
+  try {
+    const output = join(directory, 'observed.json')
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'junit-file-duration.mjs'), output],
+      {
+        timeout: 30000,
+        encoding: 'utf8',
+      }
+    )
+    expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+      durationControls: 18,
+      actualLogicalRootDuration: true,
+      actualRetainedCurrentOutputOwned: true,
+      absentAndAmbiguousOutputNotGuessed: true,
+      fractionalFormattingExact: true,
+      currentAndRetainedOwned: true,
+      ambiguousMissingCancelledFallbackHeld: true,
+      physicalResultsEventsJSONAndCaseTimesHeld: true,
+      sdkAbsent: false,
+    })
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+}, 35000)
+
+it('preserves actual JUnit suite cardinality without observable task reads or unowned facts', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'next-junit-suites-test-'))
+  try {
+    const output = join(directory, 'observed.json')
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'junit-suite-occurrences.mjs'), output],
+      { timeout: 30000, encoding: 'utf8' }
+    )
+    expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+      status: 'passed',
+      installed: false,
+    })
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+}, 35000)
+
+it.each(['omitted', 'false', 'one', 'true'])(
+  'finalizes filtered modes only for the actual readonly selection owner: %s',
+  (mode) => {
+    const result = execFileSync(
+      process.execPath,
+      [join(__dirname, 'filtered-mode-owner.cjs'), mode],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(JSON.parse(result)).toEqual({
+      mode,
+      actualSelectionOwner: mode === 'true',
+    })
+  }
+)
+
+it.each([
+  'success',
+  'empty',
+  'skip',
+  'cleanup-failure',
+  'observer-failure',
+  'snapshot-error',
+  'snapshot-undefined',
+  'foreign',
+  'duplicate',
+  'missing',
+  'send-failure',
+  'absent',
+  'truthy',
+] as const)(
+  'observes the actual prepared File before execution for ModuleStart %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-module-start-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'module-start-preparation.mjs'), mode, output],
+        { encoding: 'utf8', timeout: 30000 }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        actualRootIdentity: true,
+        preparedResultIdentity: true,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it.each(['owned', 'absent', 'truthy'] as const)(
+  'binds the private ModuleStart observation to its real File owner for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-module-start-file-owner-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'module-start-owned-file.mjs'), mode, output],
+        { encoding: 'utf8', timeout: 30000 }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        actualOwnedResultIdentity: true,
+        absentRoleSemanticsHeld: true,
+        allFileScopesJoined: true,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it.each([
+  'successful-pending',
+  'failed-pending',
+  'successful-error',
+  'failed-error',
+  'successful-undefined',
+  'failed-undefined',
+  'fulfilled',
+  'absent',
+] as const)(
+  'owns actual ModuleStart callbacks independently of execution for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-module-start-callback-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'module-start-consumer.mjs'), mode, output],
+        { encoding: 'utf8', timeout: 30000 }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        actualFileResultHeld: true,
+        realCallbackPromisesJoined: true,
+        physicalJSONUnchanged: true,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it('preserves original Error getter and task meta effects with actual ModuleStart capture', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'next-module-start-effects-'))
+  try {
+    const observed = []
+    for (const mode of ['getter-baseline', 'getter-active']) {
+      const output = join(root, mode + '.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'module-start-consumer.mjs'), mode, output],
+        { encoding: 'utf8', timeout: 30000 }
+      )
+      observed.push(JSON.parse(await readFile(output, 'utf8')))
+    }
+    expect(observed[1].errorGetterCounts).toEqual(observed[0].errorGetterCounts)
+    expect(observed[1].metaReads).toBe(observed[0].metaReads)
+    expect(observed[1].physicalCounts).toEqual(observed[0].physicalCounts)
+    expect(observed.map((row) => row.body)).toEqual([0, 0])
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+}, 65000)
+
+it.each(['success', 'setup-failure', 'cleanup-failure'] as const)(
+  'publishes actual prepared root data before its lazy file resource for %s',
+  async (mode) => {
+    const root = await mkdtemp(
+      join(tmpdir(), 'next-module-start-resource-order-')
+    )
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'module-start-producer-order.mjs'), mode, output],
+        { encoding: 'utf8', timeout: 30000 }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        actualRootAndResultIdentity: true,
+        actualLeadingPackBeforeLazyResource: true,
+        originalSetupCleanupOwnershipHeld: true,
+        allFileScopesJoined: true,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it('validates every ModuleStart stream field while retaining only actual causal edges', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'next-module-start-causal-unit-'))
+  try {
+    const output = join(root, 'observed.json')
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'module-start-causal-unit.mjs'), output],
+      { encoding: 'utf8', timeout: 30000 }
+    )
+    expect(JSON.parse(await readFile(output, 'utf8'))).toEqual({
+      acceptedExactAndUnawaitedInterleaving: 2,
+      rejectedFieldOrderOwnerAndCausalFaults: 11,
+      everyOriginalRowFieldRetained: true,
+      modelUnchanged: true,
+    })
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+it('preserves actual stackless reporter error identities and complete genuine fields in live and terminal views', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const { promisify } = await import('node:util')
+  const { execFile } = await import('node:child_process')
+  const directory = await mkdtemp(
+    join(tmpdir(), 'next-stackless-reporter-consumer-')
+  )
+  let completed = false
+  try {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'stackless-reporter-consumer.cjs'),
+        process.cwd(),
+        join(directory, 'observed'),
+      ],
+      { timeout: 25000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      cases: 6,
+      completeGenuineRows: 12,
+      actualExecutionTaskSnapshotsAndCompletionBytePreserved: true,
+      reporterErrorAndArrayIdentityPreserved: true,
+      reportedDescriptorsExact: true,
+      closeJoined: true,
+      actualWorkerExit: { code: 0, signal: null },
+    })
+    completed = true
+  } finally {
+    if (completed) await rm(directory, { recursive: true, force: true })
+    else
+      console.error(
+        'Retained failed stackless reporter consumer at ' + directory
+      )
+  }
+}, 30000)
+
+it('reports genuine authored falsy stacks while preserving execution error identities', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const { promisify } = await import('node:util')
+  const { execFile } = await import('node:child_process')
+  const directory = await mkdtemp(
+    join(tmpdir(), 'next-stackless-reporter-consumer-')
+  )
+  let completed = false
+  try {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'stackless-reporter-consumer.cjs'),
+        process.cwd(),
+        join(directory, 'observed'),
+        'falsy',
+      ],
+      { timeout: 25000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      cases: 4,
+      completeGenuineRows: 8,
+      actualExecutionTaskSnapshotsAndCompletionBytePreserved: true,
+      reporterErrorAndArrayIdentityPreserved: true,
+      reportedDescriptorsExact: true,
+      closeJoined: true,
+      actualWorkerExit: { code: 0, signal: null },
+    })
+    completed = true
+  } finally {
+    if (completed) await rm(directory, { recursive: true, force: true })
+    else
+      console.error(
+        'Retained failed stackless reporter consumer at ' + directory
+      )
+  }
+}, 30000)
+
+describe('owned custom completion generation barrier', () => {
+  const make = (root: string, finish?: () => Promise<void> | void) => {
+    const session = finish
+      ? {
+          finish: jest.fn(finish),
+          beginFinish() {
+            let completed: Promise<void>
+            try {
+              completed = Promise.resolve(this.finish())
+            } catch (error) {
+              completed = Promise.reject(error)
+            }
+            return { invoked: Promise.resolve(), completed }
+          },
+          onEvent() {},
+          captureTaskResults: false,
+          async collectErrors() {
+            return []
+          },
+        }
+      : undefined
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: ['json'],
+      outputFile: join(root, 'result.json'),
+      ...(session ? { customReporterSession: session as any } : {}),
+      write() {},
+    })
+    const complete = () => {
+      machine.onEvent({ ...envelope, type: 'run-start' })
+      machine.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 1,
+      })
+    }
+    return { machine, session, complete }
+  }
+  it('requires authoritative terminal cleanup before starting the actual callback', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-custom-begin-'))
+    const { machine, session, complete } = make(root, async () => {})
+    try {
+      expect(() => machine.beginCustomCompletion()).toThrow(
+        'authoritative run cleanup'
+      )
+      expect(session!.finish).not.toHaveBeenCalled()
+      complete()
+      await machine.beginCustomCompletion()
+      await machine.finish()
+      expect(session!.finish).toHaveBeenCalledTimes(1)
+    } finally {
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('dispatches once and publishes JSON while the same actual callback remains held', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-custom-held-'))
+    let release!: () => void
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const { machine, session, complete } = make(root, () => held)
+    try {
+      complete()
+      await machine.beginCustomCompletion()
+      await machine.beginCustomCompletion()
+      expect(session!.finish).toHaveBeenCalledTimes(1)
+      const pending = machine.finish({
+        customCoverageResult: { coverage: { actual: [1, 2] } },
+      })
+      await retry(async () =>
+        expect(
+          JSON.parse(await readFile(join(root, 'result.json'), 'utf8'))
+            .coverageMap
+        ).toEqual({ actual: [1, 2] })
+      )
+      release()
+      await pending
+      await machine.finish({
+        customCoverageResult: { coverage: { actual: [1, 2] } },
+      })
+      expect(session!.finish).toHaveBeenCalledTimes(1)
+    } finally {
+      release()
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('owns an immediate callback rejection before the caller reaches finish', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-custom-rejection-'))
+    const reason = new Error('actual completion rejection')
+    const { machine, session, complete } = make(root, () =>
+      Promise.reject(reason)
+    )
+    try {
+      complete()
+      await machine.beginCustomCompletion()
+      await new Promise<void>((resolve) => setImmediate(resolve))
+      await expect(
+        machine.finish({ customCoverageResult: { coverage: { value: 1 } } })
+      ).rejects.toBe(reason)
+      expect(
+        JSON.parse(await readFile(join(root, 'result.json'), 'utf8'))
+          .coverageMap
+      ).toEqual({ value: 1 })
+      expect(session!.finish).toHaveBeenCalledTimes(1)
+    } finally {
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('awaits the retained real callback even after native JSON serialization fails', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-custom-serialization-'))
+    let release!: () => void,
+      settled = false
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const { machine, session, complete } = make(root, () => held)
+    try {
+      complete()
+      await machine.beginCustomCompletion()
+      const pending = machine
+        .finish({ customCoverageResult: { coverage: 1n } })
+        .catch((error) => {
+          settled = true
+          return error
+        })
+      await new Promise<void>((resolve) => setImmediate(resolve))
+      expect(settled).toBe(false)
+      release()
+      expect(await pending).toBeInstanceOf(TypeError)
+      await expect(
+        readFile(join(root, 'result.json'), 'utf8')
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+      expect(session!.finish).toHaveBeenCalledTimes(1)
+    } finally {
+      release()
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('retains both actual errors when serialization and the callback independently fail', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-custom-both-fail-'))
+    const callback = new Error('actual callback failure')
+    const { machine, complete } = make(root, () => Promise.reject(callback))
+    try {
+      complete()
+      await machine.beginCustomCompletion()
+      const error = await machine
+        .finish({ customCoverageResult: { coverage: 1n } })
+        .catch((error) => error)
+      expect(error).toBeInstanceOf(AggregateError)
+      expect(error.errors).toHaveLength(2)
+      expect(error.errors[0]).toBeInstanceOf(TypeError)
+      expect(error.errors[1]).toBe(callback)
+    } finally {
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('retains the exact supplied abort and joins an already begun callback without publication', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-custom-abort-'))
+    let release!: () => void
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const reason = new Error('actual supplied publication abort')
+    const controller = new AbortController()
+    const { machine, complete } = make(root, () => held)
+    try {
+      await writeFile(join(root, 'result.json'), 'previous actual report')
+      complete()
+      await machine.beginCustomCompletion()
+      controller.abort(reason)
+      const pending = machine.finish({
+        signal: controller.signal,
+        customCoverageResult: { coverage: { value: 1 } },
+      })
+      const observed = pending.catch((error) => error)
+      release()
+      expect(await observed).toBe(reason)
+      expect(await readFile(join(root, 'result.json'), 'utf8')).toBe(
+        'previous actual report'
+      )
+    } finally {
+      release()
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('preserves unchanged callers that finish without explicitly beginning', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-custom-legacy-finish-'))
+    let observed = false
+    const { machine, session, complete } = make(root, async () => {
+      observed = !!JSON.parse(await readFile(join(root, 'result.json'), 'utf8'))
+    })
+    try {
+      complete()
+      await machine.finish()
+      expect(observed).toBe(true)
+      expect(session!.finish).toHaveBeenCalledTimes(1)
+    } finally {
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('keeps begin inert when there is no actual custom completion owner', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-custom-no-owner-'))
+    const { machine, complete } = make(root)
+    try {
+      await machine.beginCustomCompletion()
+      complete()
+      await machine.finish()
+      expect(
+        Object.hasOwn(
+          JSON.parse(await readFile(join(root, 'result.json'), 'utf8')),
+          'coverageMap'
+        )
+      ).toBe(false)
+    } finally {
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it.each([
+    [undefined, false, undefined],
+    [null, false, undefined],
+    [false, false, undefined],
+    [0, false, undefined],
+    [NaN, false, undefined],
+    [{}, true, {}],
+    [[], true, []],
+    [Infinity, true, null],
+    ['opaque-custom-data', true, 'opaque-custom-data'],
+  ])(
+    'renders the actual custom value %j with the genuine own-field rule',
+    async (coverage, present, expected) => {
+      const root = await mkdtemp(join(tmpdir(), 'next-custom-json-value-'))
+      const { machine, complete } = make(root)
+      try {
+        complete()
+        await machine.finish({ customCoverageResult: { coverage } })
+        const report = JSON.parse(
+          await readFile(join(root, 'result.json'), 'utf8')
+        )
+        expect(Object.hasOwn(report, 'coverageMap')).toBe(present)
+        expect(report.coverageMap).toEqual(expected)
+      } finally {
+        await machine.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+})
+
+describe('actual custom completion invocation ownership', () => {
+  const open = async (mode: string, signal?: AbortSignal) => {
+    const { openCustomReporters } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-actual-custom-invocation-'))
+    await cp(
+      join(
+        __dirname,
+        'fixtures/custom-invocation112',
+        mode === 'no-hook' ? 'no-hook.mjs' : 'reporter.mjs'
+      ),
+      join(root, 'reporter.mjs')
+    )
+    await writeFile(join(root, 'options.json'), JSON.stringify({ mode }))
+    const session = await openCustomReporters({
+      projectDir: root,
+      reporters: ['./reporter.mjs'],
+      signal,
+      write() {},
+    })
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: ['json'],
+      outputFile: join(root, 'result.json'),
+      customReporterSession: session,
+      write() {},
+    })
+    machine.onEvent({ ...envelope, type: 'run-start' })
+    machine.onEvent({
+      ...envelope,
+      type: 'run-end',
+      status: 'passed',
+      durationMs: 1,
+    })
+    return { root, session, machine }
+  }
+  it('waits for the real synchronous prefix while its returned promise stays held', async () => {
+    const { root, session, machine } = await open('held')
+    try {
+      await machine.beginCustomCompletion()
+      expect(
+        JSON.parse(await readFile(join(root, 'entered.json'), 'utf8'))
+          .jsonExists
+      ).toBe(false)
+      const pending = machine.finish({
+        customCoverageResult: { coverage: { actual: 42 } },
+      })
+      await retry(async () =>
+        expect(
+          JSON.parse(await readFile(join(root, 'result.json'), 'utf8'))
+            .coverageMap
+        ).toEqual({ actual: 42 })
+      )
+      await writeFile(join(root, 'release'), 'release real callback')
+      await pending
+    } finally {
+      await writeFile(join(root, 'release'), 'final release')
+      await machine.dispose()
+      await session.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+  it('acknowledges an actual synchronous throw and retains its eventual rejection after JSON', async () => {
+    const { root, session, machine } = await open('sync-throw')
+    let failure: unknown
+    try {
+      await machine.beginCustomCompletion()
+      expect(
+        JSON.parse(await readFile(join(root, 'entered.json'), 'utf8'))
+          .jsonExists
+      ).toBe(false)
+      failure = await machine
+        .finish({ customCoverageResult: { coverage: { actual: 42 } } })
+        .catch((error) => error)
+      expect(failure).toMatchObject({
+        message: 'actual sync invocation failure112',
+      })
+      expect(
+        JSON.parse(await readFile(join(root, 'result.json'), 'utf8'))
+          .coverageMap
+      ).toEqual({ actual: 42 })
+    } finally {
+      await machine.dispose()
+      await session.dispose({ handledFailure: failure })
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+  it('settles a completed operation without inventing a hook invocation', async () => {
+    const { root, session, machine } = await open('no-hook')
+    try {
+      await machine.beginCustomCompletion()
+      await machine.finish({
+        customCoverageResult: { coverage: { actual: 42 } },
+      })
+      await expect(
+        readFile(join(root, 'entered.json'), 'utf8')
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+      expect(
+        JSON.parse(await readFile(join(root, 'result.json'), 'utf8'))
+          .coverageMap
+      ).toEqual({ actual: 42 })
+    } finally {
+      await machine.dispose()
+      await session.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+  it('rejects invocation and completion honestly when the worker dies before returning its prefix', async () => {
+    const { root, session, machine } = await open('worker-death')
+    let failure: unknown
+    try {
+      failure = await machine.beginCustomCompletion()!.catch((error) => error)
+      expect(failure).toBeInstanceOf(Error)
+      await expect(
+        machine.finish({ customCoverageResult: { coverage: { actual: 42 } } })
+      ).rejects.toBe(failure)
+      await expect(
+        readFile(join(root, 'result.json'), 'utf8')
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      await machine.dispose()
+      await session.dispose({ handledFailure: failure })
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+  it('wakes both waiters on an actual queued console flush failure without calling the end hook', async () => {
+    const { root, session, machine } = await open('flush-death')
+    let failure: unknown
+    try {
+      session.onEvent({
+        ...envelope,
+        type: 'output',
+        stream: 'stdout',
+        text: 'actual queued console\n',
+        console: { size: 1 },
+      })
+      failure = await machine.beginCustomCompletion()!.catch((error) => error)
+      expect(failure).toBeInstanceOf(Error)
+      await expect(
+        machine.finish({ customCoverageResult: { coverage: { actual: 42 } } })
+      ).rejects.toBe(failure)
+      await expect(
+        readFile(join(root, 'entered.json'), 'utf8')
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(
+        readFile(join(root, 'result.json'), 'utf8')
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      await machine.dispose()
+      await session.dispose({ handledFailure: failure })
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+  it('wakes both waiters with the supplied abort before any end hook is called', async () => {
+    const controller = new AbortController(),
+      reason = new Error('actual invocation owner abort112')
+    const { root, session, machine } = await open('held', controller.signal)
+    try {
+      controller.abort(reason)
+      await expect(machine.beginCustomCompletion()).rejects.toBe(reason)
+      await expect(
+        machine.finish({
+          signal: controller.signal,
+          customCoverageResult: { coverage: { actual: 42 } },
+        })
+      ).rejects.toBe(reason)
+      await expect(
+        readFile(join(root, 'entered.json'), 'utf8')
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(
+        readFile(join(root, 'result.json'), 'utf8')
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      await writeFile(join(root, 'release'), 'final abort release')
+      await machine.dispose()
+      await session.dispose({ handledFailure: reason })
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+})
+
+describe('actual synchronous custom JSON ordering', () => {
+  it.each([
+    ['sync-before', 'sync', false],
+    ['sync-after', 'sync', true],
+    ['async-before', 'async', true],
+    ['promise-before', 'promise', true],
+  ] as const)(
+    'preserves actual throw kind and JSON position for %s',
+    async (name, kind, published) => {
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-sync-json115-'))
+      let source = await readFile(
+        join(__dirname, 'fixtures/custom-invocation112/reporter.mjs'),
+        'utf8'
+      )
+      if (kind === 'async')
+        source = source.replace(
+          '  onTestRunEnd() {',
+          '  async onTestRunEnd() {'
+        )
+      if (kind === 'promise')
+        source = source.replace(
+          "throw new Error('actual sync invocation failure112')",
+          "return Promise.reject(new Error('actual sync invocation failure112'))"
+        )
+      await writeFile(join(root, 'reporter.mjs'), source)
+      await writeFile(
+        join(root, 'options.json'),
+        JSON.stringify({ mode: 'sync-throw' })
+      )
+      const session = await openCustomReporters({
+        projectDir: root,
+        reporters: ['./reporter.mjs'],
+        write() {},
+      })
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: parseResultReporters(
+          name === 'sync-after'
+            ? ['json', './reporter.mjs']
+            : ['./reporter.mjs', 'json']
+        ),
+        outputFile: join(root, 'result.json'),
+        customReporterSession: session,
+        write() {},
+      })
+      let failure: unknown
+      try {
+        machine.onEvent({ ...envelope, type: 'run-start' })
+        machine.onEvent({
+          ...envelope,
+          type: 'run-end',
+          status: 'passed',
+          durationMs: 1,
+        })
+        const receipt = await machine.beginCustomCompletion()
+        expect(receipt).toEqual(
+          kind === 'sync'
+            ? { count: 1, synchronousThrow: { reporterIndex: 0 } }
+            : { count: 1 }
+        )
+        failure = await machine
+          .finish({ customCoverageResult: { coverage: { actual: 42 } } })
+          .catch((error) => error)
+        expect(failure).toMatchObject({
+          message: 'actual sync invocation failure112',
+        })
+        if (published)
+          expect(
+            JSON.parse(await readFile(join(root, 'result.json'), 'utf8'))
+              .coverageMap
+          ).toEqual({ actual: 42 })
+        else
+          await expect(
+            readFile(join(root, 'result.json'))
+          ).rejects.toMatchObject({ code: 'ENOENT' })
+      } finally {
+        await machine.dispose()
+        await session.dispose({ handledFailure: failure })
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+    30000
+  )
+})
+
+describe('actual mixed custom completion dispatch', () => {
+  it.each([
+    [
+      'first-sync',
+      ['sync', 'plain', 'plain'],
+      ['first'],
+      { count: 1, synchronousThrow: { reporterIndex: 0 } },
+      false,
+      'first failure',
+    ],
+    [
+      'second-sync',
+      ['plain', 'sync', 'plain'],
+      ['first', 'second'],
+      { count: 2, synchronousThrow: { reporterIndex: 1 } },
+      false,
+      'second failure',
+    ],
+    [
+      'first-async',
+      ['async', 'plain', 'plain'],
+      ['first', 'second', 'third'],
+      { count: 3 },
+      true,
+      'first failure',
+    ],
+  ] as const)(
+    'preserves real dispatch and completion for %s',
+    async (_name, kinds, calls, receipt, published, message) => {
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-dispatch116-'))
+      const names = ['first', 'second', 'third']
+      for (let i = 0; i < names.length; i++)
+        await writeFile(
+          join(root, names[i] + '.mjs'),
+          `import fs from 'node:fs';export default class{${kinds[i] === 'async' ? 'async ' : ''}onTestRunEnd(){fs.appendFileSync(new URL('./calls',import.meta.url),${JSON.stringify(names[i] + '\n')});${kinds[i] === 'plain' ? '' : `throw new Error('${names[i]} failure')`}}}\n`
+        )
+      const reporters = names.map((value) => './' + value + '.mjs')
+      const session = await openCustomReporters({
+        projectDir: root,
+        reporters,
+        write() {},
+      })
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: parseResultReporters([...reporters, 'json']),
+        outputFile: join(root, 'result.json'),
+        customReporterSession: session,
+        write() {},
+      })
+      let failure: unknown
+      try {
+        machine.onEvent({ ...envelope, type: 'run-start' })
+        machine.onEvent({
+          ...envelope,
+          type: 'run-end',
+          status: 'passed',
+          durationMs: 1,
+        })
+        expect(await machine.beginCustomCompletion()).toEqual(receipt)
+        failure = await machine
+          .finish({ customCoverageResult: { coverage: { actual: 42 } } })
+          .catch((error) => error)
+        expect(failure).toMatchObject({ message })
+        expect(
+          (await readFile(join(root, 'calls'), 'utf8')).trim().split('\n')
+        ).toEqual(calls)
+        if (published)
+          expect(
+            JSON.parse(await readFile(join(root, 'result.json'), 'utf8'))
+              .coverageMap
+          ).toEqual({ actual: 42 })
+        else
+          await expect(
+            readFile(join(root, 'result.json'))
+          ).rejects.toMatchObject({ code: 'ENOENT' })
+      } finally {
+        await machine.dispose()
+        await session.dispose({ handledFailure: failure })
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+    30000
+  )
+})
+
+describe('actual prior custom completion ownership through close', () => {
+  const leaves = (error: unknown): Error[] =>
+    error instanceof AggregateError
+      ? error.errors.flatMap(leaves)
+      : error instanceof Error
+        ? [error]
+        : []
+  it.each([
+    'resolve',
+    'reject',
+    'close-throw',
+    'reject-close-throw',
+    'abort',
+    'worker-death',
+  ])(
+    'retains actual callback ownership for %s',
+    async (name) => {
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const input = completionInputs(
+        'pending',
+        ['abort', 'worker-death'].includes(name) ? 'resolve' : name
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-pending117-'))
+      for (const [file, sourceFile] of Object.entries(input.files) as [
+        string,
+        string,
+      ][]) {
+        let source = await readFile(resolveFixturePath(sourceFile), 'utf8')
+        if (name === 'worker-death' && file === 'first.mjs')
+          source = source.replace('this.release?.()', 'process.exit(23)')
+        await writeFile(join(root, file), source)
+      }
+      const controller = new AbortController()
+      const reporters = ['./first.mjs', './second.mjs', './third.mjs']
+      const session = await openCustomReporters({
+        projectDir: root,
+        reporters,
+        signal: controller.signal,
+        write() {},
+      })
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: parseResultReporters([...reporters, 'json']),
+        outputFile: join(root, 'result.json'),
+        customReporterSession: session,
+        write() {},
+      })
+      let failure: unknown,
+        disposed = false
+      try {
+        machine.onEvent({ ...envelope, type: 'run-start' })
+        machine.onEvent({
+          ...envelope,
+          type: 'run-end',
+          status: 'passed',
+          durationMs: 1,
+        })
+        expect(await machine.beginCustomCompletion()).toEqual({
+          count: 2,
+          synchronousThrow: { reporterIndex: 1 },
+        })
+        failure = await machine
+          .finish({ customCoverageResult: { coverage: { actual: 42 } } })
+          .catch((error) => error)
+        expect(failure).toMatchObject({ message: 'actual113 reporter failure' })
+        const trace = async () =>
+          (await readFile(join(root, 'provider-trace.jsonl'), 'utf8'))
+            .trim()
+            .split('\n')
+            .map((line: string) => JSON.parse(line).name)
+        expect(await trace()).toEqual(['first-enter', 'second-enter'])
+        await expect(readFile(join(root, 'result.json'))).rejects.toMatchObject(
+          { code: 'ENOENT' }
+        )
+        if (name === 'abort') {
+          const reason = new Error('actual117 owned cancellation')
+          controller.abort(reason)
+          expect(controller.signal.reason).toBe(reason)
+        }
+        const cleanup = await session
+          .dispose({ handledFailure: failure })
+          .catch((error) => error)
+        disposed = true
+        const messages = leaves(cleanup).map((error) => error.message)
+        if (name === 'resolve' || name === 'abort')
+          expect(cleanup).toBeUndefined()
+        else if (name === 'worker-death')
+          expect(messages).toEqual([
+            'Custom reporter process ended unexpectedly (exit, code 23).',
+          ])
+        else
+          expect(messages).toEqual([
+            ...(name.includes('close-throw')
+              ? ['actual close failure116']
+              : []),
+            ...(name.includes('reject') ? ['prior async rejection116'] : []),
+          ])
+        expect(await trace()).toEqual([
+          'first-enter',
+          'second-enter',
+          'first-close',
+          ...(name === 'worker-death'
+            ? []
+            : [name.includes('reject') ? 'first-rejected' : 'first-settled']),
+        ])
+      } finally {
+        await machine.dispose()
+        if (!disposed) {
+          controller.abort(new Error('actual117 failed control cleanup'))
+          await session.dispose({ handledFailure: failure }).catch(() => {})
+        }
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+    30000
+  )
+})
+
+describe('actual ordinary end hook descriptor planning', () => {
+  it.each([
+    'function',
+    'undefined',
+    'null',
+    'inherited-function',
+    'shadow-undefined',
+    'throw-before',
+    'proxy-instance',
+    'proxy-prototype',
+  ])(
+    'preserves selected getter dispatch and request facts for %s',
+    async (name) => {
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-getter118-'))
+      let source = await readFile(
+        resolveFixturePath(
+          join(__dirname, 'fixtures/custom-getter-planning', name + '.mjs')
+        ),
+        'utf8'
+      )
+      if (name.startsWith('proxy-'))
+        source = source.replace(
+          "record('proxy-descriptor-end')",
+          "(()=>{throw new Error('unexpected new end descriptor trap')})()"
+        )
+      await writeFile(join(root, 'observer.mjs'), source)
+      const session = await openCustomReporters({
+        projectDir: root,
+        reporters: ['./observer.mjs'],
+        write() {},
+      })
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: parseResultReporters(['./observer.mjs', 'json']),
+        outputFile: join(root, 'cases.json'),
+        customReporterSession: session,
+        write() {},
+      })
+      let failure: unknown
+      try {
+        expect(session.captureTaskResults).toBe(name !== 'shadow-undefined')
+        if (!name.startsWith('proxy-'))
+          await expect(
+            readFile(join(root, 'provider-trace.jsonl'))
+          ).rejects.toMatchObject({ code: 'ENOENT' })
+        machine.onEvent({ ...envelope, type: 'run-start' })
+        machine.onEvent({
+          ...envelope,
+          type: 'run-end',
+          status: 'passed',
+          durationMs: 1,
+        })
+        if (name === 'throw-before') {
+          failure = await machine
+            .beginCustomCompletion()
+            .catch((error) => error)
+          expect(failure).toMatchObject({
+            message: 'actual113 reporter failure',
+          })
+        } else {
+          const receipt = await machine.beginCustomCompletion()
+          expect(receipt).toEqual(
+            ['undefined', 'null', 'shadow-undefined'].includes(name)
+              ? undefined
+              : { count: 1 }
+          )
+          await machine.finish()
+        }
+        const trace = await readFile(
+          join(root, 'provider-trace.jsonl'),
+          'utf8'
+        ).catch((error) => {
+          if (error.code === 'ENOENT') return ''
+          throw error
+        })
+        const actual = trace.trim()
+          ? trace
+              .trim()
+              .split('\n')
+              .map((line) => JSON.parse(line))
+          : []
+        const getters = actual.filter((value) => value.name === 'modern-getter')
+        expect(getters).toHaveLength(
+          name === 'shadow-undefined' ? 0 : name.startsWith('proxy-') ? 2 : 1
+        )
+        if (
+          [
+            'function',
+            'inherited-function',
+            'proxy-instance',
+            'proxy-prototype',
+          ].includes(name)
+        )
+          expect(actual.at(-1)).toMatchObject({
+            name: 'modern-enter',
+            reads: name.startsWith('proxy-') ? 2 : 1,
+            selected: name.startsWith('proxy-') ? 2 : 1,
+            receiver: 42,
+            sameSelected: true,
+          })
+      } finally {
+        await machine.dispose()
+        await session.dispose({ handledFailure: failure })
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+    30000
+  )
+  it.each([
+    ['function', true],
+    ['absent', false],
+    ['null', false],
+    ['noncallable', true],
+  ] as const)(
+    'retains ordinary data planning footprint for %s',
+    async (name, potential) => {
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-end-data118-'))
+      await writeFile(
+        join(root, 'observer.mjs'),
+        `export default class{${name === 'function' ? 'onTestRunEnd(){}' : name === 'null' ? 'onTestRunEnd=null;' : name === 'noncallable' ? 'onTestRunEnd=7;' : ''}}`
+      )
+      const session = await openCustomReporters({
+        projectDir: root,
+        reporters: ['./observer.mjs'],
+        write() {},
+      })
+      try {
+        expect(session.captureTaskResults).toBe(potential)
+      } finally {
+        await session.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+    30000
+  )
+})
+
+describe('actual completion failure prefix ownership', () => {
+  it.each(completionProfiles['completion-failure'] as string[])(
+    'maps actual failure and true invocation count for %s',
+    async (name) => {
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const input = completionInputs('completion-failure', name)
+      const failingIndex = name.startsWith('zero-') ? 0 : 1
+      const kind = name.endsWith('-getter') ? 'access' : 'noncallable'
+      const actualInvocationCount = name.startsWith('plain-') ? 1 : 0
+      const root = await mkdtemp(join(tmpdir(), 'next-failure119-'))
+      for (const [file, source] of Object.entries(input.files) as [
+        string,
+        string,
+      ][])
+        await cp(source, join(root, file))
+      const names = input.reporters.filter((value: string) => value !== 'json')
+      const session = await openCustomReporters({
+        projectDir: root,
+        reporters: names,
+        write() {},
+      })
+      const begin = session.beginFinish.bind(session)
+      let operation: ReturnType<typeof begin> | undefined
+      session.beginFinish = (completion) => {
+        operation = begin(completion)
+        return operation
+      }
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: parseResultReporters(input.reporters),
+        outputFile: join(root, 'cases.json'),
+        customReporterSession: session,
+        write() {},
+      })
+      let failure: unknown
+      try {
+        machine.onEvent({ ...envelope, type: 'run-start' })
+        machine.onEvent({
+          ...envelope,
+          type: 'run-end',
+          status: 'passed',
+          durationMs: 1,
+        })
+        const prefix = await machine.beginCustomCompletionPrefix()
+        expect(prefix).toEqual({
+          completionFailure: {
+            reporterIndex: failingIndex,
+            kind,
+          },
+          ...(actualInvocationCount
+            ? { invocation: { count: actualInvocationCount } }
+            : {}),
+        })
+        failure = await machine.finish().catch((error) => error)
+        const completion = await operation!.completed.catch((error) => error)
+        expect(failure).toBe(completion)
+        if (actualInvocationCount)
+          expect(await operation!.invoked).toEqual({
+            count: actualInvocationCount,
+          })
+        else
+          expect(await operation!.invoked.catch((error) => error)).toBe(
+            completion
+          )
+        expect(failure).toMatchObject({
+          message:
+            kind === 'access'
+              ? name.startsWith('zero')
+                ? 'actual113 reporter failure'
+                : 'actual access failure118'
+              : 'Custom reporter onTestRunEnd is not a function.',
+        })
+        await expect(readFile(join(root, 'cases.json'))).rejects.toMatchObject({
+          code: 'ENOENT',
+        })
+        const trace = await readFile(
+          join(root, 'provider-trace.jsonl'),
+          'utf8'
+        ).catch((error) => {
+          if (error.code === 'ENOENT') return ''
+          throw error
+        })
+        expect(trace).not.toContain('third-enter')
+      } finally {
+        await machine.dispose()
+        await session.dispose({ handledFailure: failure })
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+    30000
+  )
+  it('owns honest no-hook absence for both waiters', async () => {
+    const { openCustomReporters } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-prefix-absent119-'))
+    await writeFile(join(root, 'observer.mjs'), 'export default class{}')
+    const session = await openCustomReporters({
+      projectDir: root,
+      reporters: ['./observer.mjs'],
+      write() {},
+    })
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: ['json'],
+      customReporterSession: session,
+      write() {},
+    })
+    try {
+      machine.onEvent({ ...envelope, type: 'run-start' })
+      machine.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 1,
+      })
+      expect(await machine.beginCustomCompletionPrefix()).toBeUndefined()
+      expect(await machine.beginCustomCompletion()).toBeUndefined()
+      await machine.finish()
+    } finally {
+      await machine.dispose()
+      await session.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+  it('keeps abort before dispatch owned without a receipt', async () => {
+    const { openCustomReporters } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-prefix-abort119-'))
+    await writeFile(
+      join(root, 'observer.mjs'),
+      'export default class{get onTestRunEnd(){throw new Error("must not access after abort")}}'
+    )
+    const controller = new AbortController(),
+      reason = new Error('actual119 abort')
+    const session = await openCustomReporters({
+      projectDir: root,
+      reporters: ['./observer.mjs'],
+      signal: controller.signal,
+      write() {},
+    })
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: ['json'],
+      customReporterSession: session,
+      write() {},
+    })
+    try {
+      machine.onEvent({ ...envelope, type: 'run-start' })
+      machine.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 1,
+      })
+      controller.abort(reason)
+      expect(
+        await machine.beginCustomCompletionPrefix()!.catch((error) => error)
+      ).toBe(reason)
+      expect(
+        await machine.beginCustomCompletion()!.catch((error) => error)
+      ).toBe(reason)
+    } finally {
+      await machine.dispose()
+      await session.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+  it('owns actual worker death before a failure receipt', async () => {
+    const { openCustomReporters } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-prefix-death119-'))
+    await writeFile(
+      join(root, 'observer.mjs'),
+      'export default class{get onTestRunEnd(){process.exit(23)}}'
+    )
+    const session = await openCustomReporters({
+      projectDir: root,
+      reporters: ['./observer.mjs'],
+      write() {},
+    })
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: ['json'],
+      customReporterSession: session,
+      write() {},
+    })
+    let failure: unknown
+    try {
+      machine.onEvent({ ...envelope, type: 'run-start' })
+      machine.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 1,
+      })
+      failure = await machine
+        .beginCustomCompletionPrefix()!
+        .catch((error) => error)
+      expect(failure).toMatchObject({
+        message: 'Custom reporter process ended unexpectedly (exit, code 23).',
+      })
+    } finally {
+      await machine.dispose()
+      await session.dispose({ handledFailure: failure })
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+  it.each(['zero-count', 'bad-kind', 'duplicate'])(
+    'rejects actual producer receipt damage: %s',
+    async (mutation) => {
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-prefix-fault119-'))
+      await writeFile(
+        join(root, 'observer.mjs'),
+        `export default class{onInit(){const send=process.send.bind(process);process.send=(message,...rest)=>{if(message?.type==='custom-reporter-completion-failure'){${mutation === 'zero-count' ? 'message.invocation={count:0};' : mutation === 'bad-kind' ? "message.completionFailure.kind='invalid';" : 'send(message,()=>{});'}}return send(message,...rest)}}get onTestRunEnd(){throw new Error('actual119 access')}}`
+      )
+      const session = await openCustomReporters({
+        projectDir: root,
+        reporters: ['./observer.mjs'],
+        write() {},
+      })
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: ['json'],
+        customReporterSession: session,
+        write() {},
+      })
+      let failure: unknown
+      try {
+        machine.onEvent({ ...envelope, type: 'run-start' })
+        machine.onEvent({
+          ...envelope,
+          type: 'run-end',
+          status: 'passed',
+          durationMs: 1,
+        })
+        const start = machine.beginCustomCompletionPrefix()!
+        await start.catch(() => {})
+        failure = await machine.finish().catch((error) => error)
+        expect(failure).toMatchObject({
+          message: expect.stringContaining(
+            'Invalid custom reporter completion-failure receipt.'
+          ),
+        })
+        await expect(readFile(join(root, 'cases.json'))).rejects.toMatchObject({
+          code: 'ENOENT',
+        })
+      } finally {
+        await machine.dispose()
+        await session.dispose({ handledFailure: failure }).catch(() => {})
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+    30000
+  )
+})
+
+describe('actual pre-call completion failure owns earlier callbacks until close', () => {
+  const leaves = (error: unknown): Error[] =>
+    error instanceof AggregateError
+      ? error.errors.flatMap(leaves)
+      : error instanceof Error
+        ? [error]
+        : []
+  it.each([
+    'getter-reject',
+    'getter-close-throw',
+    'getter-reject-close-throw',
+    'invalid-reject',
+    'invalid-close-throw',
+    'invalid-reject-close-throw',
+  ])(
+    'preserves actual access failure and physical ownership for %s',
+    async (name) => {
+      const { openCustomReporters } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter'
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-access-pending416-'))
+      const kind = name.startsWith('getter-') ? 'getter' : 'invalid'
+      const variant = name.slice(kind.length + 1)
+      for (const [file, source] of [
+        ['first.mjs', variant + '.mjs'],
+        ['second.mjs', kind + '.mjs'],
+        ['third.mjs', 'third.mjs'],
+      ])
+        await cp(
+          resolveFixturePath(
+            join(__dirname, 'fixtures/custom-access-pending', source)
+          ),
+          join(root, file)
+        )
+      const controller = new AbortController()
+      const reporters = ['./first.mjs', './second.mjs', './third.mjs']
+      const session = await openCustomReporters({
+        projectDir: root,
+        reporters,
+        signal: controller.signal,
+        write() {},
+      })
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: parseResultReporters([...reporters, 'json']),
+        outputFile: join(root, 'cases.json'),
+        customReporterSession: session,
+        write() {},
+      })
+      let failure: unknown,
+        disposed = false
+      const trace = async () =>
+        (await readFile(join(root, 'provider-trace.jsonl'), 'utf8'))
+          .trim()
+          .split('\n')
+          .map((line: string) => JSON.parse(line))
+      try {
+        machine.onEvent({ ...envelope, type: 'run-start' })
+        machine.onEvent({
+          ...envelope,
+          type: 'run-end',
+          status: 'passed',
+          durationMs: 1,
+        })
+        expect(await machine.beginCustomCompletionPrefix()).toEqual({
+          completionFailure: {
+            reporterIndex: 1,
+            kind: kind === 'getter' ? 'access' : 'noncallable',
+          },
+          invocation: { count: 1 },
+        })
+        failure = await machine.finish().catch((error) => error)
+        expect(failure).toMatchObject({
+          message:
+            kind === 'getter'
+              ? 'actual access failure118'
+              : 'Custom reporter onTestRunEnd is not a function.',
+        })
+        expect(await trace()).toEqual([
+          { name: 'first-enter', jsonExists: false },
+          ...(kind === 'getter'
+            ? [{ name: 'second-getter', jsonExists: false }]
+            : []),
+        ])
+        await expect(readFile(join(root, 'cases.json'))).rejects.toMatchObject({
+          code: 'ENOENT',
+        })
+        const cleanup = await session
+          .dispose({ handledFailure: failure })
+          .catch((error) => error)
+        disposed = true
+        expect(leaves(cleanup).map((error) => error.message)).toEqual([
+          ...(variant.includes('close-throw')
+            ? ['actual accessor close failure120']
+            : []),
+          ...(variant.includes('reject')
+            ? ['actual accessor prior rejection120']
+            : []),
+        ])
+        expect(await trace()).toEqual([
+          { name: 'first-enter', jsonExists: false },
+          ...(kind === 'getter'
+            ? [{ name: 'second-getter', jsonExists: false }]
+            : []),
+          { name: 'first-close', jsonExists: false },
+          { name: 'first-settled', jsonExists: false },
+        ])
+      } finally {
+        await machine.dispose()
+        if (!disposed) {
+          controller.abort(new Error('actual416 failed control cleanup'))
+          await session.dispose({ handledFailure: failure }).catch(() => {})
+        }
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+    30000
+  )
+})
+
 it.each([undefined, true, false])(
   'forwards source-map diagnostic policy %s through the real frame consumer',
   async (reportInvalidSourceMaps) => {
@@ -1283,3 +8367,1340 @@ it.each([undefined, true, false])(
     }
   }
 )
+
+describe('selected Run Start reporter specifications', () => {
+  const projectRoot = join(tmpdir(), 'next-root-run-start-project')
+  const firstFile = join(projectRoot, 'a.test.mjs')
+  const secondFile = join(projectRoot, 'b.test.mjs')
+  const changedFile = join(projectRoot, 'changed.test.mjs')
+  const facts = [
+    {
+      entryId: 'alpha:a',
+      moduleId: firstFile,
+      projectId: 'alpha',
+      projectName: 'alpha',
+      root: projectRoot,
+      pool: 'forks' as const,
+    },
+    {
+      entryId: 'alpha:b',
+      moduleId: secondFile,
+      projectId: 'alpha',
+      projectName: 'alpha',
+      root: projectRoot,
+      pool: 'forks' as const,
+    },
+    {
+      entryId: 'beta:a',
+      moduleId: firstFile,
+      projectId: 'beta',
+      projectName: 'beta',
+      root: projectRoot,
+      pool: 'forks' as const,
+    },
+  ]
+
+  it('uses selected module/profile facts in the supplied specification order', async () => {
+    const { selectReporterRunSpecifications } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter-specifications'
+    )
+    const projects = ['alpha', 'beta'].map((name) => {
+      const profile = {
+        id: name,
+        environment: 'node' as const,
+        mode: 'development' as const,
+        runtime: 'nodejs' as const,
+        bundler: 'turbopack' as const,
+      }
+      return {
+        profile,
+        entries: facts
+          .filter((fact) => fact.projectId === name)
+          .map((fact) => ({
+            id: fact.entryId,
+            file: fact.moduleId,
+            projectName: fact.projectName,
+            profile,
+          })),
+        include: [],
+        exclude: [],
+        setupFiles: [],
+      }
+    }) as unknown as Parameters<typeof selectReporterRunSpecifications>[1]
+    expect(
+      selectReporterRunSpecifications(projectRoot, projects, [
+        'beta:a',
+        'alpha:b',
+        'alpha:a',
+      ])
+    ).toEqual([facts[2], facts[1], facts[0]])
+    expect(() =>
+      selectReporterRunSpecifications(projectRoot, projects, [
+        'alpha:a',
+        'alpha:a',
+        'beta:a',
+      ])
+    ).toThrow('Run Start requires its actual selected specification order.')
+    expect(selectReporterRunSpecifications(projectRoot, [], [])).toEqual([])
+  })
+
+  it('retains the genuine public field descriptors and undefined selector keys', async () => {
+    const { createReporterRunSpecifications } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter-specifications'
+    )
+    const views = createReporterRunSpecifications(facts, () => undefined)
+    const spec = views.specifications[0]
+    const keys = [
+      'taskId',
+      'project',
+      'moduleId',
+      'pool',
+      'testLines',
+      'testNamePattern',
+      'testIds',
+      'testTagsFilter',
+    ]
+    expect(Reflect.ownKeys(spec)).toEqual(keys)
+    expect(Object.isFrozen(spec)).toBe(false)
+    for (const key of keys) {
+      const descriptor = Object.getOwnPropertyDescriptor(spec, key)!
+      expect(descriptor.enumerable).toBe(true)
+      expect(descriptor.configurable).toBe(true)
+      expect(descriptor.writable).toBe(true)
+    }
+    expect(Object.hasOwn(spec, 'testModule')).toBe(false)
+    expect(spec.testModule).toBeUndefined()
+    expect(spec.toJSON()).toEqual([
+      { name: 'alpha', root: projectRoot },
+      firstFile,
+      {
+        pool: 'forks',
+        testLines: undefined,
+        testIds: undefined,
+        testNamePattern: undefined,
+        testTagsFilter: undefined,
+      },
+    ])
+    expect(Object.keys(spec.toJSON()[2])).toEqual([
+      'pool',
+      'testLines',
+      'testIds',
+      'testNamePattern',
+      'testTagsFilter',
+    ])
+  })
+
+  it('shares each actual project and resolves the current module lazily by entry ID', async () => {
+    const { createReporterRunSpecifications } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter-specifications'
+    )
+    const current = new Map<string, unknown>()
+    const reads: string[] = []
+    const views = createReporterRunSpecifications(facts, (entryId) => {
+      reads.push(entryId)
+      return current.get(entryId)
+    })
+    expect(reads).toEqual([])
+    const [first, sameProject, otherProject] = views.specifications
+    expect(first.project).toBe(sameProject.project)
+    expect(first.project).not.toBe(otherProject.project)
+    expect(views.projectForEntry('alpha:a')).toBe(first.project)
+    expect(views.projectForEntry('missing')).toBeUndefined()
+    const initialToken = Object.freeze({ token: 'first resolver value' })
+    const currentToken = Object.freeze({ token: 'new resolver value' })
+    expect(first.testModule).toBeUndefined()
+    current.set('alpha:a', initialToken)
+    expect(first.testModule).toBe(initialToken)
+    current.set('alpha:a', currentToken)
+    expect(first.testModule).toBe(currentToken)
+    expect(otherProject.testModule).toBeUndefined()
+    expect(reads).toEqual(['alpha:a', 'alpha:a', 'alpha:a', 'beta:a'])
+    expect(
+      views.matchesEntry({
+        id: 'alpha:a',
+        file: firstFile,
+        projectName: 'alpha',
+      })
+    ).toBe(true)
+    expect(
+      views.matchesEntry({
+        id: 'alpha:a',
+        file: changedFile,
+        projectName: 'alpha',
+      })
+    ).toBe(false)
+    expect(() => views.assertUnchangedSelection()).not.toThrow()
+  })
+
+  it.each([
+    ['testNamePattern', /other a/],
+    ['testIds', []],
+    ['testLines', [6]],
+    ['testTagsFilter', ['missing-tag']],
+    ['moduleId', changedFile],
+    ['project', { name: 'changed', config: { root: '/changed' } }],
+  ] as const)(
+    'keeps the passive adapter limit explicit for mutation %s',
+    async (key, value) => {
+      const { createReporterRunSpecifications } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter-specifications'
+      )
+      const views = createReporterRunSpecifications(facts, () => undefined)
+      Object.defineProperty(views.specifications[0], key, { value })
+      expect(() => views.assertUnchangedSelection()).toThrow(
+        'Custom reporter specification mutation requires a Next selection adapter and is not implemented.'
+      )
+    }
+  )
+  it.each(['browser', 'shared', 'typecheck'] as const)(
+    'ignores an unselected %s project and rejects its actual selected spec',
+    async (kind) => {
+      const { selectReporterRunSpecifications } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter-specifications'
+      )
+      const profile = {
+        id: 'unsupported',
+        environment: kind === 'browser' ? 'browser' : 'node',
+        mode: 'development',
+        runtime: 'nodejs',
+        bundler: 'turbopack',
+      }
+      const project = {
+        profile,
+        entries: [],
+        include: [],
+        exclude: [],
+        setupFiles: [],
+        ...(kind === 'shared' ? { isolate: false } : {}),
+        ...(kind === 'typecheck' ? { typecheck: { enabled: true } } : {}),
+      }
+      const empty = [project] as unknown as Parameters<
+        typeof selectReporterRunSpecifications
+      >[1]
+      expect(selectReporterRunSpecifications(projectRoot, empty, [])).toEqual(
+        []
+      )
+      const selected = [
+        {
+          ...project,
+          entries: [{ id: 'unsupported:a', file: firstFile, profile }],
+        },
+      ] as unknown as Parameters<typeof selectReporterRunSpecifications>[1]
+      expect(() =>
+        selectReporterRunSpecifications(projectRoot, selected, [
+          'unsupported:a',
+        ])
+      ).toThrow(
+        'Run Start reporters require one-shot isolated ordinary Node execution.'
+      )
+    }
+  )
+})
+
+describe('actual Run Start reporter worker occurrences', () => {
+  it.each([
+    'passive',
+    'empty',
+    'getter-throw',
+    'sync-throw',
+    'async-reject',
+    'async-barrier',
+    'mutate-array',
+    'mutate-pattern',
+    'mutate-ids',
+    'mutate-lines',
+    'mutate-tags',
+    'mutate-module',
+    'mutate-project',
+    'remove-start',
+  ])(
+    'checks real owned worker IPC for %s',
+    async (role) => {
+      const directory = await mkdtemp(join(tmpdir(), 'next-root-run-start-'))
+      try {
+        const { runOwnedNode, assertOwnedNodeCompleted } = await import(
+          '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
+        )
+        const result = await runOwnedNode(
+          [join(__dirname, 'root-run-start-worker.cjs'), directory, role],
+          {
+            cwd: process.cwd(),
+            env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1' },
+            auditDir: join(directory, 'processes'),
+            timeoutMs: 15000,
+          }
+        )
+        assertOwnedNodeCompleted(result, `Run Start worker ${role}`)
+        if (result.status !== 0)
+          throw new Error([result.stdout, result.stderr].join('\n'))
+        const receipt = JSON.parse(result.stdout)
+        expect(receipt.success).toBe(true)
+        expect(receipt.firstGetterReads).toBe(1)
+        expect(receipt.secondGetterReads).toBe(
+          ['getter-throw', 'sync-throw'].includes(role) ? 0 : 1
+        )
+        expect(receipt.nativeAttempts).toBe(0)
+        expect(receipt.compilerAttempts).toBe(0)
+        expect(receipt.ownedTargetAbsent).toBe(true)
+        if (process.platform !== 'win32') expect(receipt.groupAbsent).toBe(true)
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    },
+    20000
+  )
+})
+
+describe('actual passive public Run Start contract', () => {
+  it('preserves one actual passive public CLI Run Start profile', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'next-run-start-public-'))
+    let passed = false
+    try {
+      const observed = JSON.parse(
+        execFileSync(
+          process.execPath,
+          [join(__dirname, 'root-run-start-public-passive.cjs'), directory],
+          { encoding: 'utf8', timeout: 100000 }
+        )
+      )
+      expect(observed).toMatchObject({
+        actualNextCLI: true,
+        status: 0,
+        traceEqual: true,
+        completeJSONEqual: true,
+        validatedNextExtension: true,
+        wholeModelEqual: true,
+        originalFixturesHeld: true,
+        fieldDropping: false,
+      })
+      passed = true
+    } finally {
+      if (passed) {
+        // Keep the complete trace/report and process receipts for qualification.
+        await rm(join(directory, 'project'), { recursive: true, force: true })
+        await rm(join(directory, 'cache'), { recursive: true, force: true })
+      } else
+        console.error(
+          'Retained actual Run Start public comparison at ' + directory
+        )
+    }
+  }, 110000)
+})
+
+it('preserves actual annotation and artifact RPC values, failures and concurrent callback ownership', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const { promisify } = await import('node:util')
+  const { execFile } = await import('node:child_process')
+  const directory = await mkdtemp(join(tmpdir(), 'next-test-record-worker-'))
+  let completed = false
+  try {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'test-records-worker.cjs'), process.cwd(), directory],
+      { timeout: 35000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      scenarios: 33,
+      actualCallbacks: 54,
+      actualGetterReads: 58,
+      checkedCallbackRows: 165,
+      globalReporterErrors: 0,
+      allSessionsDisposed: true,
+    })
+    completed = true
+  } finally {
+    if (completed) await rm(directory, { recursive: true, force: true })
+    else console.error('Retained failed actual record reporter at ' + directory)
+  }
+}, 40000)
+
+it('preserves Ready synchronous abort and asynchronous fan-out in live and recorded dispatch', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const { promisify } = await import('node:util')
+  const { execFile } = await import('node:child_process')
+  const directory = await mkdtemp(join(tmpdir(), 'next-ready-dispatch-order-'))
+  let completed = false
+  try {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'test-records-worker.cjs'),
+        process.cwd(),
+        directory,
+        'ready-dispatch-order',
+      ],
+      { timeout: 35000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      scenarios: 6,
+      live: 3,
+      replay: 3,
+      synchronousStops: 4,
+      asynchronousContinues: 2,
+      identityPreserved: true,
+      singleGetterRead: true,
+      sessionsDisposed: 6,
+    })
+    completed = true
+  } finally {
+    if (completed) await rm(directory, { recursive: true, force: true })
+    else console.error('Retained failed Ready dispatch order at ' + directory)
+  }
+}, 40000)
+
+it('keeps inactive observer getters dormant while rejecting unsupported active domains', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const { promisify } = await import('node:util')
+  const { execFile } = await import('node:child_process')
+  const directory = await mkdtemp(join(tmpdir(), 'next-dormant-observer-'))
+  let completed = false
+  try {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'test-records-worker.cjs'),
+        process.cwd(),
+        directory,
+        'dormant-observer-admission',
+      ],
+      { timeout: 35000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      dormantObservers: 7,
+      dormantGetterReads: 0,
+      activeReadyCallbacks: 1,
+      activeResultCallbacks: 1,
+      unsupportedDomains: 3,
+      coverageGetterReads: 0,
+      identityPreserved: true,
+      sessionsDisposed: 3,
+    })
+    completed = true
+  } finally {
+    if (completed) await rm(directory, { recursive: true, force: true })
+    else
+      console.error(
+        'Retained failed dormant observer admission at ' + directory
+      )
+  }
+}, 40000)
+
+it('preserves real Suite and Hook callback batches, task identity, raw failures and pending callback ownership', async () => {
+  const { promisify } = await import('node:util')
+  const { execFile } = await import('node:child_process')
+  const directory = await mkdtemp(join(tmpdir(), 'next-suite-hook-batches-'))
+  let completed = false
+  try {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'suite-hook-batches-worker.cjs'),
+        process.cwd(),
+        directory,
+      ],
+      { timeout: 35000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      scenarios: 9,
+      physicalReporterSessions: 9,
+      fastPackFinalState: true,
+      stableTaskIdentity: true,
+      sharedHookArgument: true,
+      exactGetterDispatch: true,
+      rawReporterErrors: true,
+      concurrentBatches: true,
+      finalJoin: true,
+      forgedOwnerRejected: true,
+      allSessionsDisposed: true,
+    })
+    completed = true
+  } finally {
+    if (completed) await rm(directory, { recursive: true, force: true })
+    else
+      console.error(
+        'Retained failed actual Suite and Hook batches at ' + directory
+      )
+  }
+}, 40000)
+
+it('drains pending task callback batches before actual context annotation reporter RPCs', async () => {
+  const { promisify } = await import('node:util')
+  const { execFile } = await import('node:child_process')
+  const directory = await mkdtemp(join(tmpdir(), 'next-record-batch-drain-'))
+  let completed = false
+  try {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'record-batch-drain.cjs'), process.cwd(), directory],
+      { timeout: 35000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      scenarios: 2,
+      physicalReporterSessions: 2,
+      actualContextAnnotations: 2,
+      pendingSuiteReadyDrained: true,
+      pendingCaseReadyDrained: true,
+      annotationReporterWaited: true,
+      annotationBodyContinuationWaited: true,
+      ordinaryBodyAndLaterBatchProgressed: true,
+      passingTasks: 4,
+      allSessionsDisposed: true,
+    })
+    completed = true
+  } finally {
+    if (completed) await rm(directory, { recursive: true, force: true })
+    else
+      console.error(
+        'Retained failed actual record and batch drain at ' + directory
+      )
+  }
+}, 40000)
+
+describe('completion task ownership without authored collection hooks', () => {
+  it.each([
+    ['node', false],
+    ['node', true],
+    ['browser', false],
+    ['browser', true],
+  ] as const)(
+    'uses real collected task ownership for %s completion with CaseResult=%s',
+    async (environment, caseResult) => {
+      const { createCollector } = await import(
+        'next/dist/experimental/testing/runner/collector'
+      )
+      const { runCollected } = await import(
+        'next/dist/experimental/testing/runner/lifecycle'
+      )
+      const { captureReporterTaskTree } = await import(
+        'next/dist/experimental/testing/reporting/live-tasks'
+      )
+      const { createReporterTaskUpdates } = await import(
+        'next/dist/experimental/testing/reporting/task-updates'
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-completion-task-owner-'))
+      await cp(
+        join(__dirname, 'fixtures/completion-batch-owner/reporter.mjs'),
+        join(root, 'reporter.mjs')
+      )
+      await writeFile(
+        join(root, 'options.json'),
+        JSON.stringify({ caseResult, collected: false })
+      )
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: parseResultReporters(['json', './reporter.mjs']),
+        outputFile: 'result.json',
+        write() {},
+      })
+      let updates!: ReturnType<typeof createReporterTaskUpdates<CaseResult>>
+      try {
+        await machine.initialize()
+        expect(machine.captureTaskResults).toBe(true)
+        expect(machine.captureModuleCollected).toBe(false)
+        expect(machine.captureModuleStart).toBe(false)
+        expect(machine.captureCaseReady).toBe(false)
+        const actualEntry: TestEntry = {
+          ...entry,
+          id: `completion:${environment}:${caseResult}`,
+          file: join(root, 'actual.test.mjs'),
+          profile: {
+            ...entry.profile,
+            id: environment,
+            environment,
+            ...(environment === 'browser'
+              ? { browserClient: true as const }
+              : {}),
+          },
+        }
+        const revision = 'actual-collected-revision'
+        const emit = (event: object) =>
+          machine.onEvent({ ...envelope, ...event } as ResultEvent)
+        updates = createReporterTaskUpdates<CaseResult>({
+          onUpdate(update) {
+            emit({
+              type: 'task-update',
+              entryId: actualEntry.id,
+              revision,
+              ...update,
+            })
+          },
+        })
+        const collector = createCollector(actualEntry.id)
+        collector.api.test('actual body', (context) => {
+          Object.assign(context.task.meta, { componentBody: true })
+        })
+        await collector.settle()
+        emit({ type: 'run-start' })
+        emit({ type: 'file-start', entry: actualEntry, revision })
+        const started = Date.now()
+        const result = await runCollected(
+          collector.close(),
+          {
+            runId: envelope.runId,
+            signal: new AbortController().signal,
+            filePath: actualEntry.file,
+            onCollected(file) {
+              emit({
+                type: 'file-collected',
+                entryId: actualEntry.id,
+                revision,
+                taskTree: captureReporterTaskTree(file),
+              })
+              updates.collected(file)
+            },
+            onCaseStart(context) {
+              updates.caseStart(context.testId)
+              emit({
+                type: 'case-start',
+                entryId: actualEntry.id,
+                caseId: context.testId,
+                attempt: {
+                  id: context.id,
+                  retry: context.retry,
+                  repeat: context.repeat,
+                },
+                name: context.name,
+                testName: context.testName,
+                ancestors: context.ancestors,
+                mode: context.mode,
+                revision,
+              })
+            },
+            onCaseEnd(value) {
+              emit({
+                type: 'case-end',
+                entryId: actualEntry.id,
+                revision,
+                ...value,
+                errors: value.errors.map((failure) =>
+                  serializeDiagnostic(failure.error, { phase: 'runtime' })
+                ),
+              })
+            },
+            onCaseResult(task, value) {
+              updates.caseResult(task, {
+                ...value,
+                errors: value.errors.map((failure) =>
+                  serializeDiagnostic(failure.error, { phase: 'runtime' })
+                ),
+              })
+            },
+            onSuiteEnd(value, task) {
+              emit({
+                type: 'suite-end',
+                entryId: actualEntry.id,
+                revision,
+                ...value,
+                errors: value.errors.map((failure) =>
+                  serializeDiagnostic(failure.error, { phase: 'runtime' })
+                ),
+              })
+              updates.suiteEnd(task)
+            },
+          },
+          () => {}
+        )
+        await updates.finish()
+        expect(result.errors).toEqual([])
+        expect(result.cases.map((test) => test.status)).toEqual(['passed'])
+        const durationMs = Date.now() - started
+        emit({
+          type: 'file-end',
+          entryId: actualEntry.id,
+          status: 'passed',
+          durationMs,
+        })
+        emit({ type: 'run-end', status: 'passed', durationMs })
+        await machine.finish()
+        await machine.dispose()
+        const rows = (await readFile(join(root, 'trace.jsonl'), 'utf8'))
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line))
+        expect(rows).toEqual([
+          ...(caseResult
+            ? [{ hook: 'case', name: 'actual body', state: 'passed' }]
+            : []),
+          {
+            hook: 'module',
+            state: 'passed',
+            sameCase: caseResult,
+            bodyMeta: true,
+          },
+          { hook: 'end', reason: 'passed', sameModule: true, errors: [] },
+          { hook: 'close' },
+        ])
+        expect(
+          JSON.parse(await readFile(join(root, 'result.json'), 'utf8'))
+        ).toMatchObject({ success: true, numPassedTests: 1 })
+      } finally {
+        updates?.dispose()
+        await machine.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('continues requesting an explicit authored collection callback', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-authored-collected-owner-'))
+    await cp(
+      join(__dirname, 'fixtures/completion-batch-owner/reporter.mjs'),
+      join(root, 'reporter.mjs')
+    )
+    await writeFile(
+      join(root, 'options.json'),
+      JSON.stringify({ caseResult: true, collected: true })
+    )
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: parseResultReporters(['./reporter.mjs']),
+      write() {},
+    })
+    try {
+      await machine.initialize()
+      expect(machine.captureModuleCollected).toBe(true)
+    } finally {
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('custom reporter actual watch generation ownership', () => {
+  async function withWatchReporter(
+    run: (
+      session: Awaited<
+        ReturnType<
+          (typeof import('next/dist/experimental/testing/reporting/custom-reporter'))['openCustomReporters']
+        >
+      >,
+      root: string
+    ) => Promise<void>
+  ) {
+    const { openCustomReporters } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-watch-generation-'))
+    let session: Awaited<ReturnType<typeof openCustomReporters>> | undefined
+    try {
+      await cp(
+        join(__dirname, 'fixtures/watch-generation-reporter.mjs'),
+        join(root, 'reporter.mjs')
+      )
+      session = await openCustomReporters({
+        projectDir: root,
+        reporters: ['./reporter.mjs'],
+        watch: true,
+        write() {},
+      })
+      await run(session, root)
+    } finally {
+      await session?.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  }
+
+  it('reads watch callbacks once with actual task, console and receiver ownership', async () => {
+    await withWatchReporter(async (session, root) => {
+      const { createCollector } = await import(
+        'next/dist/experimental/testing/runner/collector'
+      )
+      const { runCollected } = await import(
+        'next/dist/experimental/testing/runner/lifecycle'
+      )
+      const { captureReporterTaskTree } = await import(
+        'next/dist/experimental/testing/reporting/live-tasks'
+      )
+      const actualEntry = {
+        ...entry,
+        id: 'node:owned-watch',
+        file: join(root, 'watch.case.mjs'),
+      }
+      for (const generation of [1, 2, 3]) {
+        await session.beginWatchRun(
+          generation === 1
+            ? undefined
+            : {
+                rerun: { files: [actualEntry.file], trigger: actualEntry.file },
+              }
+        )
+        const fact = { ...envelope, runId: `actual-watch-${generation}` }
+        const revision = `actual-watch-revision-${generation}`
+        const events: ResultEvent[] = []
+        const entries: Extract<ResultEvent, { type: 'file-start' }>[] = []
+        const files: Extract<ResultEvent, { type: 'file-end' }>[] = []
+        const cases: Extract<ResultEvent, { type: 'case-end' }>[] = []
+        const suites: Extract<ResultEvent, { type: 'suite-end' }>[] = []
+        const completion = () => ({
+          events,
+          entries,
+          files,
+          cases,
+          suites,
+          status: generation === 2 ? ('failed' as const) : ('passed' as const),
+        })
+        function dispatch<T extends ResultEvent>(value: T): T {
+          events.push(value)
+          session.onEvent(value, completion())
+          return value
+        }
+        dispatch({ ...fact, type: 'run-start' })
+        entries.push(
+          dispatch({
+            ...fact,
+            type: 'file-start',
+            entry: actualEntry,
+            revision,
+          })
+        )
+        const output = (taskId: string, content: string) =>
+          dispatch({
+            ...fact,
+            type: 'output',
+            entryId: actualEntry.id,
+            revision,
+            stream: 'stdout',
+            text: content,
+            console: { taskId, size: 1 },
+          })
+        output(actualEntry.id, `FILE ${generation}\n`)
+        const collector = createCollector(actualEntry.id)
+        let caseId!: string
+        collector.api.describe('owned suite', () => {
+          collector.api.test('actual watch body', () => {
+            output(caseId, `CASE ${generation}\n`)
+            if (generation === 2)
+              throw new Error('actual recoverable body failure')
+          })
+        })
+        await collector.settle()
+        await runCollected(
+          collector.close(),
+          {
+            runId: fact.runId,
+            filePath: actualEntry.file,
+            signal: new AbortController().signal,
+            onCollected(file) {
+              const taskTree = captureReporterTaskTree(file)
+              caseId = taskTree.tasks![0].tasks![0].id
+              dispatch({
+                ...fact,
+                type: 'file-collected',
+                entryId: actualEntry.id,
+                revision,
+                taskTree,
+              })
+            },
+            onCaseResult(task, result) {
+              const actual = {
+                ...result,
+                revision,
+                errors: result.errors.map((failure) =>
+                  serializeDiagnostic(failure.error, { phase: 'runtime' })
+                ),
+              }
+              cases.push(dispatch({ ...fact, type: 'case-end', ...actual }))
+              dispatch({
+                ...fact,
+                type: 'task-update',
+                entryId: actualEntry.id,
+                revision,
+                taskTree: captureReporterTaskTree(task.file),
+                taskUpdateIds: [task.id],
+                caseResults: [actual],
+                caseEvents: [{ event: 'result', caseId: task.id }],
+              })
+            },
+            onSuiteEnd(result, task) {
+              suites.push(
+                dispatch({
+                  ...fact,
+                  type: 'suite-end',
+                  ...result,
+                  revision,
+                  errors: result.errors.map((failure) =>
+                    serializeDiagnostic(failure.error, { phase: 'runtime' })
+                  ),
+                })
+              )
+              dispatch({
+                ...fact,
+                type: 'task-update',
+                entryId: actualEntry.id,
+                revision,
+                taskTree: captureReporterTaskTree(task.file),
+                taskUpdateIds: [task.id],
+                caseResults: [],
+              })
+            },
+          },
+          () => {}
+        )
+        const end = {
+          ...fact,
+          type: 'file-end' as const,
+          entryId: actualEntry.id,
+          status: generation === 2 ? ('failed' as const) : ('passed' as const),
+          durationMs: 0,
+        }
+        files.push(end)
+        dispatch(end)
+        dispatch({
+          ...fact,
+          type: 'run-end',
+          status: generation === 2 ? 'failed' : 'passed',
+          durationMs: 0,
+        })
+        await session.finish(completion())
+        await session.readyWatchRun(generation === 1)
+      }
+      await session.removeWatchTests([actualEntry.file])
+      await session.dispose()
+      const rows = (
+        await readFile(join(root, 'watch-generation-rows.jsonl'), 'utf8')
+      )
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+      const counts: Record<string, number> = {}
+      for (const row of rows)
+        if (row.type === 'read') counts[row.name] = (counts[row.name] ?? 0) + 1
+      expect(counts).toEqual({
+        onInit: 1,
+        onUserConsoleLog: 6,
+        onTestCaseResult: 3,
+        onTestModuleEnd: 3,
+        onTestRunEnd: 3,
+        onWatcherStart: 3,
+        onWatcherRerun: 2,
+        onTestRemoved: 1,
+      })
+      const ends = rows.filter((row) => row.type === 'end')
+      expect(ends.map((row) => row.reason)).toEqual([
+        'passed',
+        'failed',
+        'passed',
+      ])
+      expect(ends.map((row) => row.errors)).toEqual([[], [], []])
+      expect(ends.map((row) => row.sameAsFirst)).toEqual([true, false, false])
+      expect(ends.every((row) => row.sameAsModuleEnd)).toBe(true)
+      expect(ends.map((row) => row.current.cases[0].state)).toEqual([
+        'passed',
+        'failed',
+        'passed',
+      ])
+      expect(ends.map((row) => row.first.cases[0].logs)).toEqual([
+        ['CASE 1\n'],
+        ['CASE 1\n'],
+        ['CASE 1\n'],
+      ])
+      expect(ends.map((row) => row.first.logs)).toEqual([
+        ['FILE 1\n'],
+        ['FILE 1\n', 'FILE 2\n'],
+        ['FILE 1\n', 'FILE 2\n', 'FILE 3\n'],
+      ])
+      expect(rows.filter((row) => row.type === 'init')).toHaveLength(1)
+      expect(rows.filter((row) => row.type === 'close')).toHaveLength(1)
+    })
+  })
+
+  it('rejects retirement before the actual watch generation completes', async () => {
+    await withWatchReporter(async (session) => {
+      await session.beginWatchRun()
+      await expect(session.beginWatchRun()).rejects.toThrow(
+        'has not actually completed'
+      )
+    })
+  })
+
+  it('rejects stale watch event and completion ownership without retiring the active run', async () => {
+    await withWatchReporter(async (session) => {
+      await session.beginWatchRun()
+      const start = {
+        ...envelope,
+        type: 'run-start' as const,
+        runId: 'active-watch',
+      }
+      session.onEvent(start)
+      expect(() =>
+        session.onEvent({
+          ...start,
+          runId: 'retired-watch',
+          type: 'output',
+          entryId: entry.id,
+          stream: 'stdout',
+          text: 'retired output',
+          console: { taskId: entry.id, size: 1 },
+        })
+      ).toThrow('actual watch generation')
+      const completion = {
+        events: [start],
+        entries: [],
+        files: [],
+        cases: [],
+        suites: [],
+        status: 'passed' as const,
+      }
+      await expect(
+        session.finish({
+          ...completion,
+          events: [{ ...start, runId: 'foreign-watch' }],
+        })
+      ).rejects.toThrow('watch generation')
+      await session.finish(completion)
+    })
+  })
+
+  it('retires an acquired or unacquired cancelled generation without invented public callbacks', async () => {
+    await withWatchReporter(async (session, root) => {
+      const { createCollector } = await import(
+        'next/dist/experimental/testing/runner/collector'
+      )
+      const { runCollected } = await import(
+        'next/dist/experimental/testing/runner/lifecycle'
+      )
+      const { captureReporterTaskTree } = await import(
+        'next/dist/experimental/testing/reporting/live-tasks'
+      )
+      await expect(session.cancelWatchRun()).rejects.toThrow('watch ownership')
+      await session.beginWatchRun()
+      await session.cancelWatchRun()
+      await session.cancelWatchRun()
+      await session.beginWatchRun()
+      const start = {
+        ...envelope,
+        type: 'run-start' as const,
+        runId: 'actual-partial-watch',
+      }
+      session.onEvent(start)
+      const controller = new AbortController()
+      const collector = createCollector(entry.id)
+      collector.api.test('actual partial body', async () => {
+        controller.abort(new Error('actual owned supersession'))
+        await Promise.resolve()
+      })
+      await collector.settle()
+      const result = await runCollected(
+        collector.close(),
+        {
+          runId: start.runId,
+          filePath: entry.file,
+          signal: controller.signal,
+          onCollected(file) {
+            session.onEvent({
+              ...start,
+              type: 'file-collected',
+              entryId: entry.id,
+              revision: 'actual-partial-revision',
+              taskTree: captureReporterTaskTree(file),
+            })
+          },
+        },
+        () => {}
+      )
+      expect(result.interrupted).toBe(true)
+      await session.cancelWatchRun()
+      await session.beginWatchRun()
+      await session.finish({
+        events: [],
+        entries: [],
+        files: [],
+        cases: [],
+        suites: [],
+        status: 'passed',
+      })
+      // Supersession may race after the real completion acknowledgement.
+      await session.cancelWatchRun()
+      await session.readyWatchRun(false)
+      await session.dispose()
+      const rows = (
+        await readFile(join(root, 'watch-generation-rows.jsonl'), 'utf8')
+      )
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+      expect(rows.filter((row) => row.type === 'module')).toHaveLength(0)
+      expect(rows.filter((row) => row.type === 'end')).toHaveLength(1)
+      expect(rows.filter((row) => row.type === 'ready')).toHaveLength(1)
+      expect(rows.filter((row) => row.type === 'init')).toHaveLength(1)
+      expect(rows.filter((row) => row.type === 'close')).toHaveLength(1)
+    })
+  })
+})
+
+describe('custom reporter watch selected boundaries', () => {
+  it('dispatches actual selected specifications once across affected watch generations', async () => {
+    const { openCustomReporters } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter'
+    )
+    const { selectReporterRunSpecifications } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter-specifications'
+    )
+    const { createCollector } = await import(
+      'next/dist/experimental/testing/runner/collector'
+    )
+    const { runCollected } = await import(
+      'next/dist/experimental/testing/runner/lifecycle'
+    )
+    const { captureReporterTaskTree } = await import(
+      'next/dist/experimental/testing/reporting/live-tasks'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-watch-selected-'))
+    let session: Awaited<ReturnType<typeof openCustomReporters>> | undefined
+    try {
+      await cp(
+        join(__dirname, 'fixtures/watch-selected-start-reporter.mjs'),
+        join(root, 'reporter.mjs')
+      )
+      session = await openCustomReporters({
+        projectDir: root,
+        reporters: ['./reporter.mjs'],
+        watch: true,
+        write() {},
+      })
+      expect(session.captureRunStart).toBe(true)
+      await expect(session.beginRun([])).rejects.toThrow('unavailable')
+      const all = ['edited', 'unchanged'].map((name) => ({
+        ...entry,
+        id: `node:${name}`,
+        file: join(root, `${name}.case.mjs`),
+      }))
+      const selections = [all, [all[0]], [all[1]]]
+      for (const [generation, selected] of selections.entries()) {
+        await session.beginWatchRun()
+        await session.beginRun(
+          selectReporterRunSpecifications(
+            root,
+            [
+              {
+                profile: entry.profile,
+                entries: selected,
+                include: ['**/*.case.mjs'],
+                exclude: [],
+                setupFiles: [],
+                testTimeout: 5000,
+                hookTimeout: 5000,
+                fileTimeout: 30000,
+              },
+            ],
+            selected.map((item) => item.id)
+          )
+        )
+        expect(session.captureModuleQueued).toBe(false)
+        expect(session.captureModuleCollected).toBe(false)
+        expect(session.captureModuleStart).toBe(false)
+        expect(session.captureCaseReady).toBe(false)
+        expect(session.captureSuiteEvents).toBe(false)
+        expect(session.captureHookEvents).toBe(false)
+        const fact = { ...envelope, runId: `selected-watch-${generation}` }
+        const revision = `selected-revision-${generation}`
+        const events: ResultEvent[] = []
+        const entries: Extract<ResultEvent, { type: 'file-start' }>[] = []
+        const files: Extract<ResultEvent, { type: 'file-end' }>[] = []
+        const cases: Extract<ResultEvent, { type: 'case-end' }>[] = []
+        const suites: Extract<ResultEvent, { type: 'suite-end' }>[] = []
+        const completion = () => ({
+          events,
+          entries,
+          files,
+          cases,
+          suites,
+          status: 'passed' as const,
+        })
+        function dispatch<T extends ResultEvent>(value: T): T {
+          events.push(value)
+          session!.onEvent(value, completion())
+          return value
+        }
+        dispatch({
+          ...fact,
+          type: 'run-start',
+          specificationOrder: selected.map((item) => item.id),
+        })
+        await expect(session.beginRun([])).rejects.toThrow('unavailable')
+        for (const actualEntry of selected) {
+          entries.push(
+            dispatch({
+              ...fact,
+              type: 'file-start',
+              entry: actualEntry,
+              revision,
+            })
+          )
+          const collector = createCollector(actualEntry.id)
+          collector.api.test(`actual ${actualEntry.id}`, () => {})
+          await collector.settle()
+          await runCollected(
+            collector.close(),
+            {
+              runId: fact.runId,
+              signal: new AbortController().signal,
+              filePath: actualEntry.file,
+              onCollected(file) {
+                dispatch({
+                  ...fact,
+                  type: 'file-collected',
+                  entryId: actualEntry.id,
+                  revision,
+                  taskTree: captureReporterTaskTree(file),
+                })
+              },
+              onCaseResult(task, result) {
+                const actual = {
+                  ...result,
+                  revision,
+                  errors: result.errors.map((failure) =>
+                    serializeDiagnostic(failure.error, { phase: 'runtime' })
+                  ),
+                }
+                cases.push(dispatch({ ...fact, type: 'case-end', ...actual }))
+                dispatch({
+                  ...fact,
+                  type: 'task-update',
+                  entryId: actualEntry.id,
+                  revision,
+                  taskTree: captureReporterTaskTree(task.file),
+                  taskUpdateIds: [task.id],
+                  caseResults: [actual],
+                })
+              },
+              onSuiteEnd(result, task) {
+                suites.push(
+                  dispatch({
+                    ...fact,
+                    type: 'suite-end',
+                    ...result,
+                    errors: result.errors.map((failure) =>
+                      serializeDiagnostic(failure.error, { phase: 'runtime' })
+                    ),
+                  })
+                )
+                dispatch({
+                  ...fact,
+                  type: 'task-update',
+                  entryId: actualEntry.id,
+                  revision,
+                  taskTree: captureReporterTaskTree(task.file),
+                  taskUpdateIds: [task.id],
+                  caseResults: [],
+                })
+              },
+            },
+            () => {}
+          )
+          const end = {
+            ...fact,
+            type: 'file-end' as const,
+            entryId: actualEntry.id,
+            status: 'passed' as const,
+            durationMs: 0,
+          }
+          files.push(end)
+          dispatch(end)
+        }
+        dispatch({ ...fact, type: 'run-end', status: 'passed', durationMs: 0 })
+        await session.finish(completion())
+        await session.readyWatchRun(generation === 0)
+      }
+      await session.dispose()
+      const rows = (await readFile(join(root, 'trace.jsonl'), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+      const expected = selections.map((selected) =>
+        selected.map((item) => item.file)
+      )
+      expect(
+        rows.filter((row) => row.type === 'start').map((row) => row.modules)
+      ).toEqual(expected)
+      expect(
+        rows.filter((row) => row.type === 'end').map((row) => row.ids)
+      ).toEqual(expected)
+      expect(rows.filter((row) => row.type === 'start-read')).toHaveLength(3)
+      expect(rows.filter((row) => row.type === 'ready')).toEqual([
+        { type: 'ready', arity: 0 },
+        { type: 'ready', arity: 1, files: [all[0].file] },
+        { type: 'ready', arity: 1, files: [all[1].file] },
+      ])
+      expect(rows.filter((row) => row.type === 'init')).toHaveLength(1)
+      expect(rows.filter((row) => row.type === 'close')).toHaveLength(1)
+    } finally {
+      await session?.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps unsupported watch Suite demand guarded after actual RunStart', async () => {
+    const { openCustomReporters } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-watch-start-demand-'))
+    let session: Awaited<ReturnType<typeof openCustomReporters>> | undefined
+    try {
+      await cp(
+        join(__dirname, 'fixtures/watch-selected-unsupported-reporter.mjs'),
+        join(root, 'reporter.mjs')
+      )
+      session = await openCustomReporters({
+        projectDir: root,
+        reporters: ['./reporter.mjs'],
+        watch: true,
+        write() {},
+      })
+      await session.beginWatchRun()
+      await expect(session.beginRun([])).rejects.toThrow(
+        'onTestSuiteReady requires an actual watch producer'
+      )
+    } finally {
+      await session?.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+})
+describe('actual reporter watch close ownership', () => {
+  it.each(['cancel-policy', 'graceful'])(
+    'preserves actual watch and one-shot close ownership for %s',
+    async (mode) => {
+      const output = await mkdtemp(join(tmpdir(), 'next-watch-close-policy-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'watch-close-component.cjs'),
+            require.resolve(
+              'next/dist/experimental/testing/reporting/custom-reporter-runtime'
+            ),
+            output,
+            mode,
+          ],
+          { encoding: 'utf8', timeout: 15000 }
+        )
+        const result = JSON.parse(
+          await readFile(join(output, 'RESULT.json'), 'utf8')
+        )
+        expect(result).toMatchObject({
+          status: 'passed',
+          actualTaskEntitiesCreated: 0,
+          nextNativeCalls: 0,
+        })
+        expect(result.models).toHaveLength(mode === 'cancel-policy' ? 4 : 1)
+        expect(
+          result.models.every((model: { passed: boolean }) => model.passed)
+        ).toBe(true)
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    }
+  )
+})

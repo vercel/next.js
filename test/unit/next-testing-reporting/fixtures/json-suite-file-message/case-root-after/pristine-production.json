@@ -1,0 +1,62 @@
+{
+  "numTotalTestSuites": 1,
+  "numPassedTestSuites": 0,
+  "numFailedTestSuites": 1,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 2,
+  "numPassedTests": 1,
+  "numFailedTests": 1,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1792934091079,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "failed case",
+          "status": "failed",
+          "title": "failed case",
+          "duration": 0.8764170000000036,
+          "failureMessages": ["case failure"],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "passing case",
+          "status": "passed",
+          "title": "passing case",
+          "duration": 0.09629199999999116,
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "startTime": 1792934091191,
+      "endTime": 1792934091192.0962,
+      "status": "failed",
+      "message": "root after case failure",
+      "name": "/private/tmp/next-testing-run/work-2/json-suite-message213/runs/reference-node26-production-case-root-after/fixture/contract.case.mjs"
+    }
+  ]
+}

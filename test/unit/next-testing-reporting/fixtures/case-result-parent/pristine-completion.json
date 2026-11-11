@@ -1,0 +1,146 @@
+[
+  {
+    "phase": "module-end",
+    "name": "before",
+    "fullName": "before",
+    "parent": {
+      "type": "module",
+      "name": null
+    }
+  },
+  {
+    "phase": "module-end",
+    "name": "extracted",
+    "fullName": "extracted",
+    "parent": {
+      "type": "module",
+      "name": null
+    }
+  },
+  {
+    "phase": "module-end",
+    "name": "foreign-this",
+    "fullName": "foreign-this",
+    "parent": {
+      "type": "module",
+      "name": null
+    }
+  },
+  {
+    "phase": "module-end",
+    "name": "inside-1",
+    "fullName": "first > inside-1",
+    "parent": {
+      "type": "suite",
+      "name": "first"
+    }
+  },
+  {
+    "phase": "module-end",
+    "name": "after",
+    "fullName": "after",
+    "parent": {
+      "type": "module",
+      "name": null
+    }
+  },
+  {
+    "phase": "module-end",
+    "name": "inside-2",
+    "fullName": "first > inside-2",
+    "parent": {
+      "type": "suite",
+      "name": "first"
+    }
+  },
+  {
+    "phase": "module-end",
+    "name": "second child",
+    "fullName": "second > second child",
+    "parent": {
+      "type": "suite",
+      "name": "second"
+    }
+  },
+  {
+    "phase": "module-end",
+    "name": "control",
+    "fullName": "control",
+    "parent": {
+      "type": "module",
+      "name": null
+    }
+  },
+  {
+    "phase": "run-end",
+    "name": "before",
+    "fullName": "before",
+    "parent": {
+      "type": "module",
+      "name": null
+    }
+  },
+  {
+    "phase": "run-end",
+    "name": "extracted",
+    "fullName": "extracted",
+    "parent": {
+      "type": "module",
+      "name": null
+    }
+  },
+  {
+    "phase": "run-end",
+    "name": "foreign-this",
+    "fullName": "foreign-this",
+    "parent": {
+      "type": "module",
+      "name": null
+    }
+  },
+  {
+    "phase": "run-end",
+    "name": "inside-1",
+    "fullName": "first > inside-1",
+    "parent": {
+      "type": "suite",
+      "name": "first"
+    }
+  },
+  {
+    "phase": "run-end",
+    "name": "after",
+    "fullName": "after",
+    "parent": {
+      "type": "module",
+      "name": null
+    }
+  },
+  {
+    "phase": "run-end",
+    "name": "inside-2",
+    "fullName": "first > inside-2",
+    "parent": {
+      "type": "suite",
+      "name": "first"
+    }
+  },
+  {
+    "phase": "run-end",
+    "name": "second child",
+    "fullName": "second > second child",
+    "parent": {
+      "type": "suite",
+      "name": "second"
+    }
+  },
+  {
+    "phase": "run-end",
+    "name": "control",
+    "fullName": "control",
+    "parent": {
+      "type": "module",
+      "name": null
+    }
+  }
+]

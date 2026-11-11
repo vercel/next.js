@@ -1,0 +1,3 @@
+import { test } from 'vitest'
+console.log('watch-collection-LABEL')
+test('watch', () => console.log('watch-body-LABEL'))

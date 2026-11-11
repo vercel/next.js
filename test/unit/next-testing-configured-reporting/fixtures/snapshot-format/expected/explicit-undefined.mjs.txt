@@ -1,0 +1,22 @@
+import { test, expect } from 'vitest'
+const tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\nquote"' }
+test('tree', () => expect(tree).toMatchSnapshot())
+test('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())
+test('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))
+test('inline', () => expect(tree).toMatchInlineSnapshot(`
+  Object {
+    "a": Object {
+      "nested": Object {
+        "value": "leaf",
+      },
+    },
+    "text": "line
+  quote\\"",
+    "z": Array [
+      1,
+      2,
+      3,
+    ],
+  }
+`))
+test('raw file', async () => expect('raw\nbytes').toMatchFileSnapshot('raw.txt'))

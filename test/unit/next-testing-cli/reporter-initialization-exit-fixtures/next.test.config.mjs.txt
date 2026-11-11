@@ -1,0 +1,6 @@
+import { scenario, row } from './record.mjs'
+row('config-before')
+process.exitCode =
+  scenario.initial === 'undefined' ? undefined : scenario.initial
+row('config-after')
+export default { test: { include: ['never.test.mjs'], teardownTimeout: 250 } }
