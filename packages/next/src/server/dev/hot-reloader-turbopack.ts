@@ -477,6 +477,7 @@ export async function createHotReloaderTurbopack(
     nextConfig,
     distDir,
     fsChecker: opts.fsChecker,
+    browserFixtureHost: opts.browserFixtureHost,
     serverFastRefresh,
   })
   backgroundLogCompilationEvents(project, {
@@ -1938,12 +1939,33 @@ export async function createHotReloaderTurbopack(
 
           await currentEntriesHandling
 
+          // Registered fixture pages are compiler-owned virtual entries, so there
+          // is no page.tsx on disk for internal ensure calls to rediscover.
+          const fixtureHost = opts.browserFixtureHost
+          const fixture = fixtureHost?.fixtures.find(({ id }) => {
+            const pathname = `${fixtureHost.routePrefix}/${id}`
+            return inputPage === pathname || inputPage === `${pathname}/page`
+          })
+          const fixturePage =
+            fixture && `${fixtureHost!.routePrefix}/${fixture.id}/page`
+          const fixtureDefinition = fixturePage
+            ? {
+                page: fixturePage,
+                bundlePath: `app${fixturePage}`,
+                filename: join(
+                  projectPath,
+                  `.next-test-fixture-${fixture!.id}.tsx`
+                ),
+              }
+            : undefined
+
           // TODO We shouldn't look into the filesystem again. This should use the information from entrypoints
           let routeDef: Pick<
             RouteDefinition,
             'filename' | 'bundlePath' | 'page'
           > =
             definition ??
+            fixtureDefinition ??
             (await findPagePathData(
               projectPath,
               inputPage,

@@ -1,3 +1,4 @@
+import type { BrowserFixtureHost } from '../experimental/testing/contracts'
 import type { LoadedEnvFiles } from '@next/env'
 import type { Rewrite } from '../lib/load-custom-routes'
 import type { __ApiPreviewProps } from '../server/api-utils'
@@ -49,6 +50,8 @@ export interface MappedPages {
 // to pass it through function arguments.
 // Not exhaustive, but should be extended to as needed whilst refactoring
 export const NextBuildContext: Partial<{
+  /** Private registration owned by a single Next testing production build. */
+  browserFixtureHost?: BrowserFixtureHost
   compilerIdx?: number
   pluginState: Record<string, any>
   // core fields

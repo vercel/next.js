@@ -6,6 +6,10 @@ export const testRunner =
   // eslint-disable-next-line @next/internal/typechecked-require
   require('next/dist/experimental/testing/runner/index') as typeof import('../../experimental/testing/runner/index')
 
+export const browserTesting =
+  // eslint-disable-next-line @next/internal/typechecked-require
+  require('next/dist/experimental/testing/browser/index') as typeof import('../../experimental/testing/browser/index')
+
 // INJECT_RAW:__next_test_mock_runtime__
 
 export async function loadTestModule() {
