@@ -1,0 +1,15 @@
+{
+  "mode": "development",
+  "metadata": {
+    "path": "server/chunks/_next-test-jsx168-private03-return-development_0_nrlsymm_rng._.js",
+    "sha256": "e0b2761fd542bb5f24fe22e48e224f78061e94ae720719061089a949a41dda9a",
+    "mapPath": "server/chunks/_next-test-jsx168-private03-return-development_0_nrlsymm_rng._.js.map",
+    "mapSha256": "3fe3a74a82f25a407155bae0e94d4b3f4566c06474efdda9dcdc14098f955b7f"
+  },
+  "sourceSHA256": "1fe383338fee4915eb1314f6c1c7cdbb7342cd6e12f8cfe02189b721f3345394",
+  "rawNativeMapSHA256": "3fe3a74a82f25a407155bae0e94d4b3f4566c06474efdda9dcdc14098f955b7f",
+  "emittedSHA256": "e0b2761fd542bb5f24fe22e48e224f78061e94ae720719061089a949a41dda9a",
+  "normalizedMapSHA256": "5847ef19b2a7af01af23e452a0270cb9bb0e83e74ef9dff288d2168699f6b432",
+  "completeRawV8FunctionsSHA256": "8acfa94e45750c229dd7239ed29f75c18790f3ea316684a088dc18eac2c89cc9",
+  "sourceModel": "actual authored AST and identity-map descriptors only; zero counters never become observed runtime facts"
+}

@@ -1,0 +1,49 @@
+{
+  "subject.ts": {
+    "$coverage": "range-tuples-v1",
+    "path": "subject.ts",
+    "statements": {
+      "0": [2, 36, 2, 51],
+      "1": [2, 53, 2, 73],
+      "2": [3, 11, 3, 29]
+    },
+    "functions": {
+      "0": {
+        "name": "constructor",
+        "decl": [2, 2, 2, 14],
+        "loc": [2, 51, 2, null],
+        "line": 2
+      },
+      "1": {
+        "name": "read",
+        "decl": [3, 2, 3, 9],
+        "loc": [3, 9, 3, null],
+        "line": 3
+      }
+    },
+    "branches": {},
+    "s": {
+      "0": 1,
+      "1": 1,
+      "2": 1
+    },
+    "f": {
+      "0": 1,
+      "1": 1
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 2,
+      "lastStatement": 3,
+      "seen": {
+        "f:2:2:2:14": 0,
+        "s:2:36:2:51": 0,
+        "s:2:53:2:73": 1,
+        "f:3:2:3:9": 1,
+        "s:3:11:3:29": 2
+      },
+      "fnNames": {}
+    }
+  }
+}

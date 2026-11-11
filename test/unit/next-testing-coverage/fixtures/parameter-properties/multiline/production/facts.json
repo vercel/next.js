@@ -1,0 +1,20 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime174-multiline-production/subject.ts",
+  "model": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime174-multiline-production/subject.ts"
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime174-multiline-production/subject.ts"
+  },
+  "sourceMap": {
+    "version": 3,
+    "sources": [
+      "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime174-multiline-production/subject.ts"
+    ],
+    "names": [],
+    "mappings": ";;;;;;;;;;;;;;;;;;;;;AAAO,MAAM;;;IACX,YACE,AAAO,KAAa,EACpB,AAAQ,OAAO,CAAC,CAChB;aAFO,QAAA;aACC,OAAA;IACP;IACH,OAAO;QAAE,OAAO,IAAI,CAAC,KAAK,GAAG,IAAI,CAAC,IAAI;IAAC;AACzC",
+    "sourcesContent": [
+      "export class Counter {\n  constructor(\n    public value: number,\n    private step = 1,\n  ) {}\n  read() { return this.value + this.step }\n}\n"
+    ]
+  }
+}

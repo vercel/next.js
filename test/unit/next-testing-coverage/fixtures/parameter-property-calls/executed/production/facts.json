@@ -1,0 +1,20 @@
+{
+  "file": "/private/tmp/next-testing-ws5-constructor-properties198/consumer150/.next-test-constructor-properties198-observed07-executed-production/subject.ts",
+  "model": {
+    "path": "/private/tmp/next-testing-ws5-constructor-properties198/consumer150/.next-test-constructor-properties198-observed07-executed-production/subject.ts"
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-ws5-constructor-properties198/consumer150/.next-test-constructor-properties198-observed07-executed-production/subject.ts"
+  },
+  "sourceMap": {
+    "version": 3,
+    "sources": [
+      "/private/tmp/next-testing-ws5-constructor-properties198/consumer150/.next-test-constructor-properties198-observed07-executed-production/subject.ts"
+    ],
+    "names": [],
+    "mappings": ";;;;;A;;;;;;AAAA,SAAS;IAAoB,OAAO;AAAE;AAC/B,MAAM;;IACX,YAAY,AAAO,QAAgB,SAAS,CAAE;aAA3B,QAAA;IAA4B;IAC/C,IAAI,KAAa,EAAU;QACzB,IAAI,CAAC,KAAK,IAAI;QACd,OAAO,IAAI,CAAC,KAAK;IACnB;AACF;AACO,SAAS;IACd,MAAM,UAAU,IAAI;IACpB,OAAO;QAAC,QAAQ,KAAK;QAAE,QAAQ,GAAG,CAAC;KAAG;AACxC;;;;;A,4E;A,+E;A;;;;;;;;;;;;A,M;A,M;A,e;I,8D;I;A;A,e,iB,qB,M;I,K,mB,qD;;I,M,e,E;I,I,uB,Y;Q,M,Q,G,C,a,G,C,C,O;I,O;Q,K,M,Q,a,M;I;A;A,S;I,O,W,yB,C;A;;;;;A;;;;;;;;;;;;;;I,O,E;e;;I,wB,E;e;;;A,I;A,4E;A,+E;A,I;A,S,yB,O;I,I,S,M,I,M;I,M,U;Q,G,O;Q,U,I;I;I,U;I,wB,Q,gB;I,O;Q;Y,I,Y,S,U;Q;I;A;A,S;I,M,U;I,M,U,yB,O,K,I;I,I,C,S;Q,M,I,M;I;I,I,C,S;Q,M,I,M;I;I,Q,M,C,c;I,I,U,Q,Q,C,G,C;I,I,C,S;Q,U,Q,a,C;Q,Q,Q,C,G,C,S;I;I,O;A",
+    "sourcesContent": [
+      "function initial(): number { return 3 }\nexport class Counter {\n  constructor(public value: number = initial()) {}\n  add(delta: number): number {\n    this.value += delta\n    return this.value\n  }\n}\nexport function exercise(): number[] {\n  const counter = new Counter()\n  return [counter.value, counter.add(2)]\n}\n"
+    ]
+  }
+}

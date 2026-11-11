@@ -1,0 +1,20 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime175-namespace-development/subject.ts",
+  "sourceMap": {
+    "version": 3,
+    "sources": [
+      "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime175-namespace-development/subject.ts"
+    ],
+    "names": [],
+    "mappings": ";;;;A;A;A;;;A,I,+K,E,qB;I,I,iL,E,0L,C,M,C,O,I,C;I,I,iL,E,0L,C,M,C,Q,I,C;A;;;;;A;;;;UAAiB;QACF,QAAQ;IACd,SAAS,OAAO,MAAe;QACpC,IAAI,QAAQ,WAAO;QACnB,OAAO;IACT;QAHgB,SAAA;AAIlB,GANiB,QAAA",
+    "sourcesContent": [
+      "export namespace Box {\n  export const label = \"box\"\n  export function choose(active: boolean) {\n    if (active) return label\n    return \"empty\"\n  }\n}\n"
+    ]
+  },
+  "model": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime175-namespace-development/subject.ts"
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime175-namespace-development/subject.ts"
+  }
+}

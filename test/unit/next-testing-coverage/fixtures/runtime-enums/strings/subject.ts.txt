@@ -1,0 +1,5 @@
+export enum Label { First = 'first', Next = 'next' }
+export function choose(active: boolean) {
+  if (active) return Label.First
+  return Label.Next
+}

@@ -3031,6 +3031,104 @@ it('keeps native clipboard shortcuts on their owning keyboard instance and prese
   })
 })
 
+it.each([
+  {
+    name: 'default strict native diagnostic',
+    deferred: false,
+    receipt: true,
+    diagnostic: 'native',
+    expected: false,
+  },
+  {
+    name: 'missing receipt',
+    deferred: true,
+    receipt: undefined,
+    diagnostic: 'native',
+    expected: false,
+  },
+  {
+    name: 'incomplete receipt',
+    deferred: true,
+    receipt: false,
+    diagnostic: 'native',
+    expected: false,
+  },
+  {
+    name: 'complete receipt',
+    deferred: true,
+    receipt: true,
+    diagnostic: 'native',
+    expected: true,
+  },
+  {
+    name: 'ordinary error',
+    deferred: true,
+    receipt: true,
+    diagnostic: 'ordinary',
+    expected: false,
+  },
+  {
+    name: 'cleanup error',
+    deferred: true,
+    receipt: true,
+    diagnostic: 'cleanup',
+    expected: false,
+  },
+  {
+    name: 'late native error',
+    deferred: true,
+    receipt: true,
+    diagnostic: 'native',
+    late: 'native',
+    expected: false,
+  },
+  {
+    name: 'late ordinary error',
+    deferred: true,
+    receipt: true,
+    diagnostic: 'native',
+    late: 'ordinary',
+    expected: false,
+  },
+  {
+    name: 'late warning',
+    deferred: true,
+    receipt: true,
+    diagnostic: 'native',
+    late: 'warning',
+    expected: false,
+  },
+])(
+  'retains coverage diagnostic completeness fences: $name',
+  ({ deferred, receipt, diagnostic, late, expected }) => {
+    const { createCoverageAttemptTracker } =
+      require('next/dist/experimental/testing/execution/coverage') as typeof import('next/dist/experimental/testing/execution/coverage')
+    const tracker = createCoverageAttemptTracker({
+      deferNativeRejections: deferred,
+    })
+    const observe = (kind: string) =>
+      tracker.observe({
+        version: 1,
+        runId: 'run',
+        timestamp: 0,
+        type: 'diagnostic',
+        entryId: 'entry',
+        revision: 'revision',
+        diagnostic: {
+          phase: kind === 'cleanup' ? 'cleanup' : 'runtime',
+          severity: kind === 'warning' ? 'warning' : 'error',
+          message: kind,
+          ...(kind === 'native' ? { unhandled: 'rejection' as const } : {}),
+        },
+      })
+    observe(diagnostic)
+    expect(tracker.complete).toBe(false)
+    if (receipt !== undefined) tracker.observeCoverageCompletion(receipt)
+    if (late) observe(late)
+    expect(tracker.complete).toBe(expected)
+  }
+)
+
 describe('native Browser action reply and console admission ownership', () => {
   it.each([
     'ordered',

@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "sources": [
+    "/private/tmp/next-testing-parallel-20261019/coverage-jsx-return168/.next-test-jsx170-private02-logical-production/subject.tsx"
+  ],
+  "names": [],
+  "mappings": ";;;;;A;A;A;;;A,I,6C,E,8C;I,M,S,I,kD,E;Q,Q;I,G,K,C,Q;I,I,+C,E,M,C,E,C,K,C,Q,E,I,C;I,I,+C,E,M,C,E,C,K,C,Q,E,I,C;I,M,W,I,kD,E;Q,Q;I,G,K,C,Q;I,I,+C,E,Q,C,E,E,I,C;I,I,+C,E,Q,C,E,C,K,C,Q,E,I,C;A;;;;;A;;;;A,S,M,K;I,O,Q;A;;;;;A;;;;;AACA;;;AAEO,SAAS,UAAU,EAAE,MAAM,EAAS;IACzC,qBACE,mDAAC,WAAD;;YACG,wBACC,kDAAC,QAAD;gBAAM,aAAU;0BACb,IAAA,6CAAK,EAAC;YACH;0BAER,kDAAC,MAAD;0BAAK,IAAA,6CAAK,EAAC;YAAY;;IAChB;AAEb;;;;;A;;;;;;;;C,G,I,qB,O,G,C,+B,sB,O,G,C;A,S,Q,I,E,M,E,Q;I,I,M;I,K,M,Y,C,M,K,Q;I,K,M,O,G,I,C,M,K,O,G;I,I,S,Q;Q,W,C;Q,I,I,Y,O,U,Y,C,Q,C,S,G,M,C,S;I,O,W;I,S,S,G;I,O;Q,U;Q,M;Q,K;Q,K,K,M,S,S;Q,O;I;A;A,Q,Q,G;A,Q,G,G;A,Q,I,G;;;;;A,wC;I,O,O;A;;;;;;A,4E;A,+E;A;;;;;;;;;;;;A,M;A,M;A,e;I,8D;I;A;A,e,iB,qB,M;I,K,mB,qD;;I,M,e,E;I,I,uB,Y;Q,M,Q,G,C,a,G,C,C,O;I,O;Q,K,M,Q,a,M;I;A;A,S;I,O,W,yB,C;A;;;;;A;;;;;;;;;;;;;;I,O,E;e;;I,wB,E;e;;;A,I;A,4E;A,+E;A,I;A,S,yB,O;I,I,S,M,I,M;I,M,U;Q,G,O;Q,U,I;I;I,U;I,wB,Q,gB;I,O;Q;Y,I,Y,S,U;Q;I;A;A,S;I,M,U;I,M,U,yB,O,K,I;I,I,C,S;Q,M,I,M;I;I,I,C,S;Q,M,I,M;I;I,Q,M,C,c;I,I,U,Q,Q,C,G,C;I,I,C,S;Q,U,Q,a,C;Q,Q,Q,C,G,C,S;I;I,O;A",
+  "sourcesContent": [
+    "import React from 'react'\nimport { label } from './helper.js'\ntype Props = { active: boolean }\nexport function Multiline({ active }: Props) {\n  return (\n    <section>\n      {active && (\n        <span data-kind=\"active\">\n          {label('active')}\n        </span>\n      )}\n      <em>{label('tail')}</em>\n    </section>\n  )\n}\n"
+  ]
+}

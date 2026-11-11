@@ -1,0 +1,20 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime174-pair-development/subject.ts",
+  "model": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime174-pair-development/subject.ts"
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime174-pair-development/subject.ts"
+  },
+  "sourceMap": {
+    "version": 3,
+    "sources": [
+      "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime174-pair-development/subject.ts"
+    ],
+    "names": [],
+    "mappings": ";;;;;;;;;;;;;;;;;;;;AAAO,MAAM;;;IACX,YAAY,AAAO,KAAa,EAAE,AAAQ,IAAY,CAAE;aAArC,QAAA;aAAuB,OAAA;IAAe;IACzD,OAAO;QAAE,OAAO,IAAI,CAAC,KAAK,GAAG,IAAI,CAAC,IAAI;IAAC;AACzC",
+    "sourcesContent": [
+      "export class Counter {\n  constructor(public value: number, private step: number) {}\n  read() { return this.value + this.step }\n}\n"
+    ]
+  }
+}

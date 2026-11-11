@@ -218,6 +218,16 @@ export interface ProjectStandardCoverageConfig {
   options: StandardCoverageOptions
 }
 
+/** The native compiler emits this entry but no runtime may evaluate it. */
+export interface CompiledCoverageSource {
+  version: 1
+  kind: 'next-compiler-source'
+  source: { file: string; sha256: string }
+  artifact: import('../contracts').CompiledTestArtifact
+  /** Actual ordinary Next module-load graph, bound to this source artifact. */
+  configurationImports?: import('../compiler/config-import-proof').ConfigurationImportProof
+}
+
 /** Parent-derived declaration-only metadata, separate from observed runtime facts. */
 export interface CompilerSourceCoverage {
   version: 1
@@ -227,6 +237,10 @@ export interface CompilerSourceCoverage {
   compiler: {
     entryId: string
     revision: string
+    configurationImports?: {
+      request: import('../compiler/config-import-proof').ConfigurationImportAuthorization
+      graph: import('../compiler/config-imports').ConfigurationImportFiles
+    }
   }
   data: StandardCoverageData
 }

@@ -1,0 +1,29 @@
+(()=>{"use strict";module.exports = [
+"[project]/.next-test-conditional164-development/ordinary-control.case.mjs [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/packages/next/dist/experimental/testing/vitest.js [next-test-node] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$conditional164$2d$development$2f$subject$2e$mjs__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/.next-test-conditional164-development/subject.mjs [next-test-node] (ecmascript)");
+;
+;
+(0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["test"])('ordinary exact branch control', ()=>{
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$conditional164$2d$development$2f$subject$2e$mjs__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["subject"])(-1)).toBe(0);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$conditional164$2d$development$2f$subject$2e$mjs__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["subject"])(1)).toBe(3);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$conditional164$2d$development$2f$subject$2e$mjs__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["subject"])(2)).toBe(6);
+});
+}),
+"[project]/.next-test-conditional164-development/subject.mjs [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "subject",
+    ()=>subject
+]);
+function subject(value) {
+    return value > 0 ? value * 3 : 0;
+}
+}),
+];})()
+
+//# sourceMappingURL=_next-test-conditional164-development_0175ikidxa2gg._.js.map

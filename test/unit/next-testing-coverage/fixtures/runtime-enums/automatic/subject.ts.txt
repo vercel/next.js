@@ -1,0 +1,9 @@
+export enum Step {
+  First,
+  Second,
+  Third,
+}
+export function choose(active: boolean) {
+  if (active) return Step.Second
+  return Step.Third
+}

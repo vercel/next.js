@@ -1452,6 +1452,12 @@ importers:
       '@vitest/expect':
         specifier: 5.0.4
         version: 5.0.4(patch_hash=14de10cc8fb37d8632ea47456b2dee682471fcfaa47000c7c97ba1b5ac2e2086)
+      '@vitest/istanbul-lib-coverage':
+        specifier: 1.0.2
+        version: 1.0.2
+      '@vitest/istanbul-lib-report':
+        specifier: 1.0.2
+        version: 1.0.2
       '@vitest/mocker':
         specifier: 5.0.4
         version: 5.0.4(msw@2.3.0(typescript@6.0.2))(vite@8.3.4(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(esbuild@0.25.9)(jiti@2.6.1)(sass@1.77.8)(terser@5.27.0)(tsx@4.19.2))
@@ -1479,6 +1485,9 @@ importers:
       assert:
         specifier: 2.0.0
         version: 2.0.0
+      ast-v8-to-istanbul:
+        specifier: 1.0.7
+        version: 1.0.7
       async-retry:
         specifier: 1.2.3
         version: 1.2.3

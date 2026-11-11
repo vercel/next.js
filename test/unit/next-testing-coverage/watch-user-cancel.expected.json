@@ -1,0 +1,596 @@
+{
+  "reference": "Vitest 5.0.4 with @vitest/coverage-v8 5.0.4",
+  "sources": {
+    "initial": "import { test, expect, beforeEach, afterEach, onTestFinished } from 'vitest'\nimport { watch, existsSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'\nimport { threadId } from 'node:worker_threads'\nimport { choose } from './subject.mjs'\nmkdirSync('cancel-settlement', { recursive: true })\nconst record = (event, data = {}) => appendFileSync('cancel-settlement/trace.jsonl', JSON.stringify({event, pid: process.pid, threadId, ...data})+'\\n')\nprocess.on('exit', code => record('worker-exit', {code}))\nbeforeEach(context => record('beforeEach', {name: context.task.name}))\nafterEach(context => record('afterEach', {name: context.task.name, state: context.task.result?.state}))\ntest('controlled cancellation body', async () => {\n  onTestFinished(context => record('onTestFinished', {state: context.task.result?.state}))\n  expect(choose(true)).toBe(1)\n  record('body-start')\n  await new Promise(resolve => {\n    const watcher = watch('.next/cancel-controls', () => {\n      if (existsSync('.next/cancel-controls/gate-release')) { watcher.close(); resolve() }\n    })\n    writeFileSync('.next/cancel-controls/gate-started', 'ready')\n  })\n  record('body-finished')\n}, 10000)\ntest('queued after controlled cancellation', () => {\n  record('queued-body')\n  expect(true).toBe(true)\n})\n",
+    "prior": "import { test, expect, beforeEach, afterEach, onTestFinished } from 'vitest'\nimport { watch, existsSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'\nimport { threadId } from 'node:worker_threads'\nimport { choose } from './subject.mjs'\nmkdirSync('cancel-settlement', { recursive: true })\nconst record = (event, data = {}) => appendFileSync('cancel-settlement/trace.jsonl', JSON.stringify({event, pid: process.pid, threadId, ...data})+'\\n')\nprocess.on('exit', code => record('worker-exit', {code}))\nbeforeEach(context => record('beforeEach', {name: context.task.name}))\nafterEach(context => record('afterEach', {name: context.task.name, state: context.task.result?.state}))\ntest('controlled cancellation body', async () => {\n  onTestFinished(context => record('onTestFinished', {state: context.task.result?.state}))\n  expect(choose(true)).toBe(1)\n  record('body-start')\n  if (!existsSync('.next/cancel-controls/gate-mode')) return\n  await new Promise(resolve => {\n    const watcher = watch('.next/cancel-controls', () => {\n      if (existsSync('.next/cancel-controls/gate-release')) { watcher.close(); resolve() }\n    })\n    writeFileSync('.next/cancel-controls/gate-started', 'ready')\n  })\n  record('body-finished')\n}, 10000)\ntest('queued after controlled cancellation', () => {\n  record('queued-body')\n  expect(true).toBe(true)\n})\n",
+    "priorSecond": "import {test} from 'vitest'\nimport {appendFileSync,mkdirSync} from 'node:fs'\nimport {second} from './second-subject.mjs'\nconst record=event=>{mkdirSync('cancel-settlement',{recursive:true});appendFileSync('cancel-settlement/trace.jsonl',JSON.stringify({event,pid:process.pid})+'\\n')}\nrecord('second-module-evaluated')\ntest('queued second file',()=>{record('second-body');second()})\n"
+  },
+  "profiles": [
+    {
+      "mode": "development",
+      "kind": "initial",
+      "cleanOnRerun": true,
+      "cases": 0,
+      "coverage": 0,
+      "trace": 0,
+      "recovery": {
+        "cases": 1,
+        "coverage": 0
+      }
+    },
+    {
+      "mode": "production",
+      "kind": "initial",
+      "cleanOnRerun": true,
+      "cases": 0,
+      "coverage": 0,
+      "trace": 0,
+      "recovery": {
+        "cases": 1,
+        "coverage": 0
+      }
+    },
+    {
+      "mode": "development",
+      "kind": "prior",
+      "cleanOnRerun": true,
+      "cases": 2,
+      "coverage": 1,
+      "trace": 0,
+      "recovery": {
+        "cases": 1,
+        "coverage": 2
+      }
+    },
+    {
+      "mode": "development",
+      "kind": "prior",
+      "cleanOnRerun": false,
+      "cases": 2,
+      "coverage": 2,
+      "trace": 0,
+      "recovery": {
+        "cases": 1,
+        "coverage": 2
+      }
+    },
+    {
+      "mode": "production",
+      "kind": "prior",
+      "cleanOnRerun": true,
+      "cases": 2,
+      "coverage": 1,
+      "trace": 0,
+      "recovery": {
+        "cases": 1,
+        "coverage": 2
+      }
+    },
+    {
+      "mode": "production",
+      "kind": "prior",
+      "cleanOnRerun": false,
+      "cases": 2,
+      "coverage": 2,
+      "trace": 0,
+      "recovery": {
+        "cases": 1,
+        "coverage": 2
+      }
+    }
+  ],
+  "coverageReports": [
+    {
+      "subject.mjs": {
+        "$coverage": "range-tuples-v1",
+        "path": "subject.mjs",
+        "statements": {
+          "0": [2, 2, 2, null],
+          "1": [2, 12, 2, null],
+          "2": [3, 2, 3, null],
+          "3": [6, 2, 6, null]
+        },
+        "functions": {
+          "0": {
+            "name": "choose",
+            "decl": [1, 16, 1, 22],
+            "loc": [1, 29, 4, null],
+            "line": 1
+          },
+          "1": {
+            "name": "unused",
+            "decl": [5, 16, 5, 22],
+            "loc": [5, 25, 7, null],
+            "line": 5
+          }
+        },
+        "branches": {
+          "0": {
+            "loc": [2, 2, 2, null],
+            "type": "if",
+            "locations": [
+              [2, 2, 2, null],
+              {
+                "start": {},
+                "end": {}
+              }
+            ],
+            "line": 2
+          }
+        },
+        "s": {
+          "0": 1,
+          "1": 1,
+          "2": 0,
+          "3": 0
+        },
+        "f": {
+          "0": 1,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 0]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 4,
+          "seen": {
+            "f:1:16:1:22": 0,
+            "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+            "s:2:2:2:Infinity": 0,
+            "s:2:12:2:Infinity": 1,
+            "s:3:2:3:Infinity": 2,
+            "f:5:16:5:22": 1,
+            "s:6:2:6:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      },
+      "unimported.mjs": {
+        "$coverage": "range-tuples-v1",
+        "path": "unimported.mjs",
+        "statements": {
+          "0": [2, 2, 2, null]
+        },
+        "functions": {
+          "0": {
+            "name": "untouched",
+            "decl": [1, 16, 1, 25],
+            "loc": [1, 28, 3, null],
+            "line": 1
+          }
+        },
+        "branches": {},
+        "s": {
+          "0": 0
+        },
+        "f": {
+          "0": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 1,
+          "lastStatement": 1,
+          "seen": {
+            "f:1:16:1:25": 0,
+            "s:2:2:2:Infinity": 0
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "second-subject.mjs": {
+        "$coverage": "range-tuples-v1",
+        "path": "second-subject.mjs",
+        "statements": {
+          "0": [1, 27, 1, 35]
+        },
+        "functions": {
+          "0": {
+            "name": "second",
+            "decl": [1, 16, 1, 22],
+            "loc": [1, 25, 1, null],
+            "line": 1
+          }
+        },
+        "branches": {},
+        "s": {
+          "0": 0
+        },
+        "f": {
+          "0": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 1,
+          "lastStatement": 1,
+          "seen": {
+            "f:1:16:1:22": 0,
+            "s:1:27:1:35": 0
+          },
+          "fnNames": {}
+        }
+      },
+      "subject.mjs": {
+        "$coverage": "range-tuples-v1",
+        "path": "subject.mjs",
+        "statements": {
+          "0": [2, 2, 2, null],
+          "1": [2, 12, 2, null],
+          "2": [3, 2, 3, null],
+          "3": [6, 2, 6, null]
+        },
+        "functions": {
+          "0": {
+            "name": "choose",
+            "decl": [1, 16, 1, 22],
+            "loc": [1, 29, 4, null],
+            "line": 1
+          },
+          "1": {
+            "name": "unused",
+            "decl": [5, 16, 5, 22],
+            "loc": [5, 25, 7, null],
+            "line": 5
+          }
+        },
+        "branches": {
+          "0": {
+            "loc": [2, 2, 2, null],
+            "type": "if",
+            "locations": [
+              [2, 2, 2, null],
+              {
+                "start": {},
+                "end": {}
+              }
+            ],
+            "line": 2
+          }
+        },
+        "s": {
+          "0": 1,
+          "1": 1,
+          "2": 0,
+          "3": 0
+        },
+        "f": {
+          "0": 1,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 0]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 4,
+          "seen": {
+            "f:1:16:1:22": 0,
+            "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+            "s:2:2:2:Infinity": 0,
+            "s:2:12:2:Infinity": 1,
+            "s:3:2:3:Infinity": 2,
+            "f:5:16:5:22": 1,
+            "s:6:2:6:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      },
+      "unimported.mjs": {
+        "$coverage": "range-tuples-v1",
+        "path": "unimported.mjs",
+        "statements": {
+          "0": [2, 2, 2, null]
+        },
+        "functions": {
+          "0": {
+            "name": "untouched",
+            "decl": [1, 16, 1, 25],
+            "loc": [1, 28, 3, null],
+            "line": 1
+          }
+        },
+        "branches": {},
+        "s": {
+          "0": 0
+        },
+        "f": {
+          "0": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 1,
+          "lastStatement": 1,
+          "seen": {
+            "f:1:16:1:25": 0,
+            "s:2:2:2:Infinity": 0
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    {
+      "second-subject.mjs": {
+        "$coverage": "range-tuples-v1",
+        "path": "second-subject.mjs",
+        "statements": {
+          "0": [1, 27, 1, 35]
+        },
+        "functions": {
+          "0": {
+            "name": "second",
+            "decl": [1, 16, 1, 22],
+            "loc": [1, 25, 1, null],
+            "line": 1
+          }
+        },
+        "branches": {},
+        "s": {
+          "0": 1
+        },
+        "f": {
+          "0": 1
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 1,
+          "lastStatement": 1,
+          "seen": {
+            "f:1:16:1:22": 0,
+            "s:1:27:1:35": 0
+          },
+          "fnNames": {}
+        }
+      },
+      "subject.mjs": {
+        "$coverage": "range-tuples-v1",
+        "path": "subject.mjs",
+        "statements": {
+          "0": [2, 2, 2, null],
+          "1": [2, 12, 2, null],
+          "2": [3, 2, 3, null],
+          "3": [6, 2, 6, null]
+        },
+        "functions": {
+          "0": {
+            "name": "choose",
+            "decl": [1, 16, 1, 22],
+            "loc": [1, 29, 4, null],
+            "line": 1
+          },
+          "1": {
+            "name": "unused",
+            "decl": [5, 16, 5, 22],
+            "loc": [5, 25, 7, null],
+            "line": 5
+          }
+        },
+        "branches": {
+          "0": {
+            "loc": [2, 2, 2, null],
+            "type": "if",
+            "locations": [
+              [2, 2, 2, null],
+              {
+                "start": {},
+                "end": {}
+              }
+            ],
+            "line": 2
+          }
+        },
+        "s": {
+          "0": 1,
+          "1": 1,
+          "2": 0,
+          "3": 0
+        },
+        "f": {
+          "0": 1,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 0]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 4,
+          "seen": {
+            "f:1:16:1:22": 0,
+            "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+            "s:2:2:2:Infinity": 0,
+            "s:2:12:2:Infinity": 1,
+            "s:3:2:3:Infinity": 2,
+            "f:5:16:5:22": 1,
+            "s:6:2:6:Infinity": 3
+          },
+          "fnNames": {}
+        }
+      },
+      "unimported.mjs": {
+        "$coverage": "range-tuples-v1",
+        "path": "unimported.mjs",
+        "statements": {
+          "0": [2, 2, 2, null]
+        },
+        "functions": {
+          "0": {
+            "name": "untouched",
+            "decl": [1, 16, 1, 25],
+            "loc": [1, 28, 3, null],
+            "line": 1
+          }
+        },
+        "branches": {},
+        "s": {
+          "0": 0
+        },
+        "f": {
+          "0": 0
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 1,
+          "lastStatement": 1,
+          "seen": {
+            "f:1:16:1:25": 0,
+            "s:2:2:2:Infinity": 0
+          },
+          "fnNames": {}
+        }
+      }
+    }
+  ],
+  "caseReports": [
+    [
+      {
+        "file": "contract.case.mjs",
+        "status": "passed",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "controlled cancellation body",
+            "status": "skipped",
+            "title": "controlled cancellation body",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          },
+          {
+            "ancestorTitles": [],
+            "fullName": "queued after controlled cancellation",
+            "status": "skipped",
+            "title": "queued after controlled cancellation",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ]
+      },
+      {
+        "file": "z-queued.case.mjs",
+        "status": "passed",
+        "cases": []
+      }
+    ],
+    [
+      {
+        "file": "contract.case.mjs",
+        "status": "passed",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "controlled cancellation body",
+            "status": "passed",
+            "title": "controlled cancellation body",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          },
+          {
+            "ancestorTitles": [],
+            "fullName": "queued after controlled cancellation",
+            "status": "passed",
+            "title": "queued after controlled cancellation",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ]
+      },
+      {
+        "file": "z-queued.case.mjs",
+        "status": "passed",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "queued second file",
+            "status": "passed",
+            "title": "queued second file",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "file": "contract.case.mjs",
+        "status": "passed",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "controlled cancellation body",
+            "status": "skipped",
+            "title": "controlled cancellation body",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          },
+          {
+            "ancestorTitles": [],
+            "fullName": "queued after controlled cancellation",
+            "status": "skipped",
+            "title": "queued after controlled cancellation",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ]
+      },
+      {
+        "file": "z-queued.case.mjs",
+        "status": "passed",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "queued second file",
+            "status": "passed",
+            "title": "queued second file",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ]
+      }
+    ]
+  ],
+  "authoredTraces": [
+    [
+      {
+        "event": "beforeEach",
+        "name": "controlled cancellation body"
+      },
+      {
+        "event": "body-start"
+      },
+      {
+        "event": "afterEach",
+        "name": "controlled cancellation body",
+        "state": "skip"
+      },
+      {
+        "event": "onTestFinished",
+        "state": "skip"
+      }
+    ]
+  ]
+}

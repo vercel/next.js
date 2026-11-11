@@ -1,0 +1,8 @@
+export enum Status {
+  'in progress' = 3,
+  done = 8
+}
+export function choose(active: boolean) {
+  if (active) return Status['in progress']
+  return Status.done
+}

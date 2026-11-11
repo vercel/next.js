@@ -1,0 +1,84 @@
+{
+  "subject.ts": {
+    "$coverage": "range-tuples-v1",
+    "path": "subject.ts",
+    "statements": {
+      "0": [1, 42, 1, 55],
+      "1": [3, 21, 3, 37],
+      "2": [5, 4, 5, null],
+      "3": [6, 4, 6, null],
+      "4": [10, 18, 10, null],
+      "5": [11, 2, 11, null]
+    },
+    "functions": {
+      "0": {
+        "name": "initial",
+        "decl": [1, 9, 1, 17],
+        "loc": [1, 40, 1, null],
+        "line": 1
+      },
+      "1": {
+        "name": "constructor",
+        "decl": [3, 2, 3, 14],
+        "loc": [3, 49, 3, null],
+        "line": 3
+      },
+      "2": {
+        "name": "add",
+        "decl": [4, 2, 4, 6],
+        "loc": [4, 29, 7, null],
+        "line": 4
+      },
+      "3": {
+        "name": "exercise",
+        "decl": [9, 16, 9, 37],
+        "loc": [9, 37, 12, null],
+        "line": 9
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [3, 14, 3, 49],
+        "type": "default-arg",
+        "locations": [[3, 37, 3, 49]],
+        "line": 3
+      }
+    },
+    "s": {
+      "0": 1,
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 1
+    },
+    "f": {
+      "0": 1,
+      "1": 1,
+      "2": 1,
+      "3": 1
+    },
+    "b": {
+      "0": [1]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 4,
+      "lastStatement": 6,
+      "seen": {
+        "f:1:9:1:17": 0,
+        "s:1:42:1:55": 0,
+        "f:3:2:3:14": 1,
+        "b:3:37:3:49": 0,
+        "s:3:21:3:37": 1,
+        "f:4:2:4:6": 2,
+        "s:5:4:5:Infinity": 2,
+        "s:6:4:6:Infinity": 3,
+        "f:9:16:9:37": 3,
+        "s:10:18:10:Infinity": 4,
+        "s:11:2:11:Infinity": 5
+      },
+      "fnNames": {}
+    }
+  }
+}

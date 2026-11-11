@@ -1,0 +1,146 @@
+module.exports = [
+(()=>{"use strict";return[
+9560, ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([]);
+var __TURBOPACK__imported__module__2558__ = __turbopack_context__.i(2558);
+var __TURBOPACK__imported__module__7106__ = __turbopack_context__.i(7106);
+;
+;
+(0, __TURBOPACK__imported__module__2558__["test"])('automatic enum members', ()=>{
+    (0, __TURBOPACK__imported__module__2558__["expect"])(__TURBOPACK__imported__module__7106__["Step"].First).toBe(0);
+    (0, __TURBOPACK__imported__module__2558__["expect"])(__TURBOPACK__imported__module__7106__["Step"][1]).toBe('Second');
+    (0, __TURBOPACK__imported__module__2558__["expect"])((0, __TURBOPACK__imported__module__7106__["choose"])(true)).toBe(1);
+    (0, __TURBOPACK__imported__module__2558__["expect"])((0, __TURBOPACK__imported__module__7106__["choose"])(false)).toBe(2);
+});
+}),
+7106, ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "Step",
+    ()=>Step,
+    "choose",
+    ()=>choose
+]);
+var Step = /*#__PURE__*/ function(Step) {
+    Step[Step["First"] = 0] = "First";
+    Step[Step["Second"] = 1] = "Second";
+    Step[Step["Third"] = 2] = "Third";
+    return Step;
+}({});
+function choose(active) {
+    if (active) return 1;
+    return 2;
+}
+}),
+5933, ((__turbopack_context__) => {
+"use strict";
+
+// Explicit Node unit/browser-driver entry. Collection and imports share one
+// runtime; no React server condition or App Router renderer is installed here.
+__turbopack_context__.s([
+    "browserTesting",
+    ()=>browserTesting,
+    "initializeModuleImportTracking",
+    ()=>initializeModuleImportTracking,
+    "loadSetupModules",
+    ()=>loadSetupModules,
+    "loadTestModule",
+    ()=>loadTestModule,
+    "testRunner",
+    ()=>testRunner
+]);
+const testRunner = __turbopack_context__.r(8892);
+const browserTesting = __turbopack_context__.r(4395);
+async function loadTestModule() {
+    // eslint-disable-next-line @next/internal/typechecked-require
+    return __turbopack_context__.r(9560);
+}
+async function loadSetupModules(setupFilesSequence = 'list') {
+    void setupFilesSequence // Referenced by the compiler-injected setup loaders.
+    ;
+    const setupLoaders = [];
+    if (setupFilesSequence === 'parallel') {
+        await Promise.all(setupLoaders.map((load)=>load()));
+    } else {
+        for (const load of setupLoaders)await load();
+    }
+}
+function initializeModuleImportTracking() {
+    return testRunner.createModuleImportTracker(__turbopack_context__);
+}
+}),
+4395, ((__turbopack_context__, module, exports) => {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+0 && (module.exports = {
+    browser: null,
+    initializeBrowserTesting: null
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: all[name]
+    });
+}
+_export(exports, {
+    browser: function() {
+        return browser;
+    },
+    initializeBrowserTesting: function() {
+        return initializeBrowserTesting;
+    }
+});
+let binding;
+// Retain only the actual C scope guard after revocation. A caught late call
+// must still reach C's originating-scope error sink during the worker's drain.
+let getOriginatingAttempt;
+function initializeBrowserTesting(options) {
+    if (binding) throw new Error('Next browser testing is already initialized');
+    const current = {
+        ...options,
+        fixtures: new WeakMap()
+    };
+    binding = current;
+    getOriginatingAttempt = options.getActiveAttempt;
+    return {
+        dispose () {
+            if (binding === current) binding = undefined;
+        }
+    };
+}
+function browser() {
+    const current = binding;
+    const attempt = getOriginatingAttempt == null ? void 0 : getOriginatingAttempt();
+    if (!current) {
+        throw new Error('Browser fixtures require an initialized Next browser test environment');
+    }
+    if (!attempt) {
+        throw new Error('Browser fixtures require an active Next test attempt');
+    }
+    attempt.signal.throwIfAborted();
+    let fixture = current.fixtures.get(attempt);
+    if (!fixture) {
+        fixture = current.createFixture(attempt);
+        current.fixtures.set(attempt, fixture);
+    }
+    return fixture;
+}
+}),
+]})(),
+7385, ((__turbopack_context__) => {
+
+__turbopack_context__.v((parentImport) => {
+    return Promise.resolve().then(() => {
+        return parentImport(2558);
+    });
+});
+}),
+];
+
+//# sourceMappingURL=_02tqp7qtbkkcu._.js.map

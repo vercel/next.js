@@ -1,0 +1,92 @@
+{
+  "model": {
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [5, 2, 13, null]
+    },
+    "functions": {
+      "0": {
+        "name": "Multiline",
+        "decl": [4, 16, 4, 25],
+        "loc": [4, 45, 14, null],
+        "line": 4
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [6, 7, 10, null],
+        "type": "binary-expr",
+        "locations": [
+          [6, 7, 6, 13],
+          [7, 8, 9, null]
+        ],
+        "line": 6
+      }
+    },
+    "s": {
+      "0": 0
+    },
+    "f": {
+      "0": 0
+    },
+    "b": {
+      "0": [0, 0]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:4:16:4:25": 0,
+        "s:5:2:13:Infinity": 0,
+        "b:6:7:6:13:7:8:9:Infinity": 0
+      },
+      "fnNames": {}
+    }
+  },
+  "observed": {
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [5, 2, 13, null]
+    },
+    "functions": {
+      "0": {
+        "name": "Multiline",
+        "decl": [4, 16, 4, 26],
+        "loc": [4, 43, 14, null],
+        "line": 4
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [6, 7, 9, null],
+        "type": "binary-expr",
+        "locations": [
+          [6, 7, 6, null],
+          [7, 8, 9, null]
+        ],
+        "line": 6
+      }
+    },
+    "s": {
+      "0": 2
+    },
+    "f": {
+      "0": 2
+    },
+    "b": {
+      "0": [2, 1]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:4:16:4:26": 0,
+        "s:5:2:13:Infinity": 0,
+        "b:6:7:6:Infinity:7:8:9:Infinity": 0
+      },
+      "fnNames": {}
+    }
+  }
+}

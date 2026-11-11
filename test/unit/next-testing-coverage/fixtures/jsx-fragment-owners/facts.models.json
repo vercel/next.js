@@ -1,0 +1,120 @@
+{
+  "model": {
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [5, 2, 5, null],
+      "1": [7, 21, 11, null],
+      "2": [8, 2, 10, null]
+    },
+    "functions": {
+      "0": {
+        "name": "Fragment",
+        "decl": [4, 16, 4, 24],
+        "loc": [4, 50, 6, null],
+        "line": 4
+      },
+      "1": {
+        "name": "(anonymous_1)",
+        "decl": [7, 21, 7, 22],
+        "loc": [8, 2, 10, null],
+        "line": 8
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [5, 12, 5, 48],
+        "type": "binary-expr",
+        "locations": [
+          [5, 12, 5, 18],
+          [5, 22, 5, 48]
+        ],
+        "line": 5
+      }
+    },
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0
+    },
+    "b": {
+      "0": [0, 0]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 2,
+      "lastStatement": 3,
+      "seen": {
+        "f:4:16:4:24": 0,
+        "s:5:2:5:Infinity": 0,
+        "b:5:12:5:18:5:22:5:48": 0,
+        "s:7:21:11:Infinity": 1,
+        "f:7:21:7:22": 1,
+        "s:8:2:10:Infinity": 2
+      },
+      "fnNames": {}
+    }
+  },
+  "observed": {
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [5, 2, 5, null],
+      "1": [7, 13, 10, null],
+      "2": [8, 2, 10, null]
+    },
+    "functions": {
+      "0": {
+        "name": "Fragment",
+        "decl": [4, 16, 4, 25],
+        "loc": [4, 48, 6, null],
+        "line": 4
+      },
+      "1": {
+        "name": "(anonymous_1)",
+        "decl": [7, 13, 7, 22],
+        "loc": [8, 2, 10, null],
+        "line": 8
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [5, 12, 5, 49],
+        "type": "binary-expr",
+        "locations": [
+          [5, 12, 5, 22],
+          [5, 22, 5, 49]
+        ],
+        "line": 5
+      }
+    },
+    "s": {
+      "0": 2,
+      "1": 1,
+      "2": 2
+    },
+    "f": {
+      "0": 2,
+      "1": 2
+    },
+    "b": {
+      "0": [2, 1]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 2,
+      "lastStatement": 3,
+      "seen": {
+        "f:4:16:4:25": 0,
+        "s:5:2:5:Infinity": 0,
+        "b:5:12:5:22:5:22:5:49": 0,
+        "s:7:13:10:Infinity": 1,
+        "f:7:13:7:22": 1,
+        "s:8:2:10:Infinity": 2
+      },
+      "fnNames": {}
+    }
+  }
+}
