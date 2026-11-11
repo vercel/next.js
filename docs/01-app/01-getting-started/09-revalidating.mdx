@@ -90,7 +90,7 @@ See the [`cacheTag` API reference](/docs/app/api-reference/functions/cacheTag) t
 
 ## `revalidateTag`
 
-`revalidateTag` invalidates cache entries by tag using stale-while-revalidate semantics — stale content is served immediately while fresh content loads in the background. This is ideal for content where a slight delay in updates is acceptable, like blog posts or product catalogs.
+`revalidateTag` with the recommended `'max'` profile invalidates cache entries by tag using stale-while-revalidate semantics. Stale content is served immediately while fresh content loads in the background. This is ideal for content where a slight delay in updates is acceptable, like blog posts or product catalogs.
 
 ```tsx filename="app/lib/actions.ts" highlight={1,5} switcher
 import { revalidateTag } from 'next/cache'
@@ -119,6 +119,8 @@ See the [`revalidateTag` API reference](/docs/app/api-reference/functions/revali
 ## `updateTag`
 
 `updateTag` immediately expires cached data for read-your-own-writes scenarios — the user sees their change right away instead of stale content. Unlike `revalidateTag`, it can only be used in [Server Actions](/docs/app/guides/server-actions).
+
+> **Good to know:** `updateTag` also refreshes the calling route and invalidates client cache entries. See [client cache behavior](/docs/app/api-reference/functions/updateTag#client-cache-behavior) for the scope and comparison with `revalidateTag`.
 
 ```tsx filename="app/lib/actions.ts" highlight={1,12} switcher
 import { updateTag } from 'next/cache'
@@ -154,7 +156,7 @@ export async function createPost(formData) {
 }
 ```
 
-|              | `updateTag`                                   | `revalidateTag`                      |
+|              | `updateTag`                                   | `revalidateTag(tag, 'max')`          |
 | ------------ | --------------------------------------------- | ------------------------------------ |
 | **Where**    | Server Actions only                           | Server Actions and Route Handlers    |
 | **Behavior** | Immediately expires cache                     | Stale-while-revalidate               |
@@ -184,7 +186,7 @@ export async function updateUser(id) {
 }
 ```
 
-> **Good to know**: Prefer tag-based revalidation (`revalidateTag`/`updateTag`) over path-based when possible — it's more precise and avoids over-invalidating.
+> **Good to know:** Prefer tag-based revalidation (`revalidateTag`/`updateTag`) over path-based when possible. Tags target server-side cached data more precisely and avoid over-invalidating it. [Client cache invalidation](/docs/app/api-reference/functions/cacheLife#client-cache-behavior) has a broader scope.
 
 See the [`revalidatePath` API reference](/docs/app/api-reference/functions/revalidatePath) to learn more.
 

@@ -43,6 +43,7 @@ Your application code does not need a follow-up fetch to see the updated UI for 
 A re-render is included in the same response when the action does any of these:
 
 - Calls [`updateTag`](/docs/app/api-reference/functions/updateTag) or [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) to immediately invalidate cached data.
+- Calls [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag#client-cache-behavior) with a profile that resolves to `expire: 0`, including `{ expire: 0 }`.
 - Calls [`refresh`](/docs/app/api-reference/functions/refresh) to refetch the current route's RSC Payload.
 - Mutates cookies through [`cookies()`](/docs/app/api-reference/functions/cookies#understanding-cookie-behavior-in-server-functions). Setting or deleting a cookie automatically re-renders the current page so the UI reflects the new value.
 - Calls [`redirect`](/docs/app/api-reference/functions/redirect). The response navigates the router and streams the destination's RSC Payload.
@@ -143,7 +144,7 @@ export async function completeItem(itemId: string) {
 After mutating data, on-demand revalidation updates the server cache, the client router, or both. Choose based on what needs to change:
 
 - [`updateTag`](/docs/app/api-reference/functions/updateTag): immediate expiration of a tag. The next read (including the route re-render that ships with the action's response) waits for fresh data. Use when the action needs **read-your-own-writes** so the user immediately sees their change. Server Actions only.
-- [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag): stale-while-revalidate refresh of a tag with a cache-life profile. Subsequent reads get the stale value while a fresh fetch happens in the background, so the action's own re-render does **not** wait for the new data.
+- [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag): stale-while-revalidate refresh of a tag with a cache-life profile such as `'max'`. Subsequent reads get the stale value while a fresh fetch happens in the background. The call does **not** trigger an immediate re-render. See [client cache behavior](/docs/app/api-reference/functions/updateTag#client-cache-behavior) for immediate-expiry profiles.
 - [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath): invalidate by URL path. Use when one route is affected and tagging is overkill.
 - [`refresh`](/docs/app/api-reference/functions/refresh): refetch the current route's RSC Payload without invalidating cached data. Use when the view depends on state outside the cache that the action just changed.
 
