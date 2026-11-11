@@ -1770,6 +1770,8 @@ impl Project {
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
         let module_graphs_op = whole_app_module_graph_operation(self);
         let module_graphs_vc = module_graphs_op.connect();
+        // Wait for the graphs, so the pool is scaled down after the transforms that use it ran.
+        module_graphs_vc.await?;
         scale_down_node_pool(self).await?;
         Ok(module_graphs_vc)
     }
@@ -1782,7 +1784,12 @@ impl Project {
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
         let module_graphs_op = whole_app_module_graph_operation(self);
         let module_graphs_vc = if self.next_mode().await?.is_production() {
-            module_graphs_op.connect()
+            let vc = module_graphs_op.connect();
+            // Wait for the graphs, so the pool is scaled down after the transforms that use it
+            // ran. `connect()` alone does not wait: the scale down below would run before any
+            // Node.js process exists, and the processes would stay alive until the build ends.
+            vc.await?;
+            vc
         } else {
             let vc = module_graphs_op.resolve().strongly_consistent().await?;
             module_graphs_op.drop_issues();
