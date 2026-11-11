@@ -105,15 +105,19 @@ Hidden pages remain in the document, so a hard-coded ID can match an element on 
 
 ### Dialog and initialization logic
 
-Activity preserves React state that controls whether a dialog is open. Effects run again when Activity shows the component, so an Effect that focuses an input also runs when an open dialog becomes visible again.
+Activity preserves a dialog's open/closed state. When Activity shows the component again, React re-runs its Effects, including initialization logic such as focusing an input.
 
 **When to keep it:** A multi-step wizard or a settings panel that the user was actively working in. Preserving the step and input state avoids losing progress.
 
-**When to reset it:** A temporary edit dialog that should be closed when the user returns. Reset its open/closed state in a `useLayoutEffect` cleanup, as in the dropdown example above.
+**When to reset it:** A temporary edit dialog that should be closed when the user returns.
 
-If dialog visibility should follow the URL, derive it from a search param instead. Wrap the component that reads `useSearchParams` in `Suspense` so the rest of the page can prerender:
+To reset the open/closed state on hide, use a `useLayoutEffect` cleanup as in the [dropdown example](#expandable-ui-dropdowns-accordions-panels).
 
-```tsx highlight={4,6-12,15-17,28,33}
+#### Controlling a dialog with the URL
+
+If a dialog should open when visiting a particular URL, derive its state from a search parameter. For example, this dialog opens when the URL includes `?edit=true`:
+
+```tsx highlight={7-9,15-17,28,33}
 'use client'
 
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -156,7 +160,9 @@ function ProductDialog() {
 }
 ```
 
-With this approach, `isDialogOpen` derives from the current URL. Returning through a link without `?edit=true` closes the dialog. Browser Back and Forward restore the search params for that history entry, so returning to a URL with `?edit=true` opens it again. The Effect focuses the input when the dialog opens or Activity shows it again.
+The [`Suspense` boundary](/docs/app/api-reference/functions/use-search-params#static-rendering) lets the rest of the page prerender while the dialog reads the current search parameters.
+
+Returning through a link without `?edit=true` closes the dialog. Browser back and forward navigation restore the URL for that history entry, so returning to a URL with `?edit=true` opens it again.
 
 ### Forms, inputs, and state
 
