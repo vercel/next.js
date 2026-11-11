@@ -8,6 +8,8 @@ related:
 
 Options for configuring Server Actions behavior in your Next.js application. For how Server Actions work, including the security boundary these options tune, see the [Server Actions guide](/docs/app/guides/server-actions).
 
+Server Actions are stable and enabled by default. The `allowedOrigins` option remains experimental and must be configured under `experimental.serverActions`.
+
 ## `allowedOrigins`
 
 A list of extra safe hosts from which Server Actions can be invoked. To prevent CSRF attacks, Next.js compares the host in a request's `Origin` header against the app's own host, taken from `x-forwarded-host` or `host`, and rejects the action when the two differ. If not provided, only the same origin is allowed. A request that carries no `Origin` header at all is allowed through with a warning rather than rejected.
