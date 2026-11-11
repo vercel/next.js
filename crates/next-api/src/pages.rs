@@ -1506,6 +1506,10 @@ impl PageEndpoint {
 
         let ssr_chunk = match this.ty {
             PageEndpointType::Html => {
+                // The SSR chunk doesn't depend on the client chunks. Create it first, so it's
+                // computed concurrently with the client chunk group and the manifests below.
+                let ssr_chunk = self.ssr_chunk(emit_manifests);
+
                 let client_chunk_group = self.client_chunk_group();
                 client_assets.extend(client_chunk_group.all_assets().await?.iter().copied());
                 let client_chunk_group_ref = client_chunk_group.await?;
@@ -1538,7 +1542,7 @@ impl PageEndpoint {
                 server_assets.push(build_manifest);
                 server_assets.push(client_build_manifest);
 
-                self.ssr_chunk(emit_manifests)
+                ssr_chunk
             }
 
             PageEndpointType::Data => self.ssr_data_chunk(emit_manifests),

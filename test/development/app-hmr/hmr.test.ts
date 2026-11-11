@@ -181,6 +181,13 @@ describe(`app-dir-hmr`, () => {
       // TODO: Enforce console.error assertions or MPA navigation assertions in all tests instead.
       const browser = await next.browser('/bundler-runtime-changes')
       await browser.eval('window.__TEST_NO_RELOAD = true')
+      // The navigation is a no-op update for the current page. With Turbopack, the client only
+      // logs the start (and then the end) of a no-op update if it's still in progress
+      // `TURBOPACK_HMR_START_DELAY_MS` after the server reported it, so the log below would
+      // depend on how long compiling the new page takes. Report it immediately instead.
+      await browser.eval(
+        'self.__NEXT_HMR_TURBOPACK_REPORT_NOISY_NOOP_EVENTS = true'
+      )
 
       await browser
         .elementByCss('a')
