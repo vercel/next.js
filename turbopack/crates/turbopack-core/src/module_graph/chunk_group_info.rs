@@ -1,4 +1,4 @@
-use std::{cmp::Reverse, hash::Hash, ops::Deref, sync::LazyLock};
+use std::{cmp::Reverse, hash::Hash, mem::take, ops::Deref, sync::LazyLock};
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
@@ -146,6 +146,9 @@ pub struct ChunkGroupInfo {
     /// The same keys as `chunk_group_keys`, mapped to their index, in a keyed cell so a single
     /// index lookup does not depend on the whole `ChunkGroupInfo`. See [`ChunkGroupKeyToIndex`].
     pub chunk_group_indices: ResolvedVc<ChunkGroupKeyToIndex>,
+    /// See [`ChunkGroupInfo::chunk_group_ident_hashes`]. Computed together with the canonical
+    /// chunk group order, which needs the same identities.
+    pub chunk_group_ident_hashes: ResolvedVc<ChunkGroupIdentHashes>,
     pub chunking_heuristics: ChunkingHeuristicsInfo,
 }
 
@@ -197,14 +200,8 @@ impl ChunkGroupInfo {
     /// that contains it. That keeps hashing a set to one dependency and no string work, however
     /// large the set is.
     #[turbo_tasks::function]
-    pub async fn chunk_group_ident_hashes(&self) -> Result<Vc<ChunkGroupIdentHashes>> {
-        let keys = &self.chunk_group_keys;
-        let hashes = keys
-            .iter()
-            .map(async |key| Ok(chunk_group_ident_hash(&key.ident_str(keys).await?)))
-            .try_join()
-            .await?;
-        Ok(Vc::cell(hashes))
+    pub fn chunk_group_ident_hashes(&self) -> Vc<ChunkGroupIdentHashes> {
+        *self.chunk_group_ident_hashes
     }
 
     /// Returns the exact chunk groups that contain `module`, as derived while traversing the module
@@ -1050,6 +1047,18 @@ pub async fn compute_chunk_group_info(
         span.record("visit_count", visit_count);
         span.record("chunk_group_count", chunk_groups_map.len());
 
+        // The traversal assigns chunk group indices in visit order, which depends on the module
+        // ranks of the whole graph. Renumber the chunk groups into an order that only depends on
+        // the set of chunk groups, so that an edit which keeps that set unchanged keeps all
+        // indices (and every bitset derived from them) unchanged.
+        let chunk_group_ident_hashes = canonicalize_chunk_group_order(
+            &mut chunk_groups_map,
+            &mut module_chunk_groups,
+            &mut async_loader_chunk_groups,
+            &mut inherits_from,
+        )
+        .await?;
+
         static PRINT_CHUNK_GROUP_INFO: LazyLock<bool> =
             LazyLock::new(|| match std::env::var_os("TURBOPACK_PRINT_CHUNK_GROUPS") {
                 Some(v) => v == "1",
@@ -1172,6 +1181,7 @@ pub async fn compute_chunk_group_info(
                     .map(|(index, key)| (key.clone(), index as u32))
                     .collect(),
             ),
+            chunk_group_ident_hashes: ResolvedVc::cell(chunk_group_ident_hashes),
             chunking_heuristics: ChunkingHeuristicsInfo {
                 clusters: chunk_group_clusters,
                 priority_routes: chunk_group_priority_routes,
@@ -1203,6 +1213,125 @@ pub async fn compute_chunk_group_info(
         .cell())
     }
     .instrument(span_outer)
+    .await
+}
+
+/// Renumbers the chunk groups into a canonical order and remaps all indices accordingly.
+///
+/// [`compute_chunk_group_info`] assigns indices while traversing the graph, in the order in which
+/// chunk groups are first reached. That order depends on the module ranks (the reverse postorder
+/// of the whole graph), so a local edit, e.g. importing an already existing module from another
+/// place, can reorder many chunk groups. Every index that moves changes the chunk group bitsets
+/// of all modules (and availabilities) containing it, which invalidates chunking across the whole
+/// app even when the chunk groups themselves are unchanged.
+///
+/// The canonical order sorts chunk groups by their merge depth (so a merged chunk group always
+/// comes after its parent, which later passes rely on) and then by [`ChunkGroupKey::ident_str`].
+/// Both only depend on the chunk group itself, so the indices only depend on the set of chunk
+/// groups. Chunk groups with equal sort keys keep their relative traversal order.
+///
+/// Returns the [`chunk_group_ident_hash`] of every chunk group, in the new order.
+async fn canonicalize_chunk_group_order(
+    chunk_groups_map: &mut FxIndexMap<ChunkGroupKey, FxIndexSet<ResolvedVc<Box<dyn Module>>>>,
+    module_chunk_groups: &mut FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset>,
+    async_loader_chunk_groups: &mut FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset>,
+    inherits_from: &mut FxHashMap<u32, Bitset>,
+) -> Result<Vec<u64>> {
+    let span = tracing::info_span!("canonicalize chunk group order", reordered = false);
+    async {
+        let keys: FxIndexSet<ChunkGroupKey> = chunk_groups_map.keys().cloned().collect();
+
+        // The merge depth of each chunk group: the number of merged parents above it.
+        let mut depths = vec![0u32; keys.len()];
+        for (index, key) in keys.iter().enumerate() {
+            let mut depth = 0;
+            let mut current = key;
+            while let ChunkGroupKey::IsolatedMerged { parent, .. }
+            | ChunkGroupKey::SharedMerged { parent, .. } = current
+            {
+                depth += 1;
+                if depth as usize > keys.len() {
+                    bail!("cycle in merged chunk group parents");
+                }
+                current = ChunkGroupKey::merged_parent(&keys, parent.0 as usize)?;
+            }
+            depths[index] = depth;
+        }
+
+        let idents = keys
+            .iter()
+            .map(|key| key.ident_str(&keys))
+            .try_join()
+            .await?;
+
+        let mut order: Vec<usize> = (0..keys.len()).collect();
+        // Stable sort: equal keys keep their traversal order.
+        order.sort_by(|&a, &b| {
+            depths[a]
+                .cmp(&depths[b])
+                .then_with(|| idents[a].cmp(&idents[b]))
+        });
+
+        let hashes = order
+            .iter()
+            .map(|&old| chunk_group_ident_hash(&idents[old]))
+            .collect::<Vec<_>>();
+
+        if order.iter().enumerate().all(|(new, &old)| new == old) {
+            return Ok(hashes);
+        }
+        span.record("reordered", true);
+
+        // old index -> new index
+        let mut new_index_of = vec![0u32; order.len()];
+        for (new, &old) in order.iter().enumerate() {
+            new_index_of[old] = new as u32;
+        }
+        let remap = |bitset: &Bitset| -> Bitset {
+            bitset
+                .iter()
+                .map(|old| new_index_of[old as usize])
+                .collect()
+        };
+
+        let mut entries = take(chunk_groups_map)
+            .into_iter()
+            .map(Some)
+            .collect::<Vec<_>>();
+        chunk_groups_map.reserve(entries.len());
+        for &old in &order {
+            let (key, merged_entries) = entries[old]
+                .take()
+                .context("chunk group visited twice while reordering")?;
+            let key = match key {
+                ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {
+                    ChunkGroupKey::IsolatedMerged {
+                        parent: ChunkGroupId(new_index_of[parent.0 as usize]),
+                        merge_tag,
+                    }
+                }
+                ChunkGroupKey::SharedMerged { parent, merge_tag } => ChunkGroupKey::SharedMerged {
+                    parent: ChunkGroupId(new_index_of[parent.0 as usize]),
+                    merge_tag,
+                },
+                key => key,
+            };
+            chunk_groups_map.insert(key, merged_entries);
+        }
+
+        for bitset in module_chunk_groups.values_mut() {
+            *bitset = remap(bitset);
+        }
+        for bitset in async_loader_chunk_groups.values_mut() {
+            *bitset = remap(bitset);
+        }
+        *inherits_from = take(inherits_from)
+            .into_iter()
+            .map(|(source, targets)| (new_index_of[source as usize], remap(&targets)))
+            .collect();
+        Ok(hashes)
+    }
+    .instrument(span.clone())
     .await
 }
 
