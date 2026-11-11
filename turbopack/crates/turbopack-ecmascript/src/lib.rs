@@ -62,7 +62,6 @@ use serde::Deserialize;
 use smallvec::SmallVec;
 use swc_core::{
     atoms::Atom,
-    base::SwcComments,
     common::{
         BytePos, DUMMY_SP, FileName, GLOBALS, Globals, Loc, Mark, SourceFile, SourceMap,
         SourceMapper, Span, SpanSnippetError, Spanned, SyntaxContext,
@@ -139,7 +138,7 @@ use crate::{
 pub use crate::{
     references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER},
     static_code::StaticEcmascriptCode,
-    swc_comments::swc_comments_to_single_threaded,
+    swc_comments::{MutableComments, swc_comments_to_single_threaded},
     transform::{
         CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
         TransformPlugin,
@@ -1441,7 +1440,7 @@ fn early_hoist_comment(text: &str) -> Comment {
 /// Finds the statements delimited by [`EARLY_HOIST_START`] and [`EARLY_HOIST_END`], as an inclusive
 /// index range over `body` covering both delimiters. Must run before the spans are rewritten.
 fn early_hoist_range(
-    comments: &SwcComments,
+    comments: &MutableComments,
     body: impl Iterator<Item = Span>,
 ) -> Option<(usize, usize)> {
     let (mut start, mut end) = (None, None);
@@ -2095,10 +2094,7 @@ async fn process_parse_result(
                     (vec![], None, None, None)
                 };
 
-            let extra_comments = SwcComments {
-                leading: Default::default(),
-                trailing: Default::default(),
-            };
+            let extra_comments = MutableComments::new();
 
             let early_hoisted_count = process_content_with_code_gens(
                 &mut program,
@@ -2107,16 +2103,21 @@ async fn process_parse_result(
                 &mut code_gens,
             );
 
-            for comments in code_gens.iter_mut().flat_map(|cg| cg.comments.as_mut()) {
-                let leading = Arc::unwrap_or_clone(take(&mut comments.leading));
-                let trailing = Arc::unwrap_or_clone(take(&mut comments.trailing));
+            // The visitors in `code_gens` may still hold clones of these comments; `take_all`
+            // moves the comments out instead of copying them.
+            for comments in code_gens.iter_mut().filter_map(|cg| cg.comments.take()) {
+                let (leading, trailing) = comments.take_all();
 
                 for (pos, v) in leading {
-                    extra_comments.leading.entry(pos).or_default().extend(v);
+                    if !v.is_empty() {
+                        extra_comments.add_leading_comments(pos, v);
+                    }
                 }
 
                 for (pos, v) in trailing {
-                    extra_comments.trailing.entry(pos).or_default().extend(v);
+                    if !v.is_empty() {
+                        extra_comments.add_trailing_comments(pos, v);
+                    }
                 }
             }
 
@@ -3011,7 +3012,7 @@ struct ModulePosition(u32, u32);
 enum CodeGenResultComments {
     Single {
         comments: Either<ImmutableComments, Arc<ImmutableComments>>,
-        extra_comments: SwcComments,
+        extra_comments: MutableComments,
     },
     ScopeHoisting {
         /// The bitwidth of the modules header in the spans, see
@@ -3210,7 +3211,7 @@ impl CodeGenResultComments {
 enum CodeGenResultCommentsConsumable<'a> {
     Single {
         comments: CowComments<'a>,
-        extra_comments: &'a SwcComments,
+        extra_comments: &'a MutableComments,
     },
     ScopeHoisting {
         modules_header_width: u32,
