@@ -206,6 +206,25 @@ const transform = (
             buildDependencies.add(dependency)
           },
           fs: {
+            readdir(p: fs.PathLike, optionsOrCb: any, maybeCb?: any) {
+              // Subscribe before reading, including when the directory is missing.
+              // Node supplies the actual entries, options and filesystem errors.
+              if (typeof p === 'string' && !path.isAbsolute(p)) {
+                p = pathResolve(fs.realpathSync('.'), p)
+              }
+              const directory =
+                p instanceof URL ? fileURLToPath(p) : p.toString()
+              ipc.sendRequest({ type: 'trackDirectoryRead', directory }).then(
+                () => {
+                  if (typeof optionsOrCb === 'function') {
+                    fs.readdir(p, optionsOrCb)
+                  } else {
+                    fs.readdir(p, optionsOrCb, maybeCb)
+                  }
+                },
+                (err) => ipc.sendError(err)
+              )
+            },
             stat(
               p: fs.PathLike,
               optionsOrCallback:
