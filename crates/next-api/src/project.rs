@@ -16,7 +16,12 @@ use next_core::{
     instrumentation::instrumentation_files,
     middleware::middleware_files,
     mode::NextMode,
-    next_app::{AppPage, AppPath},
+    next_app::{
+        AppPage, AppPath,
+        metadata::{
+            match_global_metadata_file, match_local_metadata_file, normalize_metadata_route,
+        },
+    },
     next_client::{
         ClientChunkingContextOptions, ClientContextType, ServiceWorkerChunkingContextOptions,
         get_client_chunking_context, get_client_compile_time_info,
@@ -196,12 +201,32 @@ struct DebugBuildPathsRouteKeys {
 }
 
 impl DebugBuildPathsRouteKeys {
-    fn app_route_key_from_debug_path(path: &str) -> Result<RcStr> {
+    fn app_route_key_from_debug_path(path: &str, page_extensions: &[RcStr]) -> Result<RcStr> {
         let mut segments = path
             .trim_start_matches('/')
             .split('/')
             .filter(|segment| !segment.is_empty())
             .collect::<Vec<_>>();
+
+        if let Some(filename) = segments.last().copied()
+            && let Some(dynamic) = match_local_metadata_file(filename, page_extensions)
+                .map(|metadata| metadata.dynamic)
+                .or_else(|| {
+                    match_global_metadata_file(filename, page_extensions)
+                        .map(|metadata| metadata.dynamic)
+                })
+        {
+            if dynamic {
+                let (stem, _) = filename
+                    .rsplit_once('.')
+                    .context("metadata file must have an extension")?;
+                segments.pop();
+                segments.push(stem);
+            }
+
+            let page = normalize_metadata_route(AppPage::parse(&segments.join("/"))?)?;
+            return Ok(AppPath::from(page).to_string().into());
+        }
 
         if let Some(last_segment) = segments.last()
             && (*last_segment == "page"
@@ -247,12 +272,12 @@ impl DebugBuildPathsRouteKeys {
         })
     }
 
-    fn from_debug_build_paths(paths: &DebugBuildPaths) -> Result<Self> {
+    fn from_debug_build_paths(paths: &DebugBuildPaths, page_extensions: &[RcStr]) -> Result<Self> {
         Ok(Self {
             app: paths
                 .app
                 .iter()
-                .map(|path| Self::app_route_key_from_debug_path(path))
+                .map(|path| Self::app_route_key_from_debug_path(path, page_extensions))
                 .collect::<Result<_>>()?,
             pages: paths
                 .pages
@@ -2266,11 +2291,14 @@ impl Project {
         let pages_project = self.pages_project();
 
         // Convert debug build paths to route keys once for O(1) lookups
-        let debug_build_paths_route_keys = this
-            .debug_build_paths
-            .as_ref()
-            .map(DebugBuildPathsRouteKeys::from_debug_build_paths)
-            .transpose()?;
+        let debug_build_paths_route_keys = if let Some(paths) = &this.debug_build_paths {
+            Some(DebugBuildPathsRouteKeys::from_debug_build_paths(
+                paths,
+                &self.next_config().page_extensions().await?,
+            )?)
+        } else {
+            None
+        };
 
         if let Some(app_project) = &*app_project.await? {
             let app_routes = app_project.routes_with_filter(app_route_filter);
