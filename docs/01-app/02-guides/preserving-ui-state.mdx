@@ -105,44 +105,29 @@ Hidden pages remain in the document, so a hard-coded ID can match an element on 
 
 ### Dialog and initialization logic
 
-Activity preserves dialog open/closed state. This also affects Effects that run based on that state.
+Activity preserves React state that controls whether a dialog is open. Effects run again when Activity shows the component, so an Effect that focuses an input also runs when an open dialog becomes visible again.
 
 **When to keep it:** A multi-step wizard or a settings panel that the user was actively working in. Preserving the step and input state avoids losing progress.
 
-**When to reset it:** A dialog that runs initialization logic (like focusing an input) each time it opens. If the user navigated away while the dialog was open, Activity preserves `isDialogOpen: true`. Opening it again sets it to `true` when it's already `true`, so no state change happens and the Effect doesn't re-run.
+**When to reset it:** A temporary edit dialog that should be closed when the user returns. Reset its open/closed state in a `useLayoutEffect` cleanup, as in the dropdown example above.
 
-Consider this example:
+If dialog visibility should follow the URL, derive it from a search param instead. Wrap the component that reads `useSearchParams` in `Suspense` so the rest of the page can prerender:
 
-```tsx
-'use client'
-
-import { useState, useRef, useEffect } from 'react'
-
-function ProductTab() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (isDialogOpen) {
-      inputRef.current?.focus()
-    }
-  }, [isDialogOpen])
-
-  // ...
-}
-```
-
-If the user navigated away while the dialog was open, returning and opening the dialog won't trigger the focus Effect because `isDialogOpen` was already `true`.
-
-To fix this, derive the dialog state from something outside the preserved component state like a search param:
-
-```tsx highlight={3,7-9,20,25}
+```tsx highlight={4,6-12,15-17,28,33}
 'use client'
 
 import { useSearchParams, useRouter } from 'next/navigation'
-import { useEffect, useRef } from 'react'
+import { Suspense, useEffect, useRef } from 'react'
 
 function ProductTab() {
+  return (
+    <Suspense fallback={null}>
+      <ProductDialog />
+    </Suspense>
+  )
+}
+
+function ProductDialog() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const isDialogOpen = searchParams.get('edit') === 'true'
@@ -171,7 +156,7 @@ function ProductTab() {
 }
 ```
 
-With this approach, `isDialogOpen` derives from the URL rather than component state. When navigating away and returning, the search param is cleared (the URL changed), so `isDialogOpen` becomes `false`. Opening the dialog sets the param, which changes `isDialogOpen` and triggers the Effect.
+With this approach, `isDialogOpen` derives from the current URL. Returning through a link without `?edit=true` closes the dialog. Browser Back and Forward restore the search params for that history entry, so returning to a URL with `?edit=true` opens it again. The Effect focuses the input when the dialog opens or Activity shows it again.
 
 ### Forms, inputs, and state
 
