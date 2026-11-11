@@ -31,6 +31,5 @@
     "agent-051-prefetch-until-navigation",
     "agent-053-cache-components-url-shell",
     "agent-054-cache-components-empty-static-params"
-  ],
-  "audit": ["agent-063-test-instant-navigation"]
+  ]
 }

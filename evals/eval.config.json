@@ -89,9 +89,5 @@
     "publish": false,
     "timeout": 1800,
     "metrics": "pokedex"
-  },
-  "agent-063-test-instant-navigation": {
-    "publish": false,
-    "timeout": 1200
   }
 }

@@ -1,8 +1,0 @@
-{
-  "app/layout.tsx": "40dd43817a68f38ad651977c363e3769a698023d18fa507573d9ac426c0741c6",
-  "app/page.tsx": "c60a489fb4252a99ff2a8ef12a8564862cf373f6b13bff81a4fbb604ee4e52f2",
-  "app/store/[slug]/page.tsx": "4b4198d7fa27b2c6748e3105bddedc2667542c0a9626804cf48417bab81378f8",
-  "lib/data.ts": "93502265b3ed43f2fe4fab8be0daaeaf3f0f72ae3e439e4c4086945834b34802",
-  "next.config.ts": "60243b61e96e39cf589d6714c48bf792e09e9c790bf90ac1a4780b6f8aa79f5b",
-  "playwright.config.ts": "542cf92823655a801f28dcfa31efd6011606950ddd99d9ecd4b5de3196bd0a5b"
-}
