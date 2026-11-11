@@ -68,24 +68,11 @@ export function generateViewport({ params }) {
 
 ## Viewport Fields
 
-All viewport fields are optional. The layout fields below configure the `viewport` meta tag.
-
-| Field                         | Accepted values                                                  | Viewport directive                        |
-| ----------------------------- | ---------------------------------------------------------------- | ----------------------------------------- |
-| `width`                       | `string` or `number`                                             | `width`                                   |
-| `height`                      | `string` or `number`                                             | `height`                                  |
-| `initialScale`                | `number`                                                         | `initial-scale`                           |
-| `minimumScale`                | `number`                                                         | `minimum-scale`                           |
-| `maximumScale`                | `number`                                                         | `maximum-scale`                           |
-| `userScalable`                | `boolean`                                                        | `user-scalable=yes` or `user-scalable=no` |
-| [`viewportFit`](#viewportfit) | `'auto'`, `'contain'`, or `'cover'`                              | `viewport-fit`                            |
-| `interactiveWidget`           | `'resizes-visual'`, `'resizes-content'`, or `'overlays-content'` | `interactive-widget`                      |
-
-[`themeColor`](#themecolor) and [`colorScheme`](#colorscheme) generate separate meta tags.
+Viewport fields configure the viewport, theme color, and color scheme meta tags.
 
 ### `themeColor`
 
-`themeColor` accepts a color string, a `{ color: string, media?: string }` descriptor, or an array of descriptors.
+`themeColor` sets the `theme-color` meta tag. Use media queries to provide different colors for different conditions.
 
 Learn more about [`theme-color`](https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color).
 
@@ -136,6 +123,8 @@ export const viewport = {
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="black" />
 ```
 
+`themeColor` accepts a color string, a `{ color: string, media?: string }` descriptor, or an array of descriptors.
+
 ### `width`, `initialScale`, `maximumScale` and `userScalable`
 
 > **Good to know**: The `viewport` meta tag is automatically set, and manual configuration is usually unnecessary as the default is sufficient. However, the information is provided for completeness.
@@ -173,6 +162,19 @@ export const viewport = {
 />
 ```
 
+The [`viewport` meta tag](https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/meta/name/viewport) supports the following layout fields:
+
+| Field                         | Accepted values                                                  | Viewport directive                        |
+| ----------------------------- | ---------------------------------------------------------------- | ----------------------------------------- |
+| `width`                       | `string` or `number`                                             | `width`                                   |
+| `height`                      | `string` or `number`                                             | `height`                                  |
+| `initialScale`                | `number`                                                         | `initial-scale`                           |
+| `minimumScale`                | `number`                                                         | `minimum-scale`                           |
+| `maximumScale`                | `number`                                                         | `maximum-scale`                           |
+| `userScalable`                | `boolean`                                                        | `user-scalable=yes` or `user-scalable=no` |
+| [`viewportFit`](#viewportfit) | `'auto'`, `'contain'`, or `'cover'`                              | `viewport-fit`                            |
+| `interactiveWidget`           | `'resizes-visual'`, `'resizes-content'`, or `'overlays-content'` | `interactive-widget`                      |
+
 ### `viewportFit`
 
 `viewportFit` sets the `viewport-fit` value in the viewport meta tag. It accepts `'auto'`, `'contain'`, or `'cover'`.
@@ -204,7 +206,7 @@ The default `width` and `initialScale` values are retained:
 
 ### `colorScheme`
 
-`colorScheme` accepts `'normal'`, `'light'`, `'dark'`, `'light dark'`, `'dark light'`, or `'only light'`.
+`colorScheme` sets the `color-scheme` meta tag.
 
 Learn more about [`color-scheme`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta/name#:~:text=color%2Dscheme%3A%20specifies,of%20the%20following%3A).
 
@@ -225,6 +227,8 @@ export const viewport = {
 ```html filename="<head> output" hideLineNumbers
 <meta name="color-scheme" content="dark" />
 ```
+
+`colorScheme` accepts `'normal'`, `'light'`, `'dark'`, `'light dark'`, `'dark light'`, or `'only light'`.
 
 ## With Cache Components
 
