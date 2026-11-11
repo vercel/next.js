@@ -55,6 +55,8 @@ use turbo_tasks::{FunctionId, TaskDirtyCause};
 use turbo_tasks_malloc::TurboMalloc;
 
 use self::eviction::EvictionControl;
+#[cfg(not(target_family = "wasm"))]
+pub use self::operation::aggregation_queue;
 #[cfg(test)]
 pub(crate) use self::storage::TrackOutcome;
 pub use self::{
@@ -1199,14 +1201,17 @@ impl TurboTasksBackend {
         let _ = task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence);
     }
 
-    /// Refines the [`CellKey::Provisional`] dependency of `reader` on `cell` of `task_id` (created
-    /// by a `Vc::keyed_reader()` or `Vc::lazy_reader()` read): it's replaced with
-    /// [`CellKey::Hash`] dependencies on `key_hashes`. With no `key_hashes` (an unaccessed
+    /// Refines the [`CellKeyKind::Provisional`] dependency of `reader` on `cell` of `task_id`
+    /// (created by a `Vc::keyed_reader()` or `Vc::lazy_reader()` read): it's replaced with
+    /// [`CellKeyKind::Hash`] dependencies on `key_hashes`. With no `key_hashes` (an unaccessed
     /// `LazyReadRef`), it's removed.
     ///
     /// When the cell content is currently missing (e.g. while `update_cell` invalidates its
-    /// dependents), the [`CellKey::Provisional`] dependency is kept, conservatively depending on
-    /// the whole cell.
+    /// dependents), the [`CellKeyKind::Provisional`] dependency is kept, conservatively depending
+    /// on the whole cell.
+    ///
+    /// [`CellKeyKind::Provisional`]: turbo_tasks::CellKeyKind::Provisional
+    /// [`CellKeyKind::Hash`]: turbo_tasks::CellKeyKind::Hash
     fn refine_provisional_cell_dependency(
         &self,
         task_id: TaskId,
@@ -1230,7 +1235,7 @@ impl TurboTasksBackend {
             task: task_id,
             cell,
         };
-        let provisional = CellKey::Provisional(id);
+        let provisional = CellKey::provisional(id);
         task.remove_cell_dependents_keyed(&(reverse, provisional));
         reader_task.remove_cell_dependencies_keyed(&(target, provisional));
         reader_task.remove_outdated_cell_dependencies_keyed(&(target, provisional));
@@ -1239,7 +1244,7 @@ impl TurboTasksBackend {
             return;
         }
         for k in key_hashes {
-            let key = CellKey::Hash(k);
+            let key = CellKey::hash(k);
             let _ = task.add_cell_dependents_keyed((reverse, key));
             if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, key)) {
                 let _ = reader_task.add_cell_dependencies_keyed((target, key));
@@ -1247,8 +1252,8 @@ impl TurboTasksBackend {
         }
     }
 
-    /// Converts all [`CellKey::Provisional`] dependencies of `reader` that are still present into
-    /// normal (full) cell dependencies. Called when an execution of `reader` that made
+    /// Converts all [`CellKeyKind::Provisional`] dependencies of `reader` that are still present
+    /// into normal (full) cell dependencies. Called when an execution of `reader` that made
     /// `Vc::keyed_reader()` or `Vc::lazy_reader()` reads completes, as the ids are only meaningful
     /// within that execution.
     ///
@@ -1257,14 +1262,17 @@ impl TurboTasksBackend {
     /// the dependencies are still kept consistent), or when their refinement was refused (see
     /// `refine_provisional_cell_dependency`).
     ///
-    /// A concurrent `update_cell` that collected the [`CellKey::Provisional`] dependent before the
-    /// conversion still invalidates `reader`, as it always invalidates collected
-    /// [`CellKey::Provisional`] dependents.
+    /// A concurrent `update_cell` that collected the [`CellKeyKind::Provisional`] dependent before
+    /// the conversion still invalidates `reader`, as it always invalidates collected
+    /// [`CellKeyKind::Provisional`] dependents.
     ///
     /// Unlike [`Self::refine_provisional_cell_dependency`], which narrows a dependency to
-    /// [`CellKey::Hash`] dependencies and refuses while the cell content is missing, this doesn't
-    /// depend on the cell content and converts to a full dependency (or just removes the edge when
-    /// the cell's task is immutable), so it can't reuse that method.
+    /// [`CellKeyKind::Hash`] dependencies and refuses while the cell content is missing, this
+    /// doesn't depend on the cell content and converts to a full dependency (or just removes the
+    /// edge when the cell's task is immutable), so it can't reuse that method.
+    ///
+    /// [`CellKeyKind::Provisional`]: turbo_tasks::CellKeyKind::Provisional
+    /// [`CellKeyKind::Hash`]: turbo_tasks::CellKeyKind::Hash
     fn convert_remaining_provisional_cell_dependencies_at_task_completion(
         &self,
         ctx: &mut ExecuteContext<'_>,
@@ -1273,7 +1281,7 @@ impl TurboTasksBackend {
         let remaining: SmallVec<[(CellRef, CellKey); 4]> = ctx
             .task(reader, TaskDataCategory::Data)
             .iter_cell_dependencies_keyed()
-            .filter(|(_, key)| matches!(key, CellKey::Provisional(_)))
+            .filter(|(_, key)| key.is_provisional())
             .collect();
         for (target, key) in remaining {
             let reverse = CellRef {
@@ -1382,7 +1390,7 @@ impl TurboTasksBackend {
 
         // One exclusion covers the GC pass and the snapshot that follows it, so the collected
         // tasks' tombstones (derived from the `deleted` flag) ride this same commit and no
-        // operation can resurrect a collected task in between.
+        // operation can observe a collected task in between.
         let start = Instant::now();
         // SystemTime for wall-clock timestamps in trace events (milliseconds
         // since epoch). Instant is monotonic but has no defined epoch, so it
@@ -1814,7 +1822,11 @@ impl TurboTasksBackend {
         // `stopping` has already published `Stopping`, which makes a concurrent idle verification
         // pass bail out.
         #[cfg(feature = "verify_aggregation_graph")]
-        self.verify_aggregation_graph(turbo_tasks, false);
+        {
+            self.verify_aggregation_graph(turbo_tasks, false);
+            // Storage is still alive here and no new aggregation updates can start.
+            self.verify_aggregation_edges();
+        }
         // eagerly drop the task cache before persisting
         self.storage.drop_task_cache();
         if self.should_persist()
@@ -2206,7 +2218,6 @@ impl TurboTasksBackend {
         {
             let mut ctx = self.execute_context(turbo_tasks);
             let mut task = ctx.task(task_id, TaskDataCategory::All);
-            task.assert_not_deleted("try_start_task_execution");
             task_type = task.get_task_type().to_owned();
             let once_task = matches!(task_type, TaskType::Transient(ref tt) if matches!(&**tt, TransientTask::Once(_)));
             if let Some(tasks) = task.prefetch() {
@@ -2395,8 +2406,9 @@ impl TurboTasksBackend {
                 || !ctx
                     .task(task_id, TaskDataCategory::Data)
                     .iter_cell_dependencies_keyed()
-                    .any(|(_, key)| matches!(key, CellKey::Provisional(_))),
-            "`CellKey::Provisional` dependencies must be converted when the execution completes"
+                    .any(|(_, key)| key.is_provisional()),
+            "`CellKeyKind::Provisional` dependencies must be converted when the execution \
+             completes"
         );
 
         let TaskExecutionCompletePrepareResult {
@@ -3470,7 +3482,6 @@ impl TurboTasksBackend {
     ) -> Result<TypedCellContent> {
         let mut ctx = self.execute_context(turbo_tasks);
         let task = ctx.task(task_id, TaskDataCategory::Data);
-        task.assert_not_deleted("try_read_own_task_cell");
         if let Some(content) = task.get_cell_data(&cell).cloned() {
             Ok(CellContent(Some(content)).into_typed(cell.type_id()))
         } else {
@@ -3489,7 +3500,6 @@ impl TurboTasksBackend {
         let mut collectibles = AutoMap::default();
         {
             let mut task = ctx.task(task_id, TaskDataCategory::All);
-            task.assert_not_deleted("read_task_collectibles");
             if task
                 .get_persistent_task_type()
                 .is_some_and(|t| !t.native_fn.is_root)
@@ -3741,6 +3751,30 @@ impl TurboTasksBackend {
             if !old_edges.is_empty() {
                 cleanup_old_edges(task_id, old_edges, AggregationUpdateQueue::new(), &mut ctx);
             }
+        }
+    }
+
+    /// Verifies the aggregation edges of all resident tasks (see
+    /// [`operation::verify_aggregation_edges`]). Must only be called when no aggregation updates
+    /// run.
+    #[cfg(any(test, feature = "verify_aggregation_graph"))]
+    pub(crate) fn verify_aggregation_edges(&self) {
+        if std::env::var("TURBO_ENGINE_VERIFY_GRAPH").ok().as_deref() == Some("0") {
+            return;
+        }
+        let violations =
+            operation::verify_aggregation_edges(&self.storage.aggregation_edges_for_verification());
+        if !violations.is_empty() {
+            panic!(
+                "The aggregation edges are inconsistent ({} violations):\n{}",
+                violations.len(),
+                violations
+                    .iter()
+                    .take(20)
+                    .map(String::as_str)
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            );
         }
     }
 

@@ -36,6 +36,18 @@ failure" starts passing, so stale workarounds get deleted instead of rotting.
 
 ## Choosing the directive
 
+Don't add mode gates that the test directory already guarantees:
+
+- `@gate dev` is unnecessary in `test/development/`: these tests only run in
+  dev mode.
+- `@gate start` is unnecessary in `test/production/`: these tests only run in
+  production build/start mode.
+- `@gate !deploy` is unnecessary outside `test/e2e/`: only `test/e2e/` tests
+  run in deploy mode.
+
+The same applies to `@force-gate dev`, `@force-gate start`, and
+`@force-gate !deploy` in those respective locations.
+
 Ask what kind of difference you're encoding:
 
 1. **A behavior change — both states assert something meaningful.** Don't

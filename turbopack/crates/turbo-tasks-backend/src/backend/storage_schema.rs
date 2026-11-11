@@ -252,8 +252,12 @@ struct TaskStorageSchema {
     children: AutoSet<TaskId, 6>,
 
     /// Follower nodes in the aggregation tree (reference counted).
+    ///
+    /// Signed: a negative count is "debt", recorded when the removal of a follower edge overtakes
+    /// its addition. Only counts `> 0` are real edges. See the module docs of
+    /// `operation::aggregation_update` for details.
     #[field(storage = "counter_map", category = "meta", filter_transient)]
-    followers: CounterMap<TaskId, u32, 3>,
+    followers: CounterMap<TaskId, i32, 3>,
 
     // =========================================================================
     // DEPENDENCIES (data)
@@ -280,11 +284,11 @@ struct TaskStorageSchema {
     cell_dependencies: AutoSet<CellRef, 3>,
 
     /// Cells this task depends on with a `CellKey`. Rare.
-    /// - `CellKey::Hash`: narrowed to a hashed sub-value, only invalidated when it changes.
-    /// - `CellKey::Provisional`: a temporary dependency on the whole cell made by a
+    /// - `CellKeyKind::Hash`: narrowed to a hashed sub-value, only invalidated when it changes.
+    /// - `CellKeyKind::Provisional`: a temporary dependency on the whole cell made by a
     ///   `Vc::keyed_reader()` or `Vc::lazy_reader()` read that hasn't been refined yet, identified
     ///   by the `keyed_reader()` / `lazy_reader()` call counter of the execution. Invalidated like
-    ///   `cell_dependencies`. Short-lived: the `KeyedReadRef` refines it to `CellKey::Hash`
+    ///   `cell_dependencies`. Short-lived: the `KeyedReadRef` refines it to `CellKeyKind::Hash`
     ///   entries when dropped, an unaccessed `LazyReadRef` removes it when dropped, and any
     ///   remaining ones are converted to `cell_dependencies` when the execution completes.
     #[field(
@@ -337,8 +341,8 @@ struct TaskStorageSchema {
     cell_dependents: AutoSet<CellRef, 3>,
 
     /// Tasks that depend on this task's cells with a `CellKey`. Reverse of
-    /// `cell_dependencies_keyed`. `CellKey::Hash` entries are only invalidated when that sub-value
-    /// changes, `CellKey::Provisional` entries like `cell_dependents`.
+    /// `cell_dependencies_keyed`. `CellKeyKind::Hash` entries are only invalidated when that
+    /// sub-value changes, `CellKeyKind::Provisional` entries like `cell_dependents`.
     #[field(
         storage = "auto_set",
         category = "data",
@@ -678,7 +682,33 @@ impl TaskStorage {
     /// # Panics
     /// Panics if `idx` is out of bounds.
     fn lazy_take_at<T>(&mut self, idx: usize, extract: impl FnOnce(LazyField) -> T) -> T {
-        extract(self.lazy.swap_remove(idx))
+        extract(self.remove_lazy_at(idx))
+    }
+
+    /// Removes the lazy field at `idx` via swap_remove.
+    ///
+    /// Fields are removed from finished tasks (e.g. `dirty` once a task is clean) long after
+    /// `cleanup_after_execution` last shrank the Vec, so shrink it once it is mostly empty. Not on
+    /// every removal: a slightly smaller `realloc` keeps the block in place and releases nothing,
+    /// but costs a call each time a field comes and goes.
+    fn remove_lazy_at(&mut self, idx: usize) -> LazyField {
+        let field = self.lazy.swap_remove(idx);
+        self.lazy.shrink_amortized();
+        field
+    }
+
+    /// The index of the lazy field matched by `matches`, creating it with `create` if absent.
+    fn get_or_create_lazy_index(
+        &mut self,
+        matches: impl Fn(&LazyField) -> bool,
+        create: impl FnOnce() -> LazyField,
+    ) -> usize {
+        if let Some(idx) = self.lazy.iter().position(matches) {
+            idx
+        } else {
+            self.lazy.push_exact(create());
+            self.lazy.len() - 1
+        }
     }
 
     /// Get or create a lazy field, returning a mutable reference.
@@ -704,14 +734,8 @@ impl TaskStorage {
         extract: impl for<'a> FnOnce(&'a mut LazyField) -> &'a mut T,
         create: impl FnOnce() -> LazyField,
     ) -> &mut T {
-        // Find the index of matching field (immutable borrow)
-        let idx = self.lazy.iter().position(matches);
-        if let Some(idx) = idx {
-            extract(&mut self.lazy[idx])
-        } else {
-            self.lazy.push(create());
-            extract(self.lazy.last_mut().unwrap())
-        }
+        let idx = self.get_or_create_lazy_index(matches, create);
+        extract(&mut self.lazy[idx])
     }
 
     /// Take a lazy field by predicate, removing it from the Vec.
@@ -726,7 +750,7 @@ impl TaskStorage {
         extract: impl FnOnce(LazyField) -> T,
     ) -> Option<T> {
         let idx = self.lazy.iter().position(matches)?;
-        Some(extract(self.lazy.swap_remove(idx)))
+        Some(extract(self.remove_lazy_at(idx)))
     }
 
     /// Set a lazy field value, replacing any existing value.
@@ -745,7 +769,7 @@ impl TaskStorage {
             let old = std::mem::replace(&mut self.lazy[idx], new_value);
             Some(extract(old))
         } else {
-            self.lazy.push(new_value);
+            self.lazy.push_exact(new_value);
             None
         }
     }
@@ -800,7 +824,7 @@ impl TaskStorage {
         };
         if should_track_activeness {
             let activeness = ActivenessState::new_root(root_type, task_id);
-            self.lazy.push(LazyField::Activeness(activeness));
+            self.lazy.push_exact(LazyField::Activeness(activeness));
         }
 
         // Set the task as scheduled so it can be executed
@@ -818,6 +842,31 @@ impl TaskStorage {
             done_event,
             reason: TaskExecutionReason::Root,
         });
+    }
+
+    /// Captures the aggregation edges of this task for verification of the aggregation graph.
+    /// Returns `None` when metadata is not restored. Edgeless resident tasks must be included:
+    /// another task can reference them, and placement verification needs both aggregation numbers.
+    #[cfg(any(test, feature = "verify_aggregation_graph"))]
+    pub fn aggregation_edges_for_verification(
+        &self,
+        task_id: TaskId,
+    ) -> Option<crate::backend::operation::TaskAggregationEdges> {
+        if !self.flags.is_restored(TaskDataCategory::Meta) {
+            return None;
+        }
+        let upper: Vec<_> = self.upper().iter().map(|(&id, &c)| (id, c)).collect();
+        let followers: Vec<_> = self
+            .followers()
+            .into_iter()
+            .flat_map(|f| f.iter().map(|(&id, &c)| (id, c)))
+            .collect();
+        Some(crate::backend::operation::TaskAggregationEdges {
+            task_id,
+            aggregation_number: self.get_aggregation_number().map_or(0, |a| a.effective),
+            upper,
+            followers,
+        })
     }
 
     /// Returns counts for aggregation tree and collectibles fields.

@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 #[cfg(feature = "task_dirty_cause")]
 use turbo_tasks::TaskDirtyCause;
 use turbo_tasks::{
-    CellId, CellKey, FxIndexMap, TaskId, TypedSharedReference, ValueTypePersistence,
+    CellId, CellKey, CellKeyKind, FxIndexMap, TaskId, TypedSharedReference, ValueTypePersistence,
     backend::{CellContent, CellHash, VerificationMode},
     registry,
 };
@@ -103,7 +103,14 @@ pub fn update_cell(
         #[cfg(feature = "task_dirty_cause")]
         let has_updated_key_hashes = updated_key_hashes.is_some();
         let updated_key_hashes_set = updated_key_hashes.map(|updated_key_hashes| {
-            LazyCell::new(|| updated_key_hashes.into_iter().collect::<FxHashSet<u64>>())
+            // Built with `CellKey::hash`, which drops the top bit of each hash like the stored
+            // keys.
+            LazyCell::new(|| {
+                updated_key_hashes
+                    .into_iter()
+                    .map(CellKey::hash)
+                    .collect::<FxHashSet<CellKey>>()
+            })
         });
 
         // Collect dependent tasks only when not skipping invalidation.
@@ -136,15 +143,15 @@ pub fn update_cell(
                 if dependent_cell != cell {
                     continue;
                 }
-                let affected = match key {
+                let affected = match key.kind() {
                     // Hashed dependents: invalidate only when the changed sub-value (key)
                     // matches.
-                    CellKey::Hash(key_hash) => updated_key_hashes_set
+                    CellKeyKind::Hash(_) => updated_key_hashes_set
                         .as_ref()
-                        .is_none_or(|set| set.contains(&key_hash)),
+                        .is_none_or(|set| set.contains(&key)),
                     // Provisional `keyed_reader()` / `lazy_reader()` read dependents: always
                     // invalidate, like keyless dependents.
-                    CellKey::Provisional(_) => true,
+                    CellKeyKind::Provisional(_) => true,
                 };
                 if affected {
                     dependent_tasks
@@ -169,9 +176,9 @@ pub fn update_cell(
             // tasks and after that set the new cell content. When the cell content is unset,
             // readers will wait for it to be set via InProgressCell.
             //
-            // `CellKey::Provisional` dependents collected here are always invalidated by
+            // `CellKeyKind::Provisional` dependents collected here are always invalidated by
             // `invalidate_cell_dependents`, even when the dependency was refined or converted (to
-            // `CellKey::Hash` dependencies, nothing, or a full dependency) in the meantime.
+            // `CellKeyKind::Hash` dependencies, nothing, or a full dependency) in the meantime.
 
             let old_content = task.remove_cell_data(&cell, &value_type.persistence);
 
@@ -262,19 +269,19 @@ fn invalidate_cell_dependents(
         let mut dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
         for key in keys.iter().copied() {
             let (in_outdated, in_current) = match key {
-                Some(key @ CellKey::Hash(_)) => {
+                Some(key) if !key.is_provisional() => {
                     let in_outdated =
                         dependent.outdated_cell_dependencies_keyed_contains(&(cell_ref, key));
                     let in_current = !in_outdated
                         && dependent.cell_dependencies_keyed_contains(&(cell_ref, key));
                     (in_outdated, in_current)
                 }
-                Some(CellKey::Provisional(_)) => {
+                Some(_) => {
                     // The provisional dependency might have been refined in the meantime (to a
                     // full dependency when the execution of the dependent completed, to
-                    // `CellKey::Hash` dependencies when its `KeyedReadRef` was dropped, or removed
-                    // when its unaccessed `LazyReadRef` was dropped). Assume the worst case and
-                    // always invalidate.
+                    // `CellKeyKind::Hash` dependencies when its `KeyedReadRef` was dropped, or
+                    // removed when its unaccessed `LazyReadRef` was dropped). Assume the worst case
+                    // and always invalidate.
                     (false, true)
                 }
                 None => {
@@ -311,9 +318,9 @@ fn invalidate_cell_dependents(
                 value_type: cell_ref.cell.type_id(),
                 keys: if has_updated_key_hashes {
                     keys.iter()
-                        .map(|key| match key {
-                            Some(CellKey::Hash(k)) => Some(*k),
-                            None | Some(CellKey::Provisional(_)) => None,
+                        .map(|key| match key.map(CellKey::kind) {
+                            Some(CellKeyKind::Hash(k)) => Some(k),
+                            None | Some(CellKeyKind::Provisional(_)) => None,
                         })
                         .collect()
                 } else {
@@ -389,11 +396,11 @@ mod invalidate_cell_dependents_tests {
     }
 
     fn hash(k: u64) -> Option<CellKey> {
-        Some(CellKey::Hash(k))
+        Some(CellKey::hash(k))
     }
 
     fn provisional(id: u32) -> Option<CellKey> {
-        Some(CellKey::Provisional(id))
+        Some(CellKey::provisional(id))
     }
 
     /// The `cell_dependents` entry of [`DEPENDENT`] for [`cell_ref`].
@@ -450,18 +457,18 @@ mod invalidate_cell_dependents_tests {
                 },
             )));
             for k in setup.current_keys {
-                let _ = dependent.add_cell_dependencies_keyed((cell_ref(), CellKey::Hash(k)));
+                let _ = dependent.add_cell_dependencies_keyed((cell_ref(), CellKey::hash(k)));
             }
             for k in setup.outdated_keys {
                 let _ =
-                    dependent.add_outdated_cell_dependencies_keyed((cell_ref(), CellKey::Hash(k)));
+                    dependent.add_outdated_cell_dependencies_keyed((cell_ref(), CellKey::hash(k)));
             }
             if setup.current_unkeyed {
                 let _ = dependent.add_cell_dependencies(cell_ref());
             }
             for id in setup.current_provisional {
                 let _ =
-                    dependent.add_cell_dependencies_keyed((cell_ref(), CellKey::Provisional(id)));
+                    dependent.add_cell_dependencies_keyed((cell_ref(), CellKey::provisional(id)));
             }
         }
 
@@ -541,8 +548,8 @@ mod invalidate_cell_dependents_tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn hash_refined_provisional_read_dependency_dirty_and_stale() {
         // The `Provisional` dependent was collected, but its `KeyedReadRef` was dropped in the
-        // meantime and refined it to `CellKey::Hash` dependencies on keys that didn't change. The
-        // invalidation must not be lost.
+        // meantime and refined it to `CellKeyKind::Hash` dependencies on keys that didn't change.
+        // The invalidation must not be lost.
         let setup = Setup {
             current_keys: vec![7],
             ..Default::default()
@@ -571,9 +578,9 @@ mod invalidate_cell_dependents_tests {
                 ctx.task_pair(task(CELL_TASK), task(DEPENDENT), TaskDataCategory::All);
             // Two `keyed_reader()` reads of the same cell, and a hashed read.
             for key in [
-                CellKey::Provisional(0),
-                CellKey::Provisional(1),
-                CellKey::Hash(5),
+                CellKey::provisional(0),
+                CellKey::provisional(1),
+                CellKey::hash(5),
             ] {
                 let _ = cell_task.add_cell_dependents_keyed((reverse_ref(), key));
                 let _ = dependent.add_cell_dependencies_keyed((cell_ref(), key));
@@ -594,7 +601,7 @@ mod invalidate_cell_dependents_tests {
         let (cell_task, dependent) =
             ctx.task_pair(task(CELL_TASK), task(DEPENDENT), TaskDataCategory::All);
         // The `Provisional` dependencies became a full dependency, on both sides of the edge.
-        for key in [CellKey::Provisional(0), CellKey::Provisional(1)] {
+        for key in [CellKey::provisional(0), CellKey::provisional(1)] {
             assert!(!dependent.cell_dependencies_keyed_contains(&(cell_ref(), key)));
             assert!(!cell_task.cell_dependents_keyed_contains(&(reverse_ref(), key)));
         }
@@ -602,8 +609,8 @@ mod invalidate_cell_dependents_tests {
         assert!(!dependent.outdated_cell_dependencies_contains(&cell_ref()));
         assert!(cell_task.cell_dependents_contains(&reverse_ref()));
         // Hashed dependencies are untouched.
-        assert!(dependent.cell_dependencies_keyed_contains(&(cell_ref(), CellKey::Hash(5))));
-        assert!(cell_task.cell_dependents_keyed_contains(&(reverse_ref(), CellKey::Hash(5))));
+        assert!(dependent.cell_dependencies_keyed_contains(&(cell_ref(), CellKey::hash(5))));
+        assert!(cell_task.cell_dependents_keyed_contains(&(reverse_ref(), CellKey::hash(5))));
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -616,8 +623,8 @@ mod invalidate_cell_dependents_tests {
             let mut ctx = ExecuteContext::new(tt.backend(), &tt);
             let (mut cell_task, mut dependent) =
                 ctx.task_pair(task(CELL_TASK), task(DEPENDENT), TaskDataCategory::All);
-            let _ = cell_task.add_cell_dependents_keyed((reverse_ref(), CellKey::Provisional(0)));
-            let _ = dependent.add_cell_dependencies_keyed((cell_ref(), CellKey::Provisional(0)));
+            let _ = cell_task.add_cell_dependents_keyed((reverse_ref(), CellKey::provisional(0)));
+            let _ = dependent.add_cell_dependencies_keyed((cell_ref(), CellKey::provisional(0)));
         }
 
         tt.backend().refine_provisional_cell_dependency(
@@ -631,8 +638,8 @@ mod invalidate_cell_dependents_tests {
 
         let mut ctx = ExecuteContext::new(tt.backend(), &tt);
         let dependent = ctx.task(task(DEPENDENT), TaskDataCategory::All);
-        assert!(dependent.cell_dependencies_keyed_contains(&(cell_ref(), CellKey::Provisional(0))));
-        assert!(!dependent.cell_dependencies_keyed_contains(&(cell_ref(), CellKey::Hash(1))));
+        assert!(dependent.cell_dependencies_keyed_contains(&(cell_ref(), CellKey::provisional(0))));
+        assert!(!dependent.cell_dependencies_keyed_contains(&(cell_ref(), CellKey::hash(1))));
     }
 
     #[tokio::test(flavor = "multi_thread")]

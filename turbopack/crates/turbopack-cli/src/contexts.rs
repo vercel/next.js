@@ -7,13 +7,12 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     ModuleAssetContext,
     module_options::{
-        EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
+        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
         TypescriptTransformOptions,
     },
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
 use turbopack_core::{
-    chunk::SourceMapsType,
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo},
     condition::ContextCondition,
@@ -22,6 +21,7 @@ use turbopack_core::{
     free_var_references,
     ident::Layer,
     resolve::options::ImportMap,
+    source_map::{SourceMapGenerationOptions, SourceMapType},
 };
 use turbopack_node::{
     execution_context::ExecutionContext, transforms::postcss::PostCssTransformOptions,
@@ -93,10 +93,19 @@ async fn get_client_module_options_context(
     execution_context: ResolvedVc<ExecutionContext>,
     env: ResolvedVc<Environment>,
     node_env: Vc<NodeEnv>,
-    source_maps_type: SourceMapsType,
+    source_maps_type: Option<SourceMapType>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let is_dev = matches!(*node_env.await?, NodeEnv::Development);
+    let source_map_generation_options = SourceMapGenerationOptions::from_emitted(source_maps_type);
     let module_options_context = ModuleOptionsContext {
+        ecmascript: EcmascriptOptionsContext {
+            source_map_generation_options,
+            ..Default::default()
+        },
+        css: CssOptionsContext {
+            source_map_generation_options,
+            ..Default::default()
+        },
         environment: Some(env),
         execution_context: Some(execution_context),
         follow_reexports: true,
@@ -127,7 +136,6 @@ async fn get_client_module_options_context(
             enable_typescript_transform: Some(
                 TypescriptTransformOptions::default().resolved_cell(),
             ),
-            source_maps: source_maps_type,
             ..module_options_context.ecmascript.clone()
         },
         enable_postcss_transform: Some(PostCssTransformOptions::default().resolved_cell()),
@@ -148,7 +156,7 @@ pub fn get_client_asset_context(
     execution_context: Vc<ExecutionContext>,
     compile_time_info: Vc<CompileTimeInfo>,
     node_env: Vc<NodeEnv>,
-    source_maps_type: SourceMapsType,
+    source_maps_type: Option<SourceMapType>,
 ) -> Vc<Box<dyn AssetContext>> {
     let resolve_options_context =
         get_client_resolve_options_context(project_path.clone(), node_env);
