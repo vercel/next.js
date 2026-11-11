@@ -694,24 +694,13 @@ impl TaskStorage {
 
     /// Removes the lazy field at `idx` via swap_remove.
     ///
-    /// Fields removed while the task executes usually come back, and `cleanup_after_execution`
-    /// shrinks the Vec when the execution completes, so then it is only shrunk once mostly empty.
-    /// Fields removed from a task that isn't executing (e.g. `dirty` once the task is clean) leave
-    /// a slot nothing would reclaim, so then it is shrunk to fit. Removing `in_progress` itself
-    /// counts as executing: it is replaced when an execution starts, and removed right before that
-    /// cleanup when it completes.
+    /// Fields are removed from finished tasks (e.g. `dirty` once a task is clean) long after
+    /// `cleanup_after_execution` last shrank the Vec, so shrink it once it is mostly empty. Not on
+    /// every removal: a slightly smaller `realloc` keeps the block in place and releases nothing,
+    /// but costs a call each time a field comes and goes.
     fn remove_lazy_at(&mut self, idx: usize) -> LazyField {
         let field = self.lazy.swap_remove(idx);
-        let executing = matches!(field, LazyField::InProgress(_))
-            || self
-                .lazy
-                .iter()
-                .any(|field| matches!(field, LazyField::InProgress(_)));
-        if executing {
-            self.lazy.shrink_amortized();
-        } else {
-            self.lazy.shrink_to_fit();
-        }
+        self.lazy.shrink_amortized();
         field
     }
 
@@ -913,8 +902,11 @@ impl TaskStorage {
         self.get_transient_ref_count().copied().unwrap_or(0)
     }
 
-    /// Whether the task is active. See [`ActivenessAccessors::is_active`].
-    fn is_active(&self) -> bool {
+    /// Whether the task is active: a non-zero active count, or an `activeness_state`. Both are
+    /// needed: a root task or one kept active until clean has a state while its count can be `0`
+    /// (the count only lives in the state, as [`ACTIVE_COUNT_SPILLED`], when it doesn't fit the
+    /// inline `i16`).
+    pub(crate) fn is_active(&self) -> bool {
         self.get_active_count().is_some_and(|&count| count != 0)
             || self.get_activeness_state().is_some()
     }
@@ -1112,9 +1104,9 @@ pub(crate) const ACTIVE_COUNT_SPILLED: i16 = i16::MIN;
 /// [`ActivenessState`] in the lazy `activeness_state` field (only for roots, tasks kept active
 /// until clean, and counts that don't fit the `i16`). A task is active when either is present.
 pub(crate) trait ActivenessAccessors: TaskStorageAccessors {
-    /// Whether the task is active: a non-zero active count, or root / active-until-clean state.
+    /// Whether the task is active, see [`TaskStorage::is_active`].
     fn is_active(&self) -> bool {
-        self.get_active_count().is_some_and(|&count| count != 0) || self.has_activeness_state()
+        self.typed().is_active()
     }
 
     /// The number of active tasks keeping this task active. Can be negative under races.
