@@ -79,7 +79,7 @@ use std::{
 
 use indexmap::map::Entry;
 use ringmap::RingSet;
-use rustc_hash::{FxBuildHasher, FxHashMap};
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use smallvec::{SmallVec, smallvec};
 #[cfg(feature = "trace_aggregation_update_queue")]
 use tracing::span::Span;
@@ -164,6 +164,38 @@ fn get_followers_with_aggregation_number(
 /// aggregating over the follower tasks and they should be aggregated by all upper tasks.
 fn get_followers(task: &TaskGuard<'_>) -> TaskIdVec {
     get_followers_with_aggregation_number(task, get_aggregation_number(task))
+}
+
+/// Splits `task_ids` into the first occurrence of each id (in order) and the remaining
+/// occurrences. Batched task access needs unique ids, the remaining occurrences are handled one
+/// by one.
+fn split_duplicates(task_ids: TaskIdVec) -> (TaskIdVec, TaskIdVec) {
+    // Small lists are checked without allocating.
+    if task_ids.len() <= 8 {
+        let mut unique = TaskIdVec::new();
+        let mut duplicates = TaskIdVec::new();
+        for task_id in task_ids {
+            if unique.contains(&task_id) {
+                duplicates.push(task_id);
+            } else {
+                unique.push(task_id);
+            }
+        }
+        return (unique, duplicates);
+    }
+    let mut seen = FxHashSet::with_capacity_and_hasher(task_ids.len(), FxBuildHasher);
+    let mut duplicates = TaskIdVec::new();
+    let unique = task_ids
+        .into_iter()
+        .filter(|&task_id| {
+            let is_new = seen.insert(task_id);
+            if !is_new {
+                duplicates.push(task_id);
+            }
+            is_new
+        })
+        .collect();
+    (unique, duplicates)
 }
 
 /// Iterates the real follower edges of a task, skipping debt (counts `<= 0`).
@@ -1751,9 +1783,7 @@ impl AggregationUpdateQueue {
                     self.decrease_active_count(ctx, task);
                 }
                 AggregationUpdateJob::DecreaseActiveCounts { task_ids } => {
-                    for task_id in task_ids {
-                        self.decrease_active_count(ctx, task_id);
-                    }
+                    self.decrease_active_counts(ctx, task_ids);
                 }
                 AggregationUpdateJob::IncreaseActiveCount {
                     task,
@@ -1762,11 +1792,7 @@ impl AggregationUpdateQueue {
                     self.increase_active_count(ctx, task, release_construction_ref);
                 }
                 AggregationUpdateJob::IncreaseActiveCounts { task_ids } => {
-                    for task_id in task_ids {
-                        self.increase_active_count(
-                            ctx, task_id, /* release_construction_ref */ false,
-                        );
-                    }
+                    self.increase_active_counts(ctx, task_ids);
                 }
             }
             false
@@ -3208,14 +3234,43 @@ impl AggregationUpdateQueue {
     ///
     /// Only used when activeness is tracked.
     fn decrease_active_count(&mut self, ctx: &mut ExecuteContext<'_>, task_id: TaskId) {
-        #[cfg(feature = "trace_aggregation_update")]
-        let _span = trace_span!("decrease active count").entered();
-
-        let mut task = ctx.task(
+        let task = ctx.task(
             task_id,
             // For performance reasons this should stay `Meta` and not `All`
             AGGREGATION_UPDATE_CATEGORY,
         );
+        self.decrease_active_count_of(ctx, task);
+    }
+
+    /// Decreases the active count of each task in `task_ids`, a task as often as it occurs.
+    ///
+    /// Opens the tasks as a batch, so tasks that aren't in memory are restored with one batched
+    /// read instead of one read per task.
+    ///
+    /// Only used when activeness is tracked.
+    fn decrease_active_counts(&mut self, ctx: &mut ExecuteContext<'_>, task_ids: TaskIdVec) {
+        let (unique, duplicates) = split_duplicates(task_ids);
+        ctx.for_each_task(
+            unique
+                .into_iter()
+                // For performance reasons this should stay `Meta` and not `All`
+                .map(|task_id| (task_id, AGGREGATION_UPDATE_CATEGORY)),
+            "decrease active counts",
+            |task, ctx| {
+                self.decrease_active_count_of(ctx, task);
+            },
+        );
+        for task_id in duplicates {
+            self.decrease_active_count(ctx, task_id);
+        }
+    }
+
+    /// Decreases the active count of the locked `task`.
+    fn decrease_active_count_of(&mut self, ctx: &mut ExecuteContext<'_>, mut task: TaskGuard<'_>) {
+        #[cfg(feature = "trace_aggregation_update")]
+        let _span = trace_span!("decrease active count").entered();
+
+        let task_id = task.id();
         self.check_optimization_pending(&task);
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
@@ -3258,15 +3313,49 @@ impl AggregationUpdateQueue {
         task_id: TaskId,
         release_construction_ref: bool,
     ) {
-        #[cfg(feature = "trace_aggregation_update")]
-        let _span = trace_span!("increase active count").entered();
-
-        let mut task = ctx.task(
+        let task = ctx.task(
             task_id,
             // For performance reasons this should stay Meta and not All.
             // persistent_task_type is now set eagerly in initialize_new_task.
             AGGREGATION_UPDATE_CATEGORY,
         );
+        self.increase_active_count_of(ctx, task, release_construction_ref);
+    }
+
+    /// Increases the active count of each task in `task_ids`, a task as often as it occurs.
+    ///
+    /// Opens the tasks as a batch, so tasks that aren't in memory are restored with one batched
+    /// read instead of one read per task.
+    ///
+    /// Only used when activeness is tracked.
+    fn increase_active_counts(&mut self, ctx: &mut ExecuteContext<'_>, task_ids: TaskIdVec) {
+        let (unique, duplicates) = split_duplicates(task_ids);
+        ctx.for_each_task(
+            unique
+                .into_iter()
+                // For performance reasons this should stay Meta and not All.
+                .map(|task_id| (task_id, AGGREGATION_UPDATE_CATEGORY)),
+            "increase active counts",
+            |task, ctx| {
+                self.increase_active_count_of(ctx, task, /* release_construction_ref */ false);
+            },
+        );
+        for task_id in duplicates {
+            self.increase_active_count(ctx, task_id, /* release_construction_ref */ false);
+        }
+    }
+
+    /// Increases the active count of the locked `task`.
+    fn increase_active_count_of(
+        &mut self,
+        ctx: &mut ExecuteContext<'_>,
+        mut task: TaskGuard<'_>,
+        release_construction_ref: bool,
+    ) {
+        #[cfg(feature = "trace_aggregation_update")]
+        let _span = trace_span!("increase active count").entered();
+
+        let task_id = task.id();
         task.assert_not_deleted("increase_active_count");
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
@@ -5553,6 +5642,149 @@ mod follower_debt_tests {
                 .await
                 .is_some()
         );
+    }
+}
+
+/// Tests of the batched `IncreaseActiveCounts` / `DecreaseActiveCounts` jobs.
+#[cfg(test)]
+mod active_count_tests {
+    use smallvec::SmallVec;
+    use turbo_tasks::{CellId, TurboTasks, ValueTypeId};
+
+    use super::{
+        AggregationUpdateJob,
+        follower_debt_tests::{FOLLOWER, id, run, setup_with_data},
+        split_duplicates,
+    };
+    use crate::{
+        backend::{
+            TaskDataCategory, TurboTasksBackend, operation::ExecuteContext,
+            storage_schema::TaskStorageAccessors,
+        },
+        data::{CellRef, OutputValue},
+    };
+
+    /// Creates the given leaf tasks. They have an output and are clean, so activating them doesn't
+    /// schedule them.
+    fn setup(tasks: &[u32]) -> std::sync::Arc<TurboTasks<TurboTasksBackend>> {
+        let tt = setup_with_data(
+            &tasks.iter().map(|&t| (t, FOLLOWER)).collect::<Vec<_>>(),
+            false,
+        );
+        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        for &task_id in tasks {
+            let mut task = ctx.task(id(task_id), TaskDataCategory::All);
+            task.set_output(OutputValue::Cell(CellRef {
+                task: id(task_id),
+                cell: CellId::new(ValueTypeId::new(1).unwrap(), 0),
+            }));
+        }
+        drop(ctx);
+        tt
+    }
+
+    fn add_follower(tt: &TurboTasks<TurboTasksBackend>, task: u32, follower: u32) {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut task = ctx.task(id(task), TaskDataCategory::Meta);
+        task.update_followers(id(follower), |_| Some(1));
+    }
+
+    /// The active counter of a task, `None` if it has no activeness state.
+    fn active_counter(tt: &TurboTasks<TurboTasksBackend>, task: u32) -> Option<i32> {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let task = ctx.task(id(task), TaskDataCategory::Meta);
+        task.get_activeness().map(|state| state.active_counter)
+    }
+
+    fn ids(ids: &[u32]) -> SmallVec<[turbo_tasks::TaskId; 4]> {
+        ids.iter().map(|&task_id| id(task_id)).collect()
+    }
+
+    #[test]
+    fn split_duplicates_keeps_first_occurrences_in_order() {
+        assert_eq!(
+            split_duplicates(ids(&[3, 1, 3, 2, 1, 3])),
+            (ids(&[3, 1, 2]), ids(&[3, 1, 3]))
+        );
+        // Larger lists use a hash set.
+        let many = (1..=20).chain([5, 7, 5]).collect::<Vec<_>>();
+        assert_eq!(
+            split_duplicates(ids(&many)),
+            (ids(&(1..=20).collect::<Vec<_>>()), ids(&[5, 7, 5]))
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn batched_active_counts_apply_duplicates_with_multiplicity() {
+        let tasks = (1..=12).collect::<Vec<_>>();
+        let tt = setup(&tasks);
+        // More than 8 ids with duplicates, so both the batch and the per-task path are used.
+        let batch = ids(&[1, 2, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2]);
+        run(
+            &tt,
+            [AggregationUpdateJob::IncreaseActiveCounts {
+                task_ids: batch.clone(),
+            }],
+        );
+        assert_eq!(active_counter(&tt, 1), Some(3));
+        assert_eq!(active_counter(&tt, 2), Some(2));
+        for task in 3..=12 {
+            assert_eq!(active_counter(&tt, task), Some(1));
+        }
+        run(
+            &tt,
+            [AggregationUpdateJob::DecreaseActiveCounts { task_ids: batch }],
+        );
+        for task in tasks {
+            assert_eq!(active_counter(&tt, task), None);
+        }
+        tt.stop_and_wait().await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn batched_active_counts_propagate_to_followers_on_transitions() {
+        let tt = setup(&[1, 2, 3, 4]);
+        add_follower(&tt, 1, 3);
+        add_follower(&tt, 2, 3);
+        add_follower(&tt, 3, 4);
+
+        // Both 1 and 2 become active, so 3 is activated twice and 4 (a follower of 3) once.
+        run(
+            &tt,
+            [AggregationUpdateJob::IncreaseActiveCounts {
+                task_ids: ids(&[1, 2]),
+            }],
+        );
+        assert_eq!(active_counter(&tt, 3), Some(2));
+        assert_eq!(active_counter(&tt, 4), Some(1));
+
+        // Another increase of 1 is not a 0 -> 1 transition and doesn't propagate.
+        run(
+            &tt,
+            [AggregationUpdateJob::IncreaseActiveCounts {
+                task_ids: ids(&[1, 1]),
+            }],
+        );
+        assert_eq!(active_counter(&tt, 1), Some(3));
+        assert_eq!(active_counter(&tt, 3), Some(2));
+
+        run(
+            &tt,
+            [AggregationUpdateJob::DecreaseActiveCounts {
+                task_ids: ids(&[1, 2, 1, 1]),
+            }],
+        );
+        for task in 1..=4 {
+            assert_eq!(active_counter(&tt, task), None);
+        }
+        // Clean up the synthetic follower edges for stop-time verification.
+        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        for (task, follower) in [(1, 3), (2, 3), (3, 4)] {
+            ctx.task(id(task), TaskDataCategory::Meta)
+                .remove_followers(&id(follower));
+        }
+        drop(ctx);
+        tt.stop_and_wait().await;
     }
 }
 
