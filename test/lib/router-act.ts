@@ -363,20 +363,19 @@ export function createRouterAct(
             // server; we pass the request to the server the immediately.
             result: (async () => {
               let originalResponse: Playwright.APIResponse
-              const method = request.method()
               try {
                 originalResponse = await page.request.fetch(request, {
                   maxRedirects: 0,
-                  // `page.request` sends requests through a pooled keep-alive
-                  // agent shared by the whole browser context. A pooled
-                  // socket can sit idle for about the server's keep-alive
-                  // timeout, then be reused just as the server closes it,
-                  // which fails with ECONNRESET. A browser transparently
-                  // retries a request that fails on a reused socket like
-                  // this, so do the same. Playwright's `maxRetries` only
-                  // retries ECONNRESET. Only idempotent requests are retried,
-                  // so a Server Action is never sent twice.
-                  maxRetries: method === 'GET' || method === 'HEAD' ? 1 : 0,
+                  // Use a fresh connection for every forwarded request.
+                  // `page.request` otherwise reuses sockets from a
+                  // process-wide keep-alive pool, which can sit idle between
+                  // `act` scopes for about the server's keep-alive timeout.
+                  // If the server's event loop is busy (e.g. rendering) when
+                  // that timeout is due, it closes the idle socket before
+                  // reading a request that was just sent on it, and the
+                  // request fails with `read ECONNRESET`. Browsers retry such
+                  // requests transparently; Playwright doesn't.
+                  headers: { ...request.headers(), connection: 'close' },
                 })
               } catch (fetchError) {
                 error.message =
