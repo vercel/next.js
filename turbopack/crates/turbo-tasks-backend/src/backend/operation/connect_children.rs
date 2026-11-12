@@ -8,13 +8,16 @@ use turbo_tasks::{
     util::{good_chunk_size, into_chunks},
 };
 
-use crate::backend::{
-    operation::{
-        AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext, TaskGuard,
-        aggregation_update::InnerOfUppersHasNewFollowersJob, get_aggregation_number, get_uppers,
-        invalidate::make_task_dirty_internal, is_aggregating_node,
+use crate::{
+    backend::{
+        operation::{
+            AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext, TaskGuard,
+            aggregation_update::InnerOfUppersHasNewFollowersJob, get_aggregation_number,
+            get_uppers, invalidate::make_task_dirty_internal, is_aggregating_node,
+        },
+        storage_schema::TaskStorageAccessors,
     },
-    storage_schema::TaskStorageAccessors,
+    data::ChildEdge,
 };
 
 pub fn connect_children(
@@ -30,7 +33,7 @@ pub fn connect_children(
     let parent_aggregation = get_aggregation_number(&parent_task);
 
     let old_children = parent_task.children_len();
-    parent_task.extend_children(new_children.iter().copied());
+    parent_task.extend_children(new_children.iter().copied().map(ChildEdge::aggregated));
     debug_assert!(
         old_children + new_children.len() == parent_task.children_len(),
         "Attempted to connect {len} new children, but some of them were already present in \

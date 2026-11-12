@@ -156,7 +156,7 @@ fn get_followers_with_aggregation_number(
     if is_aggregating_node(aggregation_number) {
         iter_positive_followers(task).collect()
     } else {
-        task.iter_children().collect()
+        task.iter_aggregated_children().collect()
     }
 }
 
@@ -3356,7 +3356,7 @@ impl AggregationUpdateQueue {
                 // followers. A leaf is never an upper, so it has no follower edges (or debt)
                 // yet. The children were already followers of the uppers, so the new edges
                 // don't need to be propagated.
-                let children: Vec<_> = task.iter_children().collect();
+                let children: Vec<_> = task.iter_aggregated_children().collect();
                 for child_id in children {
                     let change = update_follower_count(&mut task, child_id, 1);
                     debug_assert_eq!(change.old, 0, "a leaf task has no follower edges");
@@ -3377,7 +3377,7 @@ impl AggregationUpdateQueue {
                     self.push(AggregationUpdateJob::BalanceEdge { upper_id, task_id });
                 }
             } else {
-                for child_id in task.iter_children() {
+                for child_id in task.iter_aggregated_children() {
                     self.push(AggregationUpdateJob::UpdateAggregationNumber {
                         task_id: child_id,
                         base_aggregation_number: aggregation_number + 1,
@@ -3412,30 +3412,37 @@ impl AggregationUpdateQueue {
         if is_root_node(aggregation_number.effective) {
             return;
         }
-        let follower_count = if is_aggregating_node(aggregation_number.effective) {
-            let follower_count = task.followers_len();
-            if follower_count == 0 {
-                return;
-            }
-            follower_count
-        } else {
-            let children_count = task.children_len();
-            if children_count == 0 {
-                return;
-            }
-            children_count
-        };
+        let aggregating = is_aggregating_node(aggregation_number.effective);
         let upper_count = task.upper_len();
-        if upper_count <= 1
-            || upper_count.saturating_sub(1) * follower_count
-                <= max(
-                    MAX_UPPERS_FOLLOWER_PRODUCT,
-                    aggregation_number.effective as usize,
-                )
-        {
+        let needs_optimization = |follower_count: usize| {
+            follower_count > 0
+                && upper_count > 1
+                && upper_count.saturating_sub(1) * follower_count
+                    > max(
+                        MAX_UPPERS_FOLLOWER_PRODUCT,
+                        aggregation_number.effective as usize,
+                    )
+        };
+        let follower_count = if aggregating {
+            task.followers_len()
+        } else {
+            // A leaf's followers are its children in the aggregation graph. `children_len` also
+            // counts the ones outside it, so it is only a cheap upper bound.
+            task.children_len()
+        };
+        if !needs_optimization(follower_count) {
             // Doesn't need optimization
             return;
         }
+        let follower_count = if aggregating {
+            follower_count
+        } else {
+            let follower_count = task.iter_aggregated_children().count();
+            if !needs_optimization(follower_count) {
+                return;
+            }
+            follower_count
+        };
         let uppers = get_uppers(&task);
         let follower = get_followers_with_aggregation_number(&task, aggregation_number.effective);
         drop(task);
@@ -4243,7 +4250,7 @@ mod follower_debt_tests {
             operation::ExecuteContext,
             storage_schema::{ActivenessAccessors, TaskStorageAccessors},
         },
-        data::{AggregationNumber, CellRef, CollectibleRef, Dirtyness, OutputValue},
+        data::{AggregationNumber, CellRef, ChildEdge, CollectibleRef, Dirtyness, OutputValue},
         noop_backing_storage,
     };
 
@@ -5283,7 +5290,7 @@ mod follower_debt_tests {
         {
             let mut ctx = ExecuteContext::new(tt.backend(), &tt);
             ctx.task(id(2), TaskDataCategory::Meta)
-                .extend_children([id(3), id(4)]);
+                .extend_children([id(3), id(4)].map(ChildEdge::aggregated));
         }
         run(&tt, [add(9, 1), add(1, 2)]);
         assert!(

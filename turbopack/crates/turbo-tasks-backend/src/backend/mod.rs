@@ -78,8 +78,8 @@ use crate::{
     },
     backing_storage::SnapshotItem,
     data::{
-        CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState, InProgressState,
-        InProgressStateInner, LeafDistance, OutputValue, TransientTask,
+        CellRef, ChildEdge, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
+        InProgressState, InProgressStateInner, LeafDistance, OutputValue, TransientTask,
     },
     error::{TaskError, TaskErrorItem},
     kv_backing_storage::TurboBackingStorage,
@@ -505,6 +505,32 @@ impl TurboTasksBackend {
             .unwrap_or(0)
     }
 
+    /// The number of upper edges of a task (0 if it doesn't exist). Test-only hook.
+    #[doc(hidden)]
+    pub fn upper_count_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> usize {
+        let mut ctx = self.execute_context(turbo_tasks);
+        ctx.try_task(task, TaskDataCategory::Meta)
+            .map_or(0, |task| task.upper_len())
+    }
+
+    /// Whether `parent` connected `child` outside the aggregation graph (see [`ChildEdge`]).
+    /// Test-only hook.
+    #[doc(hidden)]
+    pub fn is_unaggregated_child_for_testing(
+        &self,
+        parent: TaskId,
+        child: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> bool {
+        let mut ctx = self.execute_context(turbo_tasks);
+        ctx.try_task(parent, TaskDataCategory::Meta)
+            .is_some_and(|task| task.children_contains(&ChildEdge::unaggregated(child)))
+    }
+
     /// The effective aggregation number of a task (`None` if it doesn't exist). `u32::MAX` means
     /// the task is an aggregation root. Test-only hook.
     #[doc(hidden)]
@@ -630,6 +656,9 @@ impl TurboTasksBackend {
 /// Intermediate result of step 1 of task execution completion.
 struct TaskExecutionCompletePrepareResult {
     pub new_children: FxHashSet<TaskId>,
+    /// Children connected for the first time and outside the aggregation graph (see
+    /// [`ChildEdge`]). Already added to the task's children; their parent counts are not.
+    pub new_unaggregated_children: Vec<TaskId>,
     pub is_now_immutable: bool,
     #[cfg(feature = "verify_determinism")]
     pub no_output_set: bool,
@@ -2444,8 +2473,13 @@ impl TurboTasksBackend {
              completes"
         );
 
+        // Done before `task_execution_completed_prepare`, which holds the task's lock while it
+        // decides which children are new.
+        let unaggregated_candidates = self.find_unaggregated_children(&mut ctx, task_id);
+
         let TaskExecutionCompletePrepareResult {
             new_children,
+            new_unaggregated_children,
             is_now_immutable,
             #[cfg(feature = "verify_determinism")]
             no_output_set,
@@ -2465,6 +2499,7 @@ impl TurboTasksBackend {
             #[cfg(feature = "verify_determinism")]
             stateful,
             has_invalidator,
+            unaggregated_candidates,
         ) {
             Ok(r) => r,
             Err(stale_priority) => {
@@ -2474,6 +2509,14 @@ impl TurboTasksBackend {
                 return Some(stale_priority);
             }
         };
+
+        if !new_unaggregated_children.is_empty() {
+            self.task_execution_completed_connect_unaggregated(
+                &mut ctx,
+                task_id,
+                new_unaggregated_children,
+            );
+        }
 
         #[cfg(feature = "trace_task_details")]
         span.record("new_output", new_output.is_some());
@@ -2530,6 +2573,77 @@ impl TurboTasksBackend {
         None
     }
 
+    /// Finds the children this execution connects for the first time that can be connected
+    /// outside the aggregation graph (see [`ChildEdge`]): they are immutable and have no
+    /// children (in the aggregation graph) and no collectibles. That never changes for an
+    /// immutable task, as it never runs again.
+    fn find_unaggregated_children(
+        &self,
+        ctx: &mut ExecuteContext<'_>,
+        task_id: TaskId,
+    ) -> FxHashSet<TaskId> {
+        let task = ctx.task(task_id, TaskDataCategory::Meta);
+        let Some(InProgressState::InProgress(InProgressStateInner { new_children, .. })) =
+            task.get_in_progress()
+        else {
+            return FxHashSet::default();
+        };
+        let candidates: Vec<TaskId> = new_children
+            .iter()
+            .copied()
+            .filter(|&child| !task.has_child(child))
+            .collect();
+        drop(task);
+        let mut unaggregated = FxHashSet::default();
+        if candidates.is_empty() {
+            return unaggregated;
+        }
+        ctx.for_each_task_all(candidates, "find unaggregated children", |child, _| {
+            if child.immutable()
+                && child.is_children_empty()
+                && child.is_collectibles_empty()
+                && child.is_dirty().is_none()
+            {
+                unaggregated.insert(child.id());
+            }
+        });
+        unaggregated
+    }
+
+    /// Takes a reference to the children connected outside the aggregation graph for the first
+    /// time, which `task_execution_completed_prepare` added to the task's children.
+    fn task_execution_completed_connect_unaggregated(
+        &self,
+        ctx: &mut ExecuteContext<'_>,
+        task_id: TaskId,
+        children: Vec<TaskId>,
+    ) {
+        // The same split as in `connect_children`: only a persistent parent holding a persistent
+        // child is a durable reference.
+        let parent_is_transient = task_id.is_transient();
+        ctx.for_each_task_all(
+            children.iter().copied(),
+            "connect unaggregated children",
+            |mut child, _| {
+                if parent_is_transient || child.id().is_transient() {
+                    child.update_and_get_transient_ref_count(1);
+                } else {
+                    child.update_and_get_parent_count(1);
+                }
+            },
+        );
+        if ctx.should_track_activeness() {
+            // `connect_child` held an active count on each new child until this completion. These
+            // children don't follow the task, so there is nothing to keep active.
+            AggregationUpdateQueue::run(
+                AggregationUpdateJob::DecreaseActiveCounts {
+                    task_ids: children.into_iter().collect(),
+                },
+                ctx,
+            );
+        }
+    }
+
     fn task_execution_completed_prepare(
         &self,
         ctx: &mut ExecuteContext<'_>,
@@ -2539,6 +2653,7 @@ impl TurboTasksBackend {
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
+        unaggregated_candidates: FxHashSet<TaskId>,
     ) -> Result<TaskExecutionCompletePrepareResult, TaskPriority> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let is_recomputation = task.is_dirty().is_none();
@@ -2552,6 +2667,7 @@ impl TurboTasksBackend {
         if matches!(in_progress, InProgressState::Canceled) {
             return Ok(TaskExecutionCompletePrepareResult {
                 new_children: Default::default(),
+                new_unaggregated_children: Vec::new(),
                 is_now_immutable: false,
                 #[cfg(feature = "verify_determinism")]
                 no_output_set: false,
@@ -2592,7 +2708,7 @@ impl TurboTasksBackend {
             debug_assert!(old.is_none(), "InProgress already exists");
             // Remove old children from new_children to leave only the children that had their
             // active count increased
-            for task in task.iter_children() {
+            for task in task.iter_children().map(ChildEdge::task) {
                 new_children.remove(&task);
             }
             drop(task);
@@ -2665,6 +2781,27 @@ impl TurboTasksBackend {
 
         let mut old_edges = Vec::new();
 
+        // Children outside the aggregation graph (see `ChildEdge`) are kept apart from the
+        // aggregation updates below: reconnected ones keep the mode they were connected in, old
+        // ones that weren't reconnected are outdated, and new ones are added here.
+        old_edges.extend(
+            task.iter_unaggregated_children()
+                .filter(|child| !new_children.remove(child))
+                .map(OutdatedEdge::UnaggregatedChild),
+        );
+        let new_unaggregated_children: Vec<TaskId> = unaggregated_candidates
+            .into_iter()
+            .filter(|child| new_children.remove(child))
+            .collect();
+        if !new_unaggregated_children.is_empty() {
+            task.extend_children(
+                new_unaggregated_children
+                    .iter()
+                    .copied()
+                    .map(ChildEdge::unaggregated),
+            );
+        }
+
         let has_children = !new_children.is_empty();
         let is_immutable = task.immutable();
         let task_dependencies_for_immutable =
@@ -2698,12 +2835,12 @@ impl TurboTasksBackend {
 
             // Filter actual new children
             old_edges.extend(
-                task.iter_children()
+                task.iter_aggregated_children()
                     .filter(|task| !new_children.remove(task))
                     .map(OutdatedEdge::Child),
             );
         } else {
-            old_edges.extend(task.iter_children().map(OutdatedEdge::Child));
+            old_edges.extend(task.iter_aggregated_children().map(OutdatedEdge::Child));
         }
 
         old_edges.extend(
@@ -2831,6 +2968,7 @@ impl TurboTasksBackend {
 
         Ok(TaskExecutionCompletePrepareResult {
             new_children,
+            new_unaggregated_children,
             is_now_immutable,
             #[cfg(feature = "verify_determinism")]
             no_output_set,
@@ -3902,13 +4040,30 @@ impl TurboTasksBackend {
                 //     uppers
                 // );
 
-                for child_id in task.iter_children() {
+                for child_id in task.iter_aggregated_children() {
                     // println!("{task_id}: child -> {child_id}");
                     if visited.insert(child_id) {
                         queue.push_back(child_id);
                     }
                 }
+                let unaggregated_children: Vec<_> = task.iter_unaggregated_children().collect();
                 drop(task);
+
+                // Children outside the aggregation graph must never contribute to it: they stay
+                // immutable, clean, and without children or collectibles.
+                for child_id in unaggregated_children {
+                    let child = ctx.task(child_id, TaskDataCategory::All);
+                    if !child.immutable()
+                        || child.is_dirty().is_some()
+                        || !child.is_children_empty()
+                        || !child.is_collectibles_empty()
+                    {
+                        panic!(
+                            "Task {task_id} has an unaggregated child {child_id} that contributes \
+                             to the aggregation graph"
+                        );
+                    }
+                }
 
                 if should_be_in_upper {
                     for upper_id in uppers {

@@ -48,8 +48,10 @@ pub fn connect_child(
             return;
         }
 
-        // `children` is the previous execution's set, inflated when the execution started.
-        if parent_task.children_contains(&child_task_id) {
+        // `children` is the previous execution's set, inflated when the execution started. In
+        // either mode: a child connected outside the aggregation graph stays that way (see
+        // `ChildEdge`).
+        if parent_task.has_child(child_task_id) {
             // It is already connected, we can skip the rest
             // but we still need to update the new_children set
             let Some(InProgressState::InProgress(InProgressStateInner { new_children, .. })) =

@@ -38,7 +38,7 @@ use crate::{
         storage::{SpecificTaskDataCategory, StorageWriteGuard, TaskEntryGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    data::{CellRef, CollectibleRef, Dirtyness, InProgressState, TransientTask},
+    data::{CellRef, ChildEdge, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
 
 /// Whether an [`ExecuteContext`] task open may create the task, requires it to already exist, or
@@ -1887,10 +1887,31 @@ impl<'a> TaskGuard<'a> {
             )
             .chain(
                 self.iter_children()
-                    .map(|task| (task, TaskDataCategory::All)),
+                    .map(|child| (child.task(), TaskDataCategory::All)),
             )
             .collect::<FxIndexMap<_, _>>();
         (map.len() > 1).then_some(map)
+    }
+
+    /// The children in the aggregation graph: the ones the aggregation updates follow (see
+    /// [`ChildEdge`]).
+    pub fn iter_aggregated_children(&self) -> impl Iterator<Item = TaskId> + '_ {
+        self.iter_children()
+            .filter(|child| !child.is_unaggregated())
+            .map(ChildEdge::task)
+    }
+
+    /// The children connected outside the aggregation graph (see [`ChildEdge`]).
+    pub fn iter_unaggregated_children(&self) -> impl Iterator<Item = TaskId> + '_ {
+        self.iter_children()
+            .filter(|child| child.is_unaggregated())
+            .map(ChildEdge::task)
+    }
+
+    /// Whether `child` is a child of this task, in either mode.
+    pub fn has_child(&self, child: TaskId) -> bool {
+        self.children_contains(&ChildEdge::aggregated(child))
+            || self.children_contains(&ChildEdge::unaggregated(child))
     }
 }
 
@@ -2799,15 +2820,15 @@ mod filter_transient_tracking_tests {
         // `children` is an AutoSet<TaskId> meta field with filter_transient.
         {
             let mut g = guard_for(&storage, task_id);
-            assert!(g.add_children(transient_task(2)));
+            assert!(g.add_children(ChildEdge::aggregated(transient_task(2))));
             assert!(
                 !g.meta_modified(),
                 "adding a transient child must not dirty meta"
             );
             // The entry is still stored in memory.
-            assert!(g.children_contains(&transient_task(2)));
+            assert!(g.children_contains(&ChildEdge::aggregated(transient_task(2))));
 
-            assert!(g.add_children(persistent_task(3)));
+            assert!(g.add_children(ChildEdge::aggregated(persistent_task(3))));
             assert!(
                 g.meta_modified(),
                 "adding a persistent child must dirty meta"
@@ -2822,18 +2843,18 @@ mod filter_transient_tracking_tests {
             // Seed via the tracked accessors, then clear the flag so the removal
             // assertions below start from a clean state. (`children_mut` is not
             // accessible cross-module, so we can't seed untracked here.)
-            assert!(g.add_children(transient_task(11)));
-            assert!(g.add_children(persistent_task(12)));
+            assert!(g.add_children(ChildEdge::aggregated(transient_task(11))));
+            assert!(g.add_children(ChildEdge::aggregated(persistent_task(12))));
             g.task.flags.set_meta_modified(false);
             assert!(!g.meta_modified());
 
-            assert!(g.remove_children(&transient_task(11)));
+            assert!(g.remove_children(&ChildEdge::aggregated(transient_task(11))));
             assert!(
                 !g.meta_modified(),
                 "removing a transient child must not dirty meta"
             );
 
-            assert!(g.remove_children(&persistent_task(12)));
+            assert!(g.remove_children(&ChildEdge::aggregated(persistent_task(12))));
             assert!(
                 g.meta_modified(),
                 "removing a persistent child must dirty meta"
@@ -2849,8 +2870,8 @@ mod filter_transient_tracking_tests {
         let task_id = persistent_task(1);
         {
             let mut g = guard_for(&storage, task_id);
-            g.extend_children([transient_task(2), transient_task(3)]);
-            assert!(g.children_contains(&transient_task(2)));
+            g.extend_children([transient_task(2), transient_task(3)].map(ChildEdge::aggregated));
+            assert!(g.children_contains(&ChildEdge::aggregated(transient_task(2))));
             assert!(
                 !g.meta_modified(),
                 "extending with only transient children must not dirty meta"
@@ -2861,7 +2882,7 @@ mod filter_transient_tracking_tests {
         let task_id = persistent_task(10);
         {
             let mut g = guard_for(&storage, task_id);
-            g.extend_children([transient_task(11), persistent_task(12)]);
+            g.extend_children([transient_task(11), persistent_task(12)].map(ChildEdge::aggregated));
             assert!(
                 g.meta_modified(),
                 "extending with at least one persistent child must dirty meta"
@@ -3288,7 +3309,7 @@ mod cell_data_tracking_tests {
             let mut g = guard_for(&storage, task_id);
             let cell = cell_of::<PersistableV>(0);
             g.insert_cell_data(cell, dummy_ref(), persistence_of(&cell));
-            assert!(g.add_children(persistent_task(2)));
+            assert!(g.add_children(ChildEdge::aggregated(persistent_task(2))));
         }
 
         let items: Vec<_> = shards.into_iter().flatten().collect();
@@ -3337,7 +3358,7 @@ mod cell_data_tracking_tests {
         // The tracked add copies the task (no children yet) before inserting the child.
         {
             let mut g = guard_for(&storage, task_id);
-            assert!(g.add_children(persistent_task(2)));
+            assert!(g.add_children(ChildEdge::aggregated(persistent_task(2))));
         }
 
         let items: Vec<_> = shards.into_iter().flatten().collect();

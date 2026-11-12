@@ -519,6 +519,7 @@ mod tests {
     use super::*;
     use crate::{
         BackingStorageOptions,
+        data::ChildEdge,
         database::{turbo::TurboKeyValueDatabase, write_batch::WriteBuffer},
         utils::test_temp_dir::test_temp_dir,
     };
@@ -598,7 +599,7 @@ mod tests {
         });
         task.add_upper(id(seed + 2), 1);
         assert!(task.add_output_dependencies(id(seed + 3)));
-        assert!(task.add_children(id(seed + 4)));
+        assert!(task.add_children(ChildEdge::aggregated(id(seed + 4))));
         let storage = task.0;
         let mut buffer = turbo_bincode::TurboBincodeBuffer::new();
         storage

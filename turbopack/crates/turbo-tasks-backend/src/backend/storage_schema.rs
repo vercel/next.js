@@ -35,8 +35,9 @@ use turbo_tasks::{
 use crate::{
     backend::{cell_data::CellData, counter_map::CounterMap},
     data::{
-        ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
-        InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType, TransientTask,
+        ActivenessState, AggregationNumber, CellRef, ChildEdge, CollectibleRef, CollectiblesRef,
+        Dirtyness, InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType,
+        TransientTask,
     },
 };
 
@@ -250,14 +251,16 @@ struct TaskStorageSchema {
     // =========================================================================
     // CHILDREN & AGGREGATION (meta)
     // =========================================================================
-    /// Child tasks of this task.
+    /// Child tasks of this task, each with whether it is connected outside the aggregation graph
+    /// (see [`ChildEdge`]). The aggregation updates only follow the others: use
+    /// `TaskGuard::iter_aggregated_children`.
     #[field(
         storage = "auto_set",
         category = "meta",
         filter_transient,
         shrink_on_completion
     )]
-    children: EdgeSet<TaskId, 6>,
+    children: EdgeSet<ChildEdge, 6>,
 
     /// Follower nodes in the aggregation tree (reference counted).
     ///
@@ -1068,6 +1071,11 @@ impl IsTransient for (TraitTypeId, TaskId) {
         self.1.is_transient()
     }
 }
+impl IsTransient for ChildEdge {
+    fn is_transient(&self) -> bool {
+        ChildEdge::is_transient(*self)
+    }
+}
 impl IsTransient for CellRef {
     fn is_transient(&self) -> bool {
         CellRef::is_transient(self)
@@ -1337,7 +1345,9 @@ mod tests {
         assert_eq!(storage.output_dependencies().unwrap().len(), 1);
 
         assert!(storage.children().is_none());
-        storage.children_mut().insert(TaskId::new(20).unwrap());
+        storage
+            .children_mut()
+            .insert(ChildEdge::aggregated(TaskId::new(20).unwrap()));
         assert_eq!(storage.children().unwrap().len(), 1);
 
         // Lazy counter_map
@@ -1485,8 +1495,12 @@ mod tests {
         original.flags.set_current_session_clean(true);
 
         // Set lazy meta fields (persisted)
-        original.children_mut().insert(TaskId::new(1000).unwrap());
-        original.children_mut().insert(TaskId::new(1001).unwrap());
+        original
+            .children_mut()
+            .insert(ChildEdge::aggregated(TaskId::new(1000).unwrap()));
+        original
+            .children_mut()
+            .insert(ChildEdge::aggregated(TaskId::new(1001).unwrap()));
         original
             .followers_mut()
             .insert(TaskId::new(2000).unwrap(), 4);
@@ -1542,13 +1556,13 @@ mod tests {
             decoded
                 .children()
                 .unwrap()
-                .contains(&TaskId::new(1000).unwrap())
+                .contains(&ChildEdge::aggregated(TaskId::new(1000).unwrap()))
         );
         assert!(
             decoded
                 .children()
                 .unwrap()
-                .contains(&TaskId::new(1001).unwrap())
+                .contains(&ChildEdge::aggregated(TaskId::new(1001).unwrap()))
         );
         assert_eq!(
             *decoded
@@ -1773,8 +1787,12 @@ mod tests {
         storage.upper_mut().insert(transient_task(2), 1);
 
         // Also populate a lazy filter_transient meta field.
-        storage.children_mut().insert(persistent_task(100));
-        storage.children_mut().insert(transient_task(200));
+        storage
+            .children_mut()
+            .insert(ChildEdge::aggregated(persistent_task(100)));
+        storage
+            .children_mut()
+            .insert(ChildEdge::aggregated(transient_task(200)));
 
         storage.flags.set_data_restored(true);
         storage.flags.set_meta_restored(true);
@@ -1789,14 +1807,21 @@ mod tests {
         assert_eq!(storage.upper().get(&transient_task(2)), Some(&1));
         // Lazy children: transient residue remains.
         assert_eq!(storage.children().unwrap().len(), 1);
-        assert!(storage.children().unwrap().contains(&transient_task(200)));
+        assert!(
+            storage
+                .children()
+                .unwrap()
+                .contains(&ChildEdge::aggregated(transient_task(200)))
+        );
         assert!(!storage.flags.meta_restored());
         assert!(storage.flags.data_restored());
 
         // Restore persistent meta fields.
         let mut source = TaskStorage::new();
         source.upper_mut().insert(persistent_task(1), 1);
-        source.children_mut().insert(persistent_task(100));
+        source
+            .children_mut()
+            .insert(ChildEdge::aggregated(persistent_task(100)));
 
         storage.restore_meta_from(source);
 
@@ -1805,8 +1830,18 @@ mod tests {
         assert_eq!(storage.upper().get(&persistent_task(1)), Some(&1));
         assert_eq!(storage.upper().get(&transient_task(2)), Some(&1));
         assert_eq!(storage.children().unwrap().len(), 2);
-        assert!(storage.children().unwrap().contains(&persistent_task(100)));
-        assert!(storage.children().unwrap().contains(&transient_task(200)));
+        assert!(
+            storage
+                .children()
+                .unwrap()
+                .contains(&ChildEdge::aggregated(persistent_task(100)))
+        );
+        assert!(
+            storage
+                .children()
+                .unwrap()
+                .contains(&ChildEdge::aggregated(transient_task(200)))
+        );
     }
 
     /// `drop_partial` on a field with no transient entries must fully reset the

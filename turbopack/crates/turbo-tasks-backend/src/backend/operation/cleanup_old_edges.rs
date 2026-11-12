@@ -17,11 +17,14 @@ use crate::{
         },
         storage_schema::{ActivenessAccessors, TaskStorageAccessors},
     },
-    data::{CellRef, CollectibleRef, CollectiblesRef},
+    data::{CellRef, ChildEdge, CollectibleRef, CollectiblesRef},
 };
 
 pub enum OutdatedEdge {
     Child(TaskId),
+    /// A child connected outside the aggregation graph (see [`ChildEdge`]): only its parent count
+    /// is released.
+    UnaggregatedChild(TaskId),
     Collectible(CollectibleRef, i32),
     /// `dependent` reads `cell`. Cleanup removes both halves of the edge, whichever side it was
     /// captured from.
@@ -48,7 +51,11 @@ pub enum OutdatedEdge {
 pub fn capture_all_edges(task: &TaskGuard<'_>) -> Vec<OutdatedEdge> {
     let task_id = task.id();
     let mut old_edges: Vec<OutdatedEdge> = Vec::new();
-    old_edges.extend(task.iter_children().map(OutdatedEdge::Child));
+    old_edges.extend(task.iter_aggregated_children().map(OutdatedEdge::Child));
+    old_edges.extend(
+        task.iter_unaggregated_children()
+            .map(OutdatedEdge::UnaggregatedChild),
+    );
     old_edges.extend(task.iter_output_dependencies().map(|output_task| {
         OutdatedEdge::OutputDependency {
             dependent: task_id,
@@ -176,7 +183,7 @@ fn cleanup_old_edges_inner(
                 let mut removed_durable = SmallVec::<[TaskId; 4]>::new();
                 let mut removed_transient = SmallVec::<[TaskId; 4]>::new();
                 children.retain(|child_id| {
-                    if task.remove_children(child_id) {
+                    if task.remove_children(&ChildEdge::aggregated(*child_id)) {
                         if parent_is_transient || child_id.is_transient() {
                             removed_transient.push(*child_id);
                         } else {
@@ -223,6 +230,45 @@ fn cleanup_old_edges_inner(
                         }
                         .into(),
                     );
+                }
+            }
+            OutdatedEdge::UnaggregatedChild(child_id) => {
+                let mut children = SmallVec::<[TaskId; 4]>::new();
+                children.push(child_id);
+                outdated.retain(|e| match e {
+                    OutdatedEdge::UnaggregatedChild(id) => {
+                        children.push(*id);
+                        false
+                    }
+                    _ => true,
+                });
+                let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+                // The same split as for `Child`. These children have no aggregation edges or
+                // active counts from this task to release.
+                let parent_is_transient = task_id.is_transient();
+                let mut removed_durable = SmallVec::<[TaskId; 4]>::new();
+                let mut removed_transient = SmallVec::<[TaskId; 4]>::new();
+                for child_id in children {
+                    if task.remove_children(&ChildEdge::unaggregated(child_id)) {
+                        if parent_is_transient || child_id.is_transient() {
+                            removed_transient.push(child_id);
+                        } else {
+                            removed_durable.push(child_id);
+                        }
+                    }
+                }
+                drop(task);
+                if !removed_durable.is_empty() {
+                    queue.push(AggregationUpdateJob::AdjustParentCount {
+                        task_ids: removed_durable,
+                        delta: -1,
+                    });
+                }
+                if !removed_transient.is_empty() {
+                    queue.push(AggregationUpdateJob::AdjustTransientRefCount {
+                        task_ids: removed_transient,
+                        delta: -1,
+                    });
                 }
             }
             OutdatedEdge::Collectible(collectible, count) => {

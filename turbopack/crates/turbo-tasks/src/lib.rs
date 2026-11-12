@@ -96,7 +96,8 @@ pub use crate::{
     error::PrettyPrintError,
     fixint::{FixintU64, FixintU128},
     id::{
-        ExecutionId, FunctionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId,
+        ExecutionId, FunctionId, LocalTaskId, TASK_ID_MAX, TRANSIENT_TASK_BIT, TaskId, TraitTypeId,
+        ValueTypeId,
     },
     invalidation::{
         InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator,
