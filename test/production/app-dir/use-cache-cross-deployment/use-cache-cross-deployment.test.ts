@@ -350,6 +350,8 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       expect(match).not.toBeNull()
       const parts = JSON.parse(match![1])
       expect(parts).toBeArray()
+      expect(parts[0]).toBeString()
+      expect(parts[1]).toBeArray()
     })
 
     describe('behavioral tests', () => {

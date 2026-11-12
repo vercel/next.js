@@ -1862,18 +1862,24 @@ async function getNthCacheResult(
   return (await split)[i]
 }
 
-function appendRuntimeEnvVarStateHash(
-  encodedCacheKeyParts: string,
-  runtimeEnvVarStateHash: string | undefined
+/**
+ * Appends an element to a JSON-encoded `CacheKeyParts` tuple, producing a
+ * `CacheHandlerKeyParts` tuple, without decoding and re-encoding the key.
+ *
+ * When `encodeReply` returns a string (i.e. there are no outlined parts that
+ * require multipart encoding), it is the JSON of the root model, which is the
+ * cache key tuple. So the string must end with the tuple's closing bracket.
+ */
+function appendToCacheKeyTuple(
+  serializedCacheKey: string,
+  part: string
 ): string {
-  // The root model is the cache key tuple. Keep env var state out of the RDC
-  // key, but include it as a separate tuple element in the cache handler key.
-  return runtimeEnvVarStateHash === undefined
-    ? encodedCacheKeyParts
-    : encodedCacheKeyParts.slice(0, -1) +
-        ',' +
-        JSON.stringify([runtimeEnvVarStateHash]) +
-        ']'
+  if (!serializedCacheKey.endsWith(']')) {
+    throw new InvariantError(
+      'Expected the serialized "use cache" key to be a JSON array.'
+    )
+  }
+  return serializedCacheKey.slice(0, -1) + ',' + JSON.stringify(part) + ']'
 }
 
 async function encodeFormData(formData: FormData): Promise<string> {
@@ -2523,11 +2529,14 @@ export async function cache(
         // Convert it to an ArrayBuffer if it wants to.
         encodedCacheKeyParts
       : await encodeFormData(encodedCacheKeyParts)
+  // Scope the cache handler key, but not the RDC key, by the runtime env var
+  // state. Multipart keys are not JSON, so the hash is appended as is.
   const serializedCacheHandlerKey =
-    typeof encodedCacheKeyParts === 'string'
-      ? appendRuntimeEnvVarStateHash(serializedCacheKey, runtimeEnvVarStateHash)
-      : // Multipart keys are not JSON. Preserve their existing env var suffix.
-        serializedCacheKey + (runtimeEnvVarStateHash ?? '')
+    runtimeEnvVarStateHash === undefined
+      ? serializedCacheKey
+      : typeof encodedCacheKeyParts === 'string'
+        ? appendToCacheKeyTuple(serializedCacheKey, runtimeEnvVarStateHash)
+        : serializedCacheKey + runtimeEnvVarStateHash
 
   const rootParams = workUnitStore.rootParams
   const knownRootParamNames = knownRootParamsByFunctionId.get(id)
