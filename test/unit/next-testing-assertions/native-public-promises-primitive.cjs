@@ -10,7 +10,7 @@ async function main() {
   } = require(
     path.join(
       root,
-      'packages/next/dist/compiled/next-test-primitives',
+      'packages/next/dist/experimental/testing/primitives',
       mode === 'browser' ? 'browser/index.js' : 'index.js'
     )
   )

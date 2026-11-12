@@ -50,8 +50,8 @@ it.each(['node', 'browser'])(
         mode,
         require.resolve(
           mode === 'browser'
-            ? 'next/dist/compiled/next-test-primitives/browser'
-            : 'next/dist/compiled/next-test-primitives'
+            ? 'next/dist/experimental/testing/primitives/browser'
+            : 'next/dist/experimental/testing/primitives'
         ),
       ],
       { timeout: 15000, maxBuffer: 4 * 1024 * 1024 }

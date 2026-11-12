@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import {
   SnapshotClient,
   NodeSnapshotEnvironment,
-} from 'next/dist/compiled/next-test-primitives'
+} from 'next/dist/experimental/testing/primitives'
 
 it('restores original snapshots and removes failed-attempt additions when retry has no snapshots', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'next-snapshot-rollback-'))

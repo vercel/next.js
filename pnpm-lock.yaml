@@ -32,9 +32,6 @@ patchedDependencies:
   '@rspack/core@1.6.7':
     hash: 4cf28ea116b0e27c7c80b09035905f9d16a7b18d1f2b7d312fc80d42cd57068d
     path: patches/@rspack__core@1.6.7.patch
-  '@sinonjs/fake-timers@15.4.0':
-    hash: 8fb375421f30746697394082b6fcf4a218fe07a8db36474ac335c48aff32c0cb
-    path: patches/@sinonjs__fake-timers@15.4.0.patch
   '@types/node@20.17.7':
     hash: fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab
     path: patches/@types__node@20.17.7.patch
@@ -47,18 +44,6 @@ patchedDependencies:
   '@vercel/og@1.0.1':
     hash: 3d59af991a9f85bbc368d2891b4e965f10dd11c86b9786e79fc4a362bb01401b
     path: patches/@vercel__og@1.0.1.patch
-  '@vitest/expect@5.0.4':
-    hash: 14de10cc8fb37d8632ea47456b2dee682471fcfaa47000c7c97ba1b5ac2e2086
-    path: patches/@vitest__expect@5.0.4.patch
-  '@vitest/snapshot@5.0.4':
-    hash: 19f1ffbdd220454bc8cc8fbb5f8081f9f66dca16f710a6b8a7e92dd86051b39a
-    path: patches/@vitest__snapshot@5.0.4.patch
-  '@vitest/spy@5.0.4':
-    hash: 93ea0e5cc958b58f8ccf5c987b179942f5f396cfa66b32fc83d672eb291b1fc6
-    path: patches/@vitest__spy@5.0.4.patch
-  chai@6.3.0:
-    hash: 1763a9d16d57b1f3d44d08ebd04561cc9871350a5d4393ce8f550cd12d7e8bf1
-    path: patches/chai@6.3.0.patch
   minizlib@3.1.0:
     hash: 587688821244aaee46680929cd869947377a284ac1b30c9ae8660a5ea7d2be67
     path: patches/minizlib@3.1.0.patch
@@ -186,7 +171,7 @@ importers:
         version: 1.6.7(patch_hash=4cf28ea116b0e27c7c80b09035905f9d16a7b18d1f2b7d312fc80d42cd57068d)(@swc/helpers@0.5.23)
       '@sinonjs/fake-timers':
         specifier: 15.4.0
-        version: 15.4.0(patch_hash=8fb375421f30746697394082b6fcf4a218fe07a8db36474ac335c48aff32c0cb)
+        version: 15.4.0
       '@slack/web-api':
         specifier: 7.9.1
         version: 7.9.1
@@ -1148,18 +1133,42 @@ importers:
 
   packages/next:
     dependencies:
+      '@jridgewell/sourcemap-codec':
+        specifier: 1.6.0
+        version: 1.6.0
+      '@jridgewell/trace-mapping':
+        specifier: 0.3.31
+        version: 0.3.31
       '@next/env':
         specifier: workspace:*
         version: link:../next-env
+      '@standard-schema/spec':
+        specifier: 1.1.0
+        version: 1.1.0
       '@swc/helpers':
         specifier: 0.5.23
         version: 0.5.23
+      '@testing-library/dom':
+        specifier: 10.1.0
+        version: 10.1.0
+      '@testing-library/jest-dom':
+        specifier: 6.1.2
+        version: 6.1.2(@jest/globals@29.7.0)(@types/jest@29.5.5)(jest@29.7.0(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(babel-plugin-macros@3.1.0))(vitest@5.0.4(@edge-runtime/vm@5.0.0)(@opentelemetry/api@1.4.1)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(jsdom@20.0.3)(vite@8.3.4(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(jiti@2.6.1)(sass@1.54.0)(terser@5.39.0)(tsx@4.19.2)))
       baseline-browser-mapping:
         specifier: ^2.9.19
         version: 2.9.19
       caniuse-lite:
         specifier: 1.0.30001746
         version: 1.0.30001746
+      diff-sequences:
+        specifier: 29.6.3
+        version: 29.6.3
+      natural-compare:
+        specifier: 1.4.0
+        version: 1.4.0
+      pathe:
+        specifier: 2.0.3
+        version: 2.0.3
       postcss:
         specifier: 8.5.23
         version: 8.5.23
@@ -1169,6 +1178,12 @@ importers:
       react-dom:
         specifier: npm:react-dom@19.3.0-canary-b618bbb4-20261007
         version: 19.3.0-canary-b618bbb4-20261007(react@19.3.0-canary-b618bbb4-20261007)
+      react-is:
+        specifier: npm:react-is@19.3.0-canary-b618bbb4-20261007
+        version: 19.3.0-canary-b618bbb4-20261007
+      react-is-18:
+        specifier: npm:react-is@18.3.1
+        version: react-is@18.3.1
       sass:
         specifier: ^1.3.0
         version: 1.77.8
@@ -1449,24 +1464,6 @@ importers:
       '@vercel/turbopack-ecmascript-runtime':
         specifier: '*'
         version: link:../../turbopack/crates/turbopack-ecmascript-runtime/js
-      '@vitest/expect':
-        specifier: 5.0.4
-        version: 5.0.4(patch_hash=14de10cc8fb37d8632ea47456b2dee682471fcfaa47000c7c97ba1b5ac2e2086)
-      '@vitest/mocker':
-        specifier: 5.0.4
-        version: 5.0.4(msw@2.3.0(typescript@6.0.2))(vite@8.3.4(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(esbuild@0.25.9)(jiti@2.6.1)(sass@1.77.8)(terser@5.27.0)(tsx@4.19.2))
-      '@vitest/pretty-format':
-        specifier: 5.0.4
-        version: 5.0.4
-      '@vitest/snapshot':
-        specifier: 5.0.4
-        version: 5.0.4(patch_hash=19f1ffbdd220454bc8cc8fbb5f8081f9f66dca16f710a6b8a7e92dd86051b39a)
-      '@vitest/spy':
-        specifier: 5.0.4
-        version: 5.0.4(patch_hash=93ea0e5cc958b58f8ccf5c987b179942f5f396cfa66b32fc83d672eb291b1fc6)
-      '@vitest/utils':
-        specifier: 5.0.4
-        version: 5.0.4
       acorn:
         specifier: 8.14.0
         version: 8.14.0
@@ -1515,9 +1512,6 @@ importers:
       bytes:
         specifier: 3.1.1
         version: 3.1.1
-      chai:
-        specifier: 6.3.0
-        version: 6.3.0(patch_hash=1763a9d16d57b1f3d44d08ebd04561cc9871350a5d4393ce8f550cd12d7e8bf1)
       ci-info:
         specifier: watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540
         version: https://codeload.github.com/watson/ci-info/tar.gz/f43f6a1cefff47fb361c88cf4b943fdbcaafe540
@@ -1587,9 +1581,6 @@ importers:
       events:
         specifier: 3.3.0
         version: 3.3.0
-      expect-type:
-        specifier: 1.4.0
-        version: 1.4.0
       find-up:
         specifier: 4.1.0
         version: 4.1.0
@@ -15452,6 +15443,9 @@ packages:
     peerDependencies:
       react: 19.3.0-canary-b618bbb4-20261007
 
+  react-is@18.3.1:
+    resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
+
   react-is@19.3.0-canary-b618bbb4-20261007:
     resolution: {integrity: sha512-4M8SsXEQuyFoYp24d4dMMm0nhQtFQTHH/CgY21xjJKiVs/n4gL4ybLa2H9wejBZGsZmmMPGQDDDzhuCZShkeig==}
 
@@ -22618,7 +22612,7 @@ snapshots:
     dependencies:
       '@sinonjs/commons': 3.0.0
 
-  '@sinonjs/fake-timers@15.4.0(patch_hash=8fb375421f30746697394082b6fcf4a218fe07a8db36474ac335c48aff32c0cb)':
+  '@sinonjs/fake-timers@15.4.0':
     dependencies:
       '@sinonjs/commons': 3.0.1
 
@@ -24105,13 +24099,13 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 1.2.0
 
-  '@vitest/expect@5.0.4(patch_hash=14de10cc8fb37d8632ea47456b2dee682471fcfaa47000c7c97ba1b5ac2e2086)':
+  '@vitest/expect@5.0.4':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@types/chai': 5.2.3
-      '@vitest/spy': 5.0.4(patch_hash=93ea0e5cc958b58f8ccf5c987b179942f5f396cfa66b32fc83d672eb291b1fc6)
+      '@vitest/spy': 5.0.4
       '@vitest/utils': 5.0.4
-      chai: 6.3.0(patch_hash=1763a9d16d57b1f3d44d08ebd04561cc9871350a5d4393ce8f550cd12d7e8bf1)
+      chai: 6.3.0
       tinyrainbow: 3.2.0
 
   '@vitest/istanbul-lib-coverage@1.0.2': {}
@@ -24139,7 +24133,7 @@ snapshots:
   '@vitest/mocker@5.0.4(msw@2.3.0(typescript@6.0.2))(vite@8.3.4(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(esbuild@0.25.9)(jiti@2.6.1)(sass@1.77.8)(terser@5.27.0)(tsx@4.19.2))':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
-      '@vitest/spy': 5.0.4(patch_hash=93ea0e5cc958b58f8ccf5c987b179942f5f396cfa66b32fc83d672eb291b1fc6)
+      '@vitest/spy': 5.0.4
       estree-walker: 3.0.3
       magic-string: 1.4.3
     optionalDependencies:
@@ -24149,7 +24143,7 @@ snapshots:
   '@vitest/mocker@5.0.4(vite@8.3.4(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(jiti@2.6.1)(sass@1.54.0)(terser@5.39.0)(tsx@4.19.2))':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
-      '@vitest/spy': 5.0.4(patch_hash=93ea0e5cc958b58f8ccf5c987b179942f5f396cfa66b32fc83d672eb291b1fc6)
+      '@vitest/spy': 5.0.4
       estree-walker: 3.0.3
       magic-string: 1.4.3
     optionalDependencies:
@@ -24167,7 +24161,7 @@ snapshots:
     dependencies:
       tinyrainbow: 3.2.0
 
-  '@vitest/snapshot@5.0.4(patch_hash=19f1ffbdd220454bc8cc8fbb5f8081f9f66dca16f710a6b8a7e92dd86051b39a)':
+  '@vitest/snapshot@5.0.4':
     dependencies:
       '@vitest/pretty-format': 5.0.4
       '@vitest/utils': 5.0.4
@@ -24178,7 +24172,7 @@ snapshots:
     dependencies:
       tinyspy: 3.0.2
 
-  '@vitest/spy@5.0.4(patch_hash=93ea0e5cc958b58f8ccf5c987b179942f5f396cfa66b32fc83d672eb291b1fc6)': {}
+  '@vitest/spy@5.0.4': {}
 
   '@vitest/utils@2.0.5':
     dependencies:
@@ -25314,7 +25308,7 @@ snapshots:
       loupe: 3.2.1
       pathval: 2.0.0
 
-  chai@6.3.0(patch_hash=1763a9d16d57b1f3d44d08ebd04561cc9871350a5d4393ce8f550cd12d7e8bf1): {}
+  chai@6.3.0: {}
 
   chalk@1.1.3:
     dependencies:
@@ -33805,6 +33799,8 @@ snapshots:
       react: 19.3.0-canary-b618bbb4-20261007
       scheduler: 0.28.0-canary-b618bbb4-20261007
 
+  react-is@18.3.1: {}
+
   react-is@19.3.0-canary-b618bbb4-20261007: {}
 
   react-lifecycles-compat@3.0.4: {}
@@ -36751,7 +36747,7 @@ snapshots:
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/mocker': 5.0.4(vite@8.3.4(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(jiti@2.6.1)(sass@1.54.0)(terser@5.39.0)(tsx@4.19.2))
-      chai: 6.3.0(patch_hash=1763a9d16d57b1f3d44d08ebd04561cc9871350a5d4393ce8f550cd12d7e8bf1)
+      chai: 6.3.0
       es-module-lexer: 2.3.2
       expect-type: 1.4.0
       magic-string: 1.4.3

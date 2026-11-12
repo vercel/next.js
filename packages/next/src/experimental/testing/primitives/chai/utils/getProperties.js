@@ -1,0 +1,23 @@
+/*!
+ * Chai - getProperties utility
+ * Copyright(c) 2012-2014 Jake Luer <jake@alogicalparadox.com>
+ * MIT Licensed
+ */
+
+export function getProperties(object) {
+  let result = Object.getOwnPropertyNames(object)
+
+  function addProperty(property) {
+    if (result.indexOf(property) === -1) {
+      result.push(property)
+    }
+  }
+
+  let proto = Object.getPrototypeOf(object)
+  while (proto !== null) {
+    Object.getOwnPropertyNames(proto).forEach(addProperty)
+    proto = Object.getPrototypeOf(proto)
+  }
+
+  return result
+}
