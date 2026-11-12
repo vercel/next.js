@@ -33,8 +33,10 @@ function hasNoPreviewCookies(
 
   const nodeHeaders = headers as IncomingMessage['headers']
   let cookie: unknown
-  for (const key of Object.keys(nodeHeaders)) {
-    if (key.toLowerCase() === 'cookie') {
+  for (const key in nodeHeaders) {
+    // `for...in` also visits inherited properties, which `HeadersAdapter`
+    // (`Object.keys`) does not see.
+    if (key.toLowerCase() === 'cookie' && Object.hasOwn(nodeHeaders, key)) {
       cookie = nodeHeaders[key]
       break
     }
