@@ -142,6 +142,25 @@ export interface StartServerOptions {
   // this is dev-server only
   selfSignedCertificate?: SelfSignedCertificate
   serverFastRefresh?: boolean
+  /**
+   * Set when another process owns the public port and forwards to this
+   * server (see `front-server.ts`). Runs once this server listens, before the
+   * URLs print, and returns the public address.
+   */
+  beforeStartLog?: (privatePort: number) => Promise<PublicServer>
+  /**
+   * Bind again if the OS picks this port for a `port: 0` listener, so a
+   * front server can take it.
+   */
+  avoidPort?: number
+}
+
+/** The address clients use, when it isn't the one this server listens on. */
+export type PublicServer = {
+  hostname: string | undefined
+  port: number
+  /** Stops accepting connections and resolves once in-flight requests end. */
+  close: () => Promise<void>
 }
 
 export async function getRequestHandlers({
@@ -332,14 +351,47 @@ export async function startServer(
           ? addr?.address || hostname || 'localhost'
           : addr
       )
-      const formattedHostname =
-        !hostname || actualHostname === '0.0.0.0'
-          ? 'localhost'
-          : actualHostname === '[::]'
-            ? '[::1]'
-            : formatHostname(hostname)
-
       port = typeof addr === 'object' ? addr?.port || port : port
+
+      if (serverOptions.avoidPort && port === serverOptions.avoidPort) {
+        debug(
+          'got the public port %d for the private listener, rebinding',
+          port
+        )
+        server.close(() => server.listen(0, hostname))
+        return
+      }
+
+      // With a front server, Node listens on a private address, but URLs,
+      // `PORT` and the server's own idea of its host and port stay public, as
+      // without one. Only `__NEXT_PRIVATE_ORIGIN`, which Node uses to send
+      // requests to itself, points at the private listener.
+      const privateAppUrl = `http://${actualHostname}:${port}`
+      let publicServer: PublicServer | undefined
+      if (serverOptions.beforeStartLog) {
+        try {
+          publicServer = await serverOptions.beforeStartLog(port)
+        } catch (err) {
+          Log.error(`Failed to start server`)
+          console.error(err)
+          process.exit(1)
+        }
+      }
+      const publicHostname = publicServer ? publicServer.hostname : hostname
+      if (publicServer) {
+        port = publicServer.port
+      }
+      const publicActualHostname = publicServer
+        ? publicHostname
+          ? formatHostname(publicHostname)
+          : '[::]'
+        : actualHostname
+      const formattedHostname =
+        !publicHostname || publicActualHostname === '0.0.0.0'
+          ? 'localhost'
+          : publicActualHostname === '[::]'
+            ? '[::1]'
+            : formatHostname(publicHostname)
 
       if (portRetryCount) {
         const pid = await getProcessIdUsingPort(originalPort)
@@ -355,7 +407,8 @@ export async function startServer(
       }
 
       const networkHostname =
-        hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
+        publicHostname ??
+        getNetworkHost(isIPv6(publicActualHostname) ? 'IPv6' : 'IPv4')
 
       const protocol = selfSignedCertificate ? 'https' : 'http'
 
@@ -370,7 +423,7 @@ export async function startServer(
       // - re-use it for automatic dev server restarts with a randomly selected port
       process.env.PORT = port + ''
 
-      process.env.__NEXT_PRIVATE_ORIGIN = appUrl
+      process.env.__NEXT_PRIVATE_ORIGIN = publicServer ? privateAppUrl : appUrl
 
       // Set experimental HTTPS flag for metadata resolution
       if (selfSignedCertificate) {
@@ -418,16 +471,19 @@ export async function startServer(
 
             // first, stop accepting new connections and finish pending requests,
             // because they might affect `nextServer.close()` (e.g. by scheduling an `after`)
-            await new Promise<void>((res) => {
-              server.close((err) => {
-                if (err) console.error(err)
-                res()
-              })
-              if (isDev) {
-                server.closeAllConnections()
-                closeUpgraded?.()
-              }
-            })
+            await Promise.all([
+              new Promise<void>((res) => {
+                server.close((err) => {
+                  if (err) console.error(err)
+                  res()
+                })
+                if (isDev) {
+                  server.closeAllConnections()
+                  closeUpgraded?.()
+                }
+              }),
+              publicServer?.close(),
+            ])
 
             // now that no new requests can come in, clean up the rest
             await Promise.all([
@@ -500,7 +556,7 @@ export async function startServer(
             ? cleanupListeners.add.bind(cleanupListeners)
             : undefined,
           server,
-          hostname,
+          hostname: publicHostname,
           minimalMode,
           keepAliveTimeout,
           experimentalHttpsServer: !!selfSignedCertificate,

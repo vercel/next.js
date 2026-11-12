@@ -3,6 +3,8 @@ const glob = require('glob')
 const fs = require('fs/promises')
 const resolveFrom = require('resolve-from')
 const execa = require('execa')
+// Taskr evaluates this file without a `process` global.
+const nodeProcess = require('process')
 const recast = require('recast')
 
 export async function next__polyfill_nomodule(task, opts) {
@@ -2467,11 +2469,84 @@ export async function next_compile(task, opts) {
       'shared_re_exported',
       'shared_re_exported_esm',
       'server_wasm',
+      'front_server',
       'experimental_testing',
       'experimental_testmode',
     ],
     opts
   )
+}
+
+// The Go front server `next start` runs with __NEXT_EXPERIMENTAL_FRONT_SERVER=1
+// (src/server/front, launched by src/server/lib/front-server.ts). The binaries
+// ship in the package, so users don't need Go. Contributors without Go can
+// still build `next`: the task warns and skips locally, and fails in CI.
+const FRONT_SERVER_TARGETS = [
+  ['linux', 'amd64'],
+  ['linux', 'arm64'],
+  ['darwin', 'amd64'],
+  ['darwin', 'arm64'],
+]
+const FRONT_SERVER_MIN_GO = [1, 24]
+
+export async function front_server(task, opts) {
+  const go = nodeProcess.env.TURBOPACK_GO || 'go'
+  const goVersion = await execa(go, ['env', 'GOVERSION'], { reject: false })
+  const [major, minor] = (/^go(\d+)\.(\d+)/.exec(goVersion.stdout ?? '') || [])
+    .slice(1)
+    .map(Number)
+  const [minMajor, minMinor] = FRONT_SERVER_MIN_GO
+  const hasGo =
+    goVersion.exitCode === 0 &&
+    (major > minMajor || (major === minMajor && minor >= minMinor))
+  if (!hasGo) {
+    const message = `Go ${minMajor}.${minMinor}+ not found (tried "${go}"; set TURBOPACK_GO to pick another), so the next-front binaries for __NEXT_EXPERIMENTAL_FRONT_SERVER were not built.`
+    if (nodeProcess.env.CI) {
+      throw new Error(message)
+    }
+    console.warn(`warning: ${message}`)
+    return
+  }
+
+  const targets = opts.dev
+    ? [
+        [
+          nodeProcess.platform,
+          { x64: 'amd64', arm64: 'arm64' }[nodeProcess.arch],
+        ],
+      ]
+    : FRONT_SERVER_TARGETS
+  const outDir = join(__dirname, 'dist/server/front')
+  for (const [goos, goarch] of targets) {
+    if (!FRONT_SERVER_TARGETS.some(([o, a]) => o === goos && a === goarch)) {
+      console.warn(
+        `warning: next-front has no build for ${nodeProcess.platform}/${nodeProcess.arch}.`
+      )
+      continue
+    }
+    await execa(
+      go,
+      [
+        'build',
+        '-trimpath',
+        '-buildvcs=false',
+        '-ldflags=-s -w',
+        '-o',
+        join(outDir, `next-front-${goos}-${goarch}`),
+        '.',
+      ],
+      {
+        cwd: join(__dirname, 'src/server/front'),
+        env: {
+          CGO_ENABLED: '0',
+          GOOS: goos,
+          GOARCH: goarch,
+          GOTOOLCHAIN: 'local',
+        },
+        stdio: 'inherit',
+      }
+    )
+  }
 }
 
 export async function compile(task, opts) {
@@ -2791,6 +2866,7 @@ export default async function (task) {
   await task.watch('src/bin', 'bin', opts)
   await task.watch('src/pages', 'pages', opts)
   await task.watch('src/server', ['server', 'server_esm', 'server_wasm'], opts)
+  await task.watch('src/server/front/*.go', 'front_server', opts)
   await task.watch('src/api', 'api_esm', opts)
   await task.watch(
     'src/build',

@@ -182,6 +182,13 @@ jobs:
           node scripts/set-preview-version.js "${{ github.sha }}"
           pnpm install --no-frozen-lockfile
 
+      # Builds the next-front binaries that ship in the next package.
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.24.x'
+          cache: false
+
       - run: pnpm run build
 
       - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
