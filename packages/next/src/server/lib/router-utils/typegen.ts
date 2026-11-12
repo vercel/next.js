@@ -444,7 +444,10 @@ function getPrerenderMatcherKeyValidation(
   route: string | undefined,
   type: string
 ): string {
-  return route && (type === 'AppPageConfig' || type === 'LayoutConfig')
+  return route &&
+    (type === 'AppPageConfig' ||
+      type === 'LayoutConfig' ||
+      type === 'RouteHandlerConfig')
     ? `
   type __ParamMatchingValue =
     typeof handler extends { unstable_paramMatching: infer Matcher } ? Matcher :
@@ -554,7 +557,7 @@ export function generateValidatorFile(
   // Build type definitions based on what's actually used
   let typeDefinitions = ''
 
-  if (appPageValidations || layoutValidations) {
+  if (appPageValidations || layoutValidations || appRouteHandlerValidations) {
     typeDefinitions += PRERENDER_MATCHER_TYPE_DEFINITIONS
   }
 
@@ -626,7 +629,7 @@ export function generateValidatorFile(
   DELETE?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
   HEAD?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
   OPTIONS?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
-}
+} & ParamMatchingExports<Route>
 
 `
   }
@@ -803,7 +806,7 @@ export function generateValidatorFileStrict(
   // Build type definitions based on what's actually used
   let typeDefinitions = ''
 
-  if (appPageValidations || layoutValidations) {
+  if (appPageValidations || layoutValidations || appRouteHandlerValidations) {
     typeDefinitions += PRERENDER_MATCHER_TYPE_DEFINITIONS
   }
 
@@ -875,7 +878,7 @@ export function generateValidatorFileStrict(
   DELETE?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
   HEAD?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
   OPTIONS?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
-}
+} & ParamMatchingExports<Route>
 
 `
   }
