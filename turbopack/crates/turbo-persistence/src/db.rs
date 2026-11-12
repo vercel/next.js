@@ -1254,7 +1254,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             seq += 1;
         }
 
-        self.parallel_scheduler.block_in_place(|| {
+        {
             if has_delete_file {
                 sst_seq_numbers_to_delete.sort_unstable();
                 for seqs in &mut meta_seq_numbers_to_delete {
@@ -1368,9 +1368,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             })() {
                 eprintln!("turbo-persistence: failed to write LOG after commit {seq:08}: {e:#}");
             }
-
-            anyhow::Ok(())
-        })?;
+        }
 
         // ── Phase C: structurally update inner (CURRENT is already durable). ──
         //
@@ -2126,7 +2124,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     );
 
                     let mut keys_written = 0;
-                    self.parallel_scheduler.block_in_place(|| {
+                    {
                         let guard = log_mutex.lock();
                         let mut log = self.open_log()?;
                         writeln!(log, "{family:3} | {meta_seq:08} | Compaction:",)?;
@@ -2187,9 +2185,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         }
                         drop(log);
                         drop(guard);
-
-                        anyhow::Ok(())
-                    })?;
+                    }
 
                     for f in sst_files_to_delete.iter() {
                         meta_file_builder.add_obsolete_sst_file(f.seq);
@@ -2197,9 +2193,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
                     let new_meta_file = {
                         let _span = tracing::trace_span!("write meta file").entered();
-                        let (file, size) = self
-                            .parallel_scheduler
-                            .block_in_place(|| meta_file_builder.write(&self.path, meta_seq))?;
+                        let (file, size) = meta_file_builder.write(&self.path, meta_seq)?;
                         NewFile {
                             seq: meta_seq,
                             file,

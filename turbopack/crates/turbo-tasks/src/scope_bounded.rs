@@ -7,9 +7,15 @@
 //!
 //! Use [`scope_unbounded`](crate::scope_unbounded::scope_unbounded) instead when a running job can
 //! discover more work, so the total isn't known up front.
+//!
+//! By default a caller that has to wait for jobs still running on helpers wraps that wait in
+//! [`tokio::task::block_in_place`], so the runtime can keep running other work. Wrap the call in
+//! [`without_block_in_place`] to wait by parking instead. This keeps tokio from turning the
+//! worker into a blocking-pool thread and spawning a replacement.
 
 use std::{
     any::Any,
+    cell::Cell,
     marker::PhantomData,
     num::NonZeroUsize,
     panic::{self, AssertUnwindSafe, catch_unwind},
@@ -31,7 +37,44 @@ use crate::{TurboTasksApi, manager::try_turbo_tasks, turbo_tasks_scope};
 /// A job placed on the work queue: its result-slot index and the closure to run.
 type WorkQueueJob = (usize, Box<dyn FnOnce() + Send + 'static>);
 
+thread_local! {
+    /// Set while running inside [`without_block_in_place`] on this thread.
+    static WITHOUT_BLOCK_IN_PLACE: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Runs `f` so that every [`scope_bounded`] (and every `crate::parallel` helper) it calls waits for
+/// its jobs by parking, without calling [`tokio::task::block_in_place`].
+///
+/// `block_in_place` gives up the worker's scheduler slot. The thread becomes a blocking-pool thread
+/// and tokio starts a replacement worker. With many short parallel sections this grows the blocking
+/// pool by up to one idle thread per worker, and every thread keeps its own allocator heap alive
+/// until tokio's keep-alive expires. In this mode the calling worker stays a worker instead.
+///
+/// The mode carries over to the jobs: helpers that run jobs of a scope created in this mode run
+/// them in this mode too, so nested scopes behave the same on every thread. Waiting never depends
+/// on another task being scheduled, because the caller drains the queue itself first. This holds
+/// as long as the jobs are independent, which [`scope_bounded`] requires anyway.
+///
+/// The trade-off is that the calling worker is not available to other tasks while it waits.
+pub fn without_block_in_place<R>(f: impl FnOnce() -> R) -> R {
+    struct Restore(bool);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            WITHOUT_BLOCK_IN_PLACE.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(WITHOUT_BLOCK_IN_PLACE.with(|flag| flag.replace(true)));
+    f()
+}
+
+fn is_without_block_in_place() -> bool {
+    WITHOUT_BLOCK_IN_PLACE.with(Cell::get)
+}
+
 struct ScopeInner {
+    /// Whether waiting may use `block_in_place`. Captured when the scope is created; see
+    /// [`without_block_in_place`].
+    allow_block_in_place: bool,
     main_thread: Thread,
     remaining_tasks: AtomicUsize,
     /// The first panic that occurred in the tasks, by task index.
@@ -79,12 +122,20 @@ impl ScopeInner {
             timeout_remaining = TIMEOUT - elapsed;
         }
 
-        // Park with block_in_place to allow to continue other work
-        block_in_place(|| {
+        let park_until_done = || {
             while self.remaining_tasks.load(Ordering::Acquire) != 0 {
                 thread::park();
             }
-        });
+        };
+        if self.allow_block_in_place {
+            // Park with block_in_place to allow to continue other work
+            block_in_place(park_until_done);
+        } else {
+            // Keep this thread's worker slot: no blocking-pool hand-off (see
+            // `without_block_in_place`). Only jobs already running elsewhere are left, because
+            // the queue was drained inline before waiting.
+            park_until_done();
+        }
     }
 
     fn wait_and_rethrow_panic(&self) {
@@ -115,7 +166,9 @@ pub struct Scope<'scope, 'env: 'scope, R: Send + 'env> {
     inner: Arc<ScopeInner>,
     /// Sending end of the work queue. The only sender; `Drop` takes it to close the queue.
     work_queue: Option<Sender<WorkQueueJob>>,
-    handle: Handle,
+    /// The runtime to spawn helpers on. `None` outside of a tokio runtime, in which case the
+    /// calling thread runs every job itself.
+    handle: Option<Handle>,
     /// Max number of threads to use, threads are only spawned when needed. The calling thread
     /// counts towards this budget, so we spawn at most `worker_tasks - 1` helpers.
     worker_tasks: NonZeroUsize,
@@ -137,15 +190,18 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
     ///
     /// The caller must ensure `Scope` is dropped and not forgotten.
     unsafe fn new(results: &'scope [Mutex<Option<R>>]) -> Self {
-        let handle = Handle::current();
+        let handle = Handle::try_current().ok();
         // Never use more threads than there are jobs, or than the runtime has workers.
-        let worker_tasks = NonZeroUsize::new(handle.metrics().num_workers().min(results.len()))
+        let worker_tasks = handle
+            .as_ref()
+            .and_then(|handle| NonZeroUsize::new(handle.metrics().num_workers().min(results.len())))
             .unwrap_or(NonZeroUsize::MIN);
         let (sender, receiver) = mpmc::channel();
         Self {
             results,
             index: AtomicUsize::new(0),
             inner: Arc::new(ScopeInner {
+                allow_block_in_place: !is_without_block_in_place(),
                 main_thread: thread::current(),
                 remaining_tasks: AtomicUsize::new(0),
                 panic: Mutex::new(None),
@@ -202,17 +258,28 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
             .expect("receiver is owned by inner and outlives the scope");
 
         // Spawn a tokio worker for each job until we hit the max `worker_tasks`.
-        if index < self.worker_tasks.get() - 1 {
+        if index < self.worker_tasks.get() - 1
+            && let Some(handle) = &self.handle
+        {
             let inner = self.inner.clone();
             let span = self.span.clone();
             let turbo_tasks = self.turbo_tasks.clone();
-            self.handle.spawn(async move {
+            handle.spawn(async move {
                 let _span = span.entered();
+                let run_jobs = || {
+                    if inner.allow_block_in_place {
+                        inner.run_jobs();
+                    } else {
+                        // Nested scopes created by these jobs must not hand off this worker
+                        // either.
+                        without_block_in_place(|| inner.run_jobs());
+                    }
+                };
                 if let Some(turbo_tasks) = turbo_tasks {
                     // Ensure that the turbo tasks context is maintained across the jobs.
-                    turbo_tasks_scope(turbo_tasks, || inner.run_jobs());
+                    turbo_tasks_scope(turbo_tasks, run_jobs);
                 } else {
-                    inner.run_jobs();
+                    run_jobs();
                 }
             });
         }
@@ -249,6 +316,9 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Drop for Scope<'scope, 'env, R> {
 /// other code running concurrently in the same task will be suspended during the call to
 /// block_in_place. This can happen e.g. when using the `join!` macro. To avoid this issue, call
 /// `scope_bounded` in `spawn_blocking`.
+///
+/// Inside [`without_block_in_place`] the caller waits by parking instead of calling
+/// block_in_place. Outside of a tokio runtime the calling thread runs every job itself.
 pub fn scope_bounded<'env, F, R>(number_of_tasks: usize, f: F) -> impl Iterator<Item = R>
 where
     R: Send + 'env,
@@ -393,6 +463,157 @@ mod tests {
             elapsed < (JOBS as u32 * PER_JOB) / 2,
             "scope_bounded took {elapsed:?}; expected parallel speedup across worker threads"
         );
+    }
+
+    /// Runs `JOBS` jobs from a runtime worker thread so that the caller has to wait for jobs still
+    /// running on helpers. Every job also starts a nested scope. Returns the results and how many
+    /// blocking-pool threads the runtime gained.
+    async fn run_jobs_caller_waits_on_helpers(without: bool) -> (Vec<usize>, usize) {
+        const JOBS: usize = 16;
+        const HELPER_JOB: Duration = Duration::from_millis(100);
+        const WAIT_FOR_HELPER: Duration = Duration::from_secs(2);
+        tokio::spawn(async move {
+            let metrics = Handle::current().metrics();
+            let before = metrics.num_blocking_threads();
+            let caller = thread::current().id();
+            let helper_started = &std::sync::atomic::AtomicBool::new(false);
+            let run = || {
+                scope_bounded(JOBS, |scope| {
+                    for i in 0..JOBS {
+                        scope.spawn(move || {
+                            // The mode carries over to helper threads and nested scopes.
+                            assert_eq!(is_without_block_in_place(), without);
+                            let nested = scope_bounded(2, |scope| {
+                                scope.spawn(move || i);
+                                scope.spawn(move || i);
+                            })
+                            .sum::<usize>()
+                                / 2;
+                            if thread::current().id() == caller {
+                                // Make sure some job is running on a helper, so the caller has to
+                                // wait for it after draining the queue.
+                                let started = Instant::now();
+                                while !helper_started.load(Ordering::Acquire)
+                                    && started.elapsed() < WAIT_FOR_HELPER
+                                {
+                                    thread::yield_now();
+                                }
+                            } else {
+                                helper_started.store(true, Ordering::Release);
+                                thread::sleep(HELPER_JOB);
+                            }
+                            nested
+                        });
+                    }
+                })
+                .collect::<Vec<_>>()
+            };
+            let results = if without {
+                without_block_in_place(run)
+            } else {
+                run()
+            };
+            assert!(helper_started.load(Ordering::Acquire));
+            let after = metrics.num_blocking_threads();
+            (results, after.saturating_sub(before))
+        })
+        .await
+        .unwrap()
+    }
+
+    /// Inside `without_block_in_place`, a caller waiting for helper jobs keeps its worker, so the
+    /// blocking pool does not grow.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_without_block_in_place_does_not_grow_blocking_pool() {
+        let (results, new_blocking_threads) = run_jobs_caller_waits_on_helpers(true).await;
+        assert_eq!(results, (0..16).collect::<Vec<_>>());
+        assert_eq!(
+            new_blocking_threads, 0,
+            "without_block_in_place must not hand workers off to the blocking pool"
+        );
+    }
+
+    /// The default mode waits with `block_in_place`, which moves workers to the blocking pool. This
+    /// is what `without_block_in_place` avoids, and it shows the test above can detect it.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_default_mode_grows_blocking_pool() {
+        let (results, new_blocking_threads) = run_jobs_caller_waits_on_helpers(false).await;
+        assert_eq!(results, (0..16).collect::<Vec<_>>());
+        assert!(new_blocking_threads > 0);
+    }
+
+    /// Without `block_in_place`, a caller on a runtime worker must still finish when every other
+    /// worker is occupied, because it drains the queue itself.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_without_block_in_place_other_workers_occupied() {
+        const JOBS: usize = 64;
+        const RELEASE_AFTER: Duration = Duration::from_secs(4);
+
+        let ready = Arc::new(AtomicUsize::new(0));
+        let occupier = {
+            let ready = ready.clone();
+            tokio::spawn(async move {
+                ready.fetch_add(1, Ordering::SeqCst);
+                thread::sleep(RELEASE_AFTER);
+            })
+        };
+        while ready.load(Ordering::SeqCst) < 1 {
+            tokio::task::yield_now().await;
+        }
+
+        let started = Instant::now();
+        let results = tokio::spawn(async move {
+            without_block_in_place(|| {
+                scope_bounded(JOBS, |scope| {
+                    for i in 0..JOBS {
+                        scope.spawn(move || i);
+                    }
+                })
+                .collect::<Vec<_>>()
+            })
+        })
+        .await
+        .unwrap();
+        assert!(started.elapsed() < RELEASE_AFTER / 2);
+        assert_eq!(results, (0..JOBS).collect::<Vec<_>>());
+        occupier.await.unwrap();
+    }
+
+    /// Outside of a tokio runtime the calling thread runs every job itself.
+    #[test]
+    fn test_scope_outside_runtime() {
+        let results = thread::spawn(|| {
+            scope_bounded(16, |scope| {
+                for i in 0..16 {
+                    scope.spawn(move || {
+                        // Nested scopes work too.
+                        scope_bounded(1, |scope| scope.spawn(move || i)).sum::<usize>()
+                    });
+                }
+            })
+            .collect::<Vec<_>>()
+        })
+        .join()
+        .unwrap();
+        assert_eq!(results, (0..16).collect::<Vec<_>>());
+    }
+
+    /// The mode is restored when `without_block_in_place` returns or unwinds.
+    #[test]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
+    fn test_without_block_in_place_restores_mode() {
+        assert!(!is_without_block_in_place());
+        without_block_in_place(|| {
+            assert!(is_without_block_in_place());
+            without_block_in_place(|| assert!(is_without_block_in_place()));
+            assert!(is_without_block_in_place());
+        });
+        assert!(!is_without_block_in_place());
+        let _ = catch_unwind(|| without_block_in_place(|| panic!("Intentional panic")));
+        assert!(!is_without_block_in_place());
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

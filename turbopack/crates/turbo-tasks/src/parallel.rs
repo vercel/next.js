@@ -4,6 +4,9 @@
 //! tokio. It also avoid having multiple thread pools.
 //!
 //! See also: <https://pwy.io/posts/mimalloc-cigarette/>
+//!
+//! Wrap calls in [`without_block_in_place`] to keep waiting callers from handing their worker off
+//! to tokio's blocking pool.
 
 use std::{
     env, io,
@@ -12,6 +15,7 @@ use std::{
     thread,
 };
 
+pub use crate::scope_bounded::without_block_in_place;
 use crate::{
     scope_bounded::scope_bounded,
     util::{Chunk, good_chunk_size, into_chunks},
