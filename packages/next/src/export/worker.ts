@@ -65,6 +65,7 @@ import {
   getStaticGenerationProfiler,
   getStaticWorkerId,
 } from './static-generation-profile'
+import { mapWithConcurrency } from './helpers/map-with-concurrency'
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
 }
@@ -591,20 +592,33 @@ export async function exportPages(
     return { result, path, page, pageKey }
   }
 
-  try {
-    for (let i = 0; i < exportPaths.length; i += maxConcurrency) {
-      const subset = exportPaths.slice(i, i + maxConcurrency)
+  const retryCount = nextConfig.experimental.staticGenerationRetryCount ?? 1
 
-      const subsetResults = await Promise.all(
-        subset.map((exportPath) =>
-          exportPageWithRetry(
-            exportPath,
-            nextConfig.experimental.staticGenerationRetryCount ?? 1
+  try {
+    if (nextConfig.experimental.staticGenerationAdaptive) {
+      // Rolling window: start the next page as soon as any page finishes, so
+      // a slow page only occupies its own slot. Results keep the order of
+      // `exportPaths`; the RDC seed selection in `export/index.ts` relies on
+      // it when several seeds match.
+      results.push(
+        ...(await mapWithConcurrency(
+          exportPaths,
+          maxConcurrency,
+          (exportPath) => exportPageWithRetry(exportPath, retryCount)
+        ))
+      )
+    } else {
+      for (let i = 0; i < exportPaths.length; i += maxConcurrency) {
+        const subset = exportPaths.slice(i, i + maxConcurrency)
+
+        const subsetResults = await Promise.all(
+          subset.map((exportPath) =>
+            exportPageWithRetry(exportPath, retryCount)
           )
         )
-      )
 
-      results.push(...subsetResults)
+        results.push(...subsetResults)
+      }
     }
   } finally {
     profiledCall?.end(phase, exportPaths.length)

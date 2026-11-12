@@ -26,6 +26,9 @@ if (env.BENCH_CHUNK_SIZE) {
 /** @type {import('next').NextConfig} */
 module.exports = {
   experimental,
+  // A fixed build id keeps prerendered output byte-comparable across builds,
+  // so the runner can check that scheduler changes don't change output.
+  generateBuildId: () => 'static-generation-bench',
   // Keep the benchmark focused on static generation.
   typescript: { ignoreBuildErrors: true },
   // The repo root is the workspace root.

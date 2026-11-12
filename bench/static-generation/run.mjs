@@ -11,6 +11,7 @@
 // `.next/diagnostics/static-generation-summary.json` afterwards.
 
 import { spawn } from 'node:child_process'
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
@@ -82,6 +83,38 @@ function runBuild(fixtureDir, env) {
   })
 }
 
+// Digest of the prerendered output (HTML, RSC, segment data, metadata), so
+// runs with different scheduler settings can be checked for identical output.
+function outputDigest(distDir) {
+  const roots = ['server/app', 'server/pages'].map((p) => path.join(distDir, p))
+  const entries = []
+  const walk = (dir) => {
+    if (!fs.existsSync(dir)) return
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        walk(full)
+      } else if (!/\.(js|map|nft\.json)$|manifest/.test(entry.name)) {
+        const hash = crypto
+          .createHash('sha1')
+          .update(fs.readFileSync(full))
+          .digest('hex')
+        entries.push(`${path.relative(distDir, full)} ${hash}`)
+      }
+    }
+  }
+  roots.forEach(walk)
+  entries.sort()
+  return {
+    files: entries.length,
+    digest: crypto
+      .createHash('sha1')
+      .update(entries.join('\n'))
+      .digest('hex')
+      .slice(0, 12),
+  }
+}
+
 const OOM_PATTERN =
   /heap out of memory|Reached heap limit|ERR_WORKER_OUT_OF_MEMORY|signal: SIGKILL|signal: SIGABRT/
 
@@ -116,6 +149,9 @@ try {
         : null
       const oomCount = (output.match(new RegExp(OOM_PATTERN, 'g')) || []).length
       const ok = code === 0
+      const prerendered = ok
+        ? outputDigest(path.join(fixtureDir, '.next'))
+        : null
       const result = {
         label,
         fixture,
@@ -134,6 +170,8 @@ try {
           ? Math.round(summary.peakPostGcHeap / MB)
           : null,
         fetchHitRate: summary?.fetchHitRate ?? null,
+        outputFiles: prerendered?.files ?? null,
+        outputDigest: prerendered?.digest ?? null,
         pages: summary?.pages ?? null,
         workers: summary?.workers ?? null,
         perWorker: summary?.perWorker?.map((w) => ({
@@ -176,6 +214,7 @@ console.table(
     'meanIdlePct',
     'peakRssMB',
     'fetchHitRate',
+    'outputDigest',
   ]
 )
 if (out) {
