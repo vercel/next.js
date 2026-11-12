@@ -186,9 +186,7 @@ export async function generateSharedTypes({
       typesDir,
     })
   } finally {
-    await lockfile?.unlock().catch(() => {
-      // The operating system releases the lock when the process exits.
-    })
+    await lockfile?.unlock()
   }
 }
 
