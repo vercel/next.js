@@ -2578,7 +2578,7 @@ pub fn turbo_tasks_future_scope<T>(
 /// Spawns `future` on another worker thread as part of the current task execution and returns a
 /// [`JoinHandle`] for its result.
 ///
-/// Unlike [`spawn`][crate::spawn], the future shares the current task's state, just like a local
+/// Unlike [`spawn`][crate::spawn()], the future shares the current task's state, just like a local
 /// task does: reads of cells and outputs in it are tracked as dependencies of the current task,
 /// and the task execution doesn't complete before the future has finished (or has been dropped).
 /// Use it to spread work that reads many cells over several threads, e.g. when the reads restore
