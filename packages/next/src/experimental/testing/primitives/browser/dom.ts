@@ -5,4 +5,4 @@ export const domMatchers = Object.fromEntries(
   Object.entries(matcherExports).filter(
     ([name, matcher]) => name !== 'default' && typeof matcher === 'function'
   )
-)
+) as typeof matcherExports

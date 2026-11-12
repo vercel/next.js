@@ -108,17 +108,17 @@ export type Optionalify<T, TOptionalKeys> = [TOptionalKeys] extends [never]
     ) extends infer X ? {[K in keyof X]: X[K]} : never // this `extends infer X` trick makes the types more readable - it flattens the props from the intersection into a single type.
 
 /**
- * @internal
+ * Internal type helper.
  */
 const inverted = Symbol('inverted')
 
 /**
- * @internal
+ * Internal type helper.
  */
 type Inverted<T> = { [inverted]: T }
 
 /**
- * @internal
+ * Internal type helper.
  */
 const expectNull = Symbol('expectNull')
 export type ExpectNull<T> = {
@@ -127,7 +127,7 @@ export type ExpectNull<T> = {
 }
 
 /**
- * @internal
+ * Internal type helper.
  */
 const expectUndefined = Symbol('expectUndefined')
 export type ExpectUndefined<T> = {
@@ -136,7 +136,7 @@ export type ExpectUndefined<T> = {
 }
 
 /**
- * @internal
+ * Internal type helper.
  */
 const expectNumber = Symbol('expectNumber')
 export type ExpectNumber<T> = {
@@ -145,7 +145,7 @@ export type ExpectNumber<T> = {
 }
 
 /**
- * @internal
+ * Internal type helper.
  */
 const expectString = Symbol('expectString')
 export type ExpectString<T> = {
@@ -154,7 +154,7 @@ export type ExpectString<T> = {
 }
 
 /**
- * @internal
+ * Internal type helper.
  */
 const expectBoolean = Symbol('expectBoolean')
 export type ExpectBoolean<T> = {
@@ -163,7 +163,7 @@ export type ExpectBoolean<T> = {
 }
 
 /**
- * @internal
+ * Internal type helper.
  */
 const expectVoid = Symbol('expectVoid')
 export type ExpectVoid<T> = {
@@ -172,7 +172,7 @@ export type ExpectVoid<T> = {
 }
 
 /**
- * @internal
+ * Internal type helper.
  */
 const expectFunction = Symbol('expectFunction')
 export type ExpectFunction<T> = {
@@ -181,7 +181,7 @@ export type ExpectFunction<T> = {
 }
 
 /**
- * @internal
+ * Internal type helper.
  */
 const expectObject = Symbol('expectObject')
 export type ExpectObject<T> = {
@@ -190,7 +190,7 @@ export type ExpectObject<T> = {
 }
 
 /**
- * @internal
+ * Internal type helper.
  */
 const expectArray = Symbol('expectArray')
 export type ExpectArray<T> = {
@@ -199,7 +199,7 @@ export type ExpectArray<T> = {
 }
 
 /**
- * @internal
+ * Internal type helper.
  */
 const expectSymbol = Symbol('expectSymbol')
 export type ExpectSymbol<T> = {
@@ -208,25 +208,25 @@ export type ExpectSymbol<T> = {
 }
 
 /**
- * @internal
+ * Internal type helper.
  */
 const expectAny = Symbol('expectAny')
 export type ExpectAny<T> = { [expectAny]: T; result: IsAny<T> }
 
 /**
- * @internal
+ * Internal type helper.
  */
 const expectUnknown = Symbol('expectUnknown')
 export type ExpectUnknown<T> = { [expectUnknown]: T; result: IsUnknown<T> }
 
 /**
- * @internal
+ * Internal type helper.
  */
 const expectNever = Symbol('expectNever')
 export type ExpectNever<T> = { [expectNever]: T; result: IsNever<T> }
 
 /**
- * @internal
+ * Internal type helper.
  */
 const expectNullable = Symbol('expectNullable')
 export type ExpectNullable<T> = {
@@ -235,7 +235,7 @@ export type ExpectNullable<T> = {
 }
 
 /**
- * @internal
+ * Internal type helper.
  */
 const expectBigInt = Symbol('expectBigInt')
 export type ExpectBigInt<T> = {

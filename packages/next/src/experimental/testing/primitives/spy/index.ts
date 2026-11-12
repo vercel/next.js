@@ -58,7 +58,7 @@ const writeMockRestoreOwner = Function.prototype.call.bind(
 ) => void
 let activeMockRestorationObservation: MockRestorationObservation | undefined
 
-/** @internal Next-only synchronous actual restoration occurrences. */
+/** Next-only synchronous actual restoration occurrences. */
 export function createMockRestorationObservation(): Readonly<{
   run<T>(callback: () => T): T
   take(): readonly MockRestorationCall[] | undefined

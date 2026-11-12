@@ -162,7 +162,7 @@ export type StrictEqualUsingBranding<
 > = MutuallyExtends<DeepBrand<Left, Options>, DeepBrand<Right, Options>>
 
 /**
- * @internal don't use this unless you are deeply familiar with it!
+ * Internal type helper; do not use unless you are deeply familiar with it!
  *
  * Walks over a type `T`, assuming that it's the output of the {@linkcode DeepBrand} utility. It looks for leaf nodes looking like `{type: FindType}`.
  * When it finds them, it merges them into a string->string record, keeping track of a rough representation of the path-location.
@@ -228,7 +228,7 @@ export type DeepBrandPropNotes<T, Options extends DeepBrandPropNotesOptions> =
     : never
 
 /**
- * @internal
+ * Internal type helper.
  *
  * Helper to coerce a type `K` that you are already pretty sure is a string because it camed from a `keyof T` type expression.
  * Useful because sometimes TypeScript forgets that.

@@ -46,13 +46,13 @@ export type Eq<Left extends boolean, Right extends boolean> = Left extends true
 export type Xor<Types extends [boolean, boolean]> = Not<Eq<Types[0], Types[1]>>
 
 /**
- * @internal
+ * Internal type helper.
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Preserve the upstream unique-symbol brand.
 const secret = Symbol('secret')
 
 /**
- * @internal
+ * Internal type helper.
  */
 type Secret = typeof secret
 
@@ -129,7 +129,7 @@ export type ReadonlyKeys<T> = Extract<{
 /**
  * Determines if two types, are equivalent in a `readonly` manner.
  *
- * @internal
+ * Internal type helper.
  */
 type ReadonlyEquivalent<X, Y> = Extends<
   (<T>() => T extends X ? true : false), (<T>() => T extends Y ? true : false)
@@ -182,12 +182,12 @@ export type MutuallyExtends<Left, Right> = And<
 >
 
 /**
- * @internal
+ * Internal type helper.
  */
 const mismatch = Symbol('mismatch')
 
 /**
- * @internal
+ * Internal type helper.
  */
 type Mismatch = { [mismatch]: 'mismatch' }
 
@@ -197,7 +197,7 @@ type Mismatch = { [mismatch]: 'mismatch' }
  * for {@linkcode PositiveExpectTypeOf.toEqualTypeOf | .toEqualTypeOf()} and
  * {@linkcode PositiveExpectTypeOf.toMatchTypeOf | .toMatchTypeOf()}.
  *
- * @internal
+ * Internal type helper.
  */
 const avalue = Symbol('avalue')
 

@@ -13,3 +13,7 @@ JSDoc and unique-symbol declarations with focused lint annotations, and apply
 repository formatting. The runtime
 and compile-time API match the original version, including compatibility type
 exports. See [LICENSE](./LICENSE) for the original Apache-2.0 license and copyright.
+
+Support declarations use ordinary comments so the normal Next.js declaration
+build retains the unique-symbol brands and type helpers with `stripInternal`
+enabled.
