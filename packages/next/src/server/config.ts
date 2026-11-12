@@ -1851,6 +1851,17 @@ function finalizeConfig(
     config.supportsImmutableAssets = true
   }
 
+  // Lets CI run existing test suites with the adaptive static generation
+  // scheduler without editing every fixture.
+  if (
+    process.env.__NEXT_TEST_MODE &&
+    process.env.__NEXT_EXPERIMENTAL_STATIC_GENERATION_ADAPTIVE === 'true' &&
+    config.experimental &&
+    config.experimental.staticGenerationAdaptive === undefined
+  ) {
+    config.experimental.staticGenerationAdaptive = true
+  }
+
   // Normalize again for Adapters that only set config.experimental.supportsImmutableAssets for now.
   if (
     config.supportsImmutableAssets !==

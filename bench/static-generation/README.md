@@ -43,6 +43,15 @@ with `NEXT_STATIC_GENERATION_PROFILE=1`, and prints:
 - `fetchHitRate` – fetch cache hits / lookups.
 - `oomCount` – out-of-memory crashes seen in the build output.
 
+Compare settings within one session, back to back (for example with
+`--label=a` and `--label=b` runs interleaved). On shared or virtualized
+machines, absolute times can shift by 20% or more between sessions.
+
+The runner also prints `outputDigest` (raw bytes of the prerendered output)
+and `normalizedDigest` (the same with RSC rows sorted). Raw bytes depend on
+which pages hit the fetch cache, which depends on page placement; see
+`output-digest.mjs`.
+
 ## Profiling any app
 
 `NEXT_STATIC_GENERATION_PROFILE=1 next build` works on any app. Workers write
