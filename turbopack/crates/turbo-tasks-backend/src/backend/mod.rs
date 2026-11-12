@@ -505,6 +505,19 @@ impl TurboTasksBackend {
             .unwrap_or(0)
     }
 
+    /// The effective aggregation number of a task (`None` if it doesn't exist). `u32::MAX` means
+    /// the task is an aggregation root. Test-only hook.
+    #[doc(hidden)]
+    pub fn aggregation_number_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Option<u32> {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let task = ctx.try_task(task, TaskDataCategory::Meta)?;
+        Some(get_aggregation_number(&task))
+    }
+
     /// The GC roots set as currently persisted on disk (task id -> [`TtlCounter`]).
     #[doc(hidden)]
     pub fn persisted_gc_roots_for_testing(&self) -> Vec<(TaskId, TtlCounter)> {

@@ -3454,6 +3454,7 @@ impl AggregationUpdateQueue {
         let follower = get_followers_with_aggregation_number(&task, aggregation_number.effective);
         drop(task);
 
+        // Root uppers (persistent or transient) among `uppers`. Root followers are not counted.
         let mut root_uppers = 0;
 
         #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -3466,7 +3467,10 @@ impl AggregationUpdateQueue {
             .map(|&id| (id, Type::Upper))
             .chain(follower.iter().map(|&id| (id, Type::Follower)))
             .filter_map(|(task_id, ty)| {
-                if task_id.is_transient() {
+                // Transient tasks never take part in the search for a new aggregation number.
+                // Transient uppers are still checked for being roots (transient root and once
+                // tasks are).
+                if task_id.is_transient() && ty == Type::Follower {
                     return None;
                 }
                 let task = ctx.task(
@@ -3476,13 +3480,41 @@ impl AggregationUpdateQueue {
                 );
                 let n = get_aggregation_number(&task);
                 if is_root_node(n) {
-                    root_uppers += 1;
+                    if ty == Type::Upper {
+                        root_uppers += 1;
+                    }
+                    None
+                } else if task_id.is_transient() {
                     None
                 } else {
                     Some((n, ty))
                 }
             })
             .collect::<Vec<_>>();
+
+        // A root aggregates its whole subgraph, so this task stays an inner node of every root
+        // upper, whatever its aggregation number is. Increasing the aggregation number can't
+        // remove root upper edges, so count all root uppers as a single upper. Otherwise every
+        // additional root over an existing subgraph would make large parts of that subgraph
+        // look like they need optimization, and raising their aggregation numbers would
+        // restructure the subgraph without reducing the number of upper edges.
+        let upper_count = if root_uppers > 1 {
+            // `root_uppers` counts a subset of `uppers`, so this can't underflow.
+            upper_count - (root_uppers - 1)
+        } else {
+            upper_count
+        };
+        if upper_count <= 1
+            || (upper_count - 1) * follower_count
+                <= max(
+                    MAX_UPPERS_FOLLOWER_PRODUCT,
+                    aggregation_number.effective as usize,
+                )
+        {
+            // Doesn't need optimization
+            return;
+        }
+
         aggregation_numbers.sort_unstable();
 
         let Some((mut new_aggregation_number, _)) = aggregation_numbers.first().copied() else {
@@ -5388,6 +5420,139 @@ mod follower_debt_tests {
         let tt = setup(&[(1, UPPER), (2, FOLLOWER)]);
         run(&tt, [remove(1, 2)]);
         tt.backend().verify_aggregation_edges();
+    }
+
+    /// The aggregation number of the task that is optimized in the `optimize_*` tests. It is
+    /// aggregating, but lower than all of its followers.
+    const OPTIMIZED: u32 = 20;
+    /// The task that is optimized in the `optimize_*` tests.
+    const TASK: u32 = 1;
+    /// First id of the followers in the `optimize_*` tests.
+    const FIRST_FOLLOWER: u32 = 1000;
+    /// Number of followers in the `optimize_*` tests. Large enough that two uppers exceed the
+    /// optimization threshold.
+    const FOLLOWERS: u32 = 40;
+
+    fn transient_id(id: u32) -> u32 {
+        id | turbo_tasks::TRANSIENT_TASK_BIT
+    }
+
+    /// Sets up `TASK` with the given uppers `(id, aggregation number)`, `FOLLOWERS` followers
+    /// with aggregation number `FOLLOWER` and the given additional followers. A follower count
+    /// of `-1` in `extra_followers` is debt. Runs `optimize_task` on `TASK` and returns the
+    /// aggregation number it wants to raise `TASK` to, if any. Removes the synthetic edges
+    /// afterwards.
+    async fn optimize_with(
+        uppers: &[(u32, u32)],
+        extra_followers: &[(u32, u32, i32)],
+    ) -> Option<u32> {
+        let followers = (0..FOLLOWERS)
+            .map(|i| (FIRST_FOLLOWER + i, FOLLOWER, 1))
+            .chain(extra_followers.iter().copied())
+            .collect::<Vec<_>>();
+        let tasks = std::iter::once((TASK, OPTIMIZED))
+            .chain(uppers.iter().copied())
+            .chain(followers.iter().map(|&(id, n, _)| (id, n)))
+            .collect::<Vec<_>>();
+        let tt = setup_with_data(&tasks, false);
+        let result = {
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            {
+                let mut task = ctx.task(id(TASK), TaskDataCategory::Meta);
+                for &(upper, _) in uppers {
+                    assert!(task.update_upper_count(id(upper), 1));
+                }
+                for &(follower, _, count) in &followers {
+                    task.update_followers(id(follower), |_| Some(count));
+                }
+            }
+            let mut queue = AggregationUpdateQueue::new();
+            queue.optimize_task(&mut ctx, id(TASK));
+            let result = queue
+                .aggregation_number_updates
+                .get(&id(TASK))
+                .map(|update| update.base_aggregation_number);
+            // Restore the synthetic edges for stop-time verification and don't execute the
+            // queued jobs: this isolates the decision of the heuristic.
+            let mut task = ctx.task(id(TASK), TaskDataCategory::Meta);
+            for &(upper, _) in uppers {
+                task.remove_upper(&id(upper));
+            }
+            for &(follower, _, _) in &followers {
+                task.remove_followers(&id(follower));
+            }
+            result
+        };
+        tt.stop_and_wait().await;
+        result
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn optimize_raises_with_multiple_non_root_uppers() {
+        assert!(optimize_with(&[(2, 300), (3, 301)], &[]).await.is_some());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn optimize_ignores_additional_root_uppers() {
+        // Raising the aggregation number can't remove a root upper, so all root uppers are
+        // treated as a single upper and no optimization is needed.
+        assert_eq!(
+            optimize_with(&[(2, ROOT), (3, ROOT), (4, ROOT)], &[]).await,
+            None
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn optimize_counts_transient_root_uppers_as_root_uppers() {
+        assert_eq!(
+            optimize_with(&[(2, ROOT), (transient_id(3), ROOT)], &[]).await,
+            None
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn optimize_counts_all_root_uppers_as_one_upper() {
+        let mixed = optimize_with(
+            &[
+                (2, ROOT),
+                (3, ROOT),
+                (transient_id(4), ROOT),
+                (5, 300),
+                (6, 301),
+            ],
+            &[],
+        )
+        .await;
+        // The root uppers count as one upper, so this is like one root and two non-root uppers.
+        let equivalent = optimize_with(&[(2, ROOT), (5, 300), (6, 301)], &[]).await;
+        assert!(mixed.is_some());
+        assert_eq!(mixed, equivalent);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn optimize_ignores_root_followers_when_counting_root_uppers() {
+        // Root followers must not be subtracted from the upper count (that would underflow or
+        // skip a needed optimization).
+        let root_followers = [(2000, ROOT, 1), (2001, ROOT, 1), (2002, ROOT, 1)];
+        assert!(
+            optimize_with(&[(2, 300), (3, 301)], &root_followers)
+                .await
+                .is_some()
+        );
+        // With a single upper there is nothing to optimize, also with many root followers.
+        assert_eq!(optimize_with(&[(2, 300)], &root_followers).await, None);
+        assert_eq!(optimize_with(&[(2, ROOT)], &root_followers).await, None);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn optimize_with_root_uppers_and_follower_debt() {
+        let debt = [(2000, FOLLOWER, -1), (2001, FOLLOWER, -1)];
+        assert_eq!(optimize_with(&[(2, ROOT), (3, ROOT)], &debt).await, None);
+        assert!(
+            optimize_with(&[(2, ROOT), (3, 300), (4, 301)], &debt)
+                .await
+                .is_some()
+        );
     }
 }
 
