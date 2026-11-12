@@ -52,6 +52,7 @@ pub async fn children_from_module_references(
             }
             Some(ChunkingType::Async) => rcstr!("async reference"),
             Some(ChunkingType::Isolated { .. }) => rcstr!("isolated reference"),
+            Some(ChunkingType::Worker { .. }) => rcstr!("isolated reference"),
             Some(ChunkingType::Shared { .. }) => rcstr!("shared reference"),
             Some(ChunkingType::Traced { .. }) => rcstr!("traced reference"),
             Some(ChunkingType::Emitted { .. }) => rcstr!("emitted reference"),
