@@ -1,4 +1,4 @@
-export type RequestInsightKind = 'request' | 'instant-insights'
+export type RequestInsightKind = 'request' | 'instant-insights' | 'tooling'
 
 export const REQUEST_INSIGHT_REQUEST_SPAN_TYPE = 'BaseServer.handleRequest'
 export const REQUEST_INSIGHT_PROXY_SPAN_TYPE = 'Middleware.execute'
@@ -11,6 +11,7 @@ export const REQUEST_INSIGHT_SOURCES = [
   'asset',
   'proxy',
   'instant-insights',
+  'tooling',
   'unknown',
 ] as const
 

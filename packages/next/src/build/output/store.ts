@@ -1,5 +1,6 @@
+import { getActiveLocalSpan } from '../../server/lib/trace/local-span-recorder'
 import createStore from 'next/dist/compiled/unistore'
-import { type Span, flushAllTraces, trace } from '../../trace'
+import { Span, flushAllTraces } from '../../trace'
 import { teardownTraceSubscriber } from '../swc'
 import * as Log from './log'
 
@@ -105,8 +106,11 @@ store.subscribe((state) => {
       trigger = formatTrigger(state.trigger)
       triggerUrl = state.url
       if (trigger !== 'initial') {
-        traceSpan = trace('compile-path', undefined, {
-          trigger: trigger,
+        traceSpan = new Span({
+          name: 'compile-path',
+          attrs: { trigger },
+          parent: getActiveLocalSpan(),
+          recordToInsights: true,
         })
         if (!loadingLogTimer) {
           // Only log compiling if compiled is not finished quickly

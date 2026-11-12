@@ -5,7 +5,7 @@ import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoint
 import { Worker } from '../../lib/worker'
 import origDebug from 'next/dist/compiled/debug'
 import path from 'path'
-import { exportTraceState, recordTraceEvents } from '../../trace'
+import { Span, exportTraceState, recordTraceEvents } from '../../trace'
 import { mergeUseCacheTrackers } from '../webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
 import { durationToString } from '../duration-to-string'
 
@@ -70,7 +70,7 @@ async function webpackBuildWithWorker(
       compilerName,
       traceState: {
         ...exportTraceState(),
-        defaultParentSpanId: nextBuildSpan?.getId(),
+        defaultParentSpanId: nextBuildSpan ? nextBuildSpan.getId() : undefined,
         shouldSaveTraceEvents: true,
       },
     })
@@ -136,7 +136,12 @@ export async function webpackBuild(
   | Awaited<ReturnType<typeof import('./impl').webpackBuildImpl>>
 > {
   const nextBuildSpan = NextBuildContext.nextBuildSpan!
-  return nextBuildSpan.traceChild('run-webpack').traceAsyncFn(async () => {
+  return new Span({
+    name: 'run-webpack',
+    parent: nextBuildSpan,
+    recordToInsights: true,
+    scope: true,
+  }).traceAsyncFn(async () => {
     if (withWorker) {
       debug('using separate compiler workers')
       return await webpackBuildWithWorker(compilerNames)

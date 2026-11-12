@@ -35,6 +35,28 @@ function createRequest(
 }
 
 describe('request insights trace viewer', () => {
+  it('shows tooling activities by default and filters them independently', () => {
+    const request = createRequest({ requestId: 'page', source: 'page' })
+    const tooling = createRequest({
+      requestId: 'compile',
+      kind: 'tooling',
+      source: 'tooling',
+    })
+    expect(getRequestListEntries([tooling, request], false)).toEqual([
+      { request: tooling, nested: false },
+      { request, nested: false },
+    ])
+    const filtered = getRequestInsightFilterResult(
+      [tooling, request],
+      ['activity:tooling']
+    )
+    expect(filtered.requests).toEqual([tooling])
+    expect(filtered.optionCounts['activity:tooling']).toBe(1)
+    expect(
+      getRequestInsightRowType(summarizeRequestInsight(tooling))
+    ).toMatchObject({ type: 'tooling' })
+  })
+
   it('groups React intervals by pass and environment without summing overlapping work', () => {
     const request = createRequest({
       spans: [
