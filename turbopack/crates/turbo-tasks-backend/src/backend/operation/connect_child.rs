@@ -258,6 +258,8 @@ mod tests {
                     once_task: false,
                     done_event: Event::new(|| || "test done_event".to_string()),
                     marked_as_completed: false,
+                    completing: false,
+                    held_dirty_uppers: Vec::new(),
                     new_children: Default::default(),
                 },
             )));

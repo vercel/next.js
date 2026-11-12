@@ -70,7 +70,8 @@ use crate::{
             AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext, LeafDistanceUpdateQueue,
             OutdatedEdge, TaskGuard, TaskType, TaskTypeRef, capture_all_edges, cleanup_old_edges,
             compute_leaf_distance_update, connect_child, connect_children, get_aggregation_number,
-            get_uppers, invalidate, make_task_dirty_internal, prepare_new_children, update_cell,
+            get_uppers, invalidate, make_task_dirty_internal, prepare_new_children,
+            release_held_dirty_uppers, update_cell,
         },
         snapshot_coordinator::{OperationGuard, SlowSettle, SnapshotCoordinator},
         storage::{Storage, StorageOptions, encode_snapshot_item},
@@ -2171,13 +2172,20 @@ impl TurboTasksBackend {
     ) {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
+        let mut held_dirty_uppers = Vec::new();
         if let Some(in_progress) = task.take_in_progress() {
             match in_progress {
                 InProgressState::Scheduled {
                     done_event,
                     reason: _,
                 } => done_event.notify(usize::MAX),
-                InProgressState::InProgress(InProgressStateInner { done_event, .. }) => {
+                InProgressState::InProgress(inner) => {
+                    let InProgressStateInner {
+                        done_event,
+                        held_dirty_uppers: held,
+                        ..
+                    } = *inner;
+                    held_dirty_uppers = held;
                     done_event.notify(usize::MAX)
                 }
                 InProgressState::Canceled => {}
@@ -2223,6 +2231,7 @@ impl TurboTasksBackend {
         if let Some(data_update) = data_update {
             AggregationUpdateQueue::run(data_update, &mut ctx);
         }
+        release_held_dirty_uppers(&mut ctx, task_id, held_dirty_uppers);
 
         drop(in_progress_cells);
     }
@@ -2267,6 +2276,8 @@ impl TurboTasksBackend {
                     once_task,
                     done_event,
                     marked_as_completed: false,
+                    completing: false,
+                    held_dirty_uppers: Vec::new(),
                     new_children: Default::default(),
                 },
             )));
@@ -2556,6 +2567,7 @@ impl TurboTasksBackend {
         let &mut InProgressState::InProgress(InProgressStateInner {
             stale,
             ref mut new_children,
+            ref mut completing,
             once_task: is_once_task,
             ..
         }) = in_progress
@@ -2597,6 +2609,11 @@ impl TurboTasksBackend {
             );
             return Err(stale_priority);
         }
+
+        // From here on the completion changes the task's edges and propagates these changes to the
+        // uppers it sees now. Uppers that drop the task until the completion ends keep its dirty
+        // state (see `hold_dirty_state_while_completing` in `aggregation_update.rs`).
+        *completing = true;
 
         // take the children from the task to process them
         let mut new_children = take(new_children);
@@ -2979,8 +2996,11 @@ impl TurboTasksBackend {
         #[cfg(not(feature = "no_fast_stale"))]
         if *stale && !is_once_task {
             let stale_priority = compute_stale_priority(&task);
-            let Some(InProgressState::InProgress(InProgressStateInner { done_event, .. })) =
-                task.take_in_progress()
+            let Some(InProgressState::InProgress(InProgressStateInner {
+                done_event,
+                held_dirty_uppers,
+                ..
+            })) = task.take_in_progress()
             else {
                 unreachable!();
             };
@@ -2990,6 +3010,8 @@ impl TurboTasksBackend {
             });
             debug_assert!(old.is_none(), "InProgress already exists");
             drop(task);
+
+            release_held_dirty_uppers(ctx, task_id, held_dirty_uppers);
 
             // All `new_children` are currently hold active with an active count and we need to undo
             // that. (We already filtered out the old children from that list)
@@ -3053,6 +3075,8 @@ impl TurboTasksBackend {
             once_task: is_once_task,
             stale,
             marked_as_completed: _,
+            completing: _,
+            held_dirty_uppers,
             new_children,
         }) = in_progress
         else {
@@ -3068,6 +3092,8 @@ impl TurboTasksBackend {
                 reason: TaskExecutionReason::Stale,
             });
             debug_assert!(old.is_none(), "InProgress already exists");
+            drop(task);
+            release_held_dirty_uppers(ctx, task_id, held_dirty_uppers);
             return (Some(stale_priority), None, Vec::new());
         }
 
@@ -3139,6 +3165,7 @@ impl TurboTasksBackend {
         if let Some(data_update) = data_update {
             AggregationUpdateQueue::run(data_update, ctx);
         }
+        release_held_dirty_uppers(ctx, task_id, held_dirty_uppers);
 
         // We return so the data can be dropped outside of critical sections
         (stale_priority, in_progress_cells, removed_data)
