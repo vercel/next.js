@@ -1882,16 +1882,6 @@ async function finalRuntimeServerPrerender(
         )
       )
     }
-
-    // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
-    // finish the accumulators. However, it seems like in `--debug-prerender`
-    // the stream will stay open if we don't close the iterable here.
-    if (process.env.NODE_ENV === 'development') {
-      if (staleTimeIterable !== undefined) {
-        staleTimeIterable.close()
-      }
-      finishAccumulatingVaryParams(varyParamsAccumulator)
-    }
   }
 
   // Whether resolving link data unblocked new content. We check this right
@@ -9795,37 +9785,12 @@ async function prerenderToStream(
         )
       }
 
-      let didHandleUnexpectedAbort = false
-      /**
-       * @returns - whether or not the task should be skipped
-       * because the render was already aborted.
-       * */
       const checkUnexpectedAbort = (): boolean => {
         if (finalServerReactController.signal.aborted) {
-          // If the server controller is already aborted, then we must have encountered sync IO
-          if (!didHandleUnexpectedAbort) {
-            didHandleUnexpectedAbort = true
-            onUnexpectedAbort()
-          }
+          resultIsPartial = true
           return true
         }
-
-        // Not aborted.
         return false
-      }
-
-      const onUnexpectedAbort = () => {
-        resultIsPartial = true
-
-        // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
-        // finish the accumulators. However, it seems like in `--debug-prerender`
-        // the stream will stay open if we don't settle these here.
-        if (process.env.NODE_ENV === 'development') {
-          if (staleTimeIterable !== undefined) {
-            staleTimeIterable.close()
-          }
-          finishAccumulatingVaryParams(varyParamsAccumulator)
-        }
       }
 
       let debugEndTime: number | undefined = undefined
