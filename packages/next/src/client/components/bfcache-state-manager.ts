@@ -3,15 +3,39 @@ import type {
   CacheNode,
   FlightRouterState,
 } from '../../shared/lib/app-router-types'
+import type { Params } from '../../server/request/params'
+import type {
+  InstrumentedPromise,
+  NavigationPromises,
+} from '../../shared/lib/hooks-client-context.shared-runtime'
 import { useState } from 'react'
 
 // When the flag is disabled, only track the currently active tree
 const MAX_BF_CACHE_ENTRIES = process.env.__NEXT_CACHE_COMPONENTS ? 3 : 1
 
+/**
+ * The values that `useParams()`, `usePathname()` and `useSearchParams()` read
+ * in the subtree of a bfcache entry.
+ *
+ * The active entry gets the router's current values. An inactive entry keeps
+ * the values it had when it was last active, which are the values it will
+ * have again when navigating back to it. Inactive trees then see the
+ * navigation state of their own route, not the active one, and don't re-render
+ * when the active route changes.
+ */
+export type RouterNavigationState = {
+  params: Params | null
+  pathname: string | null
+  searchParams: URLSearchParams | null
+  // Dev only. The Suspense DevTools promises the same hooks read in dev.
+  navigationPromises: NavigationPromises | null
+}
+
 export type RouterBFCacheEntry = {
   tree: FlightRouterState
   renderTree: RouteTree<CacheNode>
   stateKey: string
+  navigationState: RouterNavigationState | null
   // The entries form a linked list, sorted in order of most recently active.
   next: RouterBFCacheEntry | null
 }
@@ -38,7 +62,8 @@ export type RouterBFCacheEntry = {
 export function useRouterBFCache(
   activeTree: FlightRouterState,
   activeRenderTree: RouteTree<CacheNode>,
-  activeStateKey: string
+  activeStateKey: string,
+  activeNavigationState: RouterNavigationState | null
 ): RouterBFCacheEntry {
   // The currently active entry. The entries form a linked list, sorted in
   // order of most recently active. This allows us to reuse parts of the list
@@ -55,15 +80,22 @@ export function useRouterBFCache(
         tree: activeTree,
         renderTree: activeRenderTree,
         stateKey: activeStateKey,
+        navigationState: activeNavigationState,
         next: null,
       }
       return initialEntry
     }
   )
 
-  if (prevActiveEntry.tree === activeTree) {
-    // Fast path. The active tree hasn't changed, so we can reuse the
-    // existing state.
+  if (
+    prevActiveEntry.tree === activeTree &&
+    isNavigationStateEqual(
+      prevActiveEntry.navigationState,
+      activeNavigationState
+    )
+  ) {
+    // Fast path. The active tree and its navigation state haven't changed, so
+    // we can reuse the existing state.
     return prevActiveEntry
   }
 
@@ -80,6 +112,7 @@ export function useRouterBFCache(
     tree: activeTree,
     renderTree: activeRenderTree,
     stateKey: activeStateKey,
+    navigationState: activeNavigationState,
     next: null,
   }
 
@@ -98,6 +131,13 @@ export function useRouterBFCache(
       // haven't increased the size of the cache, and we assume the max size
       // is constant across renders. If we were to change it to a dynamic limit,
       // then the implementation would need to account for that.
+      if (
+        isNavigationStateEqual(oldEntry.navigationState, activeNavigationState)
+      ) {
+        // Navigating back to this entry with the values it was hidden with.
+        // Keep the same objects so its subtree doesn't re-render.
+        newActiveEntry.navigationState = oldEntry.navigationState
+      }
       clonedEntry.next = oldEntry.next
       break
     } else {
@@ -107,6 +147,7 @@ export function useRouterBFCache(
         tree: oldEntry.tree,
         renderTree: oldEntry.renderTree,
         stateKey: oldEntry.stateKey,
+        navigationState: oldEntry.navigationState,
         next: null,
       }
       clonedEntry.next = entry
@@ -117,4 +158,116 @@ export function useRouterBFCache(
 
   setPrevActiveEntry(newActiveEntry)
   return newActiveEntry
+}
+
+function isNavigationStateEqual(
+  a: RouterNavigationState | null,
+  b: RouterNavigationState | null
+): boolean {
+  if (a === b) {
+    return true
+  }
+  if (a === null || b === null) {
+    return false
+  }
+  if (
+    a.pathname !== b.pathname ||
+    !areParamsEqual(a.params, b.params) ||
+    !areSearchParamsEqual(a.searchParams, b.searchParams)
+  ) {
+    return false
+  }
+  if (process.env.NODE_ENV !== 'production') {
+    return areNavigationPromisesEqual(
+      a.navigationPromises,
+      b.navigationPromises
+    )
+  }
+  return true
+}
+
+function areParamsEqual(a: Params | null, b: Params | null): boolean {
+  if (a === b) {
+    return true
+  }
+  if (a === null || b === null) {
+    return false
+  }
+  const aKeys = Object.keys(a)
+  if (aKeys.length !== Object.keys(b).length) {
+    return false
+  }
+  for (const key of aKeys) {
+    if (!(key in b) || !areValuesEqual(a[key], b[key])) {
+      return false
+    }
+  }
+  return true
+}
+
+function areSearchParamsEqual(
+  a: URLSearchParams | null,
+  b: URLSearchParams | null
+): boolean {
+  if (a === b) {
+    return true
+  }
+  if (a === null || b === null) {
+    return false
+  }
+  return a.toString() === b.toString()
+}
+
+function areValuesEqual(a: unknown, b: unknown): boolean {
+  if (a === b) {
+    return true
+  }
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((value, i) => value === b[i])
+  }
+  return false
+}
+
+function areNavigationPromisesEqual(
+  a: NavigationPromises | null,
+  b: NavigationPromises | null
+): boolean {
+  if (a === b) {
+    return true
+  }
+  if (a === null || b === null) {
+    return false
+  }
+  return (
+    a.pathname.value === b.pathname.value &&
+    areParamsEqual(a.params.value, b.params.value) &&
+    a.searchParams.value.toString() === b.searchParams.value.toString() &&
+    arePromiseMapsEqual(
+      a.selectedLayoutSegmentPromises,
+      b.selectedLayoutSegmentPromises
+    ) &&
+    arePromiseMapsEqual(
+      a.selectedLayoutSegmentsPromises,
+      b.selectedLayoutSegmentsPromises
+    )
+  )
+}
+
+function arePromiseMapsEqual(
+  a: Map<string, InstrumentedPromise<unknown>> | undefined,
+  b: Map<string, InstrumentedPromise<unknown>> | undefined
+): boolean {
+  if (a === b) {
+    return true
+  }
+  if (a === undefined || b === undefined || a.size !== b.size) {
+    return false
+  }
+  for (const [key, promise] of a) {
+    const other = b.get(key)
+    if (other === undefined || !areValuesEqual(promise.value, other.value)) {
+      return false
+    }
+  }
+  return true
 }
