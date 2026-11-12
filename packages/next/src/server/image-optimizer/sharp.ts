@@ -23,7 +23,7 @@ export function getSharp(
         'VipsForeignLoadJpeg',
         'VipsForeignLoadNsgif',
         'VipsForeignLoadPng',
-        'VipsForeignLoadSvg',
+        'VipsForeignLoadSvg', // used by ImageResponse
         'VipsForeignLoadTiff',
         'VipsForeignLoadWebp',
       ],

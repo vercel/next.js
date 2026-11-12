@@ -3,10 +3,10 @@
 //
 // This module is imported by `transform.ts`, which runs in a child process, so
 // keep its imports minimal. nsio itself is only required when it's used.
-import type { InputFormat, Pool } from '@next/safe-image-optimization'
+import type { Pool } from '@next/safe-image-optimization'
 import { GIF, JPEG, PNG, WEBP } from './image-type'
 import {
-  NSIO_DEFAULT_INPUT_FORMATS,
+  NSIO_INPUT_FORMATS,
   NSIO_OUTPUT_MIME_TYPES,
 } from '../../shared/lib/image-optimizer-constants'
 
@@ -38,7 +38,6 @@ export async function nsioOptimizeImage({
   maxInputPixels,
   timeoutInSeconds,
   mozjpeg = true,
-  dangerouslyAllowSVG = false,
 }: {
   buffer: Buffer
   contentType: string
@@ -48,7 +47,6 @@ export async function nsioOptimizeImage({
   maxInputPixels?: number
   timeoutInSeconds: number
   mozjpeg?: boolean
-  dangerouslyAllowSVG?: boolean
 }): Promise<Buffer> {
   if (!NSIO_OUTPUT_MIME_TYPES.includes(contentType)) {
     // The caller catches this error and falls back to the source (unoptimized)
@@ -58,14 +56,9 @@ export async function nsioOptimizeImage({
     )
   }
 
-  const inputFormats: InputFormat[] = [...NSIO_DEFAULT_INPUT_FORMATS]
-  if (dangerouslyAllowSVG) {
-    inputFormats.push('svg')
-  }
-
   const pipeline = getPool(concurrency)
     .prepare(buffer)
-    .allowInputFormats(inputFormats)
+    .allowInputFormats(NSIO_INPUT_FORMATS)
     .timeoutMs(timeoutInSeconds * 1000)
     .autoOrient()
     .resize(width, null, { withoutEnlargement: true })

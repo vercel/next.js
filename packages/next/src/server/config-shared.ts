@@ -711,13 +711,7 @@ export interface ExperimentalConfig {
    *   Unsupported values in `images.formats` (i.e. AVIF) generate a warning and
    *   are ignored.
    * - `imgOptSequentialRead` and `imgOptOperationCache` are ignored.
-   * - Uses [`resvg`] instead of [`librsvg`]. Some SVGs generated with
-   *   [`ImageResponse`] may render differently in some edge cases. `resvg`
-   *   supports different SVG features and may have different bugs than
-   *   `librsvg`.
    *
-   * [`resvg`]: https://github.com/linebender/resvg
-   * [`librsvg`]: https://gitlab.gnome.org/GNOME/librsvg
    * [`images.loaderFile`]: https://nextjs.org/docs/app/api-reference/components/image#loaderfile
    *
    * @default false
