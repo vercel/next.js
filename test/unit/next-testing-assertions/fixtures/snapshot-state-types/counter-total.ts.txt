@@ -1,0 +1,1 @@
+import {expect} from 'vitest'; const value:number=expect.getState().snapshotState.matched.total(); void value;

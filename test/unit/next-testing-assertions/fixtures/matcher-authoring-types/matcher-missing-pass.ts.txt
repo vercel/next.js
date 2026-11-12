@@ -1,0 +1,2 @@
+import type {Matcher,MatcherState,MatchersObject} from 'vitest'
+const match:Matcher=()=>({message:()=>''})

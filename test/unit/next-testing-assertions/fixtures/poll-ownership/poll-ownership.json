@@ -1,0 +1,93 @@
+{
+  "body": "import{expect,test}from'vitest'\nconst emit=row=>console.log('EXPECT_STATE_ROW '+JSON.stringify(row))\nconst shape=value=>({promise:value instanceof Promise,tag:Object.getOwnPropertyDescriptor(value,Symbol.toStringTag)?.value??null,then:typeof value.then,catch:typeof value.catch,finally:typeof value.finally})\ntest('unconsumed initial has no predicate work',()=>{let callbacks=0;expect.poll(()=>{callbacks++;return 1},{interval:1,timeout:1000});emit({kind:'initial-only',callbacks})})\ntest('actual matcher invocation owns lazy idempotent work',async()=>{let callbacks=0;const receivers=[];const events=[];const initial=expect.poll(function(){callbacks++;receivers.push(typeof this?.assert==='function');events.push('predicate');return 1},{interval:1,timeout:1000});const first=initial.toBe(1);emit({kind:'after-match',callbacks,shape:shape(first)});const waiting=first.then(()=>{events.push('fulfilled')});events.push('then-returned');queueMicrotask(()=>{events.push('queued-microtask')});emit({kind:'after-then',callbacks});await waiting;await first;emit({kind:'after-repeat-consume',callbacks,receivers:[...receivers],events:[...events]});const second=initial.toBe(1);emit({kind:'second-before-consume',callbacks,shape:shape(second)});await second;emit({kind:'second-settled',callbacks,receivers,events})})\ntest('unawaited matcher performs no predicate work',()=>{let callbacks=0;expect.poll(()=>{callbacks++;return 1},{interval:1,timeout:1000}).toBe(1);emit({kind:'unawaited-match',callbacks})})\n",
+  "bodySHA256": "5ce7155f653d604326fd9ec0f4995b2e91fc716376fa2b2c44d84537b1af5026",
+  "rows": [
+    {
+      "kind": "initial-only",
+      "callbacks": 0
+    },
+    {
+      "kind": "after-match",
+      "callbacks": 0,
+      "shape": {
+        "promise": false,
+        "tag": "Promise",
+        "then": "function",
+        "catch": "function",
+        "finally": "function"
+      }
+    },
+    {
+      "kind": "after-then",
+      "callbacks": 0
+    },
+    {
+      "kind": "after-repeat-consume",
+      "callbacks": 1,
+      "receivers": [true],
+      "events": ["then-returned", "queued-microtask", "predicate", "fulfilled"]
+    },
+    {
+      "kind": "second-before-consume",
+      "callbacks": 1,
+      "shape": {
+        "promise": false,
+        "tag": "Promise",
+        "then": "function",
+        "catch": "function",
+        "finally": "function"
+      }
+    },
+    {
+      "kind": "second-settled",
+      "callbacks": 2,
+      "receivers": [true, true],
+      "events": [
+        "then-returned",
+        "queued-microtask",
+        "predicate",
+        "fulfilled",
+        "predicate"
+      ]
+    },
+    {
+      "kind": "unawaited-match",
+      "callbacks": 0
+    }
+  ],
+  "status": 1,
+  "summary": {
+    "numTotalTests": 3,
+    "numPassedTests": 2,
+    "numFailedTests": 1,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": false
+  },
+  "cases": [
+    {
+      "name": "unconsumed initial has no predicate work",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "actual matcher invocation owns lazy idempotent work",
+      "state": "passed",
+      "errors": []
+    },
+    {
+      "name": "unawaited matcher performs no predicate work",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "Error",
+          "message": "expect.poll(assertion).toBe() was not awaited. This assertion is asynchronous and must be awaited; otherwise, it is not executed to avoid unhandled rejections:\n\nawait expect.poll(assertion).toBe()\n"
+        }
+      ]
+    }
+  ],
+  "qualification": {
+    "scope": "Actual polling ownership, ordered authored rows, case states and error names/messages.",
+    "rawErrorFrames": "Parsed stack and compiled frame parity remains unqualified; complete raw callback/report errors are retained by the driver."
+  }
+}

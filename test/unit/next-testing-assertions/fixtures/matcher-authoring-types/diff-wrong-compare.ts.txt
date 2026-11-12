@@ -1,0 +1,2 @@
+import type {DiffOptions} from 'vitest'
+const options:DiffOptions={compareKeys:(left,right)=>left===right}

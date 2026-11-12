@@ -1,0 +1,349 @@
+{
+  "reference": "Vitest5.0.4 published ExpectStatic/ExpectPollOptions and matcher graph, strict isolated augmentation programs",
+  "programs": [
+    {
+      "name": "complete-expect-api.ts",
+      "source": "complete-expect-api.ts.txt",
+      "sourceSHA256": "0b9dfc95f527938399d8bf6e036c229fc9c44c8ff8cad4e23b92d27b40b6d445",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "poll-method-promise.ts",
+      "source": "poll-method-promise.ts.txt",
+      "sourceSHA256": "065072b38e056a6f78145d8d94863019c99edca528dfcc8cf2c895abeb7d51ea",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "poll-method-void.ts",
+      "source": "poll-method-void.ts.txt",
+      "sourceSHA256": "f70b3e9f216d014d0de360c0d9b06551a0e25954f837fea26a1702d0badb9743",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "poll-initial-not-thenable.ts",
+      "source": "poll-initial-not-thenable.ts.txt",
+      "sourceSHA256": "763bf589e23e570e8677966d09b838addb72ead2c720e9eecaeff66ee3a41ae7",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2741,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "poll-async-awaited.ts",
+      "source": "poll-async-awaited.ts.txt",
+      "sourceSHA256": "a44e6a4cf642856457507b8c4d237bc12dc8cea962b5451925cf46f2161c3f84",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "poll-nested-promise-like.ts",
+      "source": "poll-nested-promise-like.ts.txt",
+      "sourceSHA256": "06c5c5fb2d1ef7a5afec53dc254a9a39755a9e7d1648ced787b8e5bbd1dbc048",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "poll-options-wrong-interval.ts",
+      "source": "poll-options-wrong-interval.ts.txt",
+      "sourceSHA256": "175e5dd523f43cdd395a944a223f3577dee2144d2355f96dcd8de3a5e10543d5",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "poll-options-wrong-message.ts",
+      "source": "poll-options-wrong-message.ts.txt",
+      "sourceSHA256": "3dd0a3e2fa4f3766571c1dc99e0c954d18651bca07021f04f700e50fcbd6e6da",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "poll-options-augmentation.ts",
+      "source": "poll-options-augmentation.ts.txt",
+      "sourceSHA256": "4355062e38b2c490f53ccfcc25f16a5f39fea287c5fac18fe2286f28b96df6b5",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "poll-options-augmentation-wrong.ts",
+      "source": "poll-options-augmentation-wrong.ts.txt",
+      "sourceSHA256": "0cd48bec4cf984e8055f59699143b18f30bbe3296e6aaefd11ae170647c2fdbf",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "expect-static-augmentation.ts",
+      "source": "expect-static-augmentation.ts.txt",
+      "sourceSHA256": "a2b8c93a64a49d8d001799f378eb0f477584f39677e4a6ca84bc5a1d881bd534",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "expect-static-callable.ts",
+      "source": "expect-static-callable.ts.txt",
+      "sourceSHA256": "c29121521226406f4d4890baf1985f247fae9bb97c9347aaf23db33c035d9c72",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "expect-static-missing.ts",
+      "source": "expect-static-missing.ts.txt",
+      "sourceSHA256": "e841b12aa1edc5901ebbac38be4342b30ea8c84dae5109b5a935e5c35d1e765a",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2339,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "matcher-default-union.ts",
+      "source": "matcher-default-union.ts.txt",
+      "sourceSHA256": "92dc0d89444f0d93d61310a1bdd1a47bb1eb06a6a8a3ee151a98402ee35f757c",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "matcher-invalid-return-generic.ts",
+      "source": "matcher-invalid-return-generic.ts.txt",
+      "sourceSHA256": "ca34770b870c5b5668389d46c53148c707959f424dd89a0d2334fa99df1327b4",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2344,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "matcher-ordinary-augmentation.ts",
+      "source": "matcher-ordinary-augmentation.ts.txt",
+      "sourceSHA256": "839ccb3cad9757136cbd286371791312dc07084548845ff5ec0cb56f61137899",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "matcher-ordinary-wrong.ts",
+      "source": "matcher-ordinary-wrong.ts.txt",
+      "sourceSHA256": "77b51507c38a32c1bcef3be2c359926ecff6d86506cb4185ed9c5daab8e81cca",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2345,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "matcher-static-not-augmentation.ts",
+      "source": "matcher-static-not-augmentation.ts.txt",
+      "sourceSHA256": "d32d5cf01448fd86685fd273aff5ecf669026a1fe79a01dc9224618bb605fc37",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "matcher-static-arity.ts",
+      "source": "matcher-static-arity.ts.txt",
+      "sourceSHA256": "4beaa24d3debe05fa4e42786ff4265af30171ef6a22bd7177441937e402b4baf",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2554,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "matcher-static-not-arity.ts",
+      "source": "matcher-static-not-arity.ts.txt",
+      "sourceSHA256": "88df12b5edba6f87fa8c072ba955ac102c98394650c7a5750ce0b53bb580236b",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2554,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "matcher-soft-augmentation.ts",
+      "source": "matcher-soft-augmentation.ts.txt",
+      "sourceSHA256": "6d4d1468ac79b61e7c673fd59d5e92727c22366b56a6606a9ebc8d9f8a194145",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "matcher-soft-wrong.ts",
+      "source": "matcher-soft-wrong.ts.txt",
+      "sourceSHA256": "29858588a9ad27a7660a920552fa53b1755481424fa3f3ab1b60359b893a16f9",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2345,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "matcher-poll-augmentation.ts",
+      "source": "matcher-poll-augmentation.ts.txt",
+      "sourceSHA256": "4c2fffc86d9bd3f1bc90d66d602034b328810ee4725a668b8aa2a8c0c7735d18",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "matcher-poll-wrong.ts",
+      "source": "matcher-poll-wrong.ts.txt",
+      "sourceSHA256": "7f78aaa6854269da93a3953f1c2753f41bb5ab55cc14784d9c46184f68dc8b19",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2345,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "matcher-resolves-awaited.ts",
+      "source": "matcher-resolves-awaited.ts.txt",
+      "sourceSHA256": "56fe1f0f94535ab3e9990bfda27a683762d40b5573a6e43368607c1c43b5a214",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "matcher-resolves-wrong.ts",
+      "source": "matcher-resolves-wrong.ts.txt",
+      "sourceSHA256": "d0366bbf84bca698e4e333a9136a30b2bf78cf8aff6cde96011855f837227640",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2345,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "matcher-rejects-unknown.ts",
+      "source": "matcher-rejects-unknown.ts.txt",
+      "sourceSHA256": "f3fc95021ec0fa873cbabc412f919a0ac2141170d9ec8f6240f50c791312f1ba",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "matcher-not-augmentation.ts",
+      "source": "matcher-not-augmentation.ts.txt",
+      "sourceSHA256": "d508f1bdcf89b6bc244e6f04fbe993162f0912aa66d6b66c86911008d343f85f",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "task-expect-augmentation.ts",
+      "source": "task-expect-augmentation.ts.txt",
+      "sourceSHA256": "7a2546d6289e7f7dc8536b24e3046aea90ad75d179cd108385a91a33fce3d58a",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "task-expect-wrong.ts",
+      "source": "task-expect-wrong.ts.txt",
+      "sourceSHA256": "b9d4b77473d28fe7a7322617ea3bf36d70239a32fd7b2428ca5b0bd77333410b",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2345,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "environment-state-string.ts",
+      "source": "environment-state-string.ts.txt",
+      "sourceSHA256": "3e053e9df7bc57bceffb19722acf6a40f8585877f1b0a038e7663f1f1c560d68",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "environment-state-wrong.ts",
+      "source": "environment-state-wrong.ts.txt",
+      "sourceSHA256": "71477114ecf9edeea81b46cf782dc70dfea6f5f9830cde7784ed47de08126051",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "matcher-context-environment.ts",
+      "source": "matcher-context-environment.ts.txt",
+      "sourceSHA256": "b800d9b3cb4367804725e38f5b938f80ec9dda32bdcf451983f09d6f176fd31f",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "assertion-direct-augmentation.ts",
+      "source": "assertion-direct-augmentation.ts.txt",
+      "sourceSHA256": "258826d3836c1ed1cdeabe35d6a22b9a598a840ae732091489924a966e20ae58",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "assertion-direct-wrong.ts",
+      "source": "assertion-direct-wrong.ts.txt",
+      "sourceSHA256": "53a3c53c07fb829434d3dfb9bb0be8801a504378c6466275351c0ac363a33589",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2345,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "asymmetric-direct-augmentation.ts",
+      "source": "asymmetric-direct-augmentation.ts.txt",
+      "sourceSHA256": "161847c36734145d37b2c0e840d2167f5f44547f9e3de2e3c60b15b6ef85a2d8",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "asymmetric-direct-wrong.ts",
+      "source": "asymmetric-direct-wrong.ts.txt",
+      "sourceSHA256": "442c9701d0b23bd5ec0fad8329f67f384c441a189cc739a3261d5e1f0d8d98b5",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2345,
+          "line": 3
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+import type {Matcher,MatcherState,MatchersObject} from 'vitest'
+const match:Matcher=function(received,expected){return{pass:true,message:()=>String(expected),actual:received,expected}}
+const options:MatchersObject={custom:match}

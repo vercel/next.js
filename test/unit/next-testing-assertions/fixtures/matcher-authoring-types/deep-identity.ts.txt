@@ -1,0 +1,6 @@
+import {expect} from 'vitest'
+import type{DeeplyAllowMatchers}from'vitest'
+import type{DeeplyAllowMatchers as Actual}from'actual-origin'
+type Equal<A,B>=(<T>()=>T extends A?1:2)extends(<T>()=>T extends B?1:2)?true:false
+type Model={nested:{value:number},array:string[],tuple:[number,string],optional?:boolean}
+const identity:Equal<DeeplyAllowMatchers<Model>,Actual<Model>>=true

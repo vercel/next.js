@@ -1,0 +1,90 @@
+import { chai, expect, test, afterAll } from 'vitest'
+import assert from 'node:assert/strict'
+function emit(row) {
+  assert.equal(row.calls.length, 4)
+  assert.equal(row.reads.length, 4)
+  for (const [index, call] of row.calls.entries()) {
+    if (call.name === 'throwing') {
+      assert.equal(call.success, false)
+      assert.equal(call.sameRawError, true)
+      assert.equal(call.error.message, subjectError.message)
+    } else {
+      assert.equal(call.success, true, call.error?.message)
+      assert.equal(call.samePayload, true)
+    }
+    assert.equal(row.reads[index].sameTask, index === 1 || index === 2)
+    assert.equal(row.reads[index].throwing, call.name === 'throwing')
+    assert.equal(
+      row.reads[index].taskName,
+      index === 1 || index === 2 ? originalTask.name : null
+    )
+  }
+}
+let originalTask,
+  held,
+  subjects,
+  reads = []
+const subjectError = new Error('native retained subject getter failure')
+const throwingSubject = Symbol('throwing subject')
+chai.use((c, utils) => {
+  c.Assertion.overwriteProperty(
+    '_obj',
+    (original) =>
+      function () {
+        const value = original.call(this)
+        const task = utils.flag(this, 'vitest-test')
+        reads.push({
+          sameTask: task === originalTask,
+          taskName: task?.name ?? null,
+          throwing: value === throwingSubject,
+        })
+        if (value === throwingSubject) throw subjectError
+        return value
+      }
+  )
+})
+function read() {
+  return Object.entries(held).map(([name, assertion]) => {
+    try {
+      return {
+        name,
+        success: true,
+        samePayload: assertion._obj === subjects[name],
+      }
+    } catch (error) {
+      return {
+        name,
+        success: false,
+        sameRawError: error === subjectError,
+        error: { name: error?.name, message: error?.message },
+      }
+    }
+  })
+}
+test('actual retained subject getter preserves caller payloads and raw errors', ({
+  expect: local,
+  task,
+}) => {
+  originalTask = task
+  const proxy = Proxy.revocable({}, {})
+  proxy.revoke()
+  subjects = {
+    raw: proxy.proxy,
+    global: { original: true },
+    local: function payload() {},
+    throwing: throwingSubject,
+  }
+  held = {
+    raw: chai.expect(subjects.raw),
+    global: expect(subjects.global),
+    local: local(subjects.local),
+    throwing: chai.expect(subjects.throwing),
+  }
+  emit({ kind: 'first-subject', calls: read(), reads: reads.splice(0) })
+})
+test('later subject reads retain actual original payload and getter behavior', () => {
+  emit({ kind: 'later-subject', calls: read(), reads: reads.splice(0) })
+})
+afterAll(() =>
+  emit({ kind: 'afterAll-subject', calls: read(), reads: reads.splice(0) })
+)

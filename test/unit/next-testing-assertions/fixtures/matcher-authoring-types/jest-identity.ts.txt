@@ -1,0 +1,6 @@
+import{expect}from'vitest'
+import type{JestAssertion}from'vitest'
+import type{JestAssertion as Actual}from'actual-origin'
+type Equal<A,B>=(<T>()=>T extends A?1:2)extends(<T>()=>T extends B?1:2)?true:false
+const sync:Equal<JestAssertion<void,number>,Actual<void,number>>=true
+const async:Equal<JestAssertion<Promise<void>,{value:string}>,Actual<Promise<void>,{value:string}>>=true

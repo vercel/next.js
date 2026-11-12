@@ -1,0 +1,5 @@
+import type {Matcher,MatcherState,MatchersObject} from 'vitest'
+type State=MatcherState&{flag:boolean}
+const match:Matcher<State,[number,string]>=function(received,expected,label){const flag:boolean=this.flag;const inverse:boolean=this.isNot;return{pass:flag&&received===expected,message:()=>label}}
+declare const state:State
+match.call(state,1,1,'same')

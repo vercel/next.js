@@ -1,0 +1,1 @@
+import {expect} from 'vitest'; const state: undefined=expect.getState().snapshotState; void state;

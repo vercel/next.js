@@ -1,0 +1,5 @@
+import {expect,type ExpectStatic,type ExpectPollOptions,type Assertion,type Matchers}from'vitest'
+declare module 'vitest'{interface Assertion<R,T>{toBeMine(value:T):R}}
+const a:void=expect(1).toBeMine(1)
+const b:Promise<void>=expect.poll(()=>1).toBeMine(1)
+const c:Promise<void>=expect(Promise.resolve(1)).resolves.toBeMine(1)

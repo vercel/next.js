@@ -1,0 +1,453 @@
+{
+  "reference": "vitest5.0.4 public root, real four-type declarations",
+  "programs": [
+    {
+      "name": "matcher-context-tuple.ts",
+      "accepted": true,
+      "sourceSHA256": "1c76c3e2873e18754c849479149594586b7699f8bf88f3fbec0386c1f3229e8e",
+      "source": "matcher-context-tuple.ts.txt",
+      "diagnostics": []
+    },
+    {
+      "name": "matcher-async-result.ts",
+      "accepted": true,
+      "sourceSHA256": "c57c11efe915dda647c2dff8a20edfc4af9744789afe73b46186327d205be740",
+      "source": "matcher-async-result.ts.txt",
+      "diagnostics": []
+    },
+    {
+      "name": "matcher-default-result.ts",
+      "accepted": true,
+      "sourceSHA256": "ed0c98538014048d5d8763000da0dccc17e147ff38cbf4eddc60b2ad85a19b8b",
+      "source": "matcher-default-result.ts.txt",
+      "diagnostics": []
+    },
+    {
+      "name": "matcher-identity.ts",
+      "accepted": true,
+      "sourceSHA256": "34f741bfffb26bd4fdf0dc220efe3d051ccdb615bdfc277bbf159cf91712a503",
+      "source": "matcher-identity.ts.txt",
+      "diagnostics": []
+    },
+    {
+      "name": "matcher-missing-pass.ts",
+      "accepted": false,
+      "sourceSHA256": "a036d6d796f8d3e6139c5b1701ca8ca32d40c29bb729ea60a37f23a02bcd94b3",
+      "source": "matcher-missing-pass.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "matcher-wrong-message.ts",
+      "accepted": false,
+      "sourceSHA256": "35dc4b84649b7daa33d720eec30216133398366f424cd4994cf7bb1c57f4b80e",
+      "source": "matcher-wrong-message.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "matcher-wrong-pass.ts",
+      "accepted": false,
+      "sourceSHA256": "a9ac51ff0ff5acb7dbd8aa797ef3ce431cce179d81285a11c26878d2bde8f473",
+      "source": "matcher-wrong-pass.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "matcher-wrong-state.ts",
+      "accepted": false,
+      "sourceSHA256": "c64ef68399ec9a539d7effc9ba848081856f193d309dff887148a60cd2d8add7",
+      "source": "matcher-wrong-state.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2344,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "matcher-wrong-tuple.ts",
+      "accepted": false,
+      "sourceSHA256": "5042ff627ab06b29c15d85cab3804e5ec6a32498b21bd94492355bd9abe94a90",
+      "source": "matcher-wrong-tuple.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2344,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "matcher-call-tuple.ts",
+      "accepted": false,
+      "sourceSHA256": "1f8aeea7a6a765837468ee76e209279782f4a25117fbaaf18779ff258dd010f2",
+      "source": "matcher-call-tuple.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2345,
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "matcher-call-receiver.ts",
+      "accepted": false,
+      "sourceSHA256": "728d67e975c801c6da86149883adaadc61d99c4e47e67669e7bd8d8b9deb7428",
+      "source": "matcher-call-receiver.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2345,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "matcher-type-only.ts",
+      "accepted": false,
+      "sourceSHA256": "ee1f290c55b6c8056d870ad37c0c9b412ab60a9746497e010e017e42403e4eca",
+      "source": "matcher-type-only.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2693,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "diff-complete-callbacks.ts",
+      "accepted": true,
+      "sourceSHA256": "ff1ea48c7c1d9d1d59fad693ea2b752c39ed4dfbf8e81d93d9c7902324bc5429",
+      "source": "diff-complete-callbacks.ts.txt",
+      "diagnostics": []
+    },
+    {
+      "name": "diff-null-comparator.ts",
+      "accepted": true,
+      "sourceSHA256": "b83b8d4a7aecc7c374c517a999bbd897de7173b6ba6bcaa74cb8ef52e656478e",
+      "source": "diff-null-comparator.ts.txt",
+      "diagnostics": []
+    },
+    {
+      "name": "diff-structural-extension.ts",
+      "accepted": true,
+      "sourceSHA256": "2b66df4b9922a4d714a1164f43125ad0cc8fad492a2ac890abd039d1076de9e0",
+      "source": "diff-structural-extension.ts.txt",
+      "diagnostics": []
+    },
+    {
+      "name": "diff-identity.ts",
+      "accepted": true,
+      "sourceSHA256": "d552556c82f12f49a6b89f27ce98ae3417713a03fffd7e5544928fa4b08a5d42",
+      "source": "diff-identity.ts.txt",
+      "diagnostics": []
+    },
+    {
+      "name": "diff-wrong-color.ts",
+      "accepted": false,
+      "sourceSHA256": "096e4ed8b5a40b3b4509c882b5217b70eef523c2f7b82b414de17ccd87432018",
+      "source": "diff-wrong-color.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "diff-wrong-compare.ts",
+      "accepted": false,
+      "sourceSHA256": "5d390dc79b5a8217b307d2492e0f7f2f8f627641967bf4d77f9f72c64a2f605e",
+      "source": "diff-wrong-compare.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "diff-string-compare.ts",
+      "accepted": false,
+      "sourceSHA256": "875b2705428e50b605df128ded2c1a2f5078cc390c287b6593189a19c2217d73",
+      "source": "diff-string-compare.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "diff-wrong-lines.ts",
+      "accepted": false,
+      "sourceSHA256": "ae30edd10e062dc5a722072c466a855469268f6a0fb8590580413df8999460bc",
+      "source": "diff-wrong-lines.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "diff-wrong-boolean.ts",
+      "accepted": false,
+      "sourceSHA256": "a6d0774d3e5eb831d9548c3bc382d2c29b4fbc35001f29f8d067a98e2e950de4",
+      "source": "diff-wrong-boolean.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "diff-unknown-option.ts",
+      "accepted": false,
+      "sourceSHA256": "71d865c60126c8b89f90f2213427c12d6f39c75796730b756d012cd4d0709f93",
+      "source": "diff-unknown-option.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2353,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "diff-type-only.ts",
+      "accepted": false,
+      "sourceSHA256": "81548bb6e03ded458460474e6ea242216e9ebdd63365cfb9aa6e0b9438163bf0",
+      "source": "diff-type-only.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2693,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "deep-primitives-nested-arrays.ts",
+      "accepted": true,
+      "sourceSHA256": "8ee39e7a6d48d163fa77d1e5a61fbec01d54ee6bb47ba07fc36b6db73b588e52",
+      "source": "deep-primitives-nested-arrays.ts.txt",
+      "diagnostics": []
+    },
+    {
+      "name": "deep-generic-conditional.ts",
+      "accepted": true,
+      "sourceSHA256": "d478be93b2298615418536500cf8c95548c4450a2d9ffc773949ba3c68301746",
+      "source": "deep-generic-conditional.ts.txt",
+      "diagnostics": []
+    },
+    {
+      "name": "deep-readonly-array.ts",
+      "accepted": true,
+      "sourceSHA256": "31befb7879342e7203717afba1c20d9124bca28a89273ba1b3651565a653cb0d",
+      "source": "deep-readonly-array.ts.txt",
+      "diagnostics": []
+    },
+    {
+      "name": "deep-identity.ts",
+      "accepted": true,
+      "sourceSHA256": "39f8cb9d7e53f0cf6e21cab3c4db23e286dbc305788c15bc04720a807e18694e",
+      "source": "deep-identity.ts.txt",
+      "diagnostics": []
+    },
+    {
+      "name": "deep-wrong-primitive.ts",
+      "accepted": false,
+      "sourceSHA256": "da8ad5e74d0ca13bc1741960a42ce8e4854627d313ec16f72a5496db5591830f",
+      "source": "deep-wrong-primitive.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "deep-wrong-nested.ts",
+      "accepted": false,
+      "sourceSHA256": "abb006277b681730812a582041d2bed847f09fcda0a05b26cd70077f3efd9b67",
+      "source": "deep-wrong-nested.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "deep-wrong-array.ts",
+      "accepted": false,
+      "sourceSHA256": "0b29b021320c7e2311733c689455e3a971521ad17b068c8f98444248fd6bacba",
+      "source": "deep-wrong-array.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "deep-unknown-property.ts",
+      "accepted": false,
+      "sourceSHA256": "4445db8b6f7e5f764d49e00694ca50df416f1030b17488086e6f40a2a97abc2e",
+      "source": "deep-unknown-property.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2353,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "deep-missing-property.ts",
+      "accepted": false,
+      "sourceSHA256": "6d43d3724043949ba63740d5665e523fd6ae518593836363636e2c9933a3db27",
+      "source": "deep-missing-property.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "deep-type-only.ts",
+      "accepted": false,
+      "sourceSHA256": "f01c265f2f669403b15a1449214c0961538559a90995111c1af2f5c45817cc93",
+      "source": "deep-type-only.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2693,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "jest-sync-return.ts",
+      "accepted": true,
+      "sourceSHA256": "50566ccf219d63d3a449bf51fa171826328789c37fa26874d376ea0537a8006f",
+      "source": "jest-sync-return.ts.txt",
+      "diagnostics": []
+    },
+    {
+      "name": "jest-async-return.ts",
+      "accepted": true,
+      "sourceSHA256": "1e8baf7a7e399fa0febb27b697bcd6db8e50bbe1431dba236a1436f56eeb7c37",
+      "source": "jest-async-return.ts.txt",
+      "diagnostics": []
+    },
+    {
+      "name": "jest-structural-extension.ts",
+      "accepted": true,
+      "sourceSHA256": "7ccc262ab59a8587ec5309860cad779d60b354e4e2fc12270e9e04ec8840e334",
+      "source": "jest-structural-extension.ts.txt",
+      "diagnostics": []
+    },
+    {
+      "name": "jest-identity.ts",
+      "accepted": true,
+      "sourceSHA256": "e48ac07e774fd2c73620964e0acc3cdf03f084990b4f64e9c6170e57b6cdff60",
+      "source": "jest-identity.ts.txt",
+      "diagnostics": []
+    },
+    {
+      "name": "jest-wrong-return-generic.ts",
+      "accepted": false,
+      "sourceSHA256": "5b98a13401c7b04301b9a4eec3c660d491ef417a8a8052241eefd67c5d7a9efa",
+      "source": "jest-wrong-return-generic.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2344,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "jest-wrong-match.ts",
+      "accepted": false,
+      "sourceSHA256": "91d18e17fe4dc413d232f98e31186bd942126a251c69324d7b7ada953b932174",
+      "source": "jest-wrong-match.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2345,
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "jest-extra-argument.ts",
+      "accepted": false,
+      "sourceSHA256": "f8bed3e32e6d933974201556526719f1ab9829bb1132453c7dbde5451be8cf80",
+      "source": "jest-extra-argument.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2554,
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "jest-wrong-property.ts",
+      "accepted": false,
+      "sourceSHA256": "f0ee02d6d7a9ad6f86c75cc9f0ed3c6f3605a1f0f9f28dea7d2c8a61ded58183",
+      "source": "jest-wrong-property.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2561,
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "jest-wrong-predicate.ts",
+      "accepted": false,
+      "sourceSHA256": "8edaa927f3c8cf244877aa9d37c6ce4b2ad507f307f608e8a46f3f009d562a8e",
+      "source": "jest-wrong-predicate.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "jest-wrong-promise-result.ts",
+      "accepted": false,
+      "sourceSHA256": "1258bd8606d4f5435a46383be50109e3779114f3d206022eecd478aba9a6048d",
+      "source": "jest-wrong-promise-result.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "jest-type-only.ts",
+      "accepted": false,
+      "sourceSHA256": "8769a921373632f7a6d2d155eac6f9b0d5e2790a284b4c4ae0b23c2cfcc7b498",
+      "source": "jest-type-only.ts.txt",
+      "diagnostics": [
+        {
+          "code": 2693,
+          "line": 2
+        }
+      ]
+    }
+  ]
+}

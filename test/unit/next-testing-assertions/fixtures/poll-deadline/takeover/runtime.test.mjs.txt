@@ -1,0 +1,29 @@
+import { expect, test, chai, vi } from 'vitest'
+const emit = (row) => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
+const view = (error) => {
+  console.log('POLL_OWNERSHIP_ERROR ' + JSON.stringify({ name: error?.name ?? null, message: error?.message ?? String(error), stack: error?.stack ?? null, cause: error?.cause ? { name: error.cause.name, message: error.cause.message, stack: error.cause.stack } : null }))
+  return { name: error?.name ?? null, message: error?.message ?? String(error), cause: error?.cause ? { name: error.cause.name, message: error.cause.message } : null, ownCause: error != null && Object.hasOwn(Object(error), 'cause') }
+}
+const flag = (...args) => chai.util.flag(...args)
+for (const failing of [false, true]) test('independent takeover effects ' + failing, async () => {
+  const events = []
+  let calls = 0, matches = 0, settledAssertion
+  const failure = new RangeError('independent takeover failure')
+  function ownedTakeover(received) {
+    matches++
+    events.push('matcher-' + String(received))
+    if (failing) throw failure
+    return { pass: received === null, message: () => 'actual takeover must bypass the predicate' }
+  }
+  Object.defineProperty(ownedTakeover, '__vitest_poll_takeover__', { value: true })
+  expect.extend({ toIndependentTakeover: ownedTakeover })
+  const initial = expect.poll(() => { calls++; events.push('predicate'); return 9 }, { timeout: 100, interval: 1000 })
+  flag(initial, '_poll.onStart', () => events.push('start'))
+  flag(initial, '_poll.onSettled', ({ assertion, status }) => { settledAssertion = assertion; events.push('settled-' + status) })
+  try {
+    const output = await initial.toIndependentTakeover()
+    emit({ kind: 'takeover-effects-result', failing, calls, matches, returnedType: typeof output, returnedAssertion: output === settledAssertion, events })
+  } catch (error) {
+    emit({ kind: 'takeover-effects-error', failing, exactError: error === failure, error: view(error), calls, matches, events })
+  }
+})

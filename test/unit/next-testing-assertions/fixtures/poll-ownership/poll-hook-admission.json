@@ -1,0 +1,68 @@
+{
+  "body": "import{expect,test,beforeAll,beforeEach,afterEach,afterAll}from'vitest'\nconst emit=row=>console.log('EXPECT_STATE_ROW '+JSON.stringify(row))\nconst nativeBind=Function.prototype.bind\nfunction initial(phase){let binds=0,callbacks=0,threw=false,error=null;const callback=()=>{callbacks++;return 1};Object.defineProperty(callback,'bind',{get(){binds++;if(this!==callback)throw new Error('wrong bind receiver');return nativeBind}});try{expect.poll(callback,{interval:1,timeout:1000})}catch(reason){threw=true;error={name:reason?.name??null,message:reason?.message??String(reason)}}emit({kind:'hook-admission',phase,binds,callbacks,threw,error})}\nbeforeAll(()=>initial('beforeAll'))\nbeforeEach(()=>initial('beforeEach'))\ntest('actual Test owns polling',async()=>{let callbacks=0;const initial=expect.poll(()=>{callbacks++;return 1},{interval:1,timeout:1000});await initial.toBe(1);emit({kind:'body-admission',callbacks})})\nafterEach(()=>initial('afterEach'))\nafterAll(()=>initial('afterAll'))\n",
+  "bodySHA256": "4af03a1a33e2a3adc6f3be0d3c725b06dcef9e76a0492e00982925916fbd3e3f",
+  "rows": [
+    {
+      "kind": "hook-admission",
+      "phase": "beforeAll",
+      "binds": 1,
+      "callbacks": 0,
+      "threw": true,
+      "error": {
+        "name": "Error",
+        "message": "expect.poll() must be called inside a test"
+      }
+    },
+    {
+      "kind": "hook-admission",
+      "phase": "beforeEach",
+      "binds": 1,
+      "callbacks": 0,
+      "threw": false,
+      "error": null
+    },
+    {
+      "kind": "body-admission",
+      "callbacks": 1
+    },
+    {
+      "kind": "hook-admission",
+      "phase": "afterEach",
+      "binds": 1,
+      "callbacks": 0,
+      "threw": false,
+      "error": null
+    },
+    {
+      "kind": "hook-admission",
+      "phase": "afterAll",
+      "binds": 1,
+      "callbacks": 0,
+      "threw": true,
+      "error": {
+        "name": "Error",
+        "message": "expect.poll() must be called inside a test"
+      }
+    }
+  ],
+  "status": 0,
+  "summary": {
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "cases": [
+    {
+      "name": "actual Test owns polling",
+      "state": "passed",
+      "errors": []
+    }
+  ],
+  "qualification": {
+    "scope": "Actual polling ownership, ordered authored rows, case states and error names/messages.",
+    "rawErrorFrames": "Parsed stack and compiled frame parity remains unqualified; complete raw callback/report errors are retained by the driver."
+  }
+}

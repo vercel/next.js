@@ -1,0 +1,39 @@
+import { expect, test, chai, afterAll } from 'vitest'
+const TAG = '__vitest_poll_takeover__'
+const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
+function descriptor(method) {
+  try {
+    const d = Object.getOwnPropertyDescriptor(method, TAG)
+    return d === undefined ? { own: false } : { own: true, configurable: d.configurable, enumerable: d.enumerable, writable: d.writable ?? null, data: Object.hasOwn(d, 'value'), value: Object.hasOwn(d, 'value') ? d.value : '<accessor>', get: typeof d.get, set: typeof d.set }
+  } catch (error) { return { error: { name: error.name, message: error.message } } }
+}
+let retained, missing
+for (const kind of ['absent', 'false', 'true', 'getter-false', 'getter-true']) test('actual producer tag ' + kind, () => {
+  let reads = 0
+  function ownMatcher() { return { pass: true, message: () => 'owned' } }
+  if (kind === 'false' || kind === 'true') Object.defineProperty(ownMatcher, TAG, { value: kind === 'true' })
+  if (kind.startsWith('getter-')) Object.defineProperty(ownMatcher, TAG, { get() { reads++; return kind === 'getter-true' } })
+  const name = 'toTag' + kind.replaceAll('-', '_')
+  expect.extend({ [name]: ownMatcher })
+  const proto = Object.getOwnPropertyDescriptor(chai.Assertion.prototype, name)
+  const method = proto.value
+  emit({ kind, readsAfterRegistration: reads, methodIdentity: method === chai.Assertion.prototype[name], beforeKeysHasTag: Reflect.ownKeys(method).includes(TAG), descriptor: descriptor(method), afterKeysHasTag: Reflect.ownKeys(method).includes(TAG), readsAfterDescriptor: reads })
+  if (kind === 'true') retained = method
+  if (kind === 'absent') missing = method
+})
+test('retained immutable and absent callable tag descriptors', () => {
+  emit({ kind: 'retained-next-test', samePrototypeMethod: retained === chai.Assertion.prototype.toTagtrue, descriptor: descriptor(retained), missing: descriptor(missing) })
+})
+test('authored accessor-shaped tag is inspected without executing its getter', () => {
+  let reads = 0
+  function ownMatcher() { return { pass: true, message: () => 'owned' } }
+  expect.extend({ toAccessorTag: ownMatcher })
+  const method = chai.Assertion.prototype.toAccessorTag
+  const getter = function () { reads++; return 'actual-accessor-value' }
+  Object.defineProperty(method, TAG, { configurable: true, enumerable: true, get: getter })
+  let observed
+  try { const d = Object.getOwnPropertyDescriptor(method, TAG); observed = { sameGetter: d.get === getter, data: Object.hasOwn(d, 'value'), configurable: d.configurable, enumerable: d.enumerable, set: typeof d.set } }
+  catch (error) { observed = { error: { name: error.name, message: error.message } } }
+  emit({ kind: 'accessor', reads, observed })
+})
+afterAll(() => emit({ kind: 'retained-afterAll', descriptor: descriptor(retained), missing: descriptor(missing) }))

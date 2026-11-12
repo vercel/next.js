@@ -1,0 +1,138 @@
+import { chai, expect, test, afterAll } from 'vitest'
+import assert from 'node:assert/strict'
+const intrinsic = Function.prototype.toString
+const retained = {},
+  held = {},
+  marker = {},
+  getterError = new Error('actual string getter error')
+let getterTarget,
+  getter,
+  getterKind = 'builtin',
+  getterReads = 0,
+  getterReceivers = []
+function standalone(value) {
+  return value
+}
+function ordinaryMatcher() {
+  return { pass: true, message: () => 'ordinary' }
+}
+function taggedMatcher() {
+  return { pass: true, message: () => 'tagged' }
+}
+Object.defineProperty(taggedMatcher, '__vitest_poll_takeover__', {
+  value: false,
+})
+expect.extend({
+  toIntrinsicOrdinary: ordinaryMatcher,
+  toIntrinsicTagged: taggedMatcher,
+})
+chai.use((c, u) => {
+  for (const name of [
+    'intrinsicNative',
+    'intrinsicAccessor',
+    'intrinsicReadonly',
+  ])
+    u.addMethod(c.Assertion.prototype, name, function () {
+      return this
+    })
+})
+function checkCalls(method, target) {
+  assert.equal(method, intrinsic)
+  for (const receiver of [target, standalone])
+    assert.equal(
+      Reflect.apply(method, receiver, []),
+      Reflect.apply(intrinsic, receiver, [])
+    )
+  for (const receiver of [undefined, null, {}, 73]) {
+    let expected
+    try {
+      Reflect.apply(intrinsic, receiver, [])
+    } catch (error) {
+      expected = error
+    }
+    assert.throws(
+      () => Reflect.apply(method, receiver, []),
+      (error) =>
+        error.name === expected.name && error.message === expected.message
+    )
+  }
+}
+test('native string properties retain intrinsic identity and actual foreign receivers', () => {
+  Object.assign(held, {
+    equal: chai.Assertion.prototype.equal,
+    assert: chai.Assertion.prototype.assert,
+    native: chai.Assertion.prototype.intrinsicNative,
+    ordinary: chai.Assertion.prototype.toIntrinsicOrdinary,
+    tagged: chai.Assertion.prototype.toIntrinsicTagged,
+    standalone,
+  })
+  for (const [label, target] of Object.entries(held)) {
+    const method = target.toString
+    retained[label] = method
+    assert.equal(method, target.toString)
+    assert.equal(target.toString(), Reflect.apply(intrinsic, target, []))
+    checkCalls(method, target)
+  }
+})
+test('authored string getters preserve exact read counts, descriptors, receivers and errors', () => {
+  getterTarget = chai.Assertion.prototype.intrinsicAccessor
+  getter = function () {
+    getterReads++
+    getterReceivers.push(this === getterTarget)
+    if (getterKind === 'throw') throw getterError
+    return getterKind === 'marker' ? marker : intrinsic
+  }
+  Object.defineProperty(getterTarget, 'toString', {
+    configurable: true,
+    get: getter,
+  })
+  assert.equal(
+    Object.getOwnPropertyDescriptor(getterTarget, 'toString').get,
+    getter
+  )
+  assert.equal(getterReads, 0)
+  const first = getterTarget.toString,
+    second = getterTarget.toString
+  assert.equal(first, intrinsic)
+  assert.equal(first, second)
+  checkCalls(first, getterTarget)
+  getterKind = 'marker'
+  assert.equal(getterTarget.toString, marker)
+  getterKind = 'throw'
+  assert.throws(
+    () => getterTarget.toString,
+    (error) => error === getterError
+  )
+  assert.equal(getterReads, 4)
+  assert.deepEqual(
+    getterReceivers,
+    Array(4).fill(chai.config.useProxy === false)
+  )
+})
+test('readonly intrinsic properties and retained metadata calls remain native', () => {
+  const target = chai.Assertion.prototype.intrinsicReadonly
+  Object.defineProperty(target, 'toString', {
+    value: intrinsic,
+    writable: false,
+    configurable: false,
+    enumerable: true,
+  })
+  assert.deepEqual(Object.getOwnPropertyDescriptor(target, 'toString'), {
+    value: intrinsic,
+    writable: false,
+    configurable: false,
+    enumerable: true,
+  })
+  checkCalls(target.toString, target)
+  for (const [label, target] of Object.entries(held))
+    checkCalls(retained[label], target)
+})
+afterAll(() => {
+  assert.equal(getterReads, 4)
+  assert.equal(
+    Object.getOwnPropertyDescriptor(getterTarget, 'toString').get,
+    getter
+  )
+  for (const [label, target] of Object.entries(held))
+    checkCalls(retained[label], target)
+})

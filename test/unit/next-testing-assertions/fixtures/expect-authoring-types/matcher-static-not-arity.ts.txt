@@ -1,0 +1,3 @@
+import {expect,type ExpectStatic,type ExpectPollOptions,type Assertion,type Matchers}from'vitest'
+declare module 'vitest'{interface Matchers<R,T>{toBePayload(value:T,count:number):R}}
+expect.not.toBePayload(1)

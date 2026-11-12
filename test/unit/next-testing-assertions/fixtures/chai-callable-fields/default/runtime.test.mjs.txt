@@ -1,0 +1,102 @@
+import { chai, expect, test, afterAll } from 'vitest'
+import assert from 'node:assert/strict'
+const held = {},
+  marker = {},
+  field = Symbol.for('next.chai.descriptor.field')
+let reads = 0,
+  writes = 0,
+  authored,
+  getter,
+  setter
+function taggedMatcher() {
+  return { pass: true, message: () => 'descriptor tagged' }
+}
+Object.defineProperty(taggedMatcher, '__vitest_poll_takeover__', {
+  value: false,
+})
+expect.extend({ toFieldsTagged: taggedMatcher })
+chai.use((c, u) =>
+  u.addMethod(c.Assertion.prototype, 'fieldsNative', function () {
+    return this
+  })
+)
+function checkFields() {
+  const before = reads
+  const descriptors = Object.getOwnPropertyDescriptors(authored)
+  assert.deepEqual(descriptors.authoredReadonly, {
+    value: marker,
+    writable: false,
+    configurable: false,
+    enumerable: true,
+  })
+  assert.deepEqual(descriptors.authoredAccessor, {
+    get: getter,
+    set: setter,
+    configurable: true,
+    enumerable: true,
+  })
+  assert.equal(descriptors[field].value, 73)
+  assert.equal(descriptors.prototype.value, authored.prototype)
+  assert(Reflect.ownKeys(authored).includes(field))
+  assert(Object.keys(authored).includes('authoredReadonly'))
+  assert(Object.keys(authored).includes('authoredAccessor'))
+  assert.equal(
+    Object.getOwnPropertyDescriptor(authored, 'absentCallableField'),
+    undefined
+  )
+  assert.equal(
+    Object.getOwnPropertyDescriptor(authored, Symbol('absent')),
+    undefined
+  )
+  assert.equal(reads, before)
+  assert.equal(reads, 0)
+  assert.equal(writes, 0)
+}
+test('native callable own descriptors enumerate exact fields without invoking accessors', () => {
+  Object.assign(held, {
+    equal: chai.Assertion.prototype.equal,
+    assert: chai.Assertion.prototype.assert,
+    native: chai.Assertion.prototype.fieldsNative,
+    tagged: chai.Assertion.prototype.toFieldsTagged,
+  })
+  for (const fn of Object.values(held)) {
+    assert.equal(typeof fn, 'function')
+    assert(Object.hasOwn(fn, 'name'))
+    assert(Object.hasOwn(fn, 'length'))
+    assert.equal(
+      Object.getOwnPropertyDescriptor(fn, 'absentCallableField'),
+      undefined
+    )
+  }
+  authored = held.native
+  getter = function () {
+    reads++
+    return this
+  }
+  setter = function () {
+    writes++
+  }
+  Object.defineProperty(authored, 'authoredReadonly', {
+    value: marker,
+    enumerable: true,
+    configurable: false,
+    writable: false,
+  })
+  Object.defineProperty(authored, 'authoredAccessor', {
+    get: getter,
+    set: setter,
+    enumerable: true,
+    configurable: true,
+  })
+  Object.defineProperty(authored, field, {
+    value: 73,
+    enumerable: true,
+    configurable: true,
+  })
+  checkFields()
+})
+test('retained native descriptor identities remain exact in later cases', () => {
+  assert.equal(authored, chai.Assertion.prototype.fieldsNative)
+  checkFields()
+})
+afterAll(checkFields)

@@ -1,0 +1,2 @@
+import {expect,type ExpectStatic,type ExpectPollOptions,type Assertion,type Matchers}from'vitest'
+expect.poll(()=>1,{message:1})
