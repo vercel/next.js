@@ -324,6 +324,7 @@ impl CompilationEvent for DiagnosticEvent {
 #[serde(rename_all = "camelCase")]
 pub struct TraceEvent {
     pub name: &'static str,
+    pub report_to_otel: bool,
     pub start_time_ms: f64,
     pub end_time_ms: f64,
     /// Should be an array of key value pairs
@@ -333,6 +334,7 @@ pub struct TraceEvent {
 impl TraceEvent {
     pub fn new(
         name: &'static str,
+        report_to_otel: bool,
         start_time_ms: f64,
         end_time_ms: f64,
         attributes: serde_json::Value,
@@ -341,6 +343,7 @@ impl TraceEvent {
         debug_assert!(matches!(attributes, serde_json::Value::Array(_)));
         Self {
             name,
+            report_to_otel,
             start_time_ms,
             end_time_ms,
             attributes,
@@ -354,6 +357,7 @@ impl TraceEvent {
     /// wall-clock adjustments don't skew (or negate) the span's duration.
     pub fn new_with_duration(
         name: &'static str,
+        report_to_otel: bool,
         wall_start: SystemTime,
         duration: Duration,
         attributes: serde_json::Value,
@@ -366,6 +370,7 @@ impl TraceEvent {
             * 1000.0;
         Self::new(
             name,
+            report_to_otel,
             start_time_ms,
             start_time_ms + duration.as_secs_f64() * 1000.0,
             attributes,
@@ -435,11 +440,13 @@ mod tests {
         let start = SystemTime::UNIX_EPOCH + Duration::from_secs(10);
         let event = TraceEvent::new_with_duration(
             "test",
+            false,
             start,
             Duration::from_millis(1500),
             serde_json::json!([]),
         );
         assert_eq!(event.name, "test");
+        assert!(!event.report_to_otel);
         assert_eq!(event.start_time_ms, 10_000.0);
         assert_eq!(event.end_time_ms, 11_500.0);
     }

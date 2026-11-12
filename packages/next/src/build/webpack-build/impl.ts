@@ -1,4 +1,3 @@
-import { getActiveLocalSpan } from '../../server/lib/trace/local-span-recorder'
 import { saveCpuProfile } from '../../server/lib/cpu-profile'
 // Compiler workers enter here without the CLI's Node environment initialization.
 // Install the baseline before any tracing module captures AsyncLocalStorage.
@@ -32,11 +31,12 @@ import { createEntrypoints } from '../entries'
 import loadConfig from '../../server/config'
 import {
   getTraceEvents,
+  exportTraceState,
   initializeTraceState,
   setGlobal,
+  trace,
   type TraceEvent,
   type TraceState,
-  trace,
 } from '../../trace'
 import { WEBPACK_LAYERS } from '../../lib/constants'
 import { TraceEntryPointsPlugin } from '../webpack/plugins/next-trace-entrypoints-plugin'
@@ -95,7 +95,11 @@ export async function webpackBuildImpl(
   const runWebpackSpan = nextBuildSpan.traceChild(
     'run-webpack-compiler',
     undefined,
-    { recordToInsights: true, scope: true }
+    {
+      reportToOtel: true,
+      recordToInsights: true,
+      scope: true,
+    }
   )
   const hasDeferredEntries =
     config.experimental.deferredEntries &&
@@ -103,7 +107,7 @@ export async function webpackBuildImpl(
 
   // Create entrypoints - exclude deferred entries if configured
   const entrypoints = await nextBuildSpan
-    .traceChild('create-entrypoints')
+    .traceChild('create-entrypoints', undefined, { reportToOtel: true })
     .traceAsyncFn(() =>
       createEntrypoints({
         buildId: NextBuildContext.buildId!,
@@ -177,7 +181,7 @@ export async function webpackBuildImpl(
         getBaseWebpackConfig(dir, {
           ...commonWebpackOptions,
           middlewareMatchers: entrypoints.middlewareMatchers,
-          runWebpackSpan: runWebpackSpan!,
+          runWebpackSpan,
           compilerType: COMPILER_NAMES.client,
           entrypoints: entrypoints.client,
           deferredEntrypoints: deferredEntrypoints?.client,
@@ -187,7 +191,7 @@ export async function webpackBuildImpl(
         }),
         getBaseWebpackConfig(dir, {
           ...commonWebpackOptions,
-          runWebpackSpan: runWebpackSpan!,
+          runWebpackSpan,
           middlewareMatchers: entrypoints.middlewareMatchers,
           compilerType: COMPILER_NAMES.server,
           entrypoints: entrypoints.server,
@@ -198,7 +202,7 @@ export async function webpackBuildImpl(
         }),
         getBaseWebpackConfig(dir, {
           ...commonWebpackOptions,
-          runWebpackSpan: runWebpackSpan!,
+          runWebpackSpan,
           middlewareMatchers: entrypoints.middlewareMatchers,
           compilerType: COMPILER_NAMES.edgeServer,
           entrypoints: entrypoints.edgeServer,
@@ -263,10 +267,7 @@ export async function webpackBuildImpl(
       debug('starting edge-server compiler')
       const start = Date.now()
       ;[edgeServerResult, inputFileSystem] = edgeConfig
-        ? await runCompiler(edgeConfig, {
-            runWebpackSpan,
-            inputFileSystem,
-          })
+        ? await runCompiler(edgeConfig, { runWebpackSpan, inputFileSystem })
         : [null]
       debug(`edge-server compiler finished ${Date.now() - start}ms`)
     }
@@ -418,6 +419,7 @@ export async function workerMain(workerData: {
 }): Promise<
   Awaited<ReturnType<typeof webpackBuildImpl>> & {
     debugTraceEvents: TraceEvent[]
+    debugTraceSelections: TraceState['reportingSpanSelections']
   }
 > {
   // Clone the telemetry for worker
@@ -448,8 +450,8 @@ export async function workerMain(workerData: {
   NextBuildContext.nextBuildSpan = trace(
     `worker-main-${workerData.compilerName}`,
     undefined,
-    undefined,
-    { parent: getActiveLocalSpan(), recordToInsights: true }
+    { 'next.span_type': 'worker-main' },
+    { reportToOtel: true, recordToInsights: true }
   )
 
   const result = await webpackBuildImpl(workerData.compilerName)
@@ -477,5 +479,6 @@ export async function workerMain(workerData: {
   return {
     ...result,
     debugTraceEvents: getTraceEvents(),
+    debugTraceSelections: exportTraceState().reportingSpanSelections,
   }
 }

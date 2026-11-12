@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 
 const mockTraced: Array<{ type: string; spanName: string; error: boolean }> = []
+const mockEnableReporting = jest.fn()
 
 jest.mock('../trace/tracer', () => ({
   SpanStatusCode: { ERROR: 2 },
@@ -27,6 +28,10 @@ jest.mock('../trace/tracer', () => ({
 
 jest.mock('./instrumentation-node-extensions', () => ({
   afterRegistration: () => {},
+}))
+
+jest.mock('../trace/local-span-replay.node', () => ({
+  enableReporting: () => mockEnableReporting(),
 }))
 
 type InstrumentationGlobals =
@@ -55,6 +60,7 @@ function loadGlobals(): InstrumentationGlobals {
 describe('instrumentation lifecycle spans', () => {
   beforeEach(() => {
     mockTraced.length = 0
+    mockEnableReporting.mockClear()
     projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'next-instrumentation-'))
   })
 
@@ -197,5 +203,92 @@ describe('instrumentation lifecycle spans', () => {
         error: true,
       },
     ])
+  })
+
+  describe('tooling build registration', () => {
+    let previousEnv: NodeJS.ProcessEnv
+
+    beforeEach(() => {
+      previousEnv = process.env
+      process.env = {
+        ...process.env,
+        NEXT_PHASE: 'phase-production-build',
+        NEXT_RUNTIME: 'edge',
+        __NEXT_DEV_SERVER: undefined,
+      }
+    })
+
+    afterEach(() => {
+      process.env = previousEnv
+    })
+
+    it('enables every build session and registers once after disabled builds', async () => {
+      const eventsPath = path.join(projectDir, '.next', 'server', 'events')
+      writeInstrumentation(`
+        const fs = require('node:fs')
+        const path = require('node:path')
+        const eventsPath = path.join(__dirname, 'events')
+        fs.appendFileSync(eventsPath, 'load\\n')
+        exports.register = () => {
+          fs.appendFileSync(eventsPath, 'register:' + process.env.NEXT_RUNTIME + '\\n')
+        }
+      `)
+      const globals = loadGlobals()
+      const distDir = path.join(projectDir, '.next')
+
+      await globals.registerToolingBuildInstrumentation(
+        projectDir,
+        distDir,
+        false
+      )
+      await globals.registerToolingBuildInstrumentation(
+        projectDir,
+        distDir,
+        false
+      )
+
+      expect(fs.existsSync(eventsPath)).toBe(false)
+      expect(mockEnableReporting).toHaveBeenCalledTimes(2)
+      expect(process.env.NEXT_RUNTIME).toBe('edge')
+
+      await globals.registerToolingBuildInstrumentation(
+        projectDir,
+        distDir,
+        true
+      )
+
+      expect(fs.readFileSync(eventsPath, 'utf8')).toBe(
+        'load\nregister:nodejs\n'
+      )
+      expect(mockEnableReporting).toHaveBeenCalledTimes(3)
+      expect(process.env.NEXT_RUNTIME).toBe('edge')
+
+      await globals.registerToolingBuildInstrumentation(
+        projectDir,
+        distDir,
+        true
+      )
+
+      expect(fs.readFileSync(eventsPath, 'utf8')).toBe(
+        'load\nregister:nodejs\n'
+      )
+      expect(mockEnableReporting).toHaveBeenCalledTimes(4)
+      expect(process.env.NEXT_RUNTIME).toBe('edge')
+    })
+
+    it('restores the runtime after concurrent build registrations', async () => {
+      writeInstrumentation('exports.register = async () => {}')
+      const globals = loadGlobals()
+      const distDir = path.join(projectDir, '.next')
+
+      await Promise.all([
+        globals.registerToolingBuildInstrumentation(projectDir, distDir, true),
+        globals.registerToolingBuildInstrumentation(projectDir, distDir, true),
+      ])
+
+      expect(mockTraced.map(({ type }) => type)).toEqual([LOAD, REGISTER])
+      expect(mockEnableReporting).toHaveBeenCalledTimes(2)
+      expect(process.env.NEXT_RUNTIME).toBe('edge')
+    })
   })
 })

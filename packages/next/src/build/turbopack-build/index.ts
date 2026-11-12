@@ -8,6 +8,7 @@ export function turbopackBuild(
   const nextBuildSpan = NextBuildContext.nextBuildSpan!
   return nextBuildSpan
     .traceChild('run-turbopack', undefined, {
+      reportToOtel: true,
       recordToInsights: true,
       scope: true,
     })

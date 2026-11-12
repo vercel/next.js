@@ -1,4 +1,3 @@
-import { getActiveLocalSpan } from './trace/local-span-recorder'
 import './cpu-profile'
 import { getNetworkHost } from '../../lib/get-network-host'
 
@@ -39,8 +38,8 @@ import {
 } from './app-info-log'
 import type { AgentFilesResult } from './generate-agent-files'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import type { Span } from '../../trace'
 import {
+  Span,
   flushAllTraces,
   exportTraceState,
   initializeTraceState,
@@ -54,6 +53,21 @@ import { isCI } from '../ci-info'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
+let devServerSessionSpan: Span | undefined
+const processStart =
+  process.hrtime.bigint() - BigInt(Math.floor(process.uptime() * 1e9))
+const processWallStart = Math.floor(Date.now() - process.uptime() * 1000)
+
+function finalizeDevSession(reason: string) {
+  devServerSessionSpan?.setAttribute('exit.reason', reason)
+  devServerSessionSpan?.stop()
+  flushAllTraces()
+  if (devServerSessionSpan) {
+    const { closeReporting } =
+      require('./trace/local-span-replay.node') as typeof import('./trace/local-span-replay.node')
+    closeReporting()
+  }
+}
 
 /**
  * Get the process ID (PID) of the process using the specified port
@@ -181,6 +195,7 @@ export async function getRequestHandlers({
     experimentalHttpsServer,
     serverFastRefresh,
     startServerSpan,
+    devServerSessionSpan,
     quiet,
   })
 }
@@ -207,6 +222,7 @@ export async function startServer(
   process.title = `next-server (v${process.env.__NEXT_VERSION})`
   let handlersReady = () => {}
   let handlersError = () => {}
+  let memoryRestartStarted = false
 
   let handlersPromise: Promise<void> | undefined = new Promise<void>(
     (resolve, reject) => {
@@ -264,15 +280,21 @@ export async function startServer(
         devMemoryThresholdRestart,
         v8.getHeapStatistics
       )
-      if (memoryRestartStats) {
+      if (memoryRestartStats && !memoryRestartStarted) {
+        memoryRestartStarted = true
         Log.warn(
           `Server is approaching the used memory threshold, restarting...`
         )
-        trace('server-restart-close-to-memory-threshold', undefined, {
-          'memory.heapSizeLimit': String(memoryRestartStats.heap_size_limit),
-          'memory.heapUsed': String(memoryRestartStats.used_heap_size),
-        }).stop()
-        flushAllTraces()
+        trace(
+          'server-restart-close-to-memory-threshold',
+          undefined,
+          {
+            'memory.heapSizeLimit': String(memoryRestartStats.heap_size_limit),
+            'memory.heapUsed': String(memoryRestartStats.used_heap_size),
+          },
+          { reportToOtel: true }
+        ).stop()
+        finalizeDevSession('memory-threshold')
         process.exit(RESTART_EXIT_CODE)
       }
     }
@@ -436,7 +458,8 @@ export async function startServer(
             ])
 
             // Flush any remaining traces to the trace file on shutdown
-            flushAllTraces()
+            if (isDev) finalizeDevSession(signal)
+            else flushAllTraces()
 
             // Flush telemetry if this is a dev server
             if (isDev) {
@@ -623,9 +646,10 @@ export async function startServer(
           filename
         )}. Restarting the server to apply the changes...`
       )
+      finalizeDevSession('config-change')
       process.exit(RESTART_EXIT_CODE)
     })
-    wp.on('remove', (removedPath: string) => {
+    wp.on('remove', async (removedPath: string) => {
       if (dirWatchPaths.includes(removedPath)) {
         Log.error(
           `The directory at "${removedPath}" was deleted.\n\n` +
@@ -634,6 +658,7 @@ export async function startServer(
             'Deleting this directory while Next.js is running can lead to ' +
             'undefined behavior. Restarting the server to recover...'
         )
+        finalizeDevSession('output-directory-removed')
         process.exit(RESTART_EXIT_CODE)
       }
     })
@@ -683,43 +708,69 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         )
       }
 
-      const result = await trace(
-        'start-dev-server',
-        undefined,
-        {
-          cpus: String(os.availableParallelism()),
-          platform: os.platform(),
-          'memory.freeMem': String(os.freemem()),
-          'memory.totalMem': String(os.totalmem()),
-          'memory.heapSizeLimit': String(
-            v8.getHeapStatistics().heap_size_limit
-          ),
+      initializeTraceState({
+        lastId: Number(process.env.NEXT_PRIVATE_TRACE_LAST_ID ?? 0),
+      })
+      devServerSessionSpan = new Span({
+        name: 'dev-server-session',
+        reportToOtel: true,
+        reportingRoot: true,
+        parent: null,
+        startTime: processStart,
+        wallStartTimeMs: processWallStart,
+        attrs: {
           ...enabledFeaturesFromParent,
           ...rageRestartAttrsFromParent,
         },
-        {
-          parent: getActiveLocalSpan(),
-          recordToInsights: true,
-          scope: true,
-        }
-      ).traceAsyncFn((span) => {
-        startServerSpan = span!
-        initializeTraceState({
-          ...exportTraceState(),
-          defaultParentSpanId: startServerSpan.getId(),
-        })
-        return startServer(msg.nextWorkerOptions)
       })
-      const memoryUsage = process.memoryUsage()
-      startServerSpan!.setAttribute('memory.rss', String(memoryUsage.rss))
-      startServerSpan!.setAttribute(
-        'memory.heapTotal',
-        String(memoryUsage.heapTotal)
-      )
-      startServerSpan!.setAttribute(
-        'memory.heapUsed',
-        String(memoryUsage.heapUsed)
-      )
+      const result = await devServerSessionSpan
+        .traceChild(
+          'start-dev-server',
+          {
+            cpus: String(os.availableParallelism()),
+            platform: os.platform(),
+            'memory.freeMem': String(os.freemem()),
+            'memory.totalMem': String(os.totalmem()),
+            'memory.heapSizeLimit': String(
+              v8.getHeapStatistics().heap_size_limit
+            ),
+            ...enabledFeaturesFromParent,
+            ...rageRestartAttrsFromParent,
+          },
+          {
+            reportingRoot: !devServerSessionSpan,
+            reportToOtel: true,
+            recordToInsights: true,
+            scope: true,
+          }
+        )
+        .traceAsyncFn(async (span) => {
+          startServerSpan = span!
+          initializeTraceState({
+            ...exportTraceState(),
+            defaultParentSpanId: startServerSpan.getId(),
+          })
+          const started = await startServer(msg.nextWorkerOptions)
+          const memoryUsage = process.memoryUsage()
+          span!.recorder.setAttributes({
+            'memory.rss': String(memoryUsage.rss),
+            'memory.heapTotal': String(memoryUsage.heapTotal),
+            'memory.heapUsed': String(memoryUsage.heapUsed),
+          })
+          const { getSessionAttributes } =
+            require('../../trace/session') as typeof import('../../trace/session')
+          const { traceGlobals } =
+            require('../../trace/shared') as typeof import('../../trace/shared')
+          const attributes = getSessionAttributes(
+            msg.nextWorkerOptions.dir,
+            'dev',
+            !!process.env.TURBOPACK,
+            traceGlobals.get('telemetry')
+          )
+          span!.recorder.setAttributes(attributes)
+          devServerSessionSpan!.recorder.setAttributes(attributes)
+          return started
+        })
       process.send({
         nextServerReady: true,
         port: process.env.PORT,

@@ -1831,6 +1831,7 @@ impl TurboTasksBackend {
         let (persist_wall_start, persist_wall_duration) = if let Some(gc_elapsed) = gc_elapsed {
             turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new_with_duration(
                 "turbopack-gc",
+                false,
                 wall_start,
                 gc_elapsed,
                 serde_json::json!([]),
@@ -1841,6 +1842,7 @@ impl TurboTasksBackend {
         };
         turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new_with_duration(
             "turbopack-persistence",
+            true,
             persist_wall_start,
             persist_wall_duration,
             serde_json::json!([
