@@ -77,9 +77,16 @@ function createWorker(
   // runtime already has are *not* in `moduleChunks`. The worker realm needs its
   // own copies of those factories (functions can't be structured-cloned), so we
   // hand over the chunk paths and let the worker re-import them — cheap, since
-  // the browser has them cached. These must be registered *before* the worker's
-  // evaluate chunk instantiates the entry module, so they travel in their own
-  // params slot that the bootstrap loads first.
+  // the browser has them cached.
+  //
+  // These must be registered *before* the worker's own chunks, for two reasons:
+  //  1. The worker's evaluate chunk instantiates the entry module, whose
+  //     factory may live in one of these chunks.
+  //  2. A worker loader has the same module id in every chunk group (its ident
+  //     deliberately excludes availability info), but carries a different chunk
+  //     list per group. Loading the worker's own chunks last means its version
+  //     wins, so a nested worker gets the correctly-pruned chunk list.
+  // They travel in their own params slot so the bootstrap can order them.
   const preloadChunkPaths = (
     typeof __turbopack_get_loaded_chunk_paths__ === 'function'
       ? __turbopack_get_loaded_chunk_paths__()
