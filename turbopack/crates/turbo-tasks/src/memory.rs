@@ -29,7 +29,8 @@ pub async fn release_freed_memory() {
             .metrics()
             .num_idle_blocking_threads();
         visit_idle_blocking_threads(idle_threads, || TurboMalloc::collect(false)).await;
-        // `collect(true)` purges the freed pages of all threads, so one call is enough.
+        // `collect(true)` purges the freed pages of all threads, so one call is enough. It also
+        // works if tokio runs this on a new blocking thread that never allocated.
         let _ = tokio::task::spawn_blocking(|| TurboMalloc::collect(true)).await;
     }
     #[cfg(target_family = "wasm")]

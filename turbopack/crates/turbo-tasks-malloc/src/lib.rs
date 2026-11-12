@@ -140,9 +140,20 @@ impl TurboMalloc {
     ///    only operates on thread local data and should be fast
     /// force=true: do all the work of `process=false` and then process global shared structures and
     /// return memory to the OS if possible, this is much slower and should only be done rarely.
+    /// This works from any thread, including one that never allocated before.
     pub fn collect(force: bool) {
         #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
-        mimalloc::collect(force);
+        {
+            if force {
+                // `mi_collect` does nothing, not even the process-wide purge, when the calling
+                // thread's heap isn't initialized yet, which is the case for a thread that never
+                // allocated (e.g. a freshly spawned thread of a thread pool). This is a no-op when
+                // the heap is already initialized.
+                // Safety: initializes the calling thread's mimalloc state, has no preconditions.
+                unsafe { mimalloc::sys::mi_thread_init() };
+            }
+            mimalloc::collect(force);
+        }
         #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
         {
             let _ = force;
