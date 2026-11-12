@@ -685,12 +685,17 @@ export default function OuterLayoutRouter({
     const isVirtual = debugName === undefined
     const debugNameToDisplay = isVirtual ? undefined : debugNameContext
 
+    // Whether this entry is the one currently shown, at this level and at
+    // every level above it.
+    const isEntryActive = isActive && stateKey === activeStateKey
+
     let templateValue = (
       <ScrollHandler renderTree={renderTree}>
         <ErrorBoundary
           errorComponent={error}
           errorStyles={errorStyles}
           errorScripts={errorScripts}
+          isActive={isEntryActive}
         >
           <LoadingBoundary
             name={debugNameToDisplay}
@@ -710,6 +715,7 @@ export default function OuterLayoutRouter({
               notFound={notFound}
               forbidden={forbidden}
               unauthorized={unauthorized}
+              isActive={isEntryActive}
             >
               <RedirectBoundary>
                 <InnerLayoutRouter
@@ -719,7 +725,7 @@ export default function OuterLayoutRouter({
                   renderTree={renderTree}
                   segmentPath={segmentPath}
                   debugNameContext={childDebugNameContext}
-                  isActive={isActive && stateKey === activeStateKey}
+                  isActive={isEntryActive}
                 />
                 {segmentBoundaryTriggerNode}
               </RedirectBoundary>

@@ -355,4 +355,81 @@ describe('router-hooks-hidden-routes', () => {
       })
     })
   })
+
+  // The visible throwers (`thrower:<project>:<action>`) and boundary fallbacks
+  // (`boundary:<name>`).
+  async function readBoundaryMarkers(browser: Browser): Promise<string[]> {
+    const markers: string[] = await browser.eval(() =>
+      Array.from(
+        document.querySelectorAll<HTMLElement>('[data-thrower],[data-boundary]')
+      )
+        .filter((el) => el.checkVisibility())
+        .map((el) =>
+          el.dataset.thrower !== undefined
+            ? `thrower:${el.dataset.thrower}`
+            : `boundary:${el.dataset.boundary}`
+        )
+    )
+    return markers.sort()
+  }
+
+  const actions = ['error', 'not-found', 'catch-error']
+
+  function throwers(project: string) {
+    return actions.map((action) => `thrower:${project}:${action}`).sort()
+  }
+
+  // `error.js`, `not-found.js` and `catchError()` boundaries reset when the
+  // pathname changes. The pathname of a hidden route doesn't change, and it is
+  // the same again when navigating back to the route, so the boundaries also
+  // reset when their route is shown again.
+  describe.each([
+    {
+      away: '/acme/b',
+      hides: 'the project page',
+      awayMarkers: throwers('b'),
+    },
+    {
+      away: '/account',
+      hides: 'the team layout',
+      awayMarkers: [],
+    },
+  ])('navigating to $away, which hides $hides', ({ away, awayMarkers }) => {
+    it.each([
+      { action: 'error', fallback: ['boundary:error'] },
+      { action: 'not-found', fallback: ['boundary:not-found'] },
+      {
+        action: 'catch-error',
+        // `catchError()` only replaces its own children.
+        fallback: [
+          'boundary:catch-error',
+          'thrower:a:error',
+          'thrower:a:not-found',
+        ],
+      },
+    ])('resets the $action boundary', async ({ action, fallback }) => {
+      const browser = await next.browser('/acme/a')
+      await waitForIdle(browser)
+      expect(await readBoundaryMarkers(browser)).toEqual(throwers('a'))
+
+      await browser.elementByCss(`[data-thrower="a:${action}"]`).click()
+      await retry(async () => {
+        expect(await readBoundaryMarkers(browser)).toEqual(fallback)
+      })
+
+      await browser.elementByCss(`a[href="${away}"]`).click()
+      await retry(async () => {
+        expect(new URL(await browser.url()).pathname).toBe(away)
+        expect(await readBoundaryMarkers(browser)).toEqual(awayMarkers)
+      })
+      // Let the hidden route render, so that it knows it was hidden.
+      await waitForIdle(browser)
+
+      await browser.elementByCss('a[href="/acme/a"]').click()
+      await retry(async () => {
+        expect(new URL(await browser.url()).pathname).toBe('/acme/a')
+        expect(await readBoundaryMarkers(browser)).toEqual(throwers('a'))
+      })
+    })
+  })
 })
