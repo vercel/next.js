@@ -341,216 +341,223 @@ async function createNextInstall({
   const { trace } = require('next/dist/trace')
   const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
 
-  return await (
-    parentSpan?.traceChild('createNextInstall') ?? trace('createNextInstall')
-  ).traceAsyncFn(async (rootSpan) => {
-    const origRepoDir = path.join(__dirname, '../../')
-    const isolationRoot = path.join(
-      tmpDir,
-      `next-install-${randomBytes(32).toString('hex')}`
-    )
-    const installDir = path.join(isolationRoot, subDir)
-    require('console').log('Creating next instance in:')
-    require('console').log(installDir)
+  const createNextInstallParent = parentSpan ?? {
+    traceChild: (name) => trace(name),
+  }
+  return await createNextInstallParent
+    .traceChild('createNextInstall')
+    .traceAsyncFn(async (rootSpan) => {
+      const origRepoDir = path.join(__dirname, '../../')
+      const isolationRoot = path.join(
+        tmpDir,
+        `next-install-${randomBytes(32).toString('hex')}`
+      )
+      const installDir = path.join(isolationRoot, subDir)
+      require('console').log('Creating next instance in:')
+      require('console').log(installDir)
 
-    const pkgPathsEnv = process.env.NEXT_TEST_PKG_PATHS
-    let pkgPaths
+      const pkgPathsEnv = process.env.NEXT_TEST_PKG_PATHS
+      let pkgPaths
 
-    if (pkgPathsEnv) {
-      pkgPaths = new Map(JSON.parse(pkgPathsEnv))
-      require('console').log('using provided pkg paths')
-    } else {
-      pkgPaths = await packPackages(rootSpan)
-
-      if (process.env.NEXT_TEST_WASM) {
-        const wasmPath = path.join(origRepoDir, 'crates', 'wasm', 'pkg')
-        const hasWasmBinary = fs.existsSync(path.join(wasmPath, 'package.json'))
-        if (hasWasmBinary) {
-          process.env.NEXT_TEST_WASM_DIR = wasmPath
-        }
+      if (pkgPathsEnv) {
+        pkgPaths = new Map(JSON.parse(pkgPathsEnv))
+        require('console').log('using provided pkg paths')
       } else {
-        const nativePath = path.join(origRepoDir, 'packages/next-swc/native')
-        const hasNativeBinary = fs.existsSync(nativePath)
-          ? fs.readdirSync(nativePath).some((item) => item.endsWith('.node'))
-          : false
+        pkgPaths = await packPackages(rootSpan)
 
-        if (hasNativeBinary) {
-          process.env.NEXT_TEST_NATIVE_DIR = nativePath
-        } else {
-          const swcDirectory = fs
-            .readdirSync(path.join(origRepoDir, 'node_modules/@next'))
-            .find((directory) => directory.startsWith('swc-'))
-          process.env.NEXT_TEST_NATIVE_DIR = path.join(
-            origRepoDir,
-            'node_modules/@next',
-            swcDirectory
+        if (process.env.NEXT_TEST_WASM) {
+          const wasmPath = path.join(origRepoDir, 'crates', 'wasm', 'pkg')
+          const hasWasmBinary = fs.existsSync(
+            path.join(wasmPath, 'package.json')
           )
-        }
-      }
-
-      require('console').log({
-        swcNativeDirectory: process.env.NEXT_TEST_NATIVE_DIR,
-        swcWasmDirectory: process.env.NEXT_TEST_WASM_DIR,
-      })
-    }
-
-    const combinedDependencies = {
-      next: pkgPaths.get('next'),
-      ...Object.keys(dependencies).reduce((prev, pkg) => {
-        const pkgPath = pkgPaths.get(pkg)
-        const version = dependencies[pkg]
-        if (version === 'workspace:*') {
-          if (pkgPath) {
-            prev[pkg] = pkgPath
-          } else {
-            throw new Error(
-              `"${pkg}" is declared as "workspace:*" but no packed tarball was found for it. ` +
-                `Only packages in this repository with a "pack-for-isolated-tests" script can be used with "workspace:*".`
-            )
+          if (hasWasmBinary) {
+            process.env.NEXT_TEST_WASM_DIR = wasmPath
           }
         } else {
-          prev[pkg] = pkgPath || version
+          const nativePath = path.join(origRepoDir, 'packages/next-swc/native')
+          const hasNativeBinary = fs.existsSync(nativePath)
+            ? fs.readdirSync(nativePath).some((item) => item.endsWith('.node'))
+            : false
+
+          if (hasNativeBinary) {
+            process.env.NEXT_TEST_NATIVE_DIR = nativePath
+          } else {
+            const swcDirectory = fs
+              .readdirSync(path.join(origRepoDir, 'node_modules/@next'))
+              .find((directory) => directory.startsWith('swc-'))
+            process.env.NEXT_TEST_NATIVE_DIR = path.join(
+              origRepoDir,
+              'node_modules/@next',
+              swcDirectory
+            )
+          }
         }
-        return prev
-      }, {}),
-    }
 
-    if (useRspack) {
-      combinedDependencies['next-rspack'] = pkgPaths.get('next-rspack')
-    }
-
-    // Build overrides to resolve transitive workspace deps from local
-    // tarballs. Write all three formats so npm, pnpm, and yarn all work.
-    const workspacePkgOverrides = {}
-    for (const [name, tarballPath] of pkgPaths.entries()) {
-      if (!combinedDependencies[name]) {
-        workspacePkgOverrides[name] = tarballPath
+        require('console').log({
+          swcNativeDirectory: process.env.NEXT_TEST_NATIVE_DIR,
+          swcWasmDirectory: process.env.NEXT_TEST_WASM_DIR,
+        })
       }
-    }
 
-    const scripts = {
-      debug: `NEXT_PRIVATE_SKIP_CANARY_CHECK=1 NEXT_TELEMETRY_DISABLED=1 NEXT_TEST_NATIVE_DIR=${process.env.NEXT_TEST_NATIVE_DIR} node --inspect --trace-deprecation --enable-source-maps node_modules/next/dist/bin/next`,
-      'debug-brk': `NEXT_PRIVATE_SKIP_CANARY_CHECK=1 NEXT_TELEMETRY_DISABLED=1 NEXT_TEST_NATIVE_DIR=${process.env.NEXT_TEST_NATIVE_DIR} node --inspect-brk --trace-deprecation --enable-source-maps node_modules/next/dist/bin/next`,
-      ...packageJson.scripts,
-    }
+      const combinedDependencies = {
+        next: pkgPaths.get('next'),
+        ...Object.keys(dependencies).reduce((prev, pkg) => {
+          const pkgPath = pkgPaths.get(pkg)
+          const version = dependencies[pkg]
+          if (version === 'workspace:*') {
+            if (pkgPath) {
+              prev[pkg] = pkgPath
+            } else {
+              throw new Error(
+                `"${pkg}" is declared as "workspace:*" but no packed tarball was found for it. ` +
+                  `Only packages in this repository with a "pack-for-isolated-tests" script can be used with "workspace:*".`
+              )
+            }
+          } else {
+            prev[pkg] = pkgPath || version
+          }
+          return prev
+        }, {}),
+      }
 
-    // Pin the same pnpm version the repo uses so corepack resolves a
-    // consistent pnpm across isolated test dirs. Without this, `pnpm` may
-    // fall back to whatever version is installed at the system level, which
-    // can disagree with the repo's `packageManager` field and cause mismatch
-    // errors (e.g. pnpm-workspace.yaml written for v10 parsed by v9).
-    //
-    // Only fall back to the root `packageManager` for the default pnpm
-    // install path. Tests that provide their own `installCommand` (e.g.
-    // yarn-pnp) need to switch package managers themselves and would be
-    // blocked by corepack if the file already pinned `pnpm@...`.
-    const rootPackageManager = require(
-      path.join(__dirname, '../../package.json')
-    ).packageManager
-    const packageManagerField =
-      packageJson.packageManager ||
-      (installCommand ? undefined : rootPackageManager)
+      if (useRspack) {
+        combinedDependencies['next-rspack'] = pkgPaths.get('next-rspack')
+      }
 
-    await fs.ensureDir(installDir)
-    await fs.writeFile(
-      path.join(installDir, 'package.json'),
-      JSON.stringify(
-        {
-          // Pin packageManager so corepack doesn't auto-inject a reference
-          // to the latest version (and rewrite this file mid-test).
-          // Callers can override via packageJson.packageManager.
-          packageManager: ROOT_PACKAGE_MANAGER,
-          ...packageJson,
-          ...(packageManagerField && { packageManager: packageManagerField }),
-          scripts,
-          dependencies: combinedDependencies,
-          private: true,
-          overrides: {
-            ...workspacePkgOverrides,
-            ...(packageJson.overrides || {}),
-          },
-          resolutions: {
-            ...workspacePkgOverrides,
-            ...(resolutions || {}),
-          },
-        },
-        null,
-        2
-      )
-    )
+      // Build overrides to resolve transitive workspace deps from local
+      // tarballs. Write all three formats so npm, pnpm, and yarn all work.
+      const workspacePkgOverrides = {}
+      for (const [name, tarballPath] of pkgPaths.entries()) {
+        if (!combinedDependencies[name]) {
+          workspacePkgOverrides[name] = tarballPath
+        }
+      }
 
-    if (beforeInstall !== undefined) {
-      await rootSpan.traceChild('beforeInstall').traceAsyncFn(async (span) => {
-        await beforeInstall(span, installDir)
-      })
-    }
+      const scripts = {
+        debug: `NEXT_PRIVATE_SKIP_CANARY_CHECK=1 NEXT_TELEMETRY_DISABLED=1 NEXT_TEST_NATIVE_DIR=${process.env.NEXT_TEST_NATIVE_DIR} node --inspect --trace-deprecation --enable-source-maps node_modules/next/dist/bin/next`,
+        'debug-brk': `NEXT_PRIVATE_SKIP_CANARY_CHECK=1 NEXT_TELEMETRY_DISABLED=1 NEXT_TEST_NATIVE_DIR=${process.env.NEXT_TEST_NATIVE_DIR} node --inspect-brk --trace-deprecation --enable-source-maps node_modules/next/dist/bin/next`,
+        ...packageJson.scripts,
+      }
 
-    const installString = installCommand
-      ? typeof installCommand === 'function'
-        ? installCommand({
+      // Pin the same pnpm version the repo uses so corepack resolves a
+      // consistent pnpm across isolated test dirs. Without this, `pnpm` may
+      // fall back to whatever version is installed at the system level, which
+      // can disagree with the repo's `packageManager` field and cause mismatch
+      // errors (e.g. pnpm-workspace.yaml written for v10 parsed by v9).
+      //
+      // Only fall back to the root `packageManager` for the default pnpm
+      // install path. Tests that provide their own `installCommand` (e.g.
+      // yarn-pnp) need to switch package managers themselves and would be
+      // blocked by corepack if the file already pinned `pnpm@...`.
+      const rootPackageManager = require(
+        path.join(__dirname, '../../package.json')
+      ).packageManager
+      const packageManagerField =
+        packageJson.packageManager ||
+        (installCommand ? undefined : rootPackageManager)
+
+      await fs.ensureDir(installDir)
+      await fs.writeFile(
+        path.join(installDir, 'package.json'),
+        JSON.stringify(
+          {
+            // Pin packageManager so corepack doesn't auto-inject a reference
+            // to the latest version (and rewrite this file mid-test).
+            // Callers can override via packageJson.packageManager.
+            packageManager: ROOT_PACKAGE_MANAGER,
+            ...packageJson,
+            ...(packageManagerField && { packageManager: packageManagerField }),
+            scripts,
             dependencies: combinedDependencies,
-            resolutions,
-          })
-        : installCommand
-      : null
-
-    await applyInstallSecuritySettings(installDir, isolationRoot)
-    await applyWorkspaceOverrides(installDir, isolationRoot, {
-      ...workspacePkgOverrides,
-      ...(resolutions || {}),
-    })
-
-    if (installString !== null) {
-      console.log('running install command', installString)
-      await rootSpan
-        .traceChild('run custom install')
-        .traceAsyncFn(() => runCustomInstall(installString, installDir))
-    } else {
-      await rootSpan
-        .traceChild('run generic install command', combinedDependencies)
-        .traceAsyncFn(() => installDependencies(installDir, tmpDir))
-
-      // `@next/env` is a dependency of `next`, so it only resolves to the
-      // local tarball if the overrides were applied. Every generic isolated
-      // install reaches this guard, but the lockfile fallback short-circuits
-      // off when the default linker exposes its virtual-store path.
-      if (!combinedDependencies['@next/env']) {
-        const envDir = await fs.realpath(
-          path.join(
-            await fs.realpath(path.join(installDir, 'node_modules/next')),
-            '../@next/env'
-          )
+            private: true,
+            overrides: {
+              ...workspacePkgOverrides,
+              ...(packageJson.overrides || {}),
+            },
+            resolutions: {
+              ...workspacePkgOverrides,
+              ...(resolutions || {}),
+            },
+          },
+          null,
+          2
         )
-        const envTarballPath = pkgPaths.get('@next/env')
-        if (
-          !envDir.includes('@next+env@file') &&
-          !(
-            envTarballPath &&
-            (await lockfileResolvesLocalTarball(
-              installDir,
-              '@next/env',
-              envTarballPath
-            ))
+      )
+
+      if (beforeInstall !== undefined) {
+        await rootSpan
+          .traceChild('beforeInstall')
+          .traceAsyncFn(async (span) => {
+            await beforeInstall(span, installDir)
+          })
+      }
+
+      const installString = installCommand
+        ? typeof installCommand === 'function'
+          ? installCommand({
+              dependencies: combinedDependencies,
+              resolutions,
+            })
+          : installCommand
+        : null
+
+      await applyInstallSecuritySettings(installDir, isolationRoot)
+      await applyWorkspaceOverrides(installDir, isolationRoot, {
+        ...workspacePkgOverrides,
+        ...(resolutions || {}),
+      })
+
+      if (installString !== null) {
+        console.log('running install command', installString)
+        await rootSpan
+          .traceChild('run custom install')
+          .traceAsyncFn(() => runCustomInstall(installString, installDir))
+      } else {
+        await rootSpan
+          .traceChild('run generic install command', combinedDependencies)
+          .traceAsyncFn(() => installDependencies(installDir, tmpDir))
+
+        // `@next/env` is a dependency of `next`, so it only resolves to the
+        // local tarball if the overrides were applied. Every generic isolated
+        // install reaches this guard, but the lockfile fallback short-circuits
+        // off when the default linker exposes its virtual-store path.
+        if (!combinedDependencies['@next/env']) {
+          const envDir = await fs.realpath(
+            path.join(
+              await fs.realpath(path.join(installDir, 'node_modules/next')),
+              '../@next/env'
+            )
           )
-        ) {
-          throw new Error(
-            `@next/env resolved from the npm registry instead of the local tarball (${envDir}), ` +
-              'the workspace overrides were not applied to the install'
-          )
+          const envTarballPath = pkgPaths.get('@next/env')
+          if (
+            !envDir.includes('@next+env@file') &&
+            !(
+              envTarballPath &&
+              (await lockfileResolvesLocalTarball(
+                installDir,
+                '@next/env',
+                envTarballPath
+              ))
+            )
+          ) {
+            throw new Error(
+              `@next/env resolved from the npm registry instead of the local tarball (${envDir}), ` +
+                'the workspace overrides were not applied to the install'
+            )
+          }
         }
       }
-    }
 
-    if (useRspack) {
-      process.env.NEXT_RSPACK = 'true'
-      process.env.RSPACK_CONFIG_VALIDATE = 'loose-silent'
-    }
+      if (useRspack) {
+        process.env.NEXT_RSPACK = 'true'
+        process.env.RSPACK_CONFIG_VALIDATE = 'loose-silent'
+      }
 
-    return {
-      installDir,
-      pkgPaths,
-    }
-  })
+      return {
+        installDir,
+        pkgPaths,
+      }
+    })
 }
 
 module.exports = {
