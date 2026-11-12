@@ -1,11 +1,14 @@
 // nsio (`@next/safe-image-optimization`) is an alternative to sharp, enabled by
-// `experimental.imgOptSafeImageOptimization`.
+// `experimental.imgOptSafeMode`.
 //
 // This module is imported by `transform.ts`, which runs in a child process, so
 // keep its imports minimal. nsio itself is only required when it's used.
 import type { InputFormat, Pool } from '@next/safe-image-optimization'
 import { GIF, JPEG, PNG, WEBP } from './image-type'
-import { NSIO_OUTPUT_MIME_TYPES } from '../../shared/lib/image-optimizer-constants'
+import {
+  NSIO_DEFAULT_INPUT_FORMATS,
+  NSIO_OUTPUT_MIME_TYPES,
+} from '../../shared/lib/image-optimizer-constants'
 
 let _pool: Pool | undefined
 
@@ -55,20 +58,7 @@ export async function nsioOptimizeImage({
     )
   }
 
-  // The same formats that `getSharp()` allows, minus HEIC/HEIF, which is
-  // blocked by `imageOptimizerTransform`.
-  //
-  // nsio throws if it sees an input image that is not allowlisted, which
-  // protects against type confusion bugs.
-  // e.g. https://github.com/vercel/next.js/security/advisories/GHSA-7qx7-33qx-rqx2
-  const inputFormats: InputFormat[] = [
-    'avif',
-    'gif',
-    'jpeg',
-    'png',
-    'tiff',
-    'webp',
-  ]
+  const inputFormats: InputFormat[] = [...NSIO_DEFAULT_INPUT_FORMATS]
   if (dangerouslyAllowSVG) {
     inputFormats.push('svg')
   }

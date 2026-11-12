@@ -4,11 +4,11 @@ import { expectWidth, setupTests } from './util'
 
 // Deployments use the Vercel image CDN instead of the local image pipeline.
 // @force-gate !deploy
-describe('with experimental.imgOptSafeImageOptimization', () => {
+describe('with experimental.imgOptSafeMode', () => {
   // AVIF output isn't supported, so the shared AVIF tests don't apply.
   setupTests({
     nextConfigImages: { formats: ['image/webp'] },
-    nextConfigExperimental: { imgOptSafeImageOptimization: true },
+    nextConfigExperimental: { imgOptSafeMode: true },
   })
 
   describe('with only AVIF in images.formats', () => {
@@ -17,7 +17,7 @@ describe('with experimental.imgOptSafeImageOptimization', () => {
       nextConfig: {
         images: { formats: ['image/avif'] },
         // `nextImage` defaults to `true` in the object form
-        experimental: { imgOptSafeImageOptimization: {} },
+        experimental: { imgOptSafeMode: {} },
       },
     })
 
@@ -34,7 +34,7 @@ describe('with experimental.imgOptSafeImageOptimization', () => {
       )
       await expectWidth(res, 384)
       expect(next.cliOutput).toContain(
-        'Some "images.formats" are ignored when using "experimental.imgOptSafeImageOptimization": image/avif'
+        'Some "images.formats" are ignored when using "experimental.imgOptSafeMode": image/avif'
       )
     })
   })
