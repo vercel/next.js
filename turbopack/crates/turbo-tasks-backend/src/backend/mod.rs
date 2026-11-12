@@ -3517,53 +3517,62 @@ impl TurboTasksBackend {
     ) -> AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1> {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut collectibles = AutoMap::default();
+        // Lock the reader together with the task, so that reading the collectibles and making the
+        // reader's dependency on them current happen atomically. Otherwise a collectibles change in
+        // between would still see the dependency as outdated (not read yet) and make the reader
+        // dirty, but not stale. The reader's execution would then complete with the collectibles
+        // it read before the change, and its dirty flag would be cleared.
+        let (mut task, mut reader) = match reader_id {
+            Some(reader_id) if reader_id != task_id => {
+                let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
+                (task, Some(reader))
+            }
+            _ => (ctx.task(task_id, TaskDataCategory::All), None),
+        };
+        if task
+            .get_persistent_task_type()
+            .is_some_and(|t| !t.native_fn.is_root)
         {
-            let mut task = ctx.task(task_id, TaskDataCategory::All);
-            if task
-                .get_persistent_task_type()
-                .is_some_and(|t| !t.native_fn.is_root)
-            {
-                drop(task);
-                panic!(
-                    "Reading collectibles of non-root task {} (reader: {}). The `root` attribute \
-                     is missing on the task.",
-                    self.debug_get_task_description(task_id),
-                    reader_id.map_or_else(
-                        || "unknown".to_string(),
-                        |r| self.debug_get_task_description(r)
-                    )
-                );
+            drop(task);
+            drop(reader);
+            panic!(
+                "Reading collectibles of non-root task {} (reader: {}). The `root` attribute is \
+                 missing on the task.",
+                self.debug_get_task_description(task_id),
+                reader_id.map_or_else(
+                    || "unknown".to_string(),
+                    |r| self.debug_get_task_description(r)
+                )
+            );
+        }
+        for (collectible, count) in task.iter_aggregated_collectibles() {
+            if *count > 0 && collectible.collectible_type == collectible_type {
+                *collectibles
+                    .entry(RawVc::task_cell(
+                        collectible.cell.task,
+                        collectible.cell.cell,
+                    ))
+                    .or_insert(0) += 1;
             }
-            for (collectible, count) in task.iter_aggregated_collectibles() {
-                if *count > 0 && collectible.collectible_type == collectible_type {
-                    *collectibles
-                        .entry(RawVc::task_cell(
-                            collectible.cell.task,
-                            collectible.cell.cell,
-                        ))
-                        .or_insert(0) += 1;
-                }
-            }
-            for (&collectible, &count) in task.iter_collectibles() {
-                if collectible.collectible_type == collectible_type {
-                    *collectibles
-                        .entry(RawVc::task_cell(
-                            collectible.cell.task,
-                            collectible.cell.cell,
-                        ))
-                        .or_insert(0) += count;
-                }
-            }
-            if let Some(reader_id) = reader_id {
-                let _ = task.add_collectibles_dependents((collectible_type, reader_id));
+        }
+        for (&collectible, &count) in task.iter_collectibles() {
+            if collectible.collectible_type == collectible_type {
+                *collectibles
+                    .entry(RawVc::task_cell(
+                        collectible.cell.task,
+                        collectible.cell.cell,
+                    ))
+                    .or_insert(0) += count;
             }
         }
         if let Some(reader_id) = reader_id {
-            let mut reader = ctx.task(reader_id, TaskDataCategory::Data);
+            let _ = task.add_collectibles_dependents((collectible_type, reader_id));
             let target = CollectiblesRef {
                 task: task_id,
                 collectible_type,
             };
+            // A task reading its own collectibles uses the same guard for both roles.
+            let reader = reader.as_mut().unwrap_or(&mut task);
             if !reader.remove_outdated_collectibles_dependencies(&target) {
                 let _ = reader.add_collectibles_dependencies(target);
             }
