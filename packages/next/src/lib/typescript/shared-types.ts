@@ -3,7 +3,6 @@ import { promises as fs } from 'fs'
 import path from 'path'
 
 import type { NextConfigComplete } from '../../server/config-shared'
-import type { Lockfile } from '../../build/lockfile'
 import * as Log from '../../build/output/log'
 import { getSharedTypesDir } from './shared-types-dir'
 
@@ -143,9 +142,9 @@ async function removeFile(filePath: string): Promise<void> {
  *
  * Generation holds the types lock (`{typesDir}/lock`) so concurrent commands
  * take turns. Waiting for it is expected and silent at first. If locking is
- * unavailable (`experimental.lockDistDir` disabled, WASM bindings, or a
- * filesystem without lock support) or the wait times out, generation runs
- * unlocked: every writer writes identical content atomically, so that is safe.
+ * unavailable (WASM bindings or a filesystem without lock support) or the wait
+ * times out, generation runs unlocked: every writer writes identical content
+ * atomically, so that is safe.
  *
  * Must be called after the SWC bindings are loaded.
  */
@@ -163,19 +162,16 @@ export async function generateSharedTypes({
   const typesDir = getSharedTypesDir(dir, config)
   await fs.mkdir(typesDir, { recursive: true })
 
-  let lockfile: Lockfile | undefined
-  if (config.experimental.lockDistDir) {
-    // Lazily required: the lockfile loads the SWC bindings module.
-    const { Lockfile: LockfileImpl } =
-      require('../../build/lockfile') as typeof import('../../build/lockfile')
-    lockfile = await LockfileImpl.acquireWithWait(
-      path.join(typesDir, SHARED_TYPES_LOCK),
-      {
-        waitingMessage:
-          'Waiting for another Next.js process to finish generating types...',
-      }
-    )
-  }
+  // Lazily required: the lockfile loads the SWC bindings module.
+  const { Lockfile } =
+    require('../../build/lockfile') as typeof import('../../build/lockfile')
+  const lockfile = await Lockfile.acquireWithWait(
+    path.join(typesDir, SHARED_TYPES_LOCK),
+    {
+      waitingMessage:
+        'Waiting for another Next.js process to finish generating types...',
+    }
+  )
 
   try {
     await generateSharedTypesUnlocked({
