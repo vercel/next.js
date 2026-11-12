@@ -1,0 +1,2 @@
+import type {SerializedError} from 'vitest'
+const error:SerializedError={message:'failure',name:undefined,stack:undefined,stacks:undefined,cause:undefined};void error

@@ -1,0 +1,5 @@
+import type {ParsedStack} from 'vitest'
+type Equal<A,B>=(<T>()=>T extends A?1:2) extends (<T>()=>T extends B?1:2)?true:false
+const exact:true=null as unknown as Equal<ParsedStack,{method:string,file:string,line:number,column:number}>
+const keys:true=null as unknown as Equal<keyof ParsedStack,'method'|'file'|'line'|'column'>
+declare let frame:ParsedStack;frame.method='changed';frame.file='a.ts';frame.line=1;frame.column=2;void exact;void keys

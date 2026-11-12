@@ -1,0 +1,2 @@
+import type {ParsedStack} from 'vitest'
+const frame:ParsedStack={file:'test.ts',line:1,column:2};void frame
