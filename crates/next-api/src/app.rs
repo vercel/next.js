@@ -54,7 +54,7 @@ use turbopack::{
 use turbopack_core::{
     asset::{AssetContent, no_hash_salt},
     chunk::{
-        ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
+        ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAssets,
         HmrChunkListSource, availability_info::AvailabilityInfo,
     },
     file_source::FileSource,
@@ -95,7 +95,9 @@ use crate::{
         AnalyzeChunkGroup, AnalyzeChunkGroups, AnalyzeClientEntries, AnalyzeClientReference,
         AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes,
     },
-    server_actions::{build_server_actions_loader, create_server_actions_manifest},
+    server_actions::{
+        ServerActionsManifest, build_server_actions_loader, create_server_actions_manifest,
+    },
     service_worker::service_worker_output_assets,
     sri_manifest::get_sri_manifest_asset,
 };
@@ -1634,6 +1636,39 @@ impl AppEndpoint {
                 .to_resolved()
                 .await?;
 
+        // The server entry chunks (and the server actions manifest they include) only depend on
+        // the module graph and the client references, not on the client or SSR chunks. Create
+        // the tasks now, without awaiting them, so they are computed concurrently with the
+        // client and SSR chunking below.
+        let actions = ServerActionsGraphs::new(*module_graphs.base, per_page_module_graph)
+            .get_server_actions_for_endpoint(
+                *rsc_entry,
+                match runtime {
+                    NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
+                    NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
+                },
+            );
+        let server_action_manifest = create_server_actions_manifest(
+            actions,
+            project,
+            node_root.clone(),
+            app_entry.original_name.clone(),
+            runtime,
+            match runtime {
+                NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
+                NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
+            },
+            *module_graphs.full,
+            project.runtime_chunking_context(process_client_assets, runtime),
+        );
+        let app_entry_chunks = self.app_entry_chunks(
+            *client_references,
+            server_action_manifest,
+            server_path.clone(),
+            process_client_assets,
+            *module_graphs.full,
+        );
+
         // We only need the client runtime entries for pages not for Route Handlers
         let (availability_info, client_shared_chunks, client_chunk_group_bootstrap_params) =
             if is_app_page {
@@ -1885,45 +1920,12 @@ impl AppEndpoint {
             }
         }
 
-        let actions = ServerActionsGraphs::new(*module_graphs.base, per_page_module_graph)
-            .get_server_actions_for_endpoint(
-                *rsc_entry,
-                match runtime {
-                    NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
-                    NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
-                },
-            );
-
-        let server_action_manifest = create_server_actions_manifest(
-            actions,
-            project,
-            node_root.clone(),
-            app_entry.original_name.clone(),
-            runtime,
-            match runtime {
-                NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
-                NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
-            },
-            *module_graphs.full,
-            project.runtime_chunking_context(process_client_assets, runtime),
-        )
-        .await?;
+        let server_action_manifest = server_action_manifest.await?;
         if emit_rsc_manifests {
             server_assets.insert(server_action_manifest.manifest);
         }
 
-        let server_action_manifest_loader = server_action_manifest.loader;
-
-        let app_entry_chunks = self
-            .app_entry_chunks(
-                *client_references,
-                *server_action_manifest_loader,
-                server_path.clone(),
-                process_client_assets,
-                *module_graphs.full,
-            )
-            .to_resolved()
-            .await?;
+        let app_entry_chunks = app_entry_chunks.to_resolved().await?;
         let expanded_app_entry_chunks = app_entry_chunks.expand_all_assets();
         let all_app_entry_chunks = app_entry_chunks.all_assets().await?;
         server_assets.extend(all_app_entry_chunks.iter().copied());
@@ -2267,7 +2269,7 @@ impl AppEndpoint {
     async fn app_entry_chunks(
         self: Vc<Self>,
         client_references: Vc<ClientReferenceGraphResult>,
-        server_action_manifest_loader: ResolvedVc<Box<dyn EvaluatableAsset>>,
+        server_action_manifest: Vc<ServerActionsManifest>,
         server_path: FileSystemPath,
         process_client_assets: bool,
         module_graph: Vc<ModuleGraph>,
@@ -2281,6 +2283,7 @@ impl AppEndpoint {
 
         Ok(match runtime {
             NextRuntime::Edge => {
+                let server_action_manifest_loader = server_action_manifest.await?.loader;
                 let chunk_group1 = chunking_context.chunk_group(
                     server_action_manifest_loader.ident(),
                     smallvec![ChunkGroupKey::Shared(ResolvedVc::upcast(
@@ -2419,6 +2422,9 @@ impl AppEndpoint {
                     }
 
                     {
+                        // Read only now, so the server actions manifest is computed
+                        // concurrently with the layout segment chunk groups above.
+                        let server_action_manifest_loader = server_action_manifest.await?.loader;
                         let chunk_group = chunking_context.chunk_group(
                             server_action_manifest_loader.ident(),
                             smallvec![ChunkGroupKey::Shared(ResolvedVc::upcast(
