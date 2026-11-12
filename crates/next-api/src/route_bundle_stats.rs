@@ -20,18 +20,6 @@ use crate::{
     route::{Endpoint, FirstLoadJs, Route},
 };
 
-/// The uncompressed size of an emitted asset.
-#[turbo_tasks::function]
-async fn asset_size(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<Vc<u64>> {
-    Ok(Vc::cell(match &*asset.content().await? {
-        AssetContent::File(content) => match &*content.await? {
-            FileContent::Content(file) => file.content().len() as u64,
-            FileContent::NotFound => 0,
-        },
-        AssetContent::Redirect { .. } => 0,
-    }))
-}
-
 /// The first load JS chunks of an endpoint (`.js` files only, each once, in load order), with
 /// their paths relative to `client_relative_path`, or `None` if the endpoint doesn't render a
 /// page.
@@ -74,14 +62,13 @@ async fn endpoint_first_load_js_chunks(
     })
 }
 
-/// A route of the stats: its endpoints (the first one that renders a page is used), and whether
-/// it is a Pages Router route (which also loads the `/_app` chunks).
+/// A route of the stats and the endpoints whose first load JS chunks it loads (for Pages Router
+/// routes, this includes the `/_app` endpoint).
 #[turbo_tasks::task_input]
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 struct StatsRoute {
     route: RcStr,
     endpoints: Vec<ResolvedVc<Box<dyn Endpoint>>>,
-    is_pages: bool,
 }
 
 #[derive(Serialize)]
@@ -97,55 +84,42 @@ struct RouteBundleStat {
 #[turbo_tasks::value(transparent)]
 struct OptionRouteBundleStat(Option<RouteBundleStat>);
 
-/// Computes the stats row of a route, or `None` if none of its endpoints renders a page.
+/// Computes the stats row of a route from the first load JS chunks of all its endpoints, or
+/// `None` if none of them renders a page.
 #[turbo_tasks::function]
 async fn route_bundle_stat(
     route: StatsRoute,
-    app_endpoint: ResolvedVc<Box<dyn Endpoint>>,
     client_relative_path: FileSystemPath,
     generate_component_chunks: bool,
     dist_dir: RcStr,
 ) -> Result<Vc<OptionRouteBundleStat>> {
-    let mut own_chunks = None;
-    for &endpoint in &route.endpoints {
-        own_chunks = endpoint_first_load_js_chunks(
-            *endpoint,
-            &client_relative_path,
-            generate_component_chunks,
-        )
+    let endpoint_chunks = route
+        .endpoints
+        .iter()
+        .map(|&endpoint| {
+            endpoint_first_load_js_chunks(
+                *endpoint,
+                &client_relative_path,
+                generate_component_chunks,
+            )
+        })
+        .try_join()
         .await?;
-        if own_chunks.is_some() {
-            break;
-        }
-    }
-    if own_chunks.is_none() && !route.is_pages {
+    if endpoint_chunks.iter().all(Option::is_none) {
         return Ok(Vc::cell(None));
     }
-    let shared_chunks = if route.is_pages {
-        endpoint_first_load_js_chunks(
-            *app_endpoint,
-            &client_relative_path,
-            generate_component_chunks,
-        )
-        .await?
-    } else {
-        None
-    };
 
     // Chunks are identified by their path in the stats, so dedupe by path.
     let mut chunks: FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>> = FxIndexMap::default();
-    for (path, chunk) in own_chunks.into_iter().chain(shared_chunks).flatten() {
+    for (path, chunk) in endpoint_chunks.into_iter().flatten().flatten() {
         chunks.entry(path).or_insert(chunk);
     }
-    let sizes = chunks
-        .values()
-        .map(|&chunk| asset_size(*chunk))
-        .try_join()
-        .await?;
+    let sizes = chunks.values().map(|chunk| chunk.size()).try_join().await?;
 
     Ok(Vc::cell(Some(RouteBundleStat {
         route: route.route,
-        first_load_uncompressed_js_bytes: sizes.iter().map(|size| **size).sum(),
+        // Missing files are not counted.
+        first_load_uncompressed_js_bytes: sizes.iter().filter_map(|size| **size).sum(),
         first_load_chunk_paths: chunks
             .into_keys()
             .map(|path| project_relative_chunk_path(&dist_dir, &path))
@@ -182,32 +156,30 @@ impl Asset for RouteBundleStatsAsset {
             .get_relative_path_to(&node_root)
             .context("the dist dir must be on the output file system")?;
 
+        let pages_app_endpoint = entrypoints.pages_app_endpoint;
         let mut routes = Vec::new();
         for (pathname, route) in entrypoints.routes.iter() {
-            let (endpoints, is_pages) = match route {
+            let endpoints = match route {
                 Route::Page { .. } | Route::PageApi { .. }
                     if self.app_dir_only
                         || matches!(pathname.as_str(), "/_app" | "/_document" | "/_error") =>
                 {
                     continue;
                 }
-                Route::Page { html_endpoint, .. } => (vec![*html_endpoint], true),
+                Route::Page { html_endpoint, .. } => vec![*html_endpoint, pages_app_endpoint],
                 // API routes only load the `/_app` chunks.
-                Route::PageApi { .. } => (vec![], true),
+                Route::PageApi { .. } => vec![pages_app_endpoint],
                 Route::AppPage(_)
                     if matches!(pathname.as_str(), "/favicon.ico" | "/_global-error") =>
                 {
                     continue;
                 }
-                Route::AppPage(pages) => {
-                    (pages.iter().map(|page| page.html_endpoint).collect(), false)
-                }
+                Route::AppPage(pages) => pages.iter().map(|page| page.html_endpoint).collect(),
                 Route::AppRoute { .. } | Route::AppGoRoute { .. } | Route::Conflict => continue,
             };
             routes.push(StatsRoute {
                 route: pathname.clone(),
                 endpoints,
-                is_pages,
             });
         }
 
@@ -216,7 +188,6 @@ impl Asset for RouteBundleStatsAsset {
             .map(|route| {
                 route_bundle_stat(
                     route,
-                    *entrypoints.pages_app_endpoint,
                     client_relative_path.clone(),
                     generate_component_chunks,
                     dist_dir.clone(),

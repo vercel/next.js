@@ -61,9 +61,8 @@ describe('route-bundle-stats', () => {
       // Evaluates an App Router page's client reference manifest the same way
       // the server loads it.
       async function readClientReferenceManifest(
-        route: string
+        page: string
       ): Promise<ClientReferenceManifest> {
-        const page = `${route === '/' ? '' : route}/page`
         const context: {
           globalThis?: unknown
           __RSC_MANIFEST?: Record<string, ClientReferenceManifest>
@@ -79,9 +78,11 @@ describe('route-bundle-stats', () => {
       }
 
       // Computes a route's stats from the emitted manifests and chunk files.
+      // App Router routes load the entry JS files of all their pages.
       async function expectedStat(
         route: string,
-        router: 'app' | 'pages'
+        router: 'app' | 'pages',
+        appPages: string[] = [`${route === '/' ? '' : route}/page`]
       ): Promise<RouteBundleStat> {
         const buildManifest = JSON.parse(
           await next.readFile(`${distDir}/build-manifest.json`)
@@ -89,8 +90,14 @@ describe('route-bundle-stats', () => {
         const files =
           router === 'app'
             ? [
-                ...Object.values(
-                  (await readClientReferenceManifest(route)).entryJSFiles
+                ...(
+                  await Promise.all(
+                    appPages.map(async (page) =>
+                      Object.values(
+                        (await readClientReferenceManifest(page)).entryJSFiles
+                      ).flat()
+                    )
+                  )
                 ).flat(),
                 ...buildManifest.rootMainFiles,
               ]
@@ -122,6 +129,7 @@ describe('route-bundle-stats', () => {
           '/_not-found',
           '/api/hello',
           '/blog',
+          '/parallel',
         ])
 
         for (const entry of stats) {
@@ -160,7 +168,7 @@ describe('route-bundle-stats', () => {
         }
 
         const { entryJSFiles, clientModules } =
-          await readClientReferenceManifest('/blog')
+          await readClientReferenceManifest('/blog/page')
         const rootMainFiles: string[] = JSON.parse(
           await next.readFile(`${distDir}/build-manifest.json`)
         ).rootMainFiles
@@ -181,6 +189,24 @@ describe('route-bundle-stats', () => {
             expect(Object.values(entryJSFiles).flat()).not.toContain(chunk)
           }
         }
+      })
+
+      it('reports the entry JS files of all pages of an App Router route', async () => {
+        // The parallel slot's page is a separate page of the `/parallel` route.
+        const appPaths = Object.keys(
+          JSON.parse(
+            await next.readFile(`${distDir}/server/app-paths-manifest.json`)
+          )
+        )
+        const pages = ['/parallel/page', '/parallel/@slot/page']
+        for (const page of pages) {
+          expect(appPaths).toContain(page)
+        }
+
+        const stats = await readStats()
+        expect(stats.find((e) => e.route === '/parallel')).toEqual(
+          await expectedStat('/parallel', 'app', pages)
+        )
       })
 
       it('reports the page and _app chunks of Pages Router routes', async () => {
