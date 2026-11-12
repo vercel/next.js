@@ -948,7 +948,7 @@ importers:
         version: 4.17.21
       lucide-react:
         specifier: 0.554.0
-        version: 0.554.0(react@19.3.0-canary-e84e1492-20261031)
+        version: 0.554.0(react@19.3.0-canary-1620f7b9-20261111)
       next:
         specifier: workspace:*
         version: link:../../packages/next
