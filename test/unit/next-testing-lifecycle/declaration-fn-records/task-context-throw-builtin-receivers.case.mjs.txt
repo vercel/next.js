@@ -1,0 +1,43 @@
+import { afterAll, expect, test } from 'vitest'
+const trace = []
+let held, caller, taskA, taskB, phase, expectedAssertion, reads = 0
+const sized = { get length() { reads++; return 2 } }
+const operations = [
+  ['toThrow', () => { throw new TypeError('receiver throw message') }, ['receiver throw']],
+  ['toThrowError', () => { throw new TypeError('receiver throw message') }, [TypeError]],
+]
+
+const captures = []
+expect.extend({ toInspectBuiltinOwner() {
+  trace.push({ phase, kind: 'matcher-state', taskA: this.task === taskA, taskB: this.task === taskB, sameAssertion: this.assertion === expectedAssertion })
+  return { pass: true, message: () => 'real hard receiver mismatch' }
+} })
+function call(kind, method, receiver, args) {
+  try {
+    const returned = Reflect.apply(method, receiver, args)
+    trace.push({ phase, kind, returnedType: typeof returned, sameReceiver: returned === receiver })
+    if (returned && typeof returned.toInspectBuiltinOwner === 'function') { expectedAssertion = returned; returned.toInspectBuiltinOwner() }
+  } catch (error) { trace.push({ phase, kind, error: { name: error.name, message: error.message } }) }
+}
+function run(label) {
+  for (const [name, value, args, assertion, method] of captures) {
+    phase = label + ':' + name
+    call('original-call', method, assertion, args)
+    call('bound-call', () => Reflect.apply(method.bind(assertion), undefined, args), undefined, [])
+    call('foreign-call', method, caller(value), args)
+    call('bare-call', method, undefined, args)
+    const raw = {}
+    call('plain-object-call', method, raw, args)
+    trace.push({ phase, kind: 'plain-keys', keys: Object.keys(raw) })
+  }
+  trace.push({ phase: label, kind: 'counts', owner: held.getState().assertionCalls, caller: caller.getState().assertionCalls, reads })
+}
+test('creator throw receivers', context => {
+  held = context.expect; taskA = context.task
+  for (const [name, value, args] of operations) {
+    const assertion = held(value)
+    captures.push([name, value, args, assertion, assertion[name]])
+  }
+})
+test('foreign throw receivers', context => { caller = context.expect; taskB = context.task; run('foreign') })
+afterAll(() => { run('afterAll'); console.log('DECLARATION_FN:' + JSON.stringify({ kind: 'late-throw-builtin-receivers', trace })) })

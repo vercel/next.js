@@ -1,0 +1,6 @@
+import type { BaselineData } from 'vitest';
+type Stats = BaselineData['latency'];
+declare const sorted: NonNullable<Stats['samples']>;
+const stats: Stats = { aad: 0, critical: 1, df: 2, mad: 3, max: 4, mean: 5, min: 6, moe: 7, p50: 8, p75: 9, p99: 10, p995: 11, p999: 12, rme: 13, samples: sorted, samplesCount: 14, sd: 15, sem: 16, variance: 17 };
+const nonempty: [number,...number[]] = stats.samples!;
+void nonempty;

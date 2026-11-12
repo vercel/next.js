@@ -1,0 +1,14 @@
+import {assertType} from 'vitest'
+import type {AssertType,SnapshotResult,SnapshotStateOptions} from 'vitest'
+import type{SnapshotResult as BundledResult,SnapshotStateOptions as BundledOptions}from 'actual-bundled'
+declare const realOptions:BundledOptions
+declare const publicOptions:SnapshotStateOptions
+const first:SnapshotStateOptions=realOptions
+const second:BundledOptions=publicOptions
+declare const realResult:BundledResult
+declare const publicResult:SnapshotResult
+const third:SnapshotResult=realResult
+const fourth:BundledResult=publicResult
+const environment:BundledOptions['snapshotEnvironment']=publicOptions.snapshotEnvironment
+const format:BundledOptions['snapshotFormat']=publicOptions.snapshotFormat
+

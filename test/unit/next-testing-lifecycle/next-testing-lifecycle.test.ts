@@ -3,28 +3,111 @@ import {
   initializeModuleCache,
   resetModules,
 } from 'next/dist/experimental/testing/mocking/module-cache'
-
 import { createModuleImportTracker } from 'next/dist/experimental/testing/runner/imports'
-
 import { createAsyncScope } from 'next/dist/experimental/testing/runner/async-context'
-
 import { createCollector } from 'next/dist/experimental/testing/runner/collector'
-
 import { runCollected } from 'next/dist/experimental/testing/runner/lifecycle'
-
 import type { Task } from 'next/dist/experimental/testing/runner/tasks'
-
 import { execFile } from 'node:child_process'
-
 import { promisify } from 'node:util'
-
+import { runNodeHelper } from '../../lib/next-testing-node-helpers'
 import { join } from 'node:path'
 
+// Semantic reference: Vitest checkout 0780a8e5b7967a4168173599e9c74fb79aab2483,
+// packages/vitest/src/runtime/runner/{hooks,run,fixture}.ts. This corpus exercises
+// Next's collector directly; it does not establish compiler/runtime integration.
 const options = () => ({ runId: 'run', signal: new AbortController().signal })
-
 const run = (collector: ReturnType<typeof createCollector>) =>
   runCollected(collector.close(), options(), () => {})
 
+async function runFreshProcessTest(
+  argv: readonly string[],
+  {
+    evidenceEnv,
+    prefix,
+    tests,
+    receiptFile = 'original-child.json',
+    saveErrorMessage,
+  }: {
+    evidenceEnv: string
+    prefix: string
+    tests: number
+    receiptFile?: string
+    saveErrorMessage?: string
+  }
+) {
+  const fs = await import('node:fs/promises')
+  const { tmpdir } = await import('node:os')
+  const base = process.env[evidenceEnv] ?? tmpdir()
+  await fs.mkdir(base, { recursive: true })
+  const evidence = await fs.mkdtemp(join(base, prefix))
+  const pending = runNodeHelper(argv, { timeout: 20000 })
+  const child = pending.child
+  const closed = new Promise<{
+    code: number | null
+    signal: NodeJS.Signals | null
+  }>((resolve) => {
+    child.once('close', (code, signal) => resolve({ code, signal }))
+  })
+  let stdout = ''
+  let stderr = ''
+  let failure: unknown
+  try {
+    try {
+      const result = await pending
+      stdout = result.stdout
+      stderr = result.stderr
+    } catch (error) {
+      failure = error
+      const raw = error as { stdout?: string; stderr?: string }
+      stdout = raw.stdout ?? ''
+      stderr = raw.stderr ?? ''
+    }
+    const actualClose = await closed
+    const writes = [
+      () => fs.writeFile(join(evidence, 'stdout.log'), stdout),
+      () => fs.writeFile(join(evidence, 'stderr.log'), stderr),
+      () =>
+        fs.writeFile(
+          join(evidence, receiptFile),
+          JSON.stringify(
+            {
+              pid: child.pid,
+              argv: [process.execPath, ...argv],
+              actualClose,
+              stdoutClosed: child.stdout?.destroyed,
+              stderrClosed: child.stderr?.destroyed,
+              error: failure === undefined ? null : String(failure),
+            },
+            null,
+            2
+          )
+        ),
+    ]
+    if (saveErrorMessage) {
+      const saved = await Promise.allSettled(writes.map((write) => write()))
+      const errors = saved
+        .filter(
+          (row): row is PromiseRejectedResult => row.status === 'rejected'
+        )
+        .map((row) => row.reason)
+      if (errors.length) throw new AggregateError(errors, saveErrorMessage)
+    } else {
+      for (const write of writes) await write()
+    }
+    if (failure !== undefined) throw failure
+    expect(actualClose).toEqual({ code: 0, signal: null })
+    expect(stdout).toContain('# tests ' + tests)
+    expect(stdout).toContain('# pass ' + tests)
+    expect(stdout).toContain('# fail 0')
+  } finally {
+    if (!process.env[evidenceEnv])
+      await fs.rm(evidence, { recursive: true, force: true })
+  }
+}
+
+// These controls validate the cache owner and import tracker. The unchanged public
+// module-reset acceptance fixture separately requires the native emitted graph.
 describe('compiler-owned actual module cache reset', () => {
   function context() {
     return Object.assign(Object.create(null), {
@@ -387,6 +470,26 @@ it('resolves Node artifact attachment paths from cwd without an explicit project
     await fs.rm(directory, { recursive: true, force: true })
   }
 })
+
+it('preserves the pinned zero-argument public next-timer surface', async () => {
+  type PublicVi = typeof import('next/dist/experimental/testing/vitest').vi
+  const zeroArgumentSurface: [
+    Parameters<PublicVi['advanceTimersToNextTimer']> extends [] ? true : false,
+    Parameters<PublicVi['advanceTimersToNextTimerAsync']> extends []
+      ? true
+      : false,
+  ] = [true, true]
+  expect(zeroArgumentSurface).toEqual([true, true])
+  await runFreshProcessTest(
+    ['--test-reporter=tap', join(__dirname, 'timer-next-step-api.cjs')],
+    {
+      evidenceEnv: 'NEXT_TESTING_NEXT_TIMER_EVIDENCE',
+      prefix: 'next-public-next-timer-',
+      tests: 1,
+      saveErrorMessage: 'Could not retain next-timer child output',
+    }
+  )
+}, 30000)
 
 it('injects fixture values at registration with nullish fallback and lazy cleanup', async () => {
   const data = { label: 'provided' }

@@ -1,0 +1,2 @@
+import type {SnapshotSummary} from 'vitest'
+const summary:SnapshotSummary={added:0,didUpdate:false,failure:false,filesAdded:0,filesRemoved:0,filesRemovedList:[],filesUnmatched:0,filesUpdated:0,matched:0,total:0,unchecked:0,uncheckedKeysByFile:[{filePath:'/snapshot.snap',keys:['case 1']}],unmatched:0,updated:0};const file:string=summary.uncheckedKeysByFile[0].filePath;void file

@@ -1,0 +1,2 @@
+import type {ExternalResult} from 'vitest'
+const result:ExternalResult={source:42};void result

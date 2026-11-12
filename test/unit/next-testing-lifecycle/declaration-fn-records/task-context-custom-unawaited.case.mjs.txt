@@ -1,0 +1,4 @@
+import{test,expect,afterAll}from'vitest';const trace=[];let release,local,task,assertion;const gate=new Promise(resolve=>release=resolve);
+expect.extend({async toStrictEqual(actual,expected){trace.push({kind:'matcher-enter',actual,expected,ownerState:task.result?.state??null});await gate;trace.push({kind:'matcher-settle',actual,expected,ownerState:task.result?.state??null});return{pass:actual===expected,message:()=> 'real unawaited custom mismatch',actual,expected};}});
+test('closed custom unawaited source',context=>{local=context.expect;task=context.task;assertion=local(1);});
+afterAll(async()=>{assertion.toStrictEqual(2);release();await new Promise(resolve=>setImmediate(resolve));console.log('DECLARATION_FN:'+JSON.stringify({kind:'custom-unawaited',trace,state:task.result?.state??null,count:local.getState().assertionCalls}));});

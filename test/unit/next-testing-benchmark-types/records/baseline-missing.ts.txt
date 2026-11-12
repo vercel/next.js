@@ -1,0 +1,4 @@
+import type { BaselineData } from 'vitest';
+declare const stats: BaselineData['latency'];
+const value: BaselineData = {latency: stats,throughput: stats,totalTime: 1};
+void value;

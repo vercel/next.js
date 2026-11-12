@@ -1,0 +1,263 @@
+{
+  "reference": "Vitest 5.0.4 actual root declarations",
+  "programs": [
+    {
+      "name": "assert-generic.ts",
+      "source": "assert-generic.ts.txt",
+      "sourceSHA256": "013589258222510c818c6c56c2a91061bc3f46f33ba1505de21bea4280817f8a",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "assert-wrong-type.ts",
+      "source": "assert-wrong-type.ts.txt",
+      "sourceSHA256": "50364b333c03730f36c04907bc03f6f84b6604b081b3060aa1ead2479c9e4b43",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2345,
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "assert-missing-argument.ts",
+      "source": "assert-missing-argument.ts.txt",
+      "sourceSHA256": "0cfc193c4c0bb6732393a2597908340576c0c12363abe2f5deecd9f04296ea79",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2554,
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "assert-void-result.ts",
+      "source": "assert-void-result.ts.txt",
+      "sourceSHA256": "3e4baaad69cca95fd09ee0b72e84d59adebc2403710b2fec122d34f4592f7504",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "assert-nongeneric-function.ts",
+      "source": "assert-nongeneric-function.ts.txt",
+      "sourceSHA256": "3b2eb4546d168f195c10a99e0b26f0de083388c0c04162c29c2083e53cebf8b6",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "assert-type-only.ts",
+      "source": "assert-type-only.ts.txt",
+      "sourceSHA256": "40ca1e1f1792ad5ce74b6ba0d6bd8befd7fbeefeaa1f4cd33c836e94bf0c459c",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2693,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "snapshot-result.ts",
+      "source": "snapshot-result.ts.txt",
+      "sourceSHA256": "548ec3ec87efa4eb5869e1c7a507b934df22a7b3a0704436f84ee0bbc5be458e",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "snapshot-result-structural-extra.ts",
+      "source": "snapshot-result-structural-extra.ts.txt",
+      "sourceSHA256": "a30372a747eba1ff9294b0ddccd260034fccdd9326e6ced571c9e7e3951a96f0",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "snapshot-result-missing.ts",
+      "source": "snapshot-result-missing.ts.txt",
+      "sourceSHA256": "3bbdf17c533d72f2dc742f6e1a7a88e004c0f22d545cc527b2f291370afe5d33",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2740,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "snapshot-result-wrong-counter.ts",
+      "source": "snapshot-result-wrong-counter.ts.txt",
+      "sourceSHA256": "a3f2fddc04bec16b1bc7b4e4d7ef93d187ed0996d3d9e27cabca9cb384011de7",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "snapshot-result-wrong-deleted.ts",
+      "source": "snapshot-result-wrong-deleted.ts.txt",
+      "sourceSHA256": "1d8aa690698e83f85e74dfd64005b9e04cd35dcd3c4f7b9cfaf0c686a9807c74",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "snapshot-result-wrong-keys.ts",
+      "source": "snapshot-result-wrong-keys.ts.txt",
+      "sourceSHA256": "16c1d0cb59f39084b3f15201f8efc73b57d3482ea68398d1784d0c1b3cb54b25",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "snapshot-result-readonly-keys.ts",
+      "source": "snapshot-result-readonly-keys.ts.txt",
+      "sourceSHA256": "b7aa373c6daff65e63024e3f2650e4e11aef18eb80cb812492d13c13e7499c53",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 4104,
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "snapshot-result-unknown-field.ts",
+      "source": "snapshot-result-unknown-field.ts.txt",
+      "sourceSHA256": "4573220e6c66856961afbbd863e45898a1527b96d3ff2facc3b0f68c47be6e3a",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2353,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "snapshot-options.ts",
+      "source": "snapshot-options.ts.txt",
+      "sourceSHA256": "b6694626a165fa9abfb8eafde2df36ee952daeaacb91c6e8d723d45bda8173c6",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "snapshot-options-structural-extra.ts",
+      "source": "snapshot-options-structural-extra.ts.txt",
+      "sourceSHA256": "cb1678b9366a6e09d00cda1f1ac61af71d8f1c258dd4d6c1a6f34933e4747cf7",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "snapshot-options-missing-environment.ts",
+      "source": "snapshot-options-missing-environment.ts.txt",
+      "sourceSHA256": "405dc0940b62b418936cb6f4eb816422ae85c09af4aa2927d9bf7161e6ed5838",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2741,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "snapshot-options-wrong-update.ts",
+      "source": "snapshot-options-wrong-update.ts.txt",
+      "sourceSHA256": "ba765f0c671d92ccae2948596b3c2b5512752ff3da9cddc41dda20ab14c391a1",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "snapshot-options-missing-update.ts",
+      "source": "snapshot-options-missing-update.ts.txt",
+      "sourceSHA256": "5c91a233c3c96a74d4dca23ef0ebadd79165f96908f7b9957243583b46ff5f0b",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2741,
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "snapshot-options-wrong-expand.ts",
+      "source": "snapshot-options-wrong-expand.ts.txt",
+      "sourceSHA256": "11ce6c9e58e8351bdccf47bac869287933f227019df2d937cfe4324cac928986",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "snapshot-options-async-resolver.ts",
+      "source": "snapshot-options-async-resolver.ts.txt",
+      "sourceSHA256": "f1e1e6a57b58b79d3bde0d972a37c624bb63afebad129e60a2cba8cffae077fc",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "snapshot-options-wrong-format.ts",
+      "source": "snapshot-options-wrong-format.ts.txt",
+      "sourceSHA256": "e7eaf7ae12f3d1769ba9a95cca3745144933205899f5254a18ee25a2aae950bd",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "snapshot-options-unknown-field.ts",
+      "source": "snapshot-options-unknown-field.ts.txt",
+      "sourceSHA256": "9ee74f547c58cb89a3c32f2437d53fed13e1867f1d8e20ed8f6cfb168e9f3c3b",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2353,
+          "line": 4
+        }
+      ]
+    },
+    {
+      "name": "transitive-identity.ts",
+      "source": "transitive-identity.ts.txt",
+      "sourceSHA256": "d95d6f722a335d365369d8539f20ee42af3150ce9ef8612877fdcce007b54adb",
+      "accepted": true,
+      "diagnostics": []
+    }
+  ]
+}

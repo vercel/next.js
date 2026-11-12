@@ -1,0 +1,3 @@
+import type { BaselineData } from 'vitest';
+declare const samples: NonNullable<BaselineData['latency']['samples']>;
+samples.__sorted__ = Symbol();

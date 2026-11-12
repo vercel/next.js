@@ -1,0 +1,22 @@
+import { test, expect, afterEach, afterAll, onTestFinished as globalFinished } from 'vitest'
+const rows = []
+let release = () => {}
+const row = (stage, value = {}) => rows.push({ stage, ...value })
+afterEach(({ task }) => { row('afterEach', { errors: (task.result?.errors ?? []).map(error => error?.message ?? String(error)) }); release() })
+afterAll(() => console.log('TASK_QUEUE_CONSUMER:' + JSON.stringify(rows)))
+let held, originalRegister, currentContext
+ test('actual finished snapshot distinguishes live global and retained registration', context => {
+   held = context.task; currentContext = context; originalRegister = context.onTestFinished
+   context.onTestFinished(function(payload) {
+     row('finished-start', { length: held.onFinished.length })
+     try { payload.onTestFinished(() => row('unexpected-live')); row('live-accepted') } catch (error) { row('live-refused', { message: error.message }) }
+     const globalResult = globalFinished(() => row('unexpected-global'))
+     row('global-registered', { resultUndefined: globalResult === undefined })
+     const retainedResult = originalRegister(() => row('unexpected-retained'))
+     row('retained-registered', { resultUndefined: retainedResult === undefined })
+     held.onFinished.push(() => row('unexpected-manual'))
+     row('finished-end', { length: held.onFinished.length })
+   })
+   row('body-return', { length: held.onFinished.length })
+ })
+ afterAll(() => row('final-task', { absent: held.onFinished === undefined, registrationRestored: currentContext.onTestFinished === originalRegister }))

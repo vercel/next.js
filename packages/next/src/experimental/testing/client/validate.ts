@@ -1,0 +1,55 @@
+import { selectedCases, type TestSuite } from '../runner/collector'
+import { resolveFixtureDefinitions } from '../runner/fixtures'
+import { clientDeclarations, resolveClientDeclarations } from './collection'
+
+/** Concurrent attempts require their collected scheduling and ownership protocol. */
+export function validateSynchronousClient(
+  root: TestSuite,
+  options: {
+    testNamePattern?: string | RegExp
+    allowOnly?: boolean
+    retry?: unknown
+    caseScheduling?: 'concurrent-v1'
+    fixtureResources?: 'file-v1'
+  }
+) {
+  const numeric = (value: unknown) =>
+    value === undefined ||
+    (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
+  if (!numeric(options.retry))
+    throw new Error(
+      'Browser Mode currently supports numeric retry counts only.'
+    )
+  function walk(suite: TestSuite) {
+    for (const task of [suite, ...suite.children]) {
+      if (
+        (task.options.concurrent &&
+          options.caseScheduling !== 'concurrent-v1') ||
+        !numeric(task.options.retry) ||
+        !numeric(task.options.repeats)
+      )
+        throw new Error(
+          'Browser Mode currently requires serial numeric retries/repeats without concurrency.'
+        )
+      if (task !== suite && task.type === 'suite') walk(task)
+    }
+  }
+  walk(root)
+  const declarations = clientDeclarations(root, options.caseScheduling)
+  const selected = resolveClientDeclarations(
+    declarations,
+    root.id,
+    options
+  ).cases
+  for (const [test, mode] of selectedCases(root)) {
+    if (mode !== 'run' || selected.get(test.id)?.mode !== 'run') continue
+    if (
+      options.fixtureResources !== 'file-v1' &&
+      Object.keys(resolveFixtureDefinitions(test.fixtures, test.suite)).length
+    )
+      throw new Error(
+        'Browser Mode file, worker and test fixtures are not supported yet.'
+      )
+  }
+  return declarations
+}

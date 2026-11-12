@@ -1,0 +1,3 @@
+import type { BenchFromSource } from 'vitest';
+const source: BenchFromSource = () => ({period:1,totalTime:2});
+void source;

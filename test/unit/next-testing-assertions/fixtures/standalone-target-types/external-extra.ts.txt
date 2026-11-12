@@ -1,0 +1,2 @@
+import type {ExternalResult} from 'vitest'
+const result:ExternalResult={source:'actual source',id:'not a field'};void result

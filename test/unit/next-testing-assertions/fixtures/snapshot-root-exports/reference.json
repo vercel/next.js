@@ -1,0 +1,219 @@
+{
+  "version": "5.0.4",
+  "typescript": "6.0.2",
+  "rootConfigAndGlobalAugmentations": true,
+  "programs": [
+    {
+      "name": "data.ts",
+      "source": "data.ts.txt",
+      "sourceSHA256": "02589d623bf5ea4e9135a9aae7092a4058ae4b2a3469ea50d46be5fd216693e8",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "data-wrong.ts",
+      "source": "data-wrong.ts.txt",
+      "sourceSHA256": "a2cdc9ad3ea93ea6904a86b30f3bda6c3d86cdaf11dc2a2d72c3981674e618bb",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "match.ts",
+      "source": "match.ts.txt",
+      "sourceSHA256": "52a31563ec65606f610dacb72b8de9658accc65e33555192aae85b084c0abb32",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "match-missing.ts",
+      "source": "match-missing.ts.txt",
+      "sourceSHA256": "703d786b5f8ff5b0ade6eabf71c88c94d9753b8eb5530ee4205f47ed13274b7e",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2741,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "match-wrong.ts",
+      "source": "match-wrong.ts.txt",
+      "sourceSHA256": "86af9e3321e4a8a3f7c9c9bf7854a502e6fd594b8307ca916434a14418616122",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        },
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "match-extra.ts",
+      "source": "match-extra.ts.txt",
+      "sourceSHA256": "5b63b91134ece56e8066cf95abe82a49a21d88947a12bb8ecf2be155682e8a26",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2353,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "serializer.ts",
+      "source": "serializer.ts.txt",
+      "sourceSHA256": "cbe5bbb34aec16bab7b29d5d8bfde5702e70fb315c0a21add72de16eedfe4f34",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "serializer-print.ts",
+      "source": "serializer-print.ts.txt",
+      "sourceSHA256": "627be3b9ed821f60129da307daf557fde8995576209d09ab5da6efdd557ba818",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "serializer-missing.ts",
+      "source": "serializer-missing.ts.txt",
+      "sourceSHA256": "3cfa3734c1931b3f392076e5865f4da961f47b577aeb258def3b003264cb5e54",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "serializer-wrong.ts",
+      "source": "serializer-wrong.ts.txt",
+      "sourceSHA256": "4e6001ba3d482e6cc53ff651c350d40e81f687c72cb663ac95d6e06e6e00ddd2",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "unchecked.ts",
+      "source": "unchecked.ts.txt",
+      "sourceSHA256": "a09e550d5863df64ff20cb9242ccc541aced62933a64e851c6f799c42cb2de1c",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "unchecked-wrong.ts",
+      "source": "unchecked-wrong.ts.txt",
+      "sourceSHA256": "b06118afe2b473df42172ff157317cf7184f221171340d167b4141356c89506b",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        },
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "unchecked-missing.ts",
+      "source": "unchecked-missing.ts.txt",
+      "sourceSHA256": "a834b4d977fa071e5982ceb37b1cceb1246854def95bad1ef74f28ddc35b32f9",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2741,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "update.ts",
+      "source": "update.ts.txt",
+      "sourceSHA256": "388701cbb9b64493f78ca86271dd40034f5217cd8b7ec3d2240e52980b08aeba",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "update-wrong.ts",
+      "source": "update-wrong.ts.txt",
+      "sourceSHA256": "f546815765d80e0fa26e0472191b5117fec62ba5cb80cdbd79c2fada4aad5fe3",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "update-number.ts",
+      "source": "update-number.ts.txt",
+      "sourceSHA256": "cca20460b27ec77ff76e0e6253468092248a2efec6bf6c32508d42e03e0e81ef",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "summary.ts",
+      "source": "summary.ts.txt",
+      "sourceSHA256": "1b9f187a16ff0fe218484893a669eb904533dcad817df1a40ec4e6b77fe80c7d",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "summary-missing.ts",
+      "source": "summary-missing.ts.txt",
+      "sourceSHA256": "511d14af1718583b3343e895f0dfb54b0f4dc871037d014ed6e1c310f5f84f48",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2741,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "summary-wrong.ts",
+      "source": "summary-wrong.ts.txt",
+      "sourceSHA256": "6e589597385c8d0ac047ff1f8d4e72c5687fb2202b763fca63b28d721073a04b",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        },
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "identities.ts",
+      "source": "identities.ts.txt",
+      "sourceSHA256": "12bf25d0c56ebb6410d127b6f221977fe29912b9809cc50b55b5d01c2c85f6e8",
+      "accepted": true,
+      "diagnostics": []
+    }
+  ]
+}

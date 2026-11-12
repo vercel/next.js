@@ -1,0 +1,14 @@
+import {test,describe,expect,afterAll} from 'vitest';
+const flags=()=>({concurrent:false,only:false,skip:false,todo:false,shuffle:false});
+const trace=[],handles=[];let passes=0;
+function register(invoke,name){let task;const options={get handler(){trace.push({kind:'handler-get',name});return context=>{trace.push({kind:'body',name,actual:context.task.name,parent:context.task.suite?.name??null,same:context.task===task,contextSame:task.context===context});expect(context.task).toBe(task);}},meta:{marker:name}};task=invoke(name,options);handles.push({name,task});return task;}
+const view=task=>({name:task.name,type:task.type,parent:task.suite?.name??null,fullName:task.fullName??null,contextEnumerable:Object.getOwnPropertyDescriptor(task,'context')?.enumerable??null});
+const first=describe.fn.call(flags(),'first',{},()=>{trace.push({kind:'factory',name:'first',pass:++passes});register((...args)=>first.task(...args),'inside-'+passes);});
+const second=describe.fn.call(flags(),'second',{},provided=>{trace.push({kind:'factory',name:'second'});provided('second child',()=>expect(true).toBe(true));});
+register((...args)=>first.task(...args),'before');const extracted=first.task;register(extracted,'extracted');register((...args)=>first.task.call(second,...args),'foreign-this');
+trace.push({kind:'before-manual',staged:first.tasks.map(view),published:first.suite.tasks.map(view)});
+await first.collect(first.file);
+register((...args)=>first.task(...args),'after');
+trace.push({kind:'after-manual',staged:first.tasks.map(view),published:first.suite.tasks.map(view)});
+test('control',()=>expect(true).toBe(true));
+afterAll(()=>console.log('DECLARATION_FN:'+JSON.stringify({kind:'suite-task-scope',trace,handles:handles.map(({name,task})=>({name,...view(task),sameSuite:task.suite===first.suite,contextSame:task.context.task===task,meta:task.meta})),tasks:first.tasks.map(view),published:first.suite.tasks.map(view)})));

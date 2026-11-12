@@ -1,0 +1,3 @@
+import type { TestBenchmark } from 'vitest';
+const group: TestBenchmark = {name: 'bad', tasks: ['baseline']};
+void group;

@@ -1,0 +1,6 @@
+import type { BaselineData } from 'vitest';
+declare const stats: BaselineData['latency'];
+const value: BaselineData = {latency: stats, throughput: stats, period: 1, totalTime: 2};
+const sample: number = value.latency.samples![0];
+const count: number = value.throughput.samplesCount;
+void [sample,count];

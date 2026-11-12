@@ -1,0 +1,3 @@
+import type { BenchFromSource } from 'vitest';
+declare const source: BenchFromSource;
+new source();

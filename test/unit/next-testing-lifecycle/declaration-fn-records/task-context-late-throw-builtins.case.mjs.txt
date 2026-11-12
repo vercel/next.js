@@ -1,0 +1,143 @@
+import assert from 'node:assert/strict'
+import { afterAll, expect, test } from 'vitest'
+let held,
+  caller,
+  owner,
+  calls = 0,
+  phases = 0,
+  assertions = 0
+const error = new TypeError('actual throw message')
+const operations = [
+  [
+    'absent',
+    () => {
+      throw error
+    },
+    [],
+  ],
+  [
+    'undefined',
+    () => {
+      throw error
+    },
+    [undefined],
+  ],
+  [
+    'message',
+    () => {
+      throw error
+    },
+    ['throw message'],
+  ],
+  [
+    'regexp',
+    () => {
+      throw error
+    },
+    [/actual throw/],
+  ],
+  [
+    'class',
+    () => {
+      throw error
+    },
+    [TypeError],
+  ],
+  [
+    'error',
+    () => {
+      throw error
+    },
+    [new TypeError('actual throw message')],
+  ],
+  [
+    'scalar',
+    () => {
+      throw 42
+    },
+    [42],
+  ],
+  [
+    'asymmetric',
+    () => {
+      throw error
+    },
+    [expect.objectContaining({ message: 'actual throw message' })],
+  ],
+  ['no-throw-negative', () => undefined, [], true],
+  [
+    'wrong-error-negative',
+    () => {
+      throw error
+    },
+    [RangeError],
+    true,
+  ],
+  [
+    'wrong-message',
+    () => {
+      throw error
+    },
+    ['missing'],
+  ],
+  ['no-throw', () => undefined, []],
+  ['non-callable', 42, []],
+]
+const failures = {
+  'wrong-message': /throw error including 'missing'/,
+  'no-throw': /to throw an error/,
+  'non-callable': /42 to be a function/,
+}
+function run() {
+  phases++
+  for (const name of ['toThrow', 'toThrowError'])
+    for (const [kind, fn, args, negate = false] of operations) {
+      const value =
+        typeof fn === 'function'
+          ? function () {
+              calls++
+              return fn()
+            }
+          : fn
+      const assertion = negate ? held(value).not : held(value)
+      const invoke = () => Reflect.apply(assertion[name], assertion, args)
+      if (failures[kind]) {
+        assert.throws(
+          invoke,
+          (thrown) =>
+            thrown.name === 'AssertionError' &&
+            failures[kind].test(thrown.message)
+        )
+      } else {
+        const returned = invoke()
+        assert.equal(typeof returned, 'object')
+        assert.notEqual(returned, assertion)
+        assert.equal(returned.then, undefined)
+      }
+      assert.equal(held.getState().assertionCalls, ++assertions)
+      assert.equal(caller.getState().assertionCalls, 0)
+    }
+  assert.equal(calls, phases * 24)
+}
+test('creator throw builtin owner', (context) => {
+  held = context.expect
+  owner = context.task
+})
+test('foreign throw builtin caller', (context) => {
+  caller = context.expect
+  run()
+  assert.equal(held, owner.context.expect)
+  assert.notEqual(held, caller)
+})
+afterAll(() => {
+  run()
+  console.log(
+    'DECLARATION_FN:' +
+      JSON.stringify({
+        kind: 'late-throw-builtins',
+        operations: operations.length,
+        methods: 2,
+        phases,
+      })
+  )
+})

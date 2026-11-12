@@ -1,0 +1,2 @@
+import { test, expect, chai } from 'vitest';
+test('copies original flags to ordinary caller payload', () => { const value = chai.expect('ok'); const payload = {}; const result = chai.util.transferFlags(value, payload); console.log('DECLARATION_FN:' + JSON.stringify({ kind: 'transfer-plain', returnedUndefined: result === undefined, subject: chai.util.flag(payload, 'object'), sourceSubject: chai.util.flag(value, 'object'), count: expect.getState().assertionCalls })); });

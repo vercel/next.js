@@ -1,0 +1,2 @@
+import type {BenchFn} from 'vitest'
+const fn:BenchFn=()=>({answer:42});const result:unknown=fn();void result

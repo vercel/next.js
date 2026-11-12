@@ -1,0 +1,3 @@
+import type { BaselineData } from 'vitest';
+declare const stats: BaselineData['latency'];
+stats.samples = [1,2];
