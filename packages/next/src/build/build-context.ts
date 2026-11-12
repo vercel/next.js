@@ -63,13 +63,6 @@ export const NextBuildContext: Partial<{
   // core fields
   dir: string
   distDir: string
-  /**
-   * Set when the distDir is not cleaned before a Turbopack build. Instead, the
-   * entries Turbopack doesn't write are removed while it writes the output.
-   * Contains the absolute paths of the files and directories written to the
-   * distDir by JS before that, which are kept.
-   */
-  distDirWritesBeforeTurbopack: Set<string> | undefined
   buildId: string
   encryptionKey: string
   config: NextConfigComplete

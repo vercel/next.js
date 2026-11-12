@@ -658,8 +658,8 @@ impl DiskFileSystem {
     }
 
     /// Removes all files and symlinks inside of `dir` that are not written by this filesystem in
-    /// the current session (see [`Self::is_written_in_session`]), except for the entries skipped
-    /// or kept by `options`. Returns the directories that might be empty now, which can be
+    /// the current session (see [`Self::is_written_in_session`]), except for the entries kept by
+    /// `options`. Returns the directories that might be empty now, which can be
     /// removed with [`UnwrittenDirectories::remove_empty`] once all writes are finished.
     ///
     /// This can be used to remove stale files of a previous session from an output directory

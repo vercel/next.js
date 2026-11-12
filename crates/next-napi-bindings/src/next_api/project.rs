@@ -1466,11 +1466,13 @@ async fn app_route_filter_for_write_phase(
 #[napi(ts_return_type = "Promise<TurbopackResult<Partial<NapiEntrypoints> | null>>")]
 pub async fn project_write_all_entrypoints_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
-    app_dir_only: bool,
-    options: Option<NapiWriteAllEntrypointsToDiskOptions>,
+    options: NapiWriteAllEntrypointsToDiskOptions,
 ) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
     let ctx = &project.turbopack_ctx;
-    let remove_stale_output = options.and_then(|options| options.remove_stale_output);
+    let NapiWriteAllEntrypointsToDiskOptions {
+        app_dir_only,
+        remove_stale_output,
+    } = options;
     let container = project.container;
     let tt = ctx.turbo_tasks();
 
@@ -1692,7 +1694,6 @@ pub async fn project_write_all_entrypoints_to_disk(
                                 .remove_files_not_written_in_session(
                                     &node_root,
                                     RemoveUnwrittenOptions {
-                                        skip: options.skip.into_iter().collect(),
                                         keep: options.keep.into_iter().collect(),
                                     },
                                 )
@@ -2984,18 +2985,18 @@ fn project_node_root_operation(container: ResolvedVc<ProjectContainer>) -> Vc<Fi
 
 #[napi(object)]
 pub struct NapiRemoveStaleOutputOptions {
-    /// Paths relative to the dist dir, using `/` as separator, that are left untouched and are
-    /// not traversed.
-    pub skip: Vec<RcStr>,
-    /// Paths relative to the dist dir, using `/` as separator, of entries that were written
-    /// outside of Turbopack and must be kept. Kept directories are still traversed.
+    /// Paths relative to the dist dir, using `/` as separator, of entries that are kept although
+    /// they were not written by Turbopack (e.g. caches or files written by Next.js). Kept
+    /// directories are left untouched as a whole: they are neither traversed nor removed.
     pub keep: Vec<RcStr>,
 }
 
 #[napi(object)]
 pub struct NapiWriteAllEntrypointsToDiskOptions {
+    /// Whether only the app directory entrypoints are written (there are no pages).
+    pub app_dir_only: bool,
     /// When set, removes the entries in the dist dir that were not written by Turbopack in this
-    /// session (e.g. output of previous builds), except the ones skipped or kept by these options.
+    /// session (e.g. output of previous builds), except the kept ones.
     /// Unchanged output files that were not rewritten because they already had the right content
     /// count as written. Files are removed in parallel to writing the output, (then) empty
     /// directories after it has been written.

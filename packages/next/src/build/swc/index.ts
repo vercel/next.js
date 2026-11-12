@@ -728,12 +728,10 @@ function bindingToApi(
     }
 
     async writeAllEntrypointsToDisk(
-      appDirOnly: boolean,
-      options?: NapiWriteAllEntrypointsToDiskOptions
+      options: NapiWriteAllEntrypointsToDiskOptions
     ): Promise<TurbopackResult<Partial<RawEntrypoints>>> {
       const napiEndpoints = (await binding.projectWriteAllEntrypointsToDisk(
         this._nativeProject,
-        appDirOnly,
         options
       )) as TurbopackResult<Partial<NapiEntrypoints> | null>
 

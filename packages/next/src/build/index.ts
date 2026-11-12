@@ -1371,16 +1371,17 @@ export default async function build(
         'next build'
       )
 
-      // Always reset, `NextBuildContext` is shared by builds in the same process.
-      NextBuildContext.distDirWritesBeforeTurbopack = undefined
+      // With Turbopack, the distDir is not cleaned upfront, but the output of
+      // previous builds is removed while Turbopack writes its output (see
+      // `turbopackBuild`).
+      const removesStaleOutputAfterCompile =
+        config.cleanDistDir && !isGenerateMode && bundler === Bundler.Turbopack
       if (config.cleanDistDir && !isGenerateMode) {
-        if (bundler === Bundler.Turbopack) {
+        if (removesStaleOutputAfterCompile) {
           // Deleting the previous output upfront blocks the build for a long
-          // time for large apps, while most output files are unchanged.
-          // Instead, after Turbopack has written its output, the files it
-          // didn't write are removed (see `turbopackBuild`). Only remove the
-          // BUILD_ID, so that a failed build isn't mistaken for a valid one.
-          NextBuildContext.distDirWritesBeforeTurbopack = new Set()
+          // time for large apps, while most output files are unchanged. Only
+          // remove the BUILD_ID, so that a failed build isn't mistaken for a
+          // valid one.
           await nextBuildSpan
             .traceChild('clean')
             .traceAsyncFn(() =>
@@ -1397,8 +1398,6 @@ export default async function build(
             )
         }
       }
-      const distDirWritesBeforeTurbopack =
-        NextBuildContext.distDirWritesBeforeTurbopack
 
       const publicDir = path.join(dir, 'public')
       const { pagesDir, appDir } = findPagesDir(dir)
@@ -1688,7 +1687,6 @@ export default async function build(
             'cache-life.d.ts'
           )
           await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
-          distDirWritesBeforeTurbopack?.add(path.dirname(routeTypesFilePath))
 
           const routeTypesManifest = await createRouteTypesManifest({
             dir,
@@ -1728,7 +1726,7 @@ export default async function build(
             rootParamsTypesFilePath
           )
 
-          if (distDirWritesBeforeTurbopack) {
+          if (removesStaleOutputAfterCompile) {
             const typesDir = path.dirname(routeTypesFilePath)
             const typesFiles = [
               ...routeTypesFiles,
@@ -1736,13 +1734,11 @@ export default async function build(
               ...(wroteCacheLifeTypes ? [cacheLifeFilePath] : []),
               rootParamsTypesFilePath,
             ]
-            for (const file of typesFiles) {
-              distDirWritesBeforeTurbopack.add(file)
-            }
-            // The distDir wasn't cleaned, but the types are type checked
-            // before the stale output is removed after compilation (for the
-            // Pages Router), so remove stale types (e.g. of a config option
-            // that has been disabled since) right away.
+            // The distDir wasn't cleaned. The types directory is managed here
+            // and kept by Turbopack's removal of stale output, as the types are
+            // type checked before compilation has finished (for the Pages
+            // Router). Remove stale types (e.g. of a config option that has
+            // been disabled since) right away.
             await recursiveDeleteSyncWithAsyncRetries(
               typesDir,
               new Set(typesFiles.map((file) => path.relative(typesDir, file)))
