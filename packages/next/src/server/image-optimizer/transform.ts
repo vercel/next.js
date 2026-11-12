@@ -179,7 +179,7 @@ export async function imageOptimizerTransform(
       timeoutInSeconds,
     }
     const optimizedBuffer = opts.safeImageOptimization
-      ? await nsioOptimizeImage({ ...optimizeOpts, dangerouslyAllowSVG })
+      ? await nsioOptimizeImage(optimizeOpts)
       : await optimizeImage(optimizeOpts)
     return {
       buffer: optimizedBuffer,
