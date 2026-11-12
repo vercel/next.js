@@ -301,6 +301,7 @@ async function createNext(
         : (opts?.turbo ?? shouldUseTurbopack())
 
       if (testMode === 'dev') {
+        // next dev
         rootSpan.traceChild('init next dev instance').traceFn(() => {
           nextInstance = new NextDevInstance({
             ...opts,
@@ -308,12 +309,14 @@ async function createNext(
           })
         })
       } else if (testMode === 'deploy') {
+        // Vercel
         rootSpan.traceChild('init next deploy instance').traceFn(() => {
           nextInstance = new NextDeployInstance({
             ...opts,
           })
         })
       } else {
+        // next build + next start
         rootSpan.traceChild('init next start instance').traceFn(() => {
           nextInstance = new NextStartInstance({
             ...opts,
