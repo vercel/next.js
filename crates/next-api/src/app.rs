@@ -1459,31 +1459,6 @@ impl Endpoint for GoEndpoint {
                 .to_resolved()
                 .await?,
             ));
-            // The JS marker is used only by next start/dev. Adapters consume the
-            // native descriptor and deploy the PORT-based executable directly.
-            let marker = serde_json::json!({"nativeEntry": entry});
-            assets.push(ResolvedVc::upcast(
-                VirtualOutputAsset::new(
-                    node_root.join("server/middleware.js")?,
-                    AssetContent::file(
-                        FileContent::Content(File::from(format!("module.exports = {};", marker)))
-                            .cell(),
-                    ),
-                )
-                .to_resolved()
-                .await?,
-            ));
-            let trace = serde_json::json!({"version": 1, "files": [entry, executable]});
-            assets.push(ResolvedVc::upcast(
-                VirtualOutputAsset::new(
-                    node_root.join("server/middleware.js.nft.json")?,
-                    AssetContent::file(
-                        FileContent::Content(File::from(serde_json::to_string(&trace)?)).cell(),
-                    ),
-                )
-                .to_resolved()
-                .await?,
-            ));
         } else {
             assets.push(create_app_paths_manifest(node_root, &original_name, entry.into()).await?);
         }

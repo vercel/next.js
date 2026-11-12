@@ -822,7 +822,7 @@ export async function getPagesPageStaticInfo({
     return {
       type: PAGE_TYPES.PAGES,
       config: undefined,
-      runtime: 'nodejs',
+      runtime: undefined,
       middleware: {
         matchers: getMiddlewareMatchers('/:path*', nextConfig),
       },

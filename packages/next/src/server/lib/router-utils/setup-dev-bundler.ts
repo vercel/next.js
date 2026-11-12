@@ -1,3 +1,4 @@
+import type { FunctionsConfigManifest } from '../../../build'
 import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
@@ -160,6 +161,8 @@ export interface DevRoutesManifest {
 }
 
 export type ServerFields = {
+  middlewareConfig?: FunctionsConfigManifest['functions'][string]
+
   actualMiddlewareFile?: string | undefined
   actualInstrumentationHookFile?: string | undefined
   appPathRoutes?: Record<string, string | string[]>

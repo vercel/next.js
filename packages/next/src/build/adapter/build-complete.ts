@@ -636,7 +636,6 @@ export async function handleBuildComplete({
   previewProps,
   routesManifest,
   serverPropsPages,
-  hasNodeMiddleware,
   prerenderManifest,
   middlewareManifest,
   requiredServerFiles,
@@ -661,7 +660,6 @@ export async function handleBuildComplete({
   previewProps: __ApiPreviewProps
   bundler: Bundler
   staticPages: Set<string>
-  hasNodeMiddleware: boolean
   config: NextConfigComplete
   pageKeys: readonly string[]
   serverPropsPages: Set<string>
@@ -1116,31 +1114,23 @@ export async function handleBuildComplete({
         }
       }
 
-      if (hasNodeMiddleware) {
-        const middlewareFile = path.join(distDir, 'server', 'middleware.js')
-        const nativeDescriptorPath = path.join(
+      const middlewareConfig = functionsConfigManifest.functions['/_middleware']
+      if (middlewareConfig) {
+        const isGoProxy = middlewareConfig.runtime === 'go'
+        const middlewareFile = path.join(
           distDir,
           'server',
-          'middleware.native.json'
+          isGoProxy ? middlewareConfig.nativeEntry : 'middleware.js'
         )
-        const isGoProxy =
-          Boolean(config.experimental.goRoutes) &&
-          (await fs.stat(nativeDescriptorPath).then(
-            () => true,
-            (error) => {
-              if (error.code === 'ENOENT') return false
-              throw error
-            }
-          ))
         const { assets, assetsHashes } = await handleTraceFiles(
-          isGoProxy ? nativeDescriptorPath : middlewareFile,
+          middlewareFile,
           'neutral'
         )
         let filePath = middlewareFile
         let sourcePage = 'middleware'
         if (isGoProxy) {
           const descriptor = JSON.parse(
-            await fs.readFile(nativeDescriptorPath, 'utf8')
+            await fs.readFile(middlewareFile, 'utf8')
           )
           if (
             typeof descriptor.executable !== 'string' ||
@@ -1167,8 +1157,6 @@ export async function handleBuildComplete({
           }
           sourcePage = '/' + descriptor.source.slice(0, -3)
         }
-        const functionConfig =
-          functionsConfigManifest.functions['/_middleware'] || {}
 
         outputs.middleware = {
           pathname: '/_middleware',
@@ -1181,7 +1169,7 @@ export async function handleBuildComplete({
           filePath,
           config: {
             matchers:
-              functionConfig.matchers?.map((item) => {
+              middlewareConfig.matchers?.map((item) => {
                 return {
                   source: item.originalSource,
                   sourceRegex: item.regexp,

@@ -13,6 +13,7 @@ import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plu
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type {
+  FunctionsConfigManifest,
   PrerenderManifest,
   PreviewPropsManifest,
   RoutesManifest,
@@ -1513,6 +1514,15 @@ export default class NextNodeServer extends BaseServer<
     const manifest = this.getMiddlewareManifest()
     const middleware = manifest?.middleware?.['/']
     if (!middleware) {
+      const config = this.getMiddlewareConfig()
+      if (config?.runtime === 'go') {
+        return {
+          match: getMiddlewareRouteMatcher(
+            config.matchers || [{ regexp: '.*', originalSource: '/:path*' }]
+          ),
+          page: '/',
+        }
+      }
       const middlewareModule = await this.loadNodeMiddleware()
 
       if (middlewareModule) {
@@ -1611,34 +1621,46 @@ export default class NextNodeServer extends BaseServer<
     }
   }
 
+  protected middlewareConfig:
+    | FunctionsConfigManifest['functions'][string]
+    | undefined = undefined
+
+  private getMiddlewareConfig() {
+    if (process.env.NEXT_MINIMAL) return
+    if (this.dev) return this.middlewareConfig
+    try {
+      const manifest: FunctionsConfigManifest = require(
+        join(
+          /* turbopackIgnore: true */ this.distDir,
+          'server',
+          FUNCTIONS_CONFIG_MANIFEST
+        )
+      )
+      return manifest.functions['/_middleware']
+    } catch (err) {
+      if (
+        !isError(err) ||
+        (err.code !== 'ENOENT' && err.code !== 'MODULE_NOT_FOUND')
+      ) {
+        throw err
+      }
+    }
+  }
+
   private async loadNodeMiddleware() {
     if (!process.env.NEXT_MINIMAL) {
       try {
-        const functionsConfig = this.dev
-          ? {}
-          : require(
-              join(
-                /* turbopackIgnore: true */ this.distDir,
-                'server',
-                FUNCTIONS_CONFIG_MANIFEST
-              )
-            )
-
-        if (this.dev || functionsConfig?.functions?.['/_middleware']) {
+        const config = this.getMiddlewareConfig()
+        if (config?.runtime === 'go') return
+        if (this.dev || config) {
           // if used with top level await, this will be a promise
-          const middleware = require(
+          return require(
             join(
               /* turbopackIgnore: true */ this.distDir,
               'server',
               'middleware.js'
             )
           )
-          if (middleware.nativeEntry && !this.dev && !middleware.config) {
-            middleware.config = {
-              matchers: functionsConfig.functions['/_middleware']?.matchers,
-            }
-          }
-          return middleware
         }
       } catch (err) {
         if (
@@ -1659,6 +1681,7 @@ export default class NextNodeServer extends BaseServer<
    */
   protected async hasMiddleware(pathname: string): Promise<boolean> {
     const info = this.getEdgeFunctionInfo({ page: pathname, middleware: true })
+    if (this.getMiddlewareConfig()?.runtime === 'go') return true
     const nodeMiddleware = await this.loadNodeMiddleware()
 
     if (!info && nodeMiddleware) {
@@ -1775,24 +1798,25 @@ export default class NextNodeServer extends BaseServer<
       | UnwrapPromise<ReturnType<typeof import('./web/sandbox').run>>
       | undefined
 
-    // if no middleware info check for Node.js middleware
-    // this is not in the middleware-manifest as that historically
-    // has only included edge-functions, we need to do a breaking
-    // version bump for that manifest to write this info there if
-    // we decide we want to
+    // Node.js and Go middleware are described outside the Edge manifest.
     if (!middlewareInfo) {
-      let middlewareModule
-      middlewareModule = await this.loadNodeMiddleware()
+      const middlewareConfig = this.getMiddlewareConfig()
+      const nativeEntry =
+        middlewareConfig?.runtime === 'go'
+          ? middlewareConfig.nativeEntry
+          : undefined
+      const middlewareModule = nativeEntry
+        ? undefined
+        : await this.loadNodeMiddleware()
 
-      if (!middlewareModule) {
+      if (!nativeEntry && !middlewareModule) {
         throw new MiddlewareNotFoundError()
       }
-      const adapterFn: typeof import('./web/adapter').adapter =
-        middlewareModule.nativeEntry
-          ? (require('./web/adapter') as typeof import('./web/adapter')).adapter
-          : middlewareModule.default || middlewareModule
+      const adapterFn: typeof import('./web/adapter').adapter = nativeEntry
+        ? (require('./web/adapter') as typeof import('./web/adapter')).adapter
+        : middlewareModule.default || middlewareModule
 
-      if (middlewareModule.nativeEntry && !this.nativeProxy) {
+      if (nativeEntry && !this.nativeProxy) {
         const { NativeRouteManager } =
           require('./lib/native-route.external') as typeof import('./lib/native-route.external')
         this.nativeProxy = new NativeRouteManager(this.distDir, this.dev)
@@ -1807,16 +1831,13 @@ export default class NextNodeServer extends BaseServer<
         // `handleRequest` span, so the middleware span (and the trace context
         // it forwards to the render) stays in the request's trace.
         result = await adapterFn({
-          skipProxyUrlNormalize: middlewareModule.nativeEntry
+          skipProxyUrlNormalize: nativeEntry
             ? (this.nextConfig.skipProxyUrlNormalize ?? false)
             : undefined,
           handler:
-            (middlewareModule.nativeEntry
+            (nativeEntry
               ? (request: Request) =>
-                  this.nativeProxy!.invokeMiddleware(
-                    middlewareModule.nativeEntry,
-                    request
-                  )
+                  this.nativeProxy!.invokeMiddleware(nativeEntry, request)
               : undefined) ||
             middlewareModule.proxy ||
             middlewareModule.middleware ||

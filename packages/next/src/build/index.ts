@@ -764,7 +764,6 @@ export interface FunctionsConfigManifest {
     string,
     {
       maxDuration?: number | undefined
-      runtime?: 'nodejs'
       regions?: string[] | string
       matchers?: Array<{
         regexp: string
@@ -772,7 +771,10 @@ export interface FunctionsConfigManifest {
         has?: Rewrite['has']
         missing?: Rewrite['has']
       }>
-    }
+    } & (
+      | { runtime?: 'nodejs'; nativeEntry?: never }
+      | { runtime: 'go'; nativeEntry: string }
+    )
   >
 }
 
@@ -857,7 +859,7 @@ async function writeStandaloneDirectory(
   outputFileTracingRoot: string,
   requiredServerFiles: RequiredServerFilesManifest,
   middlewareManifest: MiddlewareManifest,
-  hasNodeMiddleware: boolean,
+  middlewareConfig: FunctionsConfigManifest['functions'][string] | undefined,
   hasInstrumentationHook: boolean,
   staticPages: Set<string>,
   loadedEnvFiles: LoadedEnvFiles,
@@ -875,7 +877,7 @@ async function writeStandaloneDirectory(
         outputFileTracingRoot,
         requiredServerFiles.config,
         middlewareManifest,
-        hasNodeMiddleware,
+        middlewareConfig,
         hasInstrumentationHook,
         staticPages
       )
@@ -906,18 +908,22 @@ async function writeStandaloneDirectory(
         await fs.copyFile(filePath, outputPath)
       }
 
-      if (hasNodeMiddleware) {
+      if (middlewareConfig) {
+        const middlewareEntry =
+          middlewareConfig.runtime === 'go'
+            ? middlewareConfig.nativeEntry
+            : 'middleware.js'
         const middlewareOutput = path.join(
           distDir,
           STANDALONE_DIRECTORY,
           path.relative(outputFileTracingRoot, distDir),
           SERVER_DIRECTORY,
-          'middleware.js'
+          middlewareEntry
         )
 
         await fs.mkdir(path.dirname(middlewareOutput), { recursive: true })
         await fs.copyFile(
-          path.join(distDir, SERVER_DIRECTORY, 'middleware.js'),
+          path.join(distDir, SERVER_DIRECTORY, middlewareEntry),
           middlewareOutput
         )
       }
@@ -2977,7 +2983,6 @@ export default async function build(
       const middlewareFile = normalizePathSep(
         proxyFilePath || middlewareFilePath || ''
       )
-      let hasNodeMiddleware = false
 
       if (middlewareFile) {
         // Is format of `(/src)/(proxy|middleware).<ext>`, so split by
@@ -3000,9 +3005,13 @@ export default async function build(
         }
 
         if (staticInfo.runtime === 'nodejs' || isProxyFile(page)) {
-          hasNodeMiddleware = true
           functionsConfigManifest.functions['/_middleware'] = {
-            runtime: 'nodejs',
+            ...(middlewareFile.endsWith('.go')
+              ? {
+                  runtime: 'go' as const,
+                  nativeEntry: 'middleware.native.json',
+                }
+              : { runtime: 'nodejs' as const }),
             matchers: staticInfo.middleware?.matchers ?? [
               {
                 regexp: '^.*$',
@@ -4789,7 +4798,6 @@ export default async function build(
               nextVersion: process.env.__NEXT_VERSION as string,
               repoRoot: config.repoRoot,
               outputFileTracingRoot,
-              hasNodeMiddleware,
               hasInstrumentationHook,
               previewProps,
               adapterPath,
@@ -4818,7 +4826,7 @@ export default async function build(
               outputFileTracingRoot,
               requiredServerFilesManifest,
               middlewareManifest,
-              hasNodeMiddleware,
+              functionsConfigManifest.functions['/_middleware'],
               hasInstrumentationHook,
               staticPages,
               loadedEnvFiles,

@@ -19,6 +19,73 @@ describe('native-proxy-go', () => {
     expect((await next.fetch('/')).headers.get('x-go-proxy')).toBe('yes')
   })
 
+  it('runs without a JavaScript middleware entry', async () => {
+    await expect(next.readFile('.next/server/middleware.js')).rejects.toThrow()
+    await expect(
+      next.readFile('.next/server/middleware.js.nft.json')
+    ).rejects.toThrow()
+    if (isNextStart) {
+      const manifest = JSON.parse(
+        await next.readFile('.next/server/functions-config-manifest.json')
+      )
+      expect(manifest.functions['/_middleware']).toMatchObject({
+        runtime: 'go',
+        nativeEntry: 'middleware.native.json',
+      })
+    }
+    expect(
+      (await next.fetch('/native-proxy/inspect')).headers.get('x-go-proxy')
+    ).toBe('yes')
+  })
+
+  // Runtime changes and removal are development-only operations.
+  // @force-gate dev
+  it('switches between Go and JavaScript proxies and clears removed middleware', async () => {
+    const proxy = await next.readFile('proxy.go')
+    const response = () => next.fetch('/native-proxy/inspect')
+    try {
+      await next.deleteFile('proxy.go')
+      await retry(async () => {
+        const res = await response()
+        expect(res.status).toBe(200)
+        expect(res.headers.get('x-go-proxy')).toBeNull()
+      }, 15000)
+      await next.patchFile(
+        'proxy.ts',
+        `import { NextResponse } from 'next/server'
+         export function proxy() {
+           const response = NextResponse.next()
+           response.headers.set('x-js-proxy', 'yes')
+           return response
+         }`
+      )
+      await retry(async () => {
+        const res = await response()
+        expect(res.status).toBe(200)
+        expect(res.headers.get('x-js-proxy')).toBe('yes')
+        expect(res.headers.get('x-go-proxy')).toBeNull()
+      }, 15000)
+      await next.deleteFile('proxy.ts')
+      await next.patchFile('proxy.go', proxy)
+      await retry(async () => {
+        const res = await response()
+        expect(res.status).toBe(200)
+        expect(res.headers.get('x-go-proxy')).toBe('yes')
+        expect(res.headers.get('x-js-proxy')).toBeNull()
+      }, 15000)
+      await next.patchFile('proxy.go', proxy.replace('"yes"', '"edited"'))
+      await retry(async () => {
+        expect((await response()).headers.get('x-go-proxy')).toBe('edited')
+      }, 15000)
+    } finally {
+      await next.deleteFile('proxy.ts')
+      await next.patchFile('proxy.go', proxy)
+      await retry(async () => {
+        expect((await response()).headers.get('x-go-proxy')).toBe('yes')
+      }, 15000)
+    }
+  })
+
   it.each([undefined, 'Mon, 01 Jan 2001 00:00:00 GMT'])(
     'preserves the downstream request Date: %s',
     async (date) => {

@@ -1,3 +1,4 @@
+import type { FunctionsConfigManifest } from './index'
 // Import cpu-profile to start profiling early if enabled
 import '../server/lib/cpu-profile'
 import { Span } from '../trace'
@@ -135,15 +136,20 @@ export async function collectBuildTraces({
       const root = outputFileTracingRoot
       let hasNativeRoutes = false
       if (config.experimental.goRoutes) {
-        hasNativeRoutes = await fs
-          .stat(path.join(distDir, 'server', 'middleware.native.json'))
-          .then(
-            () => true,
-            (error) => {
-              if (error.code === 'ENOENT') return false
+        const functionsConfig: FunctionsConfigManifest = JSON.parse(
+          await fs
+            .readFile(
+              path.join(distDir, 'server', 'functions-config-manifest.json'),
+              'utf8'
+            )
+            .catch((error) => {
+              if (error.code === 'ENOENT') return '{"functions":{}}'
               throw error
-            }
-          )
+            })
+        )
+        hasNativeRoutes =
+          functionsConfig.functions['/_middleware']?.runtime === 'go'
+
         try {
           // One read per tracing worker, only after opting in. The emitted manifest
           // also distinguishes an enabled experiment with no native routes.
