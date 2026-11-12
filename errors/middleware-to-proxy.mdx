@@ -39,6 +39,21 @@ The codemod will rename the file and the function name from `middleware` to `pro
 + export function proxy() {
 ```
 
+### Remove the runtime config
+
+Proxy always runs on the Node.js runtime, and the runtime can't be configured. Setting `runtime` in a Proxy file fails `next build` with any value, including `'nodejs'`. The codemod removes it, or you can delete it from the `config` export yourself:
+
+```diff
+// proxy.ts
+
+export const config = {
+-  runtime: 'nodejs',
+  matcher: ['/dashboard/:path*'],
+}
+```
+
+If your Middleware relies on the Edge runtime, keep using `middleware` instead of migrating to `proxy`. See the [Proxy runtime docs](/docs/app/api-reference/file-conventions/proxy#runtime) for details.
+
 ## Useful Links
 
 - [Proxy Docs](/docs/app/api-reference/file-conventions/proxy)
