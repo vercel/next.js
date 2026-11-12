@@ -24,6 +24,7 @@ import {
 import WebSocket from 'next/dist/compiled/ws'
 import { assertArtifactProfile } from 'next/dist/experimental/testing/execution/artifact-profile'
 import { createLateFailureSink } from 'next/dist/experimental/testing/execution/late-failures'
+import { browserOutputDirectory } from 'next/dist/experimental/testing/execution/browser-output'
 import { assertCompiledSetup } from 'next/dist/experimental/testing/execution/setup'
 
 const worker = path.join(__dirname, 'worker.cjs')
@@ -937,6 +938,39 @@ describe('late file failure reporting', () => {
     sink.report(new Error('late caught assertion'))
     await expect(sink.flush()).rejects.toBe(transportError)
     expect(sink.failed).toBe(true)
+  })
+})
+
+describe('browser attempt attachment paths', () => {
+  const root = path.join(tmpdir(), 'retained-browser-output')
+  it('keeps arbitrary identifiers within the retained parent directory', () => {
+    const directory = browserOutputDirectory(
+      root,
+      '../run',
+      '/other/project',
+      '../../attempt'
+    )
+    expect(path.dirname(directory)).toBe(root)
+    expect(path.basename(directory)).toMatch(/^[a-f0-9]{64}$/)
+  })
+
+  it('separates attempts and preserves identifier boundaries', () => {
+    const first = browserOutputDirectory(root, 'run', 'entry', 'attempt-0')
+    expect(browserOutputDirectory(root, 'run', 'entry', 'attempt-0')).toBe(
+      first
+    )
+    expect(browserOutputDirectory(root, 'run', 'entry', 'attempt-1')).not.toBe(
+      first
+    )
+    expect(browserOutputDirectory(root, 'a\0b', 'c', 'd')).not.toBe(
+      browserOutputDirectory(root, 'a', 'b\0c', 'd')
+    )
+  })
+
+  it('rejects relative attachment roots', () => {
+    expect(() =>
+      browserOutputDirectory('../output', 'run', 'entry', 'attempt')
+    ).toThrow('must be absolute')
   })
 })
 

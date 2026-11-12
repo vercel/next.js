@@ -1,3 +1,4 @@
+import type { BrowserFixtureHost } from '../../../experimental/testing/contracts'
 import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
@@ -140,6 +141,7 @@ export type SetupOpts = {
   resetFetch: () => void
   serverFastRefresh?: boolean
   hasVulnerabilityInsight: Promise<boolean>
+  browserFixtureHost?: BrowserFixtureHost
 }
 
 export interface DevRoutesManifest {
@@ -1057,6 +1059,34 @@ async function startWatcher(
           ).message
         )
         nestedMiddleware = []
+      }
+
+      // This registration belongs to the private owned fixture server. The
+      // compiler emits virtual App Pages, so filesystem discovery cannot find
+      // them. Re-admit the same immutable entries after every watcher refresh.
+      // Keep them out of appRoutes/layoutRoutes, which describe real user files
+      // for public type generation.
+      if (opts.browserFixtureHost) {
+        if (!opts.turbo) {
+          throw new Error('Registered browser fixtures require Turbopack')
+        }
+        const { routePrefix, fixtures } = opts.browserFixtureHost
+        for (const fixture of fixtures) {
+          const pathname = `${routePrefix}/${fixture.id}`
+          if (appPaths[pathname] || pageFiles.has(pathname)) {
+            throw new Error(
+              `Registered browser fixture conflicts with an application route: ${pathname}`
+            )
+          }
+          const page = `${pathname}/page`
+          appFiles.add(pathname)
+          appPaths[pathname] = [page]
+          appRouteFilePaths.set(
+            page,
+            path.join(dir, `.next-test-fixture-${fixture.id}.tsx`)
+          )
+          routedPages.push(pathname)
+        }
       }
 
       // appPaths intentionally contains both pages and route handlers. The

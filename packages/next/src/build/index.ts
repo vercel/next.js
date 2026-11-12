@@ -186,6 +186,8 @@ import {
   type NEXT_REWRITTEN_QUERY_HEADER,
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
+import type { BrowserFixtureHost } from '../experimental/testing/contracts'
+import { browserFixturePages } from './swc/browser-fixtures'
 import { NextBuildContext } from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
@@ -1125,8 +1127,21 @@ export default async function build(
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
   traceUploadUrl: string | undefined,
   debugBuildPathsPatterns: string[] | undefined,
-  enabledFeatures: Record<string, unknown> = {}
+  enabledFeatures: Record<string, unknown> = {},
+  browserFixtureHost?: BrowserFixtureHost
 ): Promise<void> {
+  if (
+    browserFixtureHost &&
+    (bundler !== Bundler.Turbopack || experimentalBuildMode !== 'default')
+  )
+    throw new Error(
+      'Production browser fixtures require a normal Turbopack build'
+    )
+  const fixturePages = browserFixturePages(browserFixtureHost)
+  const registeredFixturePages = new Map(
+    fixturePages.map(({ pathname, originalName }) => [pathname, originalName])
+  )
+  NextBuildContext.browserFixtureHost = browserFixtureHost
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
   NextBuildContext.isCompileMode = isCompileMode
@@ -1297,6 +1312,15 @@ export default async function build(
       installCodeFrameSupport()
 
       process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
+      if (
+        browserFixtureHost &&
+        (config.cacheComponents ||
+          config.output === 'export' ||
+          config.experimental.lockDistDir !== true)
+      )
+        throw new Error(
+          'Production browser fixtures require a locked Node application build without Cache Components or static export'
+        )
       NextBuildContext.config = config
 
       const buildId = await getBuildId(
@@ -1620,6 +1644,21 @@ export default async function build(
         }
       }
 
+      if (fixturePages.length) {
+        if (!appDir)
+          throw new Error(
+            'Registered browser fixtures require an App Router application'
+          )
+        discoveredAppPageKeys ??= []
+        for (const { pathname, originalName } of fixturePages) {
+          if (appPageKeys.has(pathname))
+            throw new Error(
+              `Registered browser fixture conflicts with an application route: ${pathname}`
+            )
+          appPageKeys.add(pathname)
+          discoveredAppPageKeys.push(originalName)
+        }
+      }
       const appPaths = Array.from(appPageKeys)
       const totalAppPagesCount = appPaths.length
       const mappedPages = NextBuildContext.mappedPages
@@ -2512,9 +2551,12 @@ export default async function build(
                       )
                     }) || ''
                 }
-                let originalAppPath: string | undefined
+                let originalAppPath: string | undefined =
+                  pageType === 'app'
+                    ? registeredFixturePages.get(page)
+                    : undefined
 
-                if (pageType === 'app' && mappedAppPages) {
+                if (pageType === 'app' && mappedAppPages && !originalAppPath) {
                   const originalAppPaths: string[] = []
                   for (const [originalPath, normalizedPath] of Object.entries(
                     appPathRoutes
@@ -4911,6 +4953,7 @@ export default async function build(
     }
     throw e
   } finally {
+    NextBuildContext.browserFixtureHost = undefined
     // @ts-expect-error Existence of staticWorker is checked here intentionally.
     if (staticWorker) {
       staticWorker.end()
