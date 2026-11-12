@@ -245,31 +245,12 @@ export function createRequestStoreForAPI(
 }
 
 /**
- * Build a `RequestStore` from a serializable, request-shaped input. Used
- * directly by the existing `createRequestStoreForRender` /
- * `createRequestStoreForAPI` wrappers, and by side-process consumers like the
- * `'use cache'` deadlock probe worker that don't have a real `req`/`res` pair
- * but do have a forwarded snapshot of the outer request's headers etc.
- */
-/**
- * The request store is a class instance, with its lazy values behind getters
- * on the prototype, and not an object literal with getters.
- *
- * V8 allocates the accessor pair of a getter in an object literal in the old
- * generation, and it references the getter's closure. A store that is created
- * for every request as such a literal therefore keeps everything its getters
- * close over (the request headers, the cookies, the implicit tags) alive until
- * the next major GC, although the request is long finished: a scavenge treats
- * every pointer from the old generation as a root. With the state in fields
- * and the getters shared on the prototype, nothing is allocated in the old
- * generation per request.
- *
- * The store also keeps the promises that `headers()` and `cookies()` return,
- * next to the objects they resolve to. A module-level `WeakMap` from the
- * object to its promise has the same lifetime on paper, but a scavenge treats
- * the values of a `WeakMap` as strong, and such a value references its key:
- * the promise, the headers or cookies and the request behind them then
- * survive until the next major GC.
+ * A class with its lazy values behind prototype getters, not an object literal
+ * with getters: V8 allocates a literal's accessor pairs in the old generation,
+ * so a store per request would keep what its getters close over (headers,
+ * cookies, implicit tags) alive until the next major GC. The promises of
+ * `headers()` and `cookies()` are fields for the same reason: as `WeakMap`
+ * values that reference their key, they survive scavenges.
  */
 class RequestStoreImpl implements RequestStore {
   public readonly type: 'request'
@@ -368,30 +349,17 @@ class RequestStoreImpl implements RequestStore {
   }
 
   headersPromise(): Promise<ReadonlyHeaders> {
-    if (!this._headersPromise) {
-      this._headersPromise = Promise.resolve(this.headers)
-    }
-    return this._headersPromise
+    return (this._headersPromise ??= Promise.resolve(this.headers))
   }
 
   cookiesPromise(
-    underlyingCookies: ReadonlyRequestCookies
+    cookies: ReadonlyRequestCookies
   ): Promise<ReadonlyRequestCookies> | undefined {
-    if (underlyingCookies === this._cookies) {
-      if (!this._cookiesPromise) {
-        this._cookiesPromise = Promise.resolve(underlyingCookies)
-      }
-      return this._cookiesPromise
+    if (cookies === this._cookies) {
+      return (this._cookiesPromise ??= Promise.resolve(cookies))
     }
-    if (
-      underlyingCookies ===
-      (this._userspaceMutableCookies as unknown as ReadonlyRequestCookies)
-    ) {
-      if (!this._userspaceMutableCookiesPromise) {
-        this._userspaceMutableCookiesPromise =
-          Promise.resolve(underlyingCookies)
-      }
-      return this._userspaceMutableCookiesPromise
+    if (cookies === (this._userspaceMutableCookies as unknown)) {
+      return (this._userspaceMutableCookiesPromise ??= Promise.resolve(cookies))
     }
     return undefined
   }
@@ -446,6 +414,13 @@ class RequestStoreImpl implements RequestStore {
   }
 }
 
+/**
+ * Build a `RequestStore` from a serializable, request-shaped input. Used
+ * directly by the existing `createRequestStoreForRender` /
+ * `createRequestStoreForAPI` wrappers, and by side-process consumers like the
+ * `'use cache'` deadlock probe worker that don't have a real `req`/`res` pair
+ * but do have a forwarded snapshot of the outer request's headers etc.
+ */
 export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
   return new RequestStoreImpl(inputs)
 }

@@ -66,12 +66,9 @@ export interface RequestStore extends CommonWorkUnitStore {
   readonly hasNoModifiedCookies?: () => boolean
   readonly userspaceMutableCookies: ResponseCookies
   /**
-   * The promise `headers()` returns for this store's `headers`, and the
-   * promise `cookies()` returns for one of this store's cookies objects: the
-   * same promise for the same object. A store that implements these keeps the
-   * promises itself. For any other store, and for a cookies object that is
-   * not the store's own (`undefined`), the request APIs keep the promise in a
-   * cache that is keyed by the object.
+   * The promise `headers()` and `cookies()` return for one of this store's own
+   * objects, the same one each time. `undefined` (or no method) for any other
+   * object, which the request APIs then cache by object instead.
    */
   readonly headersPromise?: () => Promise<ReadonlyHeaders>
   readonly cookiesPromise?: (
