@@ -23,10 +23,10 @@ type ProbeState = {
 // With Cache Components, every layout slot keeps up to 3 recently active
 // segments mounted, the inactive ones inside `<Activity mode="hidden">`.
 // Inside a hidden tree, `useParams()`, `usePathname()` and `useSearchParams()`
-// return the values the tree had when it was hidden, which are the values it gets again when
-// navigating back to it. So hidden trees don't re-render when the active route
-// changes, and a tree shown again with the same values doesn't re-render
-// either.
+// return the values the tree had when it was hidden. So hidden trees don't
+// re-render when the active route changes. A tree that is shown again gets the
+// current values: it doesn't re-render if they are the ones it was hidden
+// with, and it re-renders if they differ, for example in the search params.
 //
 // React still calls hidden components that read these hooks when the router's
 // values change, because it propagates a context change to every consumer

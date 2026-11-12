@@ -18,10 +18,16 @@ const MAX_BF_CACHE_ENTRIES = process.env.__NEXT_CACHE_COMPONENTS ? 3 : 1
  * in the subtree of a bfcache entry.
  *
  * The active entry gets the router's current values. An inactive entry keeps
- * the values it had when it was last active, which are the values it will
- * have again when navigating back to it. Inactive trees then see the
+ * the values it had when it was last active. Inactive trees then see the
  * navigation state of their own route, not the active one, and don't re-render
  * when the active route changes.
+ *
+ * An entry that becomes active again gets the router's current values. They
+ * can differ from the ones it was hidden with, because an entry is identified
+ * by its own segment only, not by the search params or the segments below it:
+ * after `/a`, `/b`, `/a?x=1`, the entry for `a` is shown again with new search
+ * params. Its tree then re-renders, with its state preserved. If the values
+ * are equal, the entry keeps the same objects and its tree doesn't re-render.
  */
 export type RouterNavigationState = {
   params: Params | null
