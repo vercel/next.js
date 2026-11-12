@@ -39,7 +39,6 @@ use crate::{
     arc_bytes::ArcBytes,
     compaction::selector::{Compactable, MergeJob, plan_compaction},
     compression::{Compression, checksum_block, decompress_into_arc},
-    concurrent_slice::ConcurrentSlice,
     constants::{
         DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
         MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
@@ -2442,15 +2441,26 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         Ok(output)
     }
 
-    /// Looks up many keys of a [`FamilyKind::SingleValue`] family at once. The result has one entry
-    /// per key, in the order of `keys`.
+    /// Looks up many keys of a [`FamilyKind::SingleValue`] family at once.
+    ///
+    /// Calls `on_result` with the index of the key in `keys` and its value, or `None` if the key
+    /// is missing or deleted. When this returns `Ok`, `on_result` was called exactly once for every
+    /// index, including each occurrence of a duplicate key. The calls happen in no particular order
+    /// and may run concurrently on other threads.
+    ///
+    /// If a read fails or `on_result` returns an error, the error is returned. Other calls may have
+    /// happened by then, and some indices may never be reported.
+    ///
+    /// `on_result` runs while the database holds an internal read lock, so it must not call back
+    /// into this database.
     ///
     /// Panics if there are more than `u32::MAX` keys.
     pub fn batch_get<K: QueryKey + Sync>(
         &self,
         family: usize,
         keys: &[K],
-    ) -> Result<Vec<Option<ArcBytes>>> {
+        on_result: impl Fn(usize, Option<ArcBytes>) -> Result<()> + Sync,
+    ) -> Result<()> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
         if self.config.family_configs[family].kind != FamilyKind::SingleValue {
             // This is an error in our caller so just panic
@@ -2501,15 +2511,14 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             inner.shard_indices[family].bits(),
             target_chunk_count,
         );
-        let mut results: Vec<Option<ArcBytes>> = vec![None; keys.len()];
-        let results_writer = ConcurrentSlice::new(&mut results);
+        let on_result = &on_result;
         let lookup_chunk = |chunk: &mut BatchGetChunk<'_>| {
             self.batch_get_chunk(
                 inner,
                 family,
                 keys,
                 chunk,
-                &results_writer,
+                on_result,
                 key_block_cache,
                 value_block_cache,
             )
@@ -2531,11 +2540,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         span.record("result_size", counts.result_size);
         #[cfg(feature = "stats")]
         self.record_batch_get_stats(counts);
-        Ok(results)
+        Ok(())
     }
 
-    /// Looks up the keys of a chunk for [`Self::batch_get`]. Values found (including blobs) are
-    /// written to `results` at the index of their key.
+    /// Looks up the keys of a chunk for [`Self::batch_get`] and reports each of them to
+    /// `on_result` once: found values (including blobs) as soon as they are read, and missing or
+    /// deleted keys as `None`.
     #[allow(clippy::too_many_arguments)]
     fn batch_get_chunk<K: QueryKey>(
         &self,
@@ -2543,7 +2553,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         family: usize,
         keys: &[K],
         chunk: &mut BatchGetChunk<'_>,
-        results: &ConcurrentSlice<'_, Option<ArcBytes>>,
+        on_result: &impl Fn(usize, Option<ArcBytes>) -> Result<()>,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
     ) -> Result<()> {
@@ -2565,7 +2575,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             let value = match value {
                 LookupValue::KeyDeleted => {
                     counts.deleted += 1;
-                    return Ok(());
+                    return on_result(index as usize, None);
                 }
                 LookupValue::KeyValueDeleted { .. } => {
                     // Key-value tombstones are only written to MultiValue families, and
@@ -2594,27 +2604,38 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 }
             };
             counts.result_size += value.len();
-            // SAFETY: Every key index occurs in exactly one cell, every cell belongs to exactly one
-            // chunk, and `batch_lookup_entry` reports each cell at most once since it is marked as
-            // resolved. So every index is written at most once.
-            unsafe { results.write(index as usize, Some(value)) };
-            Ok(())
+            on_result(index as usize, Some(value))
         };
         let shard_files = inner.shard_indices[family].shard(*shard);
+        // Keys that are in none of the shard's SST files, reported by the last file.
+        let mut not_found = 0;
+        let mut on_miss = |position: usize| -> Result<()> {
+            not_found += 1;
+            on_result(cells[position].1 as usize, None)
+        };
         #[cfg(feature = "stats")]
         let mut lookup_counts = crate::meta_file::MetaBatchLookupResult::default();
+        let file_count = shard_files.ranges.len();
         for (
-            range,
-            &MetaEntryIndex {
-                meta_index,
-                entry_index,
-            },
-        ) in shard_files.ranges.iter().zip(&shard_files.locations)
+            file,
+            (
+                range,
+                &MetaEntryIndex {
+                    meta_index,
+                    entry_index,
+                },
+            ),
+        ) in shard_files
+            .ranges
+            .iter()
+            .zip(&shard_files.locations)
+            .enumerate()
         {
             let _result = inner.meta_files_by_family[family][meta_index as usize]
                 .batch_lookup_entry(
                     entry_index,
                     range,
+                    file + 1 == file_count,
                     keys,
                     cells,
                     &mut resolved,
@@ -2622,6 +2643,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     key_block_cache,
                     value_block_cache,
                     &mut on_found,
+                    &mut on_miss,
                 )?;
             #[cfg(feature = "stats")]
             {
@@ -2633,9 +2655,17 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 break;
             }
         }
-        // `on_found` borrows `counts`.
+        if file_count == 0 {
+            // No SST file holds keys of this shard, so every key is missing.
+            for position in 0..cells.len() {
+                on_miss(position)?;
+            }
+        }
+        // `on_found` borrows `counts`, `on_miss` borrows `not_found`.
         drop(on_found);
-        counts.not_found += cells.len() - resolved_count;
+        drop(on_miss);
+        debug_assert_eq!(resolved_count + not_found, cells.len());
+        counts.not_found += not_found;
         #[cfg(feature = "stats")]
         {
             counts.range_misses += lookup_counts.range_misses;

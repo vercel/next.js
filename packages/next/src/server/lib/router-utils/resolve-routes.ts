@@ -590,7 +590,7 @@ export function getResolveRoutes(
             /* non-fatal we can't decode so can't match it */
           }
 
-          if (
+          const matchesMiddleware =
             // @ts-expect-error BaseNextRequest stuff
             match?.(parsedUrl.pathname, req, parsedUrl.query) ||
             match?.(
@@ -599,7 +599,18 @@ export function getResolveRoutes(
               req,
               parsedUrl.query
             )
-          ) {
+          const requestInsightsIdentity = getRequestMeta(
+            req,
+            'requestInsightsIdentity'
+          )
+          if (requestInsightsIdentity && match) {
+            addRequestMeta(req, 'requestInsightsIdentity', {
+              ...requestInsightsIdentity,
+              proxyStatus: matchesMiddleware ? 'matched' : 'bypassed',
+            })
+          }
+
+          if (matchesMiddleware) {
             if (ensureMiddleware) {
               await ensureMiddleware(req.url)
             }

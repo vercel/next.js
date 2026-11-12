@@ -68,7 +68,11 @@ export function generateViewport({ params }) {
 
 ## Viewport Fields
 
+Viewport fields configure the viewport, theme color, and color scheme meta tags.
+
 ### `themeColor`
+
+`themeColor` sets the `theme-color` meta tag. Use media queries to provide different colors for different conditions.
 
 Learn more about [`theme-color`](https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color).
 
@@ -119,9 +123,11 @@ export const viewport = {
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="black" />
 ```
 
+`themeColor` accepts a color string, a `{ color: string, media?: string }` descriptor, or an array of descriptors.
+
 ### `width`, `initialScale`, `maximumScale` and `userScalable`
 
-> **Good to know**: The `viewport` meta tag is automatically set, and manual configuration is usually unnecessary as the default is sufficient. However, the information is provided for completeness.
+Next.js sets `width: 'device-width'` and `initialScale: 1` by default. A `viewport` export or `generateViewport` return value overrides only the fields it provides. Omitted fields retain inherited or default values. To remove the default `initial-scale` directive, set `initialScale: undefined`.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
 import type { Viewport } from 'next'
@@ -131,8 +137,6 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  // Also supported but less commonly used
-  // interactiveWidget: 'resizes-visual',
 }
 ```
 
@@ -142,8 +146,6 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  // Also supported but less commonly used
-  // interactiveWidget: 'resizes-visual',
 }
 ```
 
@@ -154,7 +156,48 @@ export const viewport = {
 />
 ```
 
+Next.js accepts these layout fields. See the [`viewport` reference](https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/meta/name/viewport) for directive meanings and browser support.
+
+| Field                                          | Accepted input                                                   |
+| ---------------------------------------------- | ---------------------------------------------------------------- |
+| `width`, `height`                              | `string` or `number`                                             |
+| `initialScale`, `minimumScale`, `maximumScale` | `number`                                                         |
+| `userScalable`                                 | `boolean` (emits `yes` or `no`)                                  |
+| [`viewportFit`](#viewportfit)                  | `'auto'`, `'contain'`, or `'cover'`                              |
+| `interactiveWidget`                            | `'resizes-visual'`, `'resizes-content'`, or `'overlays-content'` |
+
+### `viewportFit`
+
+`viewportFit` sets the `viewport-fit` directive in the viewport meta tag.
+
+Use `'cover'` to fill the device display. Use CSS [safe area inset variables](https://developer.mozilla.org/docs/Web/CSS/env#parameters) to keep content clear of display cutouts.
+
+```tsx filename="layout.tsx | page.tsx" switcher
+import type { Viewport } from 'next'
+
+export const viewport: Viewport = {
+  viewportFit: 'cover',
+}
+```
+
+```jsx filename="layout.jsx | page.jsx" switcher
+export const viewport = {
+  viewportFit: 'cover',
+}
+```
+
+The default `width` and `initialScale` values are retained:
+
+```html filename="<head> output" hideLineNumbers
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1, viewport-fit=cover"
+/>
+```
+
 ### `colorScheme`
+
+`colorScheme` sets the `color-scheme` meta tag.
 
 Learn more about [`color-scheme`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta/name#:~:text=color%2Dscheme%3A%20specifies,of%20the%20following%3A).
 
@@ -175,6 +218,8 @@ export const viewport = {
 ```html filename="<head> output" hideLineNumbers
 <meta name="color-scheme" content="dark" />
 ```
+
+`colorScheme` accepts `'normal'`, `'light'`, `'dark'`, `'light dark'`, `'dark light'`, or `'only light'`.
 
 ## With Cache Components
 

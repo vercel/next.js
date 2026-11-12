@@ -1,3 +1,4 @@
+mod aggregation_edge;
 mod aggregation_update;
 mod cleanup_old_edges;
 mod connect_child;
@@ -10,7 +11,7 @@ mod update_collectible;
 use std::{
     fmt::{Debug, Display, Formatter},
     ops::DerefMut,
-    sync::Arc,
+    sync::{Arc, OnceLock},
 };
 
 use anyhow::{Context, Result};
@@ -24,6 +25,10 @@ use turbo_tasks::{
     macro_helpers::NativeFunction,
 };
 
+#[cfg(any(test, feature = "verify_aggregation_graph"))]
+pub use self::aggregation_edge::{TaskAggregationEdges, verify_aggregation_edges};
+#[cfg(not(target_family = "wasm"))]
+pub use self::aggregation_update::aggregation_queue;
 pub use self::aggregation_update::{AggregationUpdateQueue, ComputeDirtyAndCleanUpdate};
 use crate::{
     backend::{
@@ -160,6 +165,20 @@ impl<'e> ExecuteContext<'e> {
         }
     }
 
+    /// Like [`ExecuteContext::new`], but reports tasks that may have become collectible to
+    /// `gc_collectible`, like the context of the garbage collector does.
+    #[cfg(test)]
+    pub(super) fn new_with_gc_collectible_for_testing(
+        backend: &'e TurboTasksBackend,
+        turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
+        gc_collectible: &'e dyn Fn(TaskId),
+    ) -> Self {
+        Self {
+            gc_collectible: Some(gc_collectible),
+            ..Self::new(backend, turbo_tasks)
+        }
+    }
+
     /// Constructs a context that does NOT take an operation guard, for use by the garbage
     /// collector while it holds the coordinator's exclusion phase.
     ///
@@ -183,6 +202,7 @@ impl<'e> ExecuteContext<'e> {
         }
     }
 
+    #[track_caller]
     fn open_task(
         &mut self,
         task_id: TaskId,
@@ -192,10 +212,19 @@ impl<'e> ExecuteContext<'e> {
         self.task_lock_counter.acquire();
 
         let mut task = self.backend.storage.access_entry_mut(task_id);
-        // Treat deleted tasks under AllowMissing as missing
-        if access == TaskAccess::AllowMissing && task.flags.deleted() {
-            self.task_lock_counter.release();
-            return None;
+        if task.flags.deleted() {
+            // Treat deleted tasks under AllowMissing as missing
+            if access == TaskAccess::AllowMissing {
+                self.task_lock_counter.release();
+                return None;
+            }
+            // Outside of GC nothing can reach a collected task through `task`/`task_or_create`:
+            // GC tears down every edge to it and removes it from `task_cache` while operations are
+            // excluded, and `task_by_type` skips it. GC itself opens tasks it is concurrently
+            // collecting, e.g. to scrub the reverse halves of their edges.
+            if self.gc_collectible.is_none() {
+                panic_deleted_task(task_id, access);
+            }
         }
         if task.flags.is_restored(category) {
             return Some(TaskGuard::new(
@@ -266,13 +295,16 @@ impl<'e> ExecuteContext<'e> {
             .with_context(|| format!("Failed to restore {category:?} for {task_id}"))
     }
 
-    /// Batched [`Self::restore_task_data`]: one entry per id, `None` where the requested
-    /// category has no disk key.
+    /// Batched [`Self::restore_task_data`]. Calls `on_result` with the index of each id and its
+    /// storage, or `None` where the requested category has no disk key. See
+    /// [`TurboBackingStorage::batch_lookup_data`](crate::kv_backing_storage::TurboBackingStorage::batch_lookup_data)
+    /// for how `on_result` is called.
     fn restore_task_data_batch(
         &self,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
-    ) -> Result<Vec<Option<TaskStorage>>> {
+        on_result: impl Fn(usize, Option<TaskStorage>) -> Result<()> + Sync,
+    ) -> Result<()> {
         debug_assert!(task_ids.len() > 1, "Use restore_task_data for single task");
         debug_assert!(
             self.backend.should_restore(),
@@ -282,7 +314,7 @@ impl<'e> ExecuteContext<'e> {
         restore_lookup_counts::record(true);
         self.backend
             .backing_storage
-            .batch_lookup_data(task_ids, category)
+            .batch_lookup_data(task_ids, category, on_result)
             .with_context(|| {
                 format!(
                     "Failed to restore {category:?} for batch of {} tasks",
@@ -507,8 +539,8 @@ impl<'e> ExecuteContext<'e> {
             .map(|(id, category)| TaskRestoreEntry {
                 task_id: id,
                 category,
-                data_restore_result: None,
-                meta_restore_result: None,
+                data_restore_result: OnceLock::new(),
+                meta_restore_result: OnceLock::new(),
                 wait_data: false,
                 wait_meta: false,
                 task_type: None,
@@ -572,64 +604,66 @@ impl<'e> ExecuteContext<'e> {
         }
 
         // --- Phase 1b: Batch I/O for tasks we claimed ---
-
-        // Data I/O
-        match tasks_to_restore_for_data.len() {
-            0 => {}
-            1 => {
-                let task_id = tasks_to_restore_for_data[0];
-                let idx = tasks_to_restore_for_data_indices[0];
-                tasks[idx].data_restore_result =
-                    Some(self.restore_task_data(task_id, SpecificTaskDataCategory::Data));
-            }
-            _ => {
-                match self.restore_task_data_batch(
-                    &tasks_to_restore_for_data,
-                    SpecificTaskDataCategory::Data,
-                ) {
-                    Ok(data) => {
-                        for (item, &idx) in data.into_iter().zip(&tasks_to_restore_for_data_indices)
-                        {
-                            tasks[idx].data_restore_result = Some(Ok(item));
-                        }
-                    }
-                    Err(e) => {
-                        // Batch failure: distribute the error to each affected task
-                        let msg = format!("{e:?}");
-                        for &idx in &tasks_to_restore_for_data_indices {
-                            tasks[idx].data_restore_result =
-                                Some(Err(anyhow::anyhow!("Batch data restore failed: {msg}")));
-                        }
-                    }
+        for (category, task_ids, indices) in [
+            (
+                SpecificTaskDataCategory::Data,
+                &tasks_to_restore_for_data,
+                &tasks_to_restore_for_data_indices,
+            ),
+            (
+                SpecificTaskDataCategory::Meta,
+                &tasks_to_restore_for_meta,
+                &tasks_to_restore_for_meta_indices,
+            ),
+        ] {
+            match task_ids.len() {
+                0 => {}
+                1 => {
+                    let result = self.restore_task_data(task_ids[0], category);
+                    *tasks[indices[0]].restore_result_mut(category) = OnceLock::from(result);
                 }
-            }
-        }
-
-        // Meta I/O
-        match tasks_to_restore_for_meta.len() {
-            0 => {}
-            1 => {
-                let task_id = tasks_to_restore_for_meta[0];
-                let idx = tasks_to_restore_for_meta_indices[0];
-                tasks[idx].meta_restore_result =
-                    Some(self.restore_task_data(task_id, SpecificTaskDataCategory::Meta));
-            }
-            _ => {
-                match self.restore_task_data_batch(
-                    &tasks_to_restore_for_meta,
-                    SpecificTaskDataCategory::Meta,
-                ) {
-                    Ok(data) => {
-                        for (item, &idx) in data.into_iter().zip(&tasks_to_restore_for_meta_indices)
-                        {
-                            tasks[idx].meta_restore_result = Some(Ok(item));
+                _ => {
+                    // Each result is stored in its entry as soon as it is decoded, possibly
+                    // concurrently. `batch_get` reports every index exactly once, so a
+                    // duplicate or missing report is a bug and panics.
+                    let batch_result = {
+                        let tasks = &tasks;
+                        self.restore_task_data_batch(task_ids, category, |i, storage| {
+                            if tasks[indices[i]]
+                                .restore_result(category)
+                                .set(Ok(storage))
+                                .is_err()
+                            {
+                                panic!(
+                                    "Batch {category:?} restore reported task {} twice",
+                                    task_ids[i]
+                                );
+                            }
+                            Ok(())
+                        })
+                    };
+                    match batch_result {
+                        Ok(()) => {
+                            for (&task_id, &idx) in task_ids.iter().zip(indices) {
+                                if tasks[idx].restore_result(category).get().is_none() {
+                                    panic!(
+                                        "Batch {category:?} restore returned no result for task \
+                                         {task_id}"
+                                    );
+                                }
+                            }
                         }
-                    }
-                    Err(e) => {
-                        let msg = format!("{e:?}");
-                        for &idx in &tasks_to_restore_for_meta_indices {
-                            tasks[idx].meta_restore_result =
-                                Some(Err(anyhow::anyhow!("Batch meta restore failed: {msg}")));
+                        Err(e) => {
+                            // Batch failure: distribute the error to each affected task, replacing
+                            // any result stored before the failure.
+                            let msg = format!("{e:?}");
+                            for &idx in indices {
+                                *tasks[idx].restore_result_mut(category) =
+                                    OnceLock::from(Err(anyhow::anyhow!(
+                                        "Batch {} restore failed: {msg}",
+                                        category_name(category.into())
+                                    )));
+                            }
                         }
                     }
                 }
@@ -646,7 +680,9 @@ impl<'e> ExecuteContext<'e> {
         // Tasks that exist nowhere, reported once waiters are unblocked.
         let mut missing_tasks: Vec<TaskId> = Vec::new();
         for entry in &mut tasks {
-            if entry.data_restore_result.is_none() && entry.meta_restore_result.is_none() {
+            if entry.data_restore_result.get().is_none()
+                && entry.meta_restore_result.get().is_none()
+            {
                 continue;
             }
             entry.self_restored = true;
@@ -656,11 +692,11 @@ impl<'e> ExecuteContext<'e> {
             self.task_lock_counter.acquire();
             let mut task = self.backend.storage.access_entry_mut(task_id);
 
-            let has_error = matches!(entry.data_restore_result, Some(Err(_)))
-                || matches!(entry.meta_restore_result, Some(Err(_)));
+            let has_error = matches!(entry.data_restore_result.get(), Some(Err(_)))
+                || matches!(entry.meta_restore_result.get(), Some(Err(_)));
             let missing = !has_error
-                && (matches!(entry.data_restore_result, Some(Ok(None)))
-                    || matches!(entry.meta_restore_result, Some(Ok(None))));
+                && (matches!(entry.data_restore_result.get(), Some(Ok(None)))
+                    || matches!(entry.meta_restore_result.get(), Some(Ok(None))));
             if missing {
                 // No missing category may be published as restored, even if another category
                 // was present on disk or a peer is still restoring it. Clear every claim before
@@ -681,8 +717,8 @@ impl<'e> ExecuteContext<'e> {
                 self.task_lock_counter.release();
                 continue;
             } else {
-                let claimed_data = entry.data_restore_result.is_some();
-                let claimed_meta = entry.meta_restore_result.is_some();
+                let claimed_data = entry.data_restore_result.get().is_some();
+                let claimed_meta = entry.meta_restore_result.get().is_some();
                 if let Some(result) = entry.data_restore_result.take() {
                     match apply_restore_result(&mut task, result, SpecificTaskDataCategory::Data) {
                         Ok(()) => {
@@ -833,12 +869,14 @@ fn category_name(category: TaskDataCategory) -> &'static str {
 struct TaskRestoreEntry {
     task_id: TaskId,
     category: TaskDataCategory,
-    /// Result of restoring the data category (set in Phase 1b, consumed in Phase 1c). The inner
-    /// `Option` is `None` when the task was not present on disk.
-    data_restore_result: Option<Result<Option<TaskStorage>>>,
-    /// Result of restoring the meta category (set in Phase 1b, consumed in Phase 1c). The inner
-    /// `Option` is `None` when the task was not present on disk.
-    meta_restore_result: Option<Result<Option<TaskStorage>>>,
+    /// Result of restoring the data category (set in Phase 1b, possibly concurrently by a batched
+    /// read, and consumed in Phase 1c). The inner `Option` is `None` when the task was not present
+    /// on disk.
+    data_restore_result: OnceLock<Result<Option<TaskStorage>>>,
+    /// Result of restoring the meta category (set in Phase 1b, possibly concurrently by a batched
+    /// read, and consumed in Phase 1c). The inner `Option` is `None` when the task was not present
+    /// on disk.
+    meta_restore_result: OnceLock<Result<Option<TaskStorage>>>,
     /// Another thread claimed the data restore; we must wait in Phase 3.
     wait_data: bool,
     /// Another thread claimed the meta restore; we must wait in Phase 3.
@@ -849,6 +887,28 @@ struct TaskRestoreEntry {
     self_restored: bool,
     /// The task is missing or failed to restore (set in Phase 1c), so the later phases skip it.
     failed: bool,
+}
+
+impl TaskRestoreEntry {
+    fn restore_result(
+        &self,
+        category: SpecificTaskDataCategory,
+    ) -> &OnceLock<Result<Option<TaskStorage>>> {
+        match category {
+            SpecificTaskDataCategory::Data => &self.data_restore_result,
+            SpecificTaskDataCategory::Meta => &self.meta_restore_result,
+        }
+    }
+
+    fn restore_result_mut(
+        &mut self,
+        category: SpecificTaskDataCategory,
+    ) -> &mut OnceLock<Result<Option<TaskStorage>>> {
+        match category {
+            SpecificTaskDataCategory::Data => &mut self.data_restore_result,
+            SpecificTaskDataCategory::Meta => &mut self.meta_restore_result,
+        }
+    }
 }
 
 /// Outcome of [`ExecuteContext::restore_task`].
@@ -892,6 +952,15 @@ fn panic_missing_task(task_id: TaskId, reason: &str) -> ! {
     panic!(
         "task {task_id} ({reason}, MustExist): task is missing in memory or persistent storage — \
          a stale reference to an already-collected or never-created task"
+    )
+}
+
+#[cold]
+#[track_caller]
+fn panic_deleted_task(task_id: TaskId, access: TaskAccess) -> ! {
+    panic!(
+        "task {task_id} ({access:?}): task was collected by GC — a stale reference to a collected \
+         task"
     )
 }
 
@@ -974,6 +1043,7 @@ impl<'e> ExecuteContext<'e> {
     ///
     /// A transient task (or any task, without backing storage) is restored from creation and never
     /// evicted, so one that is not restored exists nowhere. See `ExecuteContext::open_task`.
+    #[track_caller]
     pub fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> TaskGuard<'e> {
         self.open_task(task_id, category, TaskAccess::MustExist)
             .expect("a MustExist open either yields a task or panics")
@@ -999,6 +1069,7 @@ impl<'e> ExecuteContext<'e> {
     /// This creates *storage for* an already-minted `TaskId`; it does not mint one. Compare
     /// `TurboTasksBackend::get_or_create_task`, which takes a function and arguments and returns a
     /// `TaskId` (reusing one if the task is already cached).
+    #[track_caller]
     pub fn task_or_create(&mut self, task_id: TaskId, category: TaskDataCategory) -> TaskGuard<'e> {
         self.open_task(task_id, category, TaskAccess::MaybeCreate)
             .expect("a MaybeCreate open always yields a task")
@@ -1234,7 +1305,13 @@ impl<'e> ExecuteContext<'e> {
         // Verify each candidate by comparing the stored persistent_task_type.
         // Only rarely is there more than one candidate, so no need for parallelization.
         for candidate_id in candidates {
-            let task = self.task(candidate_id, TaskDataCategory::Data);
+            // During a snapshotting it is possible to read a taskid for a deleted task.  Use
+            // try_task to handle that.  the deleted task must still be in memory and is about to be
+            // tombstoned.  Resolve the race by just treating it as absent here.
+
+            let Some(task) = self.try_task(candidate_id, TaskDataCategory::Data) else {
+                continue;
+            };
             if let Some(stored_type) = task.get_persistent_task_type()
                 && stored_type.eq_components(native_fn, this, arg)
             {
@@ -1359,7 +1436,7 @@ impl<'a> TaskGuard<'a> {
             // Small hack to work around check_access. Technically a 'deleted' flag is never
             // persisted so it cannot be recovered either.
             !self.task.flags.deleted(),
-            "{operation} on GC-deleted task {} — a resurrection path was missed",
+            "{operation} on GC-deleted task {} — a stale reference to a collected task",
             self.id()
         );
     }
@@ -1733,20 +1810,6 @@ impl<'a> TaskGuard<'a> {
 
     pub fn id(&self) -> TaskId {
         self.task_id
-    }
-
-    #[cfg(debug_assertions)]
-    pub fn access(&self) -> TaskDataCategory {
-        self.category
-    }
-    #[cfg(debug_assertions)]
-    pub fn downgrade_access(&mut self, access: TaskDataCategory) {
-        assert!(
-            self.category >= access,
-            "Cannot downgrade {:?} to {access:?}",
-            self.category
-        );
-        self.category = access;
     }
 
     pub fn invalidate_serialization(&mut self) {
@@ -2503,6 +2566,152 @@ mod restore_lookup_counts {
     /// (single-task lookups, batched lookups) since the last [`reset`].
     pub(super) fn get() -> (usize, usize) {
         COUNTS.with(Cell::get)
+    }
+}
+
+#[cfg(test)]
+mod task_by_type_tests {
+    use tempfile::TempDir;
+    use turbo_tasks::{
+        TaskId, TurboTasks,
+        backend::{CachedTaskType, CachedTaskTypeArc},
+        macro_helpers::{ArgMeta, NativeFunction, into_task_fn},
+    };
+
+    use super::*;
+    use crate::{
+        BackingStorageOptions,
+        backend::{BackendOptions, StorageMode},
+        backing_storage::compute_task_type_hash_from_components,
+        database::{
+            key_value_database::KeySpace, turbo::TurboKeyValueDatabase, write_batch::WriteBuffer,
+        },
+        kv_backing_storage::TurboBackingStorage,
+        utils::test_temp_dir::test_temp_dir,
+    };
+
+    fn test_fn() {}
+
+    // Hashing a task type for the type index needs the function's registry id, so register it.
+    turbo_tasks::register_function!(
+        TEST_FN = NativeFunction::new(
+            "test_fn",
+            "turbo-tasks-backend::task_by_type_tests::test_fn",
+            ArgMeta::new::<(i32,)>(),
+            &into_task_fn(test_fn),
+            false,
+            false,
+        )
+    );
+
+    const ARG: (i32,) = (7,);
+
+    fn persistent(id: u32) -> TaskId {
+        TaskId::new(id).unwrap()
+    }
+
+    fn task_type() -> CachedTaskTypeArc {
+        CachedTaskTypeArc::new(CachedTaskType {
+            native_fn: &TEST_FN,
+            this: None,
+            arg: Box::new(ARG),
+        })
+    }
+
+    /// A backend whose type index on disk names `candidates` for `test_fn(ARG)`, in order. No
+    /// task data is written, so a candidate that is not made resident is missing on disk.
+    fn backend(candidates: &[TaskId]) -> (Arc<TurboTasks<TurboTasksBackend>>, TempDir) {
+        let tempdir = test_temp_dir().unwrap();
+        let db = TurboKeyValueDatabase::new(
+            tempdir.path().to_path_buf(),
+            BackingStorageOptions {
+                is_ci: false,
+                // Disables background compaction, which needs a turbo-tasks context.
+                is_short_session: true,
+                skip_compaction: false,
+            },
+        )
+        .unwrap();
+        let hash = compute_task_type_hash_from_components(&TEST_FN, None, &ARG);
+        let batch = db.write_batch().unwrap();
+        for id in candidates {
+            batch
+                .put(
+                    KeySpace::TaskCache,
+                    WriteBuffer::Borrowed(&hash),
+                    WriteBuffer::Borrowed(&(**id).to_le_bytes()),
+                )
+                .unwrap();
+        }
+        batch.commit().unwrap();
+
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                // Restores from disk, but never writes.
+                storage_mode: Some(StorageMode::ReadOnly),
+                num_workers: Some(1),
+                small_preallocation: true,
+                ..Default::default()
+            },
+            TurboBackingStorage::new_in_memory(db),
+        ));
+        (tt, tempdir)
+    }
+
+    /// Makes `id` a fully restored, resident task of type `test_fn(ARG)`.
+    fn resident(tt: &TurboTasks<TurboTasksBackend>, id: TaskId, deleted: bool) {
+        let mut task = tt.backend().storage.access_mut(id);
+        task.flags.set_restored(TaskDataCategory::All);
+        task.set_persistent_task_type(task_type());
+        task.flags.set_deleted(deleted);
+    }
+
+    fn task_by_type(tt: &TurboTasks<TurboTasksBackend>) -> Option<TaskId> {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        ctx.task_by_type(&TEST_FN, None, &ARG).map(|(id, _)| id)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn returns_live_candidate() {
+        let live = persistent(1);
+        let (tt, _tempdir) = backend(&[live]);
+        resident(&tt, live, false);
+        assert_eq!(task_by_type(&tt), Some(live));
+    }
+
+    /// GC removes a deleted task from `task_cache`, but the index names it until its tombstone
+    /// commits. Its id must not be handed out again, since eviction may drop it at any time.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn skips_deleted_candidate() {
+        let deleted = persistent(1);
+        let (tt, _tempdir) = backend(&[deleted]);
+        resident(&tt, deleted, true);
+        assert_eq!(task_by_type(&tt), None);
+    }
+
+    /// A candidate that eviction already dropped is missing from memory and disk. The lookup
+    /// returns nothing rather than panicking, and leaves no entry behind for the missing task.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn skips_missing_candidate() {
+        let missing = persistent(1);
+        let (tt, _tempdir) = backend(&[missing]);
+        assert_eq!(task_by_type(&tt), None);
+        assert!(
+            tt.backend().storage.with_task(missing, |_| ()).is_none(),
+            "the missing task must not leave an entry behind"
+        );
+    }
+
+    /// After a reconnect mints a replacement, the index names both the deleted task and its
+    /// replacement until the tombstone commits. The lookup must find the replacement.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn skips_deleted_candidate_for_its_replacement() {
+        let deleted = persistent(1);
+        let replacement = persistent(2);
+        let (tt, _tempdir) = backend(&[deleted, replacement]);
+        resident(&tt, deleted, true);
+        resident(&tt, replacement, false);
+        assert_eq!(task_by_type(&tt), Some(replacement));
     }
 }
 

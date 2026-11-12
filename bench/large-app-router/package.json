@@ -1,0 +1,25 @@
+{
+  "name": "bench-large-app-router",
+  "private": true,
+  "scripts": {
+    "prepare-bench": "node scripts/generate.mjs",
+    "bench-build": "node scripts/bench-build.mjs",
+    "dev-application": "next dev",
+    "dev-turbopack": "next dev --turbopack",
+    "build-application": "next build",
+    "build-turbopack": "next build --turbopack",
+    "build-nocache": "rimraf .next && next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "clsx": "2.1.1",
+    "dayjs": "1.11.11",
+    "lodash-es": "4.17.21",
+    "lucide-react": "0.554.0",
+    "next": "workspace:*",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "rimraf": "6.0.1"
+  }
+}

@@ -4,65 +4,13 @@ use crate::{
     backend::{
         TaskDataCategory,
         operation::{
-            ExecuteContext, TaskGuard,
-            aggregation_update::{
-                AggregationUpdateJob, AggregationUpdateQueue, get_aggregation_number, is_root_node,
-            },
-            invalidate::make_task_dirty_internal,
+            ExecuteContext,
+            aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue},
         },
-        storage::SpecificTaskDataCategory,
         storage_schema::TaskStorageAccessors,
     },
     data::{InProgressState, InProgressStateInner},
 };
-
-/// Revive `task_id` if it was GC-soft-deleted, given a guard the caller already holds during the
-/// connect handshake.
-///
-/// GC destructively mutates tasks so mark resurrected tasks as dirty to get them re-scheduled.
-pub(super) fn resurrect_deleted<'e>(
-    guard: TaskGuard<'e>,
-    task_id: TaskId,
-    queue: &mut AggregationUpdateQueue,
-    ctx: &mut ExecuteContext<'e>,
-) -> TaskGuard<'e> {
-    if !guard.deleted() {
-        return guard;
-    }
-    #[cfg(debug_assertions)]
-    let category = guard.access();
-    drop(guard);
-
-    let mut task = ctx.task(task_id, TaskDataCategory::All);
-    // Double-check under the re-acquired guard: a concurrent connect may have already done this.
-    if task.deleted() {
-        task.set_deleted(false);
-
-        // The GC snapshot may already have persisted this task's tombstone before the reconnect
-        // acquired its guard. Treat the resurrected task as new so the next snapshot restores the
-        // task-type index deleted by that tombstone, and persist Data so the type used to verify
-        // the index entry is restored too. A resident deleted task always has its type: GC
-        // restores All before marking it deleted, and eviction removes deleted tasks as
-        // whole entries.
-        task.set_new_task(true);
-        let _ = task.track_modification(SpecificTaskDataCategory::Data, "gc_resurrected");
-
-        // Mark dirty so it is rescheduled. GC has already dropped its edges and data, so it needs
-        // to re-execute to bring them back.
-        make_task_dirty_internal(
-            &mut task,
-            /* make_stale */ true,
-            #[cfg(feature = "task_dirty_cause")]
-            turbo_tasks::TaskDirtyCause::Resurrected,
-            queue,
-            ctx,
-        );
-    }
-    // Conditionally downgrade from All->category so we don't hide incorrect access patterns.
-    #[cfg(debug_assertions)]
-    task.downgrade_access(category);
-    task
-}
 
 fn release_construction_ref(task_id: TaskId, ctx: &mut ExecuteContext<'_>) {
     let mut task = ctx.task(task_id, TaskDataCategory::Meta);
@@ -119,9 +67,20 @@ pub fn connect_child(
 
     let mut queue = AggregationUpdateQueue::new();
 
-    // Handle the transient to persistent boundary by making the persistent task a root task.
-    let should_make_root =
-        parent_task_id.is_none_or(|id| id.is_transient() && !child_task_id.is_transient());
+    // Handle the transient to persistent boundary by making the persistent task a root task. The
+    // root aggregates the whole persistent subgraph, so the transient parent only needs an edge
+    // to that root instead of upper edges into the whole persistent graph.
+    //
+    // Parentless connects (e.g. calls from a `turbo_tasks::run` closure) have no upper at all, so
+    // there is nothing to shield the graph from, for persistent and transient children alike.
+    // Tasks that need to be roots are already roots: strongly consistent reads and reading
+    // collectibles are only allowed on `root` functions, which are made roots when they are
+    // created, and top-level transient tasks (root and once tasks) are created as roots. Making
+    // every parentless callee a root would make each of them aggregate its whole (possibly large
+    // and existing) subgraph.
+    let should_make_root = parent_task_id.is_some_and(|parent_task_id| {
+        parent_task_id.is_transient() && !child_task_id.is_transient()
+    });
 
     if ctx.should_track_activeness() && parent_task_id.is_some() {
         if should_make_root {
@@ -138,21 +97,11 @@ pub fn connect_child(
     } else {
         // First connect of this child: its id is minted but the storage entry may not exist
         // yet, and concurrent connects race to be the one that first touches it.
-        let child_task = ctx.task_or_create(child_task_id, TaskDataCategory::Meta);
-
-        // Revive the child if GC soft-deleted it. This can happen in a rare race between a
-        // cache hit on a task and snapshotting actually performing the delete.
-        let mut child_task = resurrect_deleted(child_task, child_task_id, &mut queue, &mut ctx);
+        let mut child_task = ctx.task_or_create(child_task_id, TaskDataCategory::Meta);
 
         let has_output = child_task.has_output();
-        // An already constructed top-level task was made a root when it was first connected.
-        // It may still be dirty and need to run; this only avoids repeating the idempotent
-        // aggregation update.
-        let is_already_constructed_root = parent_task_id.is_none()
-            && has_output
-            && is_root_node(get_aggregation_number(&child_task));
 
-        if should_make_root && !is_already_constructed_root {
+        if should_make_root {
             queue.push(AggregationUpdateJob::UpdateAggregationNumber {
                 task_id: child_task_id,
                 base_aggregation_number: u32::MAX,
@@ -198,5 +147,134 @@ pub fn connect_child(
                 &mut ctx,
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use turbo_tasks::{TRANSIENT_TASK_BIT, TaskId, TurboTasks, event::Event};
+
+    use super::connect_child;
+    use crate::{
+        backend::{
+            BackendOptions, StorageMode, TaskDataCategory, TurboTasksBackend,
+            operation::{ExecuteContext, aggregation_update::get_aggregation_number},
+            storage_schema::TaskStorageAccessors,
+        },
+        data::{CellRef, InProgressState, InProgressStateInner, OutputValue},
+        noop_backing_storage,
+    };
+
+    const PERSISTENT_CHILD: u32 = 1;
+    const TRANSIENT_CHILD: u32 = 2 | TRANSIENT_TASK_BIT;
+    const TRANSIENT_PARENT: u32 = 3 | TRANSIENT_TASK_BIT;
+
+    fn id(id: u32) -> TaskId {
+        TaskId::new(id).unwrap()
+    }
+
+    /// Creates a backend with already computed tasks (they have an output, so connecting them
+    /// doesn't schedule them).
+    fn setup() -> Arc<TurboTasks<TurboTasksBackend>> {
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                storage_mode: Some(StorageMode::ReadOnly),
+                num_workers: Some(1),
+                small_preallocation: true,
+                ..Default::default()
+            },
+            noop_backing_storage(),
+        ));
+        for task_id in [PERSISTENT_CHILD, TRANSIENT_CHILD, TRANSIENT_PARENT] {
+            tt.backend()
+                .storage
+                .access_mut(id(task_id))
+                .flags
+                .set_restored(TaskDataCategory::All);
+        }
+        {
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            for task_id in [PERSISTENT_CHILD, TRANSIENT_CHILD] {
+                let mut task = ctx.task(id(task_id), TaskDataCategory::All);
+                task.set_output(OutputValue::Cell(CellRef {
+                    task: id(task_id),
+                    cell: turbo_tasks::CellId::new(turbo_tasks::ValueTypeId::new(1).unwrap(), 0),
+                }));
+            }
+        }
+        tt
+    }
+
+    fn aggregation_number(tt: &TurboTasks<TurboTasksBackend>, task_id: u32) -> u32 {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let task = ctx.task(id(task_id), TaskDataCategory::Meta);
+        get_aggregation_number(&task)
+    }
+
+    fn transient_ref_count(tt: &TurboTasks<TurboTasksBackend>, task_id: u32) -> u32 {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let task = ctx.task(id(task_id), TaskDataCategory::Meta);
+        task.get_transient_ref_count().copied().unwrap_or(0)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn parentless_persistent_child_is_not_made_a_root() {
+        let tt = setup();
+        connect_child(
+            None,
+            id(PERSISTENT_CHILD),
+            false,
+            ExecuteContext::new(tt.backend(), &tt),
+        );
+        assert_ne!(aggregation_number(&tt, PERSISTENT_CHILD), u32::MAX);
+        // The caller still holds the task alive with a transient ref.
+        assert_eq!(transient_ref_count(&tt, PERSISTENT_CHILD), 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn parentless_transient_child_is_not_made_a_root() {
+        let tt = setup();
+        connect_child(
+            None,
+            id(TRANSIENT_CHILD),
+            false,
+            ExecuteContext::new(tt.backend(), &tt),
+        );
+        assert_ne!(aggregation_number(&tt, TRANSIENT_CHILD), u32::MAX);
+        assert_eq!(transient_ref_count(&tt, TRANSIENT_CHILD), 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn persistent_child_of_transient_parent_is_made_a_root() {
+        let tt = setup();
+        {
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut parent = ctx.task(id(TRANSIENT_PARENT), TaskDataCategory::All);
+            parent.set_in_progress(InProgressState::InProgress(Box::new(
+                InProgressStateInner {
+                    stale: false,
+                    once_task: false,
+                    done_event: Event::new(|| || "test done_event".to_string()),
+                    marked_as_completed: false,
+                    new_children: Default::default(),
+                },
+            )));
+        }
+        connect_child(
+            Some(id(TRANSIENT_PARENT)),
+            id(PERSISTENT_CHILD),
+            false,
+            ExecuteContext::new(tt.backend(), &tt),
+        );
+        // The persistent child shields the persistent graph from the transient parent.
+        assert_eq!(aggregation_number(&tt, PERSISTENT_CHILD), u32::MAX);
+        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let parent = ctx.task(id(TRANSIENT_PARENT), TaskDataCategory::All);
+        let Some(InProgressState::InProgress(inner)) = parent.get_in_progress() else {
+            panic!("parent must still be in progress");
+        };
+        assert!(inner.new_children.contains(&id(PERSISTENT_CHILD)));
     }
 }

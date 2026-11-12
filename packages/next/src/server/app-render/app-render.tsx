@@ -40,6 +40,7 @@ import type {
   RouteMatch,
 } from '../route-modules/app-page/module'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
+import type { ResponseStatus } from './response-status'
 import * as ReactClient from 'react'
 
 import RenderResult, {
@@ -116,8 +117,16 @@ import {
   runWithRequestInsightsIdentity,
 } from '../lib/trace/request-insights-identity'
 import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
-import { traceLocalSpan } from '../lib/trace/local-span-recorder'
-import { isRequestInsightsEnabled } from '../lib/trace/request-insights'
+import {
+  getActiveLocalSpan,
+  isLocalSpanRecordingEnabled,
+  traceLocalSpan,
+} from '../lib/trace/local-span-recorder'
+import {
+  importRequestInsightSpans,
+  isRequestInsightsEnabled,
+  startRequestInsight,
+} from '../lib/trace/request-insights'
 import { FlightRenderResult } from './flight-render-result'
 import {
   createReactServerErrorHandler,
@@ -419,7 +428,7 @@ export type AppRenderContext = {
   assetPrefix: string
   isNotFoundPath: boolean
   nonce: string | undefined
-  res: BaseNextResponse
+  responseStatus: ResponseStatus
   devResponseLifecycle: DevResponseLifecycle | null
   /**
    * For now, the implicit tags are common for the whole route. If we ever start
@@ -648,7 +657,7 @@ async function generateDynamicRSCPayload(
       createElement(NonIndex, {
         createElement,
         pagePath: ctx.pagePath,
-        statusCode: ctx.res.statusCode,
+        statusCode: ctx.responseStatus.statusCode,
         isPossibleServerAction: ctx.isPossibleServerAction,
       }),
       createElement(Viewport, {
@@ -1873,16 +1882,6 @@ async function finalRuntimeServerPrerender(
         )
       )
     }
-
-    // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
-    // finish the accumulators. However, it seems like in `--debug-prerender`
-    // the stream will stay open if we don't close the iterable here.
-    if (process.env.NODE_ENV === 'development') {
-      if (staleTimeIterable !== undefined) {
-        staleTimeIterable.close()
-      }
-      finishAccumulatingVaryParams(varyParamsAccumulator)
-    }
   }
 
   // Whether resolving link data unblocked new content. We check this right
@@ -2129,7 +2128,7 @@ async function getRSCPayload(
     createElement(NonIndex, {
       createElement,
       pagePath: ctx.pagePath,
-      statusCode: ctx.res.statusCode,
+      statusCode: ctx.responseStatus.statusCode,
       isPossibleServerAction: ctx.isPossibleServerAction,
     }),
     createElement(Viewport, null),
@@ -2246,7 +2245,7 @@ async function getErrorRSCPayload(
     createElement(NonIndex, {
       createElement,
       pagePath: ctx.pagePath,
-      statusCode: ctx.res.statusCode,
+      statusCode: ctx.responseStatus.statusCode,
       isPossibleServerAction: ctx.isPossibleServerAction,
     }),
     Viewport ? createElement(Viewport, null) : null,
@@ -2526,7 +2525,7 @@ function initializeClientComponentLoadTracking(
 }
 
 async function prepareAppPageRender(
-  res: BaseNextResponse,
+  responseStatus: ResponseStatus,
   requestUrl: string,
   url: ReturnType<typeof parseRelativeUrl>,
   pagePath: string,
@@ -2546,7 +2545,7 @@ async function prepareAppPageRender(
 ): Promise<PreparedAppPageRender> {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
-    res.statusCode = 404
+    responseStatus.statusCode = 404
   }
 
   // A unique request timestamp used by development to ensure that it's
@@ -2613,7 +2612,9 @@ async function prepareAppPageRender(
 
   const { flightRouterState, isPrefetchRequest, nonce } = parsedRequestHeaders
 
-  if (parsedRequestHeaders.requestId) {
+  if (requestInsightsIdentity?.debugRequestId) {
+    requestId = requestInsightsIdentity.debugRequestId
+  } else if (parsedRequestHeaders.requestId) {
     // If the client has provided a request ID (in development mode), we use it.
     requestId = parsedRequestHeaders.requestId
   } else if (requestInsightsIdentity) {
@@ -2677,7 +2678,7 @@ async function prepareAppPageRender(
     assetPrefix,
     isNotFoundPath,
     nonce,
-    res,
+    responseStatus,
     devResponseLifecycle,
     sharedContext,
     implicitTags,
@@ -2698,7 +2699,7 @@ async function prerenderAppPage({
   metadata,
   loaderTree,
 }: PreparedAppPageRender): Promise<PrerenderResult> {
-  const { res, pagePath, renderOpts, workStore, url, fallbackRouteParams } = ctx
+  const { pagePath, renderOpts, workStore, url, fallbackRouteParams } = ctx
 
   // We're either building or revalidating. In either case we need to
   // prerender our page rather than render it.
@@ -2718,7 +2719,6 @@ async function prerenderAppPage({
   let response: PrerenderToStreamResult
   try {
     response = await prerenderToStreamWithTracing(
-      res,
       ctx,
       metadata,
       loaderTree,
@@ -2790,7 +2790,7 @@ async function prerenderAppPage({
   }
 
   if (renderError !== undefined) {
-    res.statusCode = 500
+    ctx.responseStatus.statusCode = 500
     metadata.statusCode = 500
   } else {
     applyMetadataFromPrerenderResult(response, metadata, workStore)
@@ -2842,6 +2842,7 @@ async function prerenderAppPage({
 
 async function renderAppPage(
   req: BaseNextRequest,
+  res: BaseNextResponse,
   requestHeaders: IncomingHttpHeaders,
   {
     ctx,
@@ -2854,7 +2855,6 @@ async function renderAppPage(
   stagedFallbackParams: OpaqueFallbackRouteParams | null
 ) {
   const {
-    res,
     url,
     renderOpts,
     workStore,
@@ -3195,6 +3195,7 @@ async function renderToHTMLOrFlightImpl(
   )
   return renderAppPage(
     req,
+    res,
     requestHeaders,
     prepared,
     postponedState,
@@ -3204,7 +3205,7 @@ async function renderToHTMLOrFlightImpl(
 }
 
 async function prerenderToHTMLOrFlightImpl(
-  res: BaseNextResponse,
+  initialStatusCode: number,
   requestUrl: string,
   url: ReturnType<typeof parseRelativeUrl>,
   pagePath: string,
@@ -3225,8 +3226,9 @@ async function prerenderToHTMLOrFlightImpl(
     )
   }
   const isRoutePPREnabled = renderOpts.experimental.isRoutePPREnabled === true
+  const responseStatus: ResponseStatus = { statusCode: initialStatusCode }
   const prepared = await prepareAppPageRender(
-    res,
+    responseStatus,
     requestUrl,
     url,
     pagePath,
@@ -3251,6 +3253,9 @@ async function prerenderToHTMLOrFlightImpl(
     },
     null
   )
+  if (responseStatus.statusCode !== 200) {
+    prepared.metadata.statusCode = responseStatus.statusCode
+  }
   return prerenderAppPage(prepared)
 }
 
@@ -3273,7 +3278,7 @@ export type AppPageRender = (
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export type AppPagePrerender = (
-  res: BaseNextResponse,
+  initialStatusCode: number,
   requestUrl: string,
   pagePath: string,
   query: NextParsedUrlQuery,
@@ -3421,7 +3426,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
 }
 
 export const prerenderToHTMLOrFlight: AppPagePrerender = (
-  res,
+  initialStatusCode,
   requestUrl,
   pagePath,
   query,
@@ -3455,7 +3460,7 @@ export const prerenderToHTMLOrFlight: AppPagePrerender = (
   return workAsyncStorage.run(
     workStore,
     prerenderToHTMLOrFlightImpl,
-    res,
+    initialStatusCode,
     requestUrl,
     url,
     pagePath,
@@ -4903,6 +4908,9 @@ function runDevValidationInBackground(
             const devValidationWorker = getDevValidationWorker()
 
             if (devValidationWorker) {
+              const runValidationSpan = getActiveLocalSpan()
+              const runValidationSpanContext = runValidationSpan?.spanContext()
+              const requestInsightsIdentity = getRequestInsightsIdentity()
               const snapshot = await buildDevValidationSnapshot(
                 ctx,
                 instantInputs,
@@ -4912,15 +4920,42 @@ function runDevValidationInBackground(
                 devRenderDidError
               )
 
-              const chunks = await devValidationWorker(
+              const workerResult = await devValidationWorker(
                 snapshot,
-                validationAbortSignal
+                validationAbortSignal,
+                {
+                  captureLocalSpans: Boolean(
+                    runValidationSpanContext && requestInsightsIdentity
+                  ),
+                }
               )
 
               // A newer navigation may have superseded this validation while
               // the worker ran; don't surface stale insights for a page the user
               // left.
-              if (chunks && !validationAbortSignal.aborted) {
+              if (!validationAbortSignal.aborted) {
+                if (
+                  workerResult.localSpans &&
+                  runValidationSpanContext &&
+                  requestInsightsIdentity
+                ) {
+                  importRequestInsightSpans(
+                    requestInsightsIdentity,
+                    runValidationSpanContext,
+                    workerResult.localSpans
+                  )
+                  if (workerResult.localSpans.droppedSpanCount > 0) {
+                    runValidationSpan?.setAttribute(
+                      'next.request_insights.omitted_spans',
+                      workerResult.localSpans.droppedSpanCount
+                    )
+                  }
+                }
+
+                const chunks = workerResult.chunks
+                if (!chunks) {
+                  return
+                }
                 const { sendErrorsToBrowser } = ctx.renderOpts
                 if (!sendErrorsToBrowser) {
                   throw new InvariantError(
@@ -5027,27 +5062,27 @@ async function runInstantInsightsWithTracing<T>(
     return fn(runWithoutInstantInsightsSpan)
   }
 
-  return runWithRequestInsightsIdentity(
-    {
-      requestId: ctx.requestId,
-      kind: 'instant-insights',
-      htmlRequestId: ctx.htmlRequestId,
-      url: ctx.url.href,
-    },
-    () =>
-      traceLocalSpan(
-        {
-          name: 'Instant Insights',
-          parentSpan: null,
-          attributes: {
-            'next.span_category': 'nextjs',
-            'next.span_name': 'Instant Insights',
-            'next.span_type': AppRenderSpan.instantInsights,
-            'next.route': ctx.pagePath,
-          },
+  const identity = {
+    requestId: getRequestInsightsIdentity()?.requestId ?? ctx.requestId,
+    kind: 'instant-insights' as const,
+    htmlRequestId: ctx.htmlRequestId,
+    url: ctx.url.href,
+  }
+  startRequestInsight(identity)
+  return runWithRequestInsightsIdentity(identity, () =>
+    traceLocalSpan(
+      {
+        name: 'Instant Insights',
+        parentSpan: null,
+        attributes: {
+          'next.span_category': 'nextjs',
+          'next.span_name': 'Instant Insights',
+          'next.span_type': AppRenderSpan.instantInsights,
+          'next.route': ctx.pagePath,
         },
-        () => fn(runInstantInsightsSpan)
-      )
+      },
+      () => fn(runInstantInsightsSpan)
+    )
   )
 }
 
@@ -6939,6 +6974,9 @@ async function runValidationInDev(
   devRenderDidError: boolean,
   validationAbortSignal: AbortSignal
 ): Promise<Array<unknown> | undefined> {
+  const runSpan = isLocalSpanRecordingEnabled()
+    ? runInstantInsightsSpan
+    : runWithoutInstantInsightsSpan
   const { componentMod: ComponentMod, getDynamicParamFromSegment } = ctx
   const loaderTree = ComponentMod.routeModule.userland.loaderTree
   const rootParams = getRootParams(loaderTree, getDynamicParamFromSegment)
@@ -6961,21 +6999,26 @@ async function runValidationInDev(
     // First we warmup SSR with the runtime chunks. This ensures that when we do
     // the full prerender pass with dynamic tracking module loading won't
     // interrupt the prerender and can properly observe the entire content
-    await warmupClientModulesForStagedValidation(
-      // if we're going to be validating prefetches, we'll be rendering some segments in the dynamic stage.
-      // otherwise, for static shell validation, we only need to warm up to the PrefetchRuntime stage.
-      // we also need to use a different store type, because instant validation allows more APIs to resolve.
-      needsInstantValidation ? 'validation-client' : 'prerender-client',
-      needsInstantValidation
-        ? accumulatedChunks[RenderStage.Dynamic]
-        : accumulatedChunks[RenderStage.PrefetchRuntime],
-      accumulatedChunks[RenderStage.Dynamic],
-      rootParams,
-      fallbackRouteParams,
-      ctx,
-      validationSamples,
-      validationSampleTracking,
-      validationAbortSignal
+    await runSpan(
+      AppRenderSpan.instantInsightsWarmup,
+      'Warm up validation modules',
+      () =>
+        warmupClientModulesForStagedValidation(
+          // if we're going to be validating prefetches, we'll be rendering some segments in the dynamic stage.
+          // otherwise, for static shell validation, we only need to warm up to the PrefetchRuntime stage.
+          // we also need to use a different store type, because instant validation allows more APIs to resolve.
+          needsInstantValidation ? 'validation-client' : 'prerender-client',
+          needsInstantValidation
+            ? accumulatedChunks[RenderStage.Dynamic]
+            : accumulatedChunks[RenderStage.PrefetchRuntime],
+          accumulatedChunks[RenderStage.Dynamic],
+          rootParams,
+          fallbackRouteParams,
+          ctx,
+          validationSamples,
+          validationSampleTracking,
+          validationAbortSignal
+        )
     )
   }
 
@@ -7018,14 +7061,19 @@ async function runValidationInDev(
       : null
     const hmrRefreshHash = getHmrRefreshHash(inputs.requestStore)
 
-    const result = await validateStaticShell(
-      inputs,
-      ctx,
-      rootParams,
-      fallbackRouteParams,
-      debugChunks,
-      hmrRefreshHash,
-      validationAbortSignal
+    const result = await runSpan(
+      AppRenderSpan.instantInsightsStaticShell,
+      'Validate static shell',
+      () =>
+        validateStaticShell(
+          inputs,
+          ctx,
+          rootParams,
+          fallbackRouteParams,
+          debugChunks,
+          hmrRefreshHash,
+          validationAbortSignal
+        )
     )
     // A newer render superseded this validation while its render ran, so its
     // result is stale. Don't surface errors for a page the user left.
@@ -7055,19 +7103,24 @@ async function runValidationInDev(
       : null
     const hmrRefreshHash = getHmrRefreshHash(inputs.requestStore)
 
-    const result = await validateInstantConfigs(
-      prefetchMode,
-      inputs.accumulatedChunks,
-      debugChunks,
-      inputs.startTime,
-      inputs.stageEndTimes,
-      rootParams,
-      fallbackRouteParams,
-      ctx,
-      hmrRefreshHash,
-      validationSamples,
-      devRenderDidError,
-      validationAbortSignal
+    const result = await runSpan(
+      AppRenderSpan.instantInsightsValidate,
+      'Validate instant navigation',
+      () =>
+        validateInstantConfigs(
+          prefetchMode,
+          inputs.accumulatedChunks,
+          debugChunks,
+          inputs.startTime,
+          inputs.stageEndTimes,
+          rootParams,
+          fallbackRouteParams,
+          ctx,
+          hmrRefreshHash,
+          validationSamples,
+          devRenderDidError,
+          validationAbortSignal
+        )
     )
 
     // A newer render superseded this work. Don't surface stale validation
@@ -8661,7 +8714,7 @@ async function validateInstantConfigInBuildWithSample(
       assetPrefix: outerCtx.assetPrefix,
       isNotFoundPath: outerCtx.isNotFoundPath,
       nonce: outerCtx.nonce,
-      res: outerCtx.res,
+      responseStatus: outerCtx.responseStatus,
       devResponseLifecycle: outerCtx.devResponseLifecycle,
       sharedContext: outerCtx.sharedContext,
       implicitTags: outerCtx.implicitTags,
@@ -8941,7 +8994,6 @@ function withTurbopackBootstrapScript(
 }
 
 async function prerenderToStream(
-  res: BaseNextResponse,
   ctx: AppRenderContext,
   metadata: AppPageRenderResultMetadata,
   tree: LoaderTree,
@@ -8958,6 +9010,7 @@ async function prerenderToStream(
     implicitTags,
     nonce,
     pagePath,
+    responseStatus,
     renderOpts,
     workStore,
   } = ctx
@@ -9135,24 +9188,20 @@ async function prerenderToStream(
   let reactServerRenderChunks: Array<Uint8Array> | null = null
   let reactServerResumeDataCache: ResumeDataCache | null = null
   let reactServerPrerenderStore: null | PrerenderStore = null
-  const setMetadataHeader = (name: string) => {
-    metadata.headers ??= {}
-    metadata.headers[name] = res.getHeader(name)
-  }
+  // Record only the headers this prerender produces. The response may already
+  // carry headers from next.config.js `headers()`, or from the cache entry
+  // being revalidated, and the caller applies `metadata.headers` to it.
   const setHeader = (name: string, value: string | string[]) => {
-    res.setHeader(name, value)
-    setMetadataHeader(name)
-    return res
+    metadata.headers ??= {}
+    metadata.headers[name] = value
   }
-  const appendHeader = (name: string, value: string | string[]) => {
-    if (Array.isArray(value)) {
-      value.forEach((item) => {
-        res.appendHeader(name, item)
-      })
-    } else {
-      res.appendHeader(name, value)
-    }
-    setMetadataHeader(name)
+  const appendHeader = (name: string, value: string) => {
+    metadata.headers ??= {}
+    const existing = metadata.headers[name]
+    metadata.headers[name] =
+      existing === undefined
+        ? value
+        : [...(Array.isArray(existing) ? existing : [String(existing)]), value]
   }
 
   const selectStaleTime = createSelectStaleTime(experimental)
@@ -9172,15 +9221,15 @@ async function prerenderToStream(
       const statusCode = getAccessFallbackHTTPStatus(err)
       if (capturedHTTPErrorType === undefined) {
         capturedHTTPErrorType = 'access-fallback'
-        res.statusCode = statusCode
+        responseStatus.statusCode = statusCode
         metadata.statusCode = statusCode
       }
       return getAccessFallbackErrorTypeByStatus(statusCode)
     } else if (isRedirectError(err)) {
       if (capturedHTTPErrorType !== 'redirect') {
         capturedHTTPErrorType = 'redirect'
-        res.statusCode = getRedirectStatusCodeFromError(err)
-        metadata.statusCode = res.statusCode
+        responseStatus.statusCode = getRedirectStatusCodeFromError(err)
+        metadata.statusCode = responseStatus.statusCode
         setHeader(
           'location',
           addPathPrefix(getURLFromRedirectError(err), basePath)
@@ -9361,7 +9410,7 @@ async function prerenderToStream(
         ) as typeof getRSCPayload,
         tree,
         ctx,
-        { is404: res.statusCode === 404, isPrerendering: true }
+        { is404: responseStatus.statusCode === 404, isPrerendering: true }
       )
 
       const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
@@ -9661,7 +9710,7 @@ async function prerenderToStream(
         tree,
         ctx,
         {
-          is404: res.statusCode === 404,
+          is404: responseStatus.statusCode === 404,
           isPrerendering: true,
           stageByteLengthsPromise: stageByteLengthsDeferred.promise,
         }
@@ -9736,37 +9785,12 @@ async function prerenderToStream(
         )
       }
 
-      let didHandleUnexpectedAbort = false
-      /**
-       * @returns - whether or not the task should be skipped
-       * because the render was already aborted.
-       * */
       const checkUnexpectedAbort = (): boolean => {
         if (finalServerReactController.signal.aborted) {
-          // If the server controller is already aborted, then we must have encountered sync IO
-          if (!didHandleUnexpectedAbort) {
-            didHandleUnexpectedAbort = true
-            onUnexpectedAbort()
-          }
+          resultIsPartial = true
           return true
         }
-
-        // Not aborted.
         return false
-      }
-
-      const onUnexpectedAbort = () => {
-        resultIsPartial = true
-
-        // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
-        // finish the accumulators. However, it seems like in `--debug-prerender`
-        // the stream will stay open if we don't settle these here.
-        if (process.env.NODE_ENV === 'development') {
-          if (staleTimeIterable !== undefined) {
-            staleTimeIterable.close()
-          }
-          finishAccumulatingVaryParams(varyParamsAccumulator)
-        }
       }
 
       let debugEndTime: number | undefined = undefined
@@ -10284,7 +10308,7 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        { is404: res.statusCode === 404, isPrerendering: true }
+        { is404: responseStatus.statusCode === 404, isPrerendering: true }
       )
 
       let reactServerResult: ReactServerPrerenderResult
@@ -10448,8 +10472,8 @@ async function prerenderToStream(
     const errorType = setHTTPAccessFallbackOrRedirectStatus(err)
 
     if (errorType === undefined) {
-      res.statusCode = 500
-      metadata.statusCode = res.statusCode
+      responseStatus.statusCode = 500
+      metadata.statusCode = responseStatus.statusCode
 
       if (
         cacheComponents &&

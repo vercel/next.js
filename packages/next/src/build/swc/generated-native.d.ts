@@ -458,6 +458,8 @@ export interface NapiProjectOptions {
   nextVersion: RcStr
   /** Whether server-side HMR is enabled (disabled with --no-server-fast-refresh). */
   serverHmr?: boolean
+  /** Retains shallow source maps for `analyze` without changing the emitted source map variant. */
+  ensureShallowSourceMaps?: boolean
 }
 
 /** Keep in sync with [`next_core::next_config::Rewrite`] */

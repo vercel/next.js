@@ -99,7 +99,11 @@ pub enum ModuleResolveResultItem {
         ty: ExternalType,
     },
     /// A module could not be created (according to the rules, e.g. no module type as assigned)
-    Unknown(ResolvedVc<Box<dyn Source>>),
+    Unknown {
+        source: ResolvedVc<Box<dyn Source>>,
+        /// The import that pulled the file in, so that the file can be reported there.
+        import: Option<IssueSource>,
+    },
     /// Completely ignore this reference.
     Ignore,
     /// Emit the given issue, and generate a module which throws that issue's title at runtime.
@@ -123,8 +127,8 @@ impl ModuleResolveResultItem {
     async fn as_module(&self) -> Result<Option<ResolvedVc<Box<dyn Module>>>> {
         Ok(match *self {
             ModuleResolveResultItem::Module(module) => Some(module),
-            ModuleResolveResultItem::Unknown(source) => {
-                emit_unknown_module_type_error(*source).await?;
+            ModuleResolveResultItem::Unknown { source, import } => {
+                emit_unknown_module_type_error(*source, import).await?;
                 None
             }
             ModuleResolveResultItem::Error(_err) => {
@@ -2129,6 +2133,7 @@ async fn resolve_internal_inline(
                                     .to_string(),
                             ),
                             source: None,
+                            hint: None,
                         }
                         .resolved_cell()
                         .emit();
@@ -2151,6 +2156,7 @@ async fn resolve_internal_inline(
                         resolve_options: options.to_resolved().await?,
                         error_message: Some("windows imports are not implemented yet".to_string()),
                         source: None,
+                        hint: None,
                     }
                     .resolved_cell()
                     .emit();
@@ -2246,6 +2252,7 @@ async fn resolve_internal_inline(
                         resolve_options: options.to_resolved().await?,
                         error_message: None,
                         source: None,
+                        hint: None,
                     }
                     .resolved_cell()
                     .emit();
@@ -2787,6 +2794,7 @@ async fn apply_in_package(
             resolve_options: options.to_resolved().await?,
             error_message: Some(format!("invalid alias field value: {value}")),
             source: None,
+            hint: None,
         }
         .resolved_cell()
         .emit();
@@ -3425,6 +3433,7 @@ async fn resolve_package_internal_with_imports_field(
             resolve_options: resolve_options.to_resolved().await?,
             error_message: None,
             source: None,
+            hint: None,
         }
         .resolved_cell()
         .emit();
@@ -3583,7 +3592,7 @@ mod tests {
         io::Write,
     };
 
-    use anyhow::Result;
+    use anyhow::{Context, Result};
     use turbo_rcstr::{RcStr, rcstr};
     use turbo_tasks::{TryJoinIterExt, Vc};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
@@ -3686,6 +3695,89 @@ mod tests {
             assert!(missing.self_cycle);
 
             anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    /// Reordering the conditions of a `package.json` `exports` entry changes which condition
+    /// matches first. The re-read `package.json` must not compare equal to the old one: if it did,
+    /// the cell would keep the old content and resolution would keep the old priority.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_exports_conditions_reorder() {
+        let scratch = tempfile::tempdir().unwrap();
+        // The disk filesystem rejects paths behind a symlink, like the macOS temp dir.
+        let root = scratch.path().canonicalize().unwrap();
+        let package_json = root.join("package.json");
+        std::fs::write(
+            &package_json,
+            r#"{ "exports": { ".": { "import": "./a.mjs", "default": "./b.js" } } }"#,
+        )
+        .unwrap();
+        let root: RcStr = root.to_str().unwrap().into();
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::value(transparent)]
+            struct ExportsConditions(Vec<RcStr>);
+
+            /// The conditions of the `"."` entry of `package.json` `exports`, in order.
+            #[turbo_tasks::function(operation, root)]
+            async fn exports_conditions_operation(
+                fs: ResolvedVc<DiskFileSystem>,
+            ) -> Result<Vc<ExportsConditions>> {
+                let package_json = fs.root().await?.join("package.json")?;
+                let source = Vc::upcast::<Box<dyn Source>>(FileSource::new(package_json))
+                    .to_resolved()
+                    .await?;
+                let exports = exports_field(*source).await?;
+                let ExportsFieldResult::Some(exports) = &*exports else {
+                    bail!("expected an exports field");
+                };
+                let request = Pattern::Constant(rcstr!("."));
+                let entry = exports
+                    .lookup(&request)
+                    .next()
+                    .context("expected an exports entry for \".\"")??;
+                let ReplacedSubpathValue::Conditional(conditions) = entry.output else {
+                    bail!("expected conditions for \".\"");
+                };
+                Ok(Vc::cell(
+                    conditions
+                        .into_iter()
+                        .map(|(condition, _)| condition)
+                        .collect(),
+                ))
+            }
+
+            #[turbo_tasks::function(operation, root)]
+            fn disk_fs_operation(root: RcStr) -> Vc<DiskFileSystem> {
+                DiskFileSystem::new(rcstr!("test"), Vc::cell(root))
+            }
+
+            let fs_operation = disk_fs_operation(root);
+            let fs = fs_operation.resolve().strongly_consistent().await?;
+
+            let conditions = exports_conditions_operation(fs)
+                .read_strongly_consistent()
+                .await?;
+            assert_eq!(*conditions, [rcstr!("import"), rcstr!("default")]);
+
+            std::fs::write(
+                &package_json,
+                r#"{ "exports": { ".": { "default": "./b.js", "import": "./a.mjs" } } }"#,
+            )
+            .unwrap();
+            fs_operation.read_strongly_consistent().await?.invalidate();
+
+            let conditions = exports_conditions_operation(fs)
+                .read_strongly_consistent()
+                .await?;
+            assert_eq!(*conditions, [rcstr!("default"), rcstr!("import")]);
+            Ok(())
         })
         .await
         .unwrap();

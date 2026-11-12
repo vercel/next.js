@@ -10,7 +10,7 @@ use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, FxIndexMap, OperationVc, PrettyPrintError, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
-    duration_span, fxindexmap, parallel::available_parallelism,
+    duration_span, parallel::available_parallelism,
     resolve_strongly_consistent_and_take_and_apply_effects,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -298,10 +298,13 @@ pub(crate) async fn get_evaluate_pool(
 
     // Invalidate pool when code content changes
     content_changed(Vc::upcast(**bootstrap)).await?;
-    let assets_for_source_mapping =
-        internal_assets_for_source_mapping(**bootstrap, output_root.clone())
-            .to_resolved()
-            .await?;
+    let assets_for_source_mapping = internal_assets_for_source_mapping(
+        **bootstrap,
+        output_root.clone(),
+        *chunking_context.emitted_source_map_type().await?,
+    )
+    .to_resolved()
+    .await?;
     let env = match env_var_tracking {
         EnvVarTracking::WholeEnvTracked => env.read_all().await?,
         EnvVarTracking::Untracked => {
@@ -346,7 +349,7 @@ async fn common_node_env(env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<EnvMap>> {
             }
         }
     }
-    Ok(Vc::cell(filtered))
+    Ok(Vc::cell(filtered.into()))
 }
 
 /// A Node.js process could not connect back to us over the loopback interface.
@@ -582,8 +585,11 @@ pub async fn get_evaluate_entries(
                 ),
             )),
             ReferenceType::Internal(ResolvedVc::cell(
-                fxindexmap! {rcstr!("INNER") => module_asset,
-                rcstr!("RUNTIME") => runtime_asset},
+                [
+                    (rcstr!("INNER"), module_asset),
+                    (rcstr!("RUNTIME"), runtime_asset),
+                ]
+                .into(),
             )),
         )
         .module()

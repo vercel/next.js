@@ -47,6 +47,7 @@ import { hasNextSupport } from '../server/ci-info'
 import { transpileConfig } from '../build/next-config-ts/transpile-config'
 import { dset } from '../shared/lib/dset'
 import { cloneObject } from './lib/clone-object'
+import { deepFreeze, deepFreezePlainValues } from '../shared/lib/deep-freeze'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
@@ -137,7 +138,7 @@ function normalizeNextConfigZodErrors(
         message +=
           '\n`experimental.dynamicIO` has been replaced by `cacheComponents`. Please update your next.config file accordingly.'
         message +=
-          '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents'
+          '\nLearn more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
       }
     }
 
@@ -1878,6 +1879,12 @@ function finalizeConfig(
       (config.outputHashSalt ?? '') + config.experimental.outputHashSalt
   }
 
+  // In tests, freeze the loaded config so that any later write throws where it
+  // happens instead of silently changing the config other code reads.
+  if (process.env.__NEXT_TEST_MODE) {
+    deepFreezePlainValues(config)
+  }
+
   return config
 }
 
@@ -2067,6 +2074,10 @@ async function loadConfigImpl(
     const standaloneConfig = JSON.parse(
       process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
     )
+    // The standalone config is JSON written at build time, like the manifests.
+    if (process.env.__NEXT_TEST_MODE) {
+      deepFreeze(standaloneConfig)
+    }
 
     // Cache the standalone config
     configCache.set(cacheKey, {

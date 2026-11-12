@@ -8,8 +8,8 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault,
-    ValueToStringRef, Vc, debug::ValueDebugFormat, fxindexmap, turbobail,
+    FxIndexMap, FxIndexSet, NonLocalValue, OrderedAutoSet, ResolvedVc, TryJoinIterExt,
+    ValueDefault, ValueToStringRef, Vc, debug::ValueDebugFormat, fxindexmap, turbobail,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString};
@@ -981,7 +981,7 @@ pub fn get_entrypoints(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct CollectedRootParams(#[bincode(with = "turbo_bincode::indexset")] FxIndexSet<RcStr>);
+pub struct CollectedRootParams(OrderedAutoSet<RcStr>);
 
 #[turbo_tasks::function]
 pub async fn collect_root_params(
@@ -993,7 +993,7 @@ pub async fn collect_root_params(
             collected_root_params.extend(root_params.iter().cloned());
         }
     }
-    Ok(Vc::cell(collected_root_params))
+    Ok(Vc::cell(collected_root_params.into()))
 }
 
 #[turbo_tasks::function]
@@ -1891,6 +1891,14 @@ async fn directory_tree_to_loader_tree_internal(
 
     let mut duplicate = FxHashMap::default();
 
+    // Root/transparent segments don't consume a URL level; others descend.
+    let child_url_tree: Option<&UrlSegmentTree> =
+        if directory_name.is_empty() || is_url_transparent_segment(&directory_name) {
+            url_tree
+        } else {
+            url_tree.and_then(|t| t.get_child(&directory_name))
+        };
+
     for (subdir_name, subdirectory) in &directory_tree.subdirectories {
         let parallel_route_key = match_parallel_route(subdir_name);
 
@@ -1904,27 +1912,28 @@ async fn directory_tree_to_loader_tree_internal(
             illegal_path_error = Some(e);
         }
 
-        // Root/transparent segments don't consume a URL level; others descend.
-        let child_url_tree: Option<&UrlSegmentTree> =
-            if directory_name.is_empty() || is_url_transparent_segment(&directory_name) {
-                url_tree
-            } else {
-                url_tree.and_then(|t| t.get_child(&directory_name))
-            };
-
-        let subtree = Box::pin(directory_tree_to_loader_tree_internal(
-            app_dir.clone(),
-            global_metadata,
-            subdir_name.clone(),
-            subdirectory,
-            child_app_page.clone(),
-            for_app_path.clone(),
-            explicit_parallel_route_children,
-            parent_modules.clone(),
-            child_url_tree,
-            missing_defaults,
-        ))
-        .await?;
+        // The recursive call returns `None` without any side effects when the child can't
+        // contain `for_app_path`. Check that up front so that building the loader tree for a
+        // single route doesn't recurse into (and clone state for) every sibling directory,
+        // which is quadratic in the number of sibling routes. A `None` subtree is still handled
+        // below exactly as if it had been returned by the recursive call.
+        let subtree = if for_app_path.contains_page(&child_app_page) {
+            Box::pin(directory_tree_to_loader_tree_internal(
+                app_dir.clone(),
+                global_metadata,
+                subdir_name.clone(),
+                subdirectory,
+                child_app_page,
+                for_app_path.clone(),
+                explicit_parallel_route_children,
+                parent_modules.clone(),
+                child_url_tree,
+                missing_defaults,
+            ))
+            .await?
+        } else {
+            None
+        };
 
         if let Some(illegal_path) = subtree.as_ref().and(illegal_path_error) {
             return Err(illegal_path);

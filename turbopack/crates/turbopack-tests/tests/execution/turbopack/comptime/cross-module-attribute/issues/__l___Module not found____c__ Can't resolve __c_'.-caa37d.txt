@@ -1,0 +1,21 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/comptime/cross-module-attribute/input/index.js:29:12  Module not found: Can't resolve './missing-non-constant'
+  
+      25 | function readNonConstant() {
+      26 |   if (nonConstant.v === 1234) {
+      27 |     return nonConstant
+      28 |   } else {
+         +            v-------------------------------v
+      29 +     return require('./missing-non-constant')
+         +            ^-------------------------------^
+      30 |   }
+      31 | }
+      32 | 
+      33 | it('inlines constants imported with `turbopackConstants: true`', () => {
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: relative './missing-non-constant'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/comptime/cross-module-attribute/input/index.js
+  | Type of request: commonjs request
+  |
