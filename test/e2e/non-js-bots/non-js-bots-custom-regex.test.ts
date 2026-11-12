@@ -12,13 +12,7 @@ describe('non-js-bots custom regex', () => {
     },
   })
 
-  it('shows large boundaries to bots matching the custom regex when enabled', async () => {
-    // Resolved-config gate conditions do not see env-forced values in
-    // adapter deploy jobs, so read the job env directly.
-    const disableProgressiveLoadingForNonJsBots =
-      process.env
-        .__NEXT_EXPERIMENTAL_DISABLE_PROGRESSIVE_LOADING_FOR_NON_JS_BOTS ===
-      'true'
+  it('shows large boundaries to bots matching the custom regex', async () => {
     const browser = await next.browser('/large-boundary', {
       userAgent: MINIBOT_UA,
       disableJavaScript: true,
@@ -29,13 +23,13 @@ describe('non-js-bots custom regex', () => {
       { state: 'attached' }
     )
     expect(await element.evaluate((el: Element) => el.checkVisibility())).toBe(
-      disableProgressiveLoadingForNonJsBots
+      true
     )
   })
 
   it('replaces the default regex', async () => {
     // ClaudeBot is in the default list, but the custom regex replaces it, so
-    // its boundaries are only revealed by client JS either way.
+    // its boundaries are only revealed by client JS.
     const browser = await next.browser('/large-boundary', {
       userAgent: NON_JS_BOT,
       disableJavaScript: true,

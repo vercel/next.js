@@ -164,7 +164,7 @@ async function requestHandler(
       ),
       disableProgressiveLoading: shouldDisableProgressiveLoading(
         userAgent,
-        nextConfig.experimental
+        nextConfig.nonJsBots
       ),
       supportsDynamicResponse: true,
       buildManifest,

@@ -283,7 +283,7 @@ export const getHandler = ({
 
     const disableProgressiveLoading = shouldDisableProgressiveLoading(
       req.headers['user-agent'],
-      nextConfig.experimental
+      nextConfig.nonJsBots
     )
 
     // When serving a bot request, we want to serve a blocking render and not

@@ -612,7 +612,7 @@ export function createAppPageEntrypoint({
 
     const disableProgressiveLoading = shouldDisableProgressiveLoading(
       userAgent,
-      nextConfig.experimental
+      nextConfig.nonJsBots
     )
 
     // A PPR shell has already closed its head before the dynamic render resumes.

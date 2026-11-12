@@ -1719,9 +1719,9 @@ function assignDefaultsAndValidate(
     result.htmlLimitedBots = HTML_LIMITED_BOT_UA_RE_STRING
   }
 
-  if (!result.experimental.nonJsBots) {
+  if (!result.nonJsBots) {
     // @ts-expect-error: override the nonJsBots with default string, type convert: RegExp -> string
-    result.experimental.nonJsBots = NON_JS_BOT_UA_RE_STRING
+    result.nonJsBots = NON_JS_BOT_UA_RE_STRING
   }
 
   if (
@@ -2334,10 +2334,9 @@ async function loadConfigImpl(
     }
 
     // serialize the regex config into string
-    if (userConfig.experimental?.nonJsBots instanceof RegExp) {
+    if (userConfig.nonJsBots instanceof RegExp) {
       // @ts-expect-error: override the nonJsBots with a string, type convert: RegExp -> string
-      userConfig.experimental.nonJsBots =
-        userConfig.experimental.nonJsBots.source
+      userConfig.nonJsBots = userConfig.nonJsBots.source
     }
 
     enforceExperimentalFeatures(userConfig, {
@@ -2516,18 +2515,6 @@ function enforceExperimentalFeatures(
       (isDefaultConfig && !config.cacheComponents))
   ) {
     config.cacheComponents = true
-  }
-
-  // TODO: Remove this once we've made disableProgressiveLoadingForNonJsBots the
-  // default.
-  if (
-    process.env
-      .__NEXT_EXPERIMENTAL_DISABLE_PROGRESSIVE_LOADING_FOR_NON_JS_BOTS ===
-      'true' &&
-    // We do respect an explicit value in the user config.
-    config.experimental.disableProgressiveLoadingForNonJsBots === undefined
-  ) {
-    config.experimental.disableProgressiveLoadingForNonJsBots = true
   }
 
   if (process.env.__NEXT_PARTIAL_PREFETCHING === 'true') {

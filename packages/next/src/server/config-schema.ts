@@ -266,8 +266,6 @@ export const experimentalSchema = {
     .optional(),
   devMemoryThresholdRestart: z.boolean().optional(),
   disableOptimizedLoading: z.boolean().optional(),
-  disableProgressiveLoadingForNonJsBots: z.boolean().optional(),
-  nonJsBots: z.instanceof(RegExp).optional(),
   disablePostcssPresetEnv: z.boolean().optional(),
   cacheComponents: z.boolean().optional(),
   inlineCss: z.boolean().optional(),
@@ -723,6 +721,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .returns(z.promise(z.array(zHeader)))
       .optional(),
     htmlLimitedBots: z.instanceof(RegExp).optional(),
+    nonJsBots: z.instanceof(RegExp).optional(),
     httpAgentOptions: z
       .strictObject({ keepAlive: z.boolean().optional() })
       .optional(),
