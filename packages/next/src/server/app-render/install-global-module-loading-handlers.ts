@@ -1,8 +1,5 @@
 import type { AppPageModule } from '../route-modules/app-page/module'
-import {
-  hasUnsealedClientComponentLoadTracker,
-  wrapClientComponentLoader,
-} from '../client-component-renderer-logger'
+import { wrapClientComponentLoader } from '../client-component-renderer-logger'
 import { workAsyncStorage } from './work-async-storage.external'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import {
@@ -45,9 +42,6 @@ function noop() {}
 // Mirrors the check in `wrapClientComponentLoader`: while a render measures
 // client component loading, every load has to go through the tracker.
 function isLoadTimingTracked(): boolean {
-  if (!hasUnsealedClientComponentLoadTracker()) {
-    return false
-  }
   const tracker = workAsyncStorage.getStore()?.clientComponentLoadTracker
   return tracker !== undefined && !tracker.isSealed()
 }
