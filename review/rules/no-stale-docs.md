@@ -19,6 +19,8 @@ The escalation tiers apply to documentation, skills, and other agent instruction
 - Migration advice that removes configuration or replaces an API without explaining the behavior change and how to validate it
 - A deletion or rewrite that drops decision branches, fixes, caveats, or examples without showing where the guidance went
 
+TODO: Add a deterministic Markdown diff check in CI to replace manual detection of removed guidance. Report removed warning callouts and conditional wording, deleted sections, and deletion counts, accounting for moves. Pass the changed lines and any replacement sections to the reviewer. These signals guide review; semantic correctness and whether a removal is justified still need review, and size alone doesn't determine approval.
+
 ## How to apply
 
 - A medium finding can be dismissed only with evidence that the advice is correct for its stated conditions. A reason for leaving known incorrect advice in place does not waive the finding. This takes precedence over the general allowance for a justified medium.
