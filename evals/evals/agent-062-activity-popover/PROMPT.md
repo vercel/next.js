@@ -1,0 +1,1 @@
+Opening Options on `/settings`, switching to `/profile`, and returning can leave an old menu open or make an Options button control the wrong menu. Fix this so each page’s Options button opens its own menu, and navigating away leaves that menu closed when the user returns. Keep native popovers and Cache Components enabled.

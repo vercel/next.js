@@ -1,0 +1,1 @@
+When I leave this screen, clear its old notification. If a new notification arrives while I am on another page, show it when I return. The new notification disappears in development but survives in production. Fix this while preserving my other page state and keeping Cache Components enabled.
