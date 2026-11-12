@@ -1519,6 +1519,13 @@ export interface ExperimentalConfig {
   staticGenerationMinPagesPerWorker?: number
 
   /**
+   * Opt into the adaptive static generation scheduler. Pages start rendering
+   * as soon as a render slot frees up instead of in fixed groups of
+   * `staticGenerationMaxConcurrency`.
+   */
+  staticGenerationAdaptive?: boolean
+
+  /**
    * Allows previously fetched data to be re-used when editing server components.
    */
   serverComponentsHmrCache?: boolean
