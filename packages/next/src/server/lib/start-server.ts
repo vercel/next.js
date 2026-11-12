@@ -39,11 +39,12 @@ import {
 } from './app-info-log'
 import type { AgentFilesResult } from './generate-agent-files'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
+import type { Span } from '../../trace'
 import {
-  Span,
   flushAllTraces,
   exportTraceState,
   initializeTraceState,
+  trace,
 } from '../../trace'
 import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
@@ -267,12 +268,9 @@ export async function startServer(
         Log.warn(
           `Server is approaching the used memory threshold, restarting...`
         )
-        new Span({
-          name: 'server-restart-close-to-memory-threshold',
-          attrs: {
-            'memory.heapSizeLimit': String(memoryRestartStats.heap_size_limit),
-            'memory.heapUsed': String(memoryRestartStats.used_heap_size),
-          },
+        trace('server-restart-close-to-memory-threshold', undefined, {
+          'memory.heapSizeLimit': String(memoryRestartStats.heap_size_limit),
+          'memory.heapUsed': String(memoryRestartStats.used_heap_size),
         }).stop()
         flushAllTraces()
         process.exit(RESTART_EXIT_CODE)
@@ -685,9 +683,10 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         )
       }
 
-      const result = await new Span({
-        name: 'start-dev-server',
-        attrs: {
+      const result = await trace(
+        'start-dev-server',
+        undefined,
+        {
           cpus: String(os.availableParallelism()),
           platform: os.platform(),
           'memory.freeMem': String(os.freemem()),
@@ -698,10 +697,12 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
           ...enabledFeaturesFromParent,
           ...rageRestartAttrsFromParent,
         },
-        parent: getActiveLocalSpan(),
-        recordToInsights: true,
-        scope: true,
-      }).traceAsyncFn((span) => {
+        {
+          parent: getActiveLocalSpan(),
+          recordToInsights: true,
+          scope: true,
+        }
+      ).traceAsyncFn((span) => {
         startServerSpan = span!
         initializeTraceState({
           ...exportTraceState(),

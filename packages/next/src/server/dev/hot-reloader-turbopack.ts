@@ -1,5 +1,5 @@
 import { getActiveLocalSpan } from '../lib/trace/local-span-recorder'
-import { Span } from '../../trace'
+import { trace } from '../../trace'
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
 import { realpathSync } from 'fs'
@@ -473,12 +473,12 @@ export async function createHotReloaderTurbopack(
     opts.fsChecker.rewrites.beforeFiles.length > 0 ||
     opts.fsChecker.rewrites.fallback.length > 0
 
-  const hotReloaderSpan = new Span({
-    name: 'hot-reloader',
-    attrs: { version: process.env.__NEXT_VERSION as string },
-    parent: getActiveLocalSpan(),
-    recordToInsights: true,
-  })
+  const hotReloaderSpan = trace(
+    'hot-reloader',
+    undefined,
+    { version: process.env.__NEXT_VERSION as string },
+    { parent: getActiveLocalSpan(), recordToInsights: true }
+  )
   // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
   // of the current `next dev` invocation.
   hotReloaderSpan.stop()
@@ -2128,7 +2128,9 @@ export async function createHotReloaderTurbopack(
       }
 
       return hotReloaderSpan
-        .traceChild('ensure-page', { inputPage })
+        .traceChild('ensure-page', {
+          inputPage,
+        })
         .traceAsyncFn(async () => {
           if (BLOCKED_PAGES.includes(inputPage) && inputPage !== '/_error') {
             return

@@ -5,7 +5,7 @@ import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoint
 import { Worker } from '../../lib/worker'
 import origDebug from 'next/dist/compiled/debug'
 import path from 'path'
-import { Span, exportTraceState, recordTraceEvents } from '../../trace'
+import { exportTraceState, recordTraceEvents } from '../../trace'
 import { mergeUseCacheTrackers } from '../webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
 import { durationToString } from '../duration-to-string'
 
@@ -136,33 +136,33 @@ export async function webpackBuild(
   | Awaited<ReturnType<typeof import('./impl').webpackBuildImpl>>
 > {
   const nextBuildSpan = NextBuildContext.nextBuildSpan!
-  return new Span({
-    name: 'run-webpack',
-    parent: nextBuildSpan,
-    recordToInsights: true,
-    scope: true,
-  }).traceAsyncFn(async () => {
-    if (withWorker) {
-      debug('using separate compiler workers')
-      return await webpackBuildWithWorker(compilerNames)
-    } else {
-      debug('building all compilers in same process')
-      const webpackBuildImpl = (require('./impl') as typeof import('./impl'))
-        .webpackBuildImpl
-      const curResult = await webpackBuildImpl(null)
+  return nextBuildSpan
+    .traceChild('run-webpack', undefined, {
+      recordToInsights: true,
+      scope: true,
+    })
+    .traceAsyncFn(async () => {
+      if (withWorker) {
+        debug('using separate compiler workers')
+        return await webpackBuildWithWorker(compilerNames)
+      } else {
+        debug('building all compilers in same process')
+        const webpackBuildImpl = (require('./impl') as typeof import('./impl'))
+          .webpackBuildImpl
+        const curResult = await webpackBuildImpl(null)
 
-      // Mirror what happens in webpackBuildWithWorker
-      if (curResult.telemetryState) {
-        NextBuildContext.telemetryState = {
-          ...curResult.telemetryState,
-          useCacheTracker: mergeUseCacheTrackers(
-            NextBuildContext.telemetryState?.useCacheTracker,
-            curResult.telemetryState.useCacheTracker
-          ),
+        // Mirror what happens in webpackBuildWithWorker
+        if (curResult.telemetryState) {
+          NextBuildContext.telemetryState = {
+            ...curResult.telemetryState,
+            useCacheTracker: mergeUseCacheTrackers(
+              NextBuildContext.telemetryState?.useCacheTracker,
+              curResult.telemetryState.useCacheTracker
+            ),
+          }
         }
-      }
 
-      return curResult
-    }
-  })
+        return curResult
+      }
+    })
 }

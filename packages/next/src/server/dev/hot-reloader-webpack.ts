@@ -1,5 +1,5 @@
 import { getActiveLocalSpan } from '../lib/trace/local-span-recorder'
-import { Span } from '../../trace'
+import { type Span, trace } from '../../trace'
 import type { NextConfigComplete } from '../config-shared'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
 import type { Duplex } from 'stream'
@@ -338,12 +338,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.config = config
     this.previewProps = previewProps
     this.rewrites = rewrites
-    this.hotReloaderSpan = new Span({
-      name: 'hot-reloader',
-      attrs: { version: process.env.__NEXT_VERSION as string },
-      parent: getActiveLocalSpan(),
-      recordToInsights: true,
-    })
+    this.hotReloaderSpan = trace(
+      'hot-reloader',
+      undefined,
+      { version: process.env.__NEXT_VERSION as string },
+      { parent: getActiveLocalSpan(), recordToInsights: true }
+    )
     // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
     // of the current `next dev` invocation.
     this.hotReloaderSpan.stop()
@@ -892,13 +892,14 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
 
   private async tracedGetVersionInfo(span: Span) {
-    return span
-      .traceChild('get-version-info')
-      .traceAsyncFn(async () => getVersionInfo())
+    const versionInfoSpan = span.traceChild('get-version-info')
+    return versionInfoSpan.traceAsyncFn<VersionInfo>(async () =>
+      getVersionInfo()
+    )
   }
 
   public async start(): Promise<void> {
-    const startSpan = new Span({ name: 'start', parent: this.hotReloaderSpan })
+    const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
     // Not awaited, so a slow registry doesn't delay startup. The catch is
@@ -1922,30 +1923,30 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // subscriptions per entry the way Turbopack does.
     subscribeToChanges?: boolean
   }): Promise<void> {
-    return new Span({
-      name: 'ensure-page',
-      parent: this.hotReloaderSpan,
-      attrs: { inputPage: page },
-    }).traceAsyncFn(async () => {
-      // Make sure we don't re-build or dispose prebuilt pages
-      if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
-        return
-      }
-      const error = clientOnly
-        ? this.clientError
-        : this.serverError || this.clientError
-      if (error) {
-        throw error
-      }
-
-      return this.onDemandEntries?.ensurePage({
-        page,
-        appPaths,
-        definition,
-        isApp,
-        url,
+    return this.hotReloaderSpan
+      .traceChild('ensure-page', {
+        inputPage: page,
       })
-    })
+      .traceAsyncFn(async () => {
+        // Make sure we don't re-build or dispose prebuilt pages
+        if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
+          return
+        }
+        const error = clientOnly
+          ? this.clientError
+          : this.serverError || this.clientError
+        if (error) {
+          throw error
+        }
+
+        return this.onDemandEntries?.ensurePage({
+          page,
+          appPaths,
+          definition,
+          isApp,
+          url,
+        })
+      })
   }
 
   public close() {

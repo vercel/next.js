@@ -1,6 +1,5 @@
-import { Span } from '../../../trace'
+import type { Span } from '../../../trace'
 import { NormalModule } from 'next/dist/compiled/webpack/webpack'
-import { normalizeTraceAttributes } from '../../../trace/trace'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
 
@@ -53,11 +52,13 @@ export class ProfilingPlugin {
     stopHook: any,
     {
       parentSpan,
+      recordToInsights = false,
       attrs,
       onStart,
       onStop,
     }: {
       parentSpan?: (...params: any[]) => Span
+      recordToInsights?: boolean
       attrs?: any
       onStart?: (span: Span, ...params: any[]) => void
       onStop?: (span: Span, ...params: any[]) => void
@@ -69,11 +70,9 @@ export class ProfilingPlugin {
       (...params: any[]) => {
         const name = typeof spanName === 'function' ? spanName() : spanName
         const attributes = attrs ? attrs(...params) : attrs
-        span = new Span({
-          name,
-          parent: parentSpan ? parentSpan(...params) : this.runWebpackSpan,
-          attrs: attributes,
-        })
+        span = (
+          parentSpan ? parentSpan(...params) : this.runWebpackSpan
+        ).traceChild(name, attributes, { recordToInsights })
 
         if (onStart) onStart(span, ...params)
       }
@@ -92,51 +91,39 @@ export class ProfilingPlugin {
   }
 
   traceTopLevelHooks(compiler: any) {
-    let compilationSpan: Span | undefined
-    compiler.hooks.compilation.tap(
-      { name: pluginName, stage: -Infinity },
-      (compilation: webpack.Compilation) => {
-        compilationSpan = new Span({
-          name: 'webpack-compilation',
-          parent: webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
-          attrs: normalizeTraceAttributes({ name: compiler.name }),
-          recordToInsights: true,
-        })
-        spans.set(compilation, compilationSpan)
-        spans.set(compiler, compilationSpan)
-        moduleSpansByCompilation.set(compilation, new WeakMap())
+    this.traceHookPair(
+      'webpack-compilation',
+      compiler.hooks.compilation,
+      compiler.hooks.afterCompile,
+      {
+        parentSpan: () =>
+          webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
+        recordToInsights: true,
+        attrs: () => ({ name: compiler.name }),
+        onStart: (span, compilation) => {
+          spans.set(compilation, span)
+          spans.set(compiler, span)
+          moduleSpansByCompilation.set(compilation, new WeakMap())
+        },
       }
-    )
-    compiler.hooks.afterCompile.tap({ name: pluginName, stage: Infinity }, () =>
-      compilationSpan?.stop()
     )
 
     if (compiler.options.mode === 'development') {
-      let invalidationSpan: Span | undefined
-      compiler.hooks.invalid.tap(
-        { name: pluginName, stage: -Infinity },
-        (fileName: string | null) => {
-          invalidationSpan = new Span({
-            name: `webpack-invalidated-${compiler.name}`,
-            parent: this.runWebpackSpan,
-            attrs: {
-              trigger: fileName
-                ? path
-                    .relative(this.rootDir, fileName)
-                    .replaceAll(path.sep, '/')
-                : 'manual',
-            },
-            recordToInsights: true,
-          })
-          webpackInvalidSpans.set(compiler, invalidationSpan)
+      this.traceHookPair(
+        () => `webpack-invalidated-${compiler.name}`,
+        compiler.hooks.invalid,
+        compiler.hooks.done,
+        {
+          recordToInsights: true,
+          onStart: (span) => webpackInvalidSpans.set(compiler, span),
+          onStop: () => webpackInvalidSpans.delete(compiler),
+          attrs: (fileName: any) => ({
+            trigger: fileName
+              ? path.relative(this.rootDir, fileName).replaceAll(path.sep, '/')
+              : 'manual',
+          }),
         }
       )
-      compiler.hooks.done.tap({ name: pluginName, stage: Infinity }, () => {
-        if (invalidationSpan) {
-          webpackInvalidSpans.delete(compiler)
-          invalidationSpan.stop()
-        }
-      })
     }
   }
 
@@ -210,12 +197,8 @@ export class ProfilingPlugin {
             }
             span = parentSpan.traceChild(spanName)
           }
-          span.recorder.setAttributes(
-            normalizeTraceAttributes({
-              name: module.userRequest,
-              layer: module.layer,
-            })
-          )
+          span.setAttribute('name', module.userRequest)
+          span.setAttribute('layer', module.layer)
           moduleSpans!.set(module, span)
         })
 
@@ -270,9 +253,8 @@ export class ProfilingPlugin {
           if (!parentSpan) {
             return
           }
-          const addEntrySpan = parentSpan.traceChild('add-entry', {
-            request: entry.request,
-          })
+          const addEntrySpan = parentSpan.traceChild('add-entry')
+          addEntrySpan.setAttribute('request', entry.request)
           spans.set(entry, addEntrySpan)
         })
 

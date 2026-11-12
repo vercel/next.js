@@ -131,7 +131,7 @@ import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner, { finishSpinner } from './spinner'
-import { Span, flushAllTraces, setGlobal } from '../trace'
+import { type Span, flushAllTraces, setGlobal, trace } from '../trace'
 import { readAnalyzeRoutes, writeAnalyzeSnapshot } from './analyze/snapshot'
 import { writeRouteBundleStats } from './route-bundle-stats'
 import {
@@ -1154,17 +1154,20 @@ export default async function build(
   process.once('exit', () => flushTurbopackWarnings())
 
   try {
-    const nextBuildSpan = new Span({
-      name: 'next-build',
-      attrs: {
+    const nextBuildSpan = trace(
+      'next-build',
+      undefined,
+      {
         buildMode: experimentalBuildMode,
         version: process.env.__NEXT_VERSION as string,
         ...enabledFeatures,
       },
-      parent: getActiveLocalSpan(),
-      recordToInsights: true,
-      scope: true,
-    })
+      {
+        parent: getActiveLocalSpan(),
+        recordToInsights: true,
+        scope: true,
+      }
+    )
 
     NextBuildContext.nextBuildSpan = nextBuildSpan
     NextBuildContext.dir = dir
@@ -1969,30 +1972,30 @@ export default async function build(
                   }
                 ) as Worker & typeof import('./collect-build-traces')
 
-                buildTracesPromise = new Span({
-                  name: 'collect-build-traces',
-                  parent: nextBuildSpan,
-                  recordToInsights: true,
-                  scope: true,
-                }).traceAsyncFn(() => {
-                  return buildTraceWorker
-                    .collectBuildTraces({
-                      dir,
-                      config,
-                      distDir,
-                      // Serialize Map as this is sent to the worker.
-                      edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(
-                        new Map()
-                      ),
-                      staticPages: [],
-                      buildTraceContext,
-                      outputFileTracingRoot,
-                    })
-                    .catch((err) => {
-                      console.error(err)
-                      throw err
-                    })
-                })
+                buildTracesPromise = nextBuildSpan
+                  .traceChild('collect-build-traces', undefined, {
+                    recordToInsights: true,
+                    scope: true,
+                  })
+                  .traceAsyncFn(() => {
+                    return buildTraceWorker
+                      .collectBuildTraces({
+                        dir,
+                        config,
+                        distDir,
+                        // Serialize Map as this is sent to the worker.
+                        edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(
+                          new Map()
+                        ),
+                        staticPages: [],
+                        buildTraceContext,
+                        outputFileTracingRoot,
+                      })
+                      .catch((err) => {
+                        console.error(err)
+                        throw err
+                      })
+                  })
               }
             })
             if (!runServerAndEdgeInParallel) {
@@ -2376,12 +2379,11 @@ export default async function build(
       })
 
       const analysisBegin = process.hrtime()
-      const staticCheckSpan = new Span({
-        name: 'static-check',
-        parent: nextBuildSpan,
-        recordToInsights: true,
-        scope: true,
-      })
+      const staticCheckSpan = nextBuildSpan.traceChild(
+        'static-check',
+        undefined,
+        { recordToInsights: true, scope: true }
+      )
 
       const functionsConfigManifest: FunctionsConfigManifest = {
         version: 1,
@@ -3053,28 +3055,28 @@ export default async function build(
         !isGenerateMode &&
         !buildTracesPromise
       ) {
-        buildTracesPromise = new Span({
-          name: 'collect-build-traces',
-          parent: nextBuildSpan,
-          recordToInsights: true,
-          scope: true,
-        }).traceAsyncFn(() => {
-          const { collectBuildTraces } =
-            require('./collect-build-traces') as typeof import('./collect-build-traces')
-          return collectBuildTraces({
-            dir,
-            config,
-            distDir,
-            edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(pageInfos),
-            staticPages: [...staticPages],
-            nextBuildSpan,
-            buildTraceContext,
-            outputFileTracingRoot,
-          }).catch((err) => {
-            console.error(err)
-            throw err
+        buildTracesPromise = nextBuildSpan
+          .traceChild('collect-build-traces', undefined, {
+            recordToInsights: true,
+            scope: true,
           })
-        })
+          .traceAsyncFn(() => {
+            const { collectBuildTraces } =
+              require('./collect-build-traces') as typeof import('./collect-build-traces')
+            return collectBuildTraces({
+              dir,
+              config,
+              distDir,
+              edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(pageInfos),
+              staticPages: [...staticPages],
+              nextBuildSpan,
+              buildTraceContext,
+              outputFileTracingRoot,
+            }).catch((err) => {
+              console.error(err)
+              throw err
+            })
+          })
       }
 
       if (serverPropsPages.size > 0 || ssgPages.size > 0) {
@@ -3247,12 +3249,11 @@ export default async function build(
           useDefaultStatic500 ||
           appDir)
       ) {
-        const staticGenerationSpan = new Span({
-          name: 'static-generation',
-          parent: nextBuildSpan,
-          recordToInsights: true,
-          scope: true,
-        })
+        const staticGenerationSpan = nextBuildSpan.traceChild(
+          'static-generation',
+          undefined,
+          { recordToInsights: true, scope: true }
+        )
 
         await staticGenerationSpan.traceAsyncFn(async () => {
           detectConflictingPaths(
