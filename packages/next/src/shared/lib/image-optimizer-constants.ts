@@ -13,3 +13,21 @@ export const NSIO_OUTPUT_MIME_TYPES: readonly string[] = [
   'image/png',
   'image/webp',
 ]
+
+/**
+ * The input formats that nsio allows. These are the same formats that
+ * `getSharp()` allows, minus HEIC/HEIF, which is blocked by
+ * `imageOptimizerTransform`. SVG is added when `dangerouslyAllowSVG` is set.
+ *
+ * nsio throws if it sees an input image that is not allowlisted, which
+ * protects against type confusion bugs.
+ * e.g. https://github.com/vercel/next.js/security/advisories/GHSA-7qx7-33qx-rqx2
+ */
+export const NSIO_DEFAULT_INPUT_FORMATS = [
+  'avif',
+  'gif',
+  'jpeg',
+  'png',
+  'tiff',
+  'webp',
+] as const

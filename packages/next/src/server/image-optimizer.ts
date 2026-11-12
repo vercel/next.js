@@ -341,7 +341,7 @@ export class ImageOptimizerCache {
     }
 
     let supportedFormats: string[] = formats || []
-    if (nextConfig.experimental.imgOptSafeImageOptimization.nextImage) {
+    if (nextConfig.experimental.imgOptSafeMode.nextImage) {
       // `config.ts` warns about the formats that are filtered out
       supportedFormats = supportedFormats.filter((format) =>
         NSIO_OUTPUT_MIME_TYPES.includes(format)
@@ -1135,9 +1135,7 @@ type ImageOptimizerNextConfig = {
     | 'imgOptTimeoutInSeconds'
     | 'imgOptMozjpeg'
   > &
-    Partial<
-      Pick<NextConfigComplete['experimental'], 'imgOptSafeImageOptimization'>
-    >
+    Partial<Pick<NextConfigComplete['experimental'], 'imgOptSafeMode'>>
   images: Pick<
     NextConfigComplete['images'],
     'dangerouslyAllowSVG' | 'minimumCacheTTL'
@@ -1168,8 +1166,7 @@ export function getImageOptimizerTransformOptions(
     sequentialRead: nextConfig.experimental.imgOptSequentialRead,
     timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
     mozjpeg: nextConfig.experimental.imgOptMozjpeg,
-    safeImageOptimization:
-      nextConfig.experimental.imgOptSafeImageOptimization?.nextImage,
+    safeImageOptimization: nextConfig.experimental.imgOptSafeMode?.nextImage,
   }
 }
 
