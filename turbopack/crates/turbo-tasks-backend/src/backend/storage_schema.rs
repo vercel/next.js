@@ -155,6 +155,12 @@ struct TaskStorageSchema {
     #[field(storage = "direct", category = "transient", inline, default)]
     transient_ref_count: u32,
 
+    /// The active count: how many active tasks (or roots) keep this task active. Inline so that
+    /// tasks becoming active and inactive don't add and remove a lazy field. Holds
+    /// [`ACTIVE_COUNT_SPILLED`] while the count doesn't fit, see [`ActivenessAccessors`].
+    #[field(storage = "direct", category = "transient", inline, default)]
+    active_count: i16,
+
     // =========================================================================
     // FLAGS (meta) - Boolean flags stored in TaskFlags bitfield
     // Persisted flags come first, then transient flags.
@@ -384,9 +390,10 @@ struct TaskStorageSchema {
     // =========================================================================
     // TRANSIENT EXECUTION STATE (transient)
     // =========================================================================
-    /// Activeness state for root/once tasks (transient).
+    /// The rarely needed part of the task's activeness (root, active-until-clean, the clean
+    /// event, a spilled active count), see [`ActivenessAccessors`] (transient).
     #[field(storage = "direct", category = "transient")]
-    activeness: ActivenessState,
+    activeness_state: ActivenessState,
 
     /// In-progress execution state (transient).
     #[field(storage = "direct", category = "transient")]
@@ -577,7 +584,7 @@ impl TaskStorage {
         // All these flags imply that the task is currently being used in some way
         // either literally executing, or about to
         if self.get_in_progress().is_some()
-            || self.get_activeness().is_some()
+            || self.is_active()
             // Without these checks we could corrupt racing reads.
             // Basically if a task restores ALL but data is already restored, then it will set meta_restoring, so it would break semantics to clear data_restored while that is happening.  We could fix it by adding a loop to the restoring threads but it is just much simpler to back off in this case.
             || flags.meta_restoring()
@@ -824,7 +831,7 @@ impl TaskStorage {
         };
         if should_track_activeness {
             let activeness = ActivenessState::new_root(root_type, task_id);
-            self.lazy.push_exact(LazyField::Activeness(activeness));
+            self.lazy.push_exact(LazyField::ActivenessState(activeness));
         }
 
         // Set the task as scheduled so it can be executed
@@ -895,6 +902,15 @@ impl TaskStorage {
         self.get_transient_ref_count().copied().unwrap_or(0)
     }
 
+    /// Whether the task is active: a non-zero active count, or an `activeness_state`. Both are
+    /// needed: a root task or one kept active until clean has a state while its count can be `0`
+    /// (the count only lives in the state, as [`ACTIVE_COUNT_SPILLED`], when it doesn't fit the
+    /// inline `i16`).
+    pub(crate) fn is_active(&self) -> bool {
+        self.get_active_count().is_some_and(|&count| count != 0)
+            || self.get_activeness_state().is_some()
+    }
+
     /// Pins a newly initialized task until its construction operation connects it to the graph.
     pub fn gc_pin_for_construction(&mut self) {
         debug_assert_eq!(self.gc_transient_ref_count(), 0);
@@ -949,7 +965,7 @@ impl TaskStorage {
                     && self.collectibles_dependents().is_none_or(|d| d.is_empty())
                     && self.gc_transient_ref_count() == 0
                     && self.get_in_progress().is_none()
-                    && self.get_activeness().is_none()
+                    && !self.is_active()
             }
             // Same two edge sets, minus the entries that die with the session. The pins above are
             // skipped entirely: they are `category = "transient"` and never reach disk.
@@ -1079,6 +1095,87 @@ pub(crate) enum DropPartialOutcome {
     /// and must be preserved through the eviction
     HasResidue,
 }
+
+/// [`TaskStorage::active_count`] value meaning the count is in
+/// [`ActivenessState::spilled_active_count`].
+pub(crate) const ACTIVE_COUNT_SPILLED: i16 = i16::MIN;
+
+/// A task's activeness: the inline `i16` active count, plus the rarely needed
+/// [`ActivenessState`] in the lazy `activeness_state` field (only for roots, tasks kept active
+/// until clean, and counts that don't fit the `i16`). A task is active when either is present.
+pub(crate) trait ActivenessAccessors: TaskStorageAccessors {
+    /// Whether the task is active, see [`TaskStorage::is_active`].
+    fn is_active(&self) -> bool {
+        self.typed().is_active()
+    }
+
+    /// The number of active tasks keeping this task active. Can be negative under races.
+    fn active_count(&self) -> i32 {
+        match self.get_active_count().copied().unwrap_or(0) {
+            ACTIVE_COUNT_SPILLED => self
+                .get_activeness_state()
+                .and_then(|state| state.spilled_active_count)
+                .expect("a spilled active count must be in the activeness state"),
+            count => count as i32,
+        }
+    }
+
+    fn has_positive_active_count(&self) -> bool {
+        self.active_count() > 0
+    }
+
+    fn is_active_until_clean(&self) -> bool {
+        self.get_activeness_state()
+            .is_some_and(|state| state.active_until_clean)
+    }
+
+    /// The activeness state, created if absent.
+    fn activeness_state_mut_or_insert(&mut self, task_id: TaskId) -> &mut ActivenessState {
+        if !self.has_activeness_state() {
+            self.set_activeness_state(ActivenessState::new(task_id));
+        }
+        self.get_activeness_state_mut()
+            .expect("activeness state should exist after set")
+    }
+
+    /// Removes the activeness state once it holds nothing.
+    fn remove_activeness_state_if_empty(&mut self) {
+        if self
+            .get_activeness_state()
+            .is_some_and(|state| state.is_empty())
+        {
+            self.take_activeness_state();
+        }
+    }
+
+    /// Adds `delta` to the active count and returns the new count.
+    fn add_active_count(&mut self, task_id: TaskId, delta: i32) -> i32 {
+        let was_spilled = self.get_active_count() == Some(&ACTIVE_COUNT_SPILLED);
+        let count = self.active_count() + delta;
+        if count > ACTIVE_COUNT_SPILLED as i32 && count <= i16::MAX as i32 {
+            self.set_active_count(count as i16);
+            if was_spilled {
+                if let Some(state) = self.get_activeness_state_mut() {
+                    state.spilled_active_count = None;
+                }
+                self.remove_activeness_state_if_empty();
+            }
+        } else {
+            self.activeness_state_mut_or_insert(task_id)
+                .spilled_active_count = Some(count);
+            self.set_active_count(ACTIVE_COUNT_SPILLED);
+        }
+        count
+    }
+
+    /// Makes the task inactive, returning the activeness state it had.
+    fn take_all_activeness(&mut self) -> Option<ActivenessState> {
+        self.set_active_count(0);
+        self.take_activeness_state()
+    }
+}
+
+impl<T: TaskStorageAccessors> ActivenessAccessors for T {}
 
 /// Helper trait for drop_partial implementation. `CellData` and the
 /// macro-generated `LazyField` arms also implement this trait so all
