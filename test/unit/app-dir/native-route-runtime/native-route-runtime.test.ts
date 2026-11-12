@@ -102,12 +102,14 @@ describe('native route runtime', () => {
   })
 
   it.each([
-    { status: 600, compressed: false },
-    { status: 999, compressed: false },
-    { status: 600, compressed: true },
+    { status: 600, compressed: false, setupError: undefined },
+    { status: 999, compressed: false, setupError: undefined },
+    { status: 600, compressed: true, setupError: undefined },
+    { status: 600, compressed: false, setupError: 'headers' },
+    { status: 600, compressed: false, setupError: 'body' },
   ])(
-    'rejects native middleware status $status (gzip: $compressed) without losing worker cleanup',
-    async ({ status, compressed }) => {
+    'cleans up native middleware errors (status: $status, gzip: $compressed, setup: $setupError)',
+    async ({ status, compressed, setupError }) => {
       const child = Object.assign(new EventEmitter(), {
         stdout: new PassThrough(),
         stdin: new PassThrough(),
@@ -152,15 +154,33 @@ describe('native route runtime', () => {
                 : process.arch,
         })
       )
-      const invoke = (pathname: string) =>
-        manager.invokeMiddleware(
-          'middleware.native.json',
-          new Request(`https://public.example${pathname}`)
-        )
+      const invoke = (pathname: string) => {
+        const invalid = pathname === '/invalid'
+        const req = new Request(`https://public.example${pathname}`, {
+          headers:
+            invalid && setupError === 'headers'
+              ? { 'x-invalid': '\x01' }
+              : undefined,
+          ...(invalid && setupError === 'body'
+            ? { method: 'POST', body: 'request body' }
+            : {}),
+        })
+        if (invalid && setupError === 'body') req.body!.getReader()
+        return manager.invokeMiddleware('middleware.native.json', req)
+      }
       try {
-        await expect(invoke('/invalid')).rejects.toThrow(
-          'init["status"] must be in the range of 200 to 599'
-        )
+        if (setupError) {
+          await expect(invoke('/invalid')).rejects.toMatchObject({
+            code:
+              setupError === 'headers'
+                ? 'ERR_INVALID_CHAR'
+                : 'ERR_INVALID_STATE',
+          })
+        } else {
+          await expect(invoke('/invalid')).rejects.toThrow(
+            'init["status"] must be in the range of 200 to 599'
+          )
+        }
         const following = await invoke('/healthy')
         expect(following.status).toBe(200)
         expect(await following.text()).toBe('response')

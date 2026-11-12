@@ -314,14 +314,7 @@ export class NativeRouteManager {
     if (req.body) headers['transfer-encoding'] = 'chunked'
     worker.active++
     return new Promise<Response>((resolve, reject) => {
-      const upstream = request({
-        hostname: '127.0.0.1',
-        port: worker.port,
-        agent: worker.agent,
-        method: req.method,
-        path: url.pathname + url.search,
-        headers,
-      })
+      let upstream: ReturnType<typeof request> | undefined
       let finished = false
       const finish = () => {
         if (finished) return
@@ -330,62 +323,77 @@ export class NativeRouteManager {
         worker.active--
         if (worker.retired) this.retire(worker)
       }
-      const abort = () => upstream.destroy(req.signal.reason)
-      req.signal.addEventListener('abort', abort, { once: true })
-      if (req.signal.aborted) abort()
-      upstream.once('error', (error) => {
-        finish()
-        reject(error)
-      })
-      upstream.once('response', (response) => {
-        response.once('close', finish)
-        response.once('error', finish)
-        response.once('end', finish)
-        try {
-          const responseHeaders = new Headers()
-          for (let i = 0; i < response.rawHeaders.length; i += 2) {
-            const name = response.rawHeaders[i]
-            if (
-              /^(connection|transfer-encoding|keep-alive|content-length|content-encoding)$/i.test(
-                name
-              )
-            )
-              continue
-            responseHeaders.append(name, response.rawHeaders[i + 1])
-          }
-          const status = response.statusCode || 502
-          const noBody =
-            req.method === 'HEAD' ||
-            [204, 205, 304].includes(status) ||
-            responseHeaders.has('x-middleware-next') ||
-            responseHeaders.has('x-middleware-rewrite') ||
-            (status >= 300 && status < 400 && responseHeaders.has('location'))
-          if (noBody) response.resume()
-          resolve(
-            new Response(
-              noBody
-                ? null
-                : (Readable.toWeb(
-                    decodeMiddlewareBody(response)
-                  ) as ReadableStream<Uint8Array>),
-              { status, headers: responseHeaders }
-            )
-          )
-        } catch (error) {
-          response.destroy()
+      const abort = () => upstream?.destroy(req.signal.reason)
+      try {
+        const connection = request({
+          hostname: '127.0.0.1',
+          port: worker.port,
+          agent: worker.agent,
+          method: req.method,
+          path: url.pathname + url.search,
+          headers,
+        })
+        upstream = connection
+        req.signal.addEventListener('abort', abort, { once: true })
+        if (req.signal.aborted) abort()
+        connection.once('error', (error) => {
           finish()
           reject(error)
+        })
+        connection.once('response', (response) => {
+          response.once('close', finish)
+          response.once('error', finish)
+          response.once('end', finish)
+          try {
+            const responseHeaders = new Headers()
+            for (let i = 0; i < response.rawHeaders.length; i += 2) {
+              const name = response.rawHeaders[i]
+              if (
+                /^(connection|transfer-encoding|keep-alive|content-length|content-encoding)$/i.test(
+                  name
+                )
+              )
+                continue
+              responseHeaders.append(name, response.rawHeaders[i + 1])
+            }
+            const status = response.statusCode || 502
+            const noBody =
+              req.method === 'HEAD' ||
+              [204, 205, 304].includes(status) ||
+              responseHeaders.has('x-middleware-next') ||
+              responseHeaders.has('x-middleware-rewrite') ||
+              (status >= 300 && status < 400 && responseHeaders.has('location'))
+            if (noBody) response.resume()
+            resolve(
+              new Response(
+                noBody
+                  ? null
+                  : (Readable.toWeb(
+                      decodeMiddlewareBody(response)
+                    ) as ReadableStream<Uint8Array>),
+                { status, headers: responseHeaders }
+              )
+            )
+          } catch (error) {
+            response.destroy()
+            finish()
+            reject(error)
+          }
+        })
+        if (req.body) {
+          const body = Readable.fromWeb(
+            req.body as import('stream/web').ReadableStream<Uint8Array>
+          )
+          body.once('error', (error) => connection.destroy(error))
+          connection.once('error', () => body.destroy())
+          body.pipe(connection)
+        } else {
+          connection.end()
         }
-      })
-      if (req.body) {
-        const body = Readable.fromWeb(
-          req.body as import('stream/web').ReadableStream<Uint8Array>
-        )
-        body.once('error', (error) => upstream.destroy(error))
-        upstream.once('error', () => body.destroy())
-        body.pipe(upstream)
-      } else {
-        upstream.end()
+      } catch (error) {
+        upstream?.destroy()
+        finish()
+        reject(error)
       }
     })
   }
