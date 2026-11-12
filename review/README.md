@@ -17,6 +17,12 @@ Vercel Agent reviews PRs from the Next.js team and approves most of them. Humans
 
 Reviews currently run in a single pass. The index in `REVIEW.md` has to be enough to spot a likely problem and route the PR; the rule files carry the detail, so they're only loaded when needed.
 
+## Reviewing documentation
+
+Docs-only changes are reviewed for the behavior their advice produces. The [docs rubric](areas/docs.md) covers the checks; [no-stale-docs](rules/no-stale-docs.md) defines when incorrect advice or lost guidance withholds approval. Wording and presentation preferences remain advisory. Changes to [operational agent instructions](rules/agent-instruction-changes.md) require human review even when they only change prose or the author owns the area.
+
+These are repository review criteria. They don't configure the review service's approval mode or how it publishes advisory feedback and escalation reasons.
+
 ## Owning an area
 
 - An area is whatever slice of the codebase you want to own: a directory, a feature that spans several, or one file

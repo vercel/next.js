@@ -1,26 +1,32 @@
 # Docs
 
-<!-- Owners and paths: the [docs] section of review/OWNERS. Owners: replace the TODOs. -->
+<!-- Owners and paths: the [docs] section of review/OWNERS. -->
 
 ## Context
 
-- Public documentation, error pages, contributing guides, examples, upgrading notes, and the docs-authoring skills.
-- TODO: key files and the invariants that must hold
+- Public documentation in `docs/`, error fixes in `errors/`, examples, contributing and upgrading guides, and docs-authoring skills.
+- Review what following the changed advice would make a human or agent implement. A prose-only diff can change behavior.
+- Verify claims against the current implementation, including required flags, defaults, runtime, router, version, and development vs. production behavior.
 
 ## What failure looks like
 
-- Docs that describe behavior the code no longer has (no-stale-docs), broken links, an example that does not build, an error page that gives the wrong fix.
-- TODO: past regressions and reverts, with links
+- A removed warning or prerequisite makes conditional advice sound universal.
+- A snippet omits a safeguard its prose requires, or an error-page fix works in development but fails during build.
+- A correction leaves conflicting advice on a related page, or a migration silently changes behavior.
+- A rewrite removes useful decisions, fixes, caveats, or examples without preserving them elsewhere.
 
 ## Escalate when
 
-- Docs-only PRs should approve almost always. Escalate only when a docs change describes a behavior with no corresponding code change or links to a nonexistent option (comment, medium if it documents a flag that is not shipped).
-- TODO
+- Apply [no-stale-docs](../rules/no-stale-docs.md) for incorrect advice and lost guidance, and [agent-instruction-changes](../rules/agent-instruction-changes.md) for changes to operational instructions. Their severities apply even when the author owns this area.
+- A docs correction needs evidence of the behavior it describes, not necessarily a code change in the same PR. Don't escalate merely because that code was already shipped.
+- Size alone doesn't withhold approval. Check what was lost or changed, including in large deletions and consolidations.
 
-## Rules
+## Example
 
-- TODO
+Bad: approves removing "in production" from a caching explanation without checking whether development behaves differently.
+
+Good: compares the advice with the relevant implementation and tests, then raises a medium finding if the omitted condition would lead to incorrect implementation or validation.
 
 ## Preferences
 
-- TODO
+- Keep wording preferences, repetition, section order, and minor presentation feedback advisory. Prefer a concrete correctness finding over rewriting in your own style.

@@ -129,6 +129,11 @@ One line per rule, with its signs. Open a rule's file before you raise a finding
 - [stated-tradeoffs](review/rules/stated-tradeoffs.md) **comment**: known regressions and tradeoffs are in the description. Signs: a size, build-time, or memory increase the description doesn't mention.
 - [principled-change](review/rules/principled-change.md) **medium**: a second special case for the same root cause reopens the design. Signs: a workaround next to an existing workaround for the same thing.
 
+**Documentation and agent instructions**
+
+- [no-stale-docs](review/rules/no-stale-docs.md) **medium** for guidance that would lead to incorrect implementation or validation, **strong** for substantial loss of decision branches, fixes, caveats, or examples with no verified replacement, otherwise **comment**: docs, comments, and skills preserve correct advice. Signs: a removed safeguard or condition; contradictory prose and examples; a fix that fails in its stated mode; migration advice that hides a behavior change; a rewrite that drops useful guidance. These severities apply even when the author owns the area.
+- [agent-instruction-changes](review/rules/agent-instruction-changes.md) **strong** for changes to agent activation, permitted actions, permissions, consent, required checks, or stopping conditions: an owner reviews changes to what agents are told to do. Signs: changed instructions in `AGENTS.md`, `CLAUDE.md`, skills, or other operational prompts. Wording edits that preserve behavior don't trigger escalation. Area ownership doesn't waive this rule.
+
 **Style** (comment-only, and never counts toward accumulation)
 
 - [scrutinize-new-state](review/rules/scrutinize-new-state.md): every new field or flag is necessary and not derivable. Signs: a new field derivable from others; a boolean that encodes a mode.
@@ -136,7 +141,6 @@ One line per rule, with its signs. Open a rule's file before you raise a finding
 - [behavior-over-convenience](review/rules/behavior-over-convenience.md): behavior is argued from intent. Signs: "since the code already...", "it's simpler if...".
 - [owned-invariants](review/rules/owned-invariants.md): no guards for states our own code can't produce. Signs: "just in case" checks; "should never happen" throws.
 - [programming-over-metaprogramming](review/rules/programming-over-metaprogramming.md): plain code over handler tables and configured generic helpers. Signs: a callback table keyed by type; a helper configured by an options object per caller.
-- [no-stale-docs](review/rules/no-stale-docs.md): comments, docs, and skills stay true. Signs: a comment above changed code that describes the old behavior.
 - [existing-vocabulary](review/rules/existing-vocabulary.md): no coined terms. Signs: a new name for something that already has one.
 - [explain-the-design](review/rules/explain-the-design.md): comments explain what the code doesn't show, and stay true after the PR merges. Signs: non-obvious ordering, caching, or concurrency with no comment; a comment that only makes sense next to the diff ("now we…", "this PR"); a deliberate departure from a rule here with no comment saying why.
 - [record-subtle-knowledge](review/rules/record-subtle-knowledge.md) (nit): open questions, known gaps, and hidden constraints are written at the code site, not only in the PR. Signs: a review thread or the description resolves a subtle question that the diff doesn't record; a vague `TODO`.
@@ -152,9 +156,10 @@ One line per rule, with its signs. Open a rule's file before you raise a finding
 
 - Request review from the owner (see [picking an owner](#picking-an-owner)).
 - List each escalating finding with its rule, severity, and file and line evidence.
+- Distinguish a demonstrated defect from a policy that requires human judgment. For the latter, state what changed and why human review is required without claiming a bug.
 - Summarize what you already checked, so the owner can start from there.
 
-Either way, list the comments and nits, then end with one `rule: <name> broken` line per rule with a finding, plus one sentence on what you checked.
+Either way, list the comments and nits, then end with one `rule: <name> broken` line per rule with a demonstrated violation, plus one sentence on what you checked. For a policy escalation without a demonstrated violation, use `human review: <reason>` instead.
 
 Keep the whole review under 40KB. On a large PR, list the escalating findings in full and summarize the rest.
 
