@@ -25,9 +25,9 @@ use tokio::{
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CapturedEffect, Effect, EffectExt, EffectStateStorage, InvalidationReason, NonLocalValue,
-    OperationVc, ReadRef, ResolvedVc, TurboTasksApi, ValueToString, Vc, debug::ValueDebugFormat,
-    parallel, turbo_tasks_weak, turbobail,
+    CapturedEffect, Completion, Effect, EffectExt, EffectStateStorage, InvalidationReason,
+    Invalidator, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TurboTasksApi, ValueToString, Vc,
+    debug::ValueDebugFormat, turbo_tasks_weak, turbobail,
 };
 use turbo_tasks_hash::{hash_xxh3_hash64, hash_xxh3_hash128};
 use turbo_unix_path::{normalize_path, sys_to_unix, unix_to_sys};
@@ -36,8 +36,9 @@ use turbo_unix_path::{normalize_path, sys_to_unix, unix_to_sys};
 use crate::windows::{is_link_junction_point, to_verbatim_with_case_folded_disk};
 use crate::{
     AnyhowWrapper, DiskFileSystemMap, File, FileComparison, FileContent, FileMeta, FileSystem,
-    FileSystemPath, FileSystemPathOption, LinkContent, LinkTarget, PersistedFileContent,
-    RawDirectoryContent, RawDirectoryEntry, WriteLinkContent, WriteLinkTargetType,
+    FileSystemEntryType, FileSystemPath, FileSystemPathOption, LinkContent, LinkTarget,
+    PersistedFileContent, RawDirectoryContent, RawDirectoryEntry, WriteLinkContent,
+    WriteLinkTargetType,
     canonicalized_path_cache::CanonicalizedPathWalkCache,
     invalidation::Write,
     invalidator_map::InvalidatorMap,
@@ -190,15 +191,59 @@ fn create_read_semaphore() -> tokio::sync::Semaphore {
     tokio::sync::Semaphore::new(*TURBO_ENGINE_READ_CONCURRENCY)
 }
 
-fn create_write_semaphore() -> tokio::sync::Semaphore {
-    // the semaphore isn't serialized, and we assume the environment variable doesn't change during
-    // runtime, so it's okay to access it in this untracked way.
-    static TURBO_ENGINE_WRITE_CONCURRENCY: LazyLock<usize> = LazyLock::new(|| {
-        number_env_var("TURBO_ENGINE_WRITE_CONCURRENCY").unwrap_or(
-            // We write a lot of smallish files where high concurrency will cause metadata
-            // thrashing. So 4 threads is a safe cross platform suitable value.
-            4,
+/// The default number of concurrent write operations (file writes, file removals and symlink
+/// creations) on platforms other than Linux. On Linux, it's the lower bound of the default, see
+/// `linux_default_write_concurrency`.
+///
+/// Limits on other platforms (e.g. open file limits on macOS, file system metadata contention on
+/// NTFS) differ from Linux, so they keep this conservative value until a higher one has been
+/// measured there.
+const DEFAULT_WRITE_CONCURRENCY: usize = 4;
+/// Upper bound of the default write concurrency on Linux.
+#[cfg(target_os = "linux")]
+const MAX_LINUX_DEFAULT_WRITE_CONCURRENCY: usize = 16;
+
+/// Computes the default number of concurrent write operations on Linux from the available
+/// parallelism. Falls back to [`DEFAULT_WRITE_CONCURRENCY`] if the available parallelism can't be
+/// determined.
+///
+/// Write operations run blocking on the calling tokio worker thread (see
+/// [`retry_blocking`]), so each permit can keep one worker thread (and one file handle) busy in a
+/// syscall. Scaling with the available parallelism lets machines with more cores write the many
+/// small output files of a build in parallel, while staying at a small, fixed number of permits on
+/// smaller machines.
+///
+/// The cap bounds the number of file handles and blocked worker threads that writes add. In
+/// benchmarks on a 32-thread Linux machine, raising the limit beyond 16 did not make builds faster.
+#[cfg(target_os = "linux")]
+fn linux_default_write_concurrency(available_parallelism: Option<usize>) -> usize {
+    available_parallelism.map_or(DEFAULT_WRITE_CONCURRENCY, |parallelism| {
+        parallelism.clamp(
+            DEFAULT_WRITE_CONCURRENCY,
+            MAX_LINUX_DEFAULT_WRITE_CONCURRENCY,
         )
+    })
+}
+
+#[cfg(target_os = "linux")]
+fn default_write_concurrency() -> usize {
+    linux_default_write_concurrency(
+        turbo_tasks::parallel::available_parallelism()
+            .ok()
+            .map(|n| n.get()),
+    )
+}
+
+#[cfg(not(target_os = "linux"))]
+fn default_write_concurrency() -> usize {
+    DEFAULT_WRITE_CONCURRENCY
+}
+
+fn create_write_semaphore() -> tokio::sync::Semaphore {
+    // the semaphore isn't serialized, and we assume the environment variables don't change during
+    // runtime, so it's okay to access them in this untracked way.
+    static TURBO_ENGINE_WRITE_CONCURRENCY: LazyLock<usize> = LazyLock::new(|| {
+        number_env_var("TURBO_ENGINE_WRITE_CONCURRENCY").unwrap_or_else(default_write_concurrency)
     });
     tokio::sync::Semaphore::new(*TURBO_ENGINE_WRITE_CONCURRENCY)
 }
@@ -227,6 +272,9 @@ pub(crate) struct DiskFileSystemInner {
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     pub(crate) dir_invalidator_map: InvalidatorMap,
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
+    #[bincode(skip)]
+    pub(crate) metadata_invalidator_map: InvalidatorMap,
     /// Lock that makes invalidation atomic. It will keep a write lock during
     /// watcher invalidation and a read lock during other operations.
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
@@ -300,17 +348,16 @@ impl DiskFileSystemInner {
     /// re-read the updated content. This is necessary because the file watcher may not be active
     /// (e.g., in tests or build-only scenarios).
     fn invalidate_from_write(&self, full_path: &Path) {
-        let mut invalidator_map = self.invalidator_map.lock().unwrap();
-        if let Some(invalidators) = invalidator_map.remove(full_path) {
-            let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
-                return;
-            };
-            let _guard = self.tokio_handle.enter();
-            let reason = Write {
-                path: full_path.to_string_lossy().into_owned(),
-            };
-            for invalidator in invalidators {
-                invalidator.invalidate_with_reason(&*turbo_tasks, reason.clone());
+        for map in [&self.invalidator_map, &self.metadata_invalidator_map] {
+            if let Some(invalidators) = map.lock().unwrap().remove(full_path) {
+                let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
+                    return;
+                };
+                let _guard = self.tokio_handle.enter();
+                let reason = Write {
+                    path: full_path.to_string_lossy().into_owned(),
+                };
+                Invalidator::invalidate_all_with_reason(invalidators, &*turbo_tasks, reason);
             }
         }
     }
@@ -342,22 +389,21 @@ impl DiskFileSystemInner {
 
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
+        let metadata_invalidator_map = take(&mut *self.metadata_invalidator_map.lock().unwrap());
         let invalidators = invalidator_map
             .into_iter()
             .chain(dir_invalidator_map)
-            .flat_map(|(_, invalidators)| invalidators.into_iter())
-            .collect::<Vec<_>>();
-        parallel::for_each_owned(invalidators, |invalidator| {
-            invalidator.invalidate(&*turbo_tasks)
-        });
+            .chain(metadata_invalidator_map)
+            .flat_map(|(_, invalidators)| invalidators.into_iter());
+        Invalidator::invalidate_all(invalidators, &*turbo_tasks);
     }
 
     /// Invalidates every tracked file in the filesystem.
     ///
     /// Calls the given `reason` closure to find the [`InvalidationReason`].
-    pub(crate) fn invalidate_with_reason<R: InvalidationReason + Clone>(
+    pub(crate) fn invalidate_with_reason<R: InvalidationReason>(
         &self,
-        reason: impl Fn(&Path) -> R + Sync,
+        reason: impl Fn(&Path) -> R,
     ) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
         let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
@@ -367,28 +413,38 @@ impl DiskFileSystemInner {
 
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
-        let invalidators = invalidator_map
+        let metadata_invalidator_map = take(&mut *self.metadata_invalidator_map.lock().unwrap());
+        let path_invalidator_counts = || {
+            invalidator_map
+                .values()
+                .chain(dir_invalidator_map.values())
+                .chain(metadata_invalidator_map.values())
+                .map(|path_invalidators| path_invalidators.len())
+                .filter(|&count| count > 0)
+        };
+        let mut invalidators = Vec::with_capacity(path_invalidator_counts().sum());
+        let mut reasons = Vec::with_capacity(path_invalidator_counts().count());
+        for (path, path_invalidators) in invalidator_map
             .into_iter()
             .chain(dir_invalidator_map)
-            .flat_map(|(path, invalidators)| {
-                let reason_for_path = reason(&path);
-                invalidators
-                    .into_iter()
-                    .map(move |i| (reason_for_path.clone(), i))
-            })
-            .collect::<Vec<_>>();
-        parallel::for_each_owned(invalidators, |(reason, invalidator)| {
-            invalidator.invalidate_with_reason(&*turbo_tasks, reason)
-        });
+            .chain(metadata_invalidator_map)
+        {
+            if path_invalidators.is_empty() {
+                continue;
+            }
+            reasons.push(reason(&path));
+            invalidators.extend(path_invalidators);
+        }
+        Invalidator::invalidate_all_with_reasons(invalidators, &*turbo_tasks, reasons);
     }
 
     /// Invalidates tracked files/directories for `paths` and their children.
     /// Also invalidates tracked directory reads for all parent directories to
     /// account for file creations/deletions under the deferred subtree.
-    fn invalidate_path_and_children_with_reason<R: InvalidationReason + Clone>(
+    fn invalidate_path_and_children_with_reason<R: InvalidationReason>(
         &self,
         paths: impl IntoIterator<Item = PathBuf>,
-        reason: impl Fn(&Path) -> R + Sync,
+        reason: impl Fn(&Path) -> R,
     ) {
         let _span =
             tracing::info_span!("invalidate filesystem paths", name = &*self.root).entered();
@@ -397,9 +453,19 @@ impl DiskFileSystemInner {
         };
         let _guard = self.tokio_handle.enter();
 
+        let paths = paths.into_iter();
+        let path_count = paths.size_hint().0;
         let mut invalidator_map = self.invalidator_map.lock().unwrap();
         let mut dir_invalidator_map = self.dir_invalidator_map.lock().unwrap();
-        let mut invalidators = Vec::new();
+        let mut metadata_invalidator_map = self.metadata_invalidator_map.lock().unwrap();
+        let mut invalidators = Vec::with_capacity(path_count);
+        let mut reasons = Vec::with_capacity(path_count);
+        let mut add = |path: &Path, path_invalidators: FxHashSet<Invalidator>| {
+            if !path_invalidators.is_empty() {
+                reasons.push(reason(path));
+                invalidators.extend(path_invalidators);
+            }
+        };
         let mut parent_dirs_to_invalidate = FxHashSet::default();
 
         for path in paths {
@@ -412,43 +478,35 @@ impl DiskFileSystemInner {
             for (invalidated_path, path_invalidators) in
                 invalidator_map.extract_path_with_children(&path)
             {
-                let reason_for_path = reason(&invalidated_path);
-                invalidators.extend(
-                    path_invalidators
-                        .into_iter()
-                        .map(|invalidator| (reason_for_path.clone(), invalidator)),
-                );
+                add(&invalidated_path, path_invalidators);
             }
 
             for (invalidated_path, path_invalidators) in
                 dir_invalidator_map.extract_path_with_children(&path)
             {
-                let reason_for_path = reason(&invalidated_path);
-                invalidators.extend(
-                    path_invalidators
-                        .into_iter()
-                        .map(|invalidator| (reason_for_path.clone(), invalidator)),
-                );
+                add(&invalidated_path, path_invalidators);
+            }
+            for (invalidated_path, path_invalidators) in
+                metadata_invalidator_map.extract_path_with_children(&path)
+            {
+                add(&invalidated_path, path_invalidators);
             }
         }
 
         for path in parent_dirs_to_invalidate {
             if let Some(path_invalidators) = dir_invalidator_map.remove(path.as_path()) {
-                let reason_for_path = reason(&path);
-                invalidators.extend(
-                    path_invalidators
-                        .into_iter()
-                        .map(|invalidator| (reason_for_path.clone(), invalidator)),
-                );
+                add(&path, path_invalidators);
+            }
+            if let Some(path_invalidators) = metadata_invalidator_map.remove(path.as_path()) {
+                add(&path, path_invalidators);
             }
         }
 
         drop(invalidator_map);
         drop(dir_invalidator_map);
+        drop(metadata_invalidator_map);
 
-        parallel::for_each_owned(invalidators, |(reason, invalidator)| {
-            invalidator.invalidate_with_reason(&*turbo_tasks, reason)
-        });
+        Invalidator::invalidate_all_with_reasons(invalidators, &*turbo_tasks, reasons);
     }
 }
 
@@ -487,6 +545,23 @@ impl DiskFileSystem {
             );
         }
         Ok(())
+    }
+
+    /// Track a file consumed by an external reader (for example a compiler subprocess).
+    /// Unlike depending on `read()`, this invalidates the calling task for every file event,
+    /// including an edit that restores identical bytes. Call before accessing the OS path.
+    pub async fn track_file(&self, path: &FileSystemPath) -> Result<()> {
+        self.inner
+            .register_read_invalidator(&Arc::new(self.to_sys_path_raw(path)))
+            .await
+    }
+
+    /// Track directory membership consumed by an external reader. Missing directories are
+    /// watched through their nearest existing parent, just like ordinary filesystem reads.
+    pub async fn track_directory(&self, path: &FileSystemPath) -> Result<()> {
+        self.inner
+            .register_dir_invalidator(&Arc::new(self.to_sys_path_raw(path)))
+            .await
     }
 
     pub fn invalidate(&self) {
@@ -853,6 +928,7 @@ impl DiskFileSystem {
                 invalidation_lock: Default::default(),
                 invalidator_map: InvalidatorMap::new(),
                 dir_invalidator_map: InvalidatorMap::new(),
+                metadata_invalidator_map: InvalidatorMap::new(),
                 read_semaphore: create_read_semaphore(),
                 write_semaphore: create_write_semaphore(),
                 watcher: DiskWatcher::new(watcher_config),
@@ -871,6 +947,46 @@ impl DiskFileSystem {
 impl Debug for DiskFileSystem {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "name: {}, root: {}", self.inner.name, self.inner.root)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl DiskFileSystem {
+    /// Tracks changes relevant to an external stat call, including sizes and timestamps.
+    /// This registers dependencies; it does not return stat results. `metadata()` returns
+    /// `FileMeta`, which omits sizes and timestamps. Metadata-only changes must invalidate stat
+    /// calls without invalidating ordinary content reads.
+    ///
+    /// The caller must resolve symlinks, including parent directories, before calling this.
+    #[turbo_tasks::function(fs, session_dependent)]
+    pub async fn full_metadata(&self, fs_path: FileSystemPath) -> Result<Vc<Completion>> {
+        if self.inner.is_path_denied(&fs_path) {
+            turbobail!("Cannot track metadata from denied path: {fs_path}");
+        }
+        let full_path = Arc::new(self.to_sys_path_raw(&fs_path));
+        if let Some(invalidator) = turbo_tasks::get_invalidator() {
+            self.inner
+                .metadata_invalidator_map
+                .insert(full_path.clone(), invalidator);
+            let entry_type = *fs_path.get_type().await?;
+            debug_assert!(
+                !matches!(entry_type, FileSystemEntryType::Symlink),
+                "full_metadata requires a path with symlinks already resolved"
+            );
+            if !fs_path.is_root() {
+                self.inner
+                    .watcher
+                    .ensure_watched_file(&full_path, self.inner.root_path())
+                    .await?;
+            }
+            if matches!(entry_type, FileSystemEntryType::Directory) {
+                self.inner
+                    .watcher
+                    .ensure_watched_dir(&full_path, self.inner.root_path())
+                    .await?;
+            }
+        }
+        Ok(Completion::new())
     }
 }
 
@@ -1202,6 +1318,7 @@ impl FileSystem for DiskFileSystem {
             full_path: Arc<PathBuf>,
             fs: ResolvedVc<DiskFileSystem>,
             content: ResolvedVc<PersistedFileContent>,
+            #[bincode(fixint)]
             content_hash: u128,
         }
 
@@ -1299,25 +1416,46 @@ impl FileSystem for DiskFileSystem {
                     PersistedFileContent::Content(..) => {
                         let content = content.clone();
 
+                        fn write_file(path: &Path, file: &File) -> io::Result<()> {
+                            let write = |output: &mut std::fs::File| {
+                                std::io::copy(&mut file.read(), output)?;
+                                #[cfg(unix)]
+                                output.set_permissions(file.meta.permissions.into())?;
+                                output.flush()
+                            };
+
+                            #[cfg(any(unix, windows))]
+                            if file.meta.permissions == crate::Permissions::Executable {
+                                // Replace the executable instead of truncating it, so a running
+                                // Unix binary can keep using the previous file.
+                                let mut temporary = tempfile::NamedTempFile::new_in(
+                                    path.parent().ok_or(ErrorKind::InvalidInput)?,
+                                )?;
+                                write(temporary.as_file_mut())?;
+                                return temporary
+                                    .into_temp_path()
+                                    .persist(path)
+                                    .map_err(|error| error.error);
+                            }
+
+                            write(&mut std::fs::File::create(path)?)
+                        }
+
                         let mut missing_parent_dir = false;
                         let do_write = || {
                             if missing_parent_dir && let Some(parent) = full_path.parent() {
                                 std::fs::create_dir_all(parent)?;
                                 missing_parent_dir = false;
                             }
-                            let mut f = std::fs::File::create(&**full_path).inspect_err(|err| {
+                            let PersistedFileContent::Content(file) = &*content else {
+                                unreachable!()
+                            };
+                            write_file(full_path, file).inspect_err(|err| {
                                 if err.kind() == ErrorKind::NotFound {
                                     // create the parent dirs in the next attempt
                                     missing_parent_dir = true;
                                 }
                             })?;
-                            let PersistedFileContent::Content(file) = &*content else {
-                                unreachable!()
-                            };
-                            std::io::copy(&mut file.read(), &mut f)?;
-                            #[cfg(unix)]
-                            f.set_permissions(file.meta.permissions.into())?;
-                            f.flush()?;
 
                             static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
                                 std::env::var_os("TURBO_ENGINE_WRITE_VERSION")
@@ -1334,11 +1472,7 @@ impl FileSystem for DiskFileSystem {
                                 }
                                 full_path.set_extension(ext);
                                 validate_path_length(&full_path)?;
-                                let mut f = std::fs::File::create(&*full_path)?;
-                                std::io::copy(&mut file.read(), &mut f)?;
-                                #[cfg(unix)]
-                                f.set_permissions(file.meta.permissions.into())?;
-                                f.flush()?;
+                                write_file(&full_path, file)?;
                             }
                             Ok::<(), io::Error>(())
                         };
@@ -1439,6 +1573,7 @@ impl FileSystem for DiskFileSystem {
             full_path: Arc<PathBuf>,
             target_sys_path: Arc<PathBuf>,
             target_type: WriteLinkTargetType,
+            #[bincode(fixint)]
             content_hash: u128,
         }
 
@@ -1709,6 +1844,70 @@ mod tests {
     async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
         let _ = op.resolve().strongly_consistent().await?;
         Ok(take_effects(op).await?.cell())
+    }
+
+    #[cfg(not(miri))]
+    #[turbo_tasks::function(operation, root)]
+    fn external_tracking_filesystem(root: RcStr) -> Vc<DiskFileSystem> {
+        DiskFileSystem::new_with_options(
+            rcstr!("external-tracking"),
+            Vc::cell(root),
+            Vec::new(),
+            DiskWatcherConfig {
+                // Registration must walk back to the canonical root on Windows too.
+                recursive_mode: Some(crate::DiskWatcherRecursiveMode::NonRecursive),
+                ..Default::default()
+            },
+            DiskFileSystemMap::empty(),
+        )
+    }
+
+    #[cfg(not(miri))] // Native filesystem watchers are unavailable under Miri.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn external_tracking_uses_internal_paths() -> Result<()> {
+        let scratch = tempfile::tempdir()?;
+        let root = std::fs::canonicalize(scratch.path())?;
+        std::fs::create_dir(root.join("nested"))?;
+        std::fs::write(root.join("nested/input.txt"), "input")?;
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let fs = external_tracking_filesystem(RcStr::from(root.to_str().unwrap()))
+                .resolve()
+                .strongly_consistent()
+                .await?;
+            let root_path = FileSystemPath {
+                fs: ResolvedVc::upcast(fs),
+                path: rcstr!(""),
+            };
+            let fs = fs.await?;
+            fs.start_watching().await?;
+            let file = root_path.join("nested/input.txt")?;
+            let directory = root_path.join("nested")?;
+            assert!(turbo_tasks::get_invalidator().is_some());
+            fs.track_file(&file).await?;
+            fs.track_directory(&directory).await?;
+            // Watcher events and writes use these same raw paths as invalidation keys.
+            assert!(
+                fs.inner
+                    .invalidator_map
+                    .lock()
+                    .unwrap()
+                    .contains_key(fs.to_sys_path_raw(&file).as_path())
+            );
+            assert!(
+                fs.inner
+                    .dir_invalidator_map
+                    .lock()
+                    .unwrap()
+                    .contains_key(fs.to_sys_path_raw(&directory).as_path())
+            );
+            fs.stop_watching().await;
+            anyhow::Ok(())
+        })
+        .await
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

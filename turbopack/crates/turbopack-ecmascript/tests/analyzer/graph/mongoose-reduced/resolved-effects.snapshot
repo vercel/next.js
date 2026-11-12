@@ -1,4 +1,4 @@
-0 -> 2 free var = FreeVar(global)
+1 -> 2 free var = FreeVar(global)
 
 0 -> 3 free var = FreeVar(require)
 

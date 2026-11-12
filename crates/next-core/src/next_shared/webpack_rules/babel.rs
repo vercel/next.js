@@ -11,12 +11,12 @@ use turbo_tasks_fs::{self, FileContent, FileSystemEntryType, FileSystemPath, to_
 use turbopack::module_options::{ConditionItem, LoaderRuleItem};
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
+    loader::WebpackLoaderItem,
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{node::node_cjs_resolve_options, parse::Request, pattern::Pattern, resolve},
     source::Source,
 };
 use turbopack_ecmascript::transform::{ReactCompilerCompilationMode, ReactCompilerTarget};
-use turbopack_node::transforms::webpack::WebpackLoaderItem;
 
 use crate::{
     next_config::{NextConfig, ReactCompilerOptions, ReactCompilerPanicThreshold},
@@ -266,7 +266,7 @@ pub async fn get_babel_loader_rules(
         LoaderRuleItem {
             loaders: ResolvedVc::cell(vec![WebpackLoaderItem {
                 loader: NEXT_JS_BABEL_LOADER,
-                options: loader_options,
+                options: loader_options.into(),
             }]),
             rename_as: Some(rcstr!("*")),
             condition: Some(ConditionItem::All(loader_conditions.into())),

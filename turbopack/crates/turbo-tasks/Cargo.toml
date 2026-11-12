@@ -48,7 +48,7 @@ pin-project-lite = { workspace = true }
 rustc-hash = { workspace = true }
 scattered-collect = { workspace = true }
 serde = { workspace = true, features = ["rc", "derive"] }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
 shrink-to-fit = { workspace = true, features = ["indexmap", "serde_json", "smallvec", "nightly"] }
 smallvec = { workspace = true, features = ["serde", "impl_bincode"] }
 thiserror = { workspace = true }
@@ -56,6 +56,7 @@ tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 triomphe = { workspace = true, features = ["unsize", "unstable"] }
 turbo-bincode = { workspace = true }
+turbo-bitset = { workspace = true }
 turbo-dyn-eq-hash = { workspace = true }
 turbo-frozenmap = { workspace = true }
 turbo-rcstr = { workspace = true }

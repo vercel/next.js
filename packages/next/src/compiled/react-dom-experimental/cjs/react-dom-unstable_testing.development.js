@@ -5462,10 +5462,9 @@
       var length = 32 - clz32(totalChildren) + baseLength;
       if (30 < length) {
         var numberOfOverflowBits = baseLength - (baseLength % 5);
-        length = (
-          baseIdWithLeadingBit &
-          ((1 << numberOfOverflowBits) - 1)
-        ).toString(32);
+        length = (baseIdWithLeadingBit & ((1 << numberOfOverflowBits) - 1))
+          .toString(32)
+          .padStart(numberOfOverflowBits / 5, "0");
         baseIdWithLeadingBit >>= numberOfOverflowBits;
         baseLength -= numberOfOverflowBits;
         treeContextId =
@@ -19822,6 +19821,7 @@
         lanes &= ~lane;
       }
       0 !== spawnedLane &&
+        0 !== (suspendedLanes & 261930) &&
         markSpawnedDeferredLane(root, spawnedLane, suspendedLanes);
     }
     function flushSyncWork$1() {
@@ -20318,7 +20318,8 @@
       previousRenderStartTime = root.timeoutHandle;
       previousRenderStartTime !== noTimeout &&
         ((root.timeoutHandle = noTimeout),
-        cancelTimeout(previousRenderStartTime));
+        cancelTimeout(previousRenderStartTime),
+        markRootPinged$1(root, pendingEffectsLanes));
       previousRenderStartTime = root.cancelPendingCommit;
       null !== previousRenderStartTime &&
         ((root.cancelPendingCommit = null), previousRenderStartTime());
@@ -22251,7 +22252,9 @@
           retryCache = boundaryFiber.stateNode;
           break;
         case 22:
-          retryCache = boundaryFiber.stateNode._retryCache;
+          retryCache = boundaryFiber.stateNode;
+          if (null === retryCache) return;
+          retryCache = retryCache._retryCache;
           break;
         default:
           throw Error(
@@ -23052,7 +23055,10 @@
               case ANIMATION_START:
                 SyntheticEventCtor = SyntheticAnimationEvent;
                 break;
+              case TRANSITION_CANCEL:
               case TRANSITION_END:
+              case TRANSITION_RUN:
+              case TRANSITION_START:
                 SyntheticEventCtor = SyntheticTransitionEvent;
                 break;
               case "scroll":
@@ -26564,17 +26570,24 @@
                   { cause: error }
                 );
           case "InvalidStateError":
-            if (
-              "View transition was skipped because document visibility state is hidden." ===
-                error.message ||
-              "Skipping view transition because document visibility state has become hidden." ===
-                error.message ||
-              "Skipping view transition because viewport size changed." ===
-                error.message ||
-              "Transition was aborted because of invalid state" ===
-                error.message
-            )
-              return null;
+            switch (error.message) {
+              case "Transition was aborted because of invalid state":
+              case "Transition was aborted because of invalid state.":
+              case "Transition was aborted because of invalid state. Document hidden":
+              case "Transition was aborted because of invalid state. Viewport size changed":
+              case "Skipped ViewTransition due to document being hidden":
+              case "Skipped view transition due to viewport resize":
+              case "View transition was skipped because document visibility state is hidden.":
+              case "Skipping view transition because document visibility state has become hidden.":
+              case "Skipping view transition because viewport size changed.":
+                return null;
+              case "Transition was aborted because of invalid state. Snapshot capture failed":
+              case "Transition was aborted because of invalid state. Animation start failed":
+                return Error(
+                  "A ViewTransition could not start. This usually means that two elements have the same view-transition-name at the same time. Check the console for details.",
+                  { cause: error }
+                );
+            }
         }
       return error;
     }
@@ -33804,11 +33817,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-07dde64d-20261013" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-1620f7b9-20261111" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-07dde64d-20261013\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-1620f7b9-20261111\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -33845,10 +33858,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-experimental-07dde64d-20261013",
+          version: "19.3.0-experimental-1620f7b9-20261111",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-experimental-07dde64d-20261013"
+          reconcilerVersion: "19.3.0-experimental-1620f7b9-20261111"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -34162,5 +34175,5 @@
         }
       };
     };
-    exports.version = "19.3.0-experimental-07dde64d-20261013";
+    exports.version = "19.3.0-experimental-1620f7b9-20261111";
   })();

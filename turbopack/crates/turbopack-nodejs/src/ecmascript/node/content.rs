@@ -3,22 +3,21 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkingContext, MinifyType},
+    chunk::ChunkingContext,
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
-    source_map::{GenerateSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapType},
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunkContent, EcmascriptChunkContentEntries, strict_chunk_wrapper,
-        strict_factory_mode, write_module_factories,
+        ChunkMinification, EcmascriptChunkContent, EcmascriptChunkContentEntries,
+        strict_chunk_wrapper, strict_factory_mode, write_module_factories,
     },
     hmr::{
         EcmascriptHmrChunkContent, merger::EcmascriptChunkContentMerger,
         version::EcmascriptChunkVersion,
     },
-    minify::minify,
 };
 
 use super::chunk::EcmascriptBuildNodeChunk;
@@ -55,13 +54,13 @@ impl EcmascriptNodeChunkContent {
 impl EcmascriptNodeChunkContent {
     #[turbo_tasks::function]
     async fn code(&self) -> Result<Vc<Code>> {
-        use std::io::Write;
-        let source_maps = *self
-            .chunking_context
-            .reference_chunk_source_maps(*ResolvedVc::upcast(self.chunk))
-            .await?;
-
-        let mut code = CodeBuilder::new(true, *self.chunking_context.debug_ids_enabled().await?);
+        let mut code = CodeBuilder::new(
+            *self.chunking_context.debug_ids_enabled().await?,
+            *self
+                .chunking_context
+                .source_map_generation_options()
+                .await?,
+        );
         let supports_arrow_functions = *self
             .chunking_context
             .environment()
@@ -69,31 +68,37 @@ impl EcmascriptNodeChunkContent {
             .supports_arrow_functions()
             .await?;
         let content = self.content.await?;
-        let chunk_items = content.chunk_item_code_module_ids_and_paths().await?;
+        let emit_source_maps = self
+            .chunking_context
+            .emitted_source_map_type()
+            .await?
+            .is_some();
+        let minification =
+            ChunkMinification::for_chunking_context(Vc::upcast(*self.chunking_context)).await?;
+        let chunk_items = content
+            .chunk_item_code_module_ids_and_paths(minification, emit_source_maps)
+            .await?;
         let strict_factory_mode = strict_factory_mode(&chunk_items, supports_arrow_functions);
-
         let strict_chunk_wrapper =
             strict_chunk_wrapper(strict_factory_mode, supports_arrow_functions);
         if let Some((prefix, _)) = strict_chunk_wrapper {
             code += prefix;
         }
-        write!(code, "module.exports = [")?;
+        // The scaffolding is written in minified form, so it needs no minification pass of its
+        // own when the factories are minified individually.
+        code += "module.exports=[";
         write_module_factories(
             &mut code,
             &chunk_items,
             strict_factory_mode,
             supports_arrow_functions,
         )?;
-        write!(code, "\n];")?;
+        code += "];";
         if let Some((_, suffix)) = strict_chunk_wrapper {
             code += suffix;
         }
 
-        let mut code = code.build();
-
-        if let MinifyType::Minify { mangle } = *self.chunking_context.minify_type().await? {
-            code = minify(code, source_maps, mangle)?;
-        }
+        let code = minification.finish_chunk(code.build(), emit_source_maps)?;
 
         Ok(code.cell())
     }
@@ -102,8 +107,8 @@ impl EcmascriptNodeChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptNodeChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
-        self.code().generate_source_map()
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
+        self.code().generate_source_map(ty)
     }
 }
 
@@ -115,7 +120,10 @@ impl VersionedContent for EcmascriptNodeChunkContent {
         Ok(AssetContent::file(
             FileContent::Content(File::from(
                 self.code()
-                    .to_rope_with_magic_comments(|| *this.source_map)
+                    .to_rope_with_magic_comments(
+                        *this.chunking_context.emitted_source_map_type().await?,
+                        || *this.source_map,
+                    )
                     .await?,
             ))
             .cell(),

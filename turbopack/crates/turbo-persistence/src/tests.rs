@@ -1,10 +1,10 @@
 #[cfg(not(miri))]
 use std::time::Instant;
-use std::{fs, path::Path};
+use std::{fs, path::Path, sync::OnceLock};
 
 use anyhow::Result;
 #[cfg(not(miri))]
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use rstest::rstest;
 
 // Miri rejects a process that exits while rayon's global worker threads are still parked, so
@@ -12,10 +12,11 @@ use rstest::rstest;
 #[cfg(miri)]
 use crate::parallel_scheduler::SerialScheduler as RayonParallelScheduler;
 use crate::{
-    AccessMode, Compression, DbConfig, FamilyConfig, FamilyKind,
+    AccessMode, ArcBytes, Compression, DbConfig, FamilyConfig, FamilyKind, QueryKey,
     constants::MAX_INLINE_VALUE_SIZE,
     db::{CompactConfig, TurboPersistence, read_current_version},
     lookup_entry::IterValue,
+    parallel_scheduler::ParallelScheduler as ParallelSchedulerTrait,
     static_sorted_file::{StaticSortedFileIter, StaticSortedFileMetaData},
 };
 #[cfg(not(miri))]
@@ -31,6 +32,10 @@ struct RayonParallelScheduler;
 
 #[cfg(not(miri))]
 impl ParallelScheduler for RayonParallelScheduler {
+    fn parallelism(&self) -> usize {
+        rayon::current_num_threads()
+    }
+
     fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
     where
         R: Send,
@@ -67,6 +72,18 @@ impl ParallelScheduler for RayonParallelScheduler {
         E: Send,
     {
         items.into_par_iter().try_for_each(f)
+    }
+
+    fn try_parallel_for_each_task_mut<T, E>(
+        &self,
+        items: &mut [T],
+        f: impl (Fn(&mut T) -> Result<(), E>) + Send + Sync,
+    ) -> Result<(), E>
+    where
+        T: Send + Sync,
+        E: Send,
+    {
+        items.into_par_iter().with_max_len(1).try_for_each(f)
     }
 
     fn try_parallel_for_each_owned<T, E>(
@@ -155,6 +172,32 @@ fn open_db_with_config<const F: usize>(
         config,
         RayonParallelScheduler,
     )
+}
+
+/// Collects the results of [`TurboPersistence::batch_get`] in the order of `keys`, asserting that
+/// every index is reported exactly once.
+fn batch_get_vec<S: ParallelSchedulerTrait, const F: usize, K: QueryKey + Sync>(
+    db: &TurboPersistence<S, F>,
+    family: usize,
+    keys: &[K],
+) -> Result<Vec<Option<ArcBytes>>> {
+    let results: Vec<OnceLock<Option<ArcBytes>>> = keys.iter().map(|_| OnceLock::new()).collect();
+    db.batch_get(family, keys, |index, value| {
+        assert!(
+            results[index].set(value).is_ok(),
+            "index {index} was reported more than once"
+        );
+        Ok(())
+    })?;
+    Ok(results
+        .into_iter()
+        .enumerate()
+        .map(|(index, result)| {
+            result
+                .into_inner()
+                .unwrap_or_else(|| panic!("index {index} was never reported"))
+        })
+        .collect())
 }
 
 fn multi_value_config_with_mmap(mmap: bool) -> DbConfig<1> {
@@ -886,7 +929,7 @@ fn batch_get_basic(#[case] mmap: bool) -> Result<()> {
 
     // Test batch_get with mixed existing and non-existing keys
     let keys_to_fetch = vec![vec![10u8], vec![20u8], vec![200u8], vec![50u8], vec![255u8]];
-    let results = db.batch_get(0, &keys_to_fetch)?;
+    let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     assert_eq!(results.len(), 5);
     assert_eq!(results[0].as_deref(), Some(&[10u8][..]));
@@ -917,7 +960,7 @@ fn batch_get_all_existing(#[case] mmap: bool) -> Result<()> {
 
     // Fetch all existing keys
     let keys_to_fetch: Vec<Vec<u8>> = (0..50u8).map(|i| vec![i]).collect();
-    let results = db.batch_get(0, &keys_to_fetch)?;
+    let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     assert_eq!(results.len(), 50);
     for (i, result) in results.iter().enumerate() {
@@ -946,7 +989,7 @@ fn batch_get_none_existing(#[case] mmap: bool) -> Result<()> {
 
     // Fetch non-existing keys
     let keys_to_fetch: Vec<Vec<u8>> = (100..110u8).map(|i| vec![i]).collect();
-    let results = db.batch_get(0, &keys_to_fetch)?;
+    let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     assert_eq!(results.len(), 10);
     for result in results.iter() {
@@ -973,7 +1016,7 @@ fn batch_get_empty(#[case] mmap: bool) -> Result<()> {
 
     // Fetch with empty key list
     let keys_to_fetch: Vec<Vec<u8>> = vec![];
-    let results = db.batch_get(0, &keys_to_fetch)?;
+    let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     assert_eq!(results.len(), 0);
 
@@ -1004,7 +1047,7 @@ fn batch_get_duplicate_keys(#[case] mmap: bool) -> Result<()> {
         vec![99u8], // non-existing
         vec![42u8],
     ];
-    let results = db.batch_get(0, &keys_to_fetch)?;
+    let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     assert_eq!(results.len(), 5);
     assert_eq!(results[0].as_deref(), Some(&[100u8][..]));
@@ -1042,7 +1085,7 @@ fn batch_get_large_batch(#[case] mmap: bool) -> Result<()> {
         .filter(|i| i % 10 == 0)
         .map(|i| i.to_be_bytes().to_vec())
         .collect();
-    let results = db.batch_get(0, &keys_to_fetch)?;
+    let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     assert_eq!(results.len(), 100);
     for (idx, i) in (0..1000u32).filter(|i| i % 10 == 0).enumerate() {
@@ -1090,7 +1133,7 @@ fn batch_get_different_sizes(#[case] mmap: bool) -> Result<()> {
         vec![5u8],
         vec![6u8], // non-existing
     ];
-    let results = db.batch_get(0, &keys_to_fetch)?;
+    let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     assert_eq!(results.len(), 7);
     assert_eq!(results[0].as_deref(), Some(&[][..]));
@@ -1140,7 +1183,7 @@ fn batch_get_across_families(#[case] mmap: bool) -> Result<()> {
     // Fetch from each family separately
     for family in 0..4usize {
         let keys_to_fetch: Vec<Vec<u8>> = (0..20u8).map(|i| vec![i]).collect();
-        let results = db.batch_get(family, &keys_to_fetch)?;
+        let results = batch_get_vec(&db, family, &keys_to_fetch)?;
 
         assert_eq!(results.len(), 20);
         for (i, result) in results.iter().enumerate() {
@@ -1160,8 +1203,8 @@ fn batch_get_across_families(#[case] mmap: bool) -> Result<()> {
 
     // Verify family isolation - keys from family 0 shouldn't be in family 1
     let keys_to_fetch: Vec<Vec<u8>> = (0..20u8).map(|i| vec![i]).collect();
-    let results_f0 = db.batch_get(0, &keys_to_fetch)?;
-    let results_f1 = db.batch_get(1, &keys_to_fetch)?;
+    let results_f0 = batch_get_vec(&db, 0, &keys_to_fetch)?;
+    let results_f1 = batch_get_vec(&db, 1, &keys_to_fetch)?;
 
     // Same keys, but different values per family
     assert_ne!(results_f0[0].as_deref(), results_f1[0].as_deref());
@@ -1216,13 +1259,13 @@ fn batch_get_after_compaction(#[case] mmap: bool) -> Result<()> {
 
     // Fetch before compaction
     let keys_to_fetch: Vec<Vec<u8>> = (0..100u8).map(|i| vec![i]).collect();
-    let results_before = db.batch_get(0, &keys_to_fetch)?;
+    let results_before = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     // Compact database using zstd to cover recompression with a non-default codec.
     db.full_compact()?;
 
     // Fetch after compaction
-    let results_after = db.batch_get(0, &keys_to_fetch)?;
+    let results_after = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     // Results should be identical
     assert_eq!(results_before.len(), results_after.len());
@@ -1264,7 +1307,7 @@ fn batch_get_with_overwrites(#[case] mmap: bool) -> Result<()> {
 
     // Fetch all keys
     let keys_to_fetch: Vec<Vec<u8>> = (0..50u8).map(|i| vec![i]).collect();
-    let results = db.batch_get(0, &keys_to_fetch)?;
+    let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     assert_eq!(results.len(), 50);
     // First 25 should have new values
@@ -1315,7 +1358,7 @@ fn batch_get_comparison_with_get(#[case] mmap: bool) -> Result<()> {
         .collect();
 
     // Get results using batch_get
-    let batch_results = db.batch_get(0, &keys_to_fetch)?;
+    let batch_results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     // Get results using individual get calls
     let mut individual_results = Vec::new();
@@ -1365,7 +1408,7 @@ fn batch_get_after_restore(#[case] mmap: bool) -> Result<()> {
         let db = open_db::<16>(path, mmap)?;
 
         let keys_to_fetch: Vec<Vec<u8>> = (0..100u8).step_by(5).map(|i| vec![i]).collect();
-        let results = db.batch_get(0, &keys_to_fetch)?;
+        let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
         assert_eq!(results.len(), 20);
         for (idx, i) in (0..100u8).step_by(5).enumerate() {
@@ -2497,9 +2540,7 @@ fn count_tombstones(
                 sequence_number: entry.sequence_number,
                 block_count: entry.block_count,
             };
-            for item in
-                StaticSortedFileIter::open(path, sst, Compression::Lz4, crate::mmap_access_mode())?
-            {
+            for item in StaticSortedFileIter::open(path, sst, Compression::Lz4)? {
                 if matches!(
                     item?.value,
                     IterValue::KeyDeleted | IterValue::KeyValueDeleted { .. }
@@ -3178,12 +3219,21 @@ fn initial_shard_bits_are_a_starting_value(#[case] mmap: bool) -> Result<()> {
     // The first commit has nothing to size the shards by, so it uses the initial count.
     commit()?;
     assert_eq!(newest_shard_bits()?, 2);
-    // Without a bottom run yet, the next commit sizes the shards by all files: the tiny family
-    // shrinks to a single shard, far below the initial count.
+    // Without a bottom run yet, the count doesn't shrink, so that the first bottom merges are one
+    // per shard instead of a single large one, even though the tiny family fits in one shard.
     commit()?;
-    assert_eq!(newest_shard_bits()?, 0);
-    // Once compacted, the bottom run is as tiny, so the count stays.
+    assert_eq!(newest_shard_bits()?, 2);
+    // The first bottom merges are split at the initial count.
     db.full_compact()?;
+    let bottom_files = db
+        .meta_info()?
+        .iter()
+        .flat_map(|meta| &meta.entries)
+        .filter(|entry| entry.flags.bottom())
+        .count();
+    assert_eq!(bottom_files, 4);
+    // With bottom runs, the tiny family shrinks to a single shard. That doesn't rewrite anything:
+    // the four bottom runs together are its bottom run.
     commit()?;
     assert_eq!(newest_shard_bits()?, 0);
     for key in 0..1000u32 {
@@ -3280,5 +3330,223 @@ fn commits_with_more_shards_than_collectors_split_files_at_shard_boundaries(
             &key.to_le_bytes()
         );
     }
+    Ok(())
+}
+
+// Writes 10K keys and runs the parallel `batch_get` path on Rayon, which is too slow under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn batch_get_large_batches(#[case] mmap: bool) -> Result<()> {
+    const KEYS: u32 = 10_000;
+    let value_of = |key: u32, version: u8| -> Vec<u8> {
+        let mut value = vec![version; 8];
+        value[..4].copy_from_slice(&key.to_le_bytes());
+        value
+    };
+    let expected = |key: u32| -> Option<Vec<u8>> {
+        if key >= KEYS || key.is_multiple_of(11) {
+            None
+        } else if key.is_multiple_of(7) {
+            Some(value_of(key, 2))
+        } else {
+            Some(value_of(key, 1))
+        }
+    };
+
+    let tempdir = tempfile::tempdir()?;
+    let db = open_db_with_config::<1>(tempdir.path(), config_with_mmap::<1>(mmap))?;
+
+    let batch = db.write_batch()?;
+    for key in 0..KEYS {
+        batch.put(0, key.to_be_bytes().to_vec(), value_of(key, 1).into())?;
+    }
+    db.commit_write_batch(batch)?;
+    // A second commit adds a newer layer of SST files with overwrites and tombstones.
+    let batch = db.write_batch()?;
+    for key in 0..KEYS {
+        if key.is_multiple_of(11) {
+            batch.delete(0, key.to_be_bytes().to_vec())?;
+        } else if key.is_multiple_of(7) {
+            batch.put(0, key.to_be_bytes().to_vec(), value_of(key, 2).into())?;
+        }
+    }
+    db.commit_write_batch(batch)?;
+
+    // Batches at and around the parallel threshold, and well above it. Keys are spread over the
+    // key space in a scrambled order, include misses (keys >= KEYS) and duplicates.
+    for batch_size in [2048usize, 2049, 6000] {
+        let extra_keys = [0u32, 0, 1000, KEYS];
+        let keys: Vec<Vec<u8>> = (0..(batch_size - extra_keys.len()) as u32)
+            .map(|i| {
+                (i.wrapping_mul(7919) % (KEYS + KEYS / 10))
+                    .to_be_bytes()
+                    .to_vec()
+            })
+            .chain(extra_keys.map(|key| key.to_be_bytes().to_vec()))
+            .collect();
+        assert_eq!(keys.len(), batch_size);
+        #[cfg(feature = "stats")]
+        let before = db.statistics();
+        let results = batch_get_vec(&db, 0, &keys)?;
+        assert_eq!(results.len(), batch_size);
+        #[cfg(feature = "stats")]
+        {
+            let after = db.statistics();
+            assert_eq!(
+                (after.hits + after.misses) - (before.hits + before.misses),
+                batch_size as u64,
+                "every key of the batch is counted as exactly one hit or miss"
+            );
+        }
+        for (key, result) in keys.iter().zip(&results) {
+            let key_num = u32::from_be_bytes(key[..].try_into().unwrap());
+            assert_eq!(
+                result.as_deref(),
+                expected(key_num).as_deref(),
+                "batch_get mismatch for key {key_num} in a batch of {batch_size}"
+            );
+            assert_eq!(result.as_deref(), db.get(0, key)?.as_deref());
+        }
+    }
+
+    // Duplicates of a key have the same hash, so they are adjacent and span several chunks.
+    let mut keys = vec![3u32.to_be_bytes().to_vec(); 3000];
+    keys.extend(vec![11u32.to_be_bytes().to_vec(); 600]);
+    let results = batch_get_vec(&db, 0, &keys)?;
+    assert_eq!(results.len(), keys.len());
+    let (hits, deleted) = results.split_at(3000);
+    assert!(
+        hits.iter()
+            .all(|r| r.as_deref() == Some(&value_of(3, 1)[..]))
+    );
+    assert!(deleted.iter().all(Option::is_none));
+
+    db.shutdown();
+    Ok(())
+}
+
+/// Opens a database with `KEYS` keys of 4 bytes over two commits: values of 8 bytes, overwrites of
+/// every 7th key and tombstones for every 11th key.
+fn open_callback_test_db(
+    path: &std::path::Path,
+    mmap: bool,
+) -> Result<TurboPersistence<RayonParallelScheduler, 1>> {
+    let db = open_db::<1>(path, mmap)?;
+    let batch = db.write_batch()?;
+    for key in 0..CALLBACK_TEST_KEYS {
+        batch.put(
+            0,
+            key.to_be_bytes().to_vec(),
+            callback_test_value(key, 1).into(),
+        )?;
+    }
+    db.commit_write_batch(batch)?;
+    let batch = db.write_batch()?;
+    for key in 0..CALLBACK_TEST_KEYS {
+        if key.is_multiple_of(11) {
+            batch.delete(0, key.to_be_bytes().to_vec())?;
+        } else if key.is_multiple_of(7) {
+            batch.put(
+                0,
+                key.to_be_bytes().to_vec(),
+                callback_test_value(key, 2).into(),
+            )?;
+        }
+    }
+    db.commit_write_batch(batch)?;
+    Ok(db)
+}
+
+const CALLBACK_TEST_KEYS: u32 = 3_000;
+
+fn callback_test_value(key: u32, version: u8) -> Vec<u8> {
+    let mut value = vec![version; 8];
+    value[..4].copy_from_slice(&key.to_le_bytes());
+    value
+}
+
+/// Batch sizes below and above the parallel threshold. Miri runs only the small one.
+fn callback_test_batch_sizes() -> &'static [u32] {
+    if cfg!(miri) { &[100] } else { &[100, 2_500] }
+}
+
+/// Keys spread over the key space, with misses (keys >= `CALLBACK_TEST_KEYS`) and duplicates.
+fn callback_test_keys(batch_size: u32) -> Vec<[u8; 4]> {
+    (0..batch_size)
+        .map(|i| {
+            (i.wrapping_mul(7919) % (CALLBACK_TEST_KEYS + CALLBACK_TEST_KEYS / 10)).to_be_bytes()
+        })
+        .chain([0u32, 0, 7, 7, CALLBACK_TEST_KEYS].map(u32::to_be_bytes))
+        .collect()
+}
+
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn batch_get_callback_once_per_index(#[case] mmap: bool) -> Result<()> {
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    let tempdir = tempfile::tempdir()?;
+    let db = open_callback_test_db(tempdir.path(), mmap)?;
+    for &batch_size in callback_test_batch_sizes() {
+        let keys = callback_test_keys(batch_size);
+        let calls: Vec<AtomicU32> = keys.iter().map(|_| AtomicU32::new(0)).collect();
+        let values: Vec<OnceLock<Option<ArcBytes>>> =
+            keys.iter().map(|_| OnceLock::new()).collect();
+        db.batch_get(0, &keys, |index, value| {
+            calls[index].fetch_add(1, Ordering::Relaxed);
+            let _ = values[index].set(value);
+            Ok(())
+        })?;
+        for (index, key) in keys.iter().enumerate() {
+            assert_eq!(
+                calls[index].load(Ordering::Relaxed),
+                1,
+                "index {index} of a batch of {} keys",
+                keys.len()
+            );
+            assert_eq!(
+                values[index].get().unwrap().as_deref(),
+                db.get(0, key)?.as_deref(),
+                "index {index} of a batch of {} keys",
+                keys.len()
+            );
+        }
+    }
+    db.shutdown();
+    Ok(())
+}
+
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn batch_get_callback_error_propagates(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let db = open_callback_test_db(tempdir.path(), mmap)?;
+    for &batch_size in callback_test_batch_sizes() {
+        let keys = callback_test_keys(batch_size);
+        // Fail on a found key and, separately, on a missing key (the last key is out of range).
+        let found = keys
+            .iter()
+            .position(|key| db.get(0, key).unwrap().is_some())
+            .unwrap();
+        let missing = keys.len() - 1;
+        for failing in [found, missing] {
+            let result = db.batch_get(0, &keys, |index, _| {
+                if index == failing {
+                    anyhow::bail!("injected failure at index {index}");
+                }
+                Ok(())
+            });
+            let error = result.expect_err("the callback error must be returned");
+            assert!(
+                format!("{error:#}").contains(&format!("injected failure at index {failing}")),
+                "unexpected error: {error:#}"
+            );
+        }
+    }
+    db.shutdown();
     Ok(())
 }

@@ -174,8 +174,6 @@ if (!process.env.NEXT_TEST_WASM && process.env.NEXT_TEST_WASM_AFTER_JEST) {
 
 export const isRspack = !!process.env.NEXT_RSPACK
 const isNextTestWasm = !!process.env.NEXT_TEST_WASM
-export const itTurbopack =
-  !isNextTestWasm && shouldUseTurbopack() ? it : it.skip
 
 /**
  * Whether the test is running against React 18 (based on
@@ -235,10 +233,10 @@ export class PatchedFileRef {
 }
 
 /**
- * Return a PatchedFileRef that appends captured test env assignments when the
- * harness copies the file in deploy mode. Other modes copy the content unchanged.
- * Nested app configs need this because the deploy harness only patches the
- * fixture-root config.
+ * Return a PatchedFileRef that prepends captured test env assignments when the
+ * harness copies the file in deploy mode. Other modes copy the content
+ * unchanged. Nested app configs need this because the deploy harness only
+ * patches the fixture-root config.
  *
  * TODO: Patch nested configs automatically in the deploy harness so fixtures no
  * longer need these explicit overrides.
@@ -248,7 +246,7 @@ export function patchFileWithDeployEnvAssignments(
   path: string
 ): PatchedFileRef {
   return new PatchedFileRef(path, (content) =>
-    isNextDeploy ? `${content}\n` + getDeploymentTestEnvAssignments() : content
+    isNextDeploy ? getDeploymentTestEnvAssignments() + content : content
   )
 }
 

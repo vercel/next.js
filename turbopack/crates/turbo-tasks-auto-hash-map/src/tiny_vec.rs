@@ -31,6 +31,7 @@
 use std::{
     alloc::{self, Layout},
     fmt::{Debug, Formatter},
+    iter::FusedIterator,
     mem::{ManuallyDrop, MaybeUninit},
     num::NonZeroU8,
     ops::{Deref, DerefMut},
@@ -136,7 +137,7 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
     /// `actual` must be `<= self.capacity()` and the first `actual` elements
     /// must be initialized.
     #[inline]
-    fn set_len(&mut self, actual: usize) {
+    pub(crate) fn set_len(&mut self, actual: usize) {
         debug_assert!(actual <= self.capacity());
         debug_assert!(actual <= MAX);
         // actual <= MAX <= 254 => actual + 1 in 1..=255, never zero.
@@ -156,7 +157,7 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
     }
 
     #[inline]
-    fn as_mut_ptr(&mut self) -> *mut T {
+    pub(crate) fn as_mut_ptr(&mut self) -> *mut T {
         if self.is_spilled() {
             // SAFETY: spilled => `heap` is the active union field.
             unsafe { self.data.heap.as_ptr() }
@@ -239,6 +240,34 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
         }
     }
 
+    /// Resize the heap buffer to `new_cap` elements with `realloc`, which lets the
+    /// allocator keep the block in place when the new size fits it.
+    ///
+    /// # Safety
+    /// `self` must be spilled and `new_cap` must be `> INLINE` and `>= len`.
+    unsafe fn realloc_heap(&mut self, new_cap: usize) {
+        debug_assert!(self.is_spilled() && new_cap > INLINE && new_cap >= self.len());
+        let old_layout = Self::layout(self.capacity());
+        let new_layout = Self::layout(new_cap);
+        if old_layout.size() != 0 {
+            // SAFETY: the heap buffer was allocated by `alloc`/`realloc_heap` with
+            // `old_layout`; `new_layout` has the same alignment and a non-zero size.
+            let ptr = unsafe {
+                alloc::realloc(
+                    self.data.heap.as_ptr() as *mut u8,
+                    old_layout,
+                    new_layout.size(),
+                )
+            } as *mut T;
+            match NonNull::new(ptr) {
+                Some(ptr) => self.data = Data { heap: ptr },
+                None => alloc::handle_alloc_error(new_layout),
+            }
+        }
+        // else: ZST `T`, the dangling pointer stays valid.
+        self.cap = new_cap as u8;
+    }
+
     /// Ensure capacity for at least one more element, spilling inline -> heap or
     /// growing the heap allocation as needed. Never exceeds `MAX` (the caller —
     /// `push` — asserts room before calling).
@@ -247,26 +276,32 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
         debug_assert!(old_cap < MAX, "TinyVec grown past MAX");
         // Growth schedule: jump off inline capacity, then double, clamped to MAX.
         let new_cap = (old_cap.max(1) * 2).clamp(INLINE + 1, MAX);
+        if self.is_spilled() {
+            // SAFETY: spilled, and `new_cap > old_cap >= len`, `new_cap > INLINE`.
+            unsafe { self.realloc_heap(new_cap) };
+            return;
+        }
         let len = self.len();
-
         let new_heap = Self::alloc(new_cap);
-        // Move existing elements into the new allocation.
+        // Move the inline elements into the new allocation.
         // SAFETY: source holds `len` initialized elements; dest has room for
         // `new_cap >= len`. Regions don't overlap (fresh allocation).
         unsafe {
             ptr::copy_nonoverlapping(self.as_ptr(), new_heap.as_ptr(), len);
         }
-        if self.is_spilled() {
-            // Free the old heap buffer (elements already moved out).
-            // SAFETY: old buffer was allocated by `alloc` with `old_cap`.
-            unsafe {
-                let old = self.data.heap;
-                Self::dealloc(old, old_cap);
-            }
-        }
-        // else: inline storage needs no deallocation.
         self.data = Data { heap: new_heap };
         self.cap = new_cap as u8;
+    }
+
+    /// Appends `value`, growing a full buffer by exactly one element instead of doubling it.
+    ///
+    /// For vecs that rarely grow and should not keep spare capacity, such as one holding a set of
+    /// fields that are each added at most once: doubling there leaves up to half the allocation
+    /// unused after every shrink. Panics if `len == MAX`.
+    #[inline]
+    pub fn push_exact(&mut self, value: T) {
+        self.reserve(1);
+        self.push(value);
     }
 
     /// Appends `value`. Panics if `len == MAX`.
@@ -310,6 +345,47 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
         }
     }
 
+    /// Remove the element at `index`, shifting all elements after it to the
+    /// left (order preserved, used by the ordered `List` backing an
+    /// `OrderedAutoSet`/`OrderedAutoMap`).
+    pub fn remove(&mut self, index: usize) -> T {
+        let len = self.len();
+        assert!(index < len, "index out of bounds: {index} >= {len}");
+        let ptr = self.as_mut_ptr();
+        // SAFETY: element `index` is initialized; the tail `index+1..len` is
+        // initialized and moved one slot left (overlapping copy).
+        unsafe {
+            let out = ptr.add(index).read();
+            ptr::copy(ptr.add(index + 1), ptr.add(index), len - index - 1);
+            self.set_len(len - 1);
+            out
+        }
+    }
+
+    /// Insert `value` at `index`, shifting all elements after it to the right.
+    /// Panics if `index > len` or if `len == MAX`.
+    pub fn insert(&mut self, index: usize, value: T) {
+        let len = self.len();
+        assert!(index <= len, "insertion index {index} > len {len}");
+        if len == self.capacity() {
+            // See `push` for why this is a hard assert.
+            assert!(
+                len < MAX,
+                "TinyVec capacity overflow: already at MAX = {MAX}"
+            );
+            self.grow();
+        }
+        let ptr = self.as_mut_ptr();
+        // SAFETY: `len < capacity`, so slot `len` exists; the tail
+        // `index..len` is moved one slot right (overlapping copy), then the
+        // now-vacant slot `index` is written.
+        unsafe {
+            ptr::copy(ptr.add(index), ptr.add(index + 1), len - index);
+            ptr.add(index).write(value);
+        }
+        self.set_len(len + 1);
+    }
+
     #[inline]
     pub fn clear(&mut self) {
         let len = self.len();
@@ -330,6 +406,16 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
             unsafe {
                 Self::dealloc(self.data.heap, cap);
             }
+        }
+    }
+
+    /// Shrinks the buffer (see [`Self::shrink_to_fit`]) once at most a third of it is used.
+    ///
+    /// Meant to follow removals: the threshold leaves room for the doubling growth, so
+    /// alternating pushes and removals around a capacity boundary do not reallocate every time.
+    pub fn shrink_amortized(&mut self) {
+        if self.capacity() > self.len() * 3 {
+            self.shrink_to_fit();
         }
     }
 
@@ -360,17 +446,9 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
                 Self::dealloc(old, old_cap);
             }
         } else if self.capacity() > len {
-            // Reallocate the heap buffer to exactly `len`.
-            let new_heap = Self::alloc(len);
-            // SAFETY: move `len` elements to the tighter buffer, free the old.
-            unsafe {
-                ptr::copy_nonoverlapping(self.data.heap.as_ptr(), new_heap.as_ptr(), len);
-                let old = self.data.heap;
-                let old_cap = self.capacity();
-                Self::dealloc(old, old_cap);
-                self.data = Data { heap: new_heap };
-                self.cap = len as u8;
-            }
+            // Shrink the heap buffer to exactly `len`.
+            // SAFETY: spilled, and `len > INLINE` (checked above).
+            unsafe { self.realloc_heap(len) };
         }
     }
 
@@ -402,16 +480,19 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
         if target <= INLINE {
             return;
         }
+        if self.is_spilled() {
+            if target > self.capacity() {
+                // SAFETY: spilled, and `target > capacity >= len`, `target > INLINE`.
+                unsafe { self.realloc_heap(target) };
+            }
+            return;
+        }
         let len = self.len();
         let new_heap = Self::alloc(target);
         // SAFETY: source holds `len` initialized elements; dest has room for
         // `target >= needed >= len`. Fresh allocation, so regions don't overlap.
         unsafe {
             ptr::copy_nonoverlapping(self.as_ptr(), new_heap.as_ptr(), len);
-        }
-        // SAFETY: free the old buffer if it was heap-allocated (elements moved).
-        unsafe {
-            self.dealloc_if_spilled();
         }
         self.data = Data { heap: new_heap };
         self.cap = target as u8;
@@ -537,9 +618,31 @@ impl<T, const INLINE: usize, const MAX: usize> Iterator for IntoIter<T, INLINE, 
         let rem = self.end - self.idx;
         (rem, Some(rem))
     }
+
+    #[inline]
+    fn fold<B, F>(mut self, init: B, mut f: F) -> B
+    where
+        F: FnMut(B, T) -> B,
+    {
+        // `self` is a local now and doesn't move during the loop, so the pointer into its
+        // (possibly inline) buffer stays valid.
+        let base = self.vec.as_ptr();
+        let mut acc = init;
+        while self.idx < self.end {
+            // SAFETY: element `idx` is still initialized and not yet yielded.
+            let v = unsafe { base.add(self.idx).read() };
+            // Advance before calling `f`, so that `Drop` only drops the unyielded elements if
+            // `f` panics.
+            self.idx += 1;
+            acc = f(acc, v);
+        }
+        acc
+    }
 }
 
 impl<T, const INLINE: usize, const MAX: usize> ExactSizeIterator for IntoIter<T, INLINE, MAX> {}
+
+impl<T, const INLINE: usize, const MAX: usize> FusedIterator for IntoIter<T, INLINE, MAX> {}
 
 impl<T, const INLINE: usize, const MAX: usize> Drop for IntoIter<T, INLINE, MAX> {
     fn drop(&mut self) {
@@ -619,9 +722,29 @@ impl<T, const INLINE: usize, const MAX: usize> Iterator for Drain<'_, T, INLINE,
         let rem = self.end - self.idx;
         (rem, Some(rem))
     }
+
+    #[inline]
+    fn fold<B, F>(mut self, init: B, mut f: F) -> B
+    where
+        F: FnMut(B, T) -> B,
+    {
+        let base = self.vec.as_ptr();
+        let mut acc = init;
+        while self.idx < self.end {
+            // SAFETY: element `idx` is initialized and unyielded (vec len is 0).
+            let v = unsafe { base.add(self.idx).read() };
+            // Advance before calling `f`, so that `Drop` only drops the unyielded elements if
+            // `f` panics.
+            self.idx += 1;
+            acc = f(acc, v);
+        }
+        acc
+    }
 }
 
 impl<T, const INLINE: usize, const MAX: usize> ExactSizeIterator for Drain<'_, T, INLINE, MAX> {}
+
+impl<T, const INLINE: usize, const MAX: usize> FusedIterator for Drain<'_, T, INLINE, MAX> {}
 
 impl<T, const INLINE: usize, const MAX: usize> Drop for Drain<'_, T, INLINE, MAX> {
     fn drop(&mut self) {
@@ -708,6 +831,36 @@ mod tests {
         let mut got: Vec<u32> = v.iter().copied().collect();
         got.sort();
         assert_eq!(got, vec![10, 30, 40]);
+    }
+
+    #[test]
+    fn remove_and_insert_preserve_order() {
+        // inline and spilled
+        for inline in [false, true] {
+            let mut v: TinyVec<String, 4> = TinyVec::new();
+            let n = if inline { 4 } else { 7 };
+            v.extend((0..n).map(|i| i.to_string()));
+            assert_eq!(v.remove(1), "1");
+            assert_eq!(v.remove(v.len() - 1), (n - 1).to_string());
+            v.insert(0, "a".to_string());
+            v.insert(v.len(), "z".to_string());
+            v.insert(2, "m".to_string());
+            let mut expected: Vec<String> = (0..n).map(|i| i.to_string()).collect();
+            expected.remove(1);
+            expected.pop();
+            expected.insert(0, "a".to_string());
+            expected.push("z".to_string());
+            expected.insert(2, "m".to_string());
+            assert_eq!(v.as_slice(), expected.as_slice());
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn insert_panics_at_max() {
+        let mut v: TinyVec<u32, 0, 2> = TinyVec::new();
+        v.extend([1, 2]);
+        v.insert(0, 0);
     }
 
     #[test]
@@ -905,5 +1058,100 @@ mod tests {
             }
         }
         assert_eq!(changes, vec![2, 4, 8, 10]);
+    }
+
+    fn filled<const INLINE: usize>(n: u32) -> TinyVec<u32, INLINE> {
+        let mut v = TinyVec::new();
+        v.extend(0..n);
+        v
+    }
+
+    /// `fold` yields the same items as `next`, for inline and heap buffers, also after `next`.
+    #[test]
+    fn fold_matches_next() {
+        for n in [0, 3, 10] {
+            let expected: Vec<u32> = (0..n).collect();
+            let folded = filled::<4>(n).into_iter().fold(Vec::new(), |mut acc, v| {
+                acc.push(v);
+                acc
+            });
+            assert_eq!(folded, expected);
+            let mut v = filled::<4>(n);
+            let folded = v.drain().fold(Vec::new(), |mut acc, x| {
+                acc.push(x);
+                acc
+            });
+            assert_eq!(folded, expected);
+            assert!(v.is_empty());
+
+            let mut it = filled::<4>(n).into_iter();
+            let first = it.next();
+            let rest: Vec<u32> = it.fold(Vec::new(), |mut acc, v| {
+                acc.push(v);
+                acc
+            });
+            assert_eq!(first.into_iter().chain(rest).collect::<Vec<_>>(), expected);
+            let mut v = filled::<4>(n);
+            let mut d = v.drain();
+            let first = d.next();
+            let rest: Vec<u32> = d.fold(Vec::new(), |mut acc, x| {
+                acc.push(x);
+                acc
+            });
+            assert_eq!(first.into_iter().chain(rest).collect::<Vec<_>>(), expected);
+        }
+    }
+
+    /// A panic in the `fold` closure drops every element exactly once.
+    #[test]
+    fn fold_panic_drops_once() {
+        for n in [3, 10] {
+            assert_balanced(|c| {
+                let mut v: TinyVec<DropTok, 4> = TinyVec::new();
+                for _ in 0..n {
+                    v.push(DropTok::new(c));
+                }
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    v.into_iter().fold(0, |i, tok| {
+                        drop(tok);
+                        if i == 1 {
+                            panic!("fold");
+                        }
+                        i + 1
+                    })
+                }));
+                assert!(result.is_err());
+            });
+            assert_balanced(|c| {
+                let mut v: TinyVec<DropTok, 4> = TinyVec::new();
+                for _ in 0..n {
+                    v.push(DropTok::new(c));
+                }
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    v.drain().fold(0, |i, tok| {
+                        drop(tok);
+                        if i == 1 {
+                            panic!("fold");
+                        }
+                        i + 1
+                    })
+                }));
+                assert!(result.is_err());
+                assert!(v.is_empty());
+            });
+        }
+    }
+
+    #[test]
+    fn iterators_are_fused() {
+        let mut it = filled::<4>(2).into_iter();
+        assert_eq!(it.by_ref().count(), 2);
+        assert_eq!(it.next(), None);
+        assert_eq!(it.next(), None);
+        let mut v = filled::<4>(2);
+        let mut d = v.drain();
+        assert_eq!(d.by_ref().count(), 2);
+        assert_eq!(d.next(), None);
+        assert_eq!(d.next(), None);
     }
 }

@@ -455,7 +455,6 @@ export async function startServer(
                   telemetry.flushDetached({
                     mode: 'dev',
                     dir,
-                    distDir: null,
                     events: null,
                   })
                 }
@@ -685,7 +684,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
       }
 
       startServerSpan = trace('start-dev-server', undefined, {
-        cpus: String(os.cpus().length),
+        cpus: String(os.availableParallelism()),
         platform: os.platform(),
         'memory.freeMem': String(os.freemem()),
         'memory.totalMem': String(os.totalmem()),
@@ -716,6 +715,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         nextServerReady: true,
         port: process.env.PORT,
         distDir: result.distDir,
+        telemetryDisabled: process.env.NEXT_TELEMETRY_DISABLED,
       })
     }
   })

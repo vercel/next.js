@@ -63,10 +63,6 @@ async function main() {
       'app/app/[param]/rsc-fetch/error/page.js',
     ],
     [/^\/behind-middleware$/, 'app/behind-middleware/page.js'],
-    [
-      /^\/behind-middleware\/route-handler$/,
-      'app/behind-middleware/route-handler/route.js',
-    ],
     // ---
     [/^\/api\/pages\/param\/basic$/, 'pages/api/pages/[param]/basic.js'],
     [/^\/api\/pages\/param\/error$/, 'pages/api/pages/[param]/error.js'],
@@ -193,6 +189,7 @@ async function main() {
         try {
           await handle()
         } catch (err) {
+          console.error('Failed to handle request:', err)
           res.statusCode = 500
           res.end('Internal Server Error')
         }

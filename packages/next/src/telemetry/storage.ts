@@ -233,14 +233,16 @@ export class Telemetry {
   flushDetached = ({
     mode,
     dir,
-    distDir,
     events,
   }: {
     mode: 'dev'
     dir: string
-    distDir: string | null
     events: TelemetryEvent[] | null
   }) => {
+    if (!this.isEnabled) {
+      return
+    }
+
     // Nudges detach only their own events; shutdown flushes the full queue.
     const allEvents: TelemetryEvent[] = events ?? []
 
@@ -288,7 +290,8 @@ export class Telemetry {
         mode,
         dir,
         eventsFile,
-        ...(distDir ? [distDir] : []),
+        // Use the same directory as the batch file, without reloading user config.
+        this.distDir,
       ],
       {
         detached: !this.NEXT_TELEMETRY_DEBUG,

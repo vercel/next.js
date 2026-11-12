@@ -15,7 +15,7 @@ import { RouteKind } from 'next/dist/server/route-kind'
 
 // An on-demand entry must retain its lifetime when read by a new process.
 describe('isr-cache-control-restart', () => {
-  describe.each(['default', 'custom', 'cache-components'])(
+  describe.each(['default', 'custom', 'cache-components', 'pages'])(
     '%s cache',
     (fixture) => {
       const { next } = nextTestSetup({

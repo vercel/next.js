@@ -12,7 +12,7 @@ use turbopack_core::{
         availability_info::AvailabilityInfo,
     },
     module::Module,
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroupKey},
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     version::{Version, VersionedContent},
 };
@@ -152,7 +152,7 @@ impl DevHtmlAsset {
                     chunking_context
                         .evaluated_chunk_group_assets(
                             chunkable_module.ident(),
-                            ChunkGroup::Entry(
+                            ChunkGroupKey::Entry(
                                 runtime_entries
                                     .await?
                                     .iter()
@@ -168,7 +168,7 @@ impl DevHtmlAsset {
                     chunking_context
                         .root_chunk_group_assets(
                             chunkable_module.ident(),
-                            ChunkGroup::Entry(vec![ResolvedVc::upcast(chunkable_module)]),
+                            ChunkGroupKey::Entry(vec![ResolvedVc::upcast(chunkable_module)]),
                             *module_graph,
                         )
                         .await?

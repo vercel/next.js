@@ -83,6 +83,30 @@ async function getCodeHashes(
         expect(cacheWorkers).toBeGreaterThan(0)
       })
 
+      it('hashes and renders a cached function that uses a bundled Node.js worker', async () => {
+        const hashes = await getCodeHashes(next, [
+          'app/use-cache-node-worker/page',
+        ])
+        expect(hashes).toHaveLength(1)
+        expect(hashes[0].codeHash).toEqual(expect.any(String))
+
+        const $ = await next.render$('/use-cache-node-worker')
+        expect($('p').text()).toBe('node-worker-v1')
+      })
+
+      it('tracks both branches when an env var condition is only known at runtime', async () => {
+        const hashes = await getCodeHashes(next, ['app/env-conditional/page'])
+        expect(hashes).toHaveLength(1)
+        expect(hashes[0].codeHash).toEqual(expect.any(String))
+        expect(hashes[0].runtimeEnvVarsRead).toEqual(
+          expect.arrayContaining([
+            'TEST_CONDITIONAL',
+            'TEST_OTHER_VALUE',
+            'TEST_VALUE',
+          ])
+        )
+      })
+
       it('lists non-inlined runtime env vars', async () => {
         const data = await getCodeHashes(next)
         expect(
@@ -99,6 +123,18 @@ async function getCodeHashes(
           )
         ).toMatchInlineSnapshot(`
          {
+           "app/env-conditional/page": [
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "TEST_CONDITIONAL",
+             "TEST_OTHER_VALUE",
+             "TEST_VALUE",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
            "app/env-dynamic/page": [
              "NEXT_OTEL_PERFORMANCE_PREFIX",
              "NEXT_OTEL_VERBOSE",
@@ -151,6 +187,15 @@ async function getCodeHashes(
              "NEXT_OTEL_PERFORMANCE_PREFIX",
              "NEXT_OTEL_VERBOSE",
              "NEXT_RUNTIME",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
+           "app/use-cache-node-worker/page": [
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
              "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
              "exist NEXT_PRIVATE_DEBUG_CACHE",
              "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
@@ -262,6 +307,29 @@ export function generateStaticParams() {
         skipStart: true,
       })
 
+      it.each(['disabled', 'enabled'])(
+        'tracks both branches when TEST_CONDITIONAL is %s at runtime',
+        async (conditional) => {
+          next.env.TEST_CONDITIONAL = conditional
+          try {
+            expect((await next.build()).exitCode).toBe(0)
+            const hashes = await getCodeHashes(next, [
+              'app/env-conditional/page',
+            ])
+            expect(hashes).toHaveLength(1)
+            expect(hashes[0].runtimeEnvVarsRead).toEqual(
+              expect.arrayContaining([
+                'TEST_CONDITIONAL',
+                'TEST_OTHER_VALUE',
+                'TEST_VALUE',
+              ])
+            )
+          } finally {
+            delete next.env.TEST_CONDITIONAL
+          }
+        }
+      )
+
       it('codeHash stays stable across identical rebuilds', async () => {
         await next.build()
         const first = await getCodeHashes(next)
@@ -333,6 +401,12 @@ export async function logic() {
             route: 'use-cache-worker',
             file: 'worker.ts',
             content: "console.log('worker-v2')\n",
+          },
+          {
+            route: 'use-cache-node-worker',
+            file: 'worker.ts',
+            content:
+              "import { parentPort } from 'node:worker_threads'\nparentPort.postMessage('node-worker-v2')\n",
           },
         ]
         const pages = dependencies.map(({ route }) => `app/${route}/page`)

@@ -254,9 +254,17 @@ function handleAvailableHash(hash: string) {
 
 export function handleStaticIndicator() {
   if (process.env.__NEXT_DEV_INDICATOR) {
-    const routeInfo = window.next.router.components[window.next.router.pathname]
+    const router = window.next.router
+    // The HMR socket connects (and the server sends the ISR manifest) before
+    // the router is created during hydration. The manifest is still stored in
+    // `isrManifest`, and the indicator is computed once the router is mounted
+    // (see `pages-dev-overlay-setup.tsx`).
+    if (!router) {
+      return
+    }
+    const routeInfo = router.components[router.pathname]
     const pageComponent = routeInfo?.Component
-    const appComponent = window.next.router.components['/_app']?.Component
+    const appComponent = router.components['/_app']?.Component
     const isDynamicPage =
       Boolean(pageComponent?.getInitialProps) || Boolean(routeInfo?.__N_SSP)
     const hasAppGetInitialProps =
@@ -292,6 +300,10 @@ function processMessage(message: HmrMessageSentToBrowser) {
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.VULNERABILITY_INSIGHT: {
       dispatcher.onVulnerabilityInsight(message.hasVulnerabilityInsight)
+      break
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.VERSION_INFO: {
+      dispatcher.onVersionInfo(message.versionInfo)
       break
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.BUILT:

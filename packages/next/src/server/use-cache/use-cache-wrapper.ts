@@ -442,6 +442,16 @@ function computeRootParamsCacheKeySuffix(
   )
 }
 
+function createRootParamsUnavailableError(
+  route: string,
+  rootParamNames: ReadonlySet<string>
+): Error {
+  const paramNames = [...rootParamNames].sort().join(', ')
+  return new Error(
+    `Route ${route} used root params (${paramNames}) inside \`"use cache"\` nested within \`unstable_cache\`. Root params are not available in this context.`
+  )
+}
+
 // Next-internal cookies that must not vary the private cache key, since they're
 // not part of the application's own cookie state. The instant-navigation cookie
 // toggles while a navigation lock is held, so including it would force spurious
@@ -607,6 +617,34 @@ function saveSharedCacheEntryToResumeDataCache(
 }
 
 /**
+ * Registers pending nested metadata with the outer cache store. The supplied
+ * promise must fulfill only after metadata propagation completes. Callers must
+ * register the promise before returning the nested value.
+ */
+function trackNestedCacheMetadata(
+  cacheContext: CacheContext,
+  pendingMetadata: Promise<unknown>
+): void {
+  const { outerWorkUnitStore } = cacheContext
+  if (
+    cacheContext.skipPropagation ||
+    (outerWorkUnitStore.type !== 'cache' &&
+      outerWorkUnitStore.type !== 'private-cache')
+  ) {
+    return
+  }
+
+  const pendingSet = outerWorkUnitStore.pendingNestedCacheMetadata
+  const tracked = pendingMetadata.finally(() => {
+    pendingSet.delete(tracked)
+  })
+  // This handler prevents an unhandled rejection if the promise rejects before
+  // `collectResult` waits for it.
+  tracked.catch(ignoreReject)
+  pendingSet.add(tracked)
+}
+
+/**
  * Completes a join onto another invocation's entry, whether that invocation is
  * still filling or has already finished: forks the stream, saves to this
  * invocation's RDC if the leader had none, and balances the cache signal read
@@ -638,10 +676,13 @@ function serveJoinedCacheEntry(
   // A failed collection or propagation must still end the read so it cannot
   // stall prerendering. The catch prevents an unhandled rejection after the
   // stream has been returned.
-  sharedCacheEntry.pendingMetadata
-    .then((metadata) => {
+  const pendingPropagation = sharedCacheEntry.pendingMetadata.then(
+    (metadata) => {
       maybePropagateCacheEntryMetadata(cacheContext, metadata)
-    })
+    }
+  )
+  trackNestedCacheMetadata(cacheContext, pendingPropagation)
+  pendingPropagation
     .finally(() => {
       cacheSignal?.endRead()
     })
@@ -818,6 +859,7 @@ function createUseCacheStore(
       ),
       rootParams: outerWorkUnitStore.rootParams,
       readRootParamNames: new Set<string>(),
+      pendingNestedCacheMetadata: new Set<Promise<unknown>>(),
       // Every private cache scope is its own work unit. Any cache keyed on
       // headers() or cookies() needs to be invalidated. Otherwise some
       // Next.js API semantics leak across render passes.
@@ -885,6 +927,7 @@ function createUseCacheStore(
       ),
       rootParams: outerWorkUnitStore.rootParams,
       readRootParamNames: new Set<string>(),
+      pendingNestedCacheMetadata: new Set<Promise<unknown>>(),
       outerOwnerStack: cacheContext.outerOwnerStack,
       dynamicNestedCacheError: undefined,
     }
@@ -1226,6 +1269,15 @@ async function collectResult(
     }
   } catch (error) {
     errors.push(error)
+  }
+
+  // Wait for nested metadata before collecting this entry's metadata. React
+  // Flight can resolve a nested root model while its referenced promises remain
+  // pending. The outer function can omit those promises from its result. Its
+  // stream can then finish before the nested metadata propagates. The loop
+  // includes promises registered while it waits.
+  while (innerCacheStore.pendingNestedCacheMetadata.size > 0) {
+    await Promise.allSettled(innerCacheStore.pendingNestedCacheMetadata)
   }
 
   let idx = 0
@@ -1821,14 +1873,14 @@ async function encodeFormData(formData: FormData): Promise<string> {
     // might contain that delimeter. We use the length of each field as the delimeter to avoid
     // escaping the values.
     result += key.length.toString(16) + ':' + key
-    let stringValue
     if (typeof value === 'string') {
-      stringValue = value
+      result += value.length.toString(16) + ':' + value
     } else {
       // The FormData might contain binary data that is not valid UTF-8 so this cache
       // key may generate a UCS-2 string. Passing this to another service needs to be
       // aware that the key might not be compatible.
       const arrayBuffer = await value.arrayBuffer()
+      let stringValue
       if (arrayBuffer.byteLength % 2 === 0) {
         stringValue = String.fromCodePoint(...new Uint16Array(arrayBuffer))
       } else {
@@ -1840,8 +1892,26 @@ async function encodeFormData(formData: FormData): Promise<string> {
             new Uint8Array(arrayBuffer, arrayBuffer.byteLength - 1, 1)[0]
           )
       }
+      // 'B' cannot appear in a string field's lowercase hex length prefix, so
+      // it unambiguously marks a binary field. The byte length keeps the field
+      // self-delimiting: n bytes occupy ceil(n/2) code units while a string
+      // field of length n occupies n, which would let a string value absorb
+      // the framing of subsequent fields.
+      // The name and type are part of the key because the cached function
+      // observes them. lastModified is excluded: it defaults to the
+      // construction time and does not survive multipart submission.
+      result +=
+        'B' +
+        value.name.length.toString(16) +
+        ':' +
+        value.name +
+        value.type.length.toString(16) +
+        ':' +
+        value.type +
+        arrayBuffer.byteLength.toString(16) +
+        ':' +
+        stringValue
     }
-    result += stringValue.length.toString(16) + ':' + stringValue
   }
   return result
 }
@@ -1851,15 +1921,34 @@ function createTrackedReadableStream(
   cacheSignal: CacheSignal
 ) {
   const reader = stream.getReader()
+  // End the read exactly once, whether the stream finishes, errors, or is
+  // canceled: a read that never ends keeps `cacheReady()` from resolving, and a
+  // second `endRead()` would unbalance the signal.
+  let readEnded = false
+  const endRead = () => {
+    if (!readEnded) {
+      readEnded = true
+      cacheSignal.endRead()
+    }
+  }
   return new ReadableStream({
     async pull(controller) {
-      const { done, value } = await reader.read()
-      if (done) {
-        controller.close()
-        cacheSignal.endRead()
-      } else {
-        controller.enqueue(value)
+      try {
+        const { done, value } = await reader.read()
+        if (done) {
+          controller.close()
+          endRead()
+        } else {
+          controller.enqueue(value)
+        }
+      } catch (error) {
+        endRead()
+        throw error
       }
+    },
+    cancel(reason) {
+      endRead()
+      return reader.cancel(reason)
     },
   })
 }
@@ -3143,6 +3232,24 @@ export async function cache(
             }
 
             const updatedRootParamNames = knownRootParamsByFunctionId.get(id)
+            // Throw when the fill read root params and the joiner has none. A
+            // joiner without root params is nested in `unstable_cache`. The
+            // mismatch retry below requires the joiner's root params, so it
+            // cannot separate this joiner from a leader with different values.
+            // A fork would serve the leader's root-param-specific entry, and
+            // `unstable_cache` would persist it under a key that has no root
+            // params.
+            if (
+              updatedRootParamNames &&
+              updatedRootParamNames.size > 0 &&
+              !rootParams
+            ) {
+              cacheSignal?.endRead()
+              throw createRootParamsUnavailableError(
+                workStore.route,
+                updatedRootParamNames
+              )
+            }
             if (updatedRootParamNames && rootParams) {
               const newCacheHandlerKey =
                 cacheHandlerKeyBase +
@@ -3192,6 +3299,18 @@ export async function cache(
           } else {
             // prerender-dynamic — same root param check before hanging
             const updatedRootParamNames = knownRootParamsByFunctionId.get(id)
+            // Same missing-root-params guard as the fork path above.
+            if (
+              updatedRootParamNames &&
+              updatedRootParamNames.size > 0 &&
+              !rootParams
+            ) {
+              cacheSignal?.endRead()
+              throw createRootParamsUnavailableError(
+                workStore.route,
+                updatedRootParamNames
+              )
+            }
             if (updatedRootParamNames && rootParams) {
               const newCacheHandlerKey =
                 cacheHandlerKeyBase +
@@ -3572,6 +3691,10 @@ export async function cache(
 
           const { stream: newStream, pendingCacheResult } = result
 
+          // `collectResult` propagates metadata before `pendingCacheResult`
+          // fulfills.
+          trackNestedCacheMetadata(cacheContext, pendingCacheResult)
+
           let pendingWrite: Promise<void> | undefined
 
           // When draft mode is enabled, we must not save the cache entry.
@@ -3767,22 +3890,18 @@ export async function cache(
                 if (result.type === 'cached') {
                   const { stream: ignoredStream, pendingCacheResult } = result
 
-                  const savedCacheResult = saveToResumeDataCache(
-                    resumeDataCache,
-                    serializedCacheKey,
-                    pendingCacheResult,
-                    logPrefix
-                  )
-
+                  // The RDC preserves the value served by this render for
+                  // subsequent render passes. Only the cache handler receives
+                  // the regenerated entry.
                   const pendingWrite = cacheHandler
                     ? saveToCacheHandler(
                         cacheHandler,
                         id,
                         cacheHandlerKeyBase,
-                        savedCacheResult,
+                        pendingCacheResult,
                         rootParams
                       )
-                    : savedCacheResult.then(() => {})
+                    : pendingCacheResult.then(() => {})
 
                   for (const completion of await Promise.allSettled([
                     ignoredStream.cancel(),

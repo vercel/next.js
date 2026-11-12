@@ -5,17 +5,28 @@
 use anyhow::Result;
 use serde_json::json;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{OperationVc, ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem, rope::Rope,
 };
 use turbo_tasks_testing::{Registration, register, run_once};
-use turbopack_analyze::split_chunk::{ChunkPartRange, ChunkParts, split_output_asset_into_parts};
+use turbopack_analyze::split_chunk::{ChunkPart, ChunkPartRange, split_output_asset_into_parts};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     code_builder::{Code, CodeBuilder},
     output::{OutputAsset, OutputAssetsReference},
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, SourceMapGenerationOptions, SourceMapType, SourceMaps},
+};
+
+const BOTH: SourceMapGenerationOptions = SourceMapGenerationOptions {
+    full: true,
+    shallow: true,
+    shallow_sources_content: true,
+};
+const SHALLOW: SourceMapGenerationOptions = SourceMapGenerationOptions {
+    full: false,
+    shallow: true,
+    shallow_sources_content: true,
 };
 
 static REGISTRATION: Registration = register!();
@@ -23,30 +34,30 @@ static REGISTRATION: Registration = register!();
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn split_chunk() {
     run_once(&REGISTRATION, async || {
-        let mut code = CodeBuilder::new(true, false);
+        let mut code = CodeBuilder::new(false, SHALLOW);
         code += "Hello world!\n";
         code += "This is a test file.\n";
         code.push_source(
             &Rope::from("Hello world!\n123"),
-            Some(Rope::from(serde_json::to_string_pretty(&json! ({
+            SourceMaps::Shallow(Rope::from(serde_json::to_string_pretty(&json! ({
                 "version": 3,
                 "mappings": "AAAA;AACA",
                 "sources": ["source1.js"],
                 "names": [],
                 "sourcesContent": ["console.log('Hello world!');"]
             }))?)),
-        );
+        )?;
         code += "This is the middle of the file.\n";
         code.push_source(
             &Rope::from("This is the middle of the file.\n"),
-            Some(Rope::from(serde_json::to_string_pretty(&json! ({
+            SourceMaps::Shallow(Rope::from(serde_json::to_string_pretty(&json! ({
                 "version": 3,
                 "mappings": "AAAA",
                 "sources": ["source2.js"],
                 "names": [],
                 "sourcesContent": ["console.log('Middle of file');"]
             }))?)),
-        );
+        )?;
         code += "This is the end of the file.\n";
         let code = code.build();
 
@@ -55,13 +66,10 @@ async fn split_chunk() {
         }
         .resolved_cell();
 
-        #[turbo_tasks::function(operation, root)]
-        fn split_parts_operation(asset: ResolvedVc<TestAsset>) -> Vc<ChunkParts> {
-            split_output_asset_into_parts(Vc::upcast(*asset))
-        }
-
-        let parts_op = split_parts_operation(asset);
-        let parts = parts_op.read_strongly_consistent().await?;
+        let result = split_parts_operation(asset)
+            .read_strongly_consistent()
+            .await?;
+        let parts = &result.parts;
 
         assert_eq!(parts.len(), 2);
 
@@ -96,32 +104,32 @@ async fn split_chunk() {
             }]
         );
 
-        #[turbo_tasks::function(operation, root)]
-        async fn compressed_size_operation(
-            parts: OperationVc<ChunkParts>,
-            index: usize,
-        ) -> Result<Vc<u32>> {
-            Ok(Vc::cell(
-                parts.connect().await?[index]
-                    .get_compressed_size()
-                    .await?
-                    .unwrap(),
-            ))
-        }
-
-        let compressed_size_0 = compressed_size_operation(parts_op, 0)
-            .read_strongly_consistent()
-            .await?;
-        let compressed_size_1 = compressed_size_operation(parts_op, 1)
-            .read_strongly_consistent()
-            .await?;
-        assert_eq!(*compressed_size_0, 43);
-        assert_eq!(*compressed_size_1, 28);
+        assert_eq!(result.compressed_sizes, [Some(43), Some(28)]);
 
         anyhow::Ok(())
     })
     .await
     .unwrap()
+}
+
+#[turbo_tasks::value]
+struct SplitResult {
+    parts: Vec<ChunkPart>,
+    compressed_sizes: Vec<Option<u32>>,
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn split_parts_operation(asset: ResolvedVc<TestAsset>) -> Result<Vc<SplitResult>> {
+    let parts = split_output_asset_into_parts(Vc::upcast(*asset)).await?;
+    let mut compressed_sizes = Vec::with_capacity(parts.len());
+    for part in &parts {
+        compressed_sizes.push(part.get_compressed_size().await?);
+    }
+    Ok(SplitResult {
+        parts,
+        compressed_sizes,
+    }
+    .cell())
 }
 
 #[turbo_tasks::value]
@@ -157,7 +165,195 @@ impl Asset for TestAsset {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for TestAsset {
     #[turbo_tasks::function]
-    pub fn generate_source_map(&self) -> Vc<FileContent> {
-        self.code.generate_source_map()
+    pub fn generate_source_map(&self, ty: SourceMapType) -> Vc<FileContent> {
+        self.code.generate_source_map(ty)
     }
+}
+
+#[test]
+fn rejects_missing_source_map_variants() -> Result<()> {
+    let mut shallow = CodeBuilder::new(false, SHALLOW);
+    shallow.push_source(
+        &Rope::from("shallow"),
+        SourceMaps::new(
+            None,
+            Some(turbopack_core::source_map::SourceMap::empty_rope()),
+        ),
+    )?;
+    let shallow = shallow.build();
+    assert!(
+        shallow
+            .generate_source_map_ref(None, SourceMapType::Full)
+            .is_err()
+    );
+    assert!(
+        shallow
+            .generate_source_map_ref(None, SourceMapType::Shallow)
+            .is_ok()
+    );
+
+    let mut combined = CodeBuilder::new(false, SHALLOW);
+    combined += "synthetic prefix";
+    combined.push_code(&shallow)?;
+    let combined = combined.build();
+    assert!(
+        combined
+            .generate_source_map_ref(None, SourceMapType::Full)
+            .is_err()
+    );
+    Ok(())
+}
+
+#[test]
+fn shared_maps_survive_concatenation() -> anyhow::Result<()> {
+    let mut source = CodeBuilder::new(false, BOTH);
+    source.push_source(
+        &Rope::from("const value = 1;"),
+        SourceMaps::Shared(turbopack_core::source_map::SourceMap::empty_rope()),
+    )?;
+    let mut combined = CodeBuilder::new(false, BOTH);
+    combined += "prefix";
+    combined.push_code(&source.build())?;
+    combined += "suffix";
+    let combined = combined.build();
+    assert!(matches!(combined.source_maps()?, SourceMaps::Shared(_)));
+    assert_eq!(
+        combined.generate_source_map_ref(None, SourceMapType::Full)?,
+        combined.generate_source_map_ref(None, SourceMapType::Shallow)?,
+    );
+    Ok(())
+}
+
+#[test]
+fn shared_maps_split_when_variants_diverge() -> anyhow::Result<()> {
+    let mut code = CodeBuilder::new(false, SHALLOW);
+    code.push_source(
+        &Rope::from("shared"),
+        SourceMaps::Shared(turbopack_core::source_map::SourceMap::empty_rope()),
+    )?;
+    code.push_source(
+        &Rope::from("shallow"),
+        SourceMaps::Shallow(turbopack_core::source_map::SourceMap::empty_rope()),
+    )?;
+    let code = code.build();
+    assert!(
+        code.generate_source_map_ref(None, SourceMapType::Full)
+            .is_err()
+    );
+    assert!(matches!(code.source_maps()?, SourceMaps::Shallow(_)));
+    Ok(())
+}
+
+#[test]
+fn concatenation_preserves_variant_offsets_and_synthetic_sections() -> Result<()> {
+    let full = json!({
+        "version": 3,
+        "mappings": "AAAA",
+        "sources": ["original.ts"],
+        "names": [],
+    });
+    let shallow = json!({
+        "version": 3,
+        "mappings": "AAAA",
+        "sources": ["input.js"],
+        "names": [],
+    });
+    let shared = json!({
+        "version": 3,
+        "mappings": "AAAA",
+        "sources": ["shared.js"],
+        "names": [],
+    });
+    let mut source = CodeBuilder::new(false, BOTH);
+    source += "prefix ";
+    source.push_source(
+        &Rope::from("mapped"),
+        SourceMaps::Both {
+            full: Rope::from(serde_json::to_string(&full)?),
+            shallow: Rope::from(serde_json::to_string(&shallow)?),
+        },
+    )?;
+    let mut combined = CodeBuilder::new(false, BOTH);
+    combined.push_source(
+        &Rope::from("shared"),
+        SourceMaps::Shared(Rope::from(serde_json::to_string(&shared)?)),
+    )?;
+    combined.push_code(&source.build())?;
+    combined.push_code(&CodeBuilder::new(false, SourceMapGenerationOptions::NONE).build())?;
+    combined += "suffix";
+    let combined = combined.build();
+
+    for (ty, map) in [
+        (SourceMapType::Full, full),
+        (SourceMapType::Shallow, shallow),
+    ] {
+        let generated = combined.generate_source_map_ref(None, ty)?;
+        let generated: serde_json::Value = serde_json::from_slice(&generated.to_bytes())?;
+        assert_eq!(
+            generated["sections"],
+            json!([
+                { "offset": { "line": 0, "column": 0 }, "map": shared },
+                { "offset": { "line": 0, "column": 6 }, "map": {
+                    "version": 3, "sources": [], "names": [], "mappings": "A",
+                } },
+                { "offset": { "line": 0, "column": 13 }, "map": map },
+                { "offset": { "line": 0, "column": 19 }, "map": {
+                    "version": 3, "sources": [], "names": [], "mappings": "A",
+                } },
+            ])
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn concatenation_preserves_required_variants() -> Result<()> {
+    use turbopack_core::source_map::SourceMap;
+
+    let variants = [
+        SourceMaps::None,
+        SourceMaps::Full(SourceMap::empty_rope()),
+        SourceMaps::Shallow(SourceMap::empty_rope()),
+        SourceMaps::Both {
+            full: SourceMap::empty_rope(),
+            shallow: SourceMap::empty_rope(),
+        },
+        SourceMaps::Shared(SourceMap::empty_rope()),
+    ];
+    for required in variants.iter().map(SourceMaps::generation_options) {
+        for maps in &variants {
+            let compatible = matches!(maps, SourceMaps::None)
+                || ((!required.full || maps.get(SourceMapType::Full).is_some())
+                    && (!required.shallow || maps.get(SourceMapType::Shallow).is_some()));
+            for append_code in [false, true] {
+                let mut builder = CodeBuilder::new(false, required);
+                builder.push_source(
+                    &Rope::from("initial"),
+                    SourceMaps::Shared(SourceMap::empty_rope()),
+                )?;
+                let before = builder.build();
+                let mut builder = CodeBuilder::from(before.clone());
+                let result = if append_code {
+                    let mut other = CodeBuilder::new(false, maps.generation_options());
+                    other += "prefix ";
+                    other.push_source(&Rope::from("addition"), maps.clone())?;
+                    builder.push_code(&other.build())
+                } else {
+                    builder.push_source(&Rope::from("addition"), maps.clone())
+                };
+                assert_eq!(
+                    result.is_ok(),
+                    compatible,
+                    "{required:?}, {maps:?}, append_code={append_code}"
+                );
+                let after = builder.build();
+                assert_eq!(after.source_map_generation_options(), required);
+                if !compatible {
+                    assert_eq!(after.source_code(), before.source_code());
+                    assert_eq!(after.source_maps()?, before.source_maps()?);
+                }
+            }
+        }
+    }
+    Ok(())
 }

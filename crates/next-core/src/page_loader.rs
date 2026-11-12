@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc, fxindexmap};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystemPath, FileSystemPathOption, rope::RopeBuilder,
 };
@@ -14,13 +14,15 @@ use turbopack_core::{
     module::Module,
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     proxied_asset::ProxiedAsset,
-    reference_type::{EntryReferenceSubType, ReferenceType},
+    reference_type::ReferenceType,
     source::Source,
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkData, utils::StringifyJs};
 
-use crate::{embed_js::next_js_file_path, util::get_asset_path_from_pathname};
+use crate::{
+    embed_js::next_js_file_path, next_pages::PagesEntryKind, util::get_asset_path_from_pathname,
+};
 
 #[turbo_tasks::function]
 pub async fn create_page_loader_entry_module(
@@ -49,10 +51,7 @@ pub async fn create_page_loader_entry_module(
     ));
 
     let module = client_context
-        .process(
-            entry_asset,
-            ReferenceType::Entry(EntryReferenceSubType::Page),
-        )
+        .process(entry_asset, PagesEntryKind::Page.reference_type())
         .module()
         .to_resolved()
         .await?;
@@ -60,9 +59,7 @@ pub async fn create_page_loader_entry_module(
     let module = client_context
         .process(
             virtual_source,
-            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                rcstr!("PAGE") => module,
-            })),
+            ReferenceType::Internal(ResolvedVc::cell([(rcstr!("PAGE"), module)].into())),
         )
         .module();
     Ok(module)

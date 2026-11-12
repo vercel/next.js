@@ -25,8 +25,10 @@ import type { OpaqueFallbackRouteParams } from '../../request/fallback-params'
 import { PrerenderManifestMatcher } from './helpers/prerender-manifest-matcher'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 import type { ParsedRequestHeaders } from './parse-request-headers'
+import type { ServerActionRequestMetadata } from '../../lib/server-action-request-meta'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_PREFETCH_STATIC,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
@@ -36,11 +38,16 @@ import { isInterceptionRouteAppPath } from '../../../shared/lib/router/utils/int
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { SegmentPrefixRSCPathnameNormalizer } from '../../normalizers/request/segment-prefix-rsc'
 import type { UrlWithParsedQuery } from 'url'
-import type { IncomingMessage } from 'http'
+import type { IncomingHttpHeaders, IncomingMessage } from 'http'
+import { createDevResponseLifecycle } from '../../app-render/dev-response-lifecycle'
 import {
   applyAppPageRscRequestMetaFromHeaders,
   normalizeAppPageRequestUrl,
 } from './normalize-request-url'
+import {
+  UNDERSCORE_GLOBAL_ERROR_ROUTE,
+  UNDERSCORE_NOT_FOUND_ROUTE,
+} from '../../../shared/lib/entry-constants'
 
 let vendoredReactRSC
 let vendoredReactSSR
@@ -77,22 +84,33 @@ export type RouteMatch = {
   // The pathname produced by route preparation, including its delimiter-safe
   // encoding for path parameters.
   readonly resolvedPathname: string
+  readonly couldBeIntercepted: boolean
 }
 
 /** Live dev-server state captured for a render; absent in production and build prerenders. */
 export type DevRenderContext = {
   readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
   readonly hmrRefreshHash: string | undefined
+  readonly initialHmrVersion: string | undefined
 }
 
 export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
+  // Exact path-relative URL (pathname plus search) after route preparation,
+  // preserving its encoded bytes for rendering and prerender request IDs.
+  requestUrl: string
+  // Shared headers after request preparation; retain their live identity.
+  requestHeaders: IncomingHttpHeaders
   page: string
   routeMatch: RouteMatch
   query: NextParsedUrlQuery
   fallbackRouteParams: OpaqueFallbackRouteParams | null
+  // Defer access to these params while retaining their concrete request values.
+  // A resumed render prefers the mask recorded in its postponed state.
+  stagedFallbackParams: OpaqueFallbackRouteParams | null
   renderOpts: RenderOpts
   dev: DevRenderContext | undefined
   parsedRequestHeaders: ParsedRequestHeaders
+  serverActionRequestMetadata: ServerActionRequestMetadata
   sharedContext: AppSharedContext
 }
 
@@ -147,7 +165,7 @@ export class AppPageRouteModule extends RouteModule<
 
       // Mark the request as a router prefetch request.
       req.headers[RSC_HEADER] = '1'
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = NEXT_ROUTER_PREFETCH_STATIC
       req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] = segmentPath
 
       addRequestMeta(req, 'isRSCRequest', true)
@@ -179,6 +197,8 @@ export class AppPageRouteModule extends RouteModule<
     return renderToHTMLOrFlight(
       req,
       res,
+      context.requestUrl,
+      context.requestHeaders,
       context.page,
       context.query,
       context.fallbackRouteParams,
@@ -190,26 +210,36 @@ export class AppPageRouteModule extends RouteModule<
       context.dev,
       context.sharedContext,
       context.routeMatch,
-      context.parsedRequestHeaders
+      context.parsedRequestHeaders,
+      context.serverActionRequestMetadata,
+      context.stagedFallbackParams,
+      process.env.__NEXT_DEV_SERVER ? createDevResponseLifecycle(res) : null
     )
   }
 
   public prerender(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
     context: AppPageRouteHandlerContext
   ): Promise<PrerenderResult> {
+    // Error-page routes establish their own status. A background prerender must
+    // not inherit the status of the served cache entry.
+    const initialStatusCode =
+      context.page === UNDERSCORE_NOT_FOUND_ROUTE
+        ? 404
+        : context.page === UNDERSCORE_GLOBAL_ERROR_ROUTE ||
+            context.page === '/500'
+          ? 500
+          : 200
     return prerenderToHTMLOrFlight(
-      req,
-      res,
+      initialStatusCode,
+      context.requestUrl,
       context.page,
       context.query,
       context.fallbackRouteParams,
       context.renderOpts,
-      undefined,
       context.sharedContext,
       context.routeMatch,
-      context.parsedRequestHeaders
+      context.parsedRequestHeaders,
+      context.serverActionRequestMetadata
     )
   }
 
@@ -231,7 +261,7 @@ export class AppPageRouteModule extends RouteModule<
     return runValidationInDevFromSnapshot(message, componentMod, abortSignal)
   }
 
-  private pathCouldBeIntercepted(
+  public pathCouldBeIntercepted(
     resolvedPathname: string,
     interceptionRoutePatterns: RegExp[]
   ): boolean {

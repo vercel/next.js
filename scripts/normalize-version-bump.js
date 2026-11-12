@@ -56,7 +56,6 @@ const writeJson = async (filePath, data) =>
     name: 'nextjs-project',
     version: '0.0.0',
     private: true,
-    workspaces: ['packages/*'],
     scripts: {},
     packageManager,
   })
