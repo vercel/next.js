@@ -55,6 +55,35 @@ describe('replaceFile', () => {
     expect(fs.readdirSync(stagingDir)).toEqual([])
   })
 
+  it('never leaves the target missing', async () => {
+    // Removing the target before writing the replacement would let file
+    // watchers see the file being deleted and re-added. Check after every
+    // filesystem mutation that the target still exists.
+    const missingAfter: string[] = []
+    const spies = (
+      ['writeFileSync', 'linkSync', 'renameSync', 'rmSync'] as const
+    ).map((method) => {
+      const original = fs[method] as (...args: any[]) => any
+      return jest.spyOn(fs, method).mockImplementation((...args: any[]) => {
+        const result = original.apply(fs, args)
+        if (!fs.existsSync(targetPath)) {
+          missingAfter.push(method)
+        }
+        return result
+      })
+    })
+
+    try {
+      await replace('patched')
+      await replace('temporary', async () => {})
+    } finally {
+      spies.forEach((spy) => spy.mockRestore())
+    }
+
+    expect(missingAfter).toEqual([])
+    expect(fs.readFileSync(targetPath, 'utf8')).toBe('patched')
+  })
+
   it('restores the original inode after temporary content', async () => {
     const originalInode = fs.statSync(targetPath).ino
 
