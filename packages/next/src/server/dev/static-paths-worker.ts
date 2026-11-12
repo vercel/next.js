@@ -15,7 +15,7 @@ import { collectSegments } from '../../build/segment-config/app/app-segments'
 import type { StaticPathsResult } from '../../build/static-paths/types'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
-import type { IncrementalCache } from '../lib/incremental-cache'
+import type { IncrementalCacheRequestHeaders } from '../lib/incremental-cache'
 import { isAppPageRouteModule } from '../route-modules/checks'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { collectRootParamKeys } from '../../build/segment-config/app/collect-root-param-keys'
@@ -71,7 +71,7 @@ export async function loadStaticPaths({
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
   cacheMaxMemorySize: number
-  requestHeaders: IncrementalCache['requestHeaders']
+  requestHeaders: IncrementalCacheRequestHeaders
   cacheHandler?: string
   cacheHandlers?: NextConfigComplete['cacheHandlers']
   cacheLifeProfiles: import('../config-shared').ResolvedCacheLifeProfiles

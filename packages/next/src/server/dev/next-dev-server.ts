@@ -15,7 +15,7 @@ import {
   type NextUrlWithParsedQuery,
 } from '../request-meta'
 import type { DevBundlerService } from '../lib/dev-bundler-service'
-import type { IncrementalCache } from '../lib/incremental-cache'
+import type { IncrementalCacheRequestHeaders } from '../lib/incremental-cache'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
 import type { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
@@ -768,7 +768,7 @@ export default class DevServer extends Server {
   }: {
     pathname: string
     urlPathname: string
-    requestHeaders: IncrementalCache['requestHeaders']
+    requestHeaders: IncrementalCacheRequestHeaders
     page: string
     isAppPath: boolean
   }): ReturnType<Server['getStaticPaths']> {

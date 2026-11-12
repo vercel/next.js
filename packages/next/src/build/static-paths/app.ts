@@ -15,7 +15,7 @@ import path from 'node:path'
 import { AfterRunner } from '../../server/after/run-with-after'
 import { createWorkStore } from '../../server/async-storage/work-store'
 import { FallbackMode } from '../../lib/fallback'
-import type { IncrementalCache } from '../../server/lib/incremental-cache'
+import type { IncrementalCacheRequestHeaders } from '../../server/lib/incremental-cache'
 import {
   normalizePathname,
   encodeParam,
@@ -907,7 +907,7 @@ export async function buildAppStaticPaths({
   cacheHandlers?: NextConfigComplete['cacheHandlers']
   cacheLifeProfiles: import('../../server/config-shared').ResolvedCacheLifeProfiles
   cacheMaxMemorySize: number
-  requestHeaders: IncrementalCache['requestHeaders']
+  requestHeaders: IncrementalCacheRequestHeaders
   nextConfigOutput: 'standalone' | 'export' | undefined
   ComponentMod: AppPageModule | AppRouteModule
   isRoutePPREnabled: boolean
