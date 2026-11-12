@@ -1,0 +1,42 @@
+{
+  "body": "import{expect,test,beforeAll,beforeEach,afterEach,afterAll}from'vitest'\nconst errorView=e=>({name:e?.name??null,message:e?.message??String(e)})\nconst emit=row=>console.log('EXPECT_STATE_ROW '+JSON.stringify(row))\nfunction state(phase){try{const value=expect.getState(),descriptor=Object.getOwnPropertyDescriptor(value,'environment');emit({kind:'state',phase,environment:typeof value.environment==='undefined'?'<undefined>':value.environment,own:!!descriptor,data:!!descriptor&&Object.hasOwn(descriptor,'value'),currentTestName:value.currentTestName??null})}catch(error){emit({kind:'state',phase,error:errorView(error)})}}\nfunction shape(value){const properties={};for(const key of ['then','catch','finally'])try{properties[key]={type:typeof value[key]}}catch(error){properties[key]={error:errorView(error)}}return{type:typeof value,promise:value instanceof Promise,properties}}\nstate('collection')\nbeforeAll(()=>state('beforeAll'))\nbeforeEach(()=>state('beforeEach'))\ntest('actual expect state and polling',async()=>{state('body-before');let callbacks=0;let signal;const initial=expect.poll(options=>{callbacks++;signal={aborted:options.signal.aborted,instance:options.signal instanceof AbortSignal};return 1},{interval:1,timeout:1000});emit({kind:'poll-initial',shape:shape(initial),callbacks});const matched=initial.toBe(1);emit({kind:'poll-match',shape:shape(matched)});await matched;emit({kind:'poll-settled',callbacks,signal});state('body-after')})\nafterEach(()=>state('afterEach'))\nafterAll(()=>state('afterAll'))\n",
+  "bodySHA256": "6cbb82dea17eb576db8d1dbcd2244008fb9f1d01ff852a67ac6c1e5c48be172c",
+  "environmentTemplate": "import{appendFileSync}from'node:fs'\nconst log=(phase,fields={})=>appendFileSync(\"__OWNED_ENVIRONMENT_TRACE__\",JSON.stringify({kind:'environment',phase,...fields})+'\\n')\nlet reads=0;const failure=new RangeError('owned second environment name failure');const environment={get name(){const read=++reads;log('name-read',{read,receiver:this===environment});if(read===2)throw failure;return 'resolved-name-'+read},viteEnvironment:'ssr',setup(){log('setup');return{teardown(){log('teardown')}}}};export default environment\n",
+  "originalEnvironmentSHA256": "6d709edf4c41f81eca200802edfdfc82832ee3da00b48188ab8b8e5545a455df",
+  "rows": [
+    {
+      "kind": "environment",
+      "phase": "name-read",
+      "read": 1,
+      "receiver": true
+    },
+    {
+      "kind": "environment",
+      "phase": "setup"
+    },
+    {
+      "kind": "environment",
+      "phase": "name-read",
+      "read": 2,
+      "receiver": true
+    },
+    {
+      "kind": "environment",
+      "phase": "teardown"
+    }
+  ],
+  "status": 1,
+  "summary": {
+    "numTotalTests": 0,
+    "numPassedTests": 0,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": false
+  },
+  "cases": [],
+  "qualification": {
+    "scope": "actual resolved environment field/value/presence and ordered authored/provider effects, genuine case counts/statuses",
+    "open": "early run-error serialization, raw frames, unmeasured DOM provider and full ExpectStatic remain separate"
+  }
+}

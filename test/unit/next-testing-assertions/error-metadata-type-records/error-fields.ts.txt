@@ -1,0 +1,3 @@
+import type {SerializedError,ParsedStack} from 'vitest'
+const frame:ParsedStack={method:'test',file:'test.ts',line:1,column:2}
+const error:SerializedError={message:'failure',name:'Error',stack:'native',stacks:[frame],cause:{message:'cause'},custom:Symbol.for('data')};error.stack='changed';error.name='Changed';error.stacks=[];error.cause={message:'next'};const custom:unknown=error.custom;void custom

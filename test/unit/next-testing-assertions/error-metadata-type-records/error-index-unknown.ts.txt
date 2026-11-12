@@ -1,0 +1,2 @@
+import type {SerializedError} from 'vitest'
+declare const error:SerializedError;const n:number=error.custom;void n
