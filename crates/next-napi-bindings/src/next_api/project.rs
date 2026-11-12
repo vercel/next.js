@@ -31,7 +31,7 @@ use next_api::{
     project::{
         AdditionalRootConfig, AdditionalRootName, DebugBuildPaths, DefineEnv, DraftModeOptions,
         PartialProjectOptions, Project, ProjectContainer, ProjectOptions, WatchOptions,
-        activate_lazy_chunk_operation,
+        activate_lazy_chunk_operation, compute_whole_app_client_style_groups_early,
     },
     project_asset_hashes_manifest::immutable_hashes_manifest_asset_if_enabled,
     route::{Endpoint, EndpointGroupKey, Route},
@@ -1817,8 +1817,13 @@ async fn output_assets_operation(
     let endpoint_assets = endpoints
         .iter()
         .map(async |endpoint| endpoint.output().await?.output_assets.await)
-        .try_join()
-        .await?;
+        .try_join();
+    // Start the whole-app style groups while the endpoints are being chunked, rather than when
+    // the first endpoint's CSS chunking asks for them.
+    let (endpoint_assets, ()) = futures_util::try_join!(
+        endpoint_assets,
+        compute_whole_app_client_style_groups_early(project)
+    )?;
 
     let output_assets: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> = endpoint_assets
         .iter()

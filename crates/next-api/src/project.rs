@@ -69,7 +69,7 @@ use turbopack_core::{
     asset::AssetContent,
     changed::content_changed,
     chunk::{
-        ChunkingContext, EvaluatableAssets, UnusedReferences,
+        ChunkType, ChunkingContext, EvaluatableAssets, UnusedReferences,
         chunk_id_strategy::{ModuleIdFallback, ModuleIdStrategy},
     },
     compile_time_info::CompileTimeInfo,
@@ -81,13 +81,15 @@ use turbopack_core::{
         CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage, PlainIssue,
         StyledString,
     },
-    module::{Module, Modules},
+    module::{Module, Modules, StyleModule},
     module_graph::{
-        GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph, VisitedModules,
+        GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph, SingleModuleGraphNode,
+        VisitedModules,
         binding_usage_info::{
             BindingUsageInfo, OptionBindingUsageInfo, compute_binding_usage_info,
         },
         chunk_group_info::{ChunkGroupEntry, EntryHeuristics},
+        style_groups::StyleGroupsConfig,
     },
     output::{
         ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
@@ -3140,6 +3142,63 @@ async fn scale_down_node_pool(project: ResolvedVc<Project>) -> Result<()> {
     } else {
         node_backend.scale_zero()?;
     }
+    Ok(())
+}
+
+/// Computes the client style groups of the whole-app module graph, so that they are ready by the
+/// time chunking first needs them.
+///
+/// Chunking computes the style groups lazily: the first client chunk group that contains CSS
+/// requests them, which happens only after the merged modules and the server-side rendering chunk
+/// groups of an endpoint are done. The style groups are a single, mostly sequential task over all
+/// chunk groups, but they only depend on the chunk group info and the module batches. Requesting
+/// them here, concurrently with the endpoints, lets them run alongside that other work instead of
+/// after it.
+///
+/// This must request exactly the task `make_style_production_chunks` requests (same module graph,
+/// chunking context and config), so it doesn't compute anything extra. Apps without CSS never
+/// compute style groups, so this does nothing when the graph has no style modules.
+pub async fn compute_whole_app_client_style_groups_early(project: Vc<Project>) -> Result<()> {
+    if !project.next_mode().await?.is_production() || *project.per_page_module_graph().await? {
+        return Ok(());
+    }
+
+    let module_graph = project.whole_app_module_graphs().await?.full;
+    let has_style_modules =
+        module_graph
+            .await?
+            .iter_reachable_nodes()?
+            .any(|(_, node)| match node {
+                SingleModuleGraphNode::Module(module) => {
+                    ResolvedVc::try_sidecast::<Box<dyn StyleModule>>(*module).is_some()
+                }
+                SingleModuleGraphNode::VisitedModule { .. } => false,
+            });
+    if !has_style_modules {
+        return Ok(());
+    }
+
+    let chunking_context = project.client_chunking_context().to_resolved().await?;
+    let chunking_configs = chunking_context.chunking_configs().await?;
+    chunking_configs
+        .iter()
+        .map(async |(ty, chunking_config)| {
+            if !*ty.is_style().await? {
+                return Ok(());
+            }
+            module_graph
+                .style_groups(
+                    *chunking_context,
+                    StyleGroupsConfig {
+                        max_chunk_size: chunking_config.max_merge_chunk_size,
+                        algorithm: chunking_config.style_groups_algorithm.clone(),
+                    },
+                )
+                .as_side_effect()
+                .await
+        })
+        .try_join()
+        .await?;
     Ok(())
 }
 
