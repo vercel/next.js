@@ -14,7 +14,11 @@ import {
 } from '../../../shared/lib/action-revalidation-kind'
 import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
 import { encodeHeaderSafe } from '../../lib/encode-header-safe'
-import { createRevalidateDuringRenderError } from '../../use-cache/use-cache-messages'
+import {
+  createRevalidateDuringRenderError,
+  createRevalidateInBuildTimeGeneratorError,
+  createRevalidateInCachedFunctionError,
+} from '../../use-cache/use-cache-messages'
 import { validateAndNormalizeCacheLifeProfile } from '../../use-cache/cache-life-profile'
 
 type CacheLifeConfig = {
@@ -27,6 +31,10 @@ type CacheLifeConfig = {
  * The second argument specifies a [`cacheLife`](https://nextjs.org/docs/app/api-reference/functions/cacheLife#reference) profile
  * (e.g. `"max"`), or a `{ expire }` object. For immediate expiration in Server Actions, use
  * [`updateTag`](https://nextjs.org/docs/app/api-reference/functions/updateTag) instead.
+ *
+ * In a Server Action, `expire: 0` also triggers
+ * [`updateTag`'s client refresh and invalidation](https://nextjs.org/docs/app/api-reference/functions/updateTag#client-cache-behavior).
+ * A nonzero `expire`, such as `"max"`, does not trigger these client effects.
  *
  * Read more: [Next.js Docs: `revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag)
  */
@@ -48,6 +56,9 @@ export function revalidateTag(tag: string, profile: string | CacheLifeConfig) {
 /**
  * This function allows you to update [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
  * This can only be called from within a Server Action to enable read-your-own-writes semantics.
+ *
+ * Also re-renders the current route and invalidates client cache entries.
+ * See [client cache behavior](https://nextjs.org/docs/app/api-reference/functions/updateTag#client-cache-behavior) for the scope.
  *
  * Read more: [Next.js Docs: `updateTag`](https://nextjs.org/docs/app/api-reference/functions/updateTag)
  */
@@ -72,9 +83,13 @@ export function updateTag(tag: string) {
 }
 
 /**
- * This function allows you to refresh client cache from server actions.
- * It's useful as dynamic data can be cached on the client which won't
- * be refreshed by updateTag
+ * Refreshes the current route from a Server Action.
+ *
+ * This clears client cache entries used for back/forward navigation, but
+ * keeps other prefetched routes and server-side cached data. Use `updateTag`
+ * or `revalidatePath` when the mutation changes cached data.
+ *
+ * Read more: [Next.js Docs: `refresh`](https://nextjs.org/docs/app/api-reference/functions/refresh)
  */
 export function refresh() {
   const workStore = workAsyncStorage.getStore()
@@ -145,16 +160,34 @@ function revalidate(
 
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
+    // Prefer the more specific contexts over the general render-phase error.
+    switch (workUnitStore.type) {
+      case 'build-time-generator':
+        throw createRevalidateInBuildTimeGeneratorError(
+          store.route,
+          expression,
+          workUnitStore.functionName
+        )
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+        throw createRevalidateInCachedFunctionError(store.route, expression)
+      case 'prerender':
+      case 'prerender-runtime':
+      case 'prerender-client':
+      case 'validation-client':
+      case 'prerender-legacy':
+      case 'request':
+        break
+      default:
+        workUnitStore satisfies never
+    }
+
     if (workUnitStore.phase === 'render') {
       throw createRevalidateDuringRenderError(store.route, expression)
     }
 
     switch (workUnitStore.type) {
-      case 'cache':
-      case 'private-cache':
-      case 'unstable-cache':
-      case 'generate-static-params':
-        throw createRevalidateDuringRenderError(store.route, expression)
       case 'prerender':
       case 'prerender-runtime':
         // cacheComponents Prerender
@@ -183,14 +216,8 @@ function revalidate(
 
         throw err
       case 'request':
-        if (process.env.NODE_ENV !== 'production') {
-          // TODO: This is most likely incorrect. It would lead to the ISR
-          // status being flipped when revalidating a static page with a server
-          // action.
-          workUnitStore.usedDynamic = true
-          // TODO(restart-on-cache-miss): we should do a sync IO error here in dev
-          // to match prerender behavior
-        }
+        // TODO(restart-on-cache-miss): we should do a sync IO error here in dev
+        // to match prerender behavior
         break
       default:
         workUnitStore satisfies never

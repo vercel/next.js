@@ -37,7 +37,7 @@ impl ExecutionContext {
     }
 
     #[turbo_tasks::function]
-    pub fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         *self.chunking_context
     }
 
@@ -47,7 +47,7 @@ impl ExecutionContext {
     }
 
     #[turbo_tasks::function]
-    pub fn node_backend(&self) -> Vc<Box<dyn NodeBackend>> {
+    fn node_backend(&self) -> Vc<Box<dyn NodeBackend>> {
         *self.node_backend
     }
 }

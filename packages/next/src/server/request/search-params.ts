@@ -13,7 +13,7 @@ import {
   throwToInterruptStaticGeneration,
   annotateDynamicAccess,
 } from '../app-render/dynamic-rendering'
-import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
+import { abortOnDynamicAccess } from '../app-render/dynamic-access-async-storage.external'
 
 import {
   workUnitAsyncStorage,
@@ -28,9 +28,9 @@ import {
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   makeDevtoolsIOAwarePromise,
-  makeRuntimeHangingPromise,
+  makeURLDataHangingPromise,
   makePromiseFromTrigger,
-  trackRuntimeDataAccessed,
+  trackURLDataAccessed,
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
@@ -70,9 +70,9 @@ export function createSearchParamsFromClient(
         throw new InvariantError(
           'createSearchParamsFromClient should not be called in cache contexts.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
-          'createSearchParamsFromClient should not be called inside generateStaticParams.'
+          `createSearchParamsFromClient should not be called inside ${workUnitStore.functionName}.`
         )
       case 'validation-client': {
         if (workUnitStore.validationSamples) {
@@ -133,9 +133,9 @@ export function createServerSearchParamsForServerPage(
         throw new InvariantError(
           'createServerSearchParamsForServerPage should not be called in cache contexts.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
-          'createServerSearchParamsForServerPage should not be called inside generateStaticParams.'
+          `createServerSearchParamsForServerPage should not be called inside ${workUnitStore.functionName}.`
         )
       case 'prerender-runtime':
         return createRuntimePrerenderSearchParams(
@@ -175,7 +175,7 @@ export function createPrerenderSearchParamsForClientPage(): Promise<SearchParams
       case 'prerender-client':
         // We're prerendering in a mode that aborts (cacheComponents) and should stall
         // the promise to ensure the RSC side is considered dynamic
-        return makeRuntimeHangingPromise(
+        return makeURLDataHangingPromise(
           workUnitStore.renderSignal,
           workStore.route,
           '`searchParams`',
@@ -195,9 +195,9 @@ export function createPrerenderSearchParamsForClientPage(): Promise<SearchParams
         throw new InvariantError(
           'createPrerenderSearchParamsForClientPage should not be called in cache contexts.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
-          'createPrerenderSearchParamsForClientPage should not be called inside generateStaticParams.'
+          `createPrerenderSearchParamsForClientPage should not be called inside ${workUnitStore.functionName}.`
         )
       case 'prerender-legacy':
       case 'request':
@@ -221,9 +221,10 @@ function createStaticPrerenderSearchParams(
 
   switch (prerenderStore.type) {
     case 'prerender':
-    case 'prerender-client':
+    case 'prerender-client': {
       // We are in a cacheComponents (PPR or otherwise) prerender
       return makeHangingSearchParams(workStore, prerenderStore)
+    }
     case 'prerender-legacy':
       // We are in a legacy static generation and need to interrupt the
       // prerender when search params are accessed.
@@ -244,9 +245,7 @@ function createRuntimePrerenderSearchParams(
       ? createVaryingSearchParams(varyParamsAccumulator, underlyingSearchParams)
       : underlyingSearchParams
 
-  const result = makeUntrackedSearchParams(userspaceSearchParams)
-
-  const searchParamsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+  const searchParamsStage = RENDER_STAGES_BY_DATA_KIND.runtimeUrlData
 
   const { stagedRendering } = workUnitStore
   if (!stagedRendering) {
@@ -255,20 +254,23 @@ function createRuntimePrerenderSearchParams(
     if (workUnitStore.finalStage < searchParamsStage) {
       return makeHangingSearchParams(workStore, workUnitStore)
     } else {
-      return result
+      return makeUntrackedSearchParams(userspaceSearchParams)
     }
   }
 
-  // Unlike `createRuntimePrerenderParams`, which uses `delayUntilStage`, we
-  // resolve with `waitForStage(...).then(...)` here. Switching search params to
-  // `delayUntilStage` drops the source code frame from the instant-validation
-  // "URL data outside of Suspense" error when a page awaits `searchParams` at
-  // the top level (params, read via a nested component, is unaffected). See the
-  // `missing suspense around search params` cases in the instant-validation
-  // `suspense-boundaries` tests. The underlying reason in React's async I/O
-  // await tracking isn't understood yet. TODO: align search params with params
-  // on `delayUntilStage` once resolved.
-  return stagedRendering.waitForStage(searchParamsStage).then(() => result)
+  // If search params don't resolve in this prerender, caches need to treat them as a hanging input.
+  if (
+    stagedRendering.finalStage &&
+    stagedRendering.finalStage < searchParamsStage
+  ) {
+    return makeHangingSearchParams(workStore, workUnitStore)
+  } else {
+    return stagedRendering.delayUntilStage(
+      searchParamsStage,
+      'searchParams',
+      userspaceSearchParams
+    )
+  }
 }
 
 function createRenderSearchParams(
@@ -381,7 +383,7 @@ function makeHangingSearchParams(
     return cachedSearchParams
   }
 
-  const promise = makeRuntimeHangingPromise<SearchParams>(
+  const promise = makeURLDataHangingPromise<SearchParams>(
     prerenderStore.renderSignal,
     workStore.route,
     '`searchParams`',
@@ -396,7 +398,7 @@ function makeHangingSearchParams(
     // created while the RSC payload is constructed, but typically accessed
     // later, during the render, under a different store.
     const workUnitStore = workUnitAsyncStorage.getStore()
-    trackRuntimeDataAccessed(workUnitStore ?? prerenderStore, '`searchParams`')
+    trackURLDataAccessed(workUnitStore ?? prerenderStore, '`searchParams`')
   }
 
   const proxyHandler: ProxyHandler<Promise<SearchParams>> = {
@@ -427,12 +429,10 @@ function makeHangingSearchParams(
               // stall the App Shell cache-warming render. Re-wrapping the
               // result propagates the same behavior to promises derived via
               // `.then`/`.catch`/`.finally` that are then passed into a cache.
-              const dynamicAccessStore = dynamicAccessAsyncStorage.getStore()
-              if (dynamicAccessStore) {
-                dynamicAccessStore.abortController.abort(
-                  new Error('Accessed `searchParams` during prerendering.')
-                )
-              }
+              abortOnDynamicAccess(
+                'runtime',
+                new Error('Accessed `searchParams` during prerendering.')
+              )
               return new Proxy(originalMethod.apply(target, args), proxyHandler)
             },
           }[prop]
@@ -596,7 +596,7 @@ function makeUntrackedSearchParamsWithDevWarningsImpl(
   const promise = makeDevtoolsIOAwarePromise(
     proxiedUnderlying,
     requestStore,
-    RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+    RENDER_STAGES_BY_DATA_KIND.runtimeUrlData
   )
 
   promise.then(
@@ -604,7 +604,7 @@ function makeUntrackedSearchParamsWithDevWarningsImpl(
       promiseInitialized.current = true
     },
     // If we're in staged rendering, this promise will reject if the render
-    // is aborted before it can reach the runtime stage.
+    // is aborted before it can reach the PrefetchRuntime stage.
     // In that case, we have to prevent an unhandled rejection from the promise
     // created by this `.then()` call.
     // This does not affect the `promiseInitialized` logic above,

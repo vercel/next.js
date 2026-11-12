@@ -40,18 +40,20 @@ impl EndpointTraceResult {
     #[turbo_tasks::function]
     pub async fn all_files(&self) -> Result<Vc<FileSystemPathVec>> {
         let module_data = self.module_data.await?;
+        let idents = module_data.idents.keyed_reader().await?;
         Ok(Vc::cell(
             self.includes
                 .iter()
                 .cloned()
-                .chain(
-                    self.modules
-                        .iter()
-                        .map(async |m| Ok(module_data.idents.get(m).await?.unwrap().path.clone()))
-                        .try_join()
-                        .await?,
-                )
-                .collect(),
+                .map(Ok)
+                .chain(self.modules.iter().map(|m| {
+                    Ok(idents
+                        .get(m)
+                        .context("missing path for module")?
+                        .path
+                        .clone())
+                }))
+                .collect::<Result<_>>()?,
         ))
     }
 }
@@ -95,7 +97,7 @@ pub async fn trace_endpoint(
         let module_data = traced_module_data_for_graph(*module_graph, traced_entries, hash_salt)
             .to_resolved()
             .await?;
-        let module_paths = module_data.await?.idents;
+        let module_paths = module_data.await?.idents.keyed_reader().await?;
 
         let modules = all_modules
             .iter()
@@ -103,7 +105,6 @@ pub async fn trace_endpoint(
             .map(async |module| {
                 let entry = module_paths
                     .get(&module)
-                    .await?
                     .context("missing path for module")?;
                 let referenced_chunk_path = &entry.path;
 
@@ -155,13 +156,7 @@ pub async fn trace_endpoint(
             let includes = combined_includes_by_root
                 .into_iter()
                 .map(|(root, globs)| {
-                    let glob = Glob::new(
-                        format!("{{{}}}", globs.join(",")).into(),
-                        GlobOptions {
-                            contains: true,
-                            ..Default::default()
-                        },
-                    );
+                    let glob = Glob::new(include_glob_pattern(&globs), GlobOptions::default());
                     get_glob_includes(root, glob)
                 })
                 .try_join()
@@ -181,6 +176,32 @@ pub async fn trace_endpoint(
     }
     .instrument(span)
     .await
+}
+
+/// Build root-relative include alternatives. The recursive alternative preserves the contents of
+/// a directory (including a directory symlink) matched by the user pattern without making the
+/// original pattern an unanchored partial match.
+fn include_glob_pattern(globs: &[&str]) -> RcStr {
+    if globs.contains(&"**") {
+        return rcstr!("**");
+    }
+    let mut pattern = String::new();
+    pattern.push('{');
+    for (index, glob) in globs.iter().enumerate() {
+        if index > 0 {
+            pattern.push(',');
+        }
+        pattern.push_str(glob);
+        // A recursive suffix must remain at the end of its alternative. Appending another suffix
+        // would produce e.g. `assets/**/**`, which is invalid in the glob parser.
+        if !glob.ends_with("/**") {
+            pattern.push(',');
+            pattern.push_str(glob);
+            pattern.push_str("/**");
+        }
+    }
+    pattern.push('}');
+    pattern.into()
 }
 
 /// Apply outputFileTracingIncludes patterns to find additional files
@@ -296,7 +317,9 @@ pub async fn traced_modules_for_entries(
 ) -> Result<Vc<Modules>> {
     let exclude_glob_and_module_idents = if let Some(exclude_glob) = exclude_glob {
         let exclude_glob = exclude_glob.await?;
-        let idents = traced_module_idents_for_graph(module_graph, traced_entries).await?;
+        let idents = traced_module_idents_for_graph(module_graph, traced_entries)
+            .keyed_reader()
+            .await?;
         Some((exclude_glob, idents))
     } else {
         None
@@ -354,6 +377,7 @@ pub async fn traced_modules_for_entries(
         },
         |_, _, _| Ok(()),
         true,
+        false,
     )?;
 
     for (parent, reference) in forbidden_issues {
@@ -428,12 +452,13 @@ async fn traced_module_idents_for_graph(
         },
         |_, _, _| Ok(()),
         true,
+        false,
     )?;
 
     Ok(Vc::cell(
         traced_modules
             .into_iter()
-            .map(async |module| Ok((module, module.ident().await?)))
+            .map(async |module| Ok((module, module_graph.module_ident(module)?.await?)))
             .try_join()
             .await?
             .into_iter()
@@ -574,6 +599,81 @@ impl Issue for ForbiddenTracedFileIssue {
     }
 }
 
+#[cfg(test)]
+mod include_glob_tests {
+    use turbo_rcstr::RcStr;
+    use turbo_tasks_fs::glob::{Glob, GlobOptions};
+
+    use super::include_glob_pattern;
+
+    fn glob(patterns: &[&str]) -> Glob {
+        Glob::parse(include_glob_pattern(patterns), GlobOptions::default()).unwrap()
+    }
+
+    fn plain_glob(pattern: &str) -> Glob {
+        Glob::parse(RcStr::from(pattern), GlobOptions::default()).unwrap()
+    }
+
+    #[test]
+    fn include_glob_is_root_relative() {
+        let glob = glob(&["node_modules/pkg/file.wasm"]);
+
+        assert!(glob.matches("node_modules/pkg/file.wasm"));
+        assert!(!glob.matches("nested/node_modules/pkg/file.wasm"));
+        assert!(glob.can_match_in_directory("node_modules/pkg"));
+        assert!(!glob.can_match_in_directory("node_modules/other"));
+    }
+
+    #[test]
+    fn include_glob_recurses_below_matched_directories() {
+        let glob = glob(&["assets/*"]);
+
+        assert!(glob.matches("assets/file.txt"));
+        assert!(glob.matches("assets/directory/nested.txt"));
+        assert!(!glob.matches("other/assets/file.txt"));
+    }
+
+    #[test]
+    fn include_glob_preserves_recursive_patterns() {
+        for pattern in ["assets/**/*", "assets/**", "**"] {
+            let original = plain_glob(pattern);
+            let expanded = glob(&[pattern]);
+
+            for path in [
+                "assets",
+                "assets/file.txt",
+                "assets/directory/nested.txt",
+                "assets/directory/deeply/nested.txt",
+                "other/assets/file.txt",
+            ] {
+                assert_eq!(
+                    original.matches(path),
+                    expanded.matches(path),
+                    "pattern {pattern:?}, path {path:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn include_glob_supports_braces_and_multiple_patterns() {
+        let combined = glob(&["assets/{one,two}", "config/*.json"]);
+
+        assert!(combined.matches("assets/one"));
+        assert!(combined.matches("assets/two/nested.txt"));
+        assert!(combined.matches("config/runtime.json"));
+        assert!(!combined.matches("config/nested/runtime.json"));
+        assert!(!combined.matches("assets/three"));
+
+        let recursive = glob(&["assets/**", "config/*.json"]);
+        assert!(recursive.matches("assets/any/deeply/nested/file"));
+        assert!(recursive.matches("config/runtime.json"));
+
+        let match_all = glob(&["config/*.json", "**"]);
+        assert!(match_all.matches("any/deeply/nested/file"));
+    }
+}
+
 #[cfg(all(test, unix))]
 mod tests {
     use std::{
@@ -597,17 +697,8 @@ mod tests {
             .root()
             .owned()
             .await?;
-        let includes = get_glob_includes(
-            root,
-            Glob::new(
-                rcstr!("**"),
-                GlobOptions {
-                    contains: true,
-                    ..Default::default()
-                },
-            ),
-        )
-        .await?;
+        let includes =
+            get_glob_includes(root, Glob::new(rcstr!("**"), GlobOptions::default())).await?;
 
         assert_eq!(
             includes

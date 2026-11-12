@@ -1,4 +1,4 @@
-import { unstable_navigation as navigation } from 'next/cache'
+import { navigation } from 'next/cache'
 import { Suspense } from 'react'
 
 type Props = { params: Promise<{ id: string }> }
@@ -25,12 +25,14 @@ async function NavigationOnly(props: Props) {
   return (
     <>
       <div id="navigation-content">Navigation content</div>
-      <ParamsDependent {...props} />
+      <Suspense fallback={<p id="param-loading">Loading param content...</p>}>
+        <ParamsDependent {...props} />
+      </Suspense>
     </>
   )
 }
 
 async function ParamsDependent(props: Props) {
   const { id } = await props.params
-  return <p id="param-value">Post: {id}</p>
+  return <p id="param-value">{`Post: ${id}`}</p>
 }

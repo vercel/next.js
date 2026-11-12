@@ -2,29 +2,27 @@
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
+mod gc_fixture;
 mod util;
 
+use std::sync::Arc;
+
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, State, TaskId, Vc, prevent_gc};
+use turbo_tasks::{ResolvedVc, TaskId, Vc, prevent_gc};
 
-use crate::util::create_tt;
+use crate::{
+    gc_fixture::{Constant, Selector, create_constant, create_selector},
+    util::{create_persistence_dir, create_tt, reopen_tt_with_gc_ttl},
+};
 
-/// The `TaskId` backing a resolved `Vc` (its `TaskOutput` node).
+/// The `TaskId` backing a `Vc`'s `TaskOutput` node.
 fn task_id_of<T>(vc: Vc<T>) -> TaskId {
     Vc::into_raw(vc)
         .try_get_task_id()
         .expect("a resolved Vc should be backed by a task")
 }
 
-#[turbo_tasks::value(transparent)]
-struct Selector(State<bool>);
-
-#[turbo_tasks::function(operation, root)]
-fn create_selector(initial: bool) -> Vc<Selector> {
-    Selector(State::new(initial)).cell()
-}
-
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 fn leaf(n: u32) -> Vc<u32> {
     Vc::cell(n)
 }
@@ -47,6 +45,29 @@ async fn branch_a() -> Result<Vc<u32>> {
 #[turbo_tasks::function]
 async fn branch_b() -> Result<Vc<u32>> {
     Ok(Vc::cell(2 + *leaf(20).await?))
+}
+
+/// Reads `observed` so the task registers an invalidator on it, then goes out of the live graph
+/// when the selector flips. Whether that invalidator outlives the task is the point of
+/// `mutating_a_state_read_by_a_collected_task_does_not_panic`.
+#[turbo_tasks::function]
+async fn state_reader(observed: ResolvedVc<Constant>) -> Result<Vc<u32>> {
+    Ok(Vc::cell(*observed.await?.get()))
+}
+
+/// Reads `state_reader` only while the selector is false, so flipping it disconnects the reader.
+#[turbo_tasks::function(operation, root)]
+async fn select_state_reader(
+    selector: ResolvedVc<Selector>,
+    observed: ResolvedVc<Constant>,
+) -> Result<Vc<u32>> {
+    let use_b = *selector.await?.get();
+    let value = if use_b {
+        *branch_b().await?
+    } else {
+        *state_reader(*observed).await?
+    };
+    Ok(Vc::cell(value))
 }
 
 /// A task that pins itself against GC while executing. Once pinned it must survive collection even
@@ -116,7 +137,6 @@ async fn gc_collects_disconnected_subtree() {
     );
 
     // Flipping back must recompute branch_a fresh, since it was collected.
-    let tt3 = tt.clone();
     let result = turbo_tasks::run_once(tt.clone(), async move {
         let selector_op = create_selector(true);
         let selector_vc = selector_op.resolve().strongly_consistent().await?;
@@ -125,7 +145,6 @@ async fn gc_collects_disconnected_subtree() {
         assert_eq!(*output.read_strongly_consistent().await?, 22);
         selector.set(false);
         assert_eq!(*output.read_strongly_consistent().await?, 11);
-        let _ = &tt3;
         anyhow::Ok(())
     })
     .await;
@@ -181,6 +200,95 @@ async fn gc_does_not_collect_pinned_task() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn construction_pin_is_released_after_connecting_task() {
+    let (tt, _persistence_dir) = create_tt("construction_pin_is_released");
+    let task_id = turbo_tasks::run_once(tt.clone(), async move {
+        let task_id = TaskId::try_from(*leaf_task_id(7).read_strongly_consistent().await?)?;
+        anyhow::Ok(task_id)
+    })
+    .await
+    .unwrap();
+
+    assert_eq!(tt.backend().transient_ref_count_for_testing(task_id), 0);
+    tt.stop_and_wait().await;
+}
+
+/// Disposing a root task (as `RootTask::Drop` does when JS stops listening to a subscription) must
+/// release the anchor its child edges placed on the tasks it read. Disposal is also idempotent and
+/// safe after the backend has stopped, which `RootTask::Drop` relies on.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn dispose_root_task_releases_anchored_subgraph() {
+    // The leaf is recorded as a GC root while the root task holds it, so after disposal it waits
+    // for its TTL. Keep the TTL short so it ages out inside the test.
+    const TTL: std::time::Duration = std::time::Duration::from_millis(50);
+    let persistence_dir = create_persistence_dir("dispose_root_task_releases_anchored_subgraph");
+    let tt = reopen_tt_with_gc_ttl(&persistence_dir, TTL);
+
+    // The root sends the leaf's id out via a oneshot rather than a `run_once` probe: a probe is its
+    // own transient `Once` task that would also connect the leaf, and `Once` tasks are never
+    // disposed, so the leaf's count would never drop to 0.
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let tx = Arc::new(std::sync::Mutex::new(Some(tx)));
+    let root_id = tt.spawn_root_task(move || {
+        let tx = tx.lock().unwrap().take();
+        Box::pin(async move {
+            // The root body runs as a top-level task, as `subscribe`'s HMR handler does.
+            let leaf_vc = leaf(88);
+            let value = *leaf_vc.strongly_consistent().await?;
+            if let Some(tx) = tx {
+                let _ = tx.send(task_id_of(leaf_vc));
+            }
+            anyhow::Ok(Vc::<u32>::cell(value))
+        })
+    });
+
+    let leaf_id = rx.await.unwrap();
+    for _ in 0..100 {
+        if tt.backend().transient_ref_count_for_testing(leaf_id) > 0 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    assert_eq!(tt.backend().parent_count_for_testing(leaf_id), 0);
+    assert_eq!(tt.backend().transient_ref_count_for_testing(leaf_id), 1);
+    assert_eq!(tt.backend().gc_for_testing(&tt), 0);
+
+    // Disposing twice must not panic or underflow the child's count: JS could dispose explicitly
+    // multiple times
+    tt.dispose_root_task(root_id);
+    tt.dispose_root_task(root_id);
+    assert_eq!(tt.backend().transient_ref_count_for_testing(leaf_id), 0);
+
+    // A `run_once` keeps touched tasks active until it returns, so GC has to run after it.
+    turbo_tasks::run_once(tt.clone(), async move { anyhow::Ok(()) })
+        .await
+        .unwrap();
+    // Two: the leaf, and the disposed root_task` itself. The `root_task` is a transient task, and
+    // transient tasks are collectible. The leaf is a recorded root, so it waits for its TTL.
+    let first = tt
+        .backend()
+        .snapshot_and_evict_for_testing(&tt)
+        .gc_stats()
+        .collected;
+    assert_eq!(first, 1, "only the transient root task is collected first");
+    assert!(
+        tt.backend()
+            .persisted_gc_roots_for_testing()
+            .iter()
+            .any(|(id, _)| *id == leaf_id),
+        "the released leaf remains a recorded root until its TTL"
+    );
+    tokio::time::sleep(TTL + std::time::Duration::from_millis(50)).await;
+    let second = tt.backend().gc_for_testing(&tt);
+    assert_eq!(second, 1, "the aged-out leaf is collected");
+
+    // Disposal after the backend has stopped (the whole task map is dropped by `stop`), as a
+    // `RootTask` finalized during Node worker teardown would be.
+    tt.stop_and_wait().await;
+    tt.dispose_root_task(root_id);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unpin_after_stop_does_not_panic() {
     let (tt, _persistence_dir) = create_tt("unpin_after_stop_does_not_panic");
 
@@ -199,4 +307,59 @@ async fn unpin_after_stop_does_not_panic() {
     tt.stop_and_wait().await;
 
     tt.unpin_task_for_gc(leaf_id);
+}
+
+/// A `State` keeps an `Invalidator` for every task that read it, and those entries are plain task
+/// ids with nothing keeping the task alive. Collecting a reader therefore leaves a dangling
+/// invalidator behind, this test ensures that that doesn't cause a panic.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mutating_a_state_read_by_a_collected_task_does_not_panic() {
+    let (tt, _persistence_dir) =
+        create_tt("mutating_a_state_read_by_a_collected_task_does_not_panic");
+    let tt2 = tt.clone();
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        let selector_op = create_selector(false);
+        let selector_vc = selector_op.resolve().strongly_consistent().await?;
+        let selector = selector_op.read_strongly_consistent().await?;
+        let observed_vc = create_constant().resolve().strongly_consistent().await?;
+
+        // `state_reader` reads `observed`, registering an invalidator on that State.
+        let output = select_state_reader(selector_vc, observed_vc);
+        output.read_strongly_consistent().await?;
+
+        // Flip so `state_reader` leaves the live graph; its invalidator stays on `observed`.
+        selector.set(true);
+        output.read_strongly_consistent().await?;
+
+        anyhow::Ok(())
+    })
+    .await;
+    result.unwrap();
+
+    let collected = tt2.backend().gc_for_testing(&tt2);
+    assert!(
+        collected > 0,
+        "the disconnected state reader should have been collected"
+    );
+
+    // Required, and not just for realism: the evict is what selects the code path under test.
+    // GC only soft-deletes, leaving the task resident, and a weak open of a resident-but-deleted
+    // task returns early on the `deleted` flag. Evicting drops it from memory (and tombstones it on
+    // disk), so the open below instead reaches the exists-nowhere case in
+    // `ExecuteContext::open_task` -- nothing restored, nothing found on disk -- which is the
+    // one that would panic under `MustExist`. Drop this line and the test still passes, but it
+    // stops covering that path.
+    tt2.backend().snapshot_and_evict_for_testing(&tt2);
+
+    // Mutating the State now walks its invalidator list, which still names the collected reader.
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        let observed = create_constant().read_strongly_consistent().await?;
+        observed.set(1);
+        anyhow::Ok(())
+    })
+    .await;
+    result.unwrap();
+
+    tt.stop_and_wait().await;
 }

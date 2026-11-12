@@ -3,7 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Vc, trace::TraceRawVcs};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::next_font::local::request::{
@@ -71,7 +71,7 @@ impl NextFontLocalOptions {
 /// Describes an individual font file's path, weight, style, etc. Derived from
 /// the `src` field or top-level object provided by the user
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]
 pub(super) struct FontDescriptor {
     pub weight: Option<FontWeight>,
     pub style: Option<RcStr>,
@@ -101,7 +101,7 @@ impl FontDescriptor {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]
 pub(super) enum FontDescriptors {
     /// `One` is a special case when the user did not provide a `src` field and
     /// instead included font path, weight etc in the top-level object: in
@@ -112,7 +112,7 @@ pub(super) enum FontDescriptors {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode)]
 pub(super) enum FontWeight {
     Variable(RcStr, RcStr),
     Fixed(RcStr),

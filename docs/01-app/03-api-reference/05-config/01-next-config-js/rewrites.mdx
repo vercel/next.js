@@ -53,7 +53,7 @@ module.exports = {
     return {
       beforeFiles: [
         // These rewrites are checked after headers/redirects
-        // and before all files including _next/public files which
+        // and before all files including _next/static and public files which
         // allows overriding page files
         {
           source: '/some-page',

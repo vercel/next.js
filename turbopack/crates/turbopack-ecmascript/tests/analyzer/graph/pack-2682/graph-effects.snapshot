@@ -24,6 +24,80 @@
                 ),
             ),
         ),
+        base_effects: [
+            FreeVar {
+                var: "Math",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            0,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Arrow,
+                    ),
+                    ArrowExpr(
+                        Body,
+                    ),
+                    ArrowFunctionBody(
+                        FunctionBody,
+                    ),
+                    FunctionBody(
+                        Stmts(
+                            0,
+                        ),
+                    ),
+                    Stmt(
+                        If,
+                    ),
+                    IfStmt(
+                        Test,
+                    ),
+                    Expr(
+                        Bin,
+                    ),
+                    BinExpr(
+                        Left,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Callee,
+                    ),
+                    Callee(
+                        Expr,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 50..54,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -87,78 +161,7 @@
             ),
         ],
         span: 50..61,
-    },
-    FreeVar {
-        var: "Math",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Arrow,
-            ),
-            ArrowExpr(
-                Body,
-            ),
-            ArrowFunctionBody(
-                FunctionBody,
-            ),
-            FunctionBody(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                If,
-            ),
-            IfStmt(
-                Test,
-            ),
-            Expr(
-                Bin,
-            ),
-            BinExpr(
-                Left,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 50..54,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: FreeVar(
@@ -240,6 +243,74 @@
                 ),
             ),
         ),
+        base_effects: [
+            FreeVar {
+                var: "JSON",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            0,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Arrow,
+                    ),
+                    ArrowExpr(
+                        Body,
+                    ),
+                    ArrowFunctionBody(
+                        FunctionBody,
+                    ),
+                    FunctionBody(
+                        Stmts(
+                            1,
+                        ),
+                    ),
+                    Stmt(
+                        Return,
+                    ),
+                    ReturnStmt(
+                        Arg,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Callee,
+                    ),
+                    Callee(
+                        Expr,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 273..277,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -297,338 +368,7 @@
             ),
         ],
         span: 273..287,
-    },
-    FreeVar {
-        var: "JSON",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Arrow,
-            ),
-            ArrowExpr(
-                Body,
-            ),
-            ArrowFunctionBody(
-                FunctionBody,
-            ),
-            FunctionBody(
-                Stmts(
-                    1,
-                ),
-            ),
-            Stmt(
-                Return,
-            ),
-            ReturnStmt(
-                Arg,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 273..277,
-    },
-    Conditional {
-        condition: Binary(
-            3,
-            Variable(
-                (
-                    "variable",
-                    #3,
-                ),
-            ),
-            StrictEqual,
-            Constant(
-                Str(
-                    Atom(
-                        "true",
-                    ),
-                ),
-            ),
-        ),
-        kind: Ternary {
-            then: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Arrow,
-                        ),
-                        ArrowExpr(
-                            Body,
-                        ),
-                        ArrowFunctionBody(
-                            FunctionBody,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                1,
-                            ),
-                        ),
-                        Stmt(
-                            Return,
-                        ),
-                        ReturnStmt(
-                            Arg,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Args(
-                                0,
-                            ),
-                        ),
-                        ExprOrSpread(
-                            Expr,
-                        ),
-                        Expr(
-                            Object,
-                        ),
-                        ObjectLit(
-                            Props(
-                                1,
-                            ),
-                        ),
-                        PropOrSpread(
-                            Prop,
-                        ),
-                        Prop(
-                            KeyValue,
-                        ),
-                        KeyValueProp(
-                            Value,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Cons,
-                        ),
-                    ],
-                ),
-            },
-            else: EffectsBlock {
-                effects: [],
-                range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Arrow,
-                        ),
-                        ArrowExpr(
-                            Body,
-                        ),
-                        ArrowFunctionBody(
-                            FunctionBody,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                1,
-                            ),
-                        ),
-                        Stmt(
-                            Return,
-                        ),
-                        ReturnStmt(
-                            Arg,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Args(
-                                0,
-                            ),
-                        ),
-                        ExprOrSpread(
-                            Expr,
-                        ),
-                        Expr(
-                            Object,
-                        ),
-                        ObjectLit(
-                            Props(
-                                1,
-                            ),
-                        ),
-                        PropOrSpread(
-                            Prop,
-                        ),
-                        Prop(
-                            KeyValue,
-                        ),
-                        KeyValueProp(
-                            Value,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Alt,
-                        ),
-                    ],
-                ),
-            },
-        },
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Arrow,
-            ),
-            ArrowExpr(
-                Body,
-            ),
-            ArrowFunctionBody(
-                FunctionBody,
-            ),
-            FunctionBody(
-                Stmts(
-                    1,
-                ),
-            ),
-            Stmt(
-                Return,
-            ),
-            ReturnStmt(
-                Arg,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Object,
-            ),
-            ObjectLit(
-                Props(
-                    1,
-                ),
-            ),
-            PropOrSpread(
-                Prop,
-            ),
-            Prop(
-                KeyValue,
-            ),
-            KeyValueProp(
-                Value,
-            ),
-            Expr(
-                Cond,
-            ),
-            CondExpr(
-                Test,
-            ),
-        ],
-        span: 354..392,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: FreeVar(
@@ -718,6 +458,124 @@
                     ],
                     mutability: Mutable,
                 },
+                [
+                    Conditional {
+                        condition: Binary(
+                            3,
+                            Variable(
+                                (
+                                    "variable",
+                                    #3,
+                                ),
+                            ),
+                            StrictEqual,
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "true",
+                                    ),
+                                ),
+                            ),
+                        ),
+                        kind: Ternary {
+                            then: EffectsBlock {
+                                effects: [],
+                                range: Exact(
+                                    AstPathId(
+                                        25,
+                                    ),
+                                ),
+                            },
+                            else: EffectsBlock {
+                                effects: [],
+                                range: Exact(
+                                    AstPathId(
+                                        26,
+                                    ),
+                                ),
+                            },
+                        },
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Arrow,
+                            ),
+                            ArrowExpr(
+                                Body,
+                            ),
+                            ArrowFunctionBody(
+                                FunctionBody,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Return,
+                            ),
+                            ReturnStmt(
+                                Arg,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    0,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Object,
+                            ),
+                            ObjectLit(
+                                Props(
+                                    1,
+                                ),
+                            ),
+                            PropOrSpread(
+                                Prop,
+                            ),
+                            Prop(
+                                KeyValue,
+                            ),
+                            KeyValueProp(
+                                Value,
+                            ),
+                            Expr(
+                                Cond,
+                            ),
+                            CondExpr(
+                                Test,
+                            ),
+                        ],
+                        span: 354..392,
+                    },
+                ],
             ),
         ],
         ast_path: [
@@ -845,6 +703,7 @@
                     ],
                     mutability: Mutable,
                 },
+                [],
             ),
         ],
         ast_path: [

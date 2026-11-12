@@ -18,7 +18,7 @@ use turbo_tasks::{
 
 use crate::{
     GitVersionInfo,
-    backend::{AnyOperation, SpecificTaskDataCategory, storage_schema::TaskStorage},
+    backend::{SpecificTaskDataCategory, TtlCounter, storage_schema::TaskStorage},
     backing_storage::{SnapshotItem, SnapshotMeta, compute_task_type_hash_from_components},
     database::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
@@ -30,8 +30,33 @@ use crate::{
     db_invalidation::invalidation_reasons,
 };
 
-const META_KEY_OPERATIONS: u32 = 0;
-const META_KEY_NEXT_FREE_TASK_ID: u32 = 1;
+/// The fixed keys in the [`KeySpace::Infra`] keyspace.
+#[derive(Clone, Copy)]
+#[repr(u8)]
+enum InfraKey {
+    NextFreeTaskId = 0,
+    GcRoots = 1,
+}
+
+impl InfraKey {
+    fn key(self) -> ByteKey {
+        ByteKey::new(self as u8)
+    }
+}
+
+struct ByteKey([u8; 1]);
+
+impl ByteKey {
+    fn new(value: u8) -> Self {
+        Self([value])
+    }
+}
+
+impl AsRef<[u8]> for ByteKey {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
 
 struct IntKey([u8; 4]);
 
@@ -86,7 +111,7 @@ struct TurboBackingStorageInner {
 /// The higher-level backing storage passed to [`TurboTasksBackend::new`], used by
 /// [`crate::turbo_backing_storage`] and [`crate::noop_backing_storage`].
 ///
-/// Wraps a low-level [`TurboKeyValueDatabase`] and adapts it into the persistence operations the
+/// Wraps a low-level `TurboKeyValueDatabase` and adapts it into the persistence operations the
 /// backend needs (snapshots, task-candidate lookups, etc.).
 ///
 /// [`TurboTasksBackend::new`]: crate::TurboTasksBackend::new
@@ -183,9 +208,9 @@ impl TurboBackingStorageInner {
     }
 
     /// Used to read the next free task ID from the database.
-    fn get_infra_u32(&self, key: u32) -> Result<Option<u32>> {
+    fn get_infra_u32(&self, key: InfraKey) -> Result<Option<u32>> {
         self.database
-            .get(KeySpace::Infra, IntKey::new(key).as_ref())?
+            .get(KeySpace::Infra, key.key().as_ref())?
             .map(as_u32)
             .transpose()
     }
@@ -206,33 +231,33 @@ impl TurboBackingStorage {
     pub(crate) fn next_free_task_id(&self) -> Result<TaskId> {
         Ok(self
             .inner
-            .get_infra_u32(META_KEY_NEXT_FREE_TASK_ID)
+            .get_infra_u32(InfraKey::NextFreeTaskId)
             .context("Unable to read next free task id from database")?
             .map_or(Ok(TaskId::MIN), TaskId::try_from)?)
     }
 
-    pub(crate) fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>> {
-        fn get(database: &TurboKeyValueDatabase) -> Result<Vec<AnyOperation>> {
-            let Some(operations) =
-                database.get(KeySpace::Infra, IntKey::new(META_KEY_OPERATIONS).as_ref())?
+    /// Reads the persisted GC roots set (see [`InfraKey::GcRoots`]). Empty on a fresh database.
+    pub(crate) fn roots(&self) -> Result<Vec<(TaskId, TtlCounter)>> {
+        fn get(database: &TurboKeyValueDatabase) -> Result<Vec<(TaskId, TtlCounter)>> {
+            let Some(roots) = database.get(KeySpace::Infra, InfraKey::GcRoots.key().as_ref())?
             else {
                 return Ok(Vec::new());
             };
-            let operations = turbo_bincode_decode(operations.borrow())?;
-            Ok(operations)
+            let roots = turbo_bincode_decode(roots.borrow())?;
+            Ok(roots)
         }
-        get(&self.inner.database).context("Unable to read uncompleted operations from database")
+        get(&self.inner.database).context("Unable to read GC roots from database")
     }
 
     pub(crate) fn save_snapshot<I>(
         &self,
-        operations: Vec<Arc<AnyOperation>>,
+        roots: Option<Vec<(TaskId, TtlCounter)>>,
         snapshots: Vec<I>,
     ) -> Result<SnapshotMeta>
     where
         I: IntoIterator<Item = SnapshotItem> + Send + Sync,
     {
-        let _span = tracing::info_span!("save snapshot", operations = operations.len()).entered();
+        let _span = tracing::info_span!("save snapshot").entered();
         let batch = self.inner.database.write_batch()?;
 
         {
@@ -251,6 +276,7 @@ impl TurboBackingStorage {
                                 meta,
                                 data,
                                 task_type_hash,
+                                ..
                             } => {
                                 let key = IntKey::new(*task_id);
                                 let key = key.as_ref();
@@ -258,7 +284,7 @@ impl TurboBackingStorage {
                                     batch.put(
                                         KeySpace::TaskMeta,
                                         WriteBuffer::Borrowed(key),
-                                        WriteBuffer::SmallVec(meta),
+                                        WriteBuffer::Owned(meta),
                                     )?;
                                     meta_items += 1;
                                 }
@@ -266,7 +292,7 @@ impl TurboBackingStorage {
                                     batch.put(
                                         KeySpace::TaskData,
                                         WriteBuffer::Borrowed(key),
-                                        WriteBuffer::SmallVec(data),
+                                        WriteBuffer::Owned(data),
                                     )?;
                                     data_items += 1;
                                 }
@@ -327,7 +353,7 @@ impl TurboBackingStorage {
             let mut next_task_id = get_next_free_task_id(&batch)?;
             next_task_id = next_task_id.max(snapshot_meta.max_next_task_id + 1);
 
-            save_infra(&batch, next_task_id, operations)?;
+            save_infra(&batch, next_task_id, roots)?;
             {
                 let _span = tracing::trace_span!("commit").entered();
                 // Byte totals are the physical on-disk bytes (post-compression, including .sst /
@@ -371,9 +397,9 @@ impl TurboBackingStorage {
 
     /// Reads the stored `category` for `task_id`.
     ///
-    /// `None` means the database had no key for it. That is distinct from `Some` of an empty
-    /// [`TaskStorage`] (a key that decoded to nothing), which is what lets a `MustExist` open tell
-    /// "absent everywhere" from "present but empty".
+    /// `None` means the database had no key for this category. That is distinct from `Some`
+    /// of an empty [`TaskStorage`] (a key that decoded to nothing): `MustExist` treats a missing
+    /// requested category as a missing task, regardless of the other category.
     pub(crate) fn lookup_data(
         &self,
         task_id: TaskId,
@@ -397,43 +423,48 @@ impl TurboBackingStorage {
         Ok(Some(storage))
     }
 
+    /// Looks up and decodes the `category` of many tasks. Calls `on_result` with the index of the
+    /// task in `task_ids` and its decoded storage, or `None` if the category has no key on disk.
+    ///
+    /// When this returns `Ok`, `on_result` was called exactly once for every index. The calls
+    /// happen in no particular order and may run concurrently on other threads, so decoding
+    /// runs in parallel for large batches. A read, decode or `on_result` error aborts the
+    /// batch.
     pub(crate) fn batch_lookup_data(
         &self,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
-    ) -> Result<Vec<TaskStorage>> {
+        on_result: impl Fn(usize, Option<TaskStorage>) -> Result<()> + Sync,
+    ) -> Result<()> {
         let inner = &*self.inner;
         let int_keys: Vec<_> = task_ids.iter().map(|&id| IntKey::new(*id)).collect();
         let keys = int_keys.iter().map(|k| k.as_ref()).collect::<Vec<_>>();
-        let bytes = inner
+        inner
             .database
-            .batch_get(category.key_space(), &keys)
+            .batch_get(category.key_space(), &keys, |index, opt_bytes| {
+                let Some(bytes) = opt_bytes else {
+                    return on_result(index, None);
+                };
+                let mut storage = TaskStorage::new();
+                let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
+                storage
+                    .decode(category, &mut decoder)
+                    .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))?;
+                on_result(index, Some(storage))
+            })
             .with_context(|| {
                 format!(
                     "Looking up typed data for {} tasks from database failed",
                     task_ids.len()
                 )
-            })?;
-        bytes
-            .into_iter()
-            .map(|opt_bytes| {
-                let mut storage = TaskStorage::new();
-                if let Some(bytes) = opt_bytes {
-                    let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
-                    storage
-                        .decode(category, &mut decoder)
-                        .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))?;
-                }
-                Ok(storage)
             })
-            .collect::<Result<Vec<_>>>()
     }
 
     pub(crate) fn compact(&self) -> Result<Option<CommitStats>> {
         self.inner.database.compact()
     }
 
-    pub(crate) fn shutdown(&self) -> Result<()> {
+    pub(crate) fn shutdown(&self) {
         self.inner.database.shutdown()
     }
 
@@ -444,10 +475,7 @@ impl TurboBackingStorage {
 
 fn get_next_free_task_id(batch: &TurboWriteBatch<'_>) -> Result<u32, anyhow::Error> {
     Ok(
-        match batch.get(
-            KeySpace::Infra,
-            IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref(),
-        )? {
+        match batch.get(KeySpace::Infra, InfraKey::NextFreeTaskId.key().as_ref())? {
             Some(bytes) => u32::from_le_bytes(Borrow::<[u8]>::borrow(&bytes).try_into()?),
             None => 1,
         },
@@ -457,27 +485,25 @@ fn get_next_free_task_id(batch: &TurboWriteBatch<'_>) -> Result<u32, anyhow::Err
 fn save_infra(
     batch: &TurboWriteBatch<'_>,
     next_task_id: u32,
-    operations: Vec<Arc<AnyOperation>>,
+    roots: Option<Vec<(TaskId, TtlCounter)>>,
 ) -> Result<(), anyhow::Error> {
     batch
         .put(
             KeySpace::Infra,
-            WriteBuffer::Borrowed(IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref()),
+            WriteBuffer::Borrowed(InfraKey::NextFreeTaskId.key().as_ref()),
             WriteBuffer::Borrowed(&next_task_id.to_le_bytes()),
         )
         .context("Unable to write next free task id")?;
-    {
-        let _span =
-            tracing::trace_span!("update operations", operations = operations.len()).entered();
-        let operations =
-            turbo_bincode_encode(&operations).context("Unable to serialize operations")?;
+    if let Some(roots) = roots {
+        let _span = tracing::trace_span!("update roots", roots = roots.len()).entered();
+        let roots = turbo_bincode_encode(&roots).context("Unable to serialize GC roots")?;
         batch
             .put(
                 KeySpace::Infra,
-                WriteBuffer::Borrowed(IntKey::new(META_KEY_OPERATIONS).as_ref()),
-                WriteBuffer::SmallVec(operations),
+                WriteBuffer::Borrowed(InfraKey::GcRoots.key().as_ref()),
+                WriteBuffer::Owned(roots.into_boxed_slice()),
             )
-            .context("Unable to write operations")?;
+            .context("Unable to write GC roots")?;
     }
     // Safety: save_infra is called after all concurrent writes to Infra are done.
     unsafe { batch.flush(KeySpace::Infra)? };
@@ -494,6 +520,7 @@ mod tests {
     use crate::{
         BackingStorageOptions,
         database::{turbo::TurboKeyValueDatabase, write_batch::WriteBuffer},
+        utils::test_temp_dir::test_temp_dir,
     };
 
     /// Options used by these tests. `is_short_session` disables background compaction, which
@@ -534,6 +561,176 @@ mod tests {
         Ok(ids)
     }
 
+    /// Encodes a distinct [`TaskStorage`] for `seed`, with both meta and data fields populated.
+    fn encoded_task_storage(seed: u32, category: SpecificTaskDataCategory) -> Vec<u8> {
+        use crate::{
+            backend::{TrackOutcome, storage_schema::TaskStorageAccessors},
+            data::{AggregationNumber, OutputValue},
+        };
+
+        /// Accessors over a bare [`TaskStorage`], without modification tracking.
+        struct Untracked(TaskStorage);
+        impl TaskStorageAccessors for Untracked {
+            fn typed(&self) -> &TaskStorage {
+                &self.0
+            }
+            fn typed_mut(&mut self) -> &mut TaskStorage {
+                &mut self.0
+            }
+            fn track_modification(
+                &mut self,
+                _category: SpecificTaskDataCategory,
+                _name: &str,
+            ) -> TrackOutcome {
+                TrackOutcome::NoChange
+            }
+            fn undo_track_modification(&mut self, _outcome: TrackOutcome) {}
+            fn check_access(&self, _category: SpecificTaskDataCategory) {}
+        }
+
+        let id = |n: u32| TaskId::try_from(n).unwrap();
+        let mut task = Untracked(TaskStorage::new());
+        task.set_output(OutputValue::Output(id(seed + 1)));
+        task.set_aggregation_number(AggregationNumber {
+            base: seed,
+            distance: 1,
+            effective: seed + 1,
+        });
+        task.add_upper(id(seed + 2), 1);
+        assert!(task.add_output_dependencies(id(seed + 3)));
+        assert!(task.add_children(id(seed + 4)));
+        let storage = task.0;
+        let mut buffer = turbo_bincode::TurboBincodeBuffer::new();
+        storage
+            .encode(
+                category,
+                &mut turbo_bincode::new_turbo_bincode_encoder(&mut buffer),
+            )
+            .unwrap();
+        buffer.to_vec()
+    }
+
+    fn reencode(
+        storages: &[Option<TaskStorage>],
+        category: SpecificTaskDataCategory,
+    ) -> Vec<Option<Vec<u8>>> {
+        storages
+            .iter()
+            .map(|storage| {
+                storage.as_ref().map(|storage| {
+                    let mut buffer = turbo_bincode::TurboBincodeBuffer::new();
+                    storage
+                        .encode(
+                            category,
+                            &mut turbo_bincode::new_turbo_bincode_encoder(&mut buffer),
+                        )
+                        .unwrap();
+                    buffer.to_vec()
+                })
+            })
+            .collect()
+    }
+
+    /// Reports every requested index exactly once, with request order, duplicates and missing
+    /// entries resolved correctly, on both sides of turbo-persistence's parallel `batch_get`
+    /// cutoff. A value that fails to decode fails the whole lookup.
+    // Default worker count like the other database tests here: under the WASI test host, file
+    // descriptors are per thread, so committing SST files from extra runtime workers fails.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_batch_lookup_data_roundtrip_at_parallel_threshold() -> Result<()> {
+        /// turbo-persistence's `batch_get` runs in parallel above this many keys.
+        const PARALLEL_BATCH_GET_THRESHOLD: usize = 2048;
+        const MALFORMED_ID: u32 = 999_997;
+
+        let tempdir = test_temp_dir()?;
+        let db = TurboKeyValueDatabase::new(tempdir.path().to_path_buf(), TEST_STORAGE_OPTIONS)?;
+        let stored_ids: Vec<TaskId> = (1..=(PARALLEL_BATCH_GET_THRESHOLD as u32 + 64))
+            .map(|id| TaskId::try_from(id).unwrap())
+            .collect();
+        let batch = db.write_batch()?;
+        for category in [
+            SpecificTaskDataCategory::Meta,
+            SpecificTaskDataCategory::Data,
+        ] {
+            for &task_id in &stored_ids {
+                let key = IntKey::new(*task_id);
+                let value = encoded_task_storage(*task_id * 10, category);
+                batch.put(
+                    category.key_space(),
+                    WriteBuffer::Borrowed(key.as_ref()),
+                    WriteBuffer::Borrowed(&value),
+                )?;
+            }
+            batch.put(
+                category.key_space(),
+                WriteBuffer::Borrowed(IntKey::new(MALFORMED_ID).as_ref()),
+                WriteBuffer::Borrowed(&[0xff; 3]),
+            )?;
+        }
+        batch.commit()?;
+        let storage = TurboBackingStorage::new_in_memory(db);
+
+        for category in [
+            SpecificTaskDataCategory::Meta,
+            SpecificTaskDataCategory::Data,
+        ] {
+            for len in [
+                PARALLEL_BATCH_GET_THRESHOLD,
+                PARALLEL_BATCH_GET_THRESHOLD + 1,
+            ] {
+                let mut requested = stored_ids[..len - 3].to_vec();
+                requested.reverse();
+                requested.insert(len / 2, TaskId::try_from(999_999).unwrap());
+                requested.push(stored_ids[7]);
+                requested.push(TaskId::try_from(999_998).unwrap());
+                assert_eq!(requested.len(), len);
+
+                let expected: Vec<Option<Vec<u8>>> = requested
+                    .iter()
+                    .map(|task_id| {
+                        (**task_id <= stored_ids.len() as u32)
+                            .then(|| encoded_task_storage(**task_id * 10, category))
+                    })
+                    .collect();
+                let slots: Vec<std::sync::OnceLock<Option<TaskStorage>>> =
+                    (0..len).map(|_| std::sync::OnceLock::new()).collect();
+                storage.batch_lookup_data(&requested, category, |index, storage| {
+                    assert!(
+                        slots[index].set(storage).is_ok(),
+                        "{category:?} len={len}: index {index} reported twice"
+                    );
+                    Ok(())
+                })?;
+                let decoded: Vec<Option<TaskStorage>> = slots
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, slot)| {
+                        slot.into_inner().unwrap_or_else(|| {
+                            panic!("{category:?} len={len}: index {index} never reported")
+                        })
+                    })
+                    .collect();
+                assert_eq!(
+                    reencode(&decoded, category),
+                    expected,
+                    "{category:?} len={len}"
+                );
+
+                let mut malformed = requested.clone();
+                malformed[len / 3] = TaskId::try_from(MALFORMED_ID).unwrap();
+                assert!(
+                    storage
+                        .batch_lookup_data(&malformed, category, |_, _| Ok(()))
+                        .is_err(),
+                    "{category:?} len={len} must fail on malformed bytes"
+                );
+            }
+        }
+
+        storage.inner.database.shutdown();
+        Ok(())
+    }
+
     /// Tests that `get_multiple` correctly returns multiple TaskIds when the same hash key
     /// is used (simulating a hash collision scenario).
     ///
@@ -541,7 +738,7 @@ mod tests {
     /// the case where multiple task IDs are stored under the same hash key.
     #[tokio::test(flavor = "multi_thread")]
     async fn test_hash_collision_returns_multiple_candidates() -> Result<()> {
-        let tempdir = tempfile::tempdir()?;
+        let tempdir = test_temp_dir()?;
         let path = tempdir.path();
 
         let db = TurboKeyValueDatabase::new(path.to_path_buf(), TEST_STORAGE_OPTIONS)?;
@@ -565,15 +762,17 @@ mod tests {
             "Should return all 3 task IDs for the colliding hash"
         );
 
-        db.shutdown()?;
+        db.shutdown();
         Ok(())
     }
 
     /// Tests that multiple distinct keys written in a single batch with flush can be read back.
     /// This mirrors the actual save_snapshot pattern: write many TaskCache entries, flush, commit.
+    // This test is too slow to run under Miri.
+    #[cfg(not(miri))]
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_write_with_flush_and_reopen() -> Result<()> {
-        let tempdir = tempfile::tempdir()?;
+        let tempdir = test_temp_dir()?;
         let path = tempdir.path();
 
         let n = 100_000;
@@ -598,7 +797,7 @@ mod tests {
             unsafe { batch.flush(KeySpace::TaskCache) }?;
             batch.commit()?;
 
-            db.shutdown()?;
+            db.shutdown();
         }
 
         // Reopen and verify all entries are readable
@@ -618,7 +817,7 @@ mod tests {
                 }
             }
             assert_eq!(missing, 0, "Found {found}/{n} entries, missing {missing}");
-            db.shutdown()?;
+            db.shutdown();
         }
 
         Ok(())
@@ -633,7 +832,7 @@ mod tests {
     /// commit knows about it.
     #[tokio::test(flavor = "multi_thread")]
     async fn test_save_snapshot_delete_tombstones_task() -> Result<()> {
-        let tempdir = tempfile::tempdir()?;
+        let tempdir = test_temp_dir()?;
         let path = tempdir.path();
 
         let collision_hash: u64 = 0xC0FFEE;
@@ -679,7 +878,7 @@ mod tests {
 
         // Snapshot with no task data, just the one deletion.
         storage.save_snapshot(
-            Vec::new(),
+            None,
             vec![vec![SnapshotItem::Delete {
                 task_id: deleted_id,
                 task_type_hash: collision_hash.to_le_bytes(),
@@ -701,7 +900,7 @@ mod tests {
             "save_snapshot should delete only the named id from the bucket"
         );
 
-        db.shutdown()?;
+        db.shutdown();
         Ok(())
     }
 }

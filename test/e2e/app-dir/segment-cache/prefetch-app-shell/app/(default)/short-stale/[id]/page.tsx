@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { cacheLife } from 'next/cache'
 import { connection } from 'next/server'
+import { cookies } from 'next/headers'
 
 type Params = { id: string }
 
@@ -14,6 +15,8 @@ export const prefetch = 'partial'
 export default function Page({ params }: { params: Promise<Params> }) {
   return (
     <main>
+      {/* This page is meant to test a runtime shell, so we add a cookies access. */}
+      <ForceRuntimeShell />
       {/* stale: 5 minutes (the App Shell threshold) — included in the
           App Shell. */}
       <Suspense
@@ -37,6 +40,18 @@ export default function Page({ params }: { params: Promise<Params> }) {
       </Suspense>
     </main>
   )
+}
+
+function ForceRuntimeShell() {
+  return (
+    <Suspense>
+      <ForceRuntimeShellInner />
+    </Suspense>
+  )
+}
+async function ForceRuntimeShellInner() {
+  await cookies()
+  return null
 }
 
 async function LongStaleCached() {

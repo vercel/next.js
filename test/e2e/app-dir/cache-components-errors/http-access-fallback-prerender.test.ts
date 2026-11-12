@@ -2,16 +2,14 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { getPrerenderOutput } from './utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('Cache Components HTTP Access Fallback Prerender', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname + '/fixtures/http-access-fallback-prerender',
     skipStart: !isNextDev,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   let cliOutputLength: number
 

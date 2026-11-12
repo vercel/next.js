@@ -5,7 +5,6 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     atoms::{Atom, atom},
-    base::SwcComments,
     common::{Mark, SourceMap, comments::Comments},
     ecma::{
         ast::{
@@ -35,7 +34,10 @@ use turbopack_core::{
     source::Source,
 };
 
-use crate::runtime_functions::{TURBOPACK_MODULE, TURBOPACK_REFRESH};
+use crate::{
+    runtime_functions::{TURBOPACK_MODULE, TURBOPACK_REFRESH},
+    swc_comments::MutableComments,
+};
 
 /// Additional options for SWC's preset-env, beyond the browserslist-derived
 /// targets that are already provided by the `Environment`.
@@ -92,9 +94,19 @@ pub enum EcmascriptInputTransform {
         use_define_for_class_fields: bool,
     },
     ReactCompilerRust {
-        compilation_mode: ReactCompilerCompilationMode,
+        options: ReactCompilerTransformOptions,
         target: ReactCompilerTarget,
     },
+}
+
+#[turbo_tasks::value(shared, operation)]
+#[derive(Default, Debug, Clone, Copy, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReactCompilerTransformOptions {
+    #[serde(default)]
+    pub compilation_mode: ReactCompilerCompilationMode,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enable_preserve_existing_memoization_guarantees: Option<bool>,
 }
 
 #[turbo_tasks::value(shared, operation)]
@@ -118,7 +130,7 @@ impl ReactCompilerCompilationMode {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionReactCompilerCompilationMode(Option<ReactCompilerCompilationMode>);
+pub struct OptionReactCompilerTransformOptions(Option<ReactCompilerTransformOptions>);
 
 #[turbo_tasks::value(shared, operation)]
 #[derive(Default, Debug, Clone, Copy, Hash, Serialize, Deserialize)]
@@ -150,7 +162,7 @@ pub trait CustomTransformer: Debug {
 /// the turbo_task caching requirements.
 #[turbo_tasks::value(transparent, serialization = "skip", eq = "manual", cell = "new")]
 #[derive(Debug)]
-pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
+pub struct TransformPlugin(#[turbo_tasks(unsafe_ignore)] Box<dyn CustomTransformer + Send + Sync>);
 
 #[async_trait]
 impl CustomTransformer for TransformPlugin {
@@ -179,7 +191,7 @@ impl EcmascriptInputTransforms {
 }
 
 pub struct TransformContext<'a> {
-    pub comments: &'a SwcComments,
+    pub comments: &'a MutableComments,
     pub top_level_mark: Mark,
     pub unresolved_mark: Mark,
     pub source_map: &'a Arc<SourceMap>,
@@ -401,11 +413,8 @@ impl EcmascriptInputTransform {
 
                 apply_transform(program, helpers, decorators(config))
             }
-            EcmascriptInputTransform::ReactCompilerRust {
-                compilation_mode,
-                target,
-            } => {
-                apply_rust_react_compiler(program, ctx, helpers, *compilation_mode, *target).await?
+            EcmascriptInputTransform::ReactCompilerRust { options, target } => {
+                apply_rust_react_compiler(program, ctx, helpers, *options, *target).await?
             }
             EcmascriptInputTransform::Plugin(transform) => {
                 // We cannot pass helpers to plugins, so we return them as is
@@ -538,7 +547,7 @@ async fn apply_rust_react_compiler(
     program: &mut Program,
     ctx: &TransformContext<'_>,
     helpers: HelperData,
-    compilation_mode: ReactCompilerCompilationMode,
+    options: ReactCompilerTransformOptions,
     target: ReactCompilerTarget,
 ) -> Result<HelperData> {
     let Program::Module(_) = program else {
@@ -548,7 +557,7 @@ async fn apply_rust_react_compiler(
     // Avoid invoking the compiler when the selected mode cannot change this module. These checks
     // run on the SWC AST we already parsed, before converting it to the compiler AST. `All` mode
     // remains unconditional because every function is eligible.
-    if !should_run_rust_react_compiler(program, compilation_mode) {
+    if !should_run_rust_react_compiler(program, options.compilation_mode) {
         return Ok(helpers);
     }
 
@@ -559,7 +568,7 @@ async fn apply_rust_react_compiler(
         swc_ecma_react_compiler::SourceType::from_program(program),
         ctx.source_text,
         Some(&single_threaded_comments),
-        react_compiler_options(ctx, compilation_mode, target),
+        react_compiler_options(ctx.node_env.as_str(), ctx.file_name_str, options, target),
     );
 
     // TODO: Emit these diagnostics with an Info level once there's a way of adjusting log levels in
@@ -585,18 +594,19 @@ async fn apply_rust_react_compiler(
 }
 
 fn react_compiler_options(
-    ctx: &TransformContext<'_>,
-    compilation_mode: ReactCompilerCompilationMode,
+    node_env: &str,
+    file_name: &str,
+    options: ReactCompilerTransformOptions,
     target: ReactCompilerTarget,
 ) -> react_compiler::entrypoint::plugin_options::PluginOptions {
     use react_compiler::entrypoint::plugin_options::{CompilerTarget, PluginOptions};
 
-    PluginOptions {
+    let mut plugin_options = PluginOptions {
         should_compile: true,
         enable_reanimated: false,
-        is_dev: ctx.node_env != "production",
-        filename: Some(ctx.file_name_str.to_string()),
-        compilation_mode: compilation_mode.as_str().to_string(),
+        is_dev: node_env != "production",
+        filename: Some(file_name.to_string()),
+        compilation_mode: options.compilation_mode.as_str().to_string(),
         panic_threshold: "none".to_string(),
         target: CompilerTarget::Version(target.as_str().to_string()),
         gating: None,
@@ -611,7 +621,17 @@ fn react_compiler_options(
         source_code: None,
         profiling: false,
         debug: false,
+    };
+    if let Some(enable_preserve_existing_memoization_guarantees) =
+        options.enable_preserve_existing_memoization_guarantees
+    {
+        plugin_options
+            .environment
+            .enable_preserve_existing_memoization_guarantees =
+            enable_preserve_existing_memoization_guarantees;
     }
+
+    plugin_options
 }
 
 fn apply_transform(program: &mut Program, helpers: HelperData, op: impl Pass) -> HelperData {
@@ -689,6 +709,41 @@ mod react_compiler_tests {
     };
 
     use super::*;
+
+    #[test]
+    fn preserves_default_environment_without_explicit_option() {
+        let options = react_compiler_options(
+            "production",
+            "input.js",
+            ReactCompilerTransformOptions::default(),
+            ReactCompilerTarget::React19,
+        );
+
+        assert!(
+            options
+                .environment
+                .enable_preserve_existing_memoization_guarantees
+        );
+    }
+
+    #[test]
+    fn forwards_explicit_memoization_preservation_option() {
+        let options = react_compiler_options(
+            "production",
+            "input.js",
+            ReactCompilerTransformOptions {
+                compilation_mode: ReactCompilerCompilationMode::Infer,
+                enable_preserve_existing_memoization_guarantees: Some(false),
+            },
+            ReactCompilerTarget::React19,
+        );
+
+        assert!(
+            !options
+                .environment
+                .enable_preserve_existing_memoization_guarantees
+        );
+    }
 
     fn parse_program(source: &str) -> Program {
         GLOBALS.set(&Default::default(), || {

@@ -69,8 +69,7 @@
     },
     "test/e2e/app-dir/app-static/app-static.test.ts": {
       "failed": [
-        "app-dir static/dynamic handling new tags have been specified on subsequent fetch should not fetch from memory cache",
-        "app-dir static/dynamic handling new tags have been specified on subsequent fetch should not fetch from memory cache after revalidateTag is used"
+        "app-dir static/dynamic handling new tags have been specified on subsequent fetch should not fetch from memory cache"
       ]
     },
     "test/e2e/app-dir/metadata/metadata.test.ts": {
@@ -102,7 +101,6 @@
       "test/e2e/app-dir/app-routes/app-custom-route-base-path.test.ts",
       "test/e2e/app-dir/mdx/mdx.test.ts",
       "test/e2e/app-dir/modularizeimports/modularizeimports.test.ts",
-      "test/e2e/app-dir/third-parties/basic.test.ts",
       "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts",
       "test/e2e/app-dir/revalidate-dynamic/revalidate-dynamic.test.ts",
       "test/e2e/app-dir/syntax-highlighter-crash/syntax-highlighter-crash.test.ts",

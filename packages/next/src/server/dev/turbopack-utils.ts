@@ -75,9 +75,9 @@ export function printNonFatalIssue(issue: Issue) {
   }
 }
 
-export function processTopLevelIssues(
+export function processTopLevelIssues<T>(
   currentTopLevelIssues: TopLevelIssuesMap,
-  result: TurbopackResult
+  result: TurbopackResult<T>
 ) {
   currentTopLevelIssues.clear()
 
@@ -91,7 +91,7 @@ export { msToNs } from '../../shared/lib/turbopack/compilation-events'
 
 export type ChangeSubscriptions = Map<
   EntryKey,
-  Promise<AsyncIterableIterator<TurbopackResult>>
+  Promise<AsyncIterableIterator<TurbopackResult<void>>>
 >
 
 export type HandleWrittenEndpoint = (
@@ -105,7 +105,7 @@ export type StartChangeSubscription = (
   includeIssues: boolean,
   endpoint: Endpoint,
   createMessage: (
-    change: TurbopackResult,
+    change: TurbopackResult<void>,
     hash: string
   ) => Promise<HmrMessageSentToBrowser> | HmrMessageSentToBrowser | void,
   onError?: (
@@ -141,6 +141,10 @@ export type ClientStateMap = WeakMap<ws, ClientState>
 type HandleRouteTypeHooks = {
   handleWrittenEndpoint: HandleWrittenEndpoint
   subscribeToChanges: StartChangeSubscription
+  subscribeToClientHmrChanges?: (
+    key: EntryKey,
+    endpoint: Endpoint
+  ) => Promise<void>
   handleServerComponentChanges?: () => void
 }
 
@@ -191,6 +195,14 @@ export async function handleRouteType({
           const key = getEntryKey('pages', 'server', '_app')
 
           const writtenEndpoint = await entrypoints.global.app.writeToDisk()
+          if (dev) {
+            // Page client chunks exclude modules already provided by _app, so
+            // its global CSS needs its own baseline before we serve the HTML.
+            await hooks?.subscribeToClientHmrChanges?.(
+              getEntryKey('pages', 'client', '_app'),
+              entrypoints.global.app
+            )
+          }
           documentOrAppChanged ||=
             hooks?.handleWrittenEndpoint(key, writtenEndpoint, false) ?? false
           processIssues(
@@ -228,7 +240,7 @@ export async function handleRouteType({
           documentOrAppChanged
         )
 
-        const type = writtenEndpoint?.type
+        const type = writtenEndpoint.value.type
 
         await manifestLoader.loadClientBuildManifest(page)
         await manifestLoader.loadBuildManifest(page)
@@ -294,6 +306,12 @@ export async function handleRouteType({
               }
             }
           )
+          // Reuse the existing Pages client observer, but wait for its baseline
+          // before HTML can be delivered to an initially unsubscribed browser.
+          await hooks?.subscribeToClientHmrChanges?.(
+            clientKey,
+            route.htmlEndpoint
+          )
           if (entrypoints.global.document) {
             hooks?.subscribeToChanges(
               getEntryKey('pages', 'server', '_document'),
@@ -324,7 +342,7 @@ export async function handleRouteType({
       const writtenEndpoint = await route.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
 
-      const type = writtenEndpoint.type
+      const type = writtenEndpoint.value.type
 
       await manifestLoader.loadPagesManifest(page)
       if (type === 'edge') {
@@ -351,6 +369,13 @@ export async function handleRouteType({
       hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
 
       if (dev) {
+        // Establish client-output observation before serving HTML. Unlike the
+        // RSC/server observer, this includes CSS edits made before the browser
+        // has installed its first chunk-list subscription.
+        await hooks?.subscribeToClientHmrChanges?.(
+          getEntryKey('app', 'client', page),
+          route.htmlEndpoint
+        )
         // TODO subscriptions should only be caused by the WebSocket connections
         // otherwise we don't known when to unsubscribe and this leaking
         hooks?.subscribeToChanges(
@@ -376,7 +401,7 @@ export async function handleRouteType({
         )
       }
 
-      const type = writtenEndpoint.type
+      const type = writtenEndpoint.value.type
 
       if (type === 'edge') {
         warnAboutEdgeRuntime()
@@ -400,12 +425,12 @@ export async function handleRouteType({
 
       break
     }
-    case 'app-route': {
+    case 'app-route':
+    case 'app-route-go': {
       const key = getEntryKey('app', 'server', page)
 
       const writtenEndpoint = await route.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
-
       if (dev) {
         // Advance the hot-reloader's HMR refresh hash whenever this route
         // handler is recompiled, so its `"use cache"` entries are invalidated
@@ -434,7 +459,13 @@ export async function handleRouteType({
         )
       }
 
-      const type = writtenEndpoint.type
+      const type = writtenEndpoint.value.type
+      const isNative = type === 'native'
+      if (isNative) {
+        // Native compilation may fail without publishing manifests. Keep the
+        // issue subscription above active so source edits can repair the route.
+        processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      }
 
       manifestLoader.loadAppPathsManifest(page)
       if (route.hasActionManifest) {
@@ -453,7 +484,9 @@ export async function handleRouteType({
         productionRewrites,
         entrypoints,
       })
-      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      if (!isNative) {
+        processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      }
 
       break
     }
@@ -620,16 +653,17 @@ export async function handleEntrypoints({
 
   dev: HandleEntrypointsDevOpts
 }) {
-  currentEntrypoints.global.app = entrypoints.pagesAppEndpoint
-  currentEntrypoints.global.document = entrypoints.pagesDocumentEndpoint
-  currentEntrypoints.global.error = entrypoints.pagesErrorEndpoint
+  const value = entrypoints.value
+  currentEntrypoints.global.app = value.pagesAppEndpoint
+  currentEntrypoints.global.document = value.pagesDocumentEndpoint
+  currentEntrypoints.global.error = value.pagesErrorEndpoint
 
-  currentEntrypoints.global.instrumentation = entrypoints.instrumentation
+  currentEntrypoints.global.instrumentation = value.instrumentation
 
   currentEntrypoints.page.clear()
   currentEntrypoints.app.clear()
 
-  for (const [pathname, route] of entrypoints.routes) {
+  for (const [pathname, route] of value.routes) {
     switch (route.type) {
       case 'page':
       case 'page-api':
@@ -644,7 +678,8 @@ export async function handleEntrypoints({
         })
         break
       }
-      case 'app-route': {
+      case 'app-route':
+      case 'app-route-go': {
         currentEntrypoints.app.set(route.originalName, route)
         break
       }
@@ -666,7 +701,7 @@ export async function handleEntrypoints({
     })
   }
 
-  const { middleware, instrumentation } = entrypoints
+  const { middleware, instrumentation } = value
 
   // We check for explicit true/false, since it's initialized to
   // undefined during the first loop (middlewareChanges event is

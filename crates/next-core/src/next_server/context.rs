@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     module_options::{
@@ -15,8 +15,8 @@ use turbopack::{
 };
 use turbopack_core::{
     chunk::{
-        AssetSuffix, ChunkingConfig, MangleType, MinifyType, SourceMapSourceType, SourceMapsType,
-        UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
+        AssetSuffix, ChunkingConfig, MangleType, MinifyType, SourceMapSourceType, UnusedReferences,
+        UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
@@ -25,6 +25,7 @@ use turbopack_core::{
     module_graph::{
         binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
     },
+    source_map::{OptionSourceMapType, SourceMapGenerationOptions},
     target::CompileTarget,
 };
 use turbopack_css::chunk::CssChunkType;
@@ -186,7 +187,6 @@ pub async fn get_server_resolve_options_context(
     external_packages.retain(|item| !transpiled_packages.contains(item));
 
     let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
-        project_path.root().owned().await?,
         ExternalPredicate::Only(ResolvedVc::cell(external_packages)).cell(),
         *next_config.import_externals().await?,
     )
@@ -211,7 +211,6 @@ pub async fn get_server_resolve_options_context(
         server_external_packages_plugin
     } else {
         ExternalCjsModulesResolvePlugin::new(
-            project_path.root().owned().await?,
             ExternalPredicate::AllExcept(ResolvedVc::cell(transpiled_packages)).cell(),
             *next_config.import_externals().await?,
         )
@@ -219,13 +218,10 @@ pub async fn get_server_resolve_options_context(
         .await?
     };
 
-    let next_external_plugin = NextExternalResolvePlugin::new(project_path.clone())
+    let next_external_plugin = NextExternalResolvePlugin::new().to_resolved().await?;
+    let next_node_shared_runtime_plugin = NextNodeSharedRuntimeResolvePlugin::new(ty.clone())
         .to_resolved()
         .await?;
-    let next_node_shared_runtime_plugin =
-        NextNodeSharedRuntimeResolvePlugin::new(project_path.clone(), ty.clone())
-            .to_resolved()
-            .await?;
 
     let after_resolve_plugins = match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
@@ -397,6 +393,7 @@ pub async fn get_server_module_options_context(
     environment: ResolvedVc<Environment>,
     client_environment: ResolvedVc<Environment>,
     enable_tracing: bool,
+    source_map_generation_options: Vc<SourceMapGenerationOptions>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let mut next_server_rules = get_next_server_transforms_rules(
@@ -541,17 +538,20 @@ pub async fn get_server_module_options_context(
     .flatten()
     .collect();
 
-    let source_maps = *next_config.server_source_maps().await?;
+    let source_map_generation_options = *source_map_generation_options.await?;
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
             enable_import_as_bytes: *next_config.turbopack_import_type_bytes().await?,
             import_externals: *next_config.import_externals().await?,
             ignore_dynamic_requests: true,
-            source_maps,
+            source_map_generation_options,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             cjs_tree_shaking: *next_config.turbopack_cjs_tree_shaking().await?,
             mangle_export_names: *next_config.turbopack_mangle_export_names(mode).await?,
+            mangle_via_materialized_namespace_object: *next_config
+                .turbopack_mangle_via_materialized_namespace_object()
+                .await?,
             cjs_scope_hoisting: *next_config.turbopack_cjs_scope_hoisting().await?,
             cross_module_constants: *next_config.turbopack_cross_module_constants().await?,
             ..Default::default()
@@ -559,7 +559,7 @@ pub async fn get_server_module_options_context(
         execution_context: Some(execution_context),
         environment: Some(environment),
         css: CssOptionsContext {
-            source_maps,
+            source_map_generation_options,
             module_css_condition: Some(module_styles_rule_condition()),
             lightningcss_features: *next_config.lightningcss_feature_flags().await?,
             module_css_debuggable_idents: next_mode.is_development(),
@@ -573,9 +573,9 @@ pub async fn get_server_module_options_context(
                 .await?,
         ),
         analyze_mode: if enable_tracing {
-            AnalyzeMode::CodeGenerationAndTracing
+            AnalyzeMode::code_generation_and_tracing()
         } else {
-            AnalyzeMode::CodeGeneration
+            AnalyzeMode::code_generation()
         },
         enable_externals_tracing: if enable_tracing {
             Some(
@@ -593,6 +593,10 @@ pub async fn get_server_module_options_context(
         ..Default::default()
     };
 
+    let lazy_compilation = matches!(next_runtime, NextRuntime::NodeJs)
+        && *next_config
+            .turbopack_lazy_dynamic_imports_ssr(*next_mode)
+            .await?;
     let module_options_context = match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             next_server_rules.extend(source_transform_rules);
@@ -652,6 +656,7 @@ pub async fn get_server_module_options_context(
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
                     enable_rust_react_compiler: None,
+                    lazy_compilation,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -717,6 +722,7 @@ pub async fn get_server_module_options_context(
                     enable_decorators: Some(decorators_options.to_resolved().await?),
                     // React Compiler only optimizes the React client runtime, so skip it.
                     enable_rust_react_compiler: None,
+                    lazy_compilation,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -799,6 +805,7 @@ pub async fn get_server_module_options_context(
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
                     enable_rust_react_compiler: None,
+                    lazy_compilation,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -877,6 +884,7 @@ pub async fn get_server_module_options_context(
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
                     enable_rust_react_compiler: None,
+                    lazy_compilation,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -1005,7 +1013,7 @@ fn client_disallowed_directive_transform_plugin(error_proxy_module: RcStr) -> Vc
 }
 
 #[turbo_tasks::task_input(contains_unresolved_vcs)]
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct ServerChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,
@@ -1016,9 +1024,11 @@ pub struct ServerChunkingContextOptions {
     pub export_usage: Vc<OptionBindingUsageInfo>,
     pub unused_references: Vc<UnusedReferences>,
     pub minify: Vc<bool>,
-    pub source_maps: Vc<SourceMapsType>,
+    pub emitted_source_map_type: Vc<OptionSourceMapType>,
+    pub source_map_generation_options: Vc<SourceMapGenerationOptions>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
+    pub minify_before_chunking: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub client_root: FileSystemPath,
@@ -1028,6 +1038,11 @@ pub struct ServerChunkingContextOptions {
     pub hash_salt: ResolvedVc<RcStr>,
     pub style_groups_algorithm: StyleGroupsAlgorithm,
     pub per_page_module_graph: Vc<bool>,
+    pub lazy_dynamic_imports: bool,
+    /// Override for the production JS `min_chunk_size` (default `4_000`).
+    pub chunking_min_chunk_size: Option<usize>,
+    /// Override for the production JS `max_merge_chunk_size` (default `100_000`).
+    pub chunking_max_merge_chunk_size: Option<usize>,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -1045,9 +1060,11 @@ pub async fn get_server_chunking_context_with_client_assets(
         export_usage,
         unused_references,
         minify,
-        source_maps,
+        emitted_source_map_type,
+        source_map_generation_options,
         no_mangling,
         scope_hoisting,
+        minify_before_chunking,
         nested_async_chunking,
         debug_ids,
         client_root,
@@ -1057,6 +1074,9 @@ pub async fn get_server_chunking_context_with_client_assets(
         hash_salt,
         style_groups_algorithm,
         per_page_module_graph,
+        lazy_dynamic_imports,
+        chunking_min_chunk_size,
+        chunking_max_merge_chunk_size,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
 
@@ -1096,7 +1116,8 @@ pub async fn get_server_chunking_context_with_client_assets(
     } else {
         MinifyType::NoMinify
     })
-    .source_maps(*source_maps.await?)
+    .emitted_source_map_type(*emitted_source_map_type.await?)
+    .source_map_generation_options(*source_map_generation_options.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
@@ -1106,7 +1127,8 @@ pub async fn get_server_chunking_context_with_client_assets(
     // Per-page graphs each see only one page, so none of them can decide what the shared runtime
     // chunk may leave out.
     .shared_runtime_chunk(*per_page_module_graph.await?)
-    .worker_forwarded_globals(worker_forwarded_globals());
+    .worker_forwarded_globals(worker_forwarded_globals())
+    .manifest_chunks(lazy_dynamic_imports);
 
     builder = builder.source_map_source_type(if next_mode.is_development() {
         SourceMapSourceType::AbsoluteFileUri
@@ -1118,9 +1140,11 @@ pub async fn get_server_chunking_context_with_client_assets(
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: 20_000,
-                    max_chunk_count_per_group: 100,
-                    max_merge_chunk_size: 100_000,
+                    // Server chunks are loaded with require(), not fetched over the network.
+                    min_chunk_size: chunking_min_chunk_size.unwrap_or(4_000),
+                    max_chunk_count_per_group: 0,
+                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(100_000),
+                    request_cost: Some(10_000),
                     ..Default::default()
                 },
             )
@@ -1132,7 +1156,8 @@ pub async fn get_server_chunking_context_with_client_assets(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?);
+            .module_merging(*scope_hoisting.await?)
+            .minify_before_chunking(*minify_before_chunking.await?);
     }
 
     Ok(builder.build())
@@ -1153,9 +1178,11 @@ pub async fn get_server_chunking_context(
         export_usage,
         unused_references,
         minify,
-        source_maps,
+        emitted_source_map_type,
+        source_map_generation_options,
         no_mangling,
         scope_hoisting,
+        minify_before_chunking,
         nested_async_chunking,
         debug_ids,
         client_root,
@@ -1165,6 +1192,9 @@ pub async fn get_server_chunking_context(
         hash_salt,
         style_groups_algorithm,
         per_page_module_graph,
+        lazy_dynamic_imports,
+        chunking_min_chunk_size,
+        chunking_max_merge_chunk_size,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let next_mode = mode.await?;
@@ -1207,7 +1237,8 @@ pub async fn get_server_chunking_context(
     } else {
         MinifyType::NoMinify
     })
-    .source_maps(*source_maps.await?)
+    .emitted_source_map_type(*emitted_source_map_type.await?)
+    .source_map_generation_options(*source_map_generation_options.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
@@ -1217,7 +1248,8 @@ pub async fn get_server_chunking_context(
     // Per-page graphs each see only one page, so none of them can decide what the shared runtime
     // chunk may leave out.
     .shared_runtime_chunk(*per_page_module_graph.await?)
-    .worker_forwarded_globals(worker_forwarded_globals());
+    .worker_forwarded_globals(worker_forwarded_globals())
+    .manifest_chunks(lazy_dynamic_imports);
 
     if next_mode.is_development() {
         builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);
@@ -1227,9 +1259,11 @@ pub async fn get_server_chunking_context(
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: 20_000,
-                    max_chunk_count_per_group: 100,
-                    max_merge_chunk_size: 100_000,
+                    // Server chunks are loaded with require(), not fetched over the network.
+                    min_chunk_size: chunking_min_chunk_size.unwrap_or(4_000),
+                    max_chunk_count_per_group: 0,
+                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(100_000),
+                    request_cost: Some(10_000),
                     ..Default::default()
                 },
             )
@@ -1241,7 +1275,8 @@ pub async fn get_server_chunking_context(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?);
+            .module_merging(*scope_hoisting.await?)
+            .minify_before_chunking(*minify_before_chunking.await?);
     }
 
     Ok(builder.build())

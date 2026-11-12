@@ -1,4 +1,6 @@
+mod base;
 mod counter;
+mod memory_footprint;
 mod memory_pressure;
 
 use std::{
@@ -91,12 +93,12 @@ impl TurboMalloc {
     ///
     /// See `current_commit` in [`mi_process_info`], which documents each figure mimalloc reports.
     ///
-    /// [`mi_process_info`]: https://docs.rs/libmimalloc-sys/latest/libmimalloc_sys/fn.mi_process_info.html
+    /// [`mi_process_info`]: https://github.com/microsoft/mimalloc/blob/main3/include/mimalloc.h
     ///
     /// Without the `custom_allocator` feature this is a process-wide live-bytes counter instead,
     /// which is approximate because threads buffer their updates.
     pub fn memory_usage() -> usize {
-        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
+        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
         {
             // `current_commit` is a relaxed atomic load, but `mi_process_info` also calls
             // `_mi_prim_process_info`, which is a `getrusage` (plus a `task_info` on macOS). All
@@ -104,7 +106,7 @@ impl TurboMalloc {
             let mut current_commit = 0usize;
             // Safety: every out-param is either null or a valid `usize` we own.
             unsafe {
-                libmimalloc_sys::mi_process_info(
+                mimalloc::sys::mi_process_info(
                     /* elapsed_msecs */ std::ptr::null_mut(),
                     /* user_msecs */ std::ptr::null_mut(),
                     /* system_msecs */ std::ptr::null_mut(),
@@ -117,7 +119,7 @@ impl TurboMalloc {
             }
             current_commit
         }
-        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
         {
             self::counter::get()
         }
@@ -139,11 +141,9 @@ impl TurboMalloc {
     /// force=true: do all the work of `process=false` and then process global shared structures and
     /// return memory to the OS if possible, this is much slower and should only be done rarely.
     pub fn collect(force: bool) {
-        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
-        unsafe {
-            libmimalloc_sys::mi_collect(force);
-        }
-        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
+        mimalloc::collect(force);
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
         {
             let _ = force;
         }
@@ -173,58 +173,50 @@ impl TurboMalloc {
     pub fn memory_pressure() -> Option<u8> {
         memory_pressure::memory_pressure()
     }
-}
 
-/// Get the allocator for this platform that we should wrap with TurboMalloc.
-#[inline]
-fn base_alloc() -> &'static impl GlobalAlloc {
-    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
-    return &mimalloc::MiMalloc;
-    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
-    return &std::alloc::System;
-}
-
-#[allow(unused_variables)]
-unsafe fn base_alloc_size(ptr: *const u8, layout: Layout) -> usize {
-    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
-    return unsafe { mimalloc::MiMalloc.usable_size(ptr) };
-    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
-    return layout.size();
+    /// Returns the resident memory size of the current process in bytes, or
+    /// `None` when the current platform does not expose a memory footprint
+    /// signal or a query for it failed.
+    ///
+    /// - On Linux this is the resident set size from `/proc/self/statm`.
+    /// - On macOS this is `rusage_info_v0::ri_phys_footprint` from `proc_pid_rusage` (what Apple
+    ///   calls "memory footprint" / Activity Monitor's "Memory" column).
+    /// - On Windows this is `PROCESS_MEMORY_COUNTERS::WorkingSetSize`.
+    /// - On other platforms this returns `None`.
+    pub fn memory_footprint() -> Option<usize> {
+        memory_footprint::memory_footprint()
+    }
 }
 
 unsafe impl GlobalAlloc for TurboMalloc {
+    #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let ret = unsafe { base_alloc().alloc(layout) };
+        let (ret, size) = unsafe { base::alloc(layout) };
         if !ret.is_null() {
-            let size = unsafe { base_alloc_size(ret, layout) };
             add(size);
         }
         ret
     }
 
+    #[inline]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        let size = unsafe { base_alloc_size(ptr, layout) };
-        unsafe { base_alloc().dealloc(ptr, layout) };
+        let size = unsafe { base::dealloc(ptr, layout) };
         remove(size);
     }
 
+    #[inline]
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
-        let ret = unsafe { base_alloc().alloc_zeroed(layout) };
+        let (ret, size) = unsafe { base::alloc_zeroed(layout) };
         if !ret.is_null() {
-            let size = unsafe { base_alloc_size(ret, layout) };
             add(size);
         }
         ret
     }
 
+    #[inline]
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        let old_size = unsafe { base_alloc_size(ptr, layout) };
-        let ret = unsafe { base_alloc().realloc(ptr, layout, new_size) };
+        let (ret, old_size, new_size) = unsafe { base::realloc(ptr, layout, new_size) };
         if !ret.is_null() {
-            // SAFETY: the caller must ensure that the `new_size` does not overflow.
-            // `layout.align()` comes from a `Layout` and is thus guaranteed to be valid.
-            let new_layout = unsafe { Layout::from_size_align_unchecked(new_size, layout.align()) };
-            let new_size = unsafe { base_alloc_size(ret, new_layout) };
             update(old_size, new_size);
         }
         ret
@@ -233,6 +225,8 @@ unsafe impl GlobalAlloc for TurboMalloc {
 
 #[cfg(test)]
 mod tests {
+    use std::alloc::{GlobalAlloc, Layout};
+
     use super::TurboMalloc;
 
     // `memory_usage` reports what *this* allocator has committed, so the test binary has to
@@ -240,6 +234,72 @@ mod tests {
     // system allocator and mimalloc's counter never moves.
     #[global_allocator]
     static ALLOC: TurboMalloc = TurboMalloc;
+
+    /// The sizes reported on allocation and on deallocation must match. Otherwise the counters
+    /// drift. Covers every size class and alignment path, including reallocation in place, moving
+    /// reallocation and over-aligned reallocation.
+    #[test]
+    fn allocation_counters_balance() {
+        // Small, at and above the small-size limit, medium, and huge.
+        // Huge is skipped under Miri because it's too slow there.
+        #[cfg(not(miri))]
+        const SIZES: [usize; 6] = [1, 24, 1024, 1025, 64 * 1024, 8 * 1024 * 1024];
+        #[cfg(miri)]
+        const SIZES: [usize; 5] = [1, 24, 1024, 1025, 64 * 1024];
+        const ALIGNS: [usize; 4] = [1, 16, 64, 4096];
+
+        // No other allocation may happen on this thread between `before` and `after`, so collect
+        // all layouts up front.
+        let mut layouts = [Layout::new::<u8>(); SIZES.len() * ALIGNS.len()];
+        for (i, (size, align)) in SIZES
+            .iter()
+            .flat_map(|size| ALIGNS.iter().map(move |align| (*size, *align)))
+            .enumerate()
+        {
+            layouts[i] = Layout::from_size_align(size, align).unwrap();
+        }
+
+        let before = TurboMalloc::allocation_counters();
+        for layout in layouts {
+            for zeroed in [false, true] {
+                unsafe {
+                    let ptr = if zeroed {
+                        ALLOC.alloc_zeroed(layout)
+                    } else {
+                        ALLOC.alloc(layout)
+                    };
+                    assert!(!ptr.is_null());
+                    assert_eq!(ptr as usize % layout.align(), 0);
+                    if zeroed {
+                        assert_eq!(*ptr, 0);
+                        assert_eq!(*ptr.add(layout.size() - 1), 0);
+                    }
+                    ptr.write_bytes(0xab, layout.size());
+
+                    // Shrink a little (usually in place), then grow a lot (moves).
+                    let mut layout = layout;
+                    let mut ptr = ptr;
+                    for new_size in [layout.size().div_ceil(2).max(1), layout.size() * 3] {
+                        ptr = ALLOC.realloc(ptr, layout, new_size);
+                        assert!(!ptr.is_null());
+                        assert_eq!(ptr as usize % layout.align(), 0);
+                        let kept = layout.size().min(new_size);
+                        assert_eq!(*ptr, 0xab);
+                        assert_eq!(*ptr.add(kept - 1), 0xab);
+                        layout = Layout::from_size_align(new_size, layout.align()).unwrap();
+                        ptr.write_bytes(0xab, layout.size());
+                    }
+                    ALLOC.dealloc(ptr, layout);
+                }
+            }
+        }
+        let after = TurboMalloc::allocation_counters();
+
+        let allocated = after.allocations - before.allocations;
+        let deallocated = after.deallocations - before.deallocations;
+        assert!(allocated > 0);
+        assert_eq!(allocated, deallocated);
+    }
 
     /// Guards against the counter silently becoming unavailable.
     #[test]
@@ -271,7 +331,7 @@ mod tests {
 
         // On all supported platforms the value must be reported.
         #[cfg(any(
-            all(target_os = "linux", not(target_family = "wasm")),
+            all(target_os = "linux", not(target_family = "wasm"), not(miri)),
             target_os = "macos",
             windows,
         ))]
@@ -279,7 +339,7 @@ mod tests {
 
         // On unsupported platforms we expect None and have nothing further to assert.
         #[cfg(not(any(
-            all(target_os = "linux", not(target_family = "wasm")),
+            all(target_os = "linux", not(target_family = "wasm"), not(miri)),
             target_os = "macos",
             windows,
         )))]

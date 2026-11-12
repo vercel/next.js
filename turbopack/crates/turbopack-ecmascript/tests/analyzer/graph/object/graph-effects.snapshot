@@ -13,6 +13,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -41,6 +42,7 @@
             ),
         ],
         span: 75..83,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -56,6 +58,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -84,6 +87,7 @@
             ),
         ],
         span: 96..107,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -99,6 +103,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -127,6 +132,7 @@
             ),
         ],
         span: 120..128,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -142,6 +148,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -170,6 +177,7 @@
             ),
         ],
         span: 141..152,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -185,6 +193,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -213,6 +222,7 @@
             ),
         ],
         span: 165..173,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -228,6 +238,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -256,6 +267,7 @@
             ),
         ],
         span: 186..197,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -271,6 +283,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -299,6 +312,7 @@
             ),
         ],
         span: 210..218,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -314,6 +328,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -342,6 +357,7 @@
             ),
         ],
         span: 231..242,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -357,6 +373,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -385,6 +402,7 @@
             ),
         ],
         span: 308..323,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -400,6 +418,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -428,6 +447,7 @@
             ),
         ],
         span: 336..351,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -443,6 +463,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -471,6 +492,7 @@
             ),
         ],
         span: 364..379,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -486,6 +508,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -514,6 +537,7 @@
             ),
         ],
         span: 392..407,
+        in_truthiness_context: false,
     },
     DestructuredMember {
         obj: Variable(
@@ -702,6 +726,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -730,6 +755,7 @@
             ),
         ],
         span: 576..592,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -745,6 +771,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -773,6 +800,7 @@
             ),
         ],
         span: 605..621,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -788,6 +816,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -816,6 +845,7 @@
             ),
         ],
         span: 634..650,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "global",
@@ -939,6 +969,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -967,6 +998,7 @@
             ),
         ],
         span: 728..737,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -982,6 +1014,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1010,6 +1043,7 @@
             ),
         ],
         span: 750..759,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -1025,6 +1059,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1053,6 +1088,7 @@
             ),
         ],
         span: 772..781,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -1068,6 +1104,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1096,6 +1133,7 @@
             ),
         ],
         span: 794..803,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -1111,6 +1149,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1139,5 +1178,6 @@
             ),
         ],
         span: 816..825,
+        in_truthiness_context: false,
     },
 ]

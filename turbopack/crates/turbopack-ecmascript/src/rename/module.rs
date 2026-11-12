@@ -14,6 +14,7 @@ use turbopack_core::{
     reference::ModuleReferences,
     resolve::{ExportUsage, ModulePart},
     source::OptionSource,
+    source_map::SourceMapGenerationOptions,
 };
 
 use crate::{
@@ -39,7 +40,7 @@ pub struct EcmascriptModuleRenameModule {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     /// The part of the module that this facade represents.
     /// ModulePart::Facade | ModulePart::RenamedExport |
-    /// ModulePart::RenamedNamespace
+    /// ModulePart::RenamedNamespace | ModulePart::RenamedPartialNamespace
     part: ModulePart,
 }
 
@@ -53,7 +54,9 @@ impl EcmascriptModuleRenameModule {
         assert!(
             matches!(
                 part,
-                ModulePart::RenamedExport { .. } | ModulePart::RenamedNamespace { .. }
+                ModulePart::RenamedExport { .. }
+                    | ModulePart::RenamedNamespace { .. }
+                    | ModulePart::RenamedPartialNamespace { .. }
             ),
             "{part:?} is unexpected for EcmascriptModuleRenameModule"
         );
@@ -87,6 +90,15 @@ impl EcmascriptModuleRenameModule {
                     *self.module,
                     self.part.clone(),
                     ExportUsage::all(),
+                )
+                .to_resolved()
+                .await
+            }
+            ModulePart::RenamedPartialNamespace { member, .. } => {
+                EcmascriptModulePartReference::new_normal(
+                    *self.module,
+                    self.part.clone(),
+                    ExportUsage::partial_namespace_object(vec![member.clone()]),
                 )
                 .to_resolved()
                 .await
@@ -176,10 +188,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
     }
 
     #[turbo_tasks::function]
-    fn module_content_without_analysis(
-        &self,
-        _generate_source_map: bool,
-    ) -> Result<Vc<EcmascriptModuleContent>> {
+    fn module_content_without_analysis(&self) -> Result<Vc<EcmascriptModuleContent>> {
         bail!("EcmascriptModuleRenameModule::module_content_without_analysis shouldn't be called");
     }
 
@@ -204,9 +213,10 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
             // The facade module cannot generate source maps, because the inserted references
             // contain spans from the original module, but the facade module itself doesn't have the
             // original module's swc_common::SourceMap in `parsed`.
-            generate_source_map: false,
+            source_map_generation_options: SourceMapGenerationOptions::NONE,
             original_source_map: None,
             exports: self.get_exports().to_resolved().await?,
+            export_registration_mode: None,
             async_module_info,
         }
         .cell())
@@ -231,7 +241,8 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleRenameModule {
                     false,
                 ),
             ),
-            ModulePart::RenamedNamespace { export } => (
+            ModulePart::RenamedNamespace { export }
+            | ModulePart::RenamedPartialNamespace { export, .. } => (
                 export.clone(),
                 EsmExport::ImportedNamespace(ResolvedVc::upcast(reference)),
             ),

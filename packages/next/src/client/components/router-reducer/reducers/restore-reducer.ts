@@ -63,32 +63,32 @@ export function restoreReducer(
     true,
     null,
     renderedSearch,
+    null,
     UnknownDynamicStaleTime
   )
-  const task = startPPRNavigation(
+  const navigation = startPPRNavigation(
     now,
     currentUrl,
     state.renderedSearch,
-    state.cache,
-    state.tree,
-    restoreSeed.routeTree,
-    restoreSeed.metadataVaryPath,
+    state.root,
+    restoreSeed.root,
     FreshnessPolicy.HistoryTraversal,
-    null,
     restoreSeed.dynamicStaleAt,
     false,
     accumulation,
     // A history-traversal restore is bound to the shared map.
     segmentCacheMap,
     // A history-traversal restore never restricts to the shell.
-    false
+    false,
+    // Not the commit phase of a prepared navigation.
+    null
   )
 
-  if (task === null) {
+  if (navigation === null) {
     return completeHardNavigation(state, restoredUrl, 'replace')
   }
   spawnDynamicRequests(
-    task,
+    navigation,
     restoredUrl,
     restoredNextUrl,
     FreshnessPolicy.HistoryTraversal,
@@ -118,8 +118,7 @@ export function restoreReducer(
     state,
     restoredUrl,
     renderedSearch,
-    task.node,
-    task.route,
+    navigation,
     restoredNextUrl
   )
 }

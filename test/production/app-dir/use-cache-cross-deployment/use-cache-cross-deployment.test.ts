@@ -1,6 +1,12 @@
 import { type NextInstance, nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
-async function execute(next: NextInstance, envKey: string, id: string) {
+async function execute(
+  next: NextInstance,
+  envKey: string,
+  id: string,
+  includeRuntimeEntrypoints = false
+) {
   await next.stop()
   if (envKey !== 'default') {
     next.env[envKey] = id
@@ -14,7 +20,9 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       keyArgumentUseClient: string,
       keyArgumentUseServer: string,
       keyPrerender: string,
-      keyClient: string,
+      keyImportUseClient: string,
+      keyImportUseClientImage: string,
+      keyImportUseClientNested: string,
       keyRoute: string,
       dataRoot: string,
       dataNested: string,
@@ -22,11 +30,14 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       dataArgumentUseClient: string,
       dataArgumentUseServer: string,
       dataPrerender: string,
-      dataClient: string,
-      dataRoute: string
+      dataImportUseClient: string,
+      dataImportUseClientImage: string,
+      dataImportUseClientNested: string,
+      dataRoute: string,
+      imageSrc: string
     {
       const match = next.cliOutput.match(
-        /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/prerender\/layout","_N_T_\/prerender\/page","_N_T_\/prerender"\]\]$/m
+        /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/\(site\)\/layout","_N_T_\/\(site\)\/prerender\/layout","_N_T_\/\(site\)\/prerender\/page","_N_T_\/prerender"\]\]$/m
       )
       expect(match).toBeArray()
       keyPrerender = match[0]
@@ -36,19 +47,47 @@ async function execute(next: NextInstance, envKey: string, id: string) {
 
     {
       const logs = next.getCliOutputFromHere()
-      const browser = await next.browser(`/client`)
-      dataClient = await browser.elementById('data').text()
+      const browser = await next.browser(`/import-use-client`)
+      dataImportUseClient = await browser.elementById('data').text()
       // Client references are only known during serialization, so they aren't part of the coarse
       // cache key; instead the coarse key holds a redirect entry and the real entry lives at a
       // "specific" key = coarse key + a hash suffix derived from the accessed client references'
       // resolved manifest values.
       const matches = [
         ...logs().matchAll(
-          /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/client\/layout","_N_T_\/client\/page","_N_T_\/client"\]\]$/gm
+          /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/import-use-client\/layout","_N_T_\/import-use-client\/page","_N_T_\/import-use-client"\]\]$/gm
         ),
       ]
       expect(matches).not.toBeEmpty()
-      keyClient = matches.map((m) => m[0]).join('\n')
+      keyImportUseClient = matches.map((m) => m[0]).join('\n')
+    }
+
+    {
+      const logs = next.getCliOutputFromHere()
+      const browser = await next.browser(`/import-use-client-image`)
+      dataImportUseClientImage = await browser.elementById('data').text()
+      imageSrc = await browser.elementById('cached-image').getAttribute('src')
+      const matches = [
+        ...logs().matchAll(
+          /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/import-use-client-image\/layout","_N_T_\/import-use-client-image\/page","_N_T_\/import-use-client-image"\]\]$/gm
+        ),
+      ]
+      expect(matches).not.toBeEmpty()
+      keyImportUseClientImage = matches.map((m) => m[0]).join('\n')
+    }
+
+    {
+      const logs = next.getCliOutputFromHere()
+      const browser = await next.browser(`/import-use-client-nested`)
+      dataImportUseClientNested = await browser.elementById('data').text()
+      const matches = [
+        ...logs().matchAll(
+          /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/import-use-client-nested\/layout","_N_T_\/import-use-client-nested\/page","_N_T_\/import-use-client-nested"\]\]$/gm
+        ),
+      ]
+      expect(matches).not.toBeEmpty()
+      // The inner cache isn't read when the outer cache entry is reused.
+      keyImportUseClientNested = matches[0][0]
     }
 
     {
@@ -56,7 +95,7 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       const response = await next.fetch(`/route`)
       dataRoute = await response.text()
       const match = logs().match(
-        /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/route","_N_T_\/route\/route"\]\]$/m
+        /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/\(site\)\/layout","_N_T_\/\(site\)\/route","_N_T_\/\(site\)\/route\/route","_N_T_\/route"\]\]$/m
       )
       expect(match).toBeArray()
       keyRoute = match[0]
@@ -66,6 +105,7 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       const logs = next.getCliOutputFromHere()
       const browser = await next.browser(`/nested`)
       dataNested = await browser.elementById('data').text()
+      expect(dataNested).not.toBeEmpty()
       const match = logs().match(
         /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/nested\/layout","_N_T_\/nested\/page","_N_T_\/nested"\]\]$/m
       )
@@ -77,6 +117,7 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       const logs = next.getCliOutputFromHere()
       const browser = await next.browser(`/argument-use-cache`)
       dataArgumentUseCache = await browser.elementById('data').text()
+      expect(dataArgumentUseCache).not.toBeEmpty()
       const match = logs().match(
         /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/argument-use-cache\/layout","_N_T_\/argument-use-cache\/page","_N_T_\/argument-use-cache"\]\]$/m
       )
@@ -88,6 +129,7 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       const logs = next.getCliOutputFromHere()
       const browser = await next.browser(`/argument-use-client`)
       dataArgumentUseClient = await browser.elementById('data').text()
+      expect(dataArgumentUseClient).not.toBeEmpty()
       const match = logs().match(
         /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/argument-use-client\/layout","_N_T_\/argument-use-client\/page","_N_T_\/argument-use-client"\]\]$/m
       )
@@ -99,6 +141,7 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       const logs = next.getCliOutputFromHere()
       const browser = await next.browser(`/argument-use-server`)
       dataArgumentUseServer = await browser.elementById('data').text()
+      expect(dataArgumentUseServer).not.toBeEmpty()
       const match = logs().match(
         /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/argument-use-server\/layout","_N_T_\/argument-use-server\/page","_N_T_\/argument-use-server"\]\]$/m
       )
@@ -110,20 +153,94 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       const logs = next.getCliOutputFromHere()
       const browser = await next.browser(`/`)
       dataRoot = await browser.elementById('data').text()
+      expect(dataRoot).not.toBeEmpty()
       const match = logs().match(
-        /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/page","_N_T_\/","_N_T_\/index"\]\]$/m
+        /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/\(site\)\/layout","_N_T_\/\(site\)\/page","_N_T_\/","_N_T_\/index"\]\]$/m
       )
       expect(match).toBeArray()
       keyRoot = match[0]
     }
+    const runtimeValues: Record<string, string> = {}
+    if (includeRuntimeEntrypoints) {
+      const metadata = await next.render$('/metadata')
+      runtimeValues.metadata = metadata('title').text()
+      runtimeValues.viewport =
+        metadata('meta[name="theme-color"]').attr('content') ?? ''
+      runtimeValues.route = dataRoute
+
+      const parallel = await next.render$('/parallel')
+      runtimeValues.parallel = parallel('#parallel-data').text()
+
+      // Interception requires a client-side navigation, not a document fetch.
+      const interceptBrowser = await next.browser('/intercept')
+      try {
+        await interceptBrowser.elementById('open-modal').click()
+        runtimeValues.intercept = await interceptBrowser
+          .elementById('intercept-data')
+          .text()
+      } finally {
+        await interceptBrowser.close()
+      }
+
+      const actionBrowser = await next.browser('/cached-action')
+      try {
+        await actionBrowser.elementById('run-action').click()
+        await retry(async () => {
+          runtimeValues.action = await actionBrowser
+            .elementById('action-data')
+            .text()
+          expect(runtimeValues.action).not.toBeEmpty()
+        })
+      } finally {
+        await actionBrowser.close()
+      }
+    }
+
+    const prerenderedRoutes: Record<
+      string,
+      { pathname: string; value: string }
+    > = {}
+    // Use the manifest only to discover concrete prerendered URLs; check
+    // cache reuse through their observable HTTP responses below.
+    const manifest = await next.readJSON('.next/prerender-manifest.json')
+    for (const route of [
+      'generator-layout',
+      'generator-route',
+      'generator-sitemap',
+      'generator-image',
+      'static-params',
+    ]) {
+      const routes = Object.keys(manifest.routes).filter(
+        (pathname) =>
+          pathname.startsWith(`/${route}/`) && !pathname.includes('[')
+      )
+      expect(routes).toHaveLength(1)
+      const pathname = routes[0]
+      const response = await next.fetch(pathname)
+      expect({ pathname, status: response.status }).toEqual({
+        pathname,
+        status: 200,
+      })
+      const value =
+        pathname.includes('generator-layout') ||
+        pathname.includes('static-params')
+          ? (await next.render$(pathname))('p').text()
+          : await response.text()
+      prerenderedRoutes[route] = { pathname, value }
+    }
+
     return {
+      prerenderedRoutes,
+      runtimeValues,
       keyRoot,
       keyNested,
       keyArgumentUseCache,
       keyArgumentUseClient,
       keyArgumentUseServer,
       keyPrerender,
-      keyClient,
+      keyImportUseClient,
+      keyImportUseClientImage,
+      keyImportUseClientNested,
       keyRoute,
       dataRoot,
       dataNested,
@@ -131,8 +248,11 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       dataArgumentUseClient,
       dataArgumentUseServer,
       dataPrerender,
-      dataClient,
+      dataImportUseClient,
+      dataImportUseClientImage,
+      dataImportUseClientNested,
       dataRoute,
+      imageSrc,
     }
   } finally {
     if (envKey !== 'default') {
@@ -144,13 +264,11 @@ async function execute(next: NextInstance, envKey: string, id: string) {
 describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
   'use-cache-cross-deployment with %s',
   (envKey) => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       disableAutoSkewProtection: true,
       skipStart: true,
     })
-
-    if (skipped) return
 
     // In the future, this assertion can be relaxed to only prevent sharing if the implementation
     // changed.
@@ -164,11 +282,45 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       expect(key1.keyPrerender).not.toBe(key2.keyPrerender)
       expect(key1.dataPrerender).not.toBe(key2.dataPrerender)
 
-      expect(key1.keyClient).not.toBe(key2.keyClient)
-      expect(key1.dataClient).not.toBe(key2.dataClient)
+      expect(key1.keyImportUseClient).not.toBe(key2.keyImportUseClient)
+      expect(key1.dataImportUseClient).not.toBe(key2.dataImportUseClient)
+
+      expect(key1.keyImportUseClientImage).not.toBe(
+        key2.keyImportUseClientImage
+      )
+      expect(key1.dataImportUseClientImage).not.toBe(
+        key2.dataImportUseClientImage
+      )
+
+      expect(key1.keyImportUseClientNested).not.toBe(
+        key2.keyImportUseClientNested
+      )
+      expect(key1.dataImportUseClientNested).not.toBe(
+        key2.dataImportUseClientNested
+      )
 
       expect(key1.keyRoute).not.toBe(key2.keyRoute)
       expect(key1.dataRoute).not.toBe(key2.dataRoute)
+    })
+
+    it('should share a durable cache entry between an App Page and an API route', async () => {
+      await next.stop()
+      await next.start()
+
+      try {
+        const page = await next.render$('/page-api')
+        const pageValue = page('#page-api-data').text()
+        expect(pageValue).not.toBeEmpty()
+
+        const response = await next.fetch('/page-api/api')
+        expect(response.status).toBe(200)
+        expect(await response.text()).toBe(pageValue)
+
+        const secondPage = await next.render$('/page-api')
+        expect(secondPage('#page-api-data').text()).toBe(pageValue)
+      } finally {
+        await next.stop()
+      }
     })
   }
 )
@@ -177,40 +329,189 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'use-cache-cross-deployment with durableUseCacheEntries',
   () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       disableAutoSkewProtection: true,
       skipStart: true,
       env: { DURABLE_USE_CACHE_ENTRIES: '1' },
     })
 
-    if (skipped) return
-
-    beforeEach(async () => {
+    let key1: Awaited<ReturnType<typeof execute>>
+    beforeAll(async () => {
+      await next.stop()
       await next.deleteFile('handler-remote-data.json')
+      key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1', true)
     })
 
-    it('should not recompute when nothing changes', async () => {
-      const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
-      const key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2')
-      // Should be the same key (because the implementation didn't change)
-      expect(key1.keyRoot).toBe(key2.keyRoot)
-      expect(key1.dataRoot).toBe(key2.dataRoot)
+    describe('behavioral tests', () => {
+      it('client component should return baseline', async () => {
+        const browser = await next.browser('/import-use-client')
+        expect(await browser.elementById('title').text()).toBe(
+          'Client Component A'
+        )
+        await browser.elementByCss('button').click()
+        expect(await browser.elementById('state').text()).toBe('Button clicked')
+        await browser.close()
+      })
 
-      expect(key1.keyPrerender).toBe(key2.keyPrerender)
-      expect(key1.dataPrerender).toBe(key2.dataPrerender)
+      it('should share a durable cache entry between an App Page and an API route', async () => {
+        await next.stop()
+        await next.start()
 
-      expect(key1.keyRoute).toBe(key2.keyRoute)
-      expect(key1.dataRoute).toBe(key2.dataRoute)
+        try {
+          const page = await next.render$('/page-api')
+          const pageValue = page('#page-api-data').text()
+          expect(pageValue).not.toBeEmpty()
 
-      // TODO needs more granular client reference tracking
-      // expect(key1.keyClient).toBe(key2.keyClient)
-      // expect(key1.dataClient).toBe(key2.dataClient)
+          const response = await next.fetch('/page-api/api')
+          expect(response.status).toBe(200)
+          expect(await response.text()).toBe(pageValue)
+
+          const secondPage = await next.render$('/page-api')
+          expect(secondPage('#page-api-data').text()).toBe(pageValue)
+        } finally {
+          await next.stop()
+        }
+      })
+
+      it('should not share a durable cache entry returning an asset URL between an App Page and an API route', async () => {
+        await next.stop()
+        await next.start()
+
+        try {
+          const page = await next.render$('/page-api-url')
+          const pageValue = page('#page-api-url').text()
+          expect(pageValue).toMatch(/^\/_next\/static\/media\//)
+
+          const response = await next.fetch('/page-api-url/api')
+          expect(response.status).toBe(200)
+          const apiValue = await response.text()
+          expect(apiValue).toMatch(/^file:\/\//)
+          // Even with identical source code and arguments, the asset URL is
+          // resolved in a different chunking context and must not reuse the entry.
+          expect(apiValue).not.toBe(pageValue)
+
+          const secondPage = await next.render$('/page-api-url')
+          expect(secondPage('#page-api-url').text()).toBe(pageValue)
+          const secondResponse = await next.fetch('/page-api-url/api')
+          expect(secondResponse.status).toBe(200)
+          expect(await secondResponse.text()).toBe(apiValue)
+        } finally {
+          await next.stop()
+        }
+      })
+    })
+
+    describe('durable cache reuse across deployments', () => {
+      let key1: Awaited<ReturnType<typeof execute>>
+      let key2: Awaited<ReturnType<typeof execute>>
+      beforeAll(async () => {
+        await next.stop()
+        key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1', true)
+        key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2', true)
+      })
+
+      afterAll(async () => {
+        await next.stop()
+        delete next.env.NEXT_DEPLOYMENT_ID
+      })
+
+      it('should not recompute when nothing changes', () => {
+        // The root page renders at request time and lives in a route group.
+        expect(key1.keyRoot).toBe(key2.keyRoot)
+        expect(key1.dataRoot).toBe(key2.dataRoot)
+
+        // The prerender page also lives in a route group.
+        expect(key1.keyPrerender).toBe(key2.keyPrerender)
+        expect(key1.dataPrerender).toBe(key2.dataPrerender)
+
+        expect(key1.keyRoute).toBe(key2.keyRoute)
+        expect(key1.dataRoute).toBe(key2.dataRoute)
+
+        expect(key1.keyImportUseClient).toBe(key2.keyImportUseClient)
+        expect(key1.dataImportUseClient).toBe(key2.dataImportUseClient)
+
+        expect(key1.keyImportUseClientImage).toBe(key2.keyImportUseClientImage)
+        expect(key1.dataImportUseClientImage).toBe(
+          key2.dataImportUseClientImage
+        )
+        expect(key1.imageSrc).toContain('dpl=dpl-id-1')
+        expect(key2.imageSrc).toContain('dpl=dpl-id-2')
+
+        expect(key1.keyImportUseClientNested).toBe(
+          key2.keyImportUseClientNested
+        )
+        expect(key1.dataImportUseClientNested).toBe(
+          key2.dataImportUseClientNested
+        )
+      })
+
+      it.each([
+        ['generateMetadata', 'metadata'],
+        ['generateViewport', 'viewport'],
+        ['a grouped route handler', 'route'],
+        ['a parallel route', 'parallel'],
+        ['an intercepted route', 'intercept'],
+      ])('should reuse durable entries in %s', (_name, kind) => {
+        expect(key1.runtimeValues[kind]).not.toBeEmpty()
+        expect(key2.runtimeValues[kind]).toBe(key1.runtimeValues[kind])
+      })
+
+      // TODO This is the usual case of RSC -> client component -> server action
+      // @force-gate TODO
+      it('should reuse durable entries in a Server Action', () => {
+        expect(key1.runtimeValues.action).not.toBeEmpty()
+        expect(key2.runtimeValues.action).toBe(key1.runtimeValues.action)
+      })
+
+      it.each([
+        ['layout generateStaticParams', 'generator-layout'],
+        ['child generateStaticParams', 'generator-layout'],
+        ['route-handler generateStaticParams', 'generator-route'],
+        ['generateSitemaps', 'generator-sitemap'],
+        ['generateImageMetadata', 'generator-image'],
+        ['page generateStaticParams', 'static-params'],
+      ])('should reuse durable entries in %s', (_name, route) => {
+        expect(key1.prerenderedRoutes[route].value).not.toBeEmpty()
+        expect(key2.prerenderedRoutes[route]).toEqual(
+          key1.prerenderedRoutes[route]
+        )
+      })
+    })
+
+    it('should not miss when an env var changes during cache generation', async () => {
+      // Regression test for mutating env vars which changes the cache key mid-rendering and breaks
+      // the multi-phase rendering process (be it within the next build prerendering, or in the
+      // resume case at runtime).
+      // RDC stores cache entries, and we should use those entries regardless of whether env vars
+      // changed in the meantime (among other things, to prevent tearing).
+      //
+      // Error: Route "foo": Unexpected cache miss after cache warming phase during prerendering.
+      // This is likely caused by non-deterministic arguments that differ between the cache warming
+      // phase and the final prerender phase (e.g. unstable array order). Ensure that arguments
+      // passed to cached functions are deterministic.
+      //
+      // Error: Route "foo": Next.js encountered uncached or runtime data during prerendering.
+      await next.stop()
+      delete next.env.MUTATED_DURING_CACHE_GENERATION
+
+      try {
+        await next.start()
+        const output = next.getCliOutputFromHere()
+        const browser = await next.browser('/env-mutation/test')
+
+        expect(output()).not.toContain('Error')
+        expect(output()).not.toContain(
+          'Unexpected cache miss after cache warming phase during prerendering'
+        )
+        expect(await browser.elementById('data').text()).toBe('test:unset')
+      } finally {
+        await next.stop()
+        delete next.env.MUTATED_DURING_CACHE_GENERATION
+      }
     })
 
     it('should recompute when transitive implementation changes', async () => {
-      const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
-
       let value = String(Math.random())
       await next.patchFile(
         'app/logic.ts',
@@ -228,9 +529,25 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
           expect(key1.dataPrerender).not.toBe(key2.dataPrerender)
           expect(key2.dataPrerender).toBe(value)
 
-          expect(key1.keyClient).not.toBe(key2.keyClient)
-          expect(key1.dataClient).not.toBe(key2.dataClient)
-          expect(key2.dataClient).toBe(value)
+          expect(key1.keyImportUseClient).not.toBe(key2.keyImportUseClient)
+          expect(key1.dataImportUseClient).not.toBe(key2.dataImportUseClient)
+          expect(key2.dataImportUseClient).toBe(value)
+
+          expect(key1.keyImportUseClientImage).not.toBe(
+            key2.keyImportUseClientImage
+          )
+          expect(key1.dataImportUseClientImage).not.toBe(
+            key2.dataImportUseClientImage
+          )
+          expect(key2.dataImportUseClientImage).toBe(value)
+
+          expect(key1.keyImportUseClientNested).not.toBe(
+            key2.keyImportUseClientNested
+          )
+          expect(key1.dataImportUseClientNested).not.toBe(
+            key2.dataImportUseClientNested
+          )
+          expect(key2.dataImportUseClientNested).toBe(value)
 
           expect(key1.keyRoute).not.toBe(key2.keyRoute)
           expect(key1.dataRoute).not.toBe(key2.dataRoute)
@@ -243,8 +560,6 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
     // entropy in the argument-part of the cache key.
     // But currently, you cannot do anything with the passed server reference anyway.
     it.skip('should recompute when a use cache reference argument changes', async () => {
-      const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
-
       await next.patchFile(
         'app/argument-use-cache/action.ts',
         (content) => content.replace("return 'first'", "return 'second'"),
@@ -262,8 +577,6 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
     // But currently, you cannot do anything with the passed server reference anyway.
     // Furthermore, we need to compute the metadata information for `use cache` functions as well.
     it.skip('should recompute when a use server reference argument changes', async () => {
-      const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
-
       await next.patchFile(
         'app/argument-use-server/action.ts',
         (content) => content.replace("return 'first'", "return 'second'"),
@@ -307,11 +620,19 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
         expect(key1.keyPrerender).not.toContain(foobar1)
         expect(key2.keyPrerender).not.toContain(foobar2)
 
-        expect(key1.keyClient).not.toBe(key2.keyClient)
-        expect(key1.dataClient).toEndWith(`:${foobar1}`)
-        expect(key2.dataClient).toEndWith(`:${foobar2}`)
-        expect(key1.keyClient).not.toContain(foobar1)
-        expect(key2.keyClient).not.toContain(foobar2)
+        expect(key1.keyImportUseClient).not.toBe(key2.keyImportUseClient)
+        expect(key1.dataImportUseClient).toEndWith(`:${foobar1}`)
+        expect(key2.dataImportUseClient).toEndWith(`:${foobar2}`)
+        expect(key1.keyImportUseClient).not.toContain(foobar1)
+        expect(key2.keyImportUseClient).not.toContain(foobar2)
+
+        expect(key1.keyImportUseClientNested).not.toBe(
+          key2.keyImportUseClientNested
+        )
+        expect(key1.dataImportUseClientNested).toEndWith(`:${foobar1}`)
+        expect(key2.dataImportUseClientNested).toEndWith(`:${foobar2}`)
+        expect(key1.keyImportUseClientNested).not.toContain(foobar1)
+        expect(key2.keyImportUseClientNested).not.toContain(foobar2)
 
         expect(key1.keyRoute).not.toBe(key2.keyRoute)
         expect(key1.dataRoute).toEndWith(`:${foobar1}`)
@@ -323,18 +644,73 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       }
     })
 
-    it('should recompute when client reference import changes', async () => {
-      const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
+    it('should recompute when runtime env var truthiness changes', async () => {
       await next.patchFile(
-        'app/client/client.tsx',
+        'app/logic.ts',
+        `export function getDate() {
+  return new Date().toISOString() + ':' + Boolean(process.env.FOOBAR)
+}`,
+        async () => {
+          try {
+            delete next.env['FOOBAR']
+            const unset = await execute(
+              next,
+              'NEXT_DEPLOYMENT_ID',
+              'dpl-id-unset'
+            )
+
+            next.env['FOOBAR'] = ''
+            const falsy = await execute(
+              next,
+              'NEXT_DEPLOYMENT_ID',
+              'dpl-id-falsy'
+            )
+
+            // unset -> falsy revalidates
+            expect(unset.keyRoot).not.toBe(falsy.keyRoot)
+            expect(unset.dataRoot).not.toBe(falsy.dataRoot)
+            expect(unset.dataRoot).toEndWith(':false')
+
+            next.env['FOOBAR'] = 'truthy-1'
+            const truthy1 = await execute(
+              next,
+              'NEXT_DEPLOYMENT_ID',
+              'dpl-id-truthy-1'
+            )
+
+            // falsy -> truthy revalidates
+            expect(falsy.keyRoot).not.toBe(truthy1.keyRoot)
+            expect(falsy.dataRoot).not.toBe(truthy1.dataRoot)
+            expect(falsy.dataRoot).toEndWith(':false')
+            expect(truthy1.dataRoot).toEndWith(':true')
+
+            next.env['FOOBAR'] = 'truthy-2'
+            const truthy2 = await execute(
+              next,
+              'NEXT_DEPLOYMENT_ID',
+              'dpl-id-truthy-2'
+            )
+
+            // truthy -> different truthy DOESN'T revalidate
+            expect(truthy1.keyRoot).toBe(truthy2.keyRoot)
+            expect(truthy1.dataRoot).toBe(truthy2.dataRoot)
+          } finally {
+            delete next.env['FOOBAR']
+          }
+        }
+      )
+    })
+
+    it('should still work when imported client reference changes', async () => {
+      await next.patchFile(
+        'app/import-use-client/client.tsx',
         (oldContent) =>
-          oldContent.replace(
-            "'use client'",
-            "'use client'\n\nawait Promise.resolve()"
-          ),
+          oldContent
+            .replace('Client Component A', 'Client Component B')
+            .replace('Button clicked', 'Handle clicked'),
         async () => {
           const key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2')
-          // Should be the same key (because the implementation didn't change)
+
           expect(key1.keyRoot).toBe(key2.keyRoot)
           expect(key1.dataRoot).toBe(key2.dataRoot)
 
@@ -344,17 +720,32 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
           expect(key1.keyRoute).toBe(key2.keyRoute)
           expect(key1.dataRoute).toBe(key2.dataRoute)
 
-          // Is different, the client code and async:false->true
-          expect(key1.keyClient).not.toBe(key2.keyClient)
-          expect(key1.dataClient).not.toBe(key2.dataClient)
+          expect(key1.keyImportUseClient).toBe(key2.keyImportUseClient)
+          expect(key1.dataImportUseClient).toBe(key2.dataImportUseClient)
+
+          expect(key1.keyImportUseClientNested).toBe(
+            key2.keyImportUseClientNested
+          )
+          expect(key1.dataImportUseClientNested).toBe(
+            key2.dataImportUseClientNested
+          )
+
+          const browser = await next.browser('/import-use-client')
+          expect(await browser.elementById('title').text()).toBe(
+            'Client Component B'
+          )
+          await browser.elementByCss('button').click()
+          expect(await browser.elementById('state').text()).toBe(
+            'Handle clicked'
+          )
         }
       )
     })
 
-    it('should work still when a client reference argument changes', async () => {
+    it('should still work when a client reference argument changes', async () => {
       // The client reference is passed as an opaque argument. Instead, we need to make sure that
       // the client reference still uses the up-to-date chunks.
-      const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
+
       await next.patchFile(
         'app/argument-use-client/client.tsx',
         (oldContent) =>

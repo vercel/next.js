@@ -1,18 +1,19 @@
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP, startStaticServer, waitFor } from 'next-test-utils'
-import { AddressInfo, Server } from 'net'
+import type { Server } from 'http'
+import type { AddressInfo } from 'net'
 
+// This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+// @force-gate !deploy
 describe('SSG Prerender export', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     dependencies: {
       firebase: '7.14.5',
     },
   })
-  if (skipped) return
 
   let server: Server
   let appPort: number
@@ -28,7 +29,13 @@ describe('SSG Prerender export', () => {
 
   afterAll(async () => {
     if (server) {
-      await new Promise<void>((resolve) => server.close(() => resolve()))
+      await new Promise<void>((resolve) => {
+        server.close(() => resolve())
+        // `close()` only calls back once every connection has ended. Destroy
+        // any socket a client (the browser or a keep-alive fetch) still holds
+        // open, so teardown does not hang until the hook times out.
+        server.closeAllConnections()
+      })
     }
   })
 

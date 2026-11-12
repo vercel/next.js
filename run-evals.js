@@ -4,6 +4,7 @@
  * Pack the locally-built `next` package and run agent evals against it.
  *
  *   pnpm eval <eval-name>             run one eval and its configured variants
+ *   pnpm eval --suite regression      run a named eval suite
  *   pnpm eval <eval-name> --dry       preview without executing
  *   pnpm eval --all                   run every eval (slow — normally only CI does this)
  *   NEXT_SKIP_PACK=1 pnpm eval ...    reuse tarball from last run
@@ -21,18 +22,21 @@
  */
 const path = require('path')
 const fs = require('fs')
-const { execFileSync, spawnSync } = require('child_process')
+const { spawnSync } = require('child_process')
+const { packPackage } = require('./evals/lib/pack')
+const { linkEnvironment } = require('./evals/lib/environment')
 
 const ROOT = __dirname
 
 const EVALS_DIR = path.join(ROOT, 'evals')
 const FIXTURES_DIR = path.join(EVALS_DIR, 'evals')
 const EVAL_CONFIG_PATH = path.join(EVALS_DIR, 'eval.config.json')
+const EVAL_SUITES_PATH = path.join(EVALS_DIR, 'eval.suites.json')
 const EXPERIMENTS_DIR = path.join(EVALS_DIR, 'experiments')
 const TARBALL_DIR = path.join(EVALS_DIR, '.tarballs')
 const TARBALL = path.join(TARBALL_DIR, 'next.tgz')
 
-/** @typedef {{ skills?: string[], timeout?: number }} EvalConfig */
+/** @typedef {{ skills?: string[], timeout?: number, agentFeedback?: boolean, publish?: boolean, browserJs?: boolean, metrics?: string }} EvalConfig */
 /** @type {Record<string, EvalConfig>} */
 const EVAL_CONFIG = JSON.parse(fs.readFileSync(EVAL_CONFIG_PATH, 'utf-8'))
 
@@ -42,58 +46,81 @@ const EVAL_CONFIG = JSON.parse(fs.readFileSync(EVAL_CONFIG_PATH, 'utf-8'))
 const BASE_VARIANTS = [
   {
     suffix: 'baseline',
-    imports: `import { installNextJs } from '../lib/setup.js'`,
-    setup: `await installNextJs(sandbox)`,
+    imports: `import { installNextJs, installPlaywright, prepareFixture } from '../lib/setup.js'`,
+    setup: `await installNextJs(sandbox)\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)`,
   },
   {
     suffix: 'agents-md',
-    imports: `import { installNextJs, writeAgentsMd } from '../lib/setup.js'`,
-    setup: `await installNextJs(sandbox)\n    await writeAgentsMd(sandbox)`,
+    imports: `import { installNextJs, installPlaywright, prepareFixture, writeAgentsMd } from '../lib/setup.js'`,
+    setup: `await installNextJs(sandbox)\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)\n    await writeAgentsMd(sandbox)`,
   },
 ]
 
 function pack() {
-  fs.mkdirSync(TARBALL_DIR, { recursive: true })
-  const out = execFileSync(
-    'pnpm',
-    ['pack', '--pack-destination', TARBALL_DIR],
-    { cwd: path.join(ROOT, 'packages/next'), encoding: 'utf8' }
-  )
-  const produced = out.trim().split('\n').pop()
-  const src = path.isAbsolute(produced)
-    ? produced
-    : path.join(TARBALL_DIR, produced)
-  fs.renameSync(src, TARBALL)
+  packPackage(path.join(ROOT, 'packages/next'), TARBALL)
 }
 
-/** @param {string | null} evalName  null means all evals */
-function writeExperiments(evalName, variants, timeout) {
+/** @param {string[] | null} selectedEvals  null means all evals */
+function writeExperiments(
+  selectedEvals,
+  variants,
+  timeout,
+  runs,
+  options = {}
+) {
   fs.rmSync(EXPERIMENTS_DIR, { recursive: true, force: true })
   fs.mkdirSync(EXPERIMENTS_DIR, { recursive: true })
 
   for (const v of variants) {
-    const selectedEvals = v.evals ?? (evalName ? [evalName] : null)
-    const evalsField = selectedEvals
-      ? `\n  evals: ${JSON.stringify(selectedEvals.length === 1 ? selectedEvals[0] : selectedEvals)},`
+    const variantEvals = v.evals ?? selectedEvals
+    const evalsField = variantEvals
+      ? `\n  evals: ${JSON.stringify(variantEvals.length === 1 ? variantEvals[0] : variantEvals)},`
       : ''
+    const browserJsFixtures = Object.fromEntries(
+      (variantEvals ?? listEvals())
+        .filter((name) => readFixtureConfig(name).browserJs)
+        .map((name) => {
+          const pkg = JSON.parse(
+            fs.readFileSync(
+              path.join(FIXTURES_DIR, name, 'package.json'),
+              'utf8'
+            )
+          )
+          return [name, pkg.name]
+        })
+    )
+    const measuresBrowserJs = Object.keys(browserJsFixtures).length > 0
+    let onRunComplete = v.onRunComplete
+    if (measuresBrowserJs) {
+      const runData = onRunComplete
+        ? `${onRunComplete}(context)`
+        : 'context.runData'
+      onRunComplete = `(context) => browserJs.onRunComplete({ ...context, runData: ${runData} })`
+    }
     const body = `import type { ExperimentConfig } from '@vercel/agent-eval'
 ${v.imports}
+${options.metrics ? `import { recordAgentTime } from '../lib/metrics.js'` : ''}
+${measuresBrowserJs ? `import { createBrowserJsHooks } from '../lib/bundle-optimizer/hooks.js'\n\nconst browserJs = createBrowserJsHooks(${JSON.stringify(browserJsFixtures)}, ${JSON.stringify(v.skills ?? [])})\n` : ''}
 
 const config: ExperimentConfig = {
   // Via the Vercel AI Gateway, so the OIDC token from \`vc env pull\` is the only
   // credential needed (it auths the sandbox, the codegen model, and the judge).
-  agent: 'vercel-ai-gateway/claude-code',
-  model: 'claude-opus-4-8',${evalsField}
+  agent: ${JSON.stringify(options.agent ?? 'vercel-ai-gateway/claude-code')},
+  model: ${JSON.stringify(options.model ?? 'claude-opus-4-8')},${evalsField}
   // Cheap fixed grader for the agentic judge clauses in EVAL.ts files — every
   // run is graded by the same model regardless of the model under test.
   judge: { model: 'claude-haiku-4-5' },
   scripts: ['build'],
-  runs: 1,
-  earlyExit: true,
+  runs: ${runs},
+  earlyExit: ${runs === 1},
   timeout: ${timeout},
   sandbox: 'auto',
+  ${options.metrics ? `copyFiles: 'all',` : ''}
+  ${onRunComplete ? `onRunComplete: ${onRunComplete},` : ''}
   setup: async (sandbox) => {
     ${v.setup}
+    ${options.metrics ? 'recordAgentTime(sandbox)' : ''}
+    ${measuresBrowserJs ? 'return browserJs.setup(sandbox)' : ''}
   },
 }
 
@@ -108,6 +135,50 @@ function listEvals() {
     .readdirSync(FIXTURES_DIR, { withFileTypes: true })
     .filter((d) => d.isDirectory())
     .map((d) => d.name)
+}
+
+function readEvalSuites() {
+  /** @type {unknown} */
+  const parsed = JSON.parse(fs.readFileSync(EVAL_SUITES_PATH, 'utf-8'))
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error(`${EVAL_SUITES_PATH} must contain an object of eval suites`)
+  }
+
+  const fixtureNames = new Set(listEvals())
+  const seen = new Map()
+  /** @type {Record<string, string[]>} */
+  const suites = {}
+
+  for (const [suite, evalNames] of Object.entries(parsed)) {
+    if (!Array.isArray(evalNames) || evalNames.length === 0) {
+      throw new Error(`${EVAL_SUITES_PATH}: ${suite} must be a non-empty array`)
+    }
+    for (const evalName of evalNames) {
+      if (typeof evalName !== 'string' || !fixtureNames.has(evalName)) {
+        throw new Error(`${EVAL_SUITES_PATH}: unknown eval ${String(evalName)}`)
+      }
+      const previousSuite = seen.get(evalName)
+      if (previousSuite) {
+        throw new Error(
+          `${EVAL_SUITES_PATH}: ${evalName} is in both ${previousSuite} and ${suite}`
+        )
+      }
+      seen.set(evalName, suite)
+    }
+    suites[suite] = evalNames
+  }
+
+  const unclassified = [...fixtureNames].filter(
+    (evalName) =>
+      EVAL_CONFIG[evalName]?.publish !== false && !seen.has(evalName)
+  )
+  if (unclassified.length > 0) {
+    throw new Error(
+      `${EVAL_SUITES_PATH}: public evals must belong to a suite: ${unclassified.join(', ')}`
+    )
+  }
+
+  return suites
 }
 
 function readFixtureConfig(evalName) {
@@ -129,11 +200,29 @@ function readFixtureConfig(evalName) {
       `${EVAL_CONFIG_PATH}: ${evalName}.timeout must be a positive number`
     )
   }
-  return { skills: skillNames, timeout: config.timeout ?? 720 }
+  if (
+    config.agentFeedback !== undefined &&
+    typeof config.agentFeedback !== 'boolean'
+  ) {
+    throw new Error(
+      `${EVAL_CONFIG_PATH}: ${evalName}.agentFeedback must be a boolean`
+    )
+  }
+  if (config.browserJs !== undefined && typeof config.browserJs !== 'boolean') {
+    throw new Error(
+      `${EVAL_CONFIG_PATH}: ${evalName}.browserJs must be a boolean`
+    )
+  }
+  return {
+    skills: skillNames,
+    timeout: config.timeout ?? 720,
+    agentFeedback: config.agentFeedback ?? false,
+    browserJs: config.browserJs ?? false,
+  }
 }
 
-function getExperimentSettings(evalName) {
-  const skillEvals = (evalName ? [evalName] : listEvals()).map((name) => ({
+function getExperimentSettings(selectedEvals) {
+  const skillEvals = (selectedEvals ?? listEvals()).map((name) => ({
     name,
     ...readFixtureConfig(name),
   }))
@@ -141,10 +230,6 @@ function getExperimentSettings(evalName) {
   const configuredSkillEvals = skillEvals.filter(
     ({ skills }) => skills.length > 0
   )
-
-  if (configuredSkillEvals.length === 0) {
-    return { variants: BASE_VARIANTS, timeout }
-  }
 
   /** @type {Map<string, { skills: string[], evals: string[] }>} */
   const skillGroups = new Map()
@@ -159,18 +244,48 @@ function getExperimentSettings(evalName) {
   const multipleSkillGroups = skillGroups.size > 1
   const skillVariants = [...skillGroups.values()].map(({ skills, evals }) => ({
     suffix: multipleSkillGroups ? `skills-${skills.join('-')}` : 'skills',
-    imports: `import { installLocalSkills, installNextJs } from '../lib/setup.js'`,
-    setup: `await installNextJs(sandbox)\n    await installLocalSkills(sandbox, ${JSON.stringify(skills)})`,
+    imports: `import { installLocalSkills, installNextJs, installPlaywright, prepareFixture } from '../lib/setup.js'`,
+    setup: `await installNextJs(sandbox)\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)\n    await installLocalSkills(sandbox, ${JSON.stringify(skills)})`,
+    skills,
     evals,
   }))
 
+  /** @type {Map<string, { skills: string[], evals: string[] }>} */
+  const feedbackGroups = new Map()
+  for (const { name, skills, agentFeedback } of skillEvals) {
+    if (!agentFeedback) continue
+    const skillNames = [...new Set(skills)].sort()
+    const key = skillNames.join(',')
+    const group = feedbackGroups.get(key) ?? { skills: skillNames, evals: [] }
+    group.evals.push(name)
+    feedbackGroups.set(key, group)
+  }
+
+  const multipleFeedbackGroups = feedbackGroups.size > 1
+  const feedbackVariants = [...feedbackGroups.values()].map(
+    ({ skills, evals }) => ({
+      suffix: multipleFeedbackGroups
+        ? `agent-feedback-${skills.join('-') || 'no-skills'}`
+        : 'agent-feedback',
+      imports: `import { analyzeAgentFeedbackRun, installLocalSkills, installNextJs, prepareFixture, writeAgentFeedbackInstructions } from '../lib/setup.js'`,
+      setup: `await installNextJs(sandbox)\n    await prepareFixture(sandbox)${
+        skills.length > 0
+          ? `\n    await installLocalSkills(sandbox, ${JSON.stringify(skills)})`
+          : ''
+      }\n    await writeAgentFeedbackInstructions(sandbox)`,
+      onRunComplete: 'analyzeAgentFeedbackRun',
+      evals,
+    })
+  )
+
   return {
     timeout,
-    variants: [...BASE_VARIANTS, ...skillVariants],
+    variants: [...BASE_VARIANTS, ...skillVariants, ...feedbackVariants],
   }
 }
 
 function main() {
+  const evalSuites = readEvalSuites()
   const argv = require('yargs/yargs')(process.argv.slice(2))
     .command(
       '$0 [eval-name]',
@@ -183,11 +298,33 @@ function main() {
     )
     .boolean('all')
     .describe('all', 'Run every eval (slow — normally only CI does this)')
+    .string('suite')
+    .choices('suite', Object.keys(evalSuites))
+    .describe('suite', 'Run every eval in a named suite')
     .boolean('dry')
     .describe('dry', 'Preview without executing')
+    .boolean('metrics')
+    .describe(
+      'metrics',
+      'Save the app and collect configured page and effort metrics'
+    )
+    .string('agent')
+    .describe('agent', 'Override the coding agent for every selected variant')
+    .string('model')
+    .describe('model', 'Override the coding model for every selected variant')
+    .string('pricing')
+    .describe('pricing', 'Gateway model pricing JSON for estimated model cost')
+    .implies('pricing', 'metrics')
+    .number('runs')
+    .default('runs', 1)
+    .describe('runs', 'Run each selected eval this many times')
+    .array('variant')
+    .string('variant')
+    .describe('variant', 'Run only the named generated variant (repeatable)')
     .conflicts('all', 'eval-name')
+    .conflicts('suite', ['all', 'eval-name'])
     .check((argv) => {
-      if (!argv.all && !argv.evalName) {
+      if (!argv.all && !argv.evalName && !argv.suite) {
         throw new Error(
           `Missing <eval-name>.\n\nAvailable evals:\n${listEvals()
             .map((n) => `  ${n}`)
@@ -202,61 +339,122 @@ function main() {
           `Unknown eval: ${argv.evalName}\n(looked in ${FIXTURES_DIR})`
         )
       }
+      if (!Number.isInteger(argv.runs) || argv.runs < 1) {
+        throw new Error('--runs must be a positive integer')
+      }
       return true
     })
     .strict()
     .help().argv
 
-  /** @type {string | null} */
-  const evalName = argv.all ? null : /** @type {string} */ (argv.evalName)
-  const { variants, timeout } = getExperimentSettings(evalName)
+  /** @type {string | undefined} */
+  const evalName = argv.evalName
+  /** @type {string[] | null} */
+  const selectedEvals = argv.suite
+    ? evalSuites[argv.suite]
+    : argv.all
+      ? null
+      : [/** @type {string} */ (evalName)]
+  if (
+    argv.metrics &&
+    (!selectedEvals ||
+      selectedEvals.length !== 1 ||
+      !/^[a-z0-9-]+$/.test(EVAL_CONFIG[selectedEvals[0]]?.metrics ?? '') ||
+      !fs.existsSync(
+        path.join(
+          EVALS_DIR,
+          'metrics',
+          `${EVAL_CONFIG[selectedEvals[0]].metrics}.mjs`
+        )
+      ))
+  ) {
+    throw new Error(
+      '--metrics requires one eval with a configured metrics collector'
+    )
+  }
+  const { variants: availableVariants, timeout } =
+    getExperimentSettings(selectedEvals)
+  if (argv.pricing) {
+    const pricing = JSON.parse(fs.readFileSync(argv.pricing, 'utf8'))
+    if (!pricing.pricing || typeof pricing.pricing !== 'object') {
+      throw new Error(
+        "--pricing must contain the model's Gateway pricing object"
+      )
+    }
+  }
+  const requestedVariants = argv.variant ?? []
+  const unknownVariants = requestedVariants.filter(
+    (name) => !availableVariants.some((variant) => variant.suffix === name)
+  )
+  if (unknownVariants.length > 0) {
+    throw new Error(
+      `Unknown variant: ${unknownVariants.join(', ')}\nAvailable variants: ${availableVariants
+        .map((variant) => variant.suffix)
+        .join(', ')}`
+    )
+  }
+  const variants =
+    requestedVariants.length > 0
+      ? availableVariants.filter((variant) =>
+          requestedVariants.includes(variant.suffix)
+        )
+      : availableVariants
   // agent-eval 1.3 dropped run-all/--dry: `run` takes explicit experiment names,
   // and `status` is the read-only preview.
   const agentEvalArgs = argv.dry
     ? ['status']
     : ['run', ...variants.map((v) => v.suffix), '--force']
 
-  if (!fs.existsSync(path.join(ROOT, 'packages/next/dist'))) {
-    console.error(
-      'packages/next/dist not found. Run `pnpm --filter=next build` first.'
+  // Fixtures that install their own pinned app (such as Pokédex) do not use
+  // the local package. Match installNextJs's root-package check before packing.
+  const needsLocalNext = (selectedEvals ?? listEvals()).some((name) => {
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(FIXTURES_DIR, name, 'package.json'), 'utf8')
     )
-    process.exit(1)
-  }
+    return Boolean(pkg.dependencies?.next ?? pkg.devDependencies?.next)
+  })
+  if (needsLocalNext) {
+    if (!fs.existsSync(path.join(ROOT, 'packages/next/dist'))) {
+      console.error(
+        'packages/next/dist not found. Run `pnpm --filter=next build` first.'
+      )
+      process.exit(1)
+    }
 
-  if (process.env.NEXT_SKIP_PACK && fs.existsSync(TARBALL)) {
-    console.log('> Reusing existing tarball (NEXT_SKIP_PACK=1)')
-  } else {
-    console.log('> Packing next...')
-    pack()
-    const mb = (fs.statSync(TARBALL).size / 1024 / 1024).toFixed(1)
-    console.log(`  ${TARBALL} (${mb} MB)`)
+    if (process.env.NEXT_SKIP_PACK && fs.existsSync(TARBALL)) {
+      console.log('> Reusing existing tarball (NEXT_SKIP_PACK=1)')
+    } else {
+      console.log('> Packing next...')
+      pack()
+      const mb = (fs.statSync(TARBALL).size / 1024 / 1024).toFixed(1)
+      console.log(`  ${TARBALL} (${mb} MB)`)
+    }
   }
 
   // agent-eval loads .env / .env.local from its own cwd (evals/). `vc env pull`
   // writes to the repo root, so symlink them into evals/ for agent-eval to find.
-  for (const envFile of ['.env', '.env.local']) {
-    const src = path.join(ROOT, envFile)
-    const dest = path.join(EVALS_DIR, envFile)
-    try {
-      // Remove stale symlink or file before creating a fresh one.
-      fs.rmSync(dest, { force: true })
-      if (fs.existsSync(src)) {
-        fs.symlinkSync(src, dest)
-      }
-    } catch {}
-  }
+  linkEnvironment(ROOT, EVALS_DIR)
 
-  writeExperiments(evalName, variants, timeout)
+  writeExperiments(selectedEvals, variants, timeout, argv.runs, argv)
   console.log(
     evalName
       ? `> Running ${evalName} (${variants.map((v) => v.suffix).join(' + ')})`
-      : `> Running all evals (${variants.map((v) => v.suffix).join(' + ')})`
+      : `> Running ${argv.suite ? `${argv.suite} suite` : 'all evals'} (${variants.map((v) => v.suffix).join(' + ')})`
   )
 
   // Same handoff pattern as run-tests.js with NEXT_TEST_PKG_PATHS. We invoke
   // the bin directly rather than via `pnpm exec` because pnpm resets cwd to
   // the workspace root, but agent-eval resolves experiments/ from process.cwd().
   const bin = path.join(ROOT, 'node_modules/.bin/agent-eval')
+  const previousResults = new Map(
+    variants.map((variant) => {
+      const directory = path.join(EVALS_DIR, 'results', variant.suffix)
+      return [
+        variant.suffix,
+        new Set(fs.existsSync(directory) ? fs.readdirSync(directory) : []),
+      ]
+    })
+  )
   const result = spawnSync(bin, agentEvalArgs, {
     cwd: EVALS_DIR,
     stdio: 'inherit',
@@ -271,7 +469,40 @@ function main() {
     }
     process.exit(1)
   }
-  process.exit(result.status ?? 1)
+  let metricsFailed = false
+  if (argv.metrics && !argv.dry) {
+    for (const variant of variants) {
+      const directory = path.join(EVALS_DIR, 'results', variant.suffix)
+      if (!fs.existsSync(directory)) continue
+      for (const timestamp of fs.readdirSync(directory)) {
+        if (previousResults.get(variant.suffix).has(timestamp)) continue
+        const evalDirectory = path.join(directory, timestamp, selectedEvals[0])
+        if (!fs.existsSync(evalDirectory)) continue
+        for (const run of fs
+          .readdirSync(evalDirectory)
+          .filter((name) => /^run-\d+$/.test(name))) {
+          const measured = spawnSync(
+            process.execPath,
+            [
+              '--import=tsx',
+              path.join(EVALS_DIR, 'metrics/report.mjs'),
+              'collect',
+              path.join(evalDirectory, run),
+              EVAL_CONFIG[selectedEvals[0]].metrics,
+              ...(argv.pricing ? [path.resolve(argv.pricing)] : []),
+            ],
+            { cwd: ROOT, stdio: 'inherit', env: process.env }
+          )
+          if (measured.error || measured.status !== 0) metricsFailed = true
+        }
+      }
+    }
+  }
+  if (metricsFailed)
+    console.error(
+      'Page measurement failed. Eval scores are unchanged; retry the collector on the saved run.'
+    )
+  process.exit((result.status ?? 1) || (metricsFailed ? 1 : 0))
 }
 
 main()

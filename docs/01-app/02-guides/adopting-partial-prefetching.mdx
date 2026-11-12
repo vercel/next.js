@@ -22,7 +22,7 @@ Along the way, Next.js surfaces [instant navigation](/docs/app/guides/instant-na
 
 ## Use the adoption skill (recommended)
 
-The [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption) skill drives this adoption with a coding agent. It reviews your `<Link prefetch={true}>` calls, captures the prefetched UI to preserve with [`instant()` tests](#verify-prefetched-ui-with-tests) when a production test rig is available, then enables the flag and checks each route for the insights this guide covers.
+The [`next-partial-prefetching-adoption`](/docs/app/guides/ai-agents#next-partial-prefetching-adoption) skill drives this adoption with a coding agent. It reviews your `<Link prefetch={true}>` calls, captures the prefetched UI to preserve with [`instant()` tests](#verify-prefetched-ui-with-tests) when a production test rig is available, then enables the flag and checks each route for the insights this guide covers.
 
 Install the skill:
 
@@ -66,6 +66,8 @@ export default nextConfig
 
 After enabling the flag, links using the default behavior, `prefetch="auto"`, or `prefetch={true}` prefetch the destination's App Shell. A link with `prefetch={true}` can also resolve cached URL-specific content, but it no longer includes uncached dynamic content from the legacy full prefetch. New projects can enable the flag without this audit because they have no legacy full prefetches to migrate.
 
+> **Good to know**: When `cacheComponents` is enabled without a `partialPrefetching` value, Next.js logs a warning asking you to set it to `true` or `false`. Set `false` only to keep the previous prefetch behavior while you work through this guide. Both features will be enabled everywhere in the next major release, and the options will be removed.
+
 ## What changes for `<Link>`
 
 | `<Link>` prop                       | Before (Cache Components default)                              | After Partial Prefetching                                                                                                                              |
@@ -86,7 +88,30 @@ A legacy full prefetch can include more UI than the navigation needs. In most ca
 
 ### Verify prefetched UI with tests
 
-To verify the migration programmatically, an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test can capture the UI that should stay available from an existing full prefetch. Run this baseline against a production build with `partialPrefetching` disabled because automatic prefetching doesn't run in `next dev`. Then rerun the same assertions after adopting the destination. A failure identifies UI the App Shell no longer carries, so you can cache the data or subtree that restores it. The passing test provides regression coverage.
+To verify the migration programmatically, an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test can capture the UI that should stay available from an existing full prefetch. Test the exact source link because different links to the same destination can use different prefetch settings:
+
+```ts filename="e2e/product-navigation.test.ts" highlight={7-16}
+import { expect, test } from '@playwright/test'
+import { instant } from '@next/playwright'
+
+test('preserves the prefetched product summary', async ({ page }) => {
+  await page.goto('/products')
+
+  await instant(page, async () => {
+    const link = page.getByRole('link', { name: 'Baseball Cap' })
+    await expect(link).toBeVisible()
+    await link.click()
+    await page.waitForURL((url) => url.pathname === '/products/baseball-cap')
+
+    await expect(
+      page.getByRole('heading', { name: 'Baseball Cap' })
+    ).toBeVisible()
+    await expect(page.getByTestId('product-summary')).toBeVisible()
+  })
+})
+```
+
+Run this baseline against a production build with `partialPrefetching` disabled because automatic prefetching doesn't run in `next dev`. Then rerun the same test after adopting the destination. If it fails, the selected UI is no longer prefetched. Cache the reusable data or subtree that should stay available, then keep the passing test as regression coverage.
 
 ### Static or cached content
 
@@ -318,6 +343,8 @@ Each card is clickable and opens a page with patterns, code samples, and trade-o
      return <Dashboard />
    }
    ```
+
+   > **Good to know**: If the page or layout already calls [`prefetch()`](/docs/app/api-reference/functions/prefetch), import it under another name, for example `import { prefetch as prefetchStage } from 'next/cache'`, so it doesn't collide with the `prefetch` export.
 
 2. Deploy the change. Links to the adopted destination load the App Shell, and the insight keeps surfacing for the destinations you haven't reached.
 3. Repeat until every destination in scope is adopted, then [enable the flag](#enable-partial-prefetching).

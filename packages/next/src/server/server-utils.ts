@@ -14,6 +14,7 @@ import {
   prepareDestination,
 } from '../shared/lib/router/utils/prepare-destination'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
+import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { normalizeRscURL } from '../shared/lib/router/utils/app-paths'
 import {
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
@@ -318,7 +319,7 @@ export function getServerUtils({
         if (!fsPathname) return false
 
         if (basePath) {
-          fsPathname = fsPathname.replace(new RegExp(`^${basePath}`), '') || '/'
+          fsPathname = removePathPrefix(fsPathname, basePath)
         }
 
         if (i18n) {

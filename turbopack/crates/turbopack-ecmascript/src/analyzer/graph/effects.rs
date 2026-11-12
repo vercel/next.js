@@ -92,23 +92,33 @@ impl<'a> ConditionalKind<'a> {
 
 #[derive(Debug)]
 pub enum EffectArg<'a> {
-    Value(JsValue<'a>),
+    /// Argument evaluation effects, skipped when codegen discards this argument.
+    Value(JsValue<'a>, BumpBox<'a, [Effect<'a>]>),
     Closure(JsValue<'a>, BumpBox<'a, EffectsBlock<'a>>),
-    Spread,
+    Spread(BumpBox<'a, [Effect<'a>]>),
 }
 
 impl<'a> EffectArg<'a> {
     /// Normalizes all contained values.
     pub fn normalize(&mut self, arena: &'a Bump) {
         match self {
-            EffectArg::Value(value) => value.normalize(arena),
+            EffectArg::Value(value, effects) => {
+                value.normalize(arena);
+                for effect in effects.iter_mut() {
+                    effect.normalize(arena);
+                }
+            }
             EffectArg::Closure(value, effects) => {
                 value.normalize(arena);
                 for effect in effects.effects.iter_mut() {
                     effect.normalize(arena);
                 }
             }
-            EffectArg::Spread => {}
+            EffectArg::Spread(effects) => {
+                for effect in effects.iter_mut() {
+                    effect.normalize(arena);
+                }
+            }
         }
     }
 }
@@ -148,8 +158,13 @@ pub enum Effect<'a> {
     Member {
         obj: BumpBox<'a, JsValue<'a>>,
         prop: BumpBox<'a, JsValue<'a>>,
+        /// Effects inside the expression, skipped when the whole expression is replaced.
+        base_effects: BumpBox<'a, [Effect<'a>]>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
+        // Whether this value from this member access only ends up being used as a truthiness check
+        // (and the full value doesn't escape).
+        in_truthiness_context: bool,
     },
     /// A property access created by an object destructuring pattern.
     DestructuredMember {
@@ -161,6 +176,8 @@ pub enum Effect<'a> {
     In {
         left: BumpBox<'a, JsValue<'a>>,
         right: BumpBox<'a, JsValue<'a>>,
+        /// Effects inside the expression, skipped when the whole expression is replaced.
+        effects: BumpBox<'a, [Effect<'a>]>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
@@ -168,6 +185,8 @@ pub enum Effect<'a> {
     ImportedBinding {
         esm_reference_index: usize,
         export: Option<RcStr>,
+        /// A single member read from a named import (`z.member`), used only to narrow the part.
+        member: Option<RcStr>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
@@ -180,6 +199,8 @@ pub enum Effect<'a> {
     /// A typeof expression
     TypeOf {
         arg: BumpBox<'a, JsValue<'a>>,
+        /// Effects inside the expression, skipped when the whole expression is replaced.
+        effects: BumpBox<'a, [Effect<'a>]>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
@@ -237,17 +258,33 @@ impl<'a> Effect<'a> {
                     arg.normalize(arena);
                 }
             }
-            Effect::Member { obj, prop, .. } => {
+            Effect::Member {
+                obj,
+                prop,
+                base_effects,
+                ..
+            } => {
                 obj.normalize(arena);
                 prop.normalize(arena);
+                for effect in base_effects.iter_mut() {
+                    effect.normalize(arena);
+                }
             }
             Effect::DestructuredMember { obj, prop, .. } => {
                 obj.normalize(arena);
                 prop.normalize(arena);
             }
-            Effect::In { left, right, .. } => {
+            Effect::In {
+                left,
+                right,
+                effects,
+                ..
+            } => {
                 left.normalize(arena);
                 right.normalize(arena);
+                for effect in effects.iter_mut() {
+                    effect.normalize(arena);
+                }
             }
             Effect::DynamicImport { args, .. } => {
                 for arg in args.iter_mut() {
@@ -255,8 +292,11 @@ impl<'a> Effect<'a> {
                 }
             }
             Effect::ImportedBinding { .. } => {}
-            Effect::TypeOf { arg, .. } => {
+            Effect::TypeOf { arg, effects, .. } => {
                 arg.normalize(arena);
+                for effect in effects.iter_mut() {
+                    effect.normalize(arena);
+                }
             }
             Effect::FreeVar { .. } => {}
             Effect::ImportMeta { .. } => {}

@@ -30,3 +30,12 @@ export class NestedDynamicUseCacheError extends Error {
     this.name = 'Nested dynamic "use cache"'
   }
 }
+
+/** Exported separately because tests assert on it */
+export const UNEXPECTED_CACHE_MISS_MESSAGE = `Unexpected cache miss after cache warming phase during prerendering. This is likely caused by non-deterministic arguments that differ between the cache warming phase and the final prerender phase (e.g. unstable array order). Ensure that arguments passed to cached functions are deterministic.`
+
+export class UnexpectedCacheMissError extends Error {
+  constructor(route: string) {
+    super(`Route "${route}": ` + UNEXPECTED_CACHE_MISS_MESSAGE)
+  }
+}

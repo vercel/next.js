@@ -1,6 +1,7 @@
 import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Transform } from 'stream'
+import { finished } from 'stream/promises'
 import {
   formatDebugAddress,
   formatNodeOptions,
@@ -14,12 +15,47 @@ type FarmOptions = NonNullable<ConstructorParameters<typeof JestWorker>[1]>
 
 const RESTARTED = Symbol('restarted')
 
-const cleanupWorkers = (worker: JestWorker) => {
+// Upper bound for how long `end()` waits for workers to write their CPU
+// profiles before falling back to jest-worker's regular (force-kill) shutdown.
+const CPU_PROFILE_FLUSH_TIMEOUT_MS = 60_000
+
+const cleanupWorkers = async (worker: JestWorker): Promise<void> => {
+  const children: ChildProcess[] = []
   for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
     _child?: ChildProcess
   }[]) {
-    curWorker._child?.kill('SIGINT')
+    if (curWorker._child) {
+      children.push(curWorker._child)
+      curWorker._child.kill('SIGINT')
+    }
   }
+
+  if (!process.env.NEXT_CPU_PROF) {
+    return
+  }
+
+  // With CPU profiling enabled, workers save their profile when they receive
+  // SIGINT (see `server/lib/cpu-profile.ts`). jest-worker's `end()` force-kills
+  // workers that haven't exited after ~1s, which can cut off writing a large
+  // profile, so wait for the workers to exit first.
+  await new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, CPU_PROFILE_FLUSH_TIMEOUT_MS)
+    Promise.all(
+      children.map(
+        (child) =>
+          new Promise<void>((resolveChild) => {
+            if (child.exitCode !== null || child.signalCode !== null) {
+              resolveChild()
+            } else {
+              child.once('exit', () => resolveChild())
+            }
+          })
+      )
+    ).then(() => {
+      clearTimeout(timer)
+      resolve()
+    })
+  })
 }
 
 export function getNextBuildDebuggerPortOffset(_: {
@@ -125,7 +161,7 @@ export class Worker {
     const createWorker = () => {
       const workerEnv: NodeJS.ProcessEnv = {
         ...process.env,
-        ...((farmOptions.forkOptions?.env || {}) as any),
+        ...(farmOptions.forkOptions?.env || {}),
         IS_NEXT_WORKER: 'true',
         NODE_OPTIONS: formattedNodeOptions,
       }
@@ -215,9 +251,10 @@ export class Worker {
           callback()
         },
       })
-      // Stop the activity if there's any output from the worker
-      this._worker.getStdout().pipe(abortActivityStreamOnLog)
-      this._worker.getStderr().pipe(abortActivityStreamOnLog)
+      // Stop the activity on worker output. Neither stream should end the
+      // shared sink.
+      this._worker.getStdout().pipe(abortActivityStreamOnLog, { end: false })
+      this._worker.getStderr().pipe(abortActivityStreamOnLog, { end: false })
 
       // Pipe the worker's stdout and stderr to the parent process
       this._worker.getStdout().pipe(process.stdout)
@@ -292,14 +329,28 @@ export class Worker {
     this._onActivityAbort = onActivityAbort
   }
 
-  end(): ReturnType<JestWorker['end']> {
+  async end(): ReturnType<JestWorker['end']> {
     const worker = this._worker
     if (!worker) {
       throw new Error('Farm is ended, no more calls can be done to it')
     }
-    cleanupWorkers(worker)
     this._worker = undefined
-    return worker.end()
+    await cleanupWorkers(worker)
+    // Drain output before resolving; child exit can precede the final events.
+    const [result] = await Promise.all([
+      worker.end(),
+      finished(worker.getStdout(), {
+        readable: true,
+        writable: false,
+        cleanup: true,
+      }),
+      finished(worker.getStderr(), {
+        readable: true,
+        writable: false,
+        cleanup: true,
+      }),
+    ])
+    return result
   }
 
   /**
@@ -307,8 +358,9 @@ export class Worker {
    */
   close(): void {
     if (this._worker) {
-      cleanupWorkers(this._worker)
-      this._worker.end()
+      const worker = this._worker
+      this._worker = undefined
+      cleanupWorkers(worker).then(() => worker.end())
     }
   }
 }
