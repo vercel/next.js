@@ -113,6 +113,8 @@ Activity preserves a dialog's open/closed state. When Activity shows the compone
 
 To reset the open/closed state on hide, use a `useLayoutEffect` cleanup as in the [dropdown example](#expandable-ui-dropdowns-accordions-panels).
 
+The same pattern applies to controlled dialogs rendered through a portal: reset the open state in the component that owns it. For native dialogs opened with `showModal()`, call [`dialog.close()`](https://developer.mozilla.org/docs/Web/API/HTMLDialogElement/close) in the cleanup.
+
 #### Controlling a dialog with the URL
 
 If a dialog should open when visiting a particular URL, derive its state from a search parameter. For example, this dialog opens when the URL includes `?edit=true`:
@@ -548,6 +550,8 @@ function VideoPlayer({ src }: { src: string }) {
 ```
 
 When the component becomes visible again, Effects re-run and playback position is preserved since the DOM node was never removed.
+
+If cleanup removes or changes a DOM property, restore it in the Effect's setup. For example, removing a video's `src` during cleanup requires setting it again when the Effect runs. If you only need to stop playback, `pause()` preserves the source and position.
 
 ### Tracking whether an Effect has run before
 
