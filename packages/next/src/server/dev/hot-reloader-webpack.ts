@@ -64,7 +64,6 @@ import {
   isMiddlewareFilename,
 } from '../../build/utils'
 import { DecodeError } from '../../shared/lib/utils'
-import { recordSpan } from '../../trace/trace'
 import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { existsSync, promises as fs } from 'fs'
@@ -664,15 +663,14 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           }
 
           if (traceChild) {
-            recordSpan(
+            this.hotReloaderSpan.manualTraceChild(
+              traceChild.name,
+              traceChild.startTime,
+              traceChild.endTime,
+              { ...traceChild.attrs, clientId: payload.id },
               {
-                name: traceChild.name,
                 recordToInsights: traceChild.recordToInsights,
-                startTime: traceChild.startTime,
-                endTime: traceChild.endTime,
-                attributes: { ...traceChild.attrs, clientId: payload.id },
-              },
-              this.hotReloaderSpan.recorder
+              }
             )
           }
         } catch (_) {

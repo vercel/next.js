@@ -63,7 +63,6 @@ import {
   clearModuleContext,
 } from '../lib/render-server'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
-import { recordSpan } from '../../trace/trace'
 import {
   AssetMapper,
   type ChangeSubscriptions,
@@ -1735,31 +1734,25 @@ export async function createHotReloaderTurbopack(
               break
             }
             case 'span-end': {
-              recordSpan(
-                {
-                  name: parsedData.spanName,
-                  startTime: msToNs(parsedData.startTime),
-                  endTime: msToNs(parsedData.endTime),
-                  attributes: parsedData.attributes,
-                },
-                hotReloaderSpan.recorder
+              hotReloaderSpan.manualTraceChild(
+                parsedData.spanName,
+                msToNs(parsedData.startTime),
+                msToNs(parsedData.endTime),
+                parsedData.attributes
               )
               break
             }
             case 'client-hmr-latency': // { id, startTime, endTime, page, updatedModules, isPageHidden }
-              recordSpan(
+              hotReloaderSpan.manualTraceChild(
+                parsedData.event,
+                msToNs(parsedData.startTime),
+                msToNs(parsedData.endTime),
                 {
-                  name: parsedData.event,
-                  recordToInsights: true,
-                  startTime: msToNs(parsedData.startTime),
-                  endTime: msToNs(parsedData.endTime),
-                  attributes: {
-                    updatedModules: parsedData.updatedModules,
-                    page: parsedData.page,
-                    isPageHidden: parsedData.isPageHidden,
-                  },
+                  updatedModules: parsedData.updatedModules,
+                  page: parsedData.page,
+                  isPageHidden: parsedData.isPageHidden,
                 },
-                hotReloaderSpan.recorder
+                { recordToInsights: true }
               )
               break
 
