@@ -17,11 +17,13 @@ export function fromNodeOutgoingHttpHeaders(
   nodeHeaders: OutgoingHttpHeaders
 ): Headers {
   const headers = new Headers()
-  // The same names in the same order as `Object.entries`, without an entry
-  // array per header and without an array around a single value.
-  const keys = Object.keys(nodeHeaders)
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[i]
+  // The same names in the same order as `Object.entries`, without an array of
+  // entries or names and without an array around a single value. `for...in`
+  // also visits inherited enumerable properties, which `Object.entries` does
+  // not, so those are skipped: a polluted `Object.prototype` must not add
+  // headers.
+  for (const key in nodeHeaders) {
+    if (!Object.hasOwn(nodeHeaders, key)) continue
     const value = nodeHeaders[key]
     if (Array.isArray(value)) {
       const values = value as Array<string | number | undefined>
