@@ -1,3 +1,4 @@
+// Start CPU profile if it wasn't already started.
 import './cpu-profile'
 import { getNetworkHost } from '../../lib/get-network-host'
 
@@ -752,11 +753,9 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
           })
           const started = await startServer(msg.nextWorkerOptions)
           const memoryUsage = process.memoryUsage()
-          span!.recorder.setAttributes({
-            'memory.rss': String(memoryUsage.rss),
-            'memory.heapTotal': String(memoryUsage.heapTotal),
-            'memory.heapUsed': String(memoryUsage.heapUsed),
-          })
+          span!.setAttribute('memory.rss', String(memoryUsage.rss))
+          span!.setAttribute('memory.heapTotal', String(memoryUsage.heapTotal))
+          span!.setAttribute('memory.heapUsed', String(memoryUsage.heapUsed))
           const { getSessionAttributes } =
             require('../../trace/session') as typeof import('../../trace/session')
           const { traceGlobals } =
@@ -767,8 +766,10 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
             !!process.env.TURBOPACK,
             traceGlobals.get('telemetry')
           )
-          span!.recorder.setAttributes(attributes)
-          devServerSessionSpan!.recorder.setAttributes(attributes)
+          for (const [key, value] of Object.entries(attributes)) {
+            span!.setAttribute(key, value)
+            devServerSessionSpan!.setAttribute(key, value)
+          }
           return started
         })
       process.send({
