@@ -1,0 +1,82 @@
+import { expect, test, vi, vitest } from 'vitest'
+
+const row = (label, value) => console.log('STUB_BROWSER_ROW ' + JSON.stringify({ label, value }))
+const absent = '__NEXT_BROWSER_STUB95_ABSENT__'
+const existing = '__NEXT_BROWSER_STUB95_EXISTING__'
+const persisted = '__NEXT_BROWSER_STUB95_PERSISTED__'
+const symbolic = Symbol('browser-stub95')
+
+test('Browser global stubs preserve aliases, descriptors and fluent identity', () => {
+  let reads = 0
+  const getter = () => { reads++; return 'original' }
+  const payload = { value: 7 }
+  Object.defineProperty(globalThis, existing, { configurable: true, enumerable: false, get: getter })
+  try {
+    const first = vi.stubGlobal(absent, payload)
+    const again = vi.stubGlobal(absent, 'replacement')
+    const symbolResult = vi.stubGlobal(symbolic, payload)
+    const replaceAccessor = vi.stubGlobal(existing, 42)
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, existing)
+    row('stubbed', {
+      aliases: vi === vitest,
+      methodStable: vi.stubGlobal === vi.stubGlobal,
+      firstSame: first === vi,
+      againSame: again === vi,
+      symbolSame: symbolResult === vi,
+      accessorSame: replaceAccessor === vi,
+      globalValue: globalThis[absent], windowValue: window[absent], selfValue: self[absent],
+      symbolValueSame: globalThis[symbolic] === payload,
+      getterReads: reads,
+      descriptor: { configurable: descriptor.configurable, enumerable: descriptor.enumerable, writable: descriptor.writable, value: descriptor.value },
+    })
+    expect(globalThis[absent]).toBe('replacement')
+    expect(globalThis[symbolic]).toBe(payload)
+    const result = vi.unstubAllGlobals()
+    const restored = Object.getOwnPropertyDescriptor(globalThis, existing)
+    row('restored', {
+      same: result === vi,
+      absentRemoved: !Object.hasOwn(globalThis, absent), symbolRemoved: !Object.hasOwn(globalThis, symbolic),
+      accessorSame: restored.get === getter, configurable: restored.configurable, enumerable: restored.enumerable,
+      originalValue: globalThis[existing], getterReads: reads,
+      repeatedSame: vi.unstubAllGlobals() === vi,
+    })
+    expect(restored.get).toBe(getter)
+    expect(Object.hasOwn(globalThis, absent)).toBe(false)
+  } finally {
+    vi.unstubAllGlobals()
+    delete globalThis[existing]
+  }
+})
+
+test('Browser bulk mock calls return the public vi for further chains', () => {
+  const mock = vi.fn(() => 3)
+  const object = { value() { return 4 } }
+  const original = object.value
+  const spy = vi.spyOn(object, 'value').mockReturnValue(8)
+  mock(); spy()
+  const clear = vi.clearAllMocks
+  const clearResult = clear()
+  const afterClear = { mock: mock.mock.calls.length, spy: spy.mock.calls.length }
+  mock(); spy()
+  const resetResult = vi.resetAllMocks()
+  const afterReset = { mock: mock.mock.calls.length, spy: spy.mock.calls.length }
+  const restored = vi.restoreAllMocks()
+  row('bulk', {
+    clearSame: clearResult === vi, resetSame: resetResult === vi, restoreSame: restored === vi,
+    clearStable: clear === vi.clearAllMocks,
+    afterClear, afterReset, originalRestored: object.value === original,
+  })
+  expect(afterClear).toEqual({ mock: 0, spy: 0 })
+  expect(afterReset).toEqual({ mock: 0, spy: 0 })
+  const chain = vi.clearAllMocks().stubGlobal(persisted, 17).resetAllMocks()
+  row('chain', { same: chain === vi, value: globalThis[persisted], throughWindow: window[persisted] })
+  expect(globalThis[persisted]).toBe(17)
+})
+
+test('Browser global stubs last until explicit restoration across cases', () => {
+  const before = globalThis[persisted]
+  const result = vi.unstubAllGlobals()
+  row('persistence', { before, same: result === vi, absentAfter: !Object.hasOwn(globalThis, persisted) })
+  expect(before).toBe(17)
+  expect(Object.hasOwn(globalThis, persisted)).toBe(false)
+})

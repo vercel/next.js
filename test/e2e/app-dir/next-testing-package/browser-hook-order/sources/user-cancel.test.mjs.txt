@@ -1,0 +1,17 @@
+import { test, beforeEach, afterEach, afterAll } from 'vitest'
+const rows = []
+const row = (stage, context) => rows.push({ stage, aborted: context.signal.aborted })
+beforeEach(async context => {
+  row('before-one-start', context)
+  context.onTestFinished(payload => row('finished', payload), 0)
+  await new Promise(resolve => {
+    context.signal.addEventListener('abort', () => { row('before-one-abort', context); resolve() }, { once: true })
+    console.log('HOOK_CANCEL_READY')
+  })
+  row('before-one-end', context)
+  return () => row('cleanup-one', context)
+})
+beforeEach(context => { row('before-two', context); return () => row('cleanup-two', context) })
+afterEach(context => row('after-each', context))
+test('actual user cancellation during parallel hooks', context => row('unexpected-body', context))
+afterAll(() => console.log('HOOK_CANCEL_ROWS:' + JSON.stringify(rows)))

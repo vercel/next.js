@@ -1,0 +1,8 @@
+import React from 'react'
+import { beforeEach, expect } from 'vitest'
+import { label } from 'next-test-production-target'
+beforeEach(() => {
+  const profile = { environment: process.env.NODE_ENV, target: label, act: typeof React.act }
+  expect(profile).toEqual({ environment: 'production', target: 'browser-production', act: 'undefined' })
+  console.log('CLIENT_WATCH_PROFILE ' + JSON.stringify(profile))
+})

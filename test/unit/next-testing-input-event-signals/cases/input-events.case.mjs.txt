@@ -1,0 +1,91 @@
+import { test, expect } from 'vitest'
+import { page } from 'vitest/browser'
+const stringify = JSON.stringify
+function fields(event, input, receiver) {
+  return {
+    type: event.type, constructor: event.constructor.name,
+    receiverIsInput: receiver === input, targetIsInput: event.target === input,
+    currentTargetIsInput: event.currentTarget === input,
+    trusted: event.isTrusted, bubbles: event.bubbles, cancelable: event.cancelable,
+    composed: event.composed, defaultPrevented: event.defaultPrevented,
+    phase: event.eventPhase, data: event.data, inputType: event.inputType,
+    composing: event.isComposing, value: input.value,
+  }
+}
+test('actual fill input fields and function/object/property receivers', async () => {
+  const input = document.createElement('input')
+  input.dataset.testid = 'actual-input-fields'
+  document.body.append(input)
+  const rows = []
+  const options = {}
+  for (const [name, value] of [['capture', false], ['once', false], ['passive', false], ['signal', undefined]])
+    Object.defineProperty(options, name, { get() { rows.push({ event: 'option', name, receiver: this === options }); return value } })
+  function callback(event) { rows.push({ event: 'function', fields: fields(event, input, this) }) }
+  const object = {
+    get handleEvent() {
+      rows.push({ event: 'method-getter', receiver: this === object })
+      return function (event) { rows.push({ event: 'object', receiver: this === object, fields: fields(event, input, this) }) }
+    },
+  }
+  input.addEventListener('input', callback, options)
+  input.addEventListener('input', object)
+  input.oninput = function (event) { rows.push({ event: 'property', fields: fields(event, input, this) }) }
+  try {
+    await page.getByTestId('actual-input-fields').fill('first')
+    await page.getByTestId('actual-input-fields').fill('second')
+    console.log('BROWSER_NATIVE_FIXTURE:' + stringify({ kind: 'input-fields', rows, value: input.value }))
+    expect(rows.filter(row => row.event === 'function')).toHaveLength(2)
+    expect(rows.filter(row => row.event === 'object')).toHaveLength(2)
+    expect(rows.filter(row => row.event === 'property')).toHaveLength(2)
+    expect(input.value).toBe('second')
+  } finally {
+    input.removeEventListener('input', callback)
+    input.removeEventListener('input', object)
+    input.oninput = null
+    input.remove()
+  }
+})
+for (const kind of ['true', 'throw']) {
+  test('uses actual signal state for native add/remove despite shadowed aborted ' + kind, async () => {
+    const input = document.createElement('input')
+    input.dataset.testid = 'actual-signal-' + kind
+    document.body.append(input)
+    const controller = new AbortController(), signal = controller.signal
+    const rows = []
+    const marker = new Error('actual authored aborted getter')
+    marker.name = 'AuthoredAbortedGetter'
+    marker.stack = ''
+    Object.defineProperty(signal, 'aborted', { configurable: true, get() {
+      rows.push({ event: 'aborted-getter', receiver: this === signal })
+      if (kind === 'throw') throw marker
+      return true
+    } })
+    function callback(event) { rows.push({ event: 'input', fields: fields(event, input, this) }) }
+    let caught
+    try {
+      try {
+        input.addEventListener('input', callback, { signal })
+      } catch (error) {
+        caught = error
+        rows.push({ event: 'add-error', sameOriginal: error === marker, name: error?.name, message: error?.message })
+      }
+      input.removeEventListener('input', callback)
+      rows.push({ event: 'removed' })
+      await page.getByTestId('actual-signal-' + kind).fill('removed')
+      rows.push({ event: 'after-first-fill', value: input.value })
+      controller.abort()
+      rows.push({ event: 'actual-abort', reasonIsAbortError: signal.reason?.name === 'AbortError' })
+      await page.getByTestId('actual-signal-' + kind).fill('aborted')
+      rows.push({ event: 'after-second-fill', value: input.value })
+      console.log('BROWSER_NATIVE_FIXTURE:' + stringify({ kind: 'signal-' + kind, rows, caught: caught ? { sameOriginal: caught === marker, name: caught.name, message: caught.message } : null, value: input.value }))
+      expect(caught).toBeUndefined()
+      expect(rows.filter(row => row.event === 'aborted-getter')).toHaveLength(0)
+      expect(rows.filter(row => row.event === 'input')).toHaveLength(0)
+      expect(input.value).toBe('aborted')
+    } finally {
+      controller.abort()
+      input.removeEventListener('input', callback)
+      input.remove()
+    }
+  })
+}

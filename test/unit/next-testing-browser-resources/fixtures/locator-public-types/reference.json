@@ -1,0 +1,112 @@
+{
+  "programs": [
+    {
+      "name": "values.ts",
+      "source": "values.ts.txt",
+      "sourceSHA256": "63ee0fb298e9dbd5234f2939ef2bf38e29e4fa8f49c8ed4bc739414310b00abc",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "minimal.ts",
+      "source": "minimal.ts.txt",
+      "sourceSHA256": "48368821fd18f763a2c37a7e5f6a5807e20326b6ffbc3acf775e57e16ec3f486",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "json.ts",
+      "source": "json.ts.txt",
+      "sourceSHA256": "f5648864a52dfdbd79a281eeeca41db8c1d4c43d73ce321b0133592336421957",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "method-shapes.ts",
+      "source": "method-shapes.ts.txt",
+      "sourceSHA256": "bf4f1f29153367acc067dee85fce56e7c975da564b8e9d2972f446f5f9178fbd",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "extra-field.ts",
+      "source": "extra-field.ts.txt",
+      "sourceSHA256": "b9756c41db62bc9c58aef8152916f05263a178d57d8d5ee8a6262a468ba5950b",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2561,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "access-field.ts",
+      "source": "access-field.ts.txt",
+      "sourceSHA256": "42796d6dae7cf7a9af719d8b2e813a86ade8f28485e270f7d05aecfe1661ffd3",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2551,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "wrong-value.ts",
+      "source": "wrong-value.ts.txt",
+      "sourceSHA256": "6367839fb1e5927ee54323462de4f25a7b3fc48b35798a0347e90bfae1fbb2ea",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "missing-field.ts",
+      "source": "missing-field.ts.txt",
+      "sourceSHA256": "ae8f0e0cdae9953e2fcc69a8a3c91f658d3a41a220f59821a9dd117af08ea723",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2741,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "arguments.ts",
+      "source": "arguments.ts.txt",
+      "sourceSHA256": "8848f64fc41b789732b0ecc498b017f9f1e1f844de9de355d733133a1be85f13",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2554,
+          "line": 3
+        },
+        {
+          "code": 2554,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "protected-field.ts",
+      "source": "protected-field.ts.txt",
+      "sourceSHA256": "b35d13cf29fd225318b62d471e28be701874e09d0a187fb7620b426f82354f5b",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2339,
+          "line": 3
+        },
+        {
+          "code": 2551,
+          "line": 3
+        }
+      ]
+    }
+  ]
+}

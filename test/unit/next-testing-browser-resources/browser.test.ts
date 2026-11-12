@@ -4,6 +4,8 @@ import { createServer, type Server } from 'node:http'
 import { mkdtemp, stat, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import type { Browser } from 'playwright'
 import { instant } from '@next/playwright'
 import {
@@ -21,6 +23,74 @@ import {
   browser as getBrowserFixture,
   initializeBrowserTesting,
 } from 'next/dist/experimental/testing/browser'
+
+it('classifies actual WebKit Promises without authored getters or proxy effects', async () => {
+  const output = await mkdtemp(join(tmpdir(), 'next-webkit-engine-brand-'))
+  try {
+    const project = join(__dirname, '../../..')
+    const { stdout } = await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'webkit-engine-brand.cjs'), project, project, output],
+      { timeout: 60000 }
+    )
+    expect(JSON.parse(stdout)).toMatchObject({
+      nativeContext: true,
+      sameNativeFrame: true,
+      allOwnersClosed: true,
+      result: { tagReads: 0, proxyTraps: 0, thenReads: 0 },
+    })
+  } finally {
+    await rm(output, { recursive: true, force: true })
+  }
+}, 90000)
+
+it('joins a throwing WebKit failure observer without an unhandled pause promise', async () => {
+  const { EventEmitter } = await import('node:events')
+  const { createWebKitEngineBrand } = await import(
+    'next/dist/experimental/testing/browser/webkit-engine-brand'
+  )
+  const original = new Error('actual paused owner failed')
+  const observer = new Error('failure observer failed')
+  let failOwner = false
+  const session = Object.assign(new EventEmitter(), {
+    send: jest.fn(async () => ({})),
+    isDisposed: () => false,
+  })
+  const onFailure = jest.fn(() => {
+    throw observer
+  })
+  const brand = createWebKitEngineBrand({
+    owner: {
+      session,
+      pageGuid: 'owned-page',
+      contextGuid: 'owned-context',
+      assertCurrent() {
+        if (failOwner) throw original
+      },
+      mainFrameId: () => 'owned-frame',
+      bootstrapSource: () => '/* retained SDK initializer */',
+    },
+    signal: new AbortController().signal,
+    onFailure,
+    initializer: {
+      source: '/* owned classifier */',
+      url: 'next-test-engine-brand://observer-control',
+      registrationLine: 0,
+      classificationLine: 1,
+    },
+  })
+  await brand.start()
+  failOwner = true
+  session.emit('Debugger.paused', { callFrames: [] })
+  await expect(brand.afterOwnersClosed()).rejects.toMatchObject({
+    errors: [observer],
+  })
+  expect(onFailure).toHaveBeenCalledTimes(1)
+  expect(onFailure).toHaveBeenCalledWith(original)
+  expect(session.send).toHaveBeenCalledWith('Debugger.resume')
+  expect(session.send).toHaveBeenCalledWith('Debugger.disable', undefined)
+  expect(() => brand.fact()).toThrow(original)
+})
 
 // Resource tests use a trivial HTTP document; the separate e2e suite is the
 // oracle for actual Next compilation, streaming, and instant shell behavior.
@@ -1257,3 +1327,33 @@ describe('explicit actual Browser host launch mode', () => {
     }
   )
 })
+
+it('classifies actual WebKit Promises in the owned child frame', async () => {
+  const output = await mkdtemp(
+    join(tmpdir(), 'next-webkit-frame-engine-brand-')
+  )
+  try {
+    const project = join(__dirname, '../../..')
+    const { stdout } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'webkit-frame-engine-brand.cjs'),
+        project,
+        project,
+        output,
+      ],
+      { timeout: 60000 }
+    )
+    expect(JSON.parse(stdout)).toMatchObject({
+      nativeContext: true,
+      sameNativeFrame: true,
+      allOwnersClosed: true,
+      actualOwnedChild: true,
+      parentAndSiblingUnchanged: true,
+      detachedOwnerRejected: true,
+      result: { tagReads: 0, proxyTraps: 0, thenReads: 0 },
+    })
+  } finally {
+    await rm(output, { recursive: true, force: true })
+  }
+}, 90000)

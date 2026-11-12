@@ -1,0 +1,43 @@
+import { test, expect, vi } from 'vitest'
+import { page } from 'vitest/browser'
+const NativePromise = Promise
+const nativeStringify = JSON.stringify
+for (const variant of ['forwarded', 'veto']) {
+  test('reads actual fill descriptor after RPC constructor ' + variant, async () => {
+    const input = document.createElement('input')
+    input.dataset.testid = 'replacement'
+    input.textContent = 'replacement'
+    let events = 0
+    input.oninput = () => { events++ }
+    document.body.append(input)
+    const locator = page.getByTestId('not-present')
+    const trace = []
+    const descriptor = {
+      get selector() { trace.push({ event: 'field:selector', receiver: this === descriptor }); return 'internal:testid=[data-testid="replacement"s]' },
+      get locator() { trace.push({ event: 'field:locator', receiver: this === descriptor }); return "getByTestId('replacement')" },
+    }
+    locator.serialize = function () { trace.push({ event: 'serialize', receiver: this === locator, argsLength: arguments.length }); return descriptor }
+    const action = locator.fill('filled')
+    trace.push({ event: 'after-create' })
+    const marker = new Error('actual RPC constructor veto')
+    marker.name = 'ConstructorVeto'
+    marker.stack = ''
+    let caught
+    try {
+      vi.stubGlobal('Promise', new Proxy(NativePromise, { construct(target, args, receiver) {
+        trace.push({ event: 'constructor' })
+        if (variant === 'veto') throw marker
+        return Reflect.construct(target, args, receiver)
+      } }))
+      try { await action } catch (error) { caught = error }
+    } finally { vi.unstubAllGlobals(); input.remove() }
+    console.log('BROWSER_NATIVE_FIXTURE:' + nativeStringify({ variant, events, value: input.value, trace, error: caught ? { name: caught.name, message: caught.message, sameError: caught === marker } : null }))
+    expect(trace[0].event).toBe('serialize')
+    expect(trace[1].event).toBe('after-create')
+    const ctor = trace.findIndex(entry => entry.event === 'constructor')
+    const field = trace.findIndex(entry => entry.event.startsWith('field:'))
+    expect(ctor).toBeGreaterThan(1)
+    if (variant === 'veto') { expect(events).toBe(0); expect(field).toBe(-1); expect(caught.name).toBe('ConstructorVeto') }
+    else { expect(events).toBe(1); expect(field).toBeGreaterThan(ctor); expect(caught).toBe(undefined) }
+  })
+}

@@ -1,0 +1,29 @@
+import { server } from 'vitest/browser'
+import { server as contextServer } from '@vitest/browser/context'
+
+type ErrorFormat = 'html' | 'aria' | 'all'
+const format: ErrorFormat = server.config.browser.locators.errorFormat
+const contextFormat: ErrorFormat = contextServer.config.browser.locators.errorFormat
+const required: { errorFormat: ErrorFormat } = server.config.browser.locators
+const contextRequired: { errorFormat: ErrorFormat } = contextServer.config.browser.locators
+
+server.config.browser.locators.errorFormat = 'aria'
+server.config.browser.locators.errorFormat = 'html'
+server.config.browser.locators.errorFormat = 'all'
+contextServer.config.browser.locators.errorFormat = 'aria'
+contextServer.config.browser.locators.errorFormat = 'html'
+contextServer.config.browser.locators.errorFormat = 'all'
+
+// @ts-expect-error the required property excludes undefined
+server.config.browser.locators.errorFormat = undefined
+// @ts-expect-error the required property excludes undefined
+contextServer.config.browser.locators.errorFormat = undefined
+// @ts-expect-error errorFormat accepts only its three literals
+server.config.browser.locators.errorFormat = 'text'
+// @ts-expect-error errorFormat accepts only its three literals
+contextServer.config.browser.locators.errorFormat = 'text'
+// @ts-expect-error errorFormat excludes numbers
+server.config.browser.locators.errorFormat = 1
+// @ts-expect-error errorFormat excludes numbers
+contextServer.config.browser.locators.errorFormat = 1
+void [format, contextFormat, required, contextRequired]

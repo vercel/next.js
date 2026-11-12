@@ -1,0 +1,11 @@
+import { describe } from 'vitest'
+let callbacks = 0
+const failure = new Error('actual original Browser module load failure')
+describe('unstarted normal declaration', async () => {
+  callbacks++
+  console.log('SUITE_API_BROWSER:' + JSON.stringify({stage: 'unexpected factory', callbacks}))
+  await Promise.resolve()
+  throw failure
+})
+console.log('SUITE_API_BROWSER:' + JSON.stringify({stage: 'before original throw', callbacks}))
+throw failure

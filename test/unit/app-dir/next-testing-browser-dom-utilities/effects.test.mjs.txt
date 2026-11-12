@@ -1,0 +1,139 @@
+import { test, expect } from 'vitest'
+import { page, utils } from 'vitest/browser'
+import expected from './dom-formatting.expected.json'
+const hostFor = () => {
+  const host = document.createElement('section')
+  host.dataset.testid = 'effect-root'
+  host.innerHTML = '<span>middle node</span><button>last node</button>'
+  document.body.append(host)
+  return host
+}
+
+test('uses actual sparse array forEach and inherited present indexes in debug order', () => {
+  const host = hostFor(),
+    original = console.log,
+    logs = [],
+    events = [],
+    sparse = [host, , page.getByRole('button', { name: 'last node' })]
+  Object.defineProperty(sparse, 'forEach', {
+    get() {
+      events.push('get-forEach')
+      return function (callback) {
+        events.push(this === sparse ? 'same-array' : 'wrong-array')
+        return Reflect.apply(Array.prototype.forEach, this, [callback])
+      }
+    },
+  })
+  try {
+    console.log = function (...args) {
+      logs.push(args)
+      return Reflect.apply(original, this, args)
+    }
+    const first = utils.debug(sparse, 10000, { highlight: false }),
+      firstCount = logs.length
+    const inherited = [host, , page.getByRole('button', { name: 'last node' })],
+      prototype = Object.create(Array.prototype)
+    Object.defineProperty(prototype, '1', {
+      value: host.querySelector('span'),
+      configurable: true,
+    })
+    Object.setPrototypeOf(inherited, prototype)
+    const second = utils.debug(inherited, 10000, { highlight: false })
+    console.log = original
+    expect(firstCount).toBe(2)
+    expect(logs.length).toBe(5)
+    expect(events).toEqual(['get-forEach', 'same-array'])
+    expect(first).toBeUndefined()
+    expect(second).toBeUndefined()
+    expect(logs).toEqual([
+      [expected.effectsHost],
+      [expected.effectsButton],
+      [expected.effectsHost],
+      [expected.effectsMiddle],
+      [expected.effectsButton],
+    ])
+  } finally {
+    console.log = original
+    host.remove()
+  }
+})
+
+test('reads inherited defaults without spreading inherited option properties', () => {
+  const host = hostFor(),
+    events = [],
+    prototype = {}
+  Object.defineProperty(prototype, 'maxLength', {
+    get() {
+      events.push('inherited-max')
+      return 20
+    },
+  })
+  const defaults = Object.create(prototype)
+  defaults.highlight = false
+  try {
+    utils.configurePrettyDOM(defaults)
+    const implicit = utils.prettyDOM(host),
+      afterImplicit = [...events],
+      explicit = utils.prettyDOM(host, 10000),
+      afterExplicit = [...events]
+    expect(implicit.length).toBeLessThan(explicit.length)
+    expect(afterImplicit).toEqual(['inherited-max'])
+    expect(afterExplicit).toEqual(afterImplicit)
+    expect(implicit).toBe(expected.inheritedDefaults)
+    expect(explicit).toBe(expected.effectsHost)
+    expect(Object.keys(defaults)).toEqual(['highlight'])
+  } finally {
+    utils.configurePrettyDOM(undefined)
+    host.remove()
+  }
+})
+
+test('retains actual getter error identity and zero-limit operation order', () => {
+  const host = hostFor(),
+    events = [],
+    original = new Error('authored options getter'),
+    descriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'outerHTML')
+  Object.defineProperty(host, 'outerHTML', {
+    get() {
+      events.push('outerHTML')
+      return Reflect.apply(descriptor.get, this, [])
+    },
+    configurable: true,
+  })
+  const defaults = { highlight: false }
+  Object.defineProperty(defaults, 'maxLength', {
+    enumerable: true,
+    get() {
+      events.push('maxLength')
+      throw original
+    },
+  })
+  try {
+    utils.configurePrettyDOM(defaults)
+    const zero = utils.prettyDOM(host, 0),
+      afterZero = [...events]
+    let implicitError, explicitError
+    try {
+      utils.prettyDOM(host)
+    } catch (error) {
+      implicitError = error
+    }
+    const afterImplicit = [...events]
+    try {
+      utils.prettyDOM(host, 10000)
+    } catch (error) {
+      explicitError = error
+    }
+    const afterExplicit = [...events]
+    expect(implicitError).toBe(original)
+    expect(explicitError).toBe(original)
+    expect(afterZero).toEqual([])
+    expect(zero).toBe('')
+    expect(afterImplicit).toEqual(['maxLength'])
+    expect(afterExplicit).toEqual(['maxLength', 'outerHTML', 'maxLength'])
+  } finally {
+    utils.configurePrettyDOM(undefined)
+    delete host.outerHTML
+    host.remove()
+  }
+})

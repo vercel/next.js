@@ -1,0 +1,18 @@
+import { describe } from 'vitest'
+const trace = []
+const loadFailure = new Error('actual original Browser module load failure')
+const ownedFailure = new Error('actual already-started Browser collector failure')
+const owned = describe('explicitly started', async provided => {
+  trace.push('owned factory entered')
+  await new Promise(resolve => queueMicrotask(resolve))
+  trace.push('owned factory resumed')
+  provided('not an executed body', () => { trace.push('body entered'); console.log('SUITE_API_BROWSER:' + JSON.stringify({trace})) })
+  throw ownedFailure
+})
+describe('not explicitly started', () => { trace.push('unstarted factory entered'); console.log('SUITE_API_BROWSER:' + JSON.stringify({trace})) })
+trace.push('before explicit collect')
+const pending = owned.collect(owned.file)
+pending.then(() => { trace.push('owned fulfilled'); console.log('SUITE_API_BROWSER:' + JSON.stringify({trace})) }, error => { trace.push(['owned rejected', error === ownedFailure]); console.log('SUITE_API_BROWSER:' + JSON.stringify({trace})) })
+trace.push('after explicit collect')
+trace.push('before original load throw')
+throw loadFailure

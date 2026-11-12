@@ -1,0 +1,10 @@
+import{test as base}from'vitest'
+import{page,userEvent}from'vitest/browser'
+const row=value=>console.log('BROWSER_NATIVE_FIXTURE:'+JSON.stringify(value))
+let stage='initial',values={name:'FixtureCleanupError',message:'initial',stack:''}
+const shared=new Error('original shared keyboard internal message')
+const prepare=name=>{stage=name;values={name:'FixtureCleanupError',message:'authored '+name+' cleanup failed',stack:''}}
+for(const key of['name','message','stack'])Object.defineProperty(shared,key,{get(){const value=values[key],readStage=stage;row({phase:'cleanup-error-read',stage:readStage,key,receiver:this===shared,value});if(key==='name')queueMicrotask(()=>{values={name:'LaterCleanupName',message:'later cleanup mutation',stack:'later cleanup stack'};row({phase:'cleanup-error-mutation',stage:readStage})});return value}})
+const test=base.extend({workerA:[async({},use)=>{const button=document.createElement('button');button.dataset.testid='workerA';button.textContent='workerA';document.body.append(button);let clicks=0,shifts=[];button.onclick=event=>{clicks++;shifts.push(event.shiftKey)};row({phase:'setup',name:'workerA'});await use({name:'workerA'});row({phase:'worker-cleanup-start'});await page.getByTestId('workerA').click();row({phase:'worker-cleanup-end',clicks,shifts});button.remove();},{scope:'worker'}]})
+test('keyboard cleanup occurrence A',({workerA,expect})=>{row({phase:'A'});expect(workerA.name).toBe('workerA')})
+test('keyboard cleanup occurrence B',async({workerA,expect})=>{await userEvent.keyboard('{Shift>}');row({phase:'B',held:true});expect(workerA.name).toBe('workerA');const originalCleanup=userEvent.cleanup;Object.defineProperty(userEvent,'cleanup',{configurable:true,get(){row({phase:'keyboard-method-read',receiver:this===userEvent});return function(){row({phase:'keyboard-cleanup-start',receiver:this===userEvent});return Reflect.apply(originalCleanup,this,[]).then(()=>{row({phase:'keyboard-cleanup-end'});prepare('keyboard');throw shared})}}})})

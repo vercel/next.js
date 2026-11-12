@@ -1,0 +1,8 @@
+import{test as base}from'vitest'
+import{page}from'vitest/browser'
+const scope="worker",stage="cleanup"
+const row=value=>console.log('BROWSER_NATIVE_FIXTURE:'+JSON.stringify(value))
+let calls=0,first
+const test=base.extend({resource:[async({},use)=>{const resource={id:++calls,clicks:0,closed:false};const button=document.createElement('button');button.dataset.testid='fixture-native-'+resource.id;button.textContent='fixture '+resource.id;button.addEventListener('click',()=>{resource.clicks++});document.body.append(button);row({phase:'setup-start',scope,stage,id:resource.id,clicks:resource.clicks});if(stage==='setup')await page.getByTestId(button.dataset.testid).click();row({phase:'setup-end',scope,stage,id:resource.id,clicks:resource.clicks});await use(resource);row({phase:'cleanup-start',scope,stage,id:resource.id,clicks:resource.clicks});if(stage==='cleanup')await page.getByTestId(button.dataset.testid).click();resource.closed=true;row({phase:'cleanup-end',scope,stage,id:resource.id,clicks:resource.clicks,closed:resource.closed});button.remove()},{scope}]})
+test('native fixture A',({resource,expect})=>{first=resource;row({phase:'A',id:resource.id,clicks:resource.clicks,closed:resource.closed});expect(resource.clicks).toBe(stage==='setup'?1:0);expect(resource.closed).toBe(false)})
+test('native fixture B',({resource,expect})=>{row({phase:'B',id:resource.id,clicks:resource.clicks,closed:resource.closed,firstClosed:first.closed,same:first===resource});expect(resource.clicks).toBe(stage==='setup'?1:0);expect(resource.closed).toBe(false);expect(first===resource).toBe(scope!=='test');expect(first.closed).toBe(scope==='test')})

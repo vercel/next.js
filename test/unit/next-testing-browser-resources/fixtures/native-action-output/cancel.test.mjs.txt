@@ -1,0 +1,15 @@
+import { test } from 'vitest'
+import { userEvent } from 'vitest/browser'
+
+test('cancels an actual native drag after the source mouse is down', async () => {
+  const source = document.createElement('div'), target = document.createElement('div')
+  source.textContent = 'Owned cancellation source'
+  source.draggable = true
+  Object.assign(source.style, { width: '100px', height: '50px' })
+  target.textContent = 'Owned hidden target'
+  target.style.display = 'none'
+  source.addEventListener('mousedown', event => console.log('DRAG_NATIVE_DOWN ' + JSON.stringify({ type: event.type, trusted: event.isTrusted, buttons: event.buttons, button: event.button, point: [event.clientX, event.clientY], sourceConnected: source.isConnected, targetConnected: target.isConnected, targetDisplay: getComputedStyle(target).display })))
+  document.body.append(source, target)
+  await userEvent.dragAndDrop(source, target, { timeout: 60000 })
+  throw new Error('The hidden native drag target unexpectedly completed')
+}, 90000)

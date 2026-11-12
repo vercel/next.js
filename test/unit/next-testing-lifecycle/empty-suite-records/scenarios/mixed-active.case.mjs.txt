@@ -1,0 +1,4 @@
+import {test,describe,beforeAll,afterAll,aroundAll} from 'vitest'
+import {appendFileSync} from 'node:fs'
+const trace=(...row)=>appendFileSync('authored.jsonl',JSON.stringify(row)+'\n')
+test('root body',()=>trace('root body'));describe('outer',()=>{describe('empty',()=>{});test('child body',()=>trace('child body'))});describe('following',()=>test('following body',()=>trace('following body')))

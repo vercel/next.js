@@ -2,6 +2,7 @@ import path from 'path'
 import { execFileSync } from 'child_process'
 import {
   mkdtempSync,
+  mkdirSync,
   writeFileSync,
   rmSync,
   readFileSync,
@@ -26,6 +27,12 @@ import { assertArtifactProfile } from 'next/dist/experimental/testing/execution/
 import { createLateFailureSink } from 'next/dist/experimental/testing/execution/late-failures'
 import { browserOutputDirectory } from 'next/dist/experimental/testing/execution/browser-output'
 import { assertCompiledSetup } from 'next/dist/experimental/testing/execution/setup'
+import type { ResultEvent } from 'next/dist/experimental/testing/reporting/events'
+
+jest.mock('next/dist/experimental/testing/client/execute', () => ({
+  __esModule: true,
+  ...jest.requireActual('next/dist/experimental/testing/client/execute'),
+}))
 
 const worker = path.join(__dirname, 'worker.cjs')
 const options: TestProcessOptions = {
@@ -1184,6 +1191,1646 @@ describe('owned custom execution environment', () => {
   })
 })
 
+describe('client Browser console output forwarding', () => {
+  async function observe(
+    mode: 'normal' | 'navigation-error' | 'sink-error',
+    fakeTimers?: import('next/dist/experimental/testing/assertions/utilities').FakeTimerOptions,
+    browserViewport?: { width: number; height: number },
+    commands: { element: string; method: string; args: unknown[] }[] = [],
+    executionMode: 'development' | 'production' = 'development',
+    browserEngine?: 'chromium' | 'firefox',
+    framed?: 'normal' | 'detached' | 'missing'
+  ) {
+    const { EventEmitter } = require('node:events')
+    const page = new EventEmitter()
+    const trace: string[] = []
+    const events: ResultEvent[] = []
+    const failures: unknown[] = []
+    const actions: { method: string; args: unknown[] }[] = []
+    let dispatch: (command: unknown) => Promise<unknown>
+    const nativeFrame = {
+      locator: jest.fn(() => createLocator()),
+      evaluate: jest.fn(async () => {}),
+      dragAndDrop: async (...args: unknown[]) => {
+        actions.push({ method: 'dragAndDrop', args })
+      },
+      goto: jest.fn(async () => {
+        if (framed === 'detached') page.emit('framedetached', nativeFrame)
+        await executeGraph()
+      }),
+    }
+    const frameElement = {
+      contentFrame: jest.fn(async () =>
+        framed === 'missing' ? null : nativeFrame
+      ),
+      dispose: jest.fn(async () => {}),
+    }
+    function createLocator() {
+      return Object.fromEntries(
+        [
+          'click',
+          'dblclick',
+          'hover',
+          'fill',
+          'clear',
+          'selectOption',
+          'setInputFiles',
+          'focus',
+          'selectText',
+        ].map((method) => [
+          method,
+          async (...args: unknown[]) => {
+            actions.push({ method, args })
+          },
+        ])
+      )
+    }
+    page.locator = jest.fn((selector) =>
+      framed && selector === 'iframe'
+        ? { elementHandle: async () => frameElement }
+        : createLocator()
+    )
+    page.mainFrame = jest.fn(() => ({
+      dragAndDrop: async (...args: unknown[]) => {
+        actions.push({ method: 'dragAndDrop', args })
+      },
+    }))
+    page.evaluate = jest.fn(async () => {})
+    page.keyboard = Object.fromEntries(
+      ['down', 'up', 'insertText', 'press'].map((method) => [
+        method,
+        async (...args: unknown[]) => {
+          actions.push({ method, args })
+        },
+      ])
+    )
+    page.mouse = {
+      wheel: async (...args: unknown[]) => {
+        actions.push({ method: 'wheel', args })
+      },
+    }
+    const modules = [
+      'next/dist/experimental/testing/browser/host',
+      'next/dist/experimental/testing/client/server',
+      'next/dist/experimental/testing/client/results',
+      'next/dist/experimental/testing/client/engine-brand',
+    ]
+    const emit = (type: string, text: string) =>
+      page.emit('console', { type: () => type, text: () => text })
+    async function executeGraph() {
+      for (const type of [
+        'log',
+        'info',
+        'debug',
+        'warning',
+        'error',
+        'trace',
+        'assert',
+      ])
+        emit(type, `actual ${type}`)
+      for (const command of commands) await dispatch(command)
+      if (mode === 'navigation-error') throw new Error('navigation failed')
+    }
+    page.goto = jest.fn(async () => {
+      if (!framed) await executeGraph()
+    })
+    const context = {
+      newPage: jest.fn(async () => page),
+      close: jest.fn(async () => {
+        trace.push('context-close')
+        emit('log', 'queued user output')
+        page.emit('close')
+      }),
+    }
+    const browser = {
+      newContext: jest.fn(async () => context),
+      close: jest.fn(async () => {
+        trace.push('browser-close')
+      }),
+    }
+    const firefoxOwner = { pageGuid: 'actual-native-owner' }
+    const frameOwner = { frameGuid: 'actual-selected-native-frame' }
+    const host = {
+      wsEndpoint: 'ws://unit-browser',
+      firefoxPageOwner: jest.fn(() => firefoxOwner),
+      frameOwner: jest.fn(() => frameOwner),
+      dispose: jest.fn(async () => {
+        trace.push('host-close')
+      }),
+    }
+    const server = {
+      url: 'http://unit-browser/',
+      ...(framed ? { hostURL: 'http://unit-browser/host' } : {}),
+      completion: Promise.resolve({}),
+      verify: jest.fn(async () => {}),
+      assertClean: jest.fn(),
+      mapStack: jest.fn(() => []),
+      fail: jest.fn(),
+      dispose: jest.fn(async () => {
+        trace.push('server-close')
+      }),
+    }
+    const collector = {
+      accept: jest.fn(),
+      events: [],
+      fail: jest.fn((error) => {
+        failures.push(error)
+      }),
+      hasFailure: () => failures.length !== 0,
+      result: () => ({
+        status: failures.length ? 'failed' : 'passed',
+        updates: [],
+      }),
+    }
+    const engineBrand = {
+      start: jest.fn(async () => {}),
+      fact: jest.fn(() => ({})),
+      close: jest.fn(() => {
+        trace.push('engine-close')
+      }),
+      afterOwnersClosed: jest.fn(async () => {
+        trace.push('engine-after-close')
+      }),
+    }
+    const profile = {
+      id: 'unit-browser-profile',
+      environment: 'browser',
+      mode: executionMode,
+      runtime: 'nodejs',
+      bundler: 'turbopack',
+      browserClient: true,
+    }
+    const entry = {
+      id: 'unit-browser-entry',
+      file: '/project/contract.case.mjs',
+      profile,
+    }
+    const artifact = {
+      version: 2,
+      kind: 'browser',
+      entryId: entry.id,
+      revision: 'unit-browser-revision',
+      profile,
+      client: {
+        sourceFile: entry.file,
+        asyncScope: 'promise-continuations-v1',
+        creatorScope: 'synchronous-source-v1',
+        creatorPromiseRoute: 'native-engine-v1',
+      },
+    }
+    const createHost = jest.fn(async (..._args: unknown[]) => host)
+    const connectHost = jest.fn(async (..._args: unknown[]) => browser)
+    const createBrand = jest.fn((..._args: unknown[]) => engineBrand)
+    let configuration: any
+    let result: unknown
+    try {
+      await jest.isolateModulesAsync(async () => {
+        jest.doMock(modules[0], () => ({
+          createBrowserHost: createHost,
+          connectBrowserHost: connectHost,
+        }))
+        jest.doMock(modules[1], () => ({
+          createClientServer: async (options: any) => {
+            configuration = options.configuration
+            dispatch = options.onBrowserCommand
+            return server
+          },
+        }))
+        jest.doMock(modules[2], () => ({
+          createClientResultCollector: () => collector,
+        }))
+        jest.doMock(modules[3], () => ({
+          createClientEngineBrand: createBrand,
+        }))
+        const { executeClient } = jest.requireActual(
+          'next/dist/experimental/testing/client/execute'
+        ) as typeof import('next/dist/experimental/testing/client/execute')
+        result = await executeClient(
+          artifact as any,
+          {
+            entry,
+            runId: 'unit-browser-run',
+            fakeTimers,
+            browserViewport,
+            ...(browserEngine ? { browserEngine } : {}),
+            ...(framed ? { testFrame: true } : {}),
+            projectDir: '/project',
+            setupFiles: [],
+            signal: new AbortController().signal,
+            updateSnapshots: false,
+            testTimeout: 1000,
+            hookTimeout: 1000,
+            fileTimeout: 5000,
+            onEvent(event: ResultEvent) {
+              if (event.type === 'output') {
+                trace.push(`output:${event.text.trim()}`)
+                if (mode === 'sink-error')
+                  throw new Error('console sink failed')
+              }
+              events.push(event)
+            },
+          } as any
+        )
+      })
+      emit('log', 'after completed output')
+      return {
+        page,
+        browser,
+        context,
+        trace,
+        events,
+        failures,
+        result,
+        server,
+        configuration,
+        actions,
+        host,
+        firefoxOwner,
+        frameOwner,
+        nativeFrame,
+        frameElement,
+        createHost,
+        connectHost,
+        createBrand,
+      }
+    } finally {
+      for (const name of modules) jest.dontMock(name)
+    }
+  }
+
+  it.each(['development', 'production'] as const)(
+    'keeps private Firefox %s execution on its actual host, connection and page owner',
+    async (mode) => {
+      const observed = await observe(
+        'normal',
+        undefined,
+        undefined,
+        [],
+        mode,
+        'firefox'
+      )
+      expect(observed.result).toMatchObject({ status: 'passed' })
+      expect(observed.createHost).toHaveBeenCalledWith(
+        expect.objectContaining({ engine: 'firefox' })
+      )
+      expect(observed.connectHost).toHaveBeenCalledWith(
+        expect.objectContaining({ engine: 'firefox' })
+      )
+      expect(observed.host.firefoxPageOwner).toHaveBeenCalledWith(
+        observed.context,
+        observed.page
+      )
+      expect(observed.createBrand).toHaveBeenCalledWith(
+        expect.objectContaining({ firefoxOwner: observed.firefoxOwner })
+      )
+      expect(observed.trace.slice(-3)).toEqual([
+        'host-close',
+        'engine-after-close',
+        'server-close',
+      ])
+      expect(observed.failures).toEqual([])
+    }
+  )
+
+  it.each(['chromium', 'firefox'] as const)(
+    'runs the selected child graph and locators with actual %s Page input ownership',
+    async (engine) => {
+      const observed = await observe(
+        'normal',
+        undefined,
+        undefined,
+        [
+          { element: 'next-test-element-1', method: 'click', args: [] },
+          { element: 'next-test-element-2', method: 'tab', args: [] },
+          { element: 'next-test-element-3', method: 'hover', args: [] },
+        ],
+        'development',
+        engine,
+        'normal'
+      )
+      expect(observed.result).toMatchObject({ status: 'passed' })
+      expect(observed.createHost).toHaveBeenCalledWith(
+        expect.objectContaining({ ownedFrames: true })
+      )
+      expect(observed.page.goto).toHaveBeenCalledWith(
+        observed.server.hostURL,
+        expect.any(Object)
+      )
+      expect(observed.nativeFrame.goto).toHaveBeenCalledWith(
+        observed.server.url,
+        expect.any(Object)
+      )
+      expect(observed.host.frameOwner).toHaveBeenCalledWith(
+        observed.context,
+        observed.page,
+        observed.nativeFrame
+      )
+      expect(observed.createBrand).toHaveBeenCalledWith(
+        expect.objectContaining({ frameOwner: observed.frameOwner })
+      )
+      expect(observed.frameElement.dispose).toHaveBeenCalledTimes(1)
+      expect(observed.page.locator.mock.calls).toEqual([['iframe']])
+      expect(observed.nativeFrame.locator.mock.calls).toHaveLength(3)
+      expect(observed.nativeFrame.evaluate).toHaveBeenCalledTimes(2)
+      expect(observed.actions).toContainEqual({
+        method: 'press',
+        args: ['Tab'],
+      })
+      expect(observed.page.listenerCount('framedetached')).toBe(0)
+      expect(observed.failures).toEqual([])
+    }
+  )
+
+  it.each(['missing', 'detached'] as const)(
+    'retains the %s actual child failure and joins every acquired owner',
+    async (framed) => {
+      const observed = await observe(
+        'normal',
+        undefined,
+        undefined,
+        [],
+        'development',
+        'chromium',
+        framed
+      )
+      expect(observed.result).toMatchObject({ status: 'failed' })
+      expect(observed.frameElement.dispose).toHaveBeenCalledTimes(1)
+      expect(observed.failures).toContainEqual(
+        expect.objectContaining({
+          message:
+            framed === 'missing'
+              ? 'Browser Mode iframe has no actual test Frame.'
+              : 'Browser Mode selected test Frame detached.',
+        })
+      )
+      expect(observed.context.close).toHaveBeenCalledTimes(1)
+      expect(observed.browser.close).toHaveBeenCalledTimes(1)
+      expect(observed.host.dispose).toHaveBeenCalledTimes(1)
+      expect(observed.server.dispose).toHaveBeenCalledTimes(1)
+      expect(observed.page.listenerCount('framedetached')).toBe(0)
+      if (framed === 'missing') {
+        expect(observed.host.frameOwner).not.toHaveBeenCalled()
+        expect(observed.createBrand).not.toHaveBeenCalled()
+        expect(observed.nativeFrame.goto).not.toHaveBeenCalled()
+      }
+    }
+  )
+
+  it('preserves the existing Chromium host and classifier when no private engine is selected', async () => {
+    const observed = await observe('normal')
+    expect(observed.result).toMatchObject({ status: 'passed' })
+    expect(observed.createHost.mock.calls[0][0]).not.toHaveProperty('engine')
+    expect(observed.connectHost.mock.calls[0][0]).not.toHaveProperty('engine')
+    expect(observed.host.firefoxPageOwner).not.toHaveBeenCalled()
+    expect(observed.createBrand.mock.calls[0][0]).not.toHaveProperty(
+      'firefoxOwner'
+    )
+  })
+
+  it('forwards real console text as scoped stdout/stderr before independently closing resources', async () => {
+    const observed = await observe('normal')
+    expect(observed.result).toMatchObject({ status: 'passed' })
+    expect(observed.events.filter((event) => event.type === 'output')).toEqual(
+      [
+        'log',
+        'info',
+        'debug',
+        'warning',
+        'error',
+        'trace',
+        'assert',
+        'queued user output',
+      ].map((type) => ({
+        version: 1,
+        runId: 'unit-browser-run',
+        timestamp: expect.any(Number),
+        type: 'output',
+        entryId: 'unit-browser-entry',
+        revision: 'unit-browser-revision',
+        stream: ['warning', 'error', 'trace', 'assert'].includes(type)
+          ? 'stderr'
+          : 'stdout',
+        text:
+          type === 'queued user output'
+            ? 'queued user output\n'
+            : `actual ${type}\n`,
+      }))
+    )
+    expect(observed.trace).toEqual([
+      ...['log', 'info', 'debug', 'warning', 'error', 'trace', 'assert'].map(
+        (type) => `output:actual ${type}`
+      ),
+      'engine-close',
+      'context-close',
+      'output:queued user output',
+      'browser-close',
+      'host-close',
+      'engine-after-close',
+      'server-close',
+    ])
+    expect(observed.page.listenerCount('console')).toBe(0)
+    expect(observed.failures).toEqual([])
+  })
+
+  it('retains output preceding a navigation failure and removes the console listener on failure', async () => {
+    const observed = await observe('navigation-error')
+    expect(observed.result).toMatchObject({ status: 'failed' })
+    expect(
+      observed.events.filter((event) => event.type === 'output')
+    ).toHaveLength(8)
+    expect(observed.failures).toEqual([
+      expect.objectContaining({ message: 'navigation failed' }),
+    ])
+    expect(observed.trace.slice(-7)).toEqual([
+      'engine-close',
+      'context-close',
+      'output:queued user output',
+      'browser-close',
+      'host-close',
+      'engine-after-close',
+      'server-close',
+    ])
+    expect(observed.page.listenerCount('console')).toBe(0)
+  })
+
+  it('reports a console observer failure without skipping remaining cleanup', async () => {
+    const observed = await observe('sink-error')
+    expect(observed.result).toMatchObject({ status: 'failed' })
+    expect(observed.server.fail).toHaveBeenCalledTimes(8)
+    expect(observed.failures).toHaveLength(8)
+    for (const error of observed.failures)
+      expect(error).toMatchObject({ message: 'console sink failed' })
+    expect(observed.trace.slice(-7)).toEqual([
+      'engine-close',
+      'context-close',
+      'output:queued user output',
+      'browser-close',
+      'host-close',
+      'engine-after-close',
+      'server-close',
+    ])
+    expect(observed.page.listenerCount('console')).toBe(0)
+  })
+  it('forwards project fake-timer configuration before navigating the Browser page', async () => {
+    const fakeTimers = {
+      now: 1234,
+      toFake: ['Date', 'setTimeout', 'clearTimeout'] as const,
+      loopLimit: 3,
+      shouldClearNativeTimers: true,
+    }
+    const observed = await observe('normal', {
+      ...fakeTimers,
+      toFake: [...fakeTimers.toFake],
+    })
+    expect(observed.result).toMatchObject({ status: 'passed' })
+    expect(observed.configuration.fakeTimers).toEqual(fakeTimers)
+    expect(observed.failures).toEqual([])
+    expect(observed.trace.slice(-7)).toEqual([
+      'engine-close',
+      'context-close',
+      'output:queued user output',
+      'browser-close',
+      'host-close',
+      'engine-after-close',
+      'server-close',
+    ])
+    expect(observed.page.listenerCount('console')).toBe(0)
+  })
+  it('applies the resolved viewport to the fresh context before page navigation', async () => {
+    for (const viewport of [
+      { width: 640, height: 480 },
+      { width: 0, height: 480 },
+      undefined,
+    ]) {
+      const observed = await observe('normal', undefined, viewport)
+      expect(observed.result).toMatchObject({ status: 'passed' })
+      expect(observed.browser.newContext).toHaveBeenCalledWith({
+        serviceWorkers: 'block',
+        ...(viewport ? { viewport } : {}),
+      })
+      expect(
+        observed.browser.newContext.mock.invocationCallOrder[0]
+      ).toBeLessThan(observed.context.newPage.mock.invocationCallOrder[0])
+      expect(observed.context.newPage.mock.invocationCallOrder[0]).toBeLessThan(
+        observed.page.goto.mock.invocationCallOrder[0]
+      )
+      expect(observed.context.close).toHaveBeenCalledTimes(1)
+      expect(observed.page.listenerCount('console')).toBe(0)
+      expect(observed.failures).toEqual([])
+    }
+  })
+  it('forwards Browser userEvent targets and options through the actual Locator transport', async () => {
+    const result = require('node:child_process').spawnSync(
+      process.execPath,
+      [path.join(__dirname, 'browser-user-event.cjs')],
+      { encoding: 'utf8', timeout: 20_000 }
+    )
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.status).toBe(0)
+    const actual = JSON.parse(result.stdout)
+    expect(actual).toMatchObject({
+      allUndefined: true,
+      noSyntheticEvents: true,
+      originalErrorRetained: true,
+      closedTransportRefused: true,
+      closedScopeRefused: true,
+    })
+    const observed = await observe(
+      'normal',
+      undefined,
+      undefined,
+      actual.commands
+    )
+    expect(observed.result).toMatchObject({ status: 'passed' })
+    expect(observed.actions).toEqual([
+      { method: 'click', args: [{ button: 'right' }] },
+      { method: 'dblclick', args: [{ delay: 5 }] },
+      { method: 'hover', args: [{ force: true }] },
+      { method: 'fill', args: ['value', { timeout: 20 }] },
+      { method: 'clear', args: [{ force: true }] },
+      { method: 'selectOption', args: [['one'], { timeout: 50 }] },
+    ])
+    expect(observed.failures).toEqual([])
+    expect(observed.context.close).toHaveBeenCalledTimes(1)
+    expect(observed.page.listenerCount('console')).toBe(0)
+  })
+
+  it('types and edits with native keyboard input while preserving transport scope ownership', async () => {
+    const result = require('node:child_process').spawnSync(
+      process.execPath,
+      [path.join(__dirname, 'browser-user-event-keyboard.cjs')],
+      { encoding: 'utf8', timeout: 20_000 }
+    )
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.status).toBe(0)
+    const actual = JSON.parse(result.stdout)
+    expect(actual).toMatchObject({
+      allUndefined: true,
+      noSyntheticEvents: true,
+      originalErrorRetained: true,
+      closedTransportRefused: true,
+      closedScopeRefused: true,
+    })
+    const observed = await observe(
+      'normal',
+      undefined,
+      undefined,
+      actual.commands
+    )
+    expect(observed.result).toMatchObject({ status: 'passed' })
+    expect(observed.actions).toEqual([
+      { method: 'down', args: ['a'] },
+      { method: 'up', args: ['a'] },
+      { method: 'down', args: ['A'] },
+      { method: 'up', args: ['A'] },
+      { method: 'down', args: ['ArrowLeft'] },
+      { method: 'up', args: ['ArrowLeft'] },
+      { method: 'down', args: ['Backspace'] },
+      { method: 'up', args: ['Backspace'] },
+      { method: 'focus', args: [] },
+      { method: 'insertText', args: ['東'] },
+      { method: 'insertText', args: ['京'] },
+    ])
+    expect(observed.failures).toEqual([])
+    expect(observed.context.close).toHaveBeenCalledTimes(1)
+  })
+  it('owns held keyboard state per userEvent instance and preserves native repeat commands', () => {
+    const result = require('node:child_process').spawnSync(
+      process.execPath,
+      [path.join(__dirname, 'browser-user-event-held-keys.cjs')],
+      { encoding: 'utf8', timeout: 20_000 }
+    )
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout)).toEqual({
+      independentInstances: true,
+      stateRoundTrip: true,
+      defaultCleanupOwned: true,
+      cleanupFailureRetained: true,
+      allCleanupFailuresPreserved: true,
+      cleanupIdempotent: true,
+      parsedBeforeInput: true,
+      rejectionRecoverable: true,
+      nativeRepeatedKeys: true,
+      closedScopeRefused: true,
+    })
+  })
+  it('keeps malformed held-key transport terminal before native input', async () => {
+    for (const command of [
+      {
+        element: 'next-test-element-0',
+        method: 'keyboard',
+        args: ['a', ['Shift', 17]],
+      },
+      {
+        element: 'next-test-element-0',
+        method: 'keyboardCleanup',
+        args: ['Shift'],
+      },
+    ]) {
+      const observed = await observe('normal', undefined, undefined, [command])
+      expect(observed.result).toMatchObject({ status: 'failed' })
+      expect(observed.actions).toEqual([])
+      expect(observed.context.close).toHaveBeenCalledTimes(1)
+    }
+  })
+
+  it('keeps malformed keyboard transport terminal', async () => {
+    const observed = await observe('normal', undefined, undefined, [
+      { element: 'next-test-element-0', method: 'keyboard', args: [17] },
+    ])
+    expect(observed.result).toMatchObject({ status: 'failed' })
+    expect(observed.actions).toEqual([])
+    expect(observed.context.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('hovers owned wheel targets and forwards native deltas and repeated steps', async () => {
+    const result = require('node:child_process').spawnSync(
+      process.execPath,
+      [path.join(__dirname, 'browser-user-event-wheel.cjs')],
+      { encoding: 'utf8', timeout: 20_000 }
+    )
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.status).toBe(0)
+    const actual = JSON.parse(result.stdout)
+    expect(actual).toMatchObject({
+      allUndefined: true,
+      noSyntheticEvents: true,
+      originalErrorRetained: true,
+      closedTransportRefused: true,
+      closedScopeRefused: true,
+    })
+    const observed = await observe(
+      'normal',
+      undefined,
+      undefined,
+      actual.commands
+    )
+    expect(observed.result).toMatchObject({ status: 'passed' })
+    expect(observed.actions).toEqual([
+      { method: 'hover', args: [] },
+      { method: 'wheel', args: [7, 12] },
+      { method: 'wheel', args: [7, 12] },
+      { method: 'hover', args: [] },
+      { method: 'wheel', args: [-100, 0] },
+      { method: 'hover', args: [] },
+    ])
+    expect(observed.failures).toEqual([])
+    expect(observed.context.close).toHaveBeenCalledTimes(1)
+  })
+  it('keeps malformed wheel transport terminal', async () => {
+    const observed = await observe('normal', undefined, undefined, [
+      {
+        element: 'next-test-element-0',
+        method: 'wheel',
+        args: [{ delta: { x: 'invalid', y: 0 }, times: 1 }],
+      },
+    ])
+    expect(observed.result).toMatchObject({ status: 'failed' })
+    expect(observed.actions).toEqual([])
+    expect(observed.context.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('uploads exact browser File bytes and project paths through the native input transport', async () => {
+    const result = require('node:child_process').spawnSync(
+      process.execPath,
+      [path.join(__dirname, 'browser-user-event-upload.cjs')],
+      { encoding: 'utf8', timeout: 20_000 }
+    )
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.status).toBe(0)
+    const actual = JSON.parse(result.stdout)
+    expect(actual).toMatchObject({
+      allUndefined: true,
+      exactBinaryBytes: true,
+      noSyntheticEvents: true,
+      originalErrorRetained: true,
+      closedTransportRefused: true,
+      closedScopeRefused: true,
+    })
+    const observed = await observe(
+      'normal',
+      undefined,
+      undefined,
+      actual.commands
+    )
+    expect(observed.result).toMatchObject({ status: 'passed' })
+    const file = {
+      name: 'binary.dat',
+      mimeType: 'application/octet-stream',
+      buffer: Buffer.from([0, 255, 1, 128, 65]),
+    }
+    expect(observed.actions).toEqual([
+      { method: 'setInputFiles', args: [[file], { timeout: 20 }] },
+      {
+        method: 'setInputFiles',
+        args: [[file], undefined],
+      },
+      { method: 'setInputFiles', args: [['/project/project.txt'], undefined] },
+      { method: 'setInputFiles', args: [[], undefined] },
+    ])
+    expect(observed.failures).toEqual([])
+    for (const payload of [
+      undefined,
+      [{}],
+      [{ name: 'x', mimeType: 'text/plain', base64: 1 }],
+    ]) {
+      const invalid = await observe('normal', undefined, undefined, [
+        { element: 'next-test-element-0', method: 'upload', args: [payload] },
+      ])
+      expect(invalid.result).toMatchObject({ status: 'failed' })
+      expect(invalid.actions).toEqual([])
+    }
+  })
+
+  it('forwards current source and target elements to native frame dragAndDrop', async () => {
+    const result = require('node:child_process').spawnSync(
+      process.execPath,
+      [path.join(__dirname, 'browser-user-event-drag.cjs')],
+      { encoding: 'utf8', timeout: 20_000 }
+    )
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.status).toBe(0)
+    const actual = JSON.parse(result.stdout)
+    expect(actual).toMatchObject({
+      allUndefined: true,
+      noSyntheticEvents: true,
+      originalErrorRetained: true,
+      rejectedActionRecovered: true,
+      detachedTargetsRefused: true,
+      closedTransportRefused: true,
+      closedScopeRefused: true,
+    })
+    const observed = await observe(
+      'normal',
+      undefined,
+      undefined,
+      actual.commands
+    )
+    expect(observed.result).toMatchObject({ status: 'passed' })
+    expect(observed.actions).toEqual(
+      actual.commands.map((command: any) => ({
+        method: 'dragAndDrop',
+        args: [
+          `[data-next-test-element="${actual.sourceId}"]`,
+          `[data-next-test-element="${actual.targetId}"]`,
+          command.args[1],
+        ],
+      }))
+    )
+    expect(observed.failures).toEqual([])
+    expect(observed.context.close).toHaveBeenCalledTimes(1)
+  })
+  it.each([
+    [],
+    [17],
+    ['next-test-element-1"],body'],
+    ['next-test-element-1', null],
+    ['next-test-element-1', []],
+    ['next-test-element-1', {}, 'extra'],
+  ])(
+    'keeps malformed two-element drag transport terminal: %j',
+    async (...args) => {
+      const observed = await observe('normal', undefined, undefined, [
+        {
+          element: 'next-test-element-0',
+          method: 'dragAndDrop',
+          args,
+        },
+      ])
+      expect(observed.result).toMatchObject({ status: 'failed' })
+      expect(observed.actions).toEqual([])
+      expect(observed.page.mainFrame).not.toHaveBeenCalled()
+      expect(observed.context.close).toHaveBeenCalledTimes(1)
+      expect(observed.server.dispose).toHaveBeenCalledTimes(1)
+    }
+  )
+
+  it('executes the existing isolated client artifact contract for production mode', async () => {
+    const observed = await observe(
+      'normal',
+      undefined,
+      undefined,
+      [],
+      'production'
+    )
+    expect(observed.result).toMatchObject({ status: 'passed' })
+    expect(observed.context.newPage).toHaveBeenCalledTimes(1)
+    expect(observed.context.close).toHaveBeenCalledTimes(1)
+    expect(observed.page.listenerCount('console')).toBe(0)
+    expect(observed.failures).toEqual([])
+  })
+})
+
+describe('formatted Browser console transport', () => {
+  it.each(['format', 'runtime', 'send-error'] as const)(
+    'preserves genuine formatting and independent restoration for %s',
+    (mode) => {
+      const { spawnSync } = require('node:child_process')
+      const result = spawnSync(
+        process.execPath,
+        [
+          path.join(__dirname, 'client-console.cjs'),
+          mode,
+          require.resolve('next/dist/experimental/testing/client/console'),
+          require.resolve('next/dist/experimental/testing/client/runtime'),
+        ],
+        { encoding: 'utf8', timeout: 20_000 }
+      )
+      const capture = process.env.NEXT_TESTING_CONSOLE_UNIT_EVIDENCE
+      if (capture) {
+        mkdirSync(capture, { recursive: true })
+        writeFileSync(path.join(capture, `${mode}.stdout`), result.stdout ?? '')
+        writeFileSync(path.join(capture, `${mode}.stderr`), result.stderr ?? '')
+        writeFileSync(
+          path.join(capture, `${mode}.json`),
+          JSON.stringify({
+            pid: result.pid,
+            status: result.status,
+            signal: result.signal,
+            error: result.error?.message,
+          })
+        )
+      }
+      expect(result.error).toBeUndefined()
+      expect(result.signal).toBeNull()
+      expect(result.status).toBe(0)
+      const observed = JSON.parse(result.stdout)
+      if (mode === 'format') {
+        expect(observed.output.slice(0, 7)).toEqual(
+          require('./console-format-pristine.json')
+        )
+        expect(observed.observerFailureRestored).toBe(true)
+        expect(observed.stopFailureRestored).toBe(true)
+      } else {
+        expect(observed.restored).toBe(true)
+        expect(observed.maximumConcurrent).toBe(1)
+      }
+    }
+  )
+})
+
+describe('Browser console same-stream boundaries', () => {
+  it.each([
+    [false, undefined],
+    [true, undefined],
+    [false, 'firefox' as const],
+  ] as const)(
+    'keeps fallback and RPC output with observer failure=%s and engine=%s',
+    async (observerFailure, engine) => {
+      const { EventEmitter } = require('node:events')
+      const page = new EventEmitter()
+      const events: ResultEvent[] = [],
+        errors: unknown[] = [],
+        trace: string[] = []
+      const modules = [
+        'browser/host',
+        'client/server',
+        'client/results',
+        'client/engine-brand',
+      ].map((name) => `next/dist/experimental/testing/${name}`)
+      const boundary =
+        require('next/dist/experimental/testing/client/protocol').clientConsoleBoundary
+      let onMessage: (value: unknown) => void = () => {}
+      const emit = (type: string, text: string) =>
+        page.emit('console', { type: () => type, text: () => text })
+      page.goto = async () => {
+        if (engine === 'firefox') emit('timeStamp', 'authored timeline marker')
+        emit('log', 'prestart')
+        // An ordinary log equal to a reserved debug boundary is still user data.
+        emit('log', boundary.start)
+        emit('debug', boundary.start)
+        if (engine === 'firefox') emit('timeStamp', 'managed timeline marker')
+        for (const kind of ['log', 'info', 'debug', 'warning', 'error'])
+          emit(kind, `managed ${kind}`)
+        for (const kind of ['trace', 'assert', 'table'])
+          emit(kind, `fallback ${kind}`)
+        for (const value of Object.values(boundary) as string[]) {
+          emit('debug', boundary.escape)
+          emit('debug', value)
+          onMessage({ type: 'output', stream: 'stdout', text: `${value}\n` })
+        }
+        try {
+          onMessage({
+            type: 'output',
+            stream: 'stderr',
+            text: 'formatted RPC\n',
+          })
+        } finally {
+          emit('debug', boundary.stop)
+          emit('log', 'poststop')
+          // Restored methods and inactive retained wrappers use normal fallback.
+          for (const value of Object.values(boundary) as string[])
+            emit('debug', value)
+          emit('log', 'after retained marker')
+        }
+      }
+      const context = {
+        newPage: async () => page,
+        close: async () => {
+          trace.push('context')
+          emit('log', 'queued teardown')
+          page.emit('close')
+        },
+      }
+      const browser = {
+        newContext: async () => context,
+        close: async () => {
+          trace.push('browser')
+        },
+      }
+      const host = {
+        wsEndpoint: 'ws://unit',
+        firefoxPageOwner: () => ({}),
+        dispose: async () => {
+          trace.push('host')
+        },
+      }
+      const server = {
+        url: 'http://unit/',
+        completion: Promise.resolve({}),
+        verify: async () => {},
+        assertClean() {},
+        mapStack: () => [],
+        fail: jest.fn(),
+        dispose: async () => {
+          trace.push('server')
+        },
+      }
+      const collector = {
+        accept: jest.fn(),
+        events: [],
+        fail: (error: unknown) => errors.push(error),
+        hasFailure: () => errors.length > 0,
+        result: () => ({
+          status: errors.length ? 'failed' : 'passed',
+          updates: [],
+        }),
+      }
+      const engineBrand = {
+        start: async () => {},
+        fact: () => ({}),
+        close() {},
+        afterOwnersClosed: async () => {},
+      }
+      const profile = {
+        id: 'console-profile',
+        environment: 'browser',
+        mode: 'development',
+        runtime: 'nodejs',
+        bundler: 'turbopack',
+        browserClient: true,
+      }
+      const entry = {
+        id: 'console-entry',
+        file: '/project/contract.mjs',
+        profile,
+      }
+      const artifact = {
+        version: 2,
+        kind: 'browser',
+        entryId: entry.id,
+        revision: 'console-revision',
+        profile,
+        client: {
+          sourceFile: entry.file,
+          asyncScope: 'promise-continuations-v1',
+          creatorScope: 'synchronous-source-v1',
+          creatorPromiseRoute: 'native-engine-v1',
+        },
+      }
+      try {
+        await jest.isolateModulesAsync(async () => {
+          jest.doMock(modules[0], () => ({
+            createBrowserHost: async () => host,
+            connectBrowserHost: async () => browser,
+          }))
+          jest.doMock(modules[1], () => ({
+            createClientServer: async (options: any) => {
+              onMessage = options.onMessage
+              return server
+            },
+          }))
+          jest.doMock(modules[2], () => ({
+            createClientResultCollector: () => collector,
+          }))
+          jest.doMock(modules[3], () => ({
+            createClientEngineBrand: () => engineBrand,
+          }))
+          const { executeClient } = jest.requireActual(
+            'next/dist/experimental/testing/client/execute'
+          )
+          const result = await executeClient(artifact, {
+            entry,
+            runId: 'console-run',
+            projectDir: '/project',
+            setupFiles: [],
+            ...(engine ? { browserEngine: engine } : {}),
+            signal: new AbortController().signal,
+            updateSnapshots: false,
+            testTimeout: 1000,
+            hookTimeout: 1000,
+            fileTimeout: 5000,
+            onEvent(event: ResultEvent) {
+              if (
+                observerFailure &&
+                event.type === 'output' &&
+                event.text === 'formatted RPC\n'
+              )
+                throw new Error('formatted output sink failed')
+              events.push(event)
+            },
+          })
+          expect(result.status).toBe(observerFailure ? 'failed' : 'passed')
+        })
+        const output = events.filter(
+          (event): event is Extract<ResultEvent, { type: 'output' }> =>
+            event.type === 'output'
+        )
+        expect(output.map((event) => [event.stream, event.text])).toEqual([
+          ['stdout', 'prestart\n'],
+          ['stdout', `${boundary.start}\n`],
+          ['stderr', 'fallback trace\n'],
+          ['stderr', 'fallback assert\n'],
+          ['stdout', 'fallback table\n'],
+          ...Object.values(boundary).map((value) => ['stdout', `${value}\n`]),
+          ...(observerFailure ? [] : [['stderr', 'formatted RPC\n']]),
+          ['stdout', 'poststop\n'],
+          ...Object.values(boundary).map((value) => ['stdout', `${value}\n`]),
+          ['stdout', 'after retained marker\n'],
+          ['stdout', 'queued teardown\n'],
+        ])
+        for (const event of output)
+          expect(event).toMatchObject({
+            version: 1,
+            runId: 'console-run',
+            entryId: entry.id,
+            revision: artifact.revision,
+            timestamp: expect.any(Number),
+          })
+        expect(collector.accept).not.toHaveBeenCalled()
+        expect(trace).toEqual(['context', 'browser', 'host', 'server'])
+        expect(page.listenerCount('console')).toBe(0)
+        emit('log', 'after cleanup')
+        expect(output).toHaveLength(observerFailure ? 14 : 15)
+        expect(errors).toEqual(
+          observerFailure
+            ? [
+                expect.objectContaining({
+                  message: 'formatted output sink failed',
+                }),
+              ]
+            : []
+        )
+      } finally {
+        for (const name of modules) jest.dontMock(name)
+      }
+    }
+  )
+})
+
+describe('Browser progress reporting', () => {
+  it.each(['ordered', 'transport-error', 'serialization-error'] as const)(
+    'queues progress without blocking execution and preserves cleanup for %s',
+    (mode) => {
+      const { spawnSync } = require('node:child_process')
+      const result = spawnSync(
+        process.execPath,
+        [
+          path.join(__dirname, 'client-progress.cjs'),
+          mode,
+          require.resolve('next/dist/experimental/testing/client/runtime'),
+        ],
+        { encoding: 'utf8', timeout: 20_000 }
+      )
+      const capture = process.env.NEXT_TESTING_BROWSER_PROGRESS_EVIDENCE
+      if (capture) {
+        mkdirSync(capture, { recursive: true })
+        writeFileSync(path.join(capture, `${mode}.stdout`), result.stdout ?? '')
+        writeFileSync(path.join(capture, `${mode}.stderr`), result.stderr ?? '')
+        writeFileSync(
+          path.join(capture, `${mode}.json`),
+          JSON.stringify({
+            pid: result.pid,
+            status: result.status,
+            signal: result.signal,
+            error: result.error?.message,
+          })
+        )
+      }
+      expect(result.error).toBeUndefined()
+      expect(result.signal).toBeNull()
+      expect(result.status).toBe(0)
+      const observed = JSON.parse(result.stdout)
+      expect(observed.restored).toBe(true)
+      expect(observed.maximumConcurrent).toBe(1)
+      expect(
+        observed.callbacks.every(
+          (row: { synchronous: boolean }) => row.synchronous
+        )
+      ).toBe(true)
+    }
+  )
+})
+
+it('projects Browser provided values once and initializes named injection before collection', () => {
+  const { spawnSync } = require('node:child_process')
+  const result = spawnSync(
+    process.execPath,
+    [
+      path.join(__dirname, 'browser-provided-context.cjs'),
+      require.resolve('next/dist/experimental/testing/client/execute'),
+      require.resolve('next/dist/experimental/testing/client/runtime'),
+      require.resolve('next/dist/experimental/testing/vitest'),
+      require.resolve('next/dist/experimental/testing/client/vitest'),
+    ],
+    { encoding: 'utf8', timeout: 20_000 }
+  )
+  const capture = process.env.NEXT_TESTING_BROWSER_INJECT_EVIDENCE
+  if (capture) {
+    mkdirSync(capture, { recursive: true })
+    writeFileSync(
+      path.join(capture, 'provided-context.stdout'),
+      result.stdout ?? ''
+    )
+    writeFileSync(
+      path.join(capture, 'provided-context.stderr'),
+      result.stderr ?? ''
+    )
+    writeFileSync(
+      path.join(capture, 'provided-context.json'),
+      JSON.stringify({
+        pid: result.pid,
+        status: result.status,
+        signal: result.signal,
+        error: result.error?.message,
+      })
+    )
+  }
+  expect(result.error).toBeUndefined()
+  expect(result.signal).toBeNull()
+  expect(result.status).toBe(0)
+  const observed = JSON.parse(result.stdout.trim().split('\n').at(-1)!)
+  expect(observed.rows).toEqual(
+    require('./browser-provided-context-pristine.json').rows
+  )
+})
+
+it('forwards Browser reset settings including false and preserves genuine file resets', async () => {
+  const fields = [
+    'clearMocks',
+    'mockReset',
+    'restoreMocks',
+    'unstubGlobals',
+  ] as const
+  const scenarios =
+    require('../next-testing-lifecycle/browser-mock-reset-config-pristine.json').scenarios
+  const profile = {
+    id: 'reset-profile',
+    environment: 'browser',
+    mode: 'development',
+    runtime: 'nodejs',
+    bundler: 'turbopack',
+    browserClient: true,
+  }
+  const entry = { id: 'reset-entry', file: '/project/reset.test.mjs', profile }
+  const artifact = {
+    version: 2,
+    kind: 'browser',
+    entryId: entry.id,
+    revision: 'reset-revision',
+    profile,
+    client: {
+      sourceFile: entry.file,
+      asyncScope: 'promise-continuations-v1',
+      creatorScope: 'synchronous-source-v1',
+      creatorPromiseRoute: 'native-engine-v1',
+    },
+  }
+  const modules = [
+    'next/dist/experimental/testing/client/server',
+    'next/dist/experimental/testing/client/results',
+  ]
+  const { spawnSync } =
+    require('node:child_process') as typeof import('node:child_process')
+  const capture = process.env.NEXT_TESTING_RESET_CONFIG_EVIDENCE
+  const run = (name: string, args: string[]) => {
+    const child = spawnSync(process.execPath, args, {
+      encoding: 'utf8',
+      timeout: 20_000,
+    })
+    if (capture) {
+      mkdirSync(capture, { recursive: true })
+      writeFileSync(path.join(capture, `${name}.stdout`), child.stdout ?? '')
+      writeFileSync(path.join(capture, `${name}.stderr`), child.stderr ?? '')
+      writeFileSync(
+        path.join(capture, `${name}.json`),
+        JSON.stringify({
+          pid: child.pid,
+          status: child.status,
+          signal: child.signal,
+          error: child.error?.message,
+        })
+      )
+    }
+    expect(child.error).toBeUndefined()
+    expect(child.signal).toBeNull()
+    expect({
+      status: child.status,
+      stdout: child.stdout,
+      stderr: child.stderr,
+    }).toMatchObject({ status: 0 })
+  }
+  for (const [name, raw] of Object.entries(scenarios)) {
+    const flags = (raw as any).flags
+    let configuration: any
+    const stop = new Error(
+      'Stop after observing the actual Browser configuration'
+    )
+    const failures: unknown[] = []
+    try {
+      await jest.isolateModulesAsync(async () => {
+        jest.doMock(modules[0], () => ({
+          createClientServer: async (options: any) => {
+            configuration = options.configuration
+            throw stop
+          },
+        }))
+        jest.doMock(modules[1], () => ({
+          createClientResultCollector: () => ({
+            events: [],
+            fail: (error: unknown) => failures.push(error),
+            hasFailure: () => failures.length > 0,
+            result: () => ({ status: 'failed', updates: [] }),
+          }),
+        }))
+        const { executeClient } = jest.requireActual(
+          'next/dist/experimental/testing/client/execute'
+        )
+        const result = await executeClient(artifact, {
+          entry,
+          runId: 'reset-run',
+          projectDir: '/project',
+          setupFiles: [],
+          signal: new AbortController().signal,
+          updateSnapshots: false,
+          testTimeout: 1000,
+          hookTimeout: 1000,
+          fileTimeout: 5000,
+          onEvent() {},
+          ...flags,
+        })
+        expect(result.status).toBe('failed')
+        expect(failures).toContain(stop)
+        for (const field of fields)
+          expect(configuration[field]).toBe(flags[field])
+      })
+    } finally {
+      for (const name of modules) jest.dontMock(name)
+    }
+    run(name, [
+      '--test-reporter=tap',
+      path.join(
+        __dirname,
+        '../next-testing-lifecycle/browser-fake-timers-integration.cjs'
+      ),
+      `browser-reset-config-${name}`,
+    ])
+  }
+  run('bootstrap', [
+    path.join(__dirname, 'client-console.cjs'),
+    'runtime',
+    require.resolve('next/dist/experimental/testing/client/console'),
+    require.resolve('next/dist/experimental/testing/client/runtime'),
+  ])
+}, 30000)
+
+it.each(['node', 'browser'] as const)(
+  'preserves the %s globals facade, forwarding and descriptor lifetime',
+  (mode) => {
+    const { spawnSync } = require('node:child_process')
+    const result = spawnSync(
+      process.execPath,
+      [
+        '--import',
+        require.resolve('tsx'),
+        path.join(__dirname, 'browser-globals.cjs'),
+        mode,
+        require.resolve('next/dist/experimental/testing/runner'),
+        require.resolve('next/dist/experimental/testing/vitest'),
+        require.resolve(
+          'next/dist/experimental/testing/client/invocation-platform'
+        ),
+        require.resolve('next/dist/experimental/testing/client/vitest'),
+        require.resolve('next/dist/experimental/testing/client/execute'),
+        require.resolve('next/dist/experimental/testing/client/runtime'),
+      ],
+      { encoding: 'utf8', timeout: 20_000 }
+    )
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.status).toBe(0)
+    const observed = JSON.parse(result.stdout.trim().split('\n').at(-1)!)
+    expect(observed.mode).toBe(mode)
+    expect(observed.globals).toBe(19)
+    if (mode === 'node') expect(observed.restored).toBe(true)
+    else expect(observed.browserFacade).toBe(true)
+  }
+)
+
+it.each([
+  'contract',
+  'mutation',
+  'error-shape',
+  'transport-error',
+  'record-drain',
+  'default-record-drain',
+])(
+  'preserves Browser data artifact %s transport and task semantics',
+  (mode) => {
+    const { spawnSync } = require('node:child_process')
+    const result = spawnSync(
+      process.execPath,
+      [
+        path.join(__dirname, 'browser-artifacts.cjs'),
+        mode,
+        ...[
+          'client/runtime',
+          'client/server',
+          'client/results',
+          'vitest',
+          'client/vitest',
+        ].map((name) =>
+          require.resolve('next/dist/experimental/testing/' + name)
+        ),
+      ],
+      { encoding: 'utf8', timeout: 20_000 }
+    )
+    const capture = process.env.NEXT_TESTING_BROWSER_ARTIFACT_EVIDENCE
+    if (capture) {
+      mkdirSync(capture, { recursive: true })
+      writeFileSync(path.join(capture, mode + '.stdout'), result.stdout ?? '')
+      writeFileSync(path.join(capture, mode + '.stderr'), result.stderr ?? '')
+      writeFileSync(
+        path.join(capture, mode + '.json'),
+        JSON.stringify({
+          pid: result.pid,
+          status: result.status,
+          signal: result.signal,
+          error: result.error?.message,
+        })
+      )
+    }
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect({
+      status: result.status,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    }).toMatchObject({ status: 0 })
+    const observed = JSON.parse(result.stdout.trim().split('\n').at(-1)!)
+    expect(observed.mode).toBe(mode)
+    expect(observed.cleaned).toBe(true)
+  }
+)
+
+it('orders post-stop native Browser output after queued RPC output through cleanup failures', () => {
+  const { spawnSync } = require('node:child_process')
+  const result = spawnSync(
+    process.execPath,
+    [
+      path.join(__dirname, 'client-console.cjs'),
+      'parent-order',
+      require.resolve('next/dist/experimental/testing/client/console'),
+      require.resolve('next/dist/experimental/testing/client/runtime'),
+    ],
+    { encoding: 'utf8', timeout: 20_000 }
+  )
+  const capture = process.env.NEXT_TESTING_CONSOLE_UNIT_EVIDENCE
+  if (capture) {
+    mkdirSync(capture, { recursive: true })
+    writeFileSync(
+      path.join(capture, 'parent-order.stdout'),
+      result.stdout ?? ''
+    )
+    writeFileSync(
+      path.join(capture, 'parent-order.stderr'),
+      result.stderr ?? ''
+    )
+    writeFileSync(
+      path.join(capture, 'parent-order.json'),
+      JSON.stringify({
+        pid: result.pid,
+        status: result.status,
+        signal: result.signal,
+        error: result.error?.message,
+      })
+    )
+  }
+  expect(result.error).toBeUndefined()
+  expect(result.signal).toBeNull()
+  expect({
+    status: result.status,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  }).toMatchObject({ status: 0 })
+  const observed = JSON.parse(result.stdout.trim())
+  expect(observed.mode).toBe('parent-order')
+  expect(observed.scenarios).toHaveLength(3)
+})
+
+it('settles Browser imports through the actual facade and disposes the tracker through runtime failures', () => {
+  const { spawnSync } = require('node:child_process')
+  for (const mode of ['normal', 'initialize-error', 'file-dispose-error']) {
+    const result = spawnSync(
+      process.execPath,
+      [
+        path.join(__dirname, 'browser-import-settled.cjs'),
+        mode,
+        require.resolve('next/dist/experimental/testing/client/runtime'),
+        require.resolve('next/dist/experimental/testing/client/vitest'),
+      ],
+      { encoding: 'utf8', timeout: 20_000 }
+    )
+    const capture = process.env.NEXT_TESTING_IMPORT_SETTLED_EVIDENCE
+    if (capture) {
+      mkdirSync(capture, { recursive: true })
+      writeFileSync(path.join(capture, mode + '.stdout'), result.stdout ?? '')
+      writeFileSync(path.join(capture, mode + '.stderr'), result.stderr ?? '')
+      writeFileSync(
+        path.join(capture, mode + '.json'),
+        JSON.stringify({
+          pid: result.pid,
+          status: result.status,
+          signal: result.signal,
+          error: result.error?.message,
+        })
+      )
+    }
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect({
+      status: result.status,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    }).toMatchObject({ status: 0 })
+    const observed = JSON.parse(result.stdout.trim())
+    expect(observed.mode).toBe(mode)
+    expect(observed.trackerRestored).toBe(true)
+    expect(observed.completeStatus).toBe(
+      mode === 'normal' ? 'passed' : 'failed'
+    )
+  }
+})
+
+it.each(['setup', 'setup-error', 'setup-dispose-error'])(
+  'awaits Browser %s inside collection and closes the original file owner',
+  (mode) => {
+    const { spawnSync } = require('node:child_process')
+    const child = spawnSync(
+      process.execPath,
+      [
+        path.join(__dirname, 'client-console.cjs'),
+        mode,
+        require.resolve('next/dist/experimental/testing/client/console'),
+        require.resolve('next/dist/experimental/testing/client/runtime'),
+      ],
+      { encoding: 'utf8', timeout: 20_000 }
+    )
+    expect(child.error).toBeUndefined()
+    expect(child.signal).toBeNull()
+    expect({
+      status: child.status,
+      stdout: child.stdout,
+      stderr: child.stderr,
+    }).toMatchObject({ status: 0, stderr: '' })
+    const observed = JSON.parse(child.stdout.trim())
+    expect(observed.restored).toBe(true)
+    expect(observed.setupOrder.at(-1)).toBe('dispose')
+    expect(observed.trace).toEqual(['file', 'browser', 'mocks', 'context'])
+  }
+)
+
+it('transports Browser env settings and configures the actual runtime before authored load', async () => {
+  const modules = [
+    'next/dist/experimental/testing/client/server',
+    'next/dist/experimental/testing/client/results',
+  ]
+  const profile = {
+    id: 'env-browser',
+    environment: 'browser',
+    mode: 'development',
+    runtime: 'nodejs',
+    bundler: 'turbopack',
+    browserClient: true,
+  }
+  const entry = { id: 'env-entry', file: '/project/env.test.mjs', profile }
+  const artifact = {
+    version: 2,
+    kind: 'browser',
+    entryId: entry.id,
+    revision: 'env-revision',
+    profile,
+    client: {
+      sourceFile: entry.file,
+      asyncScope: 'promise-continuations-v1',
+      creatorScope: 'synchronous-source-v1',
+      creatorPromiseRoute: 'native-engine-v1',
+    },
+  }
+  const env = { NEXT_ENV_BOOTSTRAP: 'configured-before-load' }
+  let configuration: any
+  const stopped = new Error('Observe config before acquiring a Browser host')
+  const failures: unknown[] = []
+  try {
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock(modules[0], () => ({
+        createClientServer: async (options: any) => {
+          configuration = options.configuration
+          throw stopped
+        },
+      }))
+      jest.doMock(modules[1], () => ({
+        createClientResultCollector: () => ({
+          events: [],
+          fail: (error: unknown) => failures.push(error),
+          hasFailure: () => failures.length > 0,
+          result: () => ({ status: 'failed', updates: [] }),
+        }),
+      }))
+      const { executeClient } = jest.requireActual(
+        'next/dist/experimental/testing/client/execute'
+      )
+      const result = await executeClient(artifact, {
+        entry,
+        runId: 'env-run',
+        projectDir: '/project',
+        setupFiles: [],
+        signal: new AbortController().signal,
+        updateSnapshots: false,
+        testTimeout: 1000,
+        hookTimeout: 1000,
+        fileTimeout: 5000,
+        onEvent() {},
+        env,
+        unstubEnvs: true,
+      })
+      expect(result.status).toBe('failed')
+      expect(failures).toContain(stopped)
+      expect(configuration.env).toBe(env)
+      expect(configuration.unstubEnvs).toBe(true)
+    })
+  } finally {
+    for (const name of modules) jest.dontMock(name)
+  }
+  const { spawnSync } =
+    require('node:child_process') as typeof import('node:child_process')
+  for (const mode of ['env', 'env-cold-config', 'env-cold-boolean']) {
+    const child = spawnSync(
+      process.execPath,
+      [
+        path.join(__dirname, 'client-console.cjs'),
+        mode,
+        require.resolve('next/dist/experimental/testing/client/console'),
+        require.resolve('next/dist/experimental/testing/client/runtime'),
+      ],
+      { encoding: 'utf8', timeout: 20_000 }
+    )
+    const capture = process.env.NEXT_TESTING_BROWSER_ENV_EVIDENCE
+    if (capture) {
+      mkdirSync(capture, { recursive: true })
+      writeFileSync(path.join(capture, mode + '.stdout'), child.stdout ?? '')
+      writeFileSync(path.join(capture, mode + '.stderr'), child.stderr ?? '')
+      writeFileSync(
+        path.join(capture, mode + '.json'),
+        JSON.stringify({
+          pid: child.pid,
+          status: child.status,
+          signal: child.signal,
+          error: child.error?.message,
+        })
+      )
+    }
+    expect(child.error).toBeUndefined()
+    expect(child.signal).toBeNull()
+    expect(child.status).toBe(0)
+    expect(child.stderr).toBe('')
+    expect(JSON.parse(child.stdout.trim().split('\n').at(-1)!)).toMatchObject({
+      mode,
+      restored: true,
+      maximumConcurrent: 1,
+      envFactoryCalls: 1,
+      envOrder: ['factory', 'initialize', 'load', 'body'],
+    })
+  }
+})
+
 it('captures real Node console task origins and write groups with real clocks, drains IPC and restores console after failure', async () => {
   const {
     installTestConsole,
@@ -1300,6 +2947,669 @@ it('captures real Node console task origins and write groups with real clocks, d
   )
 })
 
+describe('additional native Browser userEvent actions', () => {
+  it('preserves tripleClick and unhover options, ownership, and transport failures', () => {
+    const result = require('node:child_process').spawnSync(
+      process.execPath,
+      [path.join(__dirname, 'browser-user-event-more.cjs')],
+      { encoding: 'utf8', timeout: 20_000 }
+    )
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      allUndefined: true,
+      noSyntheticEvents: true,
+      originalErrorRetained: true,
+      closedTransportRefused: true,
+      closedScopeRefused: true,
+    })
+  })
+})
+
+describe('native Browser userEvent tab focus traversal', () => {
+  it('preserves global tab options, ownership, and native transport failures', () => {
+    const result = require('node:child_process').spawnSync(
+      process.execPath,
+      [path.join(__dirname, 'browser-user-event-tab.cjs')],
+      { encoding: 'utf8', timeout: 20_000 }
+    )
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      allUndefined: true,
+      noSyntheticEvents: true,
+      originalErrorRetained: true,
+      closedTransportRefused: true,
+      closedScopeRefused: true,
+    })
+  })
+})
+
+it('composes live Browser locators with DOM ordering and the existing native transport', () => {
+  const result = require('node:child_process').spawnSync(
+    process.execPath,
+    [path.join(__dirname, 'browser-locator-composition.cjs')],
+    { encoding: 'utf8', timeout: 20_000 }
+  )
+  expect(result.error).toBeUndefined()
+  expect(result.signal).toBeNull()
+  expect(result.status).toBe(0)
+  expect(JSON.parse(result.stdout)).toEqual({
+    intersection: true,
+    orderedUnion: true,
+    deduplicated: true,
+    liveQueries: true,
+    nativeOptionsRetained: true,
+    strictMultipleMatches: true,
+    closedTransportRefused: true,
+    closedScopeRefused: true,
+  })
+})
+
+it('keeps native clipboard shortcuts on their owning keyboard instance and preserves transport errors', () => {
+  const result = require('node:child_process').spawnSync(
+    process.execPath,
+    [path.join(__dirname, 'browser-user-event-clipboard.cjs')],
+    { encoding: 'utf8', timeout: 20_000 }
+  )
+  expect(result.error).toBeUndefined()
+  expect(result.signal).toBeNull()
+  expect(result.status).toBe(0)
+  expect(JSON.parse(result.stdout)).toEqual({
+    independentInstances: true,
+    heldStateRetained: true,
+    extractedOwnerRetained: true,
+    nativeKeyboardUsed: true,
+    noSyntheticEvents: true,
+    allUndefined: true,
+    originalErrorRetained: true,
+    rejectionRecoverable: true,
+    closedTransportRefused: true,
+    closedScopeRefused: true,
+  })
+})
+
+describe('native Browser action reply and console admission ownership', () => {
+  it.each([
+    'ordered',
+    'queued-task-update',
+    'action-error',
+    'network-error',
+    'json-error',
+    'error-envelope',
+    'output-error',
+  ])('preserves owned request replies for %s', (mode) => {
+    const { spawnSync } = require('node:child_process')
+    const result = spawnSync(
+      process.execPath,
+      [
+        path.join(__dirname, 'client-action-output.cjs'),
+        mode,
+        require.resolve('next/dist/experimental/testing/client/runtime'),
+      ],
+      { encoding: 'utf8', timeout: 20000 }
+    )
+    const capture = process.env.NEXT_TESTING_NATIVE_ACTION_OUTPUT_EVIDENCE
+    if (capture) {
+      mkdirSync(capture, { recursive: true })
+      writeFileSync(path.join(capture, `${mode}.stdout`), result.stdout ?? '')
+      writeFileSync(path.join(capture, `${mode}.stderr`), result.stderr ?? '')
+    }
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.status).toBe(0)
+    const observed = JSON.parse(result.stdout)
+    expect(observed.beforeOutputReply).toEqual({
+      outputRequested: true,
+      firstSettled: false,
+      secondRequested: false,
+      secondSettled: false,
+      terminalPublished: false,
+      runtimeSettled: false,
+    })
+    expect(observed.afterOutputReply.firstSettled).toBe(false)
+    expect(observed.afterOutputReply.secondRequested).toBe(false)
+    expect(observed.restored).toBe(true)
+  })
+})
+
+describe('native Browser option identity and handle ownership', () => {
+  it('serializes actual option Elements and Locators through the existing command owner', () => {
+    const { spawnSync } = require('node:child_process')
+    const result = spawnSync(
+      process.execPath,
+      [path.join(__dirname, 'browser-user-event-select-options.cjs')],
+      { encoding: 'utf8', timeout: 20000 }
+    )
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      allUndefined: true,
+      noSyntheticEvents: true,
+      originalNativeErrorRetained: true,
+      recovered: true,
+      detachedRefused: true,
+      closedTransportRefused: true,
+      closedScopeRefused: true,
+    })
+  })
+  it.each([
+    'normal',
+    'strings',
+    'empty',
+    'action-error',
+    'lookup-error',
+    'missing',
+    'dispose-error',
+    'action-dispose-error',
+    'cancel',
+    'malformed-id',
+    'malformed-key',
+    'malformed-null',
+    'malformed-array',
+    'malformed-mixed',
+  ])('retains actual native option handles and failures for %s', (mode) => {
+    const { spawnSync } = require('node:child_process')
+    const result = spawnSync(
+      process.execPath,
+      [
+        path.join(__dirname, 'client-option-handles.cjs'),
+        mode,
+        require.resolve('next/dist/experimental/testing/client/execute'),
+      ],
+      { encoding: 'utf8', timeout: 20000 }
+    )
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      mode,
+      cleanupComplete: true,
+    })
+  })
+})
+
+it.each([
+  'click',
+  'fill',
+  'duplicates',
+  'parallel',
+  'action-error',
+  'closed-scope',
+  'cleanup-held',
+  'dispose-held',
+  'present-and-detached',
+])('retains live missing query action ownership for %s', (mode) => {
+  const result = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        require('node:path').join(__dirname, 'browser-locator-admission.cjs'),
+        mode,
+      ],
+      { encoding: 'utf8' }
+    )
+  )
+  expect(result).toMatchObject({
+    mode,
+    originalScopesRetained: true,
+    foreignRootRefused: true,
+    callbacksReleased: true,
+    originalErrorRetained: true,
+    cleanupJoined: true,
+    noSyntheticEvents: true,
+  })
+})
+it.each([
+  'click',
+  'fill',
+  'present',
+  'native-error',
+  'cancel',
+  'wrong-method',
+  'malformed-id',
+  'registration-error',
+  'registration-cancel',
+])('owns native deferred locator admission and cleanup for %s', (mode) => {
+  const result = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        require('node:path').join(__dirname, 'client-locator-admission.cjs'),
+        mode,
+        require.resolve('next/dist/experimental/testing/client/execute'),
+      ],
+      { encoding: 'utf8' }
+    )
+  )
+  expect(result).toMatchObject({
+    mode,
+    cleanupJoined: true,
+    originalNativeErrorRetained: true,
+    terminalMalformedBeforeAdmission: true,
+  })
+})
+
+it('registers once per actual selector binding while retaining registration failures and recovery', async () => {
+  const { registerClientLocators } = await import(
+    'next/dist/experimental/testing/client/locator-engine'
+  )
+  let release!: () => void
+  const pending = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const selectors = {
+    register: jest.fn(() => pending),
+    setTestIdAttribute: jest.fn(),
+  }
+  const first = registerClientLocators({ selectors })
+  const second = registerClientLocators({ selectors })
+  expect(first).toBe(second)
+  expect(selectors.register).toHaveBeenCalledTimes(1)
+  release()
+  await Promise.all([first, second])
+  await registerClientLocators({ selectors })
+  expect(selectors.register).toHaveBeenCalledTimes(1)
+
+  const failure = new Error('actual independent selector registration failed')
+  const independent = {
+    register: jest.fn(async (): Promise<void> => {
+      throw failure
+    }),
+    setTestIdAttribute: jest.fn(),
+  }
+  await expect(registerClientLocators({ selectors: independent })).rejects.toBe(
+    failure
+  )
+  independent.register.mockImplementation(async () => {})
+  await registerClientLocators({ selectors: independent })
+  expect(independent.register).toHaveBeenCalledTimes(2)
+  expect(selectors.register).toHaveBeenCalledTimes(1)
+})
+
+it('retains live negative-one locator node identities, bounds and scope', () => {
+  const result = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        require('node:path').join(
+          __dirname,
+          'browser-locator-negative-nth.cjs'
+        ),
+      ],
+      { encoding: 'utf8' }
+    )
+  )
+  expect(result).toEqual({
+    negativeOne: true,
+    actualNodeIdentity: true,
+    liveOrder: true,
+    emptyAndBounds: true,
+    otherIndicesHeld: true,
+    closedScopeRefused: true,
+    noNativeCommandOrSyntheticEvents: true,
+  })
+})
+
+describe.each(['dblClick', 'tripleClick'])(
+  'live deferred %s admission',
+  (family) => {
+    it.each(['click', 'action-error'])(
+      'retains query identity and cleanup for %s',
+      (mode) => {
+        const result = JSON.parse(
+          execFileSync(
+            process.execPath,
+            [
+              require('node:path').join(
+                __dirname,
+                'browser-locator-admission.cjs'
+              ),
+              mode,
+              family,
+            ],
+            { encoding: 'utf8' }
+          )
+        )
+        expect(result).toMatchObject({
+          mode,
+          originalScopesRetained: true,
+          foreignRootRefused: true,
+          callbacksReleased: true,
+          originalErrorRetained: true,
+          cleanupJoined: true,
+          noSyntheticEvents: true,
+        })
+      }
+    )
+    it.each(['click', 'native-error'])(
+      'retains native options, errors and ownership for %s',
+      (mode) => {
+        const result = JSON.parse(
+          execFileSync(
+            process.execPath,
+            [
+              require('node:path').join(
+                __dirname,
+                'client-locator-admission.cjs'
+              ),
+              mode,
+              require.resolve('next/dist/experimental/testing/client/execute'),
+              family,
+            ],
+            { encoding: 'utf8' }
+          )
+        )
+        expect(result).toMatchObject({
+          mode,
+          cleanupJoined: true,
+          originalNativeErrorRetained: true,
+          terminalMalformedBeforeAdmission: true,
+        })
+      }
+    )
+  }
+)
+
+describe.each(['hover', 'unhover'])('live deferred %s admission', (method) => {
+  it.each(['success', 'native-error'])(
+    'retains query scope, identity and failure for %s',
+    (mode) => {
+      const result = JSON.parse(
+        execFileSync(
+          process.execPath,
+          [
+            require('node:path').join(__dirname, 'browser-locator-hover.cjs'),
+            method,
+            mode,
+          ],
+          { encoding: 'utf8' }
+        )
+      )
+      expect(result).toEqual({
+        method,
+        mode,
+        capturedScope: true,
+        liveIdentity: true,
+        foreignRootRefused: true,
+        originalErrorRetained: true,
+        followingAction: true,
+        callbackReleased: true,
+        noSyntheticEvents: true,
+      })
+    }
+  )
+  it.each(['success', 'native-error'])(
+    'retains actual native target/options and cleanup for %s',
+    (mode) => {
+      const result = JSON.parse(
+        execFileSync(
+          process.execPath,
+          [
+            require('node:path').join(__dirname, 'client-locator-hover.cjs'),
+            method,
+            mode,
+            require.resolve('next/dist/experimental/testing/client/execute'),
+          ],
+          { encoding: 'utf8' }
+        )
+      )
+      expect(result).toEqual({
+        method,
+        mode,
+        nativeOptions: true,
+        literalBodyUnhover: true,
+        originalErrorRetained: true,
+        followingAction: true,
+        cleanupJoined: true,
+      })
+    }
+  )
+})
+
+describe.each(['hover', 'unhover'])('native %s realm barrier', (method) => {
+  it.each(['barrier-held', 'barrier-error', 'barrier-cancel'])(
+    'retains actual action ownership for %s',
+    (mode) => {
+      const result = JSON.parse(
+        execFileSync(
+          process.execPath,
+          [
+            require('node:path').join(__dirname, 'client-locator-hover.cjs'),
+            method,
+            mode,
+            require.resolve('next/dist/experimental/testing/client/execute'),
+          ],
+          { encoding: 'utf8' }
+        )
+      )
+      expect(result).toEqual({
+        method,
+        mode,
+        nativeOptions: true,
+        literalBodyUnhover: true,
+        originalErrorRetained: true,
+        followingAction: true,
+        cleanupJoined: true,
+        barrierBeforeNative: true,
+        barrierFailureRetained: true,
+        cancellationJoined: true,
+      })
+    }
+  )
+})
+
+describe('live deferred selectOptions admission', () => {
+  it.each(['scalar', 'array', 'empty', 'native-error'])(
+    'retains actual query scope and selection values for %s',
+    (mode) => {
+      const result = JSON.parse(
+        execFileSync(
+          process.execPath,
+          [
+            require('node:path').join(__dirname, 'browser-locator-select.cjs'),
+            mode,
+          ],
+          { encoding: 'utf8' }
+        )
+      )
+      expect(result).toEqual({
+        method: 'selectOptions',
+        mode,
+        capturedScope: true,
+        liveIdentity: true,
+        foreignRootRefused: true,
+        originalErrorRetained: true,
+        followingAction: true,
+        callbackReleased: true,
+        noSyntheticEvents: true,
+      })
+    }
+  )
+  it.each([
+    'success',
+    'native-error',
+    'invalid-values',
+    'mixed-values',
+    'invalid-option-id',
+    'cancel',
+  ])(
+    'owns native selection and rejects invalid values before admission for %s',
+    (mode) => {
+      const result = JSON.parse(
+        execFileSync(
+          process.execPath,
+          [
+            require('node:path').join(__dirname, 'client-locator-select.cjs'),
+            mode,
+            require.resolve('next/dist/experimental/testing/client/execute'),
+          ],
+          { encoding: 'utf8' }
+        )
+      )
+      const invalid = [
+        'invalid-values',
+        'mixed-values',
+        'invalid-option-id',
+      ].includes(mode)
+      expect(result).toEqual({
+        mode,
+        admissions: invalid ? 0 : mode === 'native-error' ? 2 : 1,
+        nativeSelections: invalid ? 0 : 1,
+        actualNativeOptionsPreserved: true,
+        invalidValuesBeforeAdmission: true,
+        originalErrorIdentityRetained: true,
+        cleanupJoined: true,
+      })
+    }
+  )
+})
+
+it.each(['preflight', 'native-error', 'held-state'])(
+  'retains physical keyboard %s ownership through the existing native path',
+  (scenario) => {
+    const result = require('node:child_process').spawnSync(
+      process.execPath,
+      [path.join(__dirname, 'browser-user-event-physical-keys.cjs'), scenario],
+      { encoding: 'utf8', timeout: 20_000 }
+    )
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout)).toEqual({
+      scenario,
+      originalNativeOwnership: true,
+    })
+  }
+)
+
+it.each(['preflight', 'native-error', 'cleanup-error'])(
+  'retains named default keyboard %s ownership through the native path',
+  (scenario) => {
+    const result = require('node:child_process').spawnSync(
+      process.execPath,
+      [path.join(__dirname, 'browser-user-event-named-keys.cjs'), scenario],
+      { encoding: 'utf8', timeout: 20_000 }
+    )
+    expect(result.error).toBeUndefined()
+    expect(result.signal).toBeNull()
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout)).toEqual({
+      scenario,
+      existingNativeOwnership: true,
+    })
+  }
+)
+
+describe('live deferred clear admission', () => {
+  it.each([
+    'click',
+    'duplicates',
+    'parallel',
+    'action-error',
+    'closed-scope',
+    'cleanup-held',
+    'dispose-held',
+  ])('retains query identity, scope and cleanup for %s', (mode) => {
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [
+          require('node:path').join(__dirname, 'browser-locator-admission.cjs'),
+          mode,
+          'clear',
+        ],
+        { encoding: 'utf8' }
+      )
+    )
+    expect(result).toMatchObject({
+      mode,
+      originalScopesRetained: true,
+      foreignRootRefused: true,
+      callbacksReleased: true,
+      originalErrorRetained: true,
+      cleanupJoined: true,
+      noSyntheticEvents: true,
+    })
+    expect(result.commands[0]).toMatchObject({
+      method: 'clear',
+      args: [{ timeout: 50 }],
+    })
+  })
+  it.each([
+    'click',
+    'native-error',
+    'cancel',
+    'registration-error',
+    'registration-cancel',
+  ])('retains native options, failure and closure for %s', (mode) => {
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [
+          require('node:path').join(__dirname, 'client-locator-admission.cjs'),
+          mode,
+          require.resolve('next/dist/experimental/testing/client/execute'),
+          'clear',
+        ],
+        { encoding: 'utf8' }
+      )
+    )
+    expect(result).toMatchObject({
+      mode,
+      cleanupJoined: true,
+      originalNativeErrorRetained: true,
+      terminalMalformedBeforeAdmission: true,
+    })
+    if (result.actions.length)
+      expect(result.actions[0]).toEqual({
+        method: 'clear',
+        args: [{ timeout: 50 }],
+      })
+  })
+})
+
+describe('Browser locator element and query semantics', () => {
+  it.each([
+    'missing',
+    'strict',
+    'identity',
+    'detached',
+    'closed',
+    'foreign',
+    'late-action',
+    'detached-action',
+  ])('preserves actual DOM and ownership for %s', (mode) => {
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [
+          require('node:path').join(__dirname, 'browser-locator-elements.cjs'),
+          mode,
+        ],
+        { encoding: 'utf8' }
+      )
+    )
+    expect(result).toEqual({ mode, passed: true })
+  })
+})
+
+it('parses keyboard characters, physical keys, modifiers and malformed descriptors', () => {
+  const stdout = execFileSync(
+    process.execPath,
+    [path.join(__dirname, 'browser-keyboard-parser.cjs')],
+    { encoding: 'utf8', timeout: 10000 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    characterAndPhysicalMappings: true,
+    grammarModifiersAndErrors: true,
+    nativeMembershipAndKeyIdentity: true,
+  })
+})
+
 it('flushes prior console delivery without uninstalling capture for environment teardown', async () => {
   const {
     installTestConsole,
@@ -1396,6 +3706,108 @@ it('removes console drain abort listeners and observes a real callback rejection
     cancellation
   )
   expect(skipped).not.toHaveBeenCalled()
+})
+
+describe('actual client native Promise producer receipts', () => {
+  it.each([
+    'genuine',
+    'missing',
+    'accessor',
+    'mismatched',
+    'classifier-proxy',
+    'identity-mismatch',
+    'proxy-mismatch',
+    'classifier-accessor',
+  ])(
+    'retains actual producer, unknown-value and constructor contracts for %s',
+    (profile) => {
+      const stdout = execFileSync(
+        process.execPath,
+        [
+          path.join(__dirname, 'browser-native-producer-intrinsics.cjs'),
+          path.dirname(require.resolve('next/package.json')),
+          profile,
+        ],
+        { encoding: 'utf8', timeout: 10000 }
+      )
+      const result = JSON.parse(stdout)
+      expect(result).toMatchObject({
+        mode: profile,
+        cases: profile === 'genuine' ? 20 : 2,
+      })
+      if (profile === 'genuine') {
+        expect(result).toMatchObject({
+          actualAllocationOnly: true,
+          currentNativeAndCreatorRoutes: true,
+          unknownThenableProxyAndSubclassPreserved: true,
+          actualConstructorAndGetterEffects: true,
+          closedAwaiterRetained: true,
+          syntheticAsyncHelperConstructorPreserved: true,
+          thenCases: 12,
+          speciesGetterApplyAndDynamicCatchEffects: true,
+        })
+      } else {
+        expect(result).toMatchObject({
+          unknownFallback: true,
+          actualConstructorCallsPreserved: true,
+          noBridgeGetterInvocation: true,
+          classifierDescriptorReads: 0,
+          classifierAccessorReads: profile === 'classifier-accessor' ? 2 : 0,
+        })
+      }
+    }
+  )
+})
+
+describe('actual authored native producer runtime', () => {
+  it.each([
+    'actual',
+    'missing',
+    'carrier-accessor',
+    'identity-mismatch',
+    'factory-accessor',
+    'proxy-classifier',
+    'older-carrier',
+  ])(
+    'preserves selected values and actual producer/fallback effects for %s',
+    (profile) => {
+      const stdout = execFileSync(
+        process.execPath,
+        [
+          path.join(__dirname, 'browser-authored-producer-runtime.cjs'),
+          path.dirname(require.resolve('next/package.json')),
+          profile,
+        ],
+        { encoding: 'utf8', timeout: 10000 }
+      )
+      expect(JSON.parse(stdout)).toEqual({
+        mode: profile,
+        cases: 16,
+        actualInitializerSourceCaptured: true,
+        nativeCustomProxyBoundSubclassAndForeignValuesPreserved: true,
+        naturalErrorsAndNewTargetPreserved: true,
+        argumentIteratorAndReflectEffects: 0,
+        lateAwaiterRetained: true,
+        arbitraryValuesUnmarked: true,
+        accessorReads: 0,
+        descriptorReads: 0,
+        actualBrowserAuthenticationNotClaimedByComponent: true,
+      })
+    }
+  )
+})
+
+it('forwards native keyboard actions and preserves held-key cleanup and preflight', () => {
+  const stdout = execFileSync(
+    process.execPath,
+    [path.join(__dirname, 'browser-keyboard-runtime.cjs')],
+    { encoding: 'utf8', timeout: 10000 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    nativeActionsAndTextFallback: true,
+    heldKeyReleaseAndCleanup: true,
+    completePreflightAndFrozenStates: true,
+  })
 })
 
 // These pure contracts do not qualify native shared AppPage emission.

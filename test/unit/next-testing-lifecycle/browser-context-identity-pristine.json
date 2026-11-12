@@ -1,0 +1,143 @@
+{
+  "positive": {
+    "cases": [
+      {
+        "name": "failed owner",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "totals": {
+      "numTotalTests": 1,
+      "numPassedTests": 1,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0
+    },
+    "rows": [],
+    "streams": [],
+    "actualCLIExitCode": 0
+  },
+  "identity-pass": {
+    "cases": [
+      {
+        "name": "Browser listener context identity passes",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "totals": {
+      "numTotalTests": 1,
+      "numPassedTests": 1,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0
+    },
+    "rows": [
+      {
+        "phase": "body",
+        "name": "Browser listener context identity passes",
+        "contextSame": true,
+        "taskSame": true,
+        "taskContextIsBody": true,
+        "taskContextIsArgument": true,
+        "expectSame": true,
+        "signalSame": true
+      },
+      {
+        "phase": "named-finished",
+        "name": "Browser listener context identity passes",
+        "contextSame": true,
+        "taskSame": true,
+        "taskContextIsBody": true,
+        "taskContextIsArgument": true,
+        "expectSame": true,
+        "signalSame": true
+      },
+      {
+        "phase": "context-finished",
+        "name": "Browser listener context identity passes",
+        "contextSame": true,
+        "taskSame": true,
+        "taskContextIsBody": true,
+        "taskContextIsArgument": true,
+        "expectSame": true,
+        "signalSame": true
+      }
+    ],
+    "streams": ["stdout", "stdout", "stdout"],
+    "actualCLIExitCode": 0
+  },
+  "identity-fail": {
+    "cases": [
+      {
+        "name": "Browser listener context identity fails",
+        "status": "failed",
+        "failureMessages": [
+          "Error: intentional Browser listener identity failure\n    at http://localhost:63315/private/tmp/next-testing-browser-hook-context-post119-reference/identity-fail/reference-attempt-01/fixture/identity.case.mjs?import&browserv=1792351412702:14:9\n    at http://localhost:63315/cache/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DlaxacAV.js?v=4698833e:4125:35\n    at http://localhost:63315/cache/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DlaxacAV.js?v=4698833e:5235:26\n    at http://localhost:63315/cache/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DlaxacAV.js?v=4698833e:5726:20\n    at new Promise (<anonymous>)\n    at runWithCancel (http://localhost:63315/cache/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DlaxacAV.js?v=4698833e:5721:10)\n    at http://localhost:63315/cache/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DlaxacAV.js?v=4698833e:5710:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (http://localhost:63315/cache/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DlaxacAV.js?v=4698833e:5674:10)\n    at http://localhost:63315/cache/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-DlaxacAV.js?v=4698833e:6242:64"
+        ]
+      }
+    ],
+    "totals": {
+      "numTotalTests": 1,
+      "numPassedTests": 0,
+      "numFailedTests": 1,
+      "numPendingTests": 0,
+      "numTodoTests": 0
+    },
+    "rows": [
+      {
+        "phase": "body",
+        "name": "Browser listener context identity fails",
+        "contextSame": true,
+        "taskSame": true,
+        "taskContextIsBody": true,
+        "taskContextIsArgument": true,
+        "expectSame": true,
+        "signalSame": true
+      },
+      {
+        "phase": "named-finished",
+        "name": "Browser listener context identity fails",
+        "contextSame": true,
+        "taskSame": true,
+        "taskContextIsBody": true,
+        "taskContextIsArgument": true,
+        "expectSame": true,
+        "signalSame": true
+      },
+      {
+        "phase": "context-finished",
+        "name": "Browser listener context identity fails",
+        "contextSame": true,
+        "taskSame": true,
+        "taskContextIsBody": true,
+        "taskContextIsArgument": true,
+        "expectSame": true,
+        "signalSame": true
+      },
+      {
+        "phase": "named-failed",
+        "name": "Browser listener context identity fails",
+        "contextSame": true,
+        "taskSame": true,
+        "taskContextIsBody": true,
+        "taskContextIsArgument": true,
+        "expectSame": true,
+        "signalSame": true
+      },
+      {
+        "phase": "context-failed",
+        "name": "Browser listener context identity fails",
+        "contextSame": true,
+        "taskSame": true,
+        "taskContextIsBody": true,
+        "taskContextIsArgument": true,
+        "expectSame": true,
+        "signalSame": true
+      }
+    ],
+    "streams": ["stdout", "stdout", "stdout", "stdout", "stdout"],
+    "actualCLIExitCode": 1
+  }
+}

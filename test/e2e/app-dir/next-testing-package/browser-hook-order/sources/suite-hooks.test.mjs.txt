@@ -1,0 +1,17 @@
+import { beforeAll, afterAll, test } from 'vitest'
+const row = stage => console.log('BROWSER_HOOK_SEQUENCE:' + JSON.stringify({ stage }))
+beforeAll(async () => {
+  row('before-all-one-start')
+  await Promise.resolve()
+  row('before-all-one-end')
+  return async () => { row('cleanup-one-start'); await Promise.resolve(); row('cleanup-one-end') }
+})
+beforeAll(async () => {
+  row('before-all-two-start')
+  await Promise.resolve()
+  row('before-all-two-end')
+  return async () => { row('cleanup-two-start'); await Promise.resolve(); row('cleanup-two-end') }
+})
+afterAll(async () => { row('after-all-one-start'); await Promise.resolve(); row('after-all-one-end') })
+afterAll(async () => { row('after-all-two-start'); await Promise.resolve(); row('after-all-two-end') })
+test('actual asynchronous suite hook sequence', () => row('body'))

@@ -1,0 +1,8 @@
+import { server } from 'vitest/browser'
+import { server as contextServer } from '@vitest/browser/context'
+server.config.browser.locators.errorFormat = 'text'
+contextServer.config.browser.locators.errorFormat = 'text'
+server.config.browser.locators.errorFormat = 1
+contextServer.config.browser.locators.errorFormat = 1
+server.config.browser.locators.errorFormat = undefined
+contextServer.config.browser.locators.errorFormat = undefined

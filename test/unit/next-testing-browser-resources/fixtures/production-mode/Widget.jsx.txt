@@ -1,0 +1,3 @@
+import React from 'react'
+import styles from './widget.module.css'
+export function Widget(){ return <p className={styles.title}>Real production widget</p> }

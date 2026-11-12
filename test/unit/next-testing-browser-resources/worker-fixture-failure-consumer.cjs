@@ -1,0 +1,141 @@
+const assert = require('node:assert/strict')
+const {
+  createRuntimeFile,
+  createRuntimeConfig,
+} = require('./runtime-fixtures.cjs')
+const {
+  createCleanupError,
+  installCleanupRuntime,
+  startCleanupRuntime,
+} = require('./cleanup-consumer-utils.cjs')
+const mode = process.argv[2]
+assert.equal(mode, 'worker')
+const trace = [],
+  messages = []
+let fileSettled = false,
+  snapshotsTaken = false,
+  started,
+  release
+const fileStarted = new Promise((resolve) => {
+  started = resolve
+})
+const fileGate = new Promise((resolve) => {
+  release = resolve
+})
+const {
+  reads,
+  fields,
+  error: failure,
+} = createCleanupError('actual original worker failure', false)
+const throws = (stage) => stage === 'file'
+const file = createRuntimeFile({
+  run: async () => ({
+    cases: [],
+    errors: [],
+    interrupted: mode === 'cancelled',
+  }),
+  async dispose() {
+    trace.push('file-start')
+    started()
+    await fileGate
+    fileSettled = true
+    trace.push('file-end')
+    if (throws('file')) throw failure
+  },
+  takeOwnedWorkerDisposalFailure(error) {
+    assert(fileSettled)
+    assert.equal(error, failure)
+    return Object.freeze({ error })
+  },
+  takeSnapshotUpdates() {
+    snapshotsTaken = true
+    return []
+  },
+})
+const runtimePath = installCleanupRuntime({
+  trace,
+  file,
+  browserContext: {
+    async cleanupBrowserContext() {
+      assert(fileSettled)
+      trace.push('browser')
+      if (throws('browser')) throw new Error('actual browser cleanup failed')
+    },
+    async cleanupBrowserKeyboard() {
+      assert(fileSettled)
+      trace.push('keyboard')
+      if (throws('keyboard')) throw new Error('actual keyboard cleanup failed')
+    },
+  },
+})
+const config = createRuntimeConfig('fixture-order', '/fixture-order.test.mjs')
+const originalConsole = console
+async function main() {
+  const running = startCleanupRuntime({
+    runtimePath,
+    config,
+    messages,
+    trace,
+    originalConsole,
+    onImports: () => {
+      fields.name = 'LaterName'
+      fields.message = 'later mutation'
+      fields.stack = 'later stack'
+    },
+  })
+  try {
+    await fileStarted
+    assert.deepEqual(trace, ['load', 'file-start'])
+    release()
+    await running
+  } finally {
+    release()
+    globalThis.console = originalConsole
+  }
+  assert.deepEqual(trace, [
+    'load',
+    'file-start',
+    'file-end',
+    'browser',
+    'keyboard',
+    'imports',
+    'mocks',
+    'context-dispose',
+  ])
+  const failures = messages.filter((message) => message.type === 'failure')
+  assert.deepEqual(
+    failures.map((message) => ({
+      origin: message.origin,
+      error: message.error,
+    })),
+    [
+      {
+        origin: 'worker-fixture-cleanup',
+        error: {
+          name: 'FixtureCleanupError',
+          message: 'actual original worker failure',
+          stack: '',
+        },
+      },
+    ]
+  )
+  assert.deepEqual(reads, ['name', 'message', 'stack'])
+  const terminal = messages.at(-1)
+  assert.equal(terminal.type, 'complete')
+  assert.equal(terminal.status, mode === 'normal' ? 'passed' : 'failed')
+  assert.equal(terminal.interrupted, mode === 'cancelled')
+  assert.equal(snapshotsTaken, mode === 'normal')
+  process.stdout.write(
+    JSON.stringify({
+      mode,
+      actualNameMessageStackCapturedAtJoinedOccurrence: true,
+      oneReadEach: true,
+      internalFailureAndPublicationVetoHeld: true,
+    }) + '\n'
+  )
+}
+main().catch((error) => {
+  globalThis.console = originalConsole
+  process.stderr.write(error.stack + '\n')
+  process.exitCode = 1
+})

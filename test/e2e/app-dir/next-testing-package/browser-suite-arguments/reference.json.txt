@@ -1,0 +1,337 @@
+{
+  "inputSHA256": "1b9caaf7393d509b852b5a961ed15e0d608a870487b32542e7f423bb4be5df87",
+  "models": {
+    "development": {
+      "rows": [
+        {
+          "value": {
+            "phase": "beforeAll-one",
+            "firstArgument": {
+              "type": "object",
+              "plainObject": true,
+              "ownKeys": [],
+              "fresh": true,
+              "uniqueCount": 1
+            },
+            "argumentCount": 2,
+            "function": {
+              "name": "namedBeforeAllOne",
+              "length": 1,
+              "ownPrototype": true,
+              "prototypeConstructor": true
+            },
+            "receiverUndefined": true,
+            "newTargetUndefined": true,
+            "suiteEqualsActualTestSuite": null
+          },
+          "task": "<suite:[\"actual DOM Suite arguments for original synchronous hooks\"]>"
+        },
+        {
+          "value": {
+            "phase": "beforeAll-two",
+            "firstArgument": {
+              "type": "object",
+              "plainObject": true,
+              "ownKeys": [],
+              "fresh": true,
+              "uniqueCount": 2
+            },
+            "argumentCount": 2,
+            "function": {
+              "name": "namedBeforeAllTwo",
+              "length": 1,
+              "ownPrototype": true,
+              "prototypeConstructor": true
+            },
+            "receiverUndefined": true,
+            "newTargetUndefined": true,
+            "suiteEqualsActualTestSuite": null
+          },
+          "task": "<suite:[\"actual DOM Suite arguments for original synchronous hooks\"]>"
+        },
+        {
+          "value": {
+            "phase": "test",
+            "firstArgumentsDistinct": true,
+            "bothBeforeAllArgumentsAreActualSuite": true
+          },
+          "task": "retains fresh plain hook objects and the actual collected Suite"
+        },
+        {
+          "value": {
+            "phase": "afterAll-two",
+            "firstArgument": {
+              "type": "object",
+              "plainObject": true,
+              "ownKeys": [],
+              "fresh": true,
+              "uniqueCount": 3
+            },
+            "argumentCount": 2,
+            "function": {
+              "name": "namedAfterAllTwo",
+              "length": 1,
+              "ownPrototype": true,
+              "prototypeConstructor": true
+            },
+            "receiverUndefined": true,
+            "newTargetUndefined": true,
+            "suiteEqualsActualTestSuite": true
+          },
+          "task": "<suite:[\"actual DOM Suite arguments for original synchronous hooks\"]>"
+        },
+        {
+          "value": {
+            "phase": "afterAll-one",
+            "firstArgument": {
+              "type": "object",
+              "plainObject": true,
+              "ownKeys": [],
+              "fresh": true,
+              "uniqueCount": 4
+            },
+            "argumentCount": 2,
+            "function": {
+              "name": "namedAfterAllOne",
+              "length": 1,
+              "ownPrototype": true,
+              "prototypeConstructor": true
+            },
+            "receiverUndefined": true,
+            "newTargetUndefined": true,
+            "suiteEqualsActualTestSuite": true
+          },
+          "task": "<suite:[\"actual DOM Suite arguments for original synchronous hooks\"]>"
+        }
+      ],
+      "cases": [
+        {
+          "name": "actual DOM Suite arguments for original synchronous hooks retains fresh plain hook objects and the actual collected Suite",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "caseFinals": [
+        {
+          "name": "retains fresh plain hook objects and the actual collected Suite",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        }
+      ],
+      "moduleFinals": [
+        {
+          "state": "passed",
+          "errors": []
+        }
+      ],
+      "runFinals": [
+        {
+          "reason": "passed",
+          "errors": [],
+          "rawUnhandled": [],
+          "files": [
+            {
+              "state": "passed",
+              "tests": [
+                {
+                  "name": "retains fresh plain hook objects and the actual collected Suite",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "standardFiles": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ],
+      "counts": {
+        "numTotalTestSuites": 2,
+        "numPassedTestSuites": 2,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "success": true,
+      "exit": 0
+    },
+    "production": {
+      "rows": [
+        {
+          "value": {
+            "phase": "beforeAll-one",
+            "firstArgument": {
+              "type": "object",
+              "plainObject": true,
+              "ownKeys": [],
+              "fresh": true,
+              "uniqueCount": 1
+            },
+            "argumentCount": 2,
+            "function": {
+              "name": "namedBeforeAllOne",
+              "length": 1,
+              "ownPrototype": true,
+              "prototypeConstructor": true
+            },
+            "receiverUndefined": true,
+            "newTargetUndefined": true,
+            "suiteEqualsActualTestSuite": null
+          },
+          "task": "<suite:[\"actual DOM Suite arguments for original synchronous hooks\"]>"
+        },
+        {
+          "value": {
+            "phase": "beforeAll-two",
+            "firstArgument": {
+              "type": "object",
+              "plainObject": true,
+              "ownKeys": [],
+              "fresh": true,
+              "uniqueCount": 2
+            },
+            "argumentCount": 2,
+            "function": {
+              "name": "namedBeforeAllTwo",
+              "length": 1,
+              "ownPrototype": true,
+              "prototypeConstructor": true
+            },
+            "receiverUndefined": true,
+            "newTargetUndefined": true,
+            "suiteEqualsActualTestSuite": null
+          },
+          "task": "<suite:[\"actual DOM Suite arguments for original synchronous hooks\"]>"
+        },
+        {
+          "value": {
+            "phase": "test",
+            "firstArgumentsDistinct": true,
+            "bothBeforeAllArgumentsAreActualSuite": true
+          },
+          "task": "retains fresh plain hook objects and the actual collected Suite"
+        },
+        {
+          "value": {
+            "phase": "afterAll-two",
+            "firstArgument": {
+              "type": "object",
+              "plainObject": true,
+              "ownKeys": [],
+              "fresh": true,
+              "uniqueCount": 3
+            },
+            "argumentCount": 2,
+            "function": {
+              "name": "namedAfterAllTwo",
+              "length": 1,
+              "ownPrototype": true,
+              "prototypeConstructor": true
+            },
+            "receiverUndefined": true,
+            "newTargetUndefined": true,
+            "suiteEqualsActualTestSuite": true
+          },
+          "task": "<suite:[\"actual DOM Suite arguments for original synchronous hooks\"]>"
+        },
+        {
+          "value": {
+            "phase": "afterAll-one",
+            "firstArgument": {
+              "type": "object",
+              "plainObject": true,
+              "ownKeys": [],
+              "fresh": true,
+              "uniqueCount": 4
+            },
+            "argumentCount": 2,
+            "function": {
+              "name": "namedAfterAllOne",
+              "length": 1,
+              "ownPrototype": true,
+              "prototypeConstructor": true
+            },
+            "receiverUndefined": true,
+            "newTargetUndefined": true,
+            "suiteEqualsActualTestSuite": true
+          },
+          "task": "<suite:[\"actual DOM Suite arguments for original synchronous hooks\"]>"
+        }
+      ],
+      "cases": [
+        {
+          "name": "actual DOM Suite arguments for original synchronous hooks retains fresh plain hook objects and the actual collected Suite",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "caseFinals": [
+        {
+          "name": "retains fresh plain hook objects and the actual collected Suite",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        }
+      ],
+      "moduleFinals": [
+        {
+          "state": "passed",
+          "errors": []
+        }
+      ],
+      "runFinals": [
+        {
+          "reason": "passed",
+          "errors": [],
+          "rawUnhandled": [],
+          "files": [
+            {
+              "state": "passed",
+              "tests": [
+                {
+                  "name": "retains fresh plain hook objects and the actual collected Suite",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "standardFiles": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ],
+      "counts": {
+        "numTotalTestSuites": 2,
+        "numPassedTestSuites": 2,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "success": true,
+      "exit": 0
+    }
+  }
+}

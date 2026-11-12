@@ -1,0 +1,3 @@
+import { page } from 'vitest/browser'
+const locator = page.getByTestId('target-id')
+const format: () => string = locator.asLocator; const string: () => string = locator.toString; const serialize: () => { selector: string; locator: string } = locator.serialize; const json: () => { selector: string; locator: string } = locator.toJSON;
