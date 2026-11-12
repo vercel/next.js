@@ -1,10 +1,8 @@
-import type { FunctionsConfigManifest } from '../../../build'
+import type { MiddlewareRoutingItem } from '../../base-server'
 import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
-import type { ProxyMatcher } from '../../../build/analysis/get-page-static-info'
 import type { PrerenderManifest, RoutesManifest } from '../../../build'
-import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
@@ -64,6 +62,7 @@ import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/midd
 
 import {
   isMiddlewareFile,
+  isProxyFile,
   NestedMiddlewareError,
   isInstrumentationHookFile,
   getPossibleMiddlewareFilenames,
@@ -161,18 +160,10 @@ export interface DevRoutesManifest {
 }
 
 export type ServerFields = {
-  middlewareConfig?: FunctionsConfigManifest['functions'][string]
-
   actualMiddlewareFile?: string | undefined
   actualInstrumentationHookFile?: string | undefined
   appPathRoutes?: Record<string, string | string[]>
-  middleware?:
-    | {
-        page: string
-        match: MiddlewareRouteMatch
-        matchers?: ProxyMatcher[]
-      }
-    | undefined
+  middleware?: MiddlewareRoutingItem
   hasAppNotFound?: boolean
   interceptionRoutes?: ReturnType<
     typeof import('./filesystem').buildCustomRoute
@@ -497,7 +488,7 @@ async function startWatcher(
       const isInitialScan = !hadInitialScan
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
-      let middlewareMatchers: ProxyMatcher[] | undefined
+      let middlewareEntry: MiddlewareRoutingItem | undefined
       const routedPages: string[] = []
       const knownFiles = wp.getTimeInfoEntries()
 
@@ -691,9 +682,21 @@ async function startWatcher(
             'actualMiddlewareFile',
             serverFields.actualMiddlewareFile
           )
-          middlewareMatchers = staticInfo.middleware?.matchers || [
-            { regexp: '^/.*$', originalSource: '/:path*' },
-          ]
+          middlewareEntry = {
+            page: '/',
+            match: null as any,
+            matchers: staticInfo.middleware?.matchers || [
+              { regexp: '^/.*$', originalSource: '/:path*' },
+            ],
+            ...(fileBase === 'proxy.go'
+              ? { runtime: 'go', nativeEntry: 'middleware.native.json' }
+              : {
+                  runtime:
+                    staticInfo.runtime === 'nodejs' || isProxyFile(rootFile)
+                      ? 'nodejs'
+                      : 'edge',
+                }),
+          }
           continue
         }
         if (isInstrumentationHookFile(rootFile)) {
@@ -1275,13 +1278,7 @@ async function startWatcher(
       )
 
       // TODO: pass this to fsChecker/next-dev-server?
-      serverFields.middleware = middlewareMatchers
-        ? {
-            match: null as any,
-            page: '/',
-            matchers: middlewareMatchers,
-          }
-        : undefined
+      serverFields.middleware = middlewareEntry
 
       await propagateServerField(opts, 'middleware', serverFields.middleware)
       serverFields.hasAppNotFound = hasRootAppNotFound

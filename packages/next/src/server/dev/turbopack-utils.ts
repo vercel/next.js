@@ -786,10 +786,6 @@ export async function handleEntrypoints({
       const writtenEndpoint = await endpoint.writeToDisk()
       dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
       processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
-      dev.serverFields.middlewareConfig =
-        writtenEndpoint.value.type === 'native'
-          ? { runtime: 'go', nativeEntry: 'middleware.native.json' }
-          : undefined
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
       const middlewareConfig =
         manifestLoader.getMiddlewareManifest(key)?.middleware['/']
@@ -798,6 +794,7 @@ export async function handleEntrypoints({
         dev.serverFields.middleware = {
           match: null as any,
           page: '/',
+          runtime: 'edge',
           matchers: middlewareConfig.matchers,
         }
       }
@@ -820,10 +817,6 @@ export async function handleEntrypoints({
           await dev.hooks.propagateServerField(
             'actualMiddlewareFile',
             dev.serverFields.actualMiddlewareFile
-          )
-          await dev.hooks.propagateServerField(
-            'middlewareConfig',
-            dev.serverFields.middlewareConfig
           )
           await dev.hooks.propagateServerField(
             'middleware',
@@ -853,16 +846,11 @@ export async function handleEntrypoints({
     )
     dev.serverFields.actualMiddlewareFile = undefined
     dev.serverFields.middleware = undefined
-    dev.serverFields.middlewareConfig = undefined
   }
 
   await dev.hooks.propagateServerField(
     'actualMiddlewareFile',
     dev.serverFields.actualMiddlewareFile
-  )
-  await dev.hooks.propagateServerField(
-    'middlewareConfig',
-    dev.serverFields.middlewareConfig
   )
   await dev.hooks.propagateServerField(
     'middleware',

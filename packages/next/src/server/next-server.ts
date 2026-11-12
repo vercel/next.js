@@ -1513,35 +1513,41 @@ export default class NextNodeServer extends BaseServer<
   protected async getMiddleware(): Promise<MiddlewareRoutingItem | undefined> {
     const manifest = this.getMiddlewareManifest()
     const middleware = manifest?.middleware?.['/']
-    if (!middleware) {
-      const config = this.getMiddlewareConfig()
-      if (config?.runtime === 'go') {
-        return {
-          match: getMiddlewareRouteMatcher(
-            config.matchers || [{ regexp: '.*', originalSource: '/:path*' }]
-          ),
-          page: '/',
-        }
+    if (middleware) {
+      return {
+        match: getMiddlewareMatcher(middleware),
+        matchers: middleware.matchers,
+        page: '/',
+        runtime: 'edge',
       }
-      const middlewareModule = await this.loadNodeMiddleware()
-
-      if (middlewareModule) {
-        return {
-          match: getMiddlewareRouteMatcher(
-            middlewareModule.config?.matchers || [
-              { regexp: '.*', originalSource: '/:path*' },
-            ]
-          ),
-          page: '/',
-        }
-      }
-
-      return
     }
 
-    return {
-      match: getMiddlewareMatcher(middleware),
-      page: '/',
+    const config = this.getMiddlewareConfig()
+    if (!config) return
+    if (config.runtime === 'go') {
+      const matchers = config.matchers || [
+        { regexp: '.*', originalSource: '/:path*' },
+      ]
+      return {
+        match: getMiddlewareRouteMatcher(matchers),
+        matchers,
+        page: '/',
+        runtime: 'go',
+        nativeEntry: config.nativeEntry,
+      }
+    }
+
+    const middlewareModule = await this.loadNodeMiddleware()
+    if (middlewareModule) {
+      const matchers = middlewareModule.config?.matchers || [
+        { regexp: '.*', originalSource: '/:path*' },
+      ]
+      return {
+        match: getMiddlewareRouteMatcher(matchers),
+        matchers,
+        page: '/',
+        runtime: 'nodejs',
+      }
     }
   }
 
@@ -1621,13 +1627,8 @@ export default class NextNodeServer extends BaseServer<
     }
   }
 
-  protected middlewareConfig:
-    | FunctionsConfigManifest['functions'][string]
-    | undefined = undefined
-
   private getMiddlewareConfig() {
     if (process.env.NEXT_MINIMAL) return
-    if (this.dev) return this.middlewareConfig
     try {
       const manifest: FunctionsConfigManifest = require(
         join(
@@ -1650,18 +1651,14 @@ export default class NextNodeServer extends BaseServer<
   private async loadNodeMiddleware() {
     if (!process.env.NEXT_MINIMAL) {
       try {
-        const config = this.getMiddlewareConfig()
-        if (config?.runtime === 'go') return
-        if (this.dev || config) {
-          // if used with top level await, this will be a promise
-          return require(
-            join(
-              /* turbopackIgnore: true */ this.distDir,
-              'server',
-              'middleware.js'
-            )
+        // if used with top level await, this will be a promise
+        return require(
+          join(
+            /* turbopackIgnore: true */ this.distDir,
+            'server',
+            'middleware.js'
           )
-        }
+        )
       } catch (err) {
         if (
           isError(err) &&
@@ -1680,13 +1677,10 @@ export default class NextNodeServer extends BaseServer<
    * middleware manifest.
    */
   protected async hasMiddleware(pathname: string): Promise<boolean> {
+    const middleware = await this.getMiddleware()
+    if (!middleware) return false
+    if (middleware.runtime !== 'edge') return true
     const info = this.getEdgeFunctionInfo({ page: pathname, middleware: true })
-    if (this.getMiddlewareConfig()?.runtime === 'go') return true
-    const nodeMiddleware = await this.loadNodeMiddleware()
-
-    if (!info && nodeMiddleware) {
-      return true
-    }
     return Boolean(info && info.paths.length > 0)
   }
 
@@ -1769,10 +1763,10 @@ export default class NextNodeServer extends BaseServer<
     }
 
     await this.ensureMiddleware(params.request.url)
-    const middlewareInfo = this.getEdgeFunctionInfo({
-      page: middleware.page,
-      middleware: true,
-    })
+    const middlewareInfo =
+      middleware.runtime === 'edge'
+        ? this.getEdgeFunctionInfo({ page: middleware.page, middleware: true })
+        : undefined
 
     const method = (params.request.method || 'GET').toUpperCase()
     const requestData = {
@@ -1799,12 +1793,9 @@ export default class NextNodeServer extends BaseServer<
       | undefined
 
     // Node.js and Go middleware are described outside the Edge manifest.
-    if (!middlewareInfo) {
-      const middlewareConfig = this.getMiddlewareConfig()
+    if (middleware.runtime !== 'edge') {
       const nativeEntry =
-        middlewareConfig?.runtime === 'go'
-          ? middlewareConfig.nativeEntry
-          : undefined
+        middleware.runtime === 'go' ? middleware.nativeEntry : undefined
       const middlewareModule = nativeEntry
         ? undefined
         : await this.loadNodeMiddleware()
@@ -1856,6 +1847,7 @@ export default class NextNodeServer extends BaseServer<
         }
       }
     } else {
+      if (!middlewareInfo) throw new MiddlewareNotFoundError()
       const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
 
       result = await run({
