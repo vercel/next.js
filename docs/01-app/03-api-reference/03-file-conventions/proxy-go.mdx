@@ -35,6 +35,46 @@ Returning without calling `Next` or `Rewrite` sends the response directly. Use s
 
 Go Proxy supports gzip, zlib-wrapped deflate, and Brotli response compression.
 
+## Examples
+
+### Rewriting a request
+
+Call `Rewrite` to route a request to another path while keeping the original URL in the browser. Call `Next` for requests that should continue without a rewrite.
+
+```go filename="proxy.go" highlight={7,11}
+package main
+
+import "net/http"
+
+func Proxy(w http.ResponseWriter, r *http.Request) {
+  if r.URL.Path == "/old-path" {
+    Rewrite(w, "/new-path")
+    return
+  }
+
+  Next(w)
+}
+```
+
+### Modifying downstream request headers
+
+Clone the incoming headers, apply changes, and call `OverrideRequestHeaders` before `Next`. Headers omitted from the replacement are removed from the downstream request.
+
+```go filename="proxy.go" highlight={6-10}
+package main
+
+import "net/http"
+
+func Proxy(w http.ResponseWriter, r *http.Request) {
+  headers := r.Header.Clone()
+  headers.Set("Host", r.Host)
+  headers.Set("x-proxy", "go")
+  headers.Del("x-example")
+  OverrideRequestHeaders(w, headers)
+  Next(w)
+}
+```
+
 ## Good to know
 
 - Go Proxy runs on every request by default.
