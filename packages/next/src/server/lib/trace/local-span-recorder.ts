@@ -60,27 +60,6 @@ type TraceExistingLocalSpanOptions = {
   span: LocalRecordingSpan
 }
 
-// Keep request-only/Edge imports independent of the file adapter. Cache its
-// lazy load: even a cached require otherwise repeats resolution on every span.
-let traceAdapter: typeof import('../../../trace/trace') | undefined
-
-export type LocalSpanDelegate = {
-  span?: Span
-  context?: SpanContext
-  onError?: () => void
-  eventsForwarded?: number
-}
-export type LocalSpanCompletion = {
-  name?: string
-  attributes?: Parameters<Span['setAttributes']>[0]
-  events?: SpanStoreEvent[]
-  status?: SpanStatus
-}
-
-function canUseDelegate() {
-  return true
-}
-
 let lastLocalTraceId = 0
 let lastLocalSpanId = 0
 
@@ -103,16 +82,17 @@ export function createRecordingSpan(
 ): LocalRecordingSpan {
   const parent = typeof options.parent === 'object' ? options.parent : undefined
   const parentContext = parent?.spanContext()
-  const delegate: LocalSpanDelegate = { span: options.delegateSpan }
-  if (options.openTelemetry) {
-    LocalRecordingSpan.startDelegate(
-      delegate,
+  let delegateSpan = options.delegateSpan
+  if (!delegateSpan && options.openTelemetry) {
+    const { getTracerInstance } =
+      require('./otel-api') as typeof import('./otel-api')
+    delegateSpan = getTracerInstance().startSpan(
       options.name,
       options.openTelemetry.options,
       options.openTelemetry.context
     )
   }
-  const delegateContext = delegate.span?.spanContext()
+  const delegateContext = delegateSpan?.spanContext()
   const span = new LocalRecordingSpan({
     name: options.name,
     attributes: options.attributes as LocalSpanAttributes,
@@ -120,7 +100,7 @@ export function createRecordingSpan(
     startTime: options.startTime,
     clock: options.clock,
     onError: options.onError,
-    delegate,
+    delegateSpan,
     publicParentSpan: options.publicParentSpan,
     traceId:
       delegateContext?.traceId ??
@@ -170,16 +150,11 @@ export function getActiveLocalSpan(): Span | undefined {
   return getLocalSpanAsyncStorage().getStore()?.span
 }
 
-export function getLocalScopeParent(): Span | undefined {
-  const store = getLocalSpanAsyncStorage().getStore()
-  return store?.inheritParent ? store.span : undefined
-}
-
 export function getLocalParentSpan(
   publicContext: SpanContext | undefined
 ): Span | undefined {
   const store = getLocalSpanAsyncStorage().getStore()
-  if (!store || !store.inheritParent) return undefined
+  if (!store) return undefined
   if (isOpenTelemetryIsolatedSpan(store.span)) return store.span
 
   // An SDK span opened inside this local scope is the nearer parent.
@@ -240,23 +215,11 @@ export function isOpenTelemetryIsolatedSpan(span: Span): boolean {
 export function withLocalSpan<T>(
   span: Span,
   fn: () => T,
-  publicContext?: SpanContext,
-  inheritParent = true
+  publicContext?: SpanContext
 ): T {
-  return getLocalSpanAsyncStorage().run(
-    { span, publicContext, inheritParent },
-    fn
-  )
+  return getLocalSpanAsyncStorage().run({ span, publicContext }, fn)
 }
 
-/**
- * Records an operation without changing local or public OpenTelemetry scope.
- * Parents are explicit; request integration owns inherited parent resolution
- * and establishes its own local scope around the callback.
- *
- * The default remains asynchronous, including setup errors. Explicit synchronous
- * mode ends on return/throw without awaiting a returned promise.
- */
 type TraceLocalSpanOptions = Omit<RequestSpanOptions, 'parent'> & {
   parentSpan?: Span | null
 }
@@ -276,7 +239,7 @@ export function traceLocalSpan<T>(
   fn: (span: LocalRecordingSpan) => T | Promise<T>
 ): T | Promise<T> {
   const run = () => {
-    const parent = parentSpan === undefined ? getLocalScopeParent() : parentSpan
+    const parent = parentSpan === undefined ? getActiveLocalSpan() : parentSpan
     const span = createLocalSpan({
       ...options,
       parent,
@@ -332,63 +295,44 @@ export function registerLocalSpanRecorder({
 }
 
 export function recordSpan<T>(
-  options: (LocalSpanOptions | TraceExistingLocalSpanOptions) & {
+  options: TraceExistingLocalSpanOptions & {
     synchronous: true
   },
   fn: (span: LocalRecordingSpan) => T
 ): T
 export function recordSpan<T>(
-  options: (LocalSpanOptions | TraceExistingLocalSpanOptions) & {
+  options: TraceExistingLocalSpanOptions & {
     synchronous?: false
   },
   fn: (span: LocalRecordingSpan) => T | Promise<T>
 ): Promise<T>
 export function recordSpan<T>(
-  options: (LocalSpanOptions | TraceExistingLocalSpanOptions) & {
+  options: TraceExistingLocalSpanOptions & {
     synchronous?: boolean
   },
   fn: (span: LocalRecordingSpan) => T | Promise<T>
 ): T | Promise<T> {
   const synchronous = options.synchronous ?? false
   const run = () => {
-    let span: LocalRecordingSpan
-    if ('span' in options) {
-      // Some hook-delimited operations start before their callback is available.
-      // Reuse their recorder and the same callback lifecycle, not a second span.
-      span = options.span
-    } else {
-      if (process.env.NEXT_RUNTIME === 'edge') {
-        throw new Error(
-          'Trace file delivery is not available in the Edge runtime'
-        )
-      } else {
-        span = (traceAdapter ??=
-          require('../../../trace/trace') as typeof import('../../../trace/trace')).createTraceSpan(
-          options
-        )
-      }
-    }
+    const span = options.span
     const fail = (err: unknown): never => {
       span.recordError(err)
       throw err
     }
 
-    const execute = () => {
-      let pending: Promise<T> | undefined
-      try {
-        const result = fn(span)
-        if (synchronous) return result
-        pending = Promise.resolve(result)
-          .catch(fail)
-          .finally(() => span.end())
-        return pending
-      } catch (err) {
-        return fail(err)
-      } finally {
-        if (!pending) span.end()
-      }
+    let pending: Promise<T> | undefined
+    try {
+      const result = fn(span)
+      if (synchronous) return result
+      pending = Promise.resolve(result)
+        .catch(fail)
+        .finally(() => span.end())
+      return pending
+    } catch (err) {
+      return fail(err)
+    } finally {
+      if (!pending) span.end()
     }
-    return execute()
   }
 
   return synchronous ? run() : (async () => run())()
@@ -400,7 +344,6 @@ function getLocalSpanAsyncStorage() {
   return getOrCreateGlobalAsyncLocalStorage<{
     span: Span
     publicContext: SpanContext | undefined
-    inheritParent: boolean
   }>('local-span-storage')
 }
 
@@ -411,7 +354,7 @@ export class LocalRecordingSpan implements Span {
   private events: SpanStoreEvent[]
   private readonly spanContextValue: ReturnType<Span['spanContext']>
   private readonly openTelemetryIsolated: boolean
-  private readonly delegate: LocalSpanDelegate
+  private delegateSpan?: Span
   private openTelemetrySpan: Span | undefined
   private readonly openTelemetrySpanContext: SpanContext | undefined
   private links?: SpanStoreLink[]
@@ -431,7 +374,7 @@ export class LocalRecordingSpan implements Span {
     startTime,
     clock,
     onError,
-    delegate,
+    delegateSpan,
     publicParentSpan,
     traceId,
     spanId,
@@ -440,7 +383,6 @@ export class LocalRecordingSpan implements Span {
     isolateOpenTelemetry,
   }: LocalSpanOptions & {
     attributes?: LocalSpanAttributes
-    delegate: LocalSpanDelegate
     traceId: string
     spanId: string
     parentSpanId?: string
@@ -452,11 +394,11 @@ export class LocalRecordingSpan implements Span {
     this.onError = onError
     this.attributes = cleanSpanStoreAttributes(attributes)
     this.events = []
-    this.delegate = delegate
-    this.openTelemetrySpan = delegate.span ?? publicParentSpan
+    this.delegateSpan = delegateSpan
+    this.openTelemetrySpan = delegateSpan ?? publicParentSpan
     this.openTelemetrySpanContext = this.openTelemetrySpan?.spanContext()
     this.openTelemetryIsolated = isolateOpenTelemetry
-    this.spanContextValue = delegate.span?.spanContext() ?? {
+    this.spanContextValue = delegateSpan?.spanContext() ?? {
       traceId,
       spanId,
       traceFlags: 0,
@@ -470,69 +412,6 @@ export class LocalRecordingSpan implements Span {
     this.ended = false
   }
 
-  static startDelegate(
-    delegate: LocalSpanDelegate,
-    name: string,
-    options: SpanOptions,
-    parentContext: Context,
-    canUse = canUseDelegate
-  ): void {
-    if (delegate.span || !canUse()) return
-    const { getTracerInstance } =
-      require('./otel-api') as typeof import('./otel-api')
-    const tracer = getTracerInstance()
-    if (!canUse()) return
-    const span = tracer.startSpan(name, options, parentContext)
-    if (!canUse()) return
-    delegate.span = span
-    const spanContext = span.spanContext()
-    if (!canUse()) return
-    delegate.context = spanContext
-  }
-
-  static endDelegate(
-    delegate: LocalSpanDelegate,
-    endTime?: Parameters<Span['end']>[0],
-    completion?: LocalSpanCompletion,
-    canUse = canUseDelegate
-  ): void {
-    const span = delegate.span
-    if (!span || !canUse()) return
-    if (completion?.name) {
-      span.updateName(completion.name)
-      if (!canUse()) return
-    }
-    if (completion?.attributes) {
-      span.setAttributes(completion.attributes)
-      if (!canUse()) return
-    }
-    LocalRecordingSpan.deliverEvents(delegate, completion?.events ?? [], canUse)
-    if (!canUse()) return
-    if (completion?.status) {
-      span.setStatus(completion.status)
-      if (!canUse()) return
-    }
-    try {
-      span.end(endTime)
-    } finally {
-      if (delegate.span === span) delegate.span = undefined
-    }
-  }
-
-  static deliverEvents(
-    delegate: LocalSpanDelegate,
-    events: SpanStoreEvent[],
-    canUse = canUseDelegate
-  ): void {
-    for (let i = delegate.eventsForwarded ?? 0; i < events.length; i++) {
-      if (!delegate.span || !canUse()) return
-      const event = events[i]
-      delegate.span.addEvent(event.name, event.attributes, event.timestamp)
-      if (!canUse()) return
-      delegate.eventsForwarded = i + 1
-    }
-  }
-
   spanContext(): ReturnType<Span['spanContext']> {
     return this.spanContextValue
   }
@@ -542,14 +421,12 @@ export class LocalRecordingSpan implements Span {
   }
 
   getOpenTelemetrySpan(): Span | undefined {
-    const context = this.delegate.context ?? this.openTelemetrySpanContext
     return (
-      this.delegate.span ??
       this.openTelemetrySpan ??
-      (context
+      (this.openTelemetrySpanContext
         ? (
             require('./otel-api') as typeof import('./otel-api')
-          ).api.trace.wrapSpanContext(context)
+          ).api.trace.wrapSpanContext(this.openTelemetrySpanContext)
         : undefined)
     )
   }
@@ -560,7 +437,7 @@ export class LocalRecordingSpan implements Span {
     }
 
     this.attributes[key] = value
-    this.delegate.span?.setAttribute(key, value)
+    this.delegateSpan?.setAttribute(key, value)
     return this
   }
 
@@ -570,7 +447,7 @@ export class LocalRecordingSpan implements Span {
     }
 
     cleanSpanStoreAttributes(attributes, this.attributes)
-    this.delegate.span?.setAttributes(attributes)
+    this.delegateSpan?.setAttributes(attributes)
     return this
   }
 
@@ -594,7 +471,7 @@ export class LocalRecordingSpan implements Span {
         ? cleanSpanStoreAttributes(attributesOrStartTime)
         : undefined,
     })
-    this.delegate.span?.addEvent(name, attributesOrStartTime, startTime)
+    this.delegateSpan?.addEvent(name, attributesOrStartTime, startTime)
     return this
   }
 
@@ -604,7 +481,7 @@ export class LocalRecordingSpan implements Span {
     }
 
     this.status = { code: status.code, message: status.message }
-    this.delegate.span?.setStatus(status)
+    this.delegateSpan?.setStatus(status)
     return this
   }
 
@@ -614,7 +491,7 @@ export class LocalRecordingSpan implements Span {
     }
 
     this.name = name
-    this.delegate.span?.updateName(name)
+    this.delegateSpan?.updateName(name)
     return this
   }
 
@@ -624,10 +501,7 @@ export class LocalRecordingSpan implements Span {
     try {
       const end = this.clock?.end(endTime)
       try {
-        LocalRecordingSpan.endDelegate(
-          this.delegate,
-          this.clock ? toHrTime(end!) : endTime
-        )
+        this.delegateSpan?.end(this.clock ? toHrTime(end!) : endTime)
       } finally {
         this.record(endTime, end)
       }
@@ -666,7 +540,7 @@ export class LocalRecordingSpan implements Span {
       timestamp: getTimestamp(time),
       attributes: Object.keys(attributes).length ? attributes : undefined,
     })
-    this.delegate.span?.recordException(exception, time)
+    this.delegateSpan?.recordException(exception, time)
   }
 
   private record(endTime: Parameters<Span['end']>[0], end?: bigint): void {
@@ -705,7 +579,7 @@ export class LocalRecordingSpan implements Span {
   private releaseReferences(): void {
     this.name = ''
     this.attributes = {}
-    this.delegate.span = undefined
+    this.delegateSpan = undefined
     this.clock = undefined
     this.onError = undefined
     this.events = []

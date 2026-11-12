@@ -2,10 +2,16 @@
 import { getBlurImage } from 'next/dist/build/webpack/loaders/next-image-loader/blur'
 import { readFile } from 'fs-extra'
 import { join } from 'path'
+import { trace } from 'next/dist/trace'
 
 const getImage = (filepath) => readFile(join(__dirname, filepath))
 
-const context = { basePath: '', outputPath: '', isDev: false }
+const context = {
+  basePath: '',
+  outputPath: '',
+  isDev: false,
+  tracing: (name = 'test') => trace(name),
+}
 
 describe('getBlurImage', () => {
   it('should return image for jpg', async () => {
