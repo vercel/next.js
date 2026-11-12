@@ -1909,6 +1909,11 @@ async fn directory_tree_to_loader_tree_internal(
         // we only want to emit the error when there are actual pages below that
         // directory.
         if let Err(e) = child_app_page.push_str(&normalize_underscore(subdir_name)) {
+            if app_page.catch_all_segment().is_some() {
+                // Routes nested inside a catch-all segment can never be matched, so they can't be
+                // part of this loader tree. `directory_tree_to_entrypoints_internal` reports them.
+                continue;
+            }
             illegal_path_error = Some(e);
         }
 
@@ -2325,12 +2330,32 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         .chain(twitter.iter().cloned().map(MetadataItem::from))
         .chain(open_graph.iter().cloned().map(MetadataItem::from))
     {
-        let app_page = app_page.clone_push_str(&get_metadata_route_name(meta.clone()).await?)?;
+        let route_name = get_metadata_route_name(meta.clone()).await?;
+        let metadata_page = match app_page.clone_push_str(&route_name) {
+            Ok(metadata_page) => metadata_page,
+            Err(err) => {
+                // A metadata file inside a catch-all segment would create a route like
+                // `/[...slug]/opengraph-image`, which can never be matched. Report it instead of
+                // failing the whole app.
+                let Some(catch_all_segment) = app_page.catch_all_segment() else {
+                    return Err(err);
+                };
+                let (MetadataItem::Static { path } | MetadataItem::Dynamic { path }) = &meta;
+                NestedInCatchAllSegmentIssue {
+                    path: path.clone(),
+                    catch_all_segment: catch_all_segment.to_string().into(),
+                    metadata_route: Some(format!("{app_page}/{route_name}").into()),
+                }
+                .resolved_cell()
+                .emit();
+                continue;
+            }
+        };
 
         add_app_metadata_route(
             app_dir.clone(),
             &mut result,
-            normalize_metadata_route(app_page)?,
+            normalize_metadata_route(metadata_page)?,
             meta,
             root_params,
         );
@@ -2560,6 +2585,26 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 // we only want to emit the error when there are actual pages below that
                 // directory.
                 if let Err(e) = child_app_page.push_str(&normalize_underscore(subdir_name)) {
+                    if let Some(catch_all_segment) = app_page.catch_all_segment() {
+                        // A segment after a catch-all segment can never be matched. Report the
+                        // directory (once, at the topmost invalid level) if it contains any
+                        // entrypoints, and skip it instead of failing the whole app.
+                        if *directory_tree_has_entrypoints(*subdirectory).await? {
+                            let directory = if app_page.is_root() {
+                                subdir_name.to_string()
+                            } else {
+                                format!("{}/{subdir_name}", &app_page.to_string()[1..])
+                            };
+                            NestedInCatchAllSegmentIssue {
+                                path: app_dir.join(&directory)?,
+                                catch_all_segment: catch_all_segment.to_string().into(),
+                                metadata_route: None,
+                            }
+                            .resolved_cell()
+                            .emit();
+                        }
+                        return Ok(None);
+                    }
                     illegal_path = Some(e);
                 }
 
@@ -2605,13 +2650,13 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         }
                     }
                 }
-                Ok((map, loader_trees))
+                Ok(Some((map, loader_trees)))
             }
         })
         .try_join()
         .await?;
 
-    for (map, loader_trees) in subdirectories.iter() {
+    for (map, loader_trees) in subdirectories.iter().flatten() {
         let mut i = 0;
         for (_, entrypoint) in map.iter() {
             match entrypoint {
@@ -2738,4 +2783,116 @@ impl Issue for DirectoryTreeIssue {
     async fn description(&self) -> Result<Option<StyledString>> {
         Ok(Some((*self.message.await?).clone()))
     }
+}
+
+/// Emitted for a route (a page, a route handler or a metadata file) that is nested inside a
+/// catch-all segment. A catch-all segment matches all remaining segments of the URL, so such a
+/// route can never be matched.
+#[turbo_tasks::value(shared)]
+struct NestedInCatchAllSegmentIssue {
+    /// The metadata file, or the directory containing the nested routes.
+    path: FileSystemPath,
+    /// The catch-all segment, e.g. `[...slug]` or `[[...slug]]`.
+    catch_all_segment: RcStr,
+    /// The metadata route that would be created, or `None` when `path` is a directory.
+    metadata_route: Option<RcStr>,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for NestedInCatchAllSegmentIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(
+            if self.metadata_route.is_some() {
+                format!(
+                    "Metadata file \"{}\" can't be used inside the catch-all segment \"{}\"",
+                    self.path.path, self.catch_all_segment
+                )
+            } else {
+                format!(
+                    "Routes in \"{}\" can't be nested inside the catch-all segment \"{}\"",
+                    self.path.path, self.catch_all_segment
+                )
+            }
+            .into(),
+        ))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let catch_all_segment = &self.catch_all_segment;
+        Ok(Some(StyledString::Text(
+            if let Some(metadata_route) = &self.metadata_route {
+                format!(
+                    "A catch-all segment must be the last segment of a route, so the metadata \
+                     route \"{metadata_route}\" can never be matched. Serve the file from a Route \
+                     Handler outside of the catch-all segment \"{catch_all_segment}\" instead. \
+                     For images, reference that Route Handler with `generateMetadata` (for \
+                     example `openGraph.images`, `twitter.images` or `icons`)."
+                )
+            } else {
+                format!(
+                    "A catch-all segment must be the last segment of a route, so pages, route \
+                     handlers and metadata files nested inside the catch-all segment \
+                     \"{catch_all_segment}\" can never be matched. Move them outside of the \
+                     catch-all segment."
+                )
+            }
+            .into(),
+        )))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        rcstr!(
+            "https://nextjs.org/docs/app/api-reference/file-conventions/dynamic-routes#catch-all-segments"
+        )
+    }
+}
+
+/// Returns whether the directory tree contains a file that creates an entrypoint (a page, a route
+/// handler or a metadata file), at any depth.
+#[turbo_tasks::function]
+async fn directory_tree_has_entrypoints(directory_tree: Vc<DirectoryTree>) -> Result<Vc<bool>> {
+    let DirectoryTree {
+        subdirectories,
+        modules,
+    } = &*directory_tree.await?;
+    let Metadata {
+        icon,
+        apple,
+        twitter,
+        open_graph,
+        sitemap,
+        base_page: _,
+    } = &modules.metadata;
+
+    if modules.page.is_some()
+        || modules.route.is_some()
+        || !icon.is_empty()
+        || !apple.is_empty()
+        || !twitter.is_empty()
+        || !open_graph.is_empty()
+        || sitemap.is_some()
+    {
+        return Ok(Vc::cell(true));
+    }
+
+    for subdirectory in subdirectories.values() {
+        if *directory_tree_has_entrypoints(**subdirectory).await? {
+            return Ok(Vc::cell(true));
+        }
+    }
+
+    Ok(Vc::cell(false))
 }

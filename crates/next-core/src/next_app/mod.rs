@@ -148,15 +148,19 @@ impl AppPage {
         Self::default()
     }
 
-    pub fn push(&mut self, segment: PageSegment) -> Result<()> {
-        let has_catchall = self.0.iter().any(|segment| {
+    /// Returns the first catch-all (`[...slug]`) or optional catch-all (`[[...slug]]`) segment of
+    /// this page, if any. No segment that modifies the path can follow it.
+    pub fn catch_all_segment(&self) -> Option<&PageSegment> {
+        self.0.iter().find(|segment| {
             matches!(
                 segment,
                 PageSegment::CatchAll(..) | PageSegment::OptionalCatchAll(..)
             )
-        });
+        })
+    }
 
-        if has_catchall
+    pub fn push(&mut self, segment: PageSegment) -> Result<()> {
+        if self.catch_all_segment().is_some()
             && matches!(
                 segment,
                 PageSegment::Static(..)
