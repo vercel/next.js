@@ -49,11 +49,7 @@ func main() {
 	}
 	addr := ln.Addr().(*net.TCPAddr)
 
-	srv := &http.Server{
-		Handler:     newProxy(*upstream, addr),
-		IdleTimeout: time.Duration(*idleTimeoutMs) * time.Millisecond,
-		ErrorLog:    log.New(os.Stderr, "next-front: ", 0),
-	}
+	srv := newServer(newProxy(*upstream, addr), time.Duration(*idleTimeoutMs)*time.Millisecond, headerTimeout)
 
 	fmt.Printf("NEXT_FRONT_READY %d\n", addr.Port)
 
@@ -76,6 +72,26 @@ func main() {
 		os.Exit(1)
 	}
 	<-stopped
+}
+
+// headerTimeout matches Node's default `server.headersTimeout`: plain `next
+// start` closes a connection whose request headers haven't all arrived within
+// 60 s. Without it, clients that never finish their headers would hold the
+// front's connections forever, and Node, which only sees complete requests,
+// couldn't time them out. Bodies need no limit here: Node's own
+// `requestTimeout` still applies as the front streams them through.
+const headerTimeout = 60 * time.Second
+
+// newServer is the public server. Keep-alive and request headers are the only
+// things it times out, so long responses and uploads stream unbounded, as in
+// Node.
+func newServer(handler http.Handler, idleTimeout, headerTimeout time.Duration) *http.Server {
+	return &http.Server{
+		Handler:           handler,
+		IdleTimeout:       idleTimeout,
+		ReadHeaderTimeout: headerTimeout,
+		ErrorLog:          log.New(os.Stderr, "next-front: ", 0),
+	}
 }
 
 // stopRequested is closed on stdin EOF, SIGINT or SIGTERM, whichever comes

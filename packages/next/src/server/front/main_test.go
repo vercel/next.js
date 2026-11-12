@@ -273,3 +273,38 @@ func TestShutdownWaitsForACustomStatusLineResponse(t *testing.T) {
 		t.Fatal("shutdown never finished")
 	}
 }
+
+func TestClosesAConnectionWhoseHeadersNeverFinish(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	upstreamHit := make(chan struct{}, 1)
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { upstreamHit <- struct{}{} })
+	front := newServer(handler, 5*time.Second, 200*time.Millisecond)
+	go front.Serve(ln)
+	t.Cleanup(func() { front.Close() })
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	// Headers without the blank line that ends them.
+	io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n")
+
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	start := time.Now()
+	_, err = io.ReadAll(conn)
+	if err != nil {
+		t.Fatalf("connection not closed by the server: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("closed after %v, want about the 200ms header timeout", elapsed)
+	}
+	select {
+	case <-upstreamHit:
+		t.Error("an incomplete request reached the handler")
+	default:
+	}
+}
