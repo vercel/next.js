@@ -20,9 +20,9 @@ use std::{os::raw::c_long, sync::Mutex};
 
 use mimalloc::sys::mi_option_t;
 
-/// A scoped override of one mimalloc option. Overrides can overlap (also across threads): the
-/// option keeps the override value until the last one ends, which restores the value from before
-/// the first one started.
+/// A scoped override of one mimalloc option, started with [`Self::enter`]. Overrides can overlap
+/// (also across threads): the option keeps the override value until the last one ends, which
+/// restores the value from before the first one started.
 pub(crate) struct OptionOverride {
     option: mi_option_t,
     value: c_long,
@@ -64,8 +64,8 @@ impl OptionOverride {
         mimalloc::option_set(self.option, value)
     }
 
-    /// Starts an override. Each call must be paired with a call to [`Self::exit`].
-    pub(crate) fn enter(&self) {
+    /// Starts an override, which lasts until the returned guard is dropped (also while unwinding).
+    pub(crate) fn enter(&'static self) -> OptionOverrideGuard {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         match &mut *state {
             Some(active) => active.additional_active += 1,
@@ -80,10 +80,11 @@ impl OptionOverride {
                 });
             }
         }
+        OptionOverrideGuard { option: self }
     }
 
     /// Ends an override started by [`Self::enter`].
-    pub(crate) fn exit(&self) {
+    fn exit(&self) {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         let Some(active) = &mut *state else {
             unreachable!("exit without a matching enter");
@@ -97,5 +98,17 @@ impl OptionOverride {
                 self.set(previous);
             }
         }
+    }
+}
+
+/// Ends an override of a mimalloc option when dropped. Returned by [`OptionOverride::enter`].
+#[must_use = "the override ends when the guard is dropped"]
+pub(crate) struct OptionOverrideGuard {
+    option: &'static OptionOverride,
+}
+
+impl Drop for OptionOverrideGuard {
+    fn drop(&mut self) {
+        self.option.exit();
     }
 }

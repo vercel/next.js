@@ -918,8 +918,10 @@ pub async fn project_shutdown(
     run_shutdown_hooks(project).await;
     tt.stop_and_wait().await;
     run_exit_handlers(&project.exit_receiver).await;
-    // End eager purge mode first: memory whose return was scheduled before it started is only
-    // returned by the forced collect in `release_freed_memory` once it has ended.
+    // End eager purge mode before `release_freed_memory`, they can't overlap. Memory freed before
+    // eager purge mode started is scheduled to be returned to the OS after the usual delay. With
+    // a purge delay of 0, mimalloc skips scheduled returns entirely (it assumes nothing is
+    // scheduled), even in the forced collect, so that memory would stay resident.
     drop(eager_purge);
     release_freed_memory()
         .instrument(tracing::info_span!("release freed memory"))

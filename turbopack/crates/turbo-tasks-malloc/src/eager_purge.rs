@@ -22,21 +22,18 @@ static EAGER_PURGE: crate::option_override::OptionOverride =
 /// [`TurboMalloc::enter_eager_purge_mode`]: crate::TurboMalloc::enter_eager_purge_mode
 #[must_use = "eager purge mode ends when the guard is dropped"]
 pub struct EagerPurgeGuard {
+    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
+    _override: crate::option_override::OptionOverrideGuard,
     _private: (),
 }
 
 impl EagerPurgeGuard {
     pub(crate) fn new() -> Self {
-        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
-        EAGER_PURGE.enter();
-        Self { _private: () }
-    }
-}
-
-impl Drop for EagerPurgeGuard {
-    fn drop(&mut self) {
-        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
-        EAGER_PURGE.exit();
+        Self {
+            #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
+            _override: EAGER_PURGE.enter(),
+            _private: (),
+        }
     }
 }
 
