@@ -129,10 +129,9 @@ One line per rule, with its signs. Open a rule's file before you raise a finding
 - [stated-tradeoffs](review/rules/stated-tradeoffs.md) **comment**: known regressions and tradeoffs are in the description. Signs: a size, build-time, or memory increase the description doesn't mention.
 - [principled-change](review/rules/principled-change.md) **medium**: a second special case for the same root cause reopens the design. Signs: a workaround next to an existing workaround for the same thing.
 
-**Documentation and agent instructions**
+**Documentation**
 
-- [no-stale-docs](review/rules/no-stale-docs.md) **medium** for guidance that would lead to incorrect implementation or validation, **strong** for substantial loss of decision branches, fixes, caveats, or examples with no verified replacement, otherwise **comment**: docs, comments, and skills preserve correct advice. Signs: a removed safeguard or condition; contradictory prose and examples; a fix that fails in its stated mode; migration advice that hides a behavior change; a rewrite that drops useful guidance. These severities apply even when the author owns the area.
-- [agent-instruction-changes](review/rules/agent-instruction-changes.md) **strong** for changes to agent activation, permitted actions, permissions, consent, required checks, or stopping conditions: an owner reviews changes to what agents are told to do. Signs: changed instructions in `AGENTS.md`, `CLAUDE.md`, skills, or other operational prompts. Wording edits that preserve behavior don't trigger escalation. Area ownership doesn't waive this rule.
+- [no-stale-docs](review/rules/no-stale-docs.md) **medium** for guidance that would lead to incorrect implementation or validation, **strong** for substantial guidance loss or changes to agent activation, permissions, consent, or stopping conditions, otherwise **comment**: docs, comments, and skills preserve correct advice. Signs: a removed safeguard or condition; contradictory prose and examples; a fix that fails in its stated mode; migration advice that hides a behavior change; a rewrite that drops useful guidance. These severities apply even when the author owns the area.
 
 **Style** (comment-only, and never counts toward accumulation)
 
@@ -156,10 +155,9 @@ One line per rule, with its signs. Open a rule's file before you raise a finding
 
 - Request review from the owner (see [picking an owner](#picking-an-owner)).
 - List each escalating finding with its rule, severity, and file and line evidence.
-- Distinguish a demonstrated defect from a policy that requires human judgment. For the latter, state what changed and why human review is required without claiming a bug.
 - Summarize what you already checked, so the owner can start from there.
 
-Either way, list the comments and nits, then end with one `rule: <name> broken` line per rule with a demonstrated violation, plus one sentence on what you checked. For a policy escalation without a demonstrated violation, use `human review: <reason>` instead.
+Either way, list the comments and nits, then end with one `rule: <name> broken` line per rule with a finding, plus one sentence on what you checked.
 
 Keep the whole review under 40KB. On a large PR, list the escalating findings in full and summarize the rest.
 

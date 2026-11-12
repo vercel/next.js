@@ -17,7 +17,7 @@
 
 ## Escalate when
 
-- Apply [no-stale-docs](../rules/no-stale-docs.md) for incorrect advice and lost guidance, and [agent-instruction-changes](../rules/agent-instruction-changes.md) for changes to operational instructions. Their severities apply even when the author owns this area.
+- Apply [no-stale-docs](../rules/no-stale-docs.md) to docs and skills for incorrect advice, lost guidance, and changes to what an agent is instructed to do. Its severities apply even when the author owns this area.
 - A docs correction needs evidence of the behavior it describes, not necessarily a code change in the same PR. Don't escalate merely because that code was already shipped.
 - Size alone doesn't withhold approval. Check what was lost or changed, including in large deletions and consolidations.
 
