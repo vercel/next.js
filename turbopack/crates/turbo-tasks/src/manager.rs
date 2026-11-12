@@ -49,6 +49,7 @@ use crate::{
     priority_runner::{Claimable, Executor, PriorityRunner},
     registry,
     serialization_invalidation::SerializationInvalidator,
+    spawn::JoinHandle,
     task::local_task::{LocalTask, LocalTaskSpec, LocalTaskType},
     task_statistics::TaskStatisticsApi,
     util::{IdFactory, StaticOrArc},
@@ -2572,6 +2573,46 @@ pub fn turbo_tasks_future_scope<T>(
     f: impl Future<Output = T>,
 ) -> impl Future<Output = T> {
     TURBO_TASKS.scope(tt, f)
+}
+
+/// Spawns `future` on another worker thread as part of the current task execution and returns a
+/// [`JoinHandle`] for its result.
+///
+/// Unlike [`spawn`][crate::spawn], the future shares the current task's state, just like a local
+/// task does: reads of cells and outputs in it are tracked as dependencies of the current task,
+/// and the task execution doesn't complete before the future has finished (or has been dropped).
+/// Use it to spread work that reads many cells over several threads, e.g. when the reads restore
+/// data from the persistent cache.
+///
+/// A panic in `future` is resumed when the [`JoinHandle`] is awaited.
+///
+/// Must be called from within a task execution.
+pub(crate) fn spawn_in_current_task<T: Send + 'static>(
+    future: impl Future<Output = T> + Send + 'static,
+) -> JoinHandle<T> {
+    /// Balances the `register_detached` below, even when the future is dropped before it
+    /// completes (e.g. on runtime shutdown).
+    struct InFlightGuard(CurrentTaskStateHandle);
+    impl Drop for InFlightGuard {
+        fn drop(&mut self) {
+            self.0.write().unwrap().local_tasks.decrement_in_flight();
+        }
+    }
+
+    let task_state = CURRENT_TASK_STATE.with(|ts| ts.clone());
+    task_state.write().unwrap().local_tasks.register_detached();
+    let guard = InFlightGuard(task_state.clone());
+    let future = async move {
+        let result = CaptureFuture::new(future).await;
+        // Mark the future as finished before the result is handed to the joining side.
+        drop(guard);
+        result
+    };
+    JoinHandle::new(tokio::task::spawn(
+        TURBO_TASKS
+            .scope(turbo_tasks(), CURRENT_TASK_STATE.scope(task_state, future))
+            .instrument(Span::current()),
+    ))
 }
 
 /// Spawns the given future within the context of the current task.

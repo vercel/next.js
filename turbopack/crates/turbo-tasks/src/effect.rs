@@ -3,7 +3,11 @@ use std::{
     error::Error as StdError,
     future::Future,
     mem::{forget, replace},
-    sync::Arc,
+    num::NonZeroUsize,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
 use anyhow::Result;
@@ -20,8 +24,10 @@ use crate::{
     invalidation::{Invalidator, get_invalidator},
     manager::{
         debug_assert_in_top_level_task, debug_assert_not_in_top_level_task, mark_top_level_task,
-        unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
+        spawn_in_current_task, unmark_top_level_task_may_leak_eventually_consistent_state,
+        with_turbo_tasks,
     },
+    parallel::available_parallelism,
     spawn,
 };
 
@@ -305,13 +311,12 @@ impl EffectStateStorage {
 /// ```
 pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
     debug_assert_not_in_top_level_task("take_effects");
-    let effects = source.take_collectibles::<Box<dyn Effect>>();
-
-    let captured: Vec<Box<dyn CapturedEffect>> = effects
+    let effects: Vec<ResolvedVc<Box<dyn Effect>>> = source
+        .take_collectibles::<Box<dyn Effect>>()
         .into_iter()
-        .map(async |effect_vc| effect_vc.into_trait_ref().await?.capture().await)
-        .try_join()
-        .await?;
+        .collect();
+
+    let captured = capture_effects(effects).await?;
 
     // detect duplicate keys
     let unique_keys = build_unique_keys(&captured);
@@ -320,6 +325,91 @@ pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
         .expect("take_effects must be called from within a turbo-tasks task context");
 
     Ok(Effects::new(captured, unique_keys, invalidator))
+}
+
+/// [`capture_effects`] uses one worker per this many effects, so a few effects are captured on the
+/// calling task's thread only.
+const CAPTURE_EFFECTS_MIN_PER_WORKER: usize = 64;
+
+/// The maximum number of workers [`capture_effects`] uses. Every capture records its reads as
+/// dependencies of the one task calling [`take_effects`], which locks that task. With more workers
+/// they mostly wait for that lock: on a warm build with ~200k effects, capturing took 4.3s with 1
+/// worker, 1.4s with 4, 0.9s with 8, and still 0.9s with 16 or 32 workers, using 2-4x the CPU
+/// time.
+const CAPTURE_EFFECTS_MAX_WORKERS: usize = 8;
+
+async fn capture_effect(effect: ResolvedVc<Box<dyn Effect>>) -> Result<Box<dyn CapturedEffect>> {
+    effect.into_trait_ref().await?.capture().await
+}
+
+/// Captures `effects`, returning the captured effects in the same order.
+///
+/// Capturing reads every effect's cell and usually the content it writes. On a warm build that
+/// data isn't in memory yet, so each read restores it from the persistent cache, synchronously on
+/// the reading thread. Polling all captures in one future would do all of those restores one by
+/// one on a single thread, so for many effects the captures are spread over several workers (up to
+/// one per available CPU and at most [`CAPTURE_EFFECTS_MAX_WORKERS`]). The workers run as part of
+/// the current task (see [`spawn_in_current_task`]), so their reads are tracked as the task's own
+/// dependencies. Each worker takes the next uncaptured effect from a shared counter, which balances
+/// the load when some captures are slower than others.
+async fn capture_effects(
+    effects: Vec<ResolvedVc<Box<dyn Effect>>>,
+) -> Result<Vec<Box<dyn CapturedEffect>>> {
+    let len = effects.len();
+    let workers = available_parallelism()
+        .map_or(1, NonZeroUsize::get)
+        .min(CAPTURE_EFFECTS_MAX_WORKERS)
+        .min(len / CAPTURE_EFFECTS_MIN_PER_WORKER);
+    if workers <= 1 {
+        return effects.into_iter().map(capture_effect).try_join().await;
+    }
+
+    let span = tracing::info_span!("capture effects", count = len, workers);
+    async move {
+        let effects: Arc<[ResolvedVc<Box<dyn Effect>>]> = effects.into();
+        let next = Arc::new(AtomicUsize::new(0));
+        let handles = (0..workers)
+            .map(|_| {
+                let effects = effects.clone();
+                let next = next.clone();
+                spawn_in_current_task(async move {
+                    let mut captured = Vec::new();
+                    loop {
+                        let idx = next.fetch_add(1, Ordering::Relaxed);
+                        let Some(&effect) = effects.get(idx) else {
+                            break;
+                        };
+                        match capture_effect(effect).await {
+                            Ok(effect) => captured.push((idx, effect)),
+                            Err(err) => {
+                                // Make the other workers stop early, the result is an error anyway.
+                                next.store(effects.len(), Ordering::Relaxed);
+                                return Err(err);
+                            }
+                        }
+                    }
+                    Ok(captured)
+                })
+            })
+            .collect::<Vec<_>>();
+
+        // Wait for every worker, even after an error, so none of them is still reading as part of
+        // this task when we return.
+        let results = futures::future::join_all(handles).await;
+        let mut ordered: Vec<Option<Box<dyn CapturedEffect>>> =
+            std::iter::repeat_with(|| None).take(len).collect();
+        for result in results {
+            for (idx, effect) in result? {
+                ordered[idx] = Some(effect);
+            }
+        }
+        Ok(ordered
+            .into_iter()
+            .map(|effect| effect.expect("every effect is captured exactly once"))
+            .collect())
+    }
+    .instrument(span)
+    .await
 }
 
 #[derive(thiserror::Error, Debug, NonLocalValue)]

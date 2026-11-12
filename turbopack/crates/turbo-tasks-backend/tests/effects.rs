@@ -2,9 +2,12 @@
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
-use std::sync::{
-    Arc,
-    atomic::{AtomicU64, Ordering},
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicBool, AtomicU64, Ordering},
+    },
+    time::Duration,
 };
 
 use anyhow::Result;
@@ -725,6 +728,362 @@ async fn capture_skip_then_stomp_signals_retry() {
             shared.captures_with_content(),
         );
 
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
+}
+
+/// Enough effects that `take_effects` spreads their captures over several workers (it uses one
+/// worker per 64 effects, up to one per CPU and at most 8).
+const MANY_EFFECTS: usize = 1000;
+
+fn many_pairs(count: usize) -> Vec<(RcStr, u128)> {
+    (0..count)
+        .map(|i| (RcStr::from(format!("key-{i}")), i as u128))
+        .collect()
+}
+
+/// Every effect of a large set is captured exactly once, and the captured effects keep working
+/// with per-key dedup when the set is taken again.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn many_effects_are_all_captured() {
+    let tt = create_tt();
+    tt.run_once(async move {
+        let (input, TestInput { shared, spec, .. }) = TestInput::new();
+
+        let mut pairs = many_pairs(MANY_EFFECTS);
+        emit_and_take(&spec, input, pairs.clone())
+            .await?
+            .apply_for_testing()
+            .await?;
+        assert_eq!(shared.captures_with_content(), MANY_EFFECTS as u64);
+        assert_eq!(shared.total(), MANY_EFFECTS as u64);
+        for (key, _) in &pairs {
+            assert_eq!(shared.applies_for(key), 1, "{key} must be applied once");
+        }
+
+        // Change a single hash: only that effect runs again.
+        pairs[MANY_EFFECTS / 2].1 = 0xFFFF_FFFF;
+        emit_and_take(&spec, input, pairs.clone())
+            .await?
+            .apply_for_testing()
+            .await?;
+        assert_eq!(shared.total(), MANY_EFFECTS as u64 + 1);
+        assert_eq!(shared.applies_for(&pairs[MANY_EFFECTS / 2].0), 2);
+
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
+}
+
+/// Conflicting effects for one key are detected when they are captured by different workers.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn many_effects_conflict_is_detected() {
+    let tt = create_tt();
+    tt.run_once(async move {
+        let (input, TestInput { shared, spec, .. }) = TestInput::new();
+
+        let mut pairs = many_pairs(MANY_EFFECTS);
+        pairs.push((pairs[0].0.clone(), 0xDEAD));
+        let err = emit_and_take(&spec, input, pairs)
+            .await?
+            .apply_for_testing()
+            .await
+            .expect_err("expected a conflict");
+        assert!(
+            matches!(err, EffectsError::Conflict(_)),
+            "expected EffectsError::Conflict, got {err:?}"
+        );
+        assert_eq!(shared.total(), 0, "nothing is applied on a conflict");
+
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
+}
+
+/// Lets captures wait until a number of captures run at the same time.
+#[derive(NonLocalValue)]
+struct Rendezvous {
+    #[turbo_tasks(unsafe_ignore)]
+    arrived: std::sync::Mutex<usize>,
+    #[turbo_tasks(unsafe_ignore)]
+    condvar: std::sync::Condvar,
+    /// Number of concurrent captures to wait for.
+    expected: usize,
+    /// Set when a capture gave up waiting.
+    timed_out: AtomicBool,
+}
+
+impl Rendezvous {
+    /// Blocks the calling thread until `expected` captures have arrived, or a timeout passed.
+    fn arrive_and_wait(&self) {
+        let mut arrived = self.arrived.lock().unwrap();
+        *arrived += 1;
+        self.condvar.notify_all();
+        let (arrived, result) = self
+            .condvar
+            .wait_timeout_while(arrived, Duration::from_secs(10), |arrived| {
+                *arrived < self.expected
+            })
+            .unwrap();
+        drop(arrived);
+        if result.timed_out() {
+            self.timed_out.store(true, Ordering::Relaxed);
+        }
+    }
+}
+
+/// An effect whose capture can block on a [`Rendezvous`] or fail.
+#[turbo_tasks::value(serialization = "skip", cell = "new", eq = "manual")]
+struct ProbeEffect {
+    index: usize,
+    fail: bool,
+    #[turbo_tasks(debug_ignore)]
+    rendezvous: Arc<Rendezvous>,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Effect for ProbeEffect {
+    async fn capture(&self) -> Result<Box<dyn CapturedEffect>> {
+        if self.fail {
+            anyhow::bail!("capture of probe effect {} failed", self.index);
+        }
+        self.rendezvous.arrive_and_wait();
+        Ok(Box::new(ProbeEffectCaptured { index: self.index }) as Box<dyn CapturedEffect>)
+    }
+}
+
+#[derive(NonLocalValue)]
+struct ProbeEffectCaptured {
+    index: usize,
+}
+
+#[async_trait]
+impl CapturedEffect for ProbeEffectCaptured {
+    fn key(&self) -> Box<[u8]> {
+        self.index.to_le_bytes().into()
+    }
+
+    fn value_hash(&self) -> u128 {
+        0
+    }
+
+    async fn apply(&self) -> Result<(), ApplyError> {
+        Ok(())
+    }
+}
+
+#[turbo_tasks::value(eq = "manual", serialization = "skip")]
+struct ProbeInput {
+    count: usize,
+    fail_index: Option<usize>,
+    #[turbo_tasks(debug_ignore)]
+    rendezvous: Arc<Rendezvous>,
+}
+
+impl PartialEq for ProbeInput {
+    fn eq(&self, _other: &Self) -> bool {
+        false
+    }
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn probe_producer_operation(input: ResolvedVc<ProbeInput>) -> Result<()> {
+    let input = input.await?;
+    for index in 0..input.count {
+        ProbeEffect {
+            index,
+            fail: input.fail_index == Some(index),
+            rendezvous: input.rendezvous.clone(),
+        }
+        .resolved_cell()
+        .emit();
+    }
+    Ok(())
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn extract_probe_effects(input: ResolvedVc<ProbeInput>) -> Result<Vc<Effects>> {
+    let producer = probe_producer_operation(input);
+    let _ = producer.resolve().strongly_consistent().await?;
+    Ok(take_effects(producer).await?.cell())
+}
+
+fn probe_input(count: usize, fail_index: Option<usize>, expected: usize) -> ResolvedVc<ProbeInput> {
+    ProbeInput {
+        count,
+        fail_index,
+        rendezvous: Arc::new(Rendezvous {
+            arrived: std::sync::Mutex::new(0),
+            condvar: std::sync::Condvar::new(),
+            expected,
+            timed_out: AtomicBool::new(false),
+        }),
+    }
+    .resolved_cell()
+}
+
+/// The captures of many effects run on several threads at once: every capture blocks its thread
+/// until two captures are in progress, which never happens with captures polled one by one.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn many_effects_are_captured_concurrently() {
+    if turbo_tasks::parallel::available_parallelism().map_or(1, |n| n.get()) < 2 {
+        // `take_effects` uses a single worker on a single CPU.
+        return;
+    }
+    let tt = create_tt();
+    tt.run_once(async move {
+        let input = probe_input(MANY_EFFECTS, None, 2);
+        let effects = extract_probe_effects(input)
+            .read_strongly_consistent()
+            .await?;
+        effects.apply_for_testing().await?;
+        assert!(
+            !input.await?.rendezvous.timed_out.load(Ordering::Relaxed),
+            "captures did not run concurrently"
+        );
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
+}
+
+#[turbo_tasks::value]
+struct Version(u64);
+
+#[turbo_tasks::value(eq = "manual", serialization = "skip")]
+struct VersionInput {
+    #[turbo_tasks(debug_ignore)]
+    version: Arc<State<u64>>,
+    #[turbo_tasks(debug_ignore)]
+    counters: Arc<VersionCounters>,
+}
+
+impl PartialEq for VersionInput {
+    fn eq(&self, _other: &Self) -> bool {
+        false
+    }
+}
+
+#[derive(NonLocalValue)]
+struct VersionCounters {
+    producer_runs: AtomicU64,
+    captures_of_version_1: AtomicU64,
+}
+
+#[turbo_tasks::function]
+async fn current_version(input: ResolvedVc<VersionInput>) -> Result<Vc<Version>> {
+    Ok(Version(*input.await?.version.get()).cell())
+}
+
+/// An effect whose capture reads a cell that can change without its producer rerunning.
+#[turbo_tasks::value(serialization = "skip", cell = "new", eq = "manual")]
+struct VersionedEffect {
+    index: usize,
+    version: ResolvedVc<Version>,
+    #[turbo_tasks(debug_ignore)]
+    counters: Arc<VersionCounters>,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Effect for VersionedEffect {
+    async fn capture(&self) -> Result<Box<dyn CapturedEffect>> {
+        let version = self.version.await?.0;
+        if version == 1 {
+            self.counters
+                .captures_of_version_1
+                .fetch_add(1, Ordering::Relaxed);
+        }
+        Ok(Box::new(ProbeEffectCaptured { index: self.index }) as Box<dyn CapturedEffect>)
+    }
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn versioned_producer_operation(input: ResolvedVc<VersionInput>) -> Result<()> {
+    let counters = input.await?.counters.clone();
+    counters.producer_runs.fetch_add(1, Ordering::Relaxed);
+    let version = current_version(*input).to_resolved().await?;
+    for index in 0..MANY_EFFECTS {
+        VersionedEffect {
+            index,
+            version,
+            counters: counters.clone(),
+        }
+        .resolved_cell()
+        .emit();
+    }
+    Ok(())
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn extract_versioned_effects(input: ResolvedVc<VersionInput>) -> Result<Vc<Effects>> {
+    let producer = versioned_producer_operation(input);
+    let _ = producer.resolve().strongly_consistent().await?;
+    Ok(take_effects(producer).await?.cell())
+}
+
+/// Cell reads by captures on worker threads are dependencies of the task calling `take_effects`.
+/// Changing the read cell recaptures every effect, although the effects themselves are unchanged.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn many_effects_capture_reads_are_tracked() {
+    let tt = create_tt();
+    tt.run_once(async move {
+        let version = Arc::new(State::new(0));
+        let counters = Arc::new(VersionCounters {
+            producer_runs: AtomicU64::new(0),
+            captures_of_version_1: AtomicU64::new(0),
+        });
+        let input = VersionInput {
+            version: version.clone(),
+            counters: counters.clone(),
+        }
+        .resolved_cell();
+        let op = extract_versioned_effects(input);
+
+        op.read_strongly_consistent().await?;
+        assert_eq!(counters.producer_runs.load(Ordering::Relaxed), 1);
+        assert_eq!(counters.captures_of_version_1.load(Ordering::Relaxed), 0);
+
+        version.set(1);
+        op.read_strongly_consistent().await?;
+        assert_eq!(
+            counters.producer_runs.load(Ordering::Relaxed),
+            1,
+            "the emitted effects must stay unchanged"
+        );
+        assert_eq!(
+            counters.captures_of_version_1.load(Ordering::Relaxed),
+            MANY_EFFECTS as u64,
+            "every capture must be invalidated by its cell read"
+        );
+
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
+}
+
+/// An error of a single capture among many fails `take_effects`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn many_effects_capture_error_is_propagated() {
+    let tt = create_tt();
+    tt.run_once(async move {
+        let input = probe_input(MANY_EFFECTS, Some(MANY_EFFECTS / 3), 1);
+        let Err(err) = extract_probe_effects(input)
+            .read_strongly_consistent()
+            .await
+        else {
+            panic!("expected the capture error");
+        };
+        assert!(
+            format!("{err:?}").contains(&format!("probe effect {} failed", MANY_EFFECTS / 3)),
+            "unexpected error: {err:?}"
+        );
         anyhow::Ok(())
     })
     .await
