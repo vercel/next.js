@@ -1,0 +1,72 @@
+import { expect, test, vi } from 'vitest'
+const state = vi.hoisted(() => ({ calls: 0 }))
+vi.mock('fs', () => {
+  state.calls++
+  return { readFileSync: () => 23, label: 'bare-fs' }
+})
+import * as bare from 'fs'
+import * as prefixed from 'node:fs'
+import { readFileSync as throughConsumer } from './fs-consumer.mjs'
+
+test('mocks a real bare Node builtin across graph consumers', async () => {
+  const dynamic = await import('fs')
+  const helper = await vi.importMock('fs')
+  expect(bare.readFileSync()).toBe(23)
+  expect(throughConsumer()).toBe(23)
+  expect(bare).toBe(dynamic)
+  expect(bare).toBe(prefixed)
+  expect(prefixed.label).toBe('bare-fs')
+  expect(helper).not.toBe(bare)
+  expect(helper.readFileSync).toBe(bare.readFileSync)
+  expect(state.calls).toBe(1)
+  console.log(
+    'WS2_BUILTIN_RAW:' +
+      JSON.stringify({ name: 'bare-fs', value: 23, calls: state.calls })
+  )
+})
+
+vi.mock('node:os', () => ({
+  platform: () => 'mock-platform',
+  label: 'prefixed-os',
+}))
+import { platform } from 'node:os'
+import * as osPrefix from 'node:os'
+import * as osBare from 'os'
+test('mocks a prefixed Node builtin with bare and helper consumers', async () => {
+  const helper = await vi.importMock('node:os')
+  const dynamic = await import('node:os')
+  expect(platform()).toBe('mock-platform')
+  expect(osBare).toBe(osPrefix)
+  expect(dynamic).toBe(osPrefix)
+  expect(osBare.label).toBe('prefixed-os')
+  expect(helper).not.toBe(osPrefix)
+  expect(helper.platform).toBe(platform)
+  console.log(
+    'WS2_BUILTIN_RAW:' +
+      JSON.stringify({ name: 'prefixed-os', value: platform() })
+  )
+})
+
+vi.mock('node:path', async (importOriginal) => {
+  const first = await importOriginal()
+  const second = await importOriginal()
+  return {
+    join: () => 'mock-join',
+    original: {
+      joinType: typeof first.join,
+      defaultJoinIdentity: first.default.join === first.join,
+      same: first === second,
+    },
+  }
+})
+import { join, original } from 'node:path'
+test('loads a real builtin original lazily through an explicit async factory', () => {
+  expect(join()).toBe('mock-join')
+  expect(original.joinType).toBe('function')
+  expect(original.defaultJoinIdentity).toBe(true)
+  expect(original.same).toBe(true)
+  console.log(
+    'WS2_BUILTIN_RAW:' +
+      JSON.stringify({ name: 'builtin-original', value: join() })
+  )
+})

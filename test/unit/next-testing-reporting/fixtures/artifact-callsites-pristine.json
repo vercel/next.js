@@ -1,0 +1,58 @@
+[
+  {
+    "type": "probe:direct",
+    "location": {
+      "file": "calls.test.mjs",
+      "line": 7,
+      "column": 21
+    }
+  },
+  {
+    "type": "probe:alias",
+    "location": {
+      "file": "calls.test.mjs",
+      "line": 8,
+      "column": 21
+    }
+  },
+  {
+    "type": "probe:namespace",
+    "location": {
+      "file": "calls.test.mjs",
+      "line": 9,
+      "column": 28
+    }
+  },
+  {
+    "type": "probe:multiline",
+    "location": {
+      "file": "calls.test.mjs",
+      "line": 10,
+      "column": 21
+    }
+  },
+  {
+    "type": "probe:computed",
+    "location": {
+      "file": "calls.test.mjs",
+      "line": 13,
+      "column": 45
+    }
+  },
+  {
+    "type": "probe:parenthesized",
+    "location": {
+      "file": "calls.test.mjs",
+      "line": 14,
+      "column": 22
+    }
+  },
+  {
+    "type": "probe:optional",
+    "location": {
+      "file": "calls.test.mjs",
+      "line": 15,
+      "column": 29
+    }
+  }
+]

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -8,7 +8,7 @@ use swc_core::{
     atoms::Atom,
     base::SwcComments,
     common::{
-        BytePos, FileName, GLOBALS, Globals, LineCol, Mark, SyntaxContext,
+        BytePos, FileName, GLOBALS, Globals, LineCol, Mark, Span, SyntaxContext,
         errors::{HANDLER, Handler},
         input::StringInput,
         source_map::{Files, SourceMapGenConfig, build_source_map},
@@ -50,8 +50,274 @@ use crate::{
     analyzer::graph::EvalContext,
     magic_identifier,
     swc_comments::ImmutableComments,
-    transform::{EcmascriptInputTransforms, TransformContext},
+    transform::{BrowserJsxImport, EcmascriptInputTransforms, TransformContext},
 };
+
+/// Exclude only comments which the actual emitter did not consume. Their
+/// trailing lexical whitespace also disappeared; keep the next token's anchor.
+fn removed_comment_ranges(files: &impl Files, comments: &[Span]) -> Vec<((u32, u32), (u32, u32))> {
+    let mut ranges = Vec::new();
+    for comment in comments {
+        let lo = files.map_raw_pos(comment.lo);
+        let mut hi = files.map_raw_pos(comment.hi);
+        if lo >= hi || lo.is_dummy() || hi.is_dummy() {
+            continue;
+        }
+        let Ok(Some(file)) = files.try_lookup_source_file(comment.lo) else {
+            continue;
+        };
+        if lo < file.start_pos || hi > file.end_pos {
+            continue;
+        }
+        let Some(suffix) = file.src.get((hi.0 - file.start_pos.0) as usize..) else {
+            continue;
+        };
+        hi.0 += suffix
+            .chars()
+            .take_while(|character| character.is_whitespace() || *character == '\u{feff}')
+            .map(|character| character.len_utf8() as u32)
+            .sum::<u32>();
+        let position = |pos: BytePos| {
+            let line = file.lookup_line(pos)?;
+            let line_start = file.analyze().lines[line];
+            let text = file.src.get(
+                (line_start.0 - file.start_pos.0) as usize..(pos.0 - file.start_pos.0) as usize,
+            )?;
+            Some((line as u32, text.encode_utf16().count() as u32))
+        };
+        if let (Some(start), Some(end)) = (position(lo), position(hi)) {
+            ranges.push((start, end));
+        }
+    }
+    ranges.sort_unstable();
+    ranges.dedup();
+    ranges
+}
+
+fn remove_collapsed_comment_mappings(
+    original: &[u8],
+    ranges: &[((u32, u32), (u32, u32))],
+) -> Result<Vec<u8>> {
+    use std::collections::BTreeMap;
+
+    use serde_json::value::RawValue;
+    use swc_sourcemap::vlq::{generate_vlq_segment, parse_vlq_segment};
+
+    // Keep the existing parser authoritative, including its optional/opaque
+    // fields and anti-XSSI prefix support. Never materialize source/name data.
+    swc_sourcemap::lazy::decode(original)?.into_source_map()?;
+    let mut sorted_ranges = ranges.to_vec();
+    sorted_ranges.sort_unstable();
+    let mut ranges = Vec::<((u32, u32), (u32, u32))>::new();
+    for (start, end) in sorted_ranges {
+        if let Some(previous) = ranges.last_mut().filter(|previous| start <= previous.1) {
+            previous.1 = previous.1.max(end);
+        } else {
+            ranges.push((start, end));
+        }
+    }
+    const BASE64: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    fn replace_values(original: &[u8], mut edits: Vec<(usize, usize, Vec<u8>)>) -> Vec<u8> {
+        edits.sort_unstable_by_key(|edit| edit.0);
+        let mut result = Vec::new();
+        let mut previous = 0;
+        for (start, end, value) in edits {
+            result.extend_from_slice(&original[previous..start]);
+            result.extend_from_slice(&value);
+            previous = end;
+        }
+        result.extend_from_slice(&original[previous..]);
+        result
+    }
+
+    fn edit(
+        original: &[u8],
+        value: &RawValue,
+        replacement: Vec<u8>,
+    ) -> Result<(usize, usize, Vec<u8>)> {
+        let start = (value.get().as_ptr() as usize)
+            .checked_sub(original.as_ptr() as usize)
+            .context("Source map value escaped its original bytes")?;
+        let end = start
+            .checked_add(value.get().len())
+            .context("Source map value overflow")?;
+        anyhow::ensure!(
+            end <= original.len(),
+            "Source map value escaped its original bytes"
+        );
+        Ok((start, end, replacement))
+    }
+
+    fn rewrite(
+        original: &[u8],
+        ranges: &[((u32, u32), (u32, u32))],
+        offset: (u32, u32),
+    ) -> Result<Vec<u8>> {
+        // The dependency has already validated any junk prefix. Its parser
+        // begins JSON at the header's first newline, which we leave untouched.
+        let json = if original
+            .first()
+            .is_some_and(|byte| matches!(byte, b')' | b']' | b'}' | b'\''))
+        {
+            &original[original
+                .iter()
+                .position(|byte| *byte == b'\n')
+                .context("Missing source map header newline")?..]
+        } else {
+            original
+        };
+        let fields: BTreeMap<String, &RawValue> = serde_json::from_slice(json)?;
+        let sections = fields
+            .get("sections")
+            .map(|value| {
+                serde_json::from_str::<Option<Vec<BTreeMap<String, &RawValue>>>>(value.get())
+            })
+            .transpose()?
+            .flatten();
+        if let Some(sections) = sections {
+            let mut edits = Vec::new();
+            for section in sections {
+                let position: serde_json::Value = serde_json::from_str(section["offset"].get())?;
+                let line = u32::try_from(
+                    position["line"]
+                        .as_u64()
+                        .context("Invalid source map section line")?,
+                )?;
+                let column = u32::try_from(
+                    position["column"]
+                        .as_u64()
+                        .context("Invalid source map section column")?,
+                )?;
+                let offset = (
+                    offset
+                        .0
+                        .checked_add(line)
+                        .context("Source map section line overflow")?,
+                    column
+                        .checked_add(if line == 0 { offset.1 } else { 0 })
+                        .context("Source map section column overflow")?,
+                );
+                let value = section
+                    .get("map")
+                    .context("Missing inline source map section")?;
+                let rewritten = rewrite(value.get().as_bytes(), ranges, offset)?;
+                if rewritten != value.get().as_bytes() {
+                    edits.push(edit(original, value, rewritten)?);
+                }
+            }
+            return Ok(replace_values(original, edits));
+        }
+        let mappings = fields
+            .get("mappings")
+            .map(|value| serde_json::from_str::<Option<String>>(value.get()))
+            .transpose()?
+            .flatten()
+            .unwrap_or_default();
+        let flags = fields
+            .get("rangeMappings")
+            .map(|value| serde_json::from_str::<Option<String>>(value.get()))
+            .transpose()?
+            .flatten()
+            .unwrap_or_default();
+        let mut flag_rows = flags.split(';');
+        let mut input = [0u32; 4];
+        let mut output = [0u32; 4];
+        let mut mapping_rows = Vec::new();
+        let mut output_flags = Vec::new();
+        let mut removed = false;
+        for (line, row) in mappings.split(';').enumerate() {
+            let flag_row = flag_rows.next().unwrap_or_default().as_bytes();
+            let mut column = 0u32;
+            let mut previous_column = 0u32;
+            let mut segments = Vec::new();
+            let mut row_flags = Vec::<u8>::new();
+            for (index, segment) in row.split(',').enumerate() {
+                if segment.is_empty() {
+                    continue;
+                }
+                let mut values = parse_vlq_segment(segment)?;
+                column = (i64::from(column) + values[0]) as u32;
+                if values.len() > 1 {
+                    for field in 0..3 {
+                        input[field] = (i64::from(input[field]) + values[field + 1]) as u32;
+                    }
+                    if values.len() == 5 {
+                        input[3] = (i64::from(input[3]) + values[4]) as u32;
+                    }
+                }
+                let position = (
+                    (line as u32)
+                        .checked_add(offset.0)
+                        .context("Source map line overflow")?,
+                    column
+                        .checked_add(if line == 0 { offset.1 } else { 0 })
+                        .context("Source map column overflow")?,
+                );
+                let range = ranges.partition_point(|(start, _)| *start <= position);
+                if range > 0 && position < ranges[range - 1].1 {
+                    removed = true;
+                    continue;
+                }
+                values[0] = i64::from(column) - i64::from(previous_column);
+                previous_column = column;
+                if values.len() > 1 {
+                    for field in 0..3 {
+                        values[field + 1] = i64::from(input[field]) - i64::from(output[field]);
+                        output[field] = input[field];
+                    }
+                    if values.len() == 5 {
+                        values[4] = i64::from(input[3]) - i64::from(output[3]);
+                        output[3] = input[3];
+                    }
+                }
+                let bits = flag_row
+                    .get(index / 6)
+                    .map(|byte| {
+                        BASE64
+                            .iter()
+                            .position(|value| value == byte)
+                            .context("Invalid range mapping character")
+                    })
+                    .transpose()?
+                    .unwrap_or_default();
+                if bits & (1 << (index % 6)) != 0 {
+                    let index = segments.len();
+                    row_flags.resize(index / 6 + 1, 0);
+                    row_flags[index / 6] |= 1 << (index % 6);
+                }
+                segments.push(generate_vlq_segment(&values)?);
+            }
+            mapping_rows.push(segments.join(","));
+            output_flags.push(
+                row_flags
+                    .iter()
+                    .map(|bits| BASE64[*bits as usize] as char)
+                    .collect::<String>(),
+            );
+        }
+        if !removed {
+            return Ok(original.to_vec());
+        }
+        let mut edits = vec![edit(
+            original,
+            fields["mappings"],
+            serde_json::to_vec(&mapping_rows.join(";"))?,
+        )?];
+        if let Some(value) = fields.get("rangeMappings") {
+            if value.get() != "null" {
+                edits.push(edit(
+                    original,
+                    value,
+                    serde_json::to_vec(&output_flags.join(";"))?,
+                )?);
+            }
+        }
+        Ok(replace_values(original, edits))
+    }
+
+    rewrite(original, &ranges, (0, 0))
+}
 
 /// Collects identifier names and their byte positions from an AST.
 /// This is used to populate the `names` field in source maps.
@@ -164,6 +430,9 @@ pub enum ParseResult {
         /// error.
         #[turbo_tasks(debug_ignore)]
         program_source: Rope,
+        /// Actual imports introduced by the opted-in React transform of this parse.
+        #[turbo_tasks(debug_ignore, unsafe_ignore)]
+        browser_jsx_imports: Vec<BrowserJsxImport>,
     },
     Unparsable {
         messages: Option<Vec<RcStr>>,
@@ -186,18 +455,47 @@ pub fn generate_js_source_map<'a>(
     original_source_maps_complete: bool,
     inline_sources_content: bool,
     names: FxHashMap<BytePos, Atom>,
+    removed_comments: &[Span],
 ) -> Result<StructuredSourceMap> {
     let original_source_maps = original_source_maps
         .into_iter()
         .map(|map| map.to_bytes())
         .collect::<Vec<_>>();
-    let original_source_maps = original_source_maps
-        .iter()
-        .map(|map| Ok(swc_sourcemap::lazy::decode(map)?.into_source_map()?))
-        .collect::<Result<Vec<_>>>()?;
-
     let fast_path_single_original_source_map =
         original_source_maps.len() == 1 && original_source_maps_complete;
+    let collapsed_comments = if fast_path_single_original_source_map {
+        removed_comment_ranges(files_map, removed_comments)
+    } else {
+        Vec::new()
+    };
+    let rewritten_original = if collapsed_comments.is_empty() {
+        None
+    } else {
+        Some(remove_collapsed_comment_mappings(
+            &original_source_maps[0],
+            &collapsed_comments,
+        )?)
+    };
+    let original_source_maps = original_source_maps
+        .iter()
+        .enumerate()
+        .map(|(index, map)| {
+            let bytes: &[u8] = match (index, &rewritten_original) {
+                (0, Some(rewritten)) => rewritten,
+                _ => map,
+            };
+            Ok(swc_sourcemap::lazy::decode(bytes)?.into_source_map()?)
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    // PLACEHOLDER is outside authorable source positions. Native operations use
+    // it to end a preceding comment/user mapping at their actual emitted start.
+    let unmapped = mappings
+        .iter()
+        .filter_map(|(position, generated)| {
+            (files_map.map_raw_pos(*position) == BytePos::PLACEHOLDER).then_some(*generated)
+        })
+        .collect::<Vec<_>>();
 
     let mut new_mappings = build_source_map(
         files_map,
@@ -215,7 +513,7 @@ pub fn generate_js_source_map<'a>(
         },
     );
 
-    if original_source_maps.is_empty() {
+    let map = if original_source_maps.is_empty() {
         // We don't convert sourcemap::SourceMap into raw_sourcemap::SourceMap because we don't
         // need to adjust mappings
         add_default_ignore_list(&mut new_mappings);
@@ -237,7 +535,13 @@ pub fn generate_js_source_map<'a>(
         add_default_ignore_list(&mut map);
 
         StructuredSourceMap::from_swc_map(map)
-    }
+    }?;
+    map.with_unmapped_segments(
+        &unmapped
+            .into_iter()
+            .map(|position| (position.line, position.col))
+            .collect::<Vec<_>>(),
+    )
 }
 
 /// A config to generate a source map which includes the source content of every
@@ -283,6 +587,27 @@ pub async fn parse(
     loose_errors: bool,
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
+    Ok(parse_with_module_grammar(
+        *source,
+        ty,
+        *transforms,
+        node_env,
+        loose_errors,
+        inline_helpers,
+        false,
+    ))
+}
+
+#[turbo_tasks::function]
+pub async fn parse_with_module_grammar(
+    source: ResolvedVc<Box<dyn Source>>,
+    ty: EcmascriptModuleAssetType,
+    transforms: ResolvedVc<EcmascriptInputTransforms>,
+    node_env: RcStr,
+    loose_errors: bool,
+    inline_helpers: bool,
+    parse_as_module: bool,
+) -> Result<Vc<ParseResult>> {
     let span = tracing::info_span!(
         "parse ecmascript",
         name = display(source.ident().to_string().await?),
@@ -296,6 +621,7 @@ pub async fn parse(
         node_env,
         loose_errors,
         inline_helpers,
+        parse_as_module,
     )
     .instrument(span)
     .await
@@ -313,6 +639,7 @@ async fn parse_internal(
     node_env: RcStr,
     loose_errors: bool,
     inline_helpers: bool,
+    parse_as_module: bool,
 ) -> Result<Vc<ParseResult>> {
     let content = source.content();
     let source_ident = source.ident().await?;
@@ -358,6 +685,7 @@ async fn parse_internal(
                     node_env.clone(),
                     loose_errors,
                     inline_helpers,
+                    parse_as_module,
                 )
                 .await
                 {
@@ -376,6 +704,17 @@ async fn parse_internal(
     })
 }
 
+fn parse_program(
+    parser: &mut Parser<Lexer<'_>>,
+    parse_as_module: bool,
+) -> Result<Program, swc_core::ecma::parser::error::Error> {
+    if parse_as_module {
+        parser.parse_module().map(Program::Module)
+    } else {
+        parser.parse_program()
+    }
+}
+
 async fn parse_file_content(
     program_source: Rope,
     fs_path: &FileSystemPath,
@@ -388,6 +727,7 @@ async fn parse_file_content(
     node_env: RcStr,
     loose_errors: bool,
     inline_helpers: bool,
+    parse_as_module: bool,
 ) -> Result<Vc<ParseResult>> {
     let string = match BytesStr::from_utf8(program_source.clone().into_bytes()) {
         Ok(s) => s,
@@ -484,7 +824,7 @@ async fn parse_file_content(
 
                 let mut parser = Parser::new_from(lexer);
                 let span = tracing::trace_span!("swc_parse").entered();
-                let program_result = parser.parse_program();
+                let program_result = parse_program(&mut parser, parse_as_module);
                 drop(span);
 
                 let mut has_errors = vec![];
@@ -560,6 +900,18 @@ async fn parse_file_content(
             };
 
             let mut helpers = helpers.data();
+            let browser_jsx_imports = transforms
+                .iter()
+                .any(|transform| {
+                    matches!(
+                        transform,
+                        EcmascriptInputTransform::React {
+                            capture_browser_jsx_imports: true,
+                            ..
+                        }
+                    )
+                })
+                .then(|| Mutex::new(Vec::new()));
             let transform_context = TransformContext {
                 comments: &comments,
                 source_map: &source_map,
@@ -573,6 +925,7 @@ async fn parse_file_content(
                 source,
                 source_text: &fm.src,
                 node_env,
+                browser_jsx_imports: browser_jsx_imports.as_ref(),
             };
             let span = tracing::trace_span!("transforms");
             async {
@@ -624,6 +977,13 @@ async fn parse_file_content(
                 source_map,
                 source_mapping_url: source_mapping_url.map(|s| s.into()),
                 program_source,
+                browser_jsx_imports: browser_jsx_imports
+                    .map(|imports| {
+                        imports
+                            .into_inner()
+                            .expect("owned Browser JSX import collector")
+                    })
+                    .unwrap_or_default(),
             })
         },
         |f, cx| GLOBALS.set(globals_ref, || HANDLER.set(&handler, || f.poll(cx))),
@@ -767,6 +1127,17 @@ pub async fn parse_from_rope(
     transforms: ResolvedVc<EcmascriptInputTransforms>,
     node_env: RcStr,
 ) -> Result<Vc<ParseResult>> {
+    parse_from_rope_with_module_grammar(rope, source, ty, transforms, node_env, false).await
+}
+
+pub async fn parse_from_rope_with_module_grammar(
+    rope: Rope,
+    source: ResolvedVc<Box<dyn Source>>,
+    ty: EcmascriptModuleAssetType,
+    transforms: ResolvedVc<EcmascriptInputTransforms>,
+    node_env: RcStr,
+    parse_as_module: bool,
+) -> Result<Vc<ParseResult>> {
     let ident_vc = source.ident();
     let ident_ref = ident_vc.await?;
     let ident = &*ident_vc.to_string().await?;
@@ -785,6 +1156,7 @@ pub async fn parse_from_rope(
         node_env,
         false,
         false,
+        parse_as_module,
     )
     .await
 }
@@ -869,5 +1241,681 @@ mod tests {
         // `declare namespace Foo {}` should also be collected
         let ids = parse_and_collect("declare namespace Foo {}");
         assert_eq!(ids, vec!["Foo"]);
+    }
+}
+
+#[cfg(test)]
+mod unmapped_native_tests {
+    use std::sync::Arc;
+
+    use swc_core::{
+        base::SwcComments,
+        common::{
+            BytePos, FileName, GLOBALS, Globals, LineCol, SourceMap,
+            source_map::DefaultSourceMapGenConfig,
+        },
+        ecma::{
+            ast::{Module, ModuleDecl, ModuleItem, Stmt},
+            codegen::{Emitter, text_writer::JsWriter},
+            parser::{Parser, StringInput, Syntax},
+        },
+        quote,
+    };
+
+    use crate::runtime_functions::TURBOPACK_ESM;
+
+    fn insert_unmapped_segments(
+        map: swc_sourcemap::SourceMap,
+        positions: &[LineCol],
+    ) -> swc_sourcemap::SourceMap {
+        let map = super::StructuredSourceMap::from_swc_map(map)
+            .unwrap()
+            .with_unmapped_segments(
+                &positions
+                    .iter()
+                    .map(|position| (position.line, position.col))
+                    .collect::<Vec<_>>(),
+            )
+            .unwrap();
+        swc_sourcemap::SourceMap::from_slice(&map.to_rope().to_bytes()).unwrap()
+    }
+
+    const SOURCE: &str = "/* first real comment */\n/* second real comment */\nexport function \
+                          authored() { return actualFactory(); }\n";
+
+    fn position(text: &str, needle: &str) -> (u32, u32) {
+        let prefix = &text[..text.find(needle).expect("emitted fragment")];
+        let line = prefix.bytes().filter(|byte| *byte == b'\n').count() as u32;
+        let column = prefix.rsplit('\n').next().unwrap().encode_utf16().count() as u32;
+        (line, column)
+    }
+
+    fn emit(
+        source_map: Arc<SourceMap>,
+        module: &Module,
+        comments: &SwcComments,
+        minify: bool,
+    ) -> (String, swc_sourcemap::SourceMap) {
+        let comments = SwcComments {
+            leading: Arc::new((*comments.leading).clone()),
+            trailing: Arc::new((*comments.trailing).clone()),
+        };
+        let mut output = Vec::new();
+        let mut mappings = Vec::new();
+        {
+            let mut emitter = Emitter {
+                cfg: swc_core::ecma::codegen::Config::default().with_minify(minify),
+                cm: source_map.clone(),
+                comments: Some(&comments),
+                wr: JsWriter::new(source_map.clone(), "\n", &mut output, Some(&mut mappings)),
+            };
+            emitter.emit_module(module).expect("emit module");
+        }
+        let unmapped = mappings
+            .iter()
+            .filter_map(|(position, generated)| {
+                (*position == BytePos::PLACEHOLDER).then_some(*generated)
+            })
+            .collect::<Vec<LineCol>>();
+        let map = source_map.build_source_map(&mappings, None, DefaultSourceMapGenConfig);
+        (
+            String::from_utf8(output).unwrap(),
+            insert_unmapped_segments(map, &unmapped),
+        )
+    }
+
+    fn assert_boundaries(output: &str, map: &swc_sourcemap::SourceMap) {
+        assert!(
+            output.find("/* second real comment */").unwrap()
+                < output.find("__turbopack_context__.s").unwrap()
+        );
+        let (line, column) = position(output, "__turbopack_context__.s");
+        let token = map.lookup_token(line, column).expect("native boundary");
+        assert_eq!((token.get_dst_line(), token.get_dst_col()), (line, column));
+        assert!(
+            !token.has_source(),
+            "registration inherited a real comment mapping"
+        );
+
+        let (line, column) = position(output, "/* second real comment */");
+        assert!(map.lookup_token(line, column).unwrap().has_source());
+        let (line, column) = position(output, "actualFactory");
+        let token = map.lookup_token(line, column).expect("real factory call");
+        assert!(token.has_source());
+        assert_eq!(token.get_src_line(), 2);
+        assert_eq!(
+            token.get_src_col(),
+            SOURCE
+                .lines()
+                .nth(2)
+                .unwrap()
+                .find("actualFactory")
+                .unwrap() as u32
+        );
+    }
+
+    #[test]
+    fn native_registration_is_unmapped_after_real_comments() {
+        GLOBALS.set(&Globals::new(), || {
+            let source_map: Arc<SourceMap> = Default::default();
+            let source = source_map.new_source_file(FileName::Custom("authored.js".into()).into(), SOURCE);
+            let comments = SwcComments::default();
+            let mut parser = Parser::new(Syntax::Es(Default::default()), StringInput::from(&*source), Some(&comments));
+            let mut module = parser.parse_module().expect("valid module");
+            // Match native ESM lowering: the original export wrapper is gone,
+            // while its function and real leading comments retain their spans.
+            module.body = module.body.into_iter().map(|item| match item {
+                ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) => ModuleItem::Stmt(Stmt::Decl(export.decl)),
+                item => item,
+            }).collect();
+            module.body.insert(0, ModuleItem::Stmt(quote!("$register([]);" as Stmt, register: Expr = TURBOPACK_ESM.unmapped_expr())));
+            for minify in [false, true] {
+                let (output, map) = emit(source_map.clone(), &module, &comments, minify);
+                assert_boundaries(&output, &map);
+
+                let mut upstream = swc_sourcemap::SourceMapBuilder::new(None);
+                let id = upstream.add_source("original.js".into());
+                upstream.set_source_contents(id, Some(SOURCE.into()));
+                for (line, source) in SOURCE.lines().enumerate() {
+                    for column in 0..=source.encode_utf16().count() {
+                        upstream.add_raw(line as u32, column as u32, line as u32, column as u32, Some(id), None, false);
+                    }
+                }
+                let mut bytes = Vec::new();
+                upstream.into_sourcemap().to_writer(&mut bytes).unwrap();
+                let mut upstream = swc_sourcemap::lazy::decode(&bytes).unwrap().into_source_map().unwrap();
+                let mut adjustment = swc_sourcemap::SourceMapBuilder::new(None);
+                for token in map.tokens().filter(|token| token.has_source()) { adjustment.add_token(&token, true); }
+                upstream.adjust_mappings(adjustment.into_sourcemap());
+                let composed = swc_sourcemap::SourceMap::from_slice(&serde_json::to_vec(&upstream.into_raw_sourcemap()).unwrap()).unwrap();
+                let (native_line, native_column) = position(&output, "__turbopack_context__.s");
+                let composed = insert_unmapped_segments(composed, &[LineCol { line: native_line, col: native_column }]);
+                assert_boundaries(&output, &composed);
+                let (line, column) = position(&output, "actualFactory");
+                assert_eq!(composed.lookup_token(line, column).unwrap().get_source().unwrap(), "original.js");
+            }
+        });
+    }
+
+    #[test]
+    fn native_unmapped_boundary_survives_subsequent_minification() {
+        GLOBALS.set(&Globals::new(), || {
+            let source_map: Arc<SourceMap> = Default::default();
+            let source = source_map.new_source_file(FileName::Custom("authored.js".into()).into(), SOURCE);
+            let comments = SwcComments::default();
+            let mut parser = Parser::new(Syntax::Es(Default::default()), StringInput::from(&*source), Some(&comments));
+            let mut module = parser.parse_module().expect("valid module");
+            // Match native ESM lowering: the original export wrapper is gone,
+            // while its function and real leading comments retain their spans.
+            module.body = module.body.into_iter().map(|item| match item {
+                ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) => ModuleItem::Stmt(Stmt::Decl(export.decl)),
+                item => item,
+            }).collect();
+            module.body.insert(0, ModuleItem::Stmt(quote!("$register([]);" as Stmt, register: Expr = TURBOPACK_ESM.unmapped_expr())));
+            let (intermediate, mut original_map) = emit(source_map, &module, &comments, false);
+            let minify_map: Arc<SourceMap> = Default::default();
+            let source = minify_map.new_source_file(FileName::Custom("intermediate.js".into()).into(), intermediate);
+            let comments = SwcComments::default();
+            let mut parser = Parser::new(Syntax::Es(Default::default()), StringInput::from(&*source), Some(&comments));
+            let module = parser.parse_module().expect("emitted module");
+            let (output, adjustment) = emit(minify_map, &module, &comments, true);
+            original_map.adjust_mappings(&adjustment);
+            assert_boundaries(&output, &original_map);
+        });
+    }
+
+    #[test]
+    fn duplicate_unmapped_boundaries_replace_the_zero_position_once() {
+        let mut builder = swc_sourcemap::SourceMapBuilder::new(None);
+        let id = builder.add_source("authored.js".into());
+        builder.set_source_contents(id, Some("value".into()));
+        let name = builder.add_name("value".into());
+        builder.add_to_ignore_list(id);
+        builder.add_raw(0, 0, 0, 0, Some(id), Some(name), false);
+        builder.add_raw(0, 2, 0, 2, Some(id), Some(name), false);
+        let map = insert_unmapped_segments(
+            builder.into_sourcemap(),
+            &[LineCol { line: 0, col: 0 }, LineCol { line: 0, col: 0 }],
+        );
+        let tokens = map.tokens().collect::<Vec<_>>();
+        assert_eq!(tokens.len(), 2);
+        assert!(!tokens[0].has_source());
+        assert_eq!(tokens[1].get_source().unwrap(), "authored.js");
+        assert_eq!(tokens[1].get_name().unwrap(), "value");
+        assert_eq!(map.get_source_contents(0).unwrap(), "value");
+        assert_eq!(map.ignore_list().copied().collect::<Vec<_>>(), vec![0]);
+    }
+}
+
+#[cfg(test)]
+mod browser_module_parse_tests {
+    use swc_core::{
+        common::{FileName, GLOBALS, Mark, SourceMap, sync::Lrc},
+        ecma::{
+            ast::{Decl, Expr, ModuleItem, Program, Stmt},
+            parser::{Parser, StringInput, Syntax, lexer::Lexer},
+            transforms::base::resolver,
+            visit::VisitMutWith,
+        },
+    };
+
+    fn parse(source: &str, as_module: bool) -> (Option<Program>, bool) {
+        let cm: Lrc<SourceMap> = Default::default();
+        let source = cm.new_source_file(FileName::Anon.into(), source.to_owned());
+        let lexer = Lexer::new(
+            Syntax::Es(Default::default()),
+            Default::default(),
+            StringInput::from(&*source),
+            None,
+        );
+        let mut parser = Parser::new_from(lexer);
+        let program = super::parse_program(&mut parser, as_module);
+        let valid = program.is_ok() && parser.take_errors().is_empty();
+        (program.ok(), valid)
+    }
+
+    #[test]
+    fn no_import_esm_keeps_strict_block_bindings_before_creator_instrumentation() {
+        GLOBALS.set(&Default::default(), || {
+            let (program, valid) = parse(
+                "{ function block() {} block(); } typeof block; test('global', () => {});",
+                true,
+            );
+            assert!(valid);
+            let mut program = program.expect("valid source");
+            program.visit_mut_with(&mut resolver(Mark::new(), Mark::new(), false));
+            let Program::Module(module) = program else {
+                panic!("resolved ESM was parsed as a script");
+            };
+            let ModuleItem::Stmt(Stmt::Block(block)) = &module.body[0] else {
+                panic!("original block missing");
+            };
+            let Stmt::Decl(Decl::Fn(function)) = &block.stmts[0] else {
+                panic!("original function missing");
+            };
+            let ModuleItem::Stmt(Stmt::Expr(expression)) = &module.body[1] else {
+                panic!("original outer reference missing");
+            };
+            let Expr::Unary(expression) = &*expression.expr else {
+                panic!("original typeof missing");
+            };
+            let Expr::Ident(outer) = &*expression.arg else {
+                panic!("original outer identifier missing");
+            };
+            assert_eq!(function.ident.sym, outer.sym);
+            assert_ne!(function.ident.ctxt, outer.ctxt);
+        });
+    }
+
+    #[test]
+    fn resolved_esm_enforces_strict_grammar_without_changing_script_mode() {
+        GLOBALS.set(&Default::default(), || {
+            let source = "with (scope) {}";
+            let (script, valid) = parse(source, false);
+            assert!(valid);
+            assert!(matches!(script, Some(Program::Script(_))));
+            assert!(!parse(source, true).1);
+        });
+    }
+}
+
+#[cfg(test)]
+mod removed_comment_source_map_tests {
+    use std::sync::Arc;
+
+    use swc_core::{
+        base::SwcComments,
+        common::{FileName, SourceMap},
+        ecma::{
+            codegen::{Emitter, text_writer::JsWriter},
+            parser::{Parser, StringInput, Syntax},
+        },
+    };
+    use turbo_tasks_fs::rope::Rope;
+
+    const SOURCE: &str = "function observe(listener) {\nreturn ((// A long inline parameter \
+                          comment whose removed end must not become a generated column.\n{}, \
+                          suite) => listener(suite));\n}\n";
+
+    fn position(source: &str, needle: &str) -> (u32, u32) {
+        let prefix = &source[..source.find(needle).unwrap()];
+        (
+            prefix.bytes().filter(|byte| *byte == b'\n').count() as u32,
+            prefix.rsplit('\n').next().unwrap().encode_utf16().count() as u32,
+        )
+    }
+
+    #[test]
+    fn removed_inline_parameter_comment_does_not_extrapolate_upstream_mappings() {
+        let source_map = Arc::<SourceMap>::default();
+        let file = source_map.new_source_file(
+            FileName::Custom("intermediate.js".into()).into(),
+            SOURCE.to_string(),
+        );
+        let comments = SwcComments::default();
+        let module = Parser::new(
+            Syntax::Es(Default::default()),
+            StringInput::from(&*file),
+            Some(&comments),
+        )
+        .parse_module()
+        .unwrap();
+        let comments = crate::swc_comments::ImmutableComments::new(comments);
+        let comments = comments.consumable();
+        let mut output = Vec::new();
+        let mut mappings = Vec::new();
+        Emitter {
+            cfg: Default::default(),
+            cm: source_map.clone(),
+            comments: Some(&comments),
+            wr: JsWriter::new(source_map.clone(), "\n", &mut output, Some(&mut mappings)),
+        }
+        .emit_module(&module)
+        .unwrap();
+        let output = String::from_utf8(output).unwrap();
+        assert!(!output.contains("long inline parameter comment"));
+
+        // A real upstream map can have boundaries anywhere inside a comment.
+        // Dense mappings also cover its start/end and all surrounding tokens.
+        let mut upstream = swc_sourcemap::SourceMapBuilder::new(None);
+        let source = upstream.add_source("authored.js".into());
+        upstream.set_source_contents(source, Some(SOURCE.into()));
+        upstream.add_to_ignore_list(source);
+        let listener = upstream.add_name("listener".into());
+        let call = position(SOURCE, "listener(suite)");
+        let anchors = [
+            position(SOURCE, "function"),
+            position(SOURCE, "observe"),
+            position(SOURCE, "listener) {"),
+            position(SOURCE, "{}"),
+            position(SOURCE, "suite) =>"),
+            call,
+            position(SOURCE, "suite));"),
+            position(SOURCE, "}\n"),
+        ];
+        for (line, text) in SOURCE.split('\n').enumerate() {
+            for column in 0..=text.encode_utf16().count() {
+                let comment = line == 1 && column >= text.find("//").unwrap();
+                if !comment && !anchors.contains(&(line as u32, column as u32)) {
+                    continue;
+                }
+                upstream.add_raw(
+                    line as u32,
+                    column as u32,
+                    line as u32,
+                    column as u32,
+                    Some(source),
+                    ((line as u32, column as u32) == call).then_some(listener),
+                    false,
+                );
+            }
+        }
+        let mut upstream_bytes = Vec::new();
+        upstream
+            .into_sourcemap()
+            .to_writer(&mut upstream_bytes)
+            .unwrap();
+        let upstream = Rope::from(upstream_bytes);
+        let composed = super::generate_js_source_map(
+            &*source_map,
+            mappings,
+            [&upstream],
+            true,
+            true,
+            Default::default(),
+            &comments.remaining_comment_spans(),
+        )
+        .unwrap();
+        let composed =
+            swc_sourcemap::SourceMap::from_slice(&composed.to_rope().to_bytes()).unwrap();
+        let lines = output.split('\n').collect::<Vec<_>>();
+        for token in composed.tokens() {
+            let line = lines
+                .get(token.get_dst_line() as usize)
+                .expect("emitted line");
+            assert!(
+                token.get_dst_col() as usize <= line.encode_utf16().count(),
+                "mapping exceeds actual emitted code: {token:?}; {output:?}"
+            );
+        }
+        let call = position(&output, "listener(suite)");
+        let token = composed.lookup_token(call.0, call.1).unwrap();
+        assert_eq!(token.get_src(), position(SOURCE, "listener(suite)"));
+        assert_eq!(token.get_name().map(|name| name.as_str()), Some("listener"));
+        assert_eq!(
+            composed.get_source_contents(0).map(|text| text.as_str()),
+            Some(SOURCE)
+        );
+        assert!(composed.ignore_list().any(|source| *source == 0));
+        let parameter = position(&output, "{}");
+        assert_eq!(
+            composed
+                .lookup_token(parameter.0, parameter.1)
+                .unwrap()
+                .get_src(),
+            position(SOURCE, "{}")
+        );
+    }
+
+    #[test]
+    fn removed_comment_rewrite_retains_raw_fields_range_flags_and_following_token() {
+        use std::collections::BTreeMap;
+
+        use serde_json::value::RawValue;
+
+        let original = br#"{"version":3,"file":"intermediate.js","sourceRoot":"raw/","sources":["a\u002ejs",7],"sourcesContent":["x\ud800y",null],"names":["n\u0061me"],"mappings":"AAAAA,CAAC,CAAC;AACF","rangeMappings":"C;B","ignoreList":[0]}"#;
+        for indexed in [false, true] {
+            let input = if indexed {
+                let mut input =
+                    br#"{"version":3,"sources":[],"sections":[{"offset":{"line":2,"column":3},"map":"#.to_vec();
+                input.extend_from_slice(original);
+                input.extend_from_slice(b"}]}");
+                input
+            } else {
+                original.to_vec()
+            };
+            let range = if indexed {
+                ((2, 4), (2, 5))
+            } else {
+                ((0, 1), (0, 2))
+            };
+            let rewritten = super::remove_collapsed_comment_mappings(&input, &[range]).unwrap();
+            let fields: BTreeMap<String, Box<RawValue>> =
+                serde_json::from_slice(&rewritten).unwrap();
+            let fields = if indexed {
+                let sections: Vec<BTreeMap<String, Box<RawValue>>> =
+                    serde_json::from_str(fields["sections"].get()).unwrap();
+                serde_json::from_str::<BTreeMap<String, Box<RawValue>>>(sections[0]["map"].get())
+                    .unwrap()
+            } else {
+                fields
+            };
+            let original: BTreeMap<String, Box<RawValue>> =
+                serde_json::from_slice(original).unwrap();
+            for key in [
+                "file",
+                "sourceRoot",
+                "sources",
+                "sourcesContent",
+                "names",
+                "ignoreList",
+            ] {
+                assert_eq!(fields[key].get(), original[key].get(), "raw {key}");
+            }
+            let map = serde_json::json!({"version":3,"sources":["first","second"],"names":["name"],"mappings":fields["mappings"],"rangeMappings":fields["rangeMappings"]});
+            let map =
+                swc_sourcemap::SourceMap::from_slice(&serde_json::to_vec(&map).unwrap()).unwrap();
+            assert_eq!(
+                map.tokens()
+                    .map(|token| (token.get_dst(), token.is_range()))
+                    .collect::<Vec<_>>(),
+                vec![((0, 0), false), ((0, 2), false), ((1, 0), true)]
+            );
+            assert_eq!(map.get_token(0).unwrap().get_name_id(), 0);
+        }
+    }
+
+    #[test]
+    fn removed_comment_rewrite_retains_optional_field_defaults_and_noop_bytes() {
+        use std::collections::BTreeMap;
+
+        use serde_json::value::RawValue;
+
+        let original = br#"{
+  "sources": ["authored.js"],
+  "mappings": "AAAA,CAAC,CAAC"
+}"#;
+        // names, mappings, and all other serde-defaulted regular-map fields may
+        // be omitted. sources remains required by the existing lazy decoder.
+        let without_mappings = br#"{ "sources": [] }"#;
+        for input in [original.as_slice(), without_mappings.as_slice()] {
+            assert!(
+                swc_sourcemap::lazy::decode(input)
+                    .unwrap()
+                    .into_source_map()
+                    .is_ok()
+            );
+            assert_eq!(
+                super::remove_collapsed_comment_mappings(input, &[((10, 0), (11, 0))]).unwrap(),
+                input
+            );
+        }
+        let rewritten =
+            super::remove_collapsed_comment_mappings(original, &[((0, 1), (0, 2))]).unwrap();
+        let before: BTreeMap<String, Box<RawValue>> = serde_json::from_slice(original).unwrap();
+        let after: BTreeMap<String, Box<RawValue>> = serde_json::from_slice(&rewritten).unwrap();
+        assert_eq!(
+            before.keys().collect::<Vec<_>>(),
+            after.keys().collect::<Vec<_>>()
+        );
+        assert_eq!(before["sources"].get(), after["sources"].get());
+        assert!(!after.contains_key("names"));
+        let map =
+            serde_json::json!({"version":3,"sources":["authored.js"],"mappings":after["mappings"]});
+        let map = swc_sourcemap::SourceMap::from_slice(&serde_json::to_vec(&map).unwrap()).unwrap();
+        assert_eq!(
+            map.tokens()
+                .map(|token| token.get_dst())
+                .collect::<Vec<_>>(),
+            vec![(0, 0), (0, 2)]
+        );
+        assert!(super::remove_collapsed_comment_mappings(br#"{}"#, &[((0, 1), (0, 2))]).is_err());
+
+        let indexed = br#"{ "version":3, "sources":[], "sections":[{"offset":{"line":2,"column":3},"map":{"sources":["authored.js"],"mappings":"AAAA"}}] }"#;
+        assert_eq!(
+            super::remove_collapsed_comment_mappings(indexed, &[((10, 0), (11, 0))]).unwrap(),
+            indexed
+        );
+    }
+
+    #[test]
+    fn removed_comment_stream_preserves_lazy_field_shapes_and_nonmapping_bytes() {
+        let base = serde_json::json!({"version":3,"sources":["authored.js"],"names":[],"mappings":"AAAA,CAAC,CAAC"});
+        let fields = [
+            ("version", serde_json::json!(3)),
+            ("file", serde_json::json!("intermediate.js")),
+            ("sources", serde_json::json!(["authored.js"])),
+            ("sourceRoot", serde_json::json!("raw/")),
+            ("sourcesContent", serde_json::json!(["source"])),
+            ("sections", serde_json::json!([])),
+            ("names", serde_json::json!([])),
+            ("scopes", serde_json::json!("scopes")),
+            ("rangeMappings", serde_json::json!("A")),
+            ("mappings", serde_json::json!("AAAA,CAAC,CAAC")),
+            ("ignoreList", serde_json::json!([0])),
+        ];
+        for (field, valid) in fields {
+            for (shape, value) in [
+                ("absent", None),
+                ("null", Some(serde_json::Value::Null)),
+                ("valid", Some(valid)),
+                ("other shape", Some(serde_json::json!({"raw":7}))),
+            ] {
+                let mut input = base.clone();
+                let object = input.as_object_mut().unwrap();
+                if let Some(value) = value {
+                    object.insert(field.into(), value);
+                } else {
+                    object.remove(field);
+                }
+                let input = serde_json::to_vec(&input).unwrap();
+                let accepted = swc_sourcemap::lazy::decode(&input)
+                    .and_then(|map| map.into_source_map())
+                    .is_ok();
+                let rewritten =
+                    super::remove_collapsed_comment_mappings(&input, &[((0, 1), (0, 2))]);
+                assert_eq!(rewritten.is_ok(), accepted, "{field}: {shape}");
+                if accepted {
+                    let rewritten = rewritten.unwrap();
+                    assert!(
+                        swc_sourcemap::lazy::decode(&rewritten)
+                            .and_then(|map| map.into_source_map())
+                            .is_ok(),
+                        "{field}: {shape}"
+                    );
+                    assert_eq!(
+                        super::remove_collapsed_comment_mappings(&input, &[((10, 0), (11, 0))])
+                            .unwrap(),
+                        input,
+                        "no-op {field}: {shape}"
+                    );
+                }
+            }
+        }
+        let original = br#"{
+  "version": 3, "sources" : [ "authored.js" ],
+  "sourcesContent": ["x\ud800y"],
+  "mappings" : "AAAA,CAAC,CAAC",
+  "unknown" : { "literal" : "\u0061" }
+}"#;
+        let expected = std::str::from_utf8(original)
+            .unwrap()
+            .replace("AAAA,CAAC,CAAC", "AAAA,EAAE");
+        assert_eq!(
+            super::remove_collapsed_comment_mappings(original, &[((0, 1), (0, 2))]).unwrap(),
+            expected.as_bytes()
+        );
+        let mut prefixed = b")]}'\n".to_vec();
+        prefixed.extend_from_slice(original);
+        let mut expected_prefix = b")]}'\n".to_vec();
+        expected_prefix.extend_from_slice(expected.as_bytes());
+        assert_eq!(
+            super::remove_collapsed_comment_mappings(&prefixed, &[((0, 1), (0, 2))]).unwrap(),
+            expected_prefix
+        );
+    }
+
+    #[test]
+    fn removed_comment_stream_preserves_deltas_unmapped_duplicates_and_range_flags() {
+        let mut original = swc_sourcemap::SourceMapBuilder::new(None);
+        let first = original.add_source("first.js".into());
+        let second = original.add_source("second.js".into());
+        let a = original.add_name("a".into());
+        let b = original.add_name("b".into());
+        original.add_raw(0, 0, 0, 0, Some(first), Some(a), false);
+        original.add_raw(0, 1, 3, 7, Some(second), Some(b), true);
+        original.add_raw(0, 2, 0, 0, None, None, false);
+        original.add_raw(0, 2, 5, 9, Some(second), Some(a), true);
+        original.add_raw(0, 4, 7, 11, Some(first), Some(b), false);
+        original.add_raw(1, 0, 10, 12, Some(second), Some(b), true);
+        original.add_raw(1, 2, 11, 3, Some(first), Some(a), false);
+        let mut bytes = Vec::new();
+        original.into_sourcemap().to_writer(&mut bytes).unwrap();
+        let mut original: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        // Supply correct first-token flags without depending on the library's
+        // separate row-transition encoder behavior.
+        original["rangeMappings"] = serde_json::json!("K;B");
+        let mappings = original["mappings"].as_str().unwrap().to_string() + ",AAAAA";
+        original["mappings"] = serde_json::json!(mappings);
+        let original = serde_json::to_vec(&original).unwrap();
+        let decoded = swc_sourcemap::SourceMap::from_slice(&original).unwrap();
+        let expected = decoded
+            .tokens()
+            .filter(|token| token.get_dst() != (0, 1))
+            .map(|token| token.get_raw_token())
+            .collect::<Vec<_>>();
+        let rewritten =
+            super::remove_collapsed_comment_mappings(&original, &[((0, 1), (0, 2))]).unwrap();
+        let rewritten = swc_sourcemap::SourceMap::from_slice(&rewritten).unwrap();
+        assert_eq!(
+            rewritten
+                .tokens()
+                .map(|token| token.get_raw_token())
+                .collect::<Vec<_>>(),
+            expected
+        );
+        assert_eq!(rewritten.lookup_token(1, 0).unwrap().is_range(), true);
+        assert_eq!(
+            rewritten
+                .tokens()
+                .filter(|token| token.get_dst() == (0, 2))
+                .count(),
+            2
+        );
+        assert_eq!(
+            rewritten
+                .tokens()
+                .filter(|token| token.get_dst() == (1, 2))
+                .count(),
+            2
+        );
+        let descending =
+            br#"{ "sources":["authored.js"], "mappings":"GAAA,FAAA", "rangeMappings":"C" }"#;
+        assert!(
+            swc_sourcemap::lazy::decode(descending)
+                .unwrap()
+                .into_source_map()
+                .is_ok()
+        );
+        let rewritten =
+            super::remove_collapsed_comment_mappings(descending, &[((0, 1), (0, 2))]).unwrap();
+        let rewritten = swc_sourcemap::SourceMap::from_slice(&rewritten).unwrap();
+        assert_eq!(
+            rewritten
+                .tokens()
+                .map(|token| token.get_dst())
+                .collect::<Vec<_>>(),
+            vec![(0, 3)]
+        );
     }
 }

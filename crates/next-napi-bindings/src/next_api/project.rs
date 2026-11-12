@@ -157,6 +157,8 @@ pub struct NapiAdditionalRoot {
 
 #[napi(object)]
 pub struct NapiProjectOptions {
+    /// Private development-only fixture registration.
+    pub browser_fixture_host: Option<RcStr>,
     /// An absolute root path (Unix or Windows path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
     /// E.g. `/home/user/projects/my-repo`.
@@ -297,6 +299,7 @@ impl NapiProjectOptions {
     fn into_project_options(self) -> ProjectOptions {
         let val = self;
         let NapiProjectOptions {
+            browser_fixture_host,
             root_path,
             project_path,
             // Only used for initializing cache and tracing
@@ -321,6 +324,7 @@ impl NapiProjectOptions {
             server_hmr,
         } = val;
         ProjectOptions {
+            browser_fixture_host,
             root_path,
             project_path,
             watch: watch.into(),
@@ -1835,6 +1839,154 @@ async fn output_assets_operation(
             .chain(immutable_hashes_manifest_asset.iter().copied())
             .collect(),
     ))
+}
+
+/// Explicit feature negotiation: older bindings ignore additional NAPI arguments.
+#[napi]
+pub fn project_test_entry_setup_version() -> u32 {
+    3
+}
+
+/// Native AST substitution for the current explicit Node test entry only.
+#[napi]
+pub fn project_test_entry_in_source_version() -> u32 {
+    1
+}
+
+/// Runtime-mutable user environment in explicit development Node tests.
+#[napi]
+pub fn project_test_entry_runtime_env_version() -> u32 {
+    1
+}
+
+/// Shared immutable Node cohort ABI; older bindings ignore appended arguments.
+#[napi]
+pub fn project_test_entry_cohort_version() -> u32 {
+    1
+}
+
+/// Explicit private App Page fixtures in a normal production build.
+#[napi]
+pub fn project_browser_fixture_production_version() -> u32 {
+    1
+}
+
+/// Real AppProject route/loader-tree metadata for explicit development RSC entries.
+#[napi]
+pub fn project_test_entry_route_version() -> u32 {
+    1
+}
+
+/// Compiler-owned module and affecting-source identities for selection planning.
+#[napi]
+pub fn project_test_entry_dependencies_version() -> u32 {
+    1
+}
+
+/// Actual compiler-created browser test realm, distinct from Node browser drivers.
+#[napi]
+pub fn project_test_entry_browser_client_version() -> u32 {
+    1
+}
+
+/// Typed compiler certificates for generated browser bookkeeping scripts.
+#[napi]
+pub fn project_test_entry_browser_coverage_version() -> u32 {
+    1
+}
+
+/// Explicit source-preserving production Browser coverage, separate from Node.
+#[napi]
+pub fn project_test_entry_browser_source_coverage_version() -> u32 {
+    1
+}
+
+/// Preserve development Node coverage sources without the production coverage mode.
+#[napi]
+pub fn project_test_entry_preserve_coverage_sources_version() -> u32 {
+    1
+}
+
+/// Explicit source-preserving coverage compilation, independent of runtime mode.
+#[napi]
+pub fn project_test_entry_source_coverage_version() -> u32 {
+    1
+}
+
+/// Native-owned, post-composition import initializer coverage descriptors.
+#[napi]
+pub fn project_test_entry_import_coverage_version() -> u32 {
+    1
+}
+
+/// Actual native TypeScript option/discovery/resolve input observations.
+#[napi]
+pub fn project_test_entry_ts_config_inputs_version() -> u32 {
+    1
+}
+
+/// Raw query/fragment admission for parent-owned string alias plans.
+#[napi]
+pub fn project_test_entry_alias_version() -> u32 {
+    1
+}
+
+/// Create an explicit test endpoint without adding it to application routes.
+#[napi(ts_return_type = "Promise<{ __napiType: 'Endpoint' }>")]
+pub async fn project_test_entry(
+    #[napi(ts_arg_type = "{ __napiType: 'Project' }")] project: &External<ProjectInstance>,
+    file: RcStr,
+    id: RcStr,
+    environment: RcStr,
+    setup_files: Option<Vec<RcStr>>,
+    snapshot_serializers: Option<Vec<RcStr>>,
+    cohort_files: Option<Vec<RcStr>>,
+    runtime_env: Option<bool>,
+    route: Option<RcStr>,
+    dependency_plan: Option<bool>,
+    browser_client: Option<bool>,
+    source_coverage: Option<bool>,
+    alias_finds: Option<Vec<RcStr>>,
+    import_coverage_roles: Option<bool>,
+    tsconfig_input_revision: Option<RcStr>,
+    browser_source_coverage: Option<bool>,
+    preserve_coverage_sources: Option<bool>,
+) -> napi::Result<External<ExternalEndpoint>> {
+    let ctx = project.turbopack_ctx.clone();
+    let container = project.container;
+    let endpoint = ctx
+        .turbo_tasks()
+        .run_once(async move {
+            let endpoint = next_api::testing::test_endpoint_operation(
+                container,
+                file,
+                id,
+                environment,
+                setup_files.unwrap_or_default(),
+                snapshot_serializers.unwrap_or_default(),
+                cohort_files.unwrap_or_default(),
+                runtime_env.unwrap_or(false),
+                route,
+                (
+                    dependency_plan.unwrap_or(false),
+                    browser_client.unwrap_or(false),
+                    source_coverage.unwrap_or(false),
+                    alias_finds.unwrap_or_default(),
+                    import_coverage_roles.unwrap_or(false),
+                    tsconfig_input_revision,
+                    browser_source_coverage.unwrap_or(false),
+                    preserve_coverage_sources.unwrap_or(false),
+                ),
+            );
+            // Resolve now so invalid profiles/paths fail before an endpoint is exposed.
+            endpoint.read_strongly_consistent().await?;
+            Ok(endpoint)
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+    Ok(External::new(ExternalEndpoint(DetachedVc::new(
+        ctx, endpoint,
+    ))))
 }
 
 #[tracing::instrument(level = "info", name = "get entrypoints", skip_all)]

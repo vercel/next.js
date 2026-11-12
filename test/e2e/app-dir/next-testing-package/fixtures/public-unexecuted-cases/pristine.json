@@ -1,0 +1,100 @@
+[
+  {
+    "profile": "skip-todo-body",
+    "source": "import{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\n",
+    "expected": {
+      "collected": "skipped",
+      "tasks": [
+        {
+          "type": "suite",
+          "name": "outer",
+          "mode": "skip",
+          "collected": "skipped",
+          "children": [
+            {
+              "type": "suite",
+              "name": "explicit todo",
+              "mode": "todo",
+              "collected": "skipped",
+              "children": [
+                {
+                  "type": "suite",
+                  "name": "implicit body",
+                  "mode": "run",
+                  "collected": "pending",
+                  "children": [
+                    {
+                      "type": "test",
+                      "name": "body",
+                      "mode": "run",
+                      "collected": "pending"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "counts": {
+        "suites": 4,
+        "passedSuites": 3,
+        "pendingSuites": 1,
+        "tests": 1,
+        "passedTests": 0,
+        "pendingTests": 0,
+        "todoTests": 0
+      },
+      "authoredEvents": ["module-enter"]
+    }
+  },
+  {
+    "profile": "todo-skip-body",
+    "source": "import{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.todo('outer',()=>{describe.skip('explicit skip',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\n",
+    "expected": {
+      "collected": "skipped",
+      "tasks": [
+        {
+          "type": "suite",
+          "name": "outer",
+          "mode": "todo",
+          "collected": "skipped",
+          "children": [
+            {
+              "type": "suite",
+              "name": "explicit skip",
+              "mode": "skip",
+              "collected": "skipped",
+              "children": [
+                {
+                  "type": "suite",
+                  "name": "implicit body",
+                  "mode": "run",
+                  "collected": "pending",
+                  "children": [
+                    {
+                      "type": "test",
+                      "name": "body",
+                      "mode": "run",
+                      "collected": "pending"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "counts": {
+        "suites": 4,
+        "passedSuites": 3,
+        "pendingSuites": 1,
+        "tests": 1,
+        "passedTests": 0,
+        "pendingTests": 0,
+        "todoTests": 0
+      },
+      "authoredEvents": ["module-enter"]
+    }
+  }
+]

@@ -1,0 +1,466 @@
+{
+  "version": "5.0.4",
+  "typescript": "6.0.2",
+  "programs": [
+    {
+      "name": "state-unions.ts",
+      "sourceSHA256": "243ae03e80debc60e01f1b93226da84e5efd72ddf39fbdd86452a89bbe6f06a3",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "result-variants.ts",
+      "sourceSHA256": "1df793f5fc57c289dd18bef68eb8aeccf49d93a645a3b734fd80e92550a2a3b1",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "result-narrowing.ts",
+      "sourceSHA256": "7ab5891e9e4d39446349bf5a56a608e8f0e82c28c0c0c3ee1a436eabc0c07c67",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "result-discriminants.ts",
+      "sourceSHA256": "9fe3d6bb80cfb878876e967d92e476e955a2d59e4010a4ff37e060003e38ec84",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "error-type-identity.ts",
+      "sourceSHA256": "20bb88510e7d4a0c530668b7cb2e0b73f119af877656dfc4e87023dbcf01ca11",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "retained-retry-errors.ts",
+      "sourceSHA256": "8151747e8d55b539ac851f558712e5406f6aae6ab897683731129f4f1cc7e1b6",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "case-state-queued.ts",
+      "sourceSHA256": "7d6e91b7b51e5d554e9a0f8d6b3906a1679d262e93c961a6c6fd57bb7476de54",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "start": 51,
+          "length": 5,
+          "line": 2,
+          "column": 7,
+          "text": "state",
+          "ast": {
+            "kind": "Identifier",
+            "start": 51,
+            "end": 56,
+            "text": "state"
+          },
+          "message": "Type '\"queued\"' is not assignable to type '\"passed\" | \"failed\" | \"skipped\" | \"pending\"'."
+        }
+      ]
+    },
+    {
+      "name": "suite-state-queued.ts",
+      "sourceSHA256": "68ecae7c5e8f1b1e1756196692632ec2a2d7b3cadadbaf96a0724368a88370a0",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "start": 56,
+          "length": 5,
+          "line": 2,
+          "column": 7,
+          "text": "state",
+          "ast": {
+            "kind": "Identifier",
+            "start": 56,
+            "end": 61,
+            "text": "state"
+          },
+          "message": "Type '\"queued\"' is not assignable to type 'TestSuiteState'."
+        }
+      ]
+    },
+    {
+      "name": "module-state-running.ts",
+      "sourceSHA256": "9a312a1876130089e5b94db7aa684f79cb34f75cfbb27b8af40b4e9a9ce252d8",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "start": 57,
+          "length": 5,
+          "line": 2,
+          "column": 7,
+          "text": "state",
+          "ast": {
+            "kind": "Identifier",
+            "start": 57,
+            "end": 62,
+            "text": "state"
+          },
+          "message": "Type '\"running\"' is not assignable to type 'TestModuleState'."
+        }
+      ]
+    },
+    {
+      "name": "result-state-invalid.ts",
+      "sourceSHA256": "ae94dd33a82ed1b5a52450174f9fd170a8480b167312a4221e1333a8b31773f6",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "start": 75,
+          "length": 5,
+          "line": 2,
+          "column": 30,
+          "text": "state",
+          "ast": {
+            "kind": "Identifier",
+            "start": 75,
+            "end": 80,
+            "text": "state"
+          },
+          "message": "Type '\"run\"' is not assignable to type '\"passed\" | \"failed\" | \"skipped\" | \"pending\"'."
+        }
+      ]
+    },
+    {
+      "name": "pending-errors.ts",
+      "sourceSHA256": "0eb4e45c1e8972057ff28181374321945eed8bed9f03a7f6b54d7ccf2f6a937c",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "start": 107,
+          "length": 6,
+          "line": 2,
+          "column": 55,
+          "text": "errors",
+          "ast": {
+            "kind": "Identifier",
+            "start": 107,
+            "end": 113,
+            "text": "errors"
+          },
+          "message": "Type '{ message: string; }[]' is not assignable to type 'undefined'."
+        }
+      ]
+    },
+    {
+      "name": "skipped-errors.ts",
+      "sourceSHA256": "5a06de63e5289cffefc6d22e9cdcb473f078a3fa393ed7d1faed06cf0e097d77",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "start": 107,
+          "length": 6,
+          "line": 2,
+          "column": 55,
+          "text": "errors",
+          "ast": {
+            "kind": "Identifier",
+            "start": 107,
+            "end": 113,
+            "text": "errors"
+          },
+          "message": "Type '{ message: string; }[]' is not assignable to type 'undefined'."
+        }
+      ]
+    },
+    {
+      "name": "skipped-missing-note.ts",
+      "sourceSHA256": "2fc17b5d9125708fa29e8d739442cda12dffc4a763ef503a1046bd7b87a9b8dc",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2741,
+          "category": 1,
+          "start": 59,
+          "length": 6,
+          "line": 2,
+          "column": 7,
+          "text": "result",
+          "ast": {
+            "kind": "Identifier",
+            "start": 59,
+            "end": 65,
+            "text": "result"
+          },
+          "message": "Property 'note' is missing in type '{ state: \"skipped\"; errors: undefined; }' but required in type 'TestResultSkipped'."
+        }
+      ]
+    },
+    {
+      "name": "passed-missing-errors.ts",
+      "sourceSHA256": "452dd8ed3eee08c737ea3b0037eaebec2a2e9444fd15fc716b7f18922e096763",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2741,
+          "category": 1,
+          "start": 58,
+          "length": 6,
+          "line": 2,
+          "column": 7,
+          "text": "result",
+          "ast": {
+            "kind": "Identifier",
+            "start": 58,
+            "end": 64,
+            "text": "result"
+          },
+          "message": "Property 'errors' is missing in type '{ state: \"passed\"; }' but required in type 'TestResultPassed'."
+        }
+      ]
+    },
+    {
+      "name": "failed-undefined-errors.ts",
+      "sourceSHA256": "bbe562ed9574696021140af52858d0765fddcf46e74ec817d3870aa43c8ebe41",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "start": 104,
+          "length": 6,
+          "line": 2,
+          "column": 53,
+          "text": "errors",
+          "ast": {
+            "kind": "Identifier",
+            "start": 104,
+            "end": 110,
+            "text": "errors"
+          },
+          "message": "Type 'undefined' is not assignable to type 'readonly TestError[]'."
+        }
+      ]
+    },
+    {
+      "name": "failed-missing-errors.ts",
+      "sourceSHA256": "09658d62bb8b75ae36146c3617dfb1e5fdb4ec8e13ed57a1e692852ae0fb0668",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2741,
+          "category": 1,
+          "start": 58,
+          "length": 6,
+          "line": 2,
+          "column": 7,
+          "text": "result",
+          "ast": {
+            "kind": "Identifier",
+            "start": 58,
+            "end": 64,
+            "text": "result"
+          },
+          "message": "Property 'errors' is missing in type '{ state: \"failed\"; }' but required in type 'TestResultFailed'."
+        }
+      ]
+    },
+    {
+      "name": "passed-note.ts",
+      "sourceSHA256": "2ffd51f93f15ae4563a2b0611ade0caf9d3b2ee2b8490b2b2a2e8d40a0c47b1f",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2353,
+          "category": 1,
+          "start": 123,
+          "length": 4,
+          "line": 2,
+          "column": 72,
+          "text": "note",
+          "ast": {
+            "kind": "Identifier",
+            "start": 123,
+            "end": 127,
+            "text": "note"
+          },
+          "message": "Object literal may only specify known properties, and 'note' does not exist in type 'TestResultPassed'."
+        }
+      ]
+    },
+    {
+      "name": "readonly-state.ts",
+      "sourceSHA256": "f8f3f0550ad20753676bd711da7be2df908f14eb0962b32a821b0dcbe9344aa7",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2540,
+          "category": 1,
+          "start": 98,
+          "length": 5,
+          "line": 3,
+          "column": 8,
+          "text": "state",
+          "ast": {
+            "kind": "Identifier",
+            "start": 98,
+            "end": 103,
+            "text": "state"
+          },
+          "message": "Cannot assign to 'state' because it is a read-only property."
+        }
+      ]
+    },
+    {
+      "name": "readonly-errors.ts",
+      "sourceSHA256": "698af515ad457bd0c1984847dcfa995ba0930d6fdf3b309830d2df01d99ded20",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2540,
+          "category": 1,
+          "start": 98,
+          "length": 6,
+          "line": 3,
+          "column": 8,
+          "text": "errors",
+          "ast": {
+            "kind": "Identifier",
+            "start": 98,
+            "end": 104,
+            "text": "errors"
+          },
+          "message": "Cannot assign to 'errors' because it is a read-only property."
+        }
+      ]
+    },
+    {
+      "name": "readonly-note.ts",
+      "sourceSHA256": "2bd4c76a651d4a09201e3cd3002ec1f333e6501250e4fdc43746026b49afe9d6",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2540,
+          "category": 1,
+          "start": 100,
+          "length": 4,
+          "line": 3,
+          "column": 8,
+          "text": "note",
+          "ast": {
+            "kind": "Identifier",
+            "start": 100,
+            "end": 104,
+            "text": "note"
+          },
+          "message": "Cannot assign to 'note' because it is a read-only property."
+        }
+      ]
+    },
+    {
+      "name": "readonly-error-array.ts",
+      "sourceSHA256": "d6cf0cf3a5a20a8e48cde1236c90a7171426c62ecc65956bee4276261b26ab8d",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2339,
+          "category": 1,
+          "start": 105,
+          "length": 4,
+          "line": 3,
+          "column": 15,
+          "text": "push",
+          "ast": {
+            "kind": "Identifier",
+            "start": 105,
+            "end": 109,
+            "text": "push"
+          },
+          "message": "Property 'push' does not exist on type 'readonly TestError[]'."
+        }
+      ]
+    },
+    {
+      "name": "failed-error-message.ts",
+      "sourceSHA256": "e66cc1c048fbd4e3e625a96dbce2d6e0a09047fe43969fd2e734b70f4076f71b",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "start": 115,
+          "length": 7,
+          "line": 2,
+          "column": 64,
+          "text": "message",
+          "ast": {
+            "kind": "Identifier",
+            "start": 115,
+            "end": 122,
+            "text": "message"
+          },
+          "message": "Type 'number' is not assignable to type 'string'."
+        }
+      ]
+    },
+    {
+      "name": "passed-error-shape.ts",
+      "sourceSHA256": "9f7d7e3eaba5ec60ec3879ab80262a71131d77604276d16b5668736f80e7df92",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "start": 113,
+          "length": 7,
+          "line": 2,
+          "column": 62,
+          "text": "'wrong'",
+          "ast": {
+            "kind": "StringLiteral",
+            "start": 113,
+            "end": 120,
+            "text": "'wrong'"
+          },
+          "message": "Type 'string' is not assignable to type 'TestError'."
+        }
+      ]
+    },
+    {
+      "name": "union-note.ts",
+      "sourceSHA256": "1627a363d0ae55c47d4b283435c14380a56c6406693865db238483f831d1e376",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2339,
+          "category": 1,
+          "start": 99,
+          "length": 4,
+          "line": 3,
+          "column": 21,
+          "text": "note",
+          "ast": {
+            "kind": "Identifier",
+            "start": 99,
+            "end": 103,
+            "text": "note"
+          },
+          "message": "Property 'note' does not exist on type 'TestResult'.\n  Property 'note' does not exist on type 'TestResultPassed'."
+        }
+      ]
+    }
+  ],
+  "typeOnlySymbols": [
+    "TestModuleState",
+    "TestResult",
+    "TestResultFailed",
+    "TestResultPassed",
+    "TestResultPending",
+    "TestResultSkipped",
+    "TestState",
+    "TestSuiteState"
+  ]
+}

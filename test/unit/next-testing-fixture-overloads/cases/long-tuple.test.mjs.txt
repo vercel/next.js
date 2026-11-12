@@ -1,0 +1,8 @@
+import { test as base, expect } from 'vitest'
+const label = 'long-tuple'
+const definition = [42, { scope: 'test' }, 'tail']
+const expected = 42
+const owned = base.extend({ value: definition })
+owned(label, ({ value }) => {
+  expect(value).toBe(expected)
+})

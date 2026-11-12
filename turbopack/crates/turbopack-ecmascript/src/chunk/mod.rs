@@ -44,7 +44,7 @@ pub use self::{
     item::{
         EcmascriptChunkItem, EcmascriptChunkItemCode, EcmascriptChunkItemContent,
         EcmascriptChunkItemExt, EcmascriptChunkItemOptions, EcmascriptChunkItemWithAsyncInfo,
-        ecmascript_chunk_item,
+        ecmascript_chunk_item, is_async_loader_chunk_item,
     },
     placeable::{CjsStaticExports, EcmascriptChunkPlaceable, EcmascriptExports},
 };

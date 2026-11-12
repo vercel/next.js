@@ -1,0 +1,169 @@
+import { test, expect, vi } from 'vitest'
+import * as staticOriginal from 'ws2-genuine-external-esm'
+
+test('runtime native esm registration unregistration and reset identity', async () => {
+  const before = await import('ws2-genuine-external-esm')
+  const beforeAlias = await import('ws2-genuine-external-esm')
+  let calls = 0
+  let value = 73
+  vi.doMock('ws2-genuine-external-esm', async (importOriginal) => {
+    calls++
+    const original = await importOriginal()
+    return {
+      value,
+      original: original.value,
+      sameOriginal: original === before,
+    }
+  })
+  const first = await import('ws2-genuine-external-esm')
+  value = 81
+  const second = await import('ws2-genuine-external-esm')
+  vi.resetModules()
+  const afterMockReset = await import('ws2-genuine-external-esm')
+  vi.doUnmock('ws2-genuine-external-esm')
+  const released = await import('ws2-genuine-external-esm')
+  vi.resetModules()
+  const afterOriginalReset = await import('ws2-genuine-external-esm')
+  vi.doMock('ws2-genuine-external-esm', () => ({ value: 91 }))
+  const replacement = await import('ws2-genuine-external-esm')
+  vi.doUnmock('ws2-genuine-external-esm')
+  const final = await import('ws2-genuine-external-esm')
+
+  expect(staticOriginal).toBe(before)
+  expect(beforeAlias).toBe(before)
+  expect(before.value).toBe(37)
+  expect(first.value).toBe(73)
+  expect(first.original).toBe(37)
+  expect(first.sameOriginal).toBe(true)
+  expect(second).toBe(first)
+  expect(afterMockReset).toBe(first)
+  expect(calls).toBe(1)
+  expect(released.value).toBe(37)
+  expect(released).toBe(before)
+  expect(afterOriginalReset).toBe(before)
+  expect(final).toBe(before)
+  expect(released.default).toBe(before.default)
+  expect(released.value).toBe(before.value)
+  expect(replacement.value).toBe(91)
+  expect(replacement).not.toBe(first)
+})
+
+test('runtime native esm registration without reset', async () => {
+  const before = await import('ws2-genuine-external-esm')
+  let calls = 0
+  vi.doMock('ws2-genuine-external-esm', async (importOriginal) => {
+    calls++
+    return { value: 73, sameOriginal: (await importOriginal()) === before }
+  })
+  const mocked = await import('ws2-genuine-external-esm')
+  vi.doUnmock('ws2-genuine-external-esm')
+  const released = await import('ws2-genuine-external-esm')
+  vi.doMock('ws2-genuine-external-esm', () => ({ value: 91 }))
+  const replaced = await import('ws2-genuine-external-esm')
+  vi.doUnmock('ws2-genuine-external-esm')
+
+  expect(mocked.value).toBe(73)
+  expect(mocked.sameOriginal).toBe(true)
+  expect(calls).toBe(1)
+  expect(released).toBe(before)
+  expect(replaced.value).toBe(91)
+  expect(replaced).not.toBe(mocked)
+  expect(await import('ws2-genuine-external-esm')).toBe(before)
+})
+
+test('runtime native esm caches a failed factory across reset and can unregister', async () => {
+  const original = await import('ws2-genuine-external-esm')
+  const failure = new Error('ws2 native runtime factory failure')
+  let calls = 0
+  vi.doMock('ws2-genuine-external-esm', () => {
+    calls++
+    throw failure
+  })
+  const first = await import('ws2-genuine-external-esm').catch((error) => error)
+  const second = await import('ws2-genuine-external-esm').catch(
+    (error) => error
+  )
+  vi.resetModules()
+  const third = await import('ws2-genuine-external-esm').catch((error) => error)
+  vi.doUnmock('ws2-genuine-external-esm')
+  const released = await import('ws2-genuine-external-esm')
+
+  expect(calls).toBe(3)
+  for (const error of [first, second, third]) {
+    expect(error).toBeInstanceOf(Error)
+    expect(error.cause).toBe(failure)
+  }
+  expect(first).not.toBe(second)
+  expect(first).not.toBe(third)
+  expect(released).toBe(original)
+})
+
+test('runtime native unused registration retains compiler IDs without evaluating originals', () => {
+  vi.doMock('ws2-native-runtime-unused', () => {
+    globalThis.ws2UnusedNativeFactories =
+      (globalThis.ws2UnusedNativeFactories ?? 0) + 1
+    return { value: 1 }
+  })
+  vi.doUnmock('ws2-native-runtime-unused')
+  expect(globalThis.ws2UnusedNativeEvaluations ?? 0).toBe(0)
+  expect(globalThis.ws2UnusedNativeFactories ?? 0).toBe(0)
+})
+
+for (const rejected of [false, true]) {
+  test(`runtime native esm pending ${rejected ? 'REJECT' : 'RESOLVE'} imports and later cache`, async () => {
+    const heldOriginal = await import('ws2-genuine-external-esm')
+    let release
+    const held = new Promise((resolve, reject) => {
+      release = rejected ? reject : resolve
+    })
+    const failure = new Error('ws2 pending native failure')
+    let calls = 0
+    vi.doMock('ws2-genuine-external-esm', async () => {
+      const index = ++calls
+      await held
+      return { value: 73, index }
+    })
+    const firstPending = import('ws2-genuine-external-esm').catch(
+      (error) => error
+    )
+    const secondPending = import('ws2-genuine-external-esm').catch(
+      (error) => error
+    )
+    try {
+      await vi.waitFor(() => expect(calls).toBe(2), {
+        timeout: 1000,
+        interval: 10,
+      })
+    } catch {}
+    const callsWhileHeld = calls
+    release(rejected ? failure : undefined)
+    const first = await firstPending
+    const second = await secondPending
+    const later = await import('ws2-genuine-external-esm').catch(
+      (error) => error
+    )
+    vi.resetModules()
+    const afterReset = await import('ws2-genuine-external-esm').catch(
+      (error) => error
+    )
+    vi.doUnmock('ws2-genuine-external-esm')
+
+    expect(callsWhileHeld).toBe(1)
+    expect(second).toBe(heldOriginal)
+    if (rejected) {
+      expect(calls).toBe(3)
+      for (const error of [first, later, afterReset]) {
+        expect(error).toBeInstanceOf(Error)
+        expect(error.cause).toBe(failure)
+      }
+      expect(later).not.toBe(first)
+      expect(afterReset).not.toBe(later)
+    } else {
+      expect(calls).toBe(1)
+      expect(first.value).toBe(73)
+      expect(first.index).toBe(1)
+      expect(later).toBe(first)
+      expect(afterReset).toBe(later)
+    }
+  })
+}

@@ -1,0 +1,1 @@
+import * as native from 'node:cluster';import {value} from './peer.mjs';export function read(){return typeof native.setupPrimary==='function'?value:value}

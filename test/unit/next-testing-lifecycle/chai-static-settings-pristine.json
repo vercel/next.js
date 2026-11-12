@@ -1,0 +1,58 @@
+[
+  {
+    "key": "includeStack",
+    "result": {
+      "initial": false,
+      "changedConfig": true,
+      "changedAlias": true,
+      "resetAlias": false,
+      "uncoerced": true,
+      "descriptor": {
+        "enumerable": false,
+        "configurable": true,
+        "getter": "function",
+        "setter": "function"
+      },
+      "warnings": [
+        [
+          "Assertion.includeStack is deprecated, use chai.config.includeStack instead."
+        ],
+        [
+          "Assertion.includeStack is deprecated, use chai.config.includeStack instead."
+        ],
+        [
+          "Assertion.includeStack is deprecated, use chai.config.includeStack instead."
+        ],
+        [
+          "Assertion.includeStack is deprecated, use chai.config.includeStack instead."
+        ],
+        [
+          "Assertion.includeStack is deprecated, use chai.config.includeStack instead."
+        ]
+      ]
+    }
+  },
+  {
+    "key": "showDiff",
+    "result": {
+      "initial": true,
+      "changedConfig": false,
+      "changedAlias": false,
+      "resetAlias": true,
+      "uncoerced": true,
+      "descriptor": {
+        "enumerable": false,
+        "configurable": true,
+        "getter": "function",
+        "setter": "function"
+      },
+      "warnings": [
+        ["Assertion.showDiff is deprecated, use chai.config.showDiff instead."],
+        ["Assertion.showDiff is deprecated, use chai.config.showDiff instead."],
+        ["Assertion.showDiff is deprecated, use chai.config.showDiff instead."],
+        ["Assertion.showDiff is deprecated, use chai.config.showDiff instead."],
+        ["Assertion.showDiff is deprecated, use chai.config.showDiff instead."]
+      ]
+    }
+  }
+]

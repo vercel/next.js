@@ -1,0 +1,36 @@
+import { test, afterAll, vi } from 'vitest'
+const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
+const gate = () => { let release; const promise = new Promise(resolve => { release = resolve }); return { promise, release } }
+const aSet = gate(), bSet = gate(), aClockDone = gate(), bClockDone = gate()
+test.concurrent('clock observes sibling config mutation', async ({ signal }) => {
+  signal.addEventListener('abort', () => { aSet.release(); bSet.release(); aClockDone.release(); bClockDone.release() }, {once:true})
+  try {
+    emit({kind:'A-set-two',returned:vi.setConfig({fakeTimers:{loopLimit:2}})===undefined}); aSet.release()
+    await bSet.promise
+    emit({kind:'A-install',same:vi.useFakeTimers()===vi,fake:vi.isFakeTimers()})
+    let ticks = 0
+    setInterval(() => { ticks++ },1)
+    let error
+    try { vi.runAllTimers() } catch (caught) { error = {name:caught.name,message:caught.message} }
+    emit({kind:'A-loop-limit',ticks,error})
+    emit({kind:'A-clear',same:vi.clearAllTimers()===vi,pending:vi.getTimerCount()})
+    vi.useRealTimers(); emit({kind:'A-real',fake:vi.isFakeTimers()}); aClockDone.release()
+    await bClockDone.promise
+  } finally { aSet.release(); aClockDone.release() }
+})
+test.concurrent('clock reset restores initial shared defaults', async ({ signal }) => {
+  signal.addEventListener('abort', () => { aSet.release(); bSet.release(); aClockDone.release(); bClockDone.release() }, {once:true})
+  try {
+    await aSet.promise
+    emit({kind:'B-set-three',returned:vi.setConfig({fakeTimers:{loopLimit:3}})===undefined}); bSet.release()
+    await aClockDone.promise
+    emit({kind:'B-reset',returned:vi.resetConfig()===undefined})
+    vi.useFakeTimers()
+    let ticks = 0
+    const timer = setInterval(() => { if (++ticks===4) clearInterval(timer) },1)
+    vi.runAllTimers()
+    emit({kind:'B-default-limit',ticks,pending:vi.getTimerCount(),fake:vi.isFakeTimers()})
+    vi.useRealTimers(); emit({kind:'B-real',fake:vi.isFakeTimers()}); bClockDone.release()
+  } finally { bSet.release(); bClockDone.release() }
+})
+afterAll(() => { vi.useRealTimers(); vi.resetConfig(); emit({kind:'afterAll',fake:vi.isFakeTimers()}) })

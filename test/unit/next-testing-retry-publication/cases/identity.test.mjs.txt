@@ -1,0 +1,12 @@
+import { test, expect } from 'vitest'
+
+const metadata = { nested: { value: 42 } }
+const retry = { count: 0, metadata }
+
+test('reporter retry identity', { retry }, ({ task }) => {
+  expect(retry.metadata).toBe(metadata)
+  expect(metadata.nested.value).toBe(42)
+  expect(retry.fromReporter).toBeUndefined()
+  task.meta.marker = 'worker live'
+  metadata.nested.value = 99
+})

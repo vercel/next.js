@@ -1,0 +1,11 @@
+import { test, expect } from 'vitest'
+
+const metadata = { nested: { value: 42 } }
+const retry = { count: 0, metadata }
+
+test('object metadata', { retry }, () => {
+  expect(retry.metadata).toBe(metadata)
+  expect(metadata.nested.value).toBe(42)
+  metadata.nested.value = 99
+  expect(metadata.nested.value).toBe(99)
+})

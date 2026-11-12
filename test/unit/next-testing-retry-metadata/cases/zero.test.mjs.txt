@@ -1,0 +1,7 @@
+import { test, expect } from 'vitest'
+
+let attempts = 0
+
+test('zero primitive', { retry: { count: 0, metadata: 0 } }, () => {
+  expect(++attempts).toBe(1)
+})

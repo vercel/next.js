@@ -1,0 +1,383 @@
+[
+  {
+    "name": "omitted",
+    "flags": [],
+    "actualMaximumActiveFiles": 2,
+    "barrierBeforeRelease": 2,
+    "cases": [
+      {
+        "file": "a.case.mjs",
+        "cases": [
+          {
+            "fullName": "file a obeys the selected file scheduler",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "file": "b.case.mjs",
+        "cases": [
+          {
+            "fullName": "file b obeys the selected file scheduler",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ]
+      }
+    ],
+    "rows": [
+      {
+        "file": "b",
+        "phase": "start"
+      },
+      {
+        "file": "a",
+        "phase": "start"
+      },
+      {
+        "file": "b",
+        "phase": "end"
+      },
+      {
+        "file": "a",
+        "phase": "end"
+      }
+    ]
+  },
+  {
+    "name": "configured-false",
+    "authoredParallelism": false,
+    "flags": [],
+    "actualMaximumActiveFiles": 1,
+    "barrierBeforeRelease": 1,
+    "cases": [
+      {
+        "file": "a.case.mjs",
+        "cases": [
+          {
+            "fullName": "file a obeys the selected file scheduler",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "file": "b.case.mjs",
+        "cases": [
+          {
+            "fullName": "file b obeys the selected file scheduler",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ]
+      }
+    ],
+    "rows": [
+      {
+        "file": "a",
+        "phase": "start"
+      },
+      {
+        "file": "a",
+        "phase": "end"
+      },
+      {
+        "file": "b",
+        "phase": "start"
+      },
+      {
+        "file": "b",
+        "phase": "end"
+      }
+    ]
+  },
+  {
+    "name": "configured-true",
+    "authoredParallelism": true,
+    "flags": [],
+    "actualMaximumActiveFiles": 2,
+    "barrierBeforeRelease": 2,
+    "cases": [
+      {
+        "file": "a.case.mjs",
+        "cases": [
+          {
+            "fullName": "file a obeys the selected file scheduler",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "file": "b.case.mjs",
+        "cases": [
+          {
+            "fullName": "file b obeys the selected file scheduler",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ]
+      }
+    ],
+    "rows": [
+      {
+        "file": "a",
+        "phase": "start"
+      },
+      {
+        "file": "b",
+        "phase": "start"
+      },
+      {
+        "file": "a",
+        "phase": "end"
+      },
+      {
+        "file": "b",
+        "phase": "end"
+      }
+    ]
+  },
+  {
+    "name": "cli-true",
+    "authoredParallelism": false,
+    "flags": ["--file-parallelism"],
+    "actualMaximumActiveFiles": 2,
+    "barrierBeforeRelease": 2,
+    "cases": [
+      {
+        "file": "a.case.mjs",
+        "cases": [
+          {
+            "fullName": "file a obeys the selected file scheduler",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "file": "b.case.mjs",
+        "cases": [
+          {
+            "fullName": "file b obeys the selected file scheduler",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ]
+      }
+    ],
+    "rows": [
+      {
+        "file": "a",
+        "phase": "start"
+      },
+      {
+        "file": "b",
+        "phase": "start"
+      },
+      {
+        "file": "b",
+        "phase": "end"
+      },
+      {
+        "file": "a",
+        "phase": "end"
+      }
+    ]
+  },
+  {
+    "name": "cli-false",
+    "authoredParallelism": true,
+    "flags": ["--no-file-parallelism"],
+    "actualMaximumActiveFiles": 1,
+    "barrierBeforeRelease": 1,
+    "cases": [
+      {
+        "file": "a.case.mjs",
+        "cases": [
+          {
+            "fullName": "file a obeys the selected file scheduler",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "file": "b.case.mjs",
+        "cases": [
+          {
+            "fullName": "file b obeys the selected file scheduler",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ]
+      }
+    ],
+    "rows": [
+      {
+        "file": "a",
+        "phase": "start"
+      },
+      {
+        "file": "a",
+        "phase": "end"
+      },
+      {
+        "file": "b",
+        "phase": "start"
+      },
+      {
+        "file": "b",
+        "phase": "end"
+      }
+    ]
+  },
+  {
+    "name": "false-over-max",
+    "authoredParallelism": false,
+    "flags": ["--maxWorkers=3"],
+    "actualMaximumActiveFiles": 1,
+    "barrierBeforeRelease": 1,
+    "cases": [
+      {
+        "file": "a.case.mjs",
+        "cases": [
+          {
+            "fullName": "file a obeys the selected file scheduler",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "file": "b.case.mjs",
+        "cases": [
+          {
+            "fullName": "file b obeys the selected file scheduler",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ]
+      }
+    ],
+    "rows": [
+      {
+        "file": "a",
+        "phase": "start"
+      },
+      {
+        "file": "a",
+        "phase": "end"
+      },
+      {
+        "file": "b",
+        "phase": "start"
+      },
+      {
+        "file": "b",
+        "phase": "end"
+      }
+    ]
+  },
+  {
+    "name": "true-max-one",
+    "authoredParallelism": true,
+    "flags": ["--maxWorkers=1"],
+    "actualMaximumActiveFiles": 1,
+    "barrierBeforeRelease": 1,
+    "cases": [
+      {
+        "file": "a.case.mjs",
+        "cases": [
+          {
+            "fullName": "file a obeys the selected file scheduler",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "file": "b.case.mjs",
+        "cases": [
+          {
+            "fullName": "file b obeys the selected file scheduler",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ]
+      }
+    ],
+    "rows": [
+      {
+        "file": "a",
+        "phase": "start"
+      },
+      {
+        "file": "a",
+        "phase": "end"
+      },
+      {
+        "file": "b",
+        "phase": "start"
+      },
+      {
+        "file": "b",
+        "phase": "end"
+      }
+    ]
+  },
+  {
+    "name": "last-true",
+    "flags": ["--no-file-parallelism", "--file-parallelism"],
+    "rejectedBeforeBody": true,
+    "expectedMessage": "Expected a single value for option \"--fileParallelism\", received [false, true]"
+  },
+  {
+    "name": "reverse-negative-accepted",
+    "authoredParallelism": true,
+    "flags": ["--file-parallelism", "--no-file-parallelism"],
+    "actualMaximumActiveFiles": 1,
+    "barrierBeforeRelease": 1,
+    "cases": [
+      {
+        "file": "a.case.mjs",
+        "cases": [
+          {
+            "fullName": "file a obeys the selected file scheduler",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ]
+      },
+      {
+        "file": "b.case.mjs",
+        "cases": [
+          {
+            "fullName": "file b obeys the selected file scheduler",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ]
+      }
+    ],
+    "rows": [
+      {
+        "file": "a",
+        "phase": "start"
+      },
+      {
+        "file": "a",
+        "phase": "end"
+      },
+      {
+        "file": "b",
+        "phase": "start"
+      },
+      {
+        "file": "b",
+        "phase": "end"
+      }
+    ]
+  }
+]

@@ -1,0 +1,17 @@
+import fs from 'node:fs'
+import { describe } from 'vitest'
+const file = { api: { describe } }
+const failure = new Error('same actual callback cause across distinct stages')
+const before = Object.getOwnPropertyDescriptors(failure)
+const observedFD = fs.openSync(process.env.NEXT_SUITE_RETURN_OBSERVATION, 'w')
+let callbacks = 0
+process.once('exit', () => {
+ const after = Object.getOwnPropertyDescriptors(failure)
+ fs.writeSync(observedFD, JSON.stringify({ callbacks, rawErrorFieldsUnchanged: Reflect.ownKeys(before).every(key => Object.is(before[key].value, after[key]?.value)) }) + '\n')
+})
+          file.api.describe('actual rejected declaration', async () => {
+            callbacks++
+            await Promise.resolve()
+            throw failure
+          })
+throw failure

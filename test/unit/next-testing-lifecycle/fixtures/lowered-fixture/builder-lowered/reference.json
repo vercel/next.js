@@ -1,0 +1,45 @@
+{
+  "rows": [
+    {
+      "kind": "body",
+      "result": 9,
+      "trace": ["base-setup", "builder-setup"]
+    },
+    {
+      "kind": "afterAll",
+      "trace": [
+        "base-setup",
+        "builder-setup",
+        "builder-cleanup",
+        "base-cleanup"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "name": "actual lowered builder",
+      "state": "passed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "caseCallbacks": [
+    {
+      "name": "actual lowered builder",
+      "state": "passed"
+    }
+  ],
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "c8da9c43ffab4066eb356985b68cedb138be2bd04c401b8f74d18cd0b0b34b97",
+  "rawErrorCount": 0
+}

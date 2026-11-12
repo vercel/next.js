@@ -1,0 +1,40 @@
+import { test, expect } from 'vitest'
+const row = (phase) => console.log('FIXTURE_RECEIVER_ROW ' + JSON.stringify({ phase }))
+const contextNames = new Map()
+const lexicalReceiver = this
+function receiver(phase, value, args) {
+  const observation = { thisUndefined: value === undefined, argumentCount: args.length, useFunction: typeof args[1] === 'function' }
+  row(phase, observation)
+  expect(observation).toEqual({ thisUndefined: true, argumentCount: 2, useFunction: true })
+}
+const extended = test.extend({
+  automatic: [async function ({}, use) {
+    receiver('auto-setup', this, arguments)
+    await use('automatic')
+    receiver('auto-cleanup', this, arguments)
+  }, { auto: true }],
+  asyncValue: async function ({}, use) {
+    receiver('async-setup', this, arguments)
+    contextNames.set(arguments[0], 'actual')
+    await use('async')
+    receiver('async-cleanup', this, arguments)
+  },
+  normalValue: function ({}, use) {
+    receiver('normal-setup', this, arguments)
+    return use('normal').then(() => receiver('normal-cleanup', this, arguments))
+  },
+  arrowValue: async ({}, use) => {
+    row('arrow-setup', { sameAsLexicalReceiver: this === lexicalReceiver })
+    expect(this).toBe(lexicalReceiver)
+    await use('arrow')
+    expect(this).toBe(lexicalReceiver)
+    row('arrow-cleanup', { sameAsLexicalReceiver: true })
+  },
+})
+for (const name of ['first', 'second']) {
+  extended(name, ({ automatic, asyncValue, normalValue, arrowValue, task }) => {
+    const value = { name, automatic, asyncValue, normalValue, arrowValue, taskName: task.name }
+    row('body', value)
+    expect(value).toEqual({ name, automatic: 'automatic', asyncValue: 'async', normalValue: 'normal', arrowValue: 'arrow', taskName: name })
+  })
+}

@@ -325,6 +325,41 @@ export interface UpdateInfo {
 }
 
 export interface Project {
+  /** Internal App RSC testing entry; file is relative to the project directory. */
+  testEntry(descriptor: {
+    file: string
+    id: string
+    environment: 'rsc' | 'node' | 'browser'
+    setupFiles?: readonly string[]
+    setupFilesSequence?: 'list' | 'parallel'
+    inSource?: boolean
+    /** Preserve mutable user env reads in an explicit development Node graph. */
+    runtimeEnv?: boolean
+    /** Compile source dependency evidence without evaluating test modules. */
+    dependencyPlan?: boolean
+    /** Native client test realm; omitted for ordinary Node browser drivers. */
+    browserClient?: boolean
+    /** Require native output-role certificates; no additional NAPI argument. */
+    browserCoverage?: boolean
+    /** Native source-preserving coverage context; runtime remains production. */
+    sourceCoverage?: boolean
+    /** Explicit preserved production Browser output; separate from Node. */
+    browserSourceCoverage?: boolean
+    /** Retain pure dev Node V8 sources without production coverage output. */
+    preserveCoverageSources?: boolean
+    /** Private producer qualification; ordinary app/test compilation defaults off. */
+    importCoverageRoles?: boolean
+    /** Private parent revision; requires native config-input capability v1. */
+    tsconfigInputRevision?: string
+    /** Parent-owned alias finds requiring native raw-request admission. */
+    aliasFinds?: readonly string[]
+    /** Actual AppProject route; requires native route capability negotiation. */
+    route?: string
+    snapshotSerializers?: readonly string[]
+    /** Explicit ordered project-relative files sharing one immutable compiler graph. */
+    cohortFiles?: readonly string[]
+  }): Promise<Endpoint>
+
   update(options: Partial<ProjectOptions>): Promise<void>
 
   activateLazyChunk(chunkPath: string): Promise<boolean>
@@ -427,6 +462,11 @@ export type Route =
     }
 
 export interface Endpoint {
+  /** Internal testing: emit into a fresh sibling of the configured output directory. */
+  writeToDiskSnapshot(
+    directory: string
+  ): Promise<TurbopackResult<WrittenEndpoint>>
+
   /** Write files for the endpoint to disk. */
   writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
 
@@ -531,7 +571,10 @@ export interface DefineEnv {
 }
 
 export type RustifiedEnv = { name: string; value: string }[]
-export type RustifiedOptionalEnv = { name: string; value: string | undefined }[]
+export type RustifiedOptionalEnv = {
+  name: string
+  value: string | undefined
+}[]
 
 export interface GlobalEntrypoints {
   app: Endpoint | undefined

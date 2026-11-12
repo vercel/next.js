@@ -1,0 +1,2 @@
+await new Promise(() => {})
+export const value = 'setup evaluation remains pending'

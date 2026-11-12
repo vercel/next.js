@@ -1,0 +1,281 @@
+[
+  {
+    "profile": "empty-hooks",
+    "passWithNoTests": false,
+    "sourceFiles": {
+      "package.json": "{\"private\":true,\"type\":\"module\"}\n",
+      "setup.mjs": "import{appendFileSync}from'node:fs'\nappendFileSync(process.env.QUEUED_TRACE,JSON.stringify({actor:'author',event:'setup'})+'\\n')\n",
+      "dependency.mjs": "throw new Error('owned dependency load failure')\n",
+      "a.case.mjs": "import{beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.QUEUED_TRACE,JSON.stringify({actor:'author',event,file:'a'})+'\\n')\nrecord('module-enter')\nbeforeAll(()=>record('before-all'))\nafterAll(()=>record('after-all'))\n"
+    },
+    "config": {
+      "test": {
+        "include": ["*.case.mjs"],
+        "setupFiles": ["./setup.mjs"],
+        "maxWorkers": 1,
+        "cache": false,
+        "testTimeout": 10000,
+        "sequence": {
+          "seed": 1
+        }
+      }
+    },
+    "reporter": "import{appendFileSync,existsSync,writeFileSync}from'node:fs'\nimport{basename,join}from'node:path'\nconst queued=new Map(),collected=new Map()\nconst record=value=>appendFileSync(process.env.QUEUED_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst info=m=>({file:basename(m.moduleId),relativeModuleId:m.relativeModuleId,state:m.state(),children:m.children.size,childNames:[...m.children].map(c=>({type:c.type,name:c.name})),tests:[...m.children.allTests()].map(t=>({name:t.name,state:t.result().state})),errors:m.errors().map(e=>e.message),project:m.project.name,type:m.type,id:m.id})\nexport default class{\n onTestModuleQueued(m){queued.set(basename(m.moduleId),m);record({event:'queued',...info(m)})}\n onTestModuleCollected(m){const file=basename(m.moduleId);collected.set(file,m);record({event:'collected',sameQueued:m===queued.get(file),...info(m)})}\n onTestModuleEnd(m){const c=collected.get(basename(m.moduleId));record({event:'end',sameCollected:m===c,sameQueued:m===queued.get(basename(m.moduleId)),...info(m)})}\n onTestRunEnd(modules,errors,reason){record({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===collected.get(basename(m.moduleId)),sameQueued:m===queued.get(basename(m.moduleId)),...info(m)}))})}\n}\n",
+    "expected": {
+      "rows": [
+        {
+          "event": "queued",
+          "file": "a.case.mjs",
+          "relativeModuleId": "a.case.mjs",
+          "state": "pending",
+          "children": 0,
+          "childNames": [],
+          "tests": [],
+          "errors": [],
+          "project": "",
+          "type": "module"
+        },
+        {
+          "event": "setup"
+        },
+        {
+          "event": "module-enter",
+          "file": "a"
+        },
+        {
+          "event": "collected",
+          "sameQueued": false,
+          "file": "a.case.mjs",
+          "relativeModuleId": "a.case.mjs",
+          "state": "pending",
+          "children": 0,
+          "childNames": [],
+          "tests": [],
+          "errors": [],
+          "project": "",
+          "type": "module"
+        },
+        {
+          "event": "end",
+          "sameCollected": true,
+          "sameQueued": false,
+          "file": "a.case.mjs",
+          "relativeModuleId": "a.case.mjs",
+          "state": "failed",
+          "children": 0,
+          "childNames": [],
+          "tests": [],
+          "errors": [
+            "No test suite found in file /private/tmp/next-testing-run/work-2/module-start234/reference/empty-hooks/fixture/a.case.mjs"
+          ],
+          "project": "",
+          "type": "module"
+        },
+        {
+          "event": "run-end",
+          "reason": "failed",
+          "errors": [],
+          "modules": [
+            {
+              "sameCollected": true,
+              "sameQueued": false,
+              "file": "a.case.mjs",
+              "relativeModuleId": "a.case.mjs",
+              "state": "failed",
+              "children": 0,
+              "childNames": [],
+              "tests": [],
+              "errors": [
+                "No test suite found in file /private/tmp/next-testing-run/work-2/module-start234/reference/empty-hooks/fixture/a.case.mjs"
+              ],
+              "project": "",
+              "type": "module"
+            }
+          ]
+        }
+      ],
+      "stableReport": {
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 0,
+          "numFailedTestSuites": 1,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 0,
+          "numPassedTests": 0,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0,
+          "success": false
+        },
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "files": [
+          {
+            "name": "a.case.mjs",
+            "status": "failed",
+            "message": "No test suite found in file /private/tmp/next-testing-run/work-2/module-start234/reference/empty-hooks/fixture/a.case.mjs",
+            "assertionResults": []
+          }
+        ]
+      }
+    },
+    "originalReferenceError": "No test suite found in file /private/tmp/next-testing-run/work-2/module-start234/reference/empty-hooks/fixture/a.case.mjs",
+    "originalAuthoredSHA256": "adc69a23af8325e54d0e1a6b4207ff5869dfeedac3ed5b65ed1aa61a0b6ac4ab"
+  },
+  {
+    "profile": "empty-hooks-pass",
+    "passWithNoTests": true,
+    "sourceFiles": {
+      "package.json": "{\"private\":true,\"type\":\"module\"}\n",
+      "setup.mjs": "import{appendFileSync}from'node:fs'\nappendFileSync(process.env.QUEUED_TRACE,JSON.stringify({actor:'author',event:'setup'})+'\\n')\n",
+      "dependency.mjs": "throw new Error('owned dependency load failure')\n",
+      "a.case.mjs": "import{beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.QUEUED_TRACE,JSON.stringify({actor:'author',event,file:'a'})+'\\n')\nrecord('module-enter')\nbeforeAll(()=>record('before-all'))\nafterAll(()=>record('after-all'))\n"
+    },
+    "config": {
+      "test": {
+        "include": ["*.case.mjs"],
+        "setupFiles": ["./setup.mjs"],
+        "maxWorkers": 1,
+        "cache": false,
+        "testTimeout": 10000,
+        "sequence": {
+          "seed": 1
+        },
+        "passWithNoTests": true
+      }
+    },
+    "reporter": "import{appendFileSync,existsSync,writeFileSync}from'node:fs'\nimport{basename,join}from'node:path'\nconst queued=new Map(),collected=new Map()\nconst record=value=>appendFileSync(process.env.QUEUED_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst info=m=>({file:basename(m.moduleId),relativeModuleId:m.relativeModuleId,state:m.state(),children:m.children.size,childNames:[...m.children].map(c=>({type:c.type,name:c.name})),tests:[...m.children.allTests()].map(t=>({name:t.name,state:t.result().state})),errors:m.errors().map(e=>e.message),project:m.project.name,type:m.type,id:m.id})\nexport default class{\n onTestModuleQueued(m){queued.set(basename(m.moduleId),m);record({event:'queued',...info(m)})}\n onTestModuleCollected(m){const file=basename(m.moduleId);collected.set(file,m);record({event:'collected',sameQueued:m===queued.get(file),...info(m)})}\n onTestModuleEnd(m){const c=collected.get(basename(m.moduleId));record({event:'end',sameCollected:m===c,sameQueued:m===queued.get(basename(m.moduleId)),...info(m)})}\n onTestRunEnd(modules,errors,reason){record({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===collected.get(basename(m.moduleId)),sameQueued:m===queued.get(basename(m.moduleId)),...info(m)}))})}\n}\n",
+    "expected": {
+      "rows": [
+        {
+          "event": "queued",
+          "file": "a.case.mjs",
+          "relativeModuleId": "a.case.mjs",
+          "state": "pending",
+          "children": 0,
+          "childNames": [],
+          "tests": [],
+          "errors": [],
+          "project": "",
+          "type": "module"
+        },
+        {
+          "event": "setup"
+        },
+        {
+          "event": "module-enter",
+          "file": "a"
+        },
+        {
+          "event": "collected",
+          "sameQueued": false,
+          "file": "a.case.mjs",
+          "relativeModuleId": "a.case.mjs",
+          "state": "pending",
+          "children": 0,
+          "childNames": [],
+          "tests": [],
+          "errors": [],
+          "project": "",
+          "type": "module"
+        },
+        {
+          "event": "before-all",
+          "file": "a"
+        },
+        {
+          "event": "after-all",
+          "file": "a"
+        },
+        {
+          "event": "end",
+          "sameCollected": true,
+          "sameQueued": false,
+          "file": "a.case.mjs",
+          "relativeModuleId": "a.case.mjs",
+          "state": "passed",
+          "children": 0,
+          "childNames": [],
+          "tests": [],
+          "errors": [],
+          "project": "",
+          "type": "module"
+        },
+        {
+          "event": "run-end",
+          "reason": "passed",
+          "errors": [],
+          "modules": [
+            {
+              "sameCollected": true,
+              "sameQueued": false,
+              "file": "a.case.mjs",
+              "relativeModuleId": "a.case.mjs",
+              "state": "passed",
+              "children": 0,
+              "childNames": [],
+              "tests": [],
+              "errors": [],
+              "project": "",
+              "type": "module"
+            }
+          ]
+        }
+      ],
+      "stableReport": {
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 0,
+          "numPassedTests": 0,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0,
+          "success": true
+        },
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "files": [
+          {
+            "name": "a.case.mjs",
+            "status": "passed",
+            "message": "",
+            "assertionResults": []
+          }
+        ]
+      }
+    },
+    "originalReferenceError": "",
+    "originalAuthoredSHA256": "1e13c1ee8fecc966b713c995d5436af96b425ee364a6a8d8f319c2e022801934"
+  }
+]

@@ -1,0 +1,20 @@
+import { describe, vi, afterAll } from 'vitest'
+const emit=row=>console.log('POLL_OWNERSHIP_ROW '+JSON.stringify(row))
+const flags={concurrent:false,only:false,skip:false,todo:false,shuffle:false}
+let physical,moved
+const lexical=describe.fn.call(flags,'lexical',{},provided=>{
+  vi.setConfig({expect:{requireAssertions:true}})
+  moved=physical.task('physically owned failure',{handler:({task})=>{
+    vi.setConfig({expect:{requireAssertions:true}})
+    emit({kind:'physical-body',parent:task.suite?.name??null,sameTask:task===moved})
+  }})
+  vi.setConfig({expect:{requireAssertions:false}})
+  provided('lexically owned success',({})=>{vi.setConfig({expect:{requireAssertions:false}});emit({kind:'lexical-body'})})
+})
+physical=describe.fn.call(flags,'physical',{},()=>{})
+afterAll(()=>{
+  vi.resetConfig()
+  emit({kind:'afterAll',parent:moved.suite?.name??null,parentIsLexical:moved.suite===lexical.suite,
+    physicalContainsTask:physical.tasks.includes(moved),lexicalContainsTask:lexical.tasks.includes(moved),
+    physicalState:physical.suite.result?.state??null,lexicalState:lexical.suite.result?.state??null})
+})

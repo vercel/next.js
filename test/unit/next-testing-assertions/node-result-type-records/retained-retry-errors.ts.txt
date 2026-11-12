@@ -1,0 +1,5 @@
+import type { TestResultPassed, TestResultSkipped } from 'vitest/node'
+const passed: TestResultPassed = { state: 'passed', errors: [{ message: 'first attempt', actual: '1', expected: '2', cause: { message: 'cause' } }] }
+const skipped: TestResultSkipped = { state: 'skipped', errors: undefined, note: undefined }
+declare function test(name: string, body: () => void): void
+test('type authoring', () => {})

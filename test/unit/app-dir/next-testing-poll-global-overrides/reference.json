@@ -1,0 +1,319 @@
+{
+  "inputs": {
+    "global-overrides": "4d9d220332584f83bf853864749f3f721b0463452147135fa45ea2bd176347a6"
+  },
+  "models": {
+    "global-overrides": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "kind": "proxy-observe",
+              "calls": 1,
+              "nativeTargets": 0
+            },
+            "task": "keeps an authored transparent Proxy override out of native poll capability construction"
+          },
+          {
+            "value": {
+              "kind": "proxy-veto",
+              "calls": 1,
+              "nativeTargets": 0
+            },
+            "task": "preserves successful polling when an authored Proxy rejects only native Promise targets"
+          },
+          {
+            "value": {
+              "kind": "apply-observe",
+              "calls": 1,
+              "nativeRaceCalls": 0
+            },
+            "task": "keeps an authored transparent Reflect.apply override out of native poll race dispatch"
+          },
+          {
+            "value": {
+              "kind": "apply-veto",
+              "calls": 1,
+              "nativeRaceCalls": 0
+            },
+            "task": "preserves successful polling when authored Reflect.apply rejects only native race calls"
+          }
+        ],
+        "cases": [
+          {
+            "name": "keeps an authored transparent Proxy override out of native poll capability construction",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "preserves successful polling when an authored Proxy rejects only native Promise targets",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "keeps an authored transparent Reflect.apply override out of native poll race dispatch",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "preserves successful polling when authored Reflect.apply rejects only native race calls",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "keeps an authored transparent Proxy override out of native poll capability construction",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "preserves successful polling when an authored Proxy rejects only native Promise targets",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "keeps an authored transparent Reflect.apply override out of native poll race dispatch",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "preserves successful polling when authored Reflect.apply rejects only native race calls",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "keeps an authored transparent Proxy override out of native poll capability construction",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "preserves successful polling when an authored Proxy rejects only native Promise targets",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "keeps an authored transparent Reflect.apply override out of native poll race dispatch",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "preserves successful polling when authored Reflect.apply rejects only native race calls",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 4,
+          "numPassedTests": 4,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "kind": "proxy-observe",
+              "calls": 1,
+              "nativeTargets": 0
+            },
+            "task": "keeps an authored transparent Proxy override out of native poll capability construction"
+          },
+          {
+            "value": {
+              "kind": "proxy-veto",
+              "calls": 1,
+              "nativeTargets": 0
+            },
+            "task": "preserves successful polling when an authored Proxy rejects only native Promise targets"
+          },
+          {
+            "value": {
+              "kind": "apply-observe",
+              "calls": 1,
+              "nativeRaceCalls": 0
+            },
+            "task": "keeps an authored transparent Reflect.apply override out of native poll race dispatch"
+          },
+          {
+            "value": {
+              "kind": "apply-veto",
+              "calls": 1,
+              "nativeRaceCalls": 0
+            },
+            "task": "preserves successful polling when authored Reflect.apply rejects only native race calls"
+          }
+        ],
+        "cases": [
+          {
+            "name": "keeps an authored transparent Proxy override out of native poll capability construction",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "preserves successful polling when an authored Proxy rejects only native Promise targets",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "keeps an authored transparent Reflect.apply override out of native poll race dispatch",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "preserves successful polling when authored Reflect.apply rejects only native race calls",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "keeps an authored transparent Proxy override out of native poll capability construction",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "preserves successful polling when an authored Proxy rejects only native Promise targets",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "keeps an authored transparent Reflect.apply override out of native poll race dispatch",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "preserves successful polling when authored Reflect.apply rejects only native race calls",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "keeps an authored transparent Proxy override out of native poll capability construction",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "preserves successful polling when an authored Proxy rejects only native Promise targets",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "keeps an authored transparent Reflect.apply override out of native poll race dispatch",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "preserves successful polling when authored Reflect.apply rejects only native race calls",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 4,
+          "numPassedTests": 4,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    }
+  }
+}

@@ -9,6 +9,7 @@
     "hmr-types.d.ts",
     "runtime/nodejs-globals.d.ts",
     "runtime/runtime-base.ts",
+    "runtime/native-test-commonjs-promise.ts",
     "runtime/dev-base.ts",
     "dev/*.ts"
   ]

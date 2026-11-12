@@ -1,0 +1,23 @@
+import { test, describe, expect } from 'vitest'
+const row = (phase) =>
+  console.log(
+    'FIXTURE_DEPENDENCY_ROW ' + JSON.stringify({ contract: 'worker', phase })
+  )
+const owned = test.extend({
+  42: [
+    async ({}, use) => {
+      row('setup')
+      await use(42)
+      row('cleanup')
+    },
+    { scope: 'worker' },
+  ],
+})
+owned('numeric first', ({ 42: value }) => {
+  row('first', value)
+  expect(value).toBe(42)
+})
+owned('numeric second', ({ 42: value }) => {
+  row('second', value)
+  expect(value).toBe(42)
+})

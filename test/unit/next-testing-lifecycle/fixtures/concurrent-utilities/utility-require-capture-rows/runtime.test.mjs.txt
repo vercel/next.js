@@ -1,0 +1,15 @@
+import { test, describe, expect, afterAll, vi } from 'vitest'
+const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
+const attempts = {}
+function row(kind, value) {
+  vi.setConfig({expect:{requireAssertions:true}})
+  const state = expect.getState()
+  emit({kind,attempt:attempts[kind]=(attempts[kind]??0)+1,value,isExpectingAssertions:state.isExpectingAssertions,assertionCalls:state.assertionCalls})
+}
+vi.setConfig({expect:{requireAssertions:true}})
+test('captured normal retry', {retry:1}, ({}) => row('normal',1))
+const collector=describe.fn.call({concurrent:false,only:false,skip:false,todo:false,shuffle:false},'captured raw suite',{},()=>{})
+collector.task('captured raw retry', {retry:1,handler:({})=>row('raw',2)})
+test.for([11])('captured table retry %s', {retry:1}, (value,{})=>row('table',value))
+vi.resetConfig()
+afterAll(()=>{vi.resetConfig();emit({kind:'afterAll'})})

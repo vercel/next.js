@@ -1,0 +1,17 @@
+import { describe, test, expect } from 'vitest'
+
+const inheritedMetadata = { value: 42 }
+const inherited = { count: 0, metadata: inheritedMetadata }
+const ownMetadata = [7]
+const own = { count: 0, metadata: ownMetadata }
+
+describe('inherited suite retry', { retry: inherited }, () => {
+  test('inherits suite retry', ({ task }) => {
+    expect(task.retry).toBe(inherited)
+    expect(inherited.metadata).toBe(inheritedMetadata)
+  })
+  test('replaces suite retry', { retry: own }, ({ task }) => {
+    expect(task.retry).toBe(own)
+    expect(own.metadata).toBe(ownMetadata)
+  })
+})

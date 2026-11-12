@@ -1,0 +1,146 @@
+[
+  {
+    "label": "plugin-callback",
+    "value": {
+      "calls": 1,
+      "argumentIsNamespace": false,
+      "util": true,
+      "utilMember": true,
+      "Assertion": true,
+      "expect": true,
+      "assert": true,
+      "should": true,
+      "use": true
+    }
+  },
+  {
+    "label": "collection-plugin",
+    "value": {
+      "pluginCalls": 1,
+      "returnsSame": false,
+      "firstIsNamespace": false
+    }
+  },
+  {
+    "label": "namespace",
+    "value": {
+      "exportKeys": [
+        "Assertion",
+        "AssertionError",
+        "Should",
+        "assert",
+        "config",
+        "expect",
+        "should",
+        "use",
+        "util"
+      ],
+      "helperIdentity": true,
+      "namespaceIdentity": true,
+      "namedAssert": true,
+      "namedShould": true,
+      "expectAssert": true,
+      "rawExpectIsWrapper": false,
+      "shouldAlias": true,
+      "pluginCalls": 1,
+      "useReturnExpect": true,
+      "useReturnUtil": true
+    }
+  },
+  {
+    "label": "counts-before",
+    "value": 0
+  },
+  {
+    "label": "counts-raw-expect",
+    "value": 0
+  },
+  {
+    "label": "counts-raw-assert",
+    "value": 0
+  },
+  {
+    "label": "counts-constructor",
+    "value": 0
+  },
+  {
+    "label": "counts-use-result",
+    "value": 0
+  },
+  {
+    "label": "matcher-state-step",
+    "value": {
+      "currentTestName": "",
+      "taskType": null,
+      "taskName": null,
+      "assertionCalls": 0,
+      "promise": ""
+    }
+  },
+  {
+    "label": "counts-raw-custom",
+    "value": 0
+  },
+  {
+    "label": "matcher-state-step",
+    "value": {
+      "currentTestName": "raw Chai counters and matcher task facts are observed rather than injected",
+      "taskType": "test",
+      "taskName": "raw Chai counters and matcher task facts are observed rather than injected",
+      "assertionCalls": 1,
+      "promise": ""
+    }
+  },
+  {
+    "label": "counts-wrapper-custom",
+    "value": 1
+  },
+  {
+    "label": "counts-raw-resolves",
+    "value": 1
+  },
+  {
+    "label": "counts-raw-async-custom",
+    "value": 1
+  },
+  {
+    "label": "counts-wrapper-resolves",
+    "value": 2
+  },
+  {
+    "label": "matcher-state",
+    "value": [
+      {
+        "currentTestName": "",
+        "taskType": null,
+        "taskName": null,
+        "assertionCalls": 0,
+        "promise": ""
+      },
+      {
+        "currentTestName": "raw Chai counters and matcher task facts are observed rather than injected",
+        "taskType": "test",
+        "taskName": "raw Chai counters and matcher task facts are observed rather than injected",
+        "assertionCalls": 1,
+        "promise": ""
+      }
+    ]
+  },
+  {
+    "label": "throwing-plugin",
+    "value": {
+      "attempts": 2,
+      "errors": [
+        {
+          "name": "Error",
+          "message": "chai141 plugin refusal"
+        },
+        {
+          "name": "Error",
+          "message": "chai141 plugin refusal"
+        }
+      ],
+      "counts": 0
+    }
+  }
+]

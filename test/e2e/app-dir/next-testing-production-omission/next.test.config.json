@@ -1,0 +1,1 @@
+{ "test": { "include": ["tests/*.test.mjs"], "environment": "node" } }

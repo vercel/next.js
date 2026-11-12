@@ -142,6 +142,11 @@ impl Asset for EcmascriptBuildNodeChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
+    fn native_test_import_coverage_roles(self: Vc<Self>) -> Vc<FileContent> {
+        self.own_content().native_test_import_coverage_roles()
+    }
+
+    #[turbo_tasks::function]
     fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.own_content().generate_source_map()
     }

@@ -1,0 +1,16 @@
+import { test, afterAll } from 'vitest'
+const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
+const trace = []
+function __async(__this, __arguments, generator) {
+  return new Promise((resolve, reject) => {
+    const fulfilled = value => { try { step(generator.next(value)) } catch (error) { reject(error) } }
+    const rejected = value => { try { step(generator.throw(value)) } catch (error) { reject(error) } }
+    const step = result => result.done ? resolve(result.value) : Promise.resolve(result.value).then(fulfilled, rejected)
+    step((generator = generator.apply(__this, __arguments)).next())
+  })
+}
+const base = test.extend({ base: async ({}, use) => { trace.push('base-setup'); await use(7); trace.push('base-cleanup') } })
+function derived(_0, _1) { return __async(this, arguments, function* ({ base }, use) { trace.push('derived-setup'); yield use(base + 1); trace.push('derived-cleanup') }) }
+const suite = base.extend({ result: derived })
+suite('actual lowered-arguments', ({ result }) => emit({kind:'body',result,trace:[...trace]}))
+afterAll(()=>emit({kind:'afterAll',trace:[...trace]}))

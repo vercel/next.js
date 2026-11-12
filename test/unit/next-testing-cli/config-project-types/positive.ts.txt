@@ -1,0 +1,29 @@
+import type { ConfigEnv, TestProjectConfiguration, TestProjectInlineConfiguration, TestUserConfig, UserProjectConfigExport, UserProjectConfigFn, UserWorkspaceConfig } from 'vitest/config'
+type Equal<A,B> = (<T>()=>T extends A?1:2) extends (<T>()=>T extends B?1:2) ? true : false
+type Check<T extends true> = T
+type Env = Check<Equal<Parameters<UserProjectConfigFn>[0],ConfigEnv>>
+type Fn = Check<Equal<ReturnType<UserProjectConfigFn>,UserWorkspaceConfig|Promise<UserWorkspaceConfig>>>
+type Export = Check<Equal<UserProjectConfigExport,UserWorkspaceConfig|Promise<UserWorkspaceConfig>|UserProjectConfigFn>>
+type Entry = Check<Equal<TestProjectConfiguration,string|TestProjectInlineConfiguration|Promise<UserWorkspaceConfig>|UserProjectConfigFn>>
+type Extends = Check<Equal<TestProjectInlineConfiguration['extends'],string|boolean|undefined>>
+type WorkspaceKeys = Check<Equal<string extends keyof UserWorkspaceConfig?true:false,false>>
+type TestKeys = Check<Equal<string extends keyof TestUserConfig?true:false,false>>
+type ProjectTest = NonNullable<UserWorkspaceConfig['test']>
+type NestedProjects = Check<Equal<ProjectTest['projects'],TestProjectConfiguration[]|undefined>>
+type RootName = Check<Equal<ProjectTest['name'],TestUserConfig['name']>>
+type RootTimeout = Check<Equal<ProjectTest['testTimeout'],TestUserConfig['testTimeout']>>
+type NoWatch = Check<Equal<'watch' extends keyof ProjectTest?true:false,false>>
+type NoShard = Check<Equal<'shard' extends keyof ProjectTest?true:false,false>>
+type ProjectSequence = NonNullable<ProjectTest['sequence']>
+type NoSeed = Check<Equal<'seed' extends keyof ProjectSequence?true:false,false>>
+const project: UserWorkspaceConfig = {root:'.',mode:'test',resolve:{alias:{target:'./target'}},test:{name:'unit',include:['**/*.test.ts'],exclude:['ignored'],setupFiles:'./setup.ts',globalSetup:['./global.ts'],globals:true,environment:'node',env:{VALUE:'value'},testTimeout:500,hookTimeout:800,isolate:true,maxConcurrency:2,maxWorkers:'50%',retry:{count:1,delay:0,condition:/retry/},clearMocks:true,restoreMocks:false,unstubEnvs:true,sequence:{hooks:'stack',setupFiles:'parallel',shuffle:{tests:true},concurrent:false}}}
+const inline:TestProjectInlineConfiguration={...project,extends:false}
+const pathInline:TestProjectInlineConfiguration={...project,extends:'./parent.config.ts'}
+const fn:UserProjectConfigFn=env=>({root:env.command==='serve'?'.':env.mode,test:{name:'fn'}})
+const asyncFn:UserProjectConfigFn=async env=>({test:{name:env.mode}})
+const exports:UserProjectConfigExport[]=[project,Promise.resolve(project),fn,asyncFn]
+const entries:TestProjectConfiguration[]=['./child.config.ts',inline,pathInline,Promise.resolve(project),fn,asyncFn]
+const nested:UserWorkspaceConfig={test:{projects:entries}}
+const general:TestUserConfig={watch:true,shard:'1/2',testTimeout:50,projects:entries,sequence:{seed:7,shuffle:{files:true,tests:false}}}
+const colored:TestUserConfig={name:{label:'unit',color:'cyan'}}
+void [nested,general,colored,exports]

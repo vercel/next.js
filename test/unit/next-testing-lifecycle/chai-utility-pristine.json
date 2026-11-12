@@ -1,0 +1,125 @@
+[
+  {
+    "label": "length-guard",
+    "value": {
+      "threw": false,
+      "value": {
+        "returnedSame": true,
+        "callResult": 17,
+        "name": "sample",
+        "descriptor": {
+          "getter": "function",
+          "setter": "undefined",
+          "enumerable": false,
+          "configurable": true
+        },
+        "ordinary": {
+          "threw": true,
+          "name": "Error",
+          "message": "Invalid Chai property: sample.length. See docs for proper usage of \"sample\"."
+        },
+        "chain": {
+          "threw": true,
+          "name": "Error",
+          "message": "Invalid Chai property: chainable.length. Due to a compatibility issue, \"length\" cannot directly follow \"chainable\". Use \"chainable.lengthOf\" instead."
+        },
+        "proxyReturnedSame": true,
+        "trace": [["defineProperty", "length", "function", null, null]],
+        "fixedResult": {
+          "threw": true,
+          "name": "TypeError",
+          "message": "Cannot redefine property: length"
+        }
+      },
+      "calls": 0
+    }
+  },
+  {
+    "label": "proxify",
+    "value": {
+      "threw": false,
+      "value": {
+        "different": true,
+        "marker": 1,
+        "flagFunction": "function",
+        "typo": {
+          "threw": true,
+          "name": "Error",
+          "message": "Invalid Chai property: mraker. Did you mean \"marker\"?"
+        },
+        "namedMissing": {
+          "threw": true,
+          "name": "Error",
+          "message": "Invalid Chai property: named.missing. See docs for proper usage of \"named\"."
+        },
+        "tracedValue": 3,
+        "trace": [
+          ["has", "value"],
+          ["get", "__flags"],
+          ["set", "__flags"],
+          ["get", "__flags"],
+          ["get", "value"]
+        ],
+        "disabledSame": true,
+        "assertionWorked": true
+      },
+      "calls": 0
+    }
+  },
+  {
+    "label": "plugin-event",
+    "value": {
+      "type": "addMethod",
+      "name": "chai145EventMethod",
+      "callbackSame": true,
+      "eventIsEvent": true,
+      "targetSame": true,
+      "currentTargetSame": true,
+      "listenerThisSame": true,
+      "hasChainingBehavior": "undefined",
+      "calls": 0
+    }
+  },
+  {
+    "label": "plugin-event",
+    "value": {
+      "type": "addProperty",
+      "name": "chai145EventProperty",
+      "callbackSame": true,
+      "eventIsEvent": true,
+      "targetSame": true,
+      "currentTargetSame": true,
+      "listenerThisSame": true,
+      "hasChainingBehavior": "undefined",
+      "calls": 0
+    }
+  },
+  {
+    "label": "plugin-event",
+    "value": {
+      "type": "addChainableMethod",
+      "name": "chai145EventChain",
+      "callbackSame": true,
+      "eventIsEvent": true,
+      "targetSame": true,
+      "currentTargetSame": true,
+      "listenerThisSame": true,
+      "hasChainingBehavior": "function",
+      "calls": 0
+    }
+  },
+  {
+    "label": "events",
+    "value": {
+      "threw": false,
+      "value": {
+        "stable": true,
+        "samePluginUtility": true,
+        "eventTarget": true,
+        "prototypeSame": true,
+        "seen": 3
+      },
+      "calls": 0
+    }
+  }
+]

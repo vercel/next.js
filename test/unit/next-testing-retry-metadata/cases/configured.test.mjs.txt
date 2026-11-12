@@ -1,0 +1,8 @@
+import { test, expect } from 'vitest'
+
+let attempts = 0
+
+test('configured primitive', () => {
+  if (++attempts === 1) throw new Error('first')
+  expect(attempts).toBe(2)
+})

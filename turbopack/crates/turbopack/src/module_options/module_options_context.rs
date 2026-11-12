@@ -11,10 +11,10 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     chunk::SourceMapsType, compile_time_info::CompileTimeInfo, condition::ContextCondition,
-    environment::Environment, resolve::options::ImportMapping,
+    environment::Environment, resolve::options::ImportMapping, source::Source,
 };
 use turbopack_ecmascript::{
-    AnalyzeMode, TypeofWindow,
+    AnalyzeMode, ImportMetaEnvRuntime, TypeofWindow,
     references::esm::UrlRewriteBehavior,
     transform::{PresetEnvConfig, ReactCompilerTarget, ReactCompilerTransformOptions},
 };
@@ -280,6 +280,26 @@ pub struct EcmascriptOptionsContext {
 
     // TODO should this be a part of Environment instead?
     pub inline_helpers: bool,
+
+    /// Lower async functions and generated module wrappers to observable Promise continuations.
+    pub lower_async_to_generator: bool,
+    /// Exact Next-owned authoring source selected by a private test compiler context.
+    pub test_declaration_call_adapter: Option<ResolvedVc<Box<dyn Source>>>,
+    /// Private Node-test admission for direct, resolved injected CommonJS writes.
+    /// Ordinary application and Browser contexts leave this disabled.
+    pub test_injected_commonjs_exports: bool,
+    /// Private Node-test filesystem URLs keep source-relative runtime evaluation.
+    /// Only modules on the actual working-directory filesystem may opt in.
+    pub test_source_file_urls: bool,
+    /// Native browser-test creator pass selected; not a public config value.
+    pub browser_creator_scope: bool,
+    /// Private Browser source coverage retains actual JSX pragma import usage.
+    /// Default application, Node test and ordinary TypeScript paths stay off.
+    pub browser_coverage_jsx_imports: bool,
+    /// Selected Browser test entry with an ESM import contract.
+    pub browser_test_entry: Option<ResolvedVc<FileSystemPath>>,
+    /// Runtime module/export supplying mutable import.meta.env values, when configured.
+    pub import_meta_env_runtime: Option<ResolvedVc<ImportMetaEnvRuntime>>,
 
     /// Whether to infer side effect free modules via local analysis. Defaults to true.
     pub infer_module_side_effects: bool,

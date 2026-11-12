@@ -1,3 +1,18 @@
+import {
+  assertTestingDefaultConfigurationEnvironment,
+  type TestingDefaultConfiguration,
+} from '../../server/config-testing-policy'
+import { withNativeTsConfigRevision } from './test-tsconfig-provenance'
+import { withNativeNodeSourcePreservation } from './test-node-source-preservation'
+import { requireImportCoverageCapability } from './test-import-coverage'
+import { requireCompilerAliasCapability } from './test-aliases'
+import {
+  requireBrowserClientCapability,
+  requireBrowserCoverageCapability,
+  withNativeBrowserSourceCoverage,
+} from './browser-client'
+import { requireProductionFixtureCapability } from './browser-fixtures'
+import { requireTestRouteCapability } from './test-route'
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
@@ -196,8 +211,22 @@ export function getBindingsSync(): Binding {
  * This function is `async` as wasm requires an asynchronous import in browsers.
  */
 export async function loadBindings(
-  useWasmBinary: boolean = false
+  useWasmBinary: boolean = false,
+  testingDefaultConfiguration?: TestingDefaultConfiguration
 ): Promise<Binding> {
+  if (testingDefaultConfiguration !== undefined) {
+    assertTestingDefaultConfigurationEnvironment(testingDefaultConfiguration)
+    if (
+      loadedBindings ||
+      pendingBindings ||
+      __INTERNAL_CUSTOM_TURBOPACK_BINDINGS !== undefined ||
+      useWasmBinary !== false
+    ) {
+      throw new Error(
+        'ERR_NEXT_TEST_DEFAULT_CONFIGURATION: existing, custom or Wasm bindings are unavailable'
+      )
+    }
+  }
   if (loadedBindings) {
     return loadedBindings
   }
@@ -226,76 +255,107 @@ export async function loadBindings(
     process.stderr._handle.setBlocking?.(true)
   }
 
-  pendingBindings = new Promise(async (resolve, reject) => {
-    let attempts: any[] = []
-    const disableWasmFallback = process.env.NEXT_DISABLE_SWC_WASM
-    const unsupportedPlatform = triples.some(
-      (triple: any) =>
-        !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
-    )
-    const isWebContainer = process.versions.webcontainer
-    // Normal execution relies on the param `useWasmBinary` flag to load, but
-    // in certain cases where there isn't a native binary we always load wasm fallback first.
-    const shouldLoadWasmFallbackFirst =
-      (!disableWasmFallback && useWasmBinary) ||
-      unsupportedPlatform ||
-      isWebContainer
-
-    if (!unsupportedPlatform && useWasmBinary) {
-      Log.warn(
-        `experimental.useWasmBinary is not an option for supported platform ${PlatformName}/${ArchName} and will be ignored.`
+  const bindingsAttempt: Promise<Binding> = new Promise(
+    async (resolve, reject) => {
+      let attempts: any[] = []
+      const disableWasmFallback = process.env.NEXT_DISABLE_SWC_WASM
+      const unsupportedPlatform = triples.some(
+        (triple: any) =>
+          !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
       )
-    }
+      const isWebContainer = process.versions.webcontainer
+      // Normal execution relies on the param `useWasmBinary` flag to load, but
+      // in certain cases where there isn't a native binary we always load wasm fallback first.
+      const shouldLoadWasmFallbackFirst =
+        (!disableWasmFallback && useWasmBinary) ||
+        unsupportedPlatform ||
+        isWebContainer
 
-    if (shouldLoadWasmFallbackFirst) {
-      lastNativeBindingsLoadErrorCode = 'unsupported_target'
-      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
-      if (fallbackBindings) {
-        return resolve(fallbackBindings)
+      if (!unsupportedPlatform && useWasmBinary) {
+        Log.warn(
+          `experimental.useWasmBinary is not an option for supported platform ${PlatformName}/${ArchName} and will be ignored.`
+        )
       }
-    }
 
-    // Trickle down loading `fallback` bindings:
-    //
-    // - First, try to load native bindings installed in node_modules.
-    // - If that fails with `ERR_MODULE_NOT_FOUND`, treat it as case of https://github.com/npm/cli/issues/4828
-    // that host system where generated package lock is not matching to the guest system running on, try to manually
-    // download corresponding target triple and load it. This won't be triggered if native bindings are failed to load
-    // with other reasons than `ERR_MODULE_NOT_FOUND`.
-    // - Lastly, falls back to wasm binding where possible.
-    try {
-      return resolve(loadNative())
-    } catch (a) {
       if (
-        Array.isArray(a) &&
-        a.every((m) => m.includes('it was not installed'))
+        testingDefaultConfiguration !== undefined &&
+        shouldLoadWasmFallbackFirst
       ) {
-        let fallbackBindings = await tryLoadNativeWithFallback(attempts)
+        return reject(
+          new Error(
+            'ERR_NEXT_TEST_DEFAULT_CONFIGURATION: Wasm-first binding selection is unavailable'
+          )
+        )
+      }
 
+      if (shouldLoadWasmFallbackFirst) {
+        lastNativeBindingsLoadErrorCode = 'unsupported_target'
+        const fallbackBindings = await tryLoadWasmWithFallback(attempts)
         if (fallbackBindings) {
           return resolve(fallbackBindings)
         }
       }
 
-      attempts = attempts.concat(a)
-    }
+      // Trickle down loading `fallback` bindings:
+      //
+      // - First, try to load native bindings installed in node_modules.
+      // - If that fails with `ERR_MODULE_NOT_FOUND`, treat it as case of https://github.com/npm/cli/issues/4828
+      // that host system where generated package lock is not matching to the guest system running on, try to manually
+      // download corresponding target triple and load it. This won't be triggered if native bindings are failed to load
+      // with other reasons than `ERR_MODULE_NOT_FOUND`.
+      // - Lastly, falls back to wasm binding where possible.
+      try {
+        if (testingDefaultConfiguration !== undefined) {
+          assertTestingDefaultConfigurationEnvironment(
+            testingDefaultConfiguration
+          )
+        }
+        return resolve(loadNative())
+      } catch (a) {
+        if (testingDefaultConfiguration !== undefined) {
+          return reject(
+            new Error(
+              'ERR_NEXT_TEST_DEFAULT_CONFIGURATION: native binding fallback is unavailable'
+            )
+          )
+        }
+        if (
+          Array.isArray(a) &&
+          a.every((m) => m.includes('it was not installed'))
+        ) {
+          let fallbackBindings = await tryLoadNativeWithFallback(attempts)
 
-    // For these platforms we already tried to load wasm and failed, skip reattempt
-    if (!shouldLoadWasmFallbackFirst && !disableWasmFallback) {
-      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
-      if (fallbackBindings) {
-        return resolve(fallbackBindings)
+          if (fallbackBindings) {
+            return resolve(fallbackBindings)
+          }
+        }
+
+        attempts = attempts.concat(a)
       }
-    }
 
-    await logLoadFailure(attempts, true)
-    // Reject the promise to propagate the error (process.exit was removed to allow telemetry flush)
-    reject(
-      new Error(
-        `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
+      // For these platforms we already tried to load wasm and failed, skip reattempt
+      if (!shouldLoadWasmFallbackFirst && !disableWasmFallback) {
+        const fallbackBindings = await tryLoadWasmWithFallback(attempts)
+        if (fallbackBindings) {
+          return resolve(fallbackBindings)
+        }
+      }
+
+      await logLoadFailure(attempts, true)
+      // Reject the promise to propagate the error (process.exit was removed to allow telemetry flush)
+      reject(
+        new Error(
+          `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
+        )
       )
-    )
-  })
+    }
+  )
+  // A refusal-only attempt must never publish its policy rejection into the
+  // ordinary shared pending slot or clear a different caller's pending owner.
+  if (testingDefaultConfiguration !== undefined) {
+    return bindingsAttempt
+  }
+  pendingBindings = bindingsAttempt
   loadedBindings = await pendingBindings
   pendingBindings = undefined
   return loadedBindings
@@ -698,6 +758,221 @@ function bindingToApi(
       }
     }
 
+    async testEntry({
+      file,
+      id,
+      environment,
+      setupFiles = [],
+      setupFilesSequence = 'list',
+      inSource = false,
+      runtimeEnv = false,
+      dependencyPlan = false,
+      browserClient = false,
+      browserCoverage = false,
+      sourceCoverage = false,
+      browserSourceCoverage = false,
+      preserveCoverageSources = false,
+      importCoverageRoles = false,
+      tsconfigInputRevision,
+      aliasFinds = [],
+      route,
+      snapshotSerializers = [],
+      cohortFiles = [],
+    }: {
+      file: string
+      id: string
+      environment: 'rsc' | 'node' | 'browser'
+      setupFiles?: readonly string[]
+      setupFilesSequence?: 'list' | 'parallel'
+      inSource?: boolean
+      runtimeEnv?: boolean
+      dependencyPlan?: boolean
+      browserClient?: boolean
+      browserCoverage?: boolean
+      sourceCoverage?: boolean
+      browserSourceCoverage?: boolean
+      preserveCoverageSources?: boolean
+      importCoverageRoles?: boolean
+      tsconfigInputRevision?: string
+      aliasFinds?: readonly string[]
+      route?: string
+      snapshotSerializers?: readonly string[]
+      cohortFiles?: readonly string[]
+    }): Promise<Endpoint> {
+      if (
+        importCoverageRoles &&
+        (environment !== 'node' || browserClient || route !== undefined)
+      )
+        throw new Error(
+          'Native import coverage roles require isolated Node capability version 1'
+        )
+      if (
+        tsconfigInputRevision !== undefined &&
+        (environment !== 'node' || browserClient || route !== undefined)
+      )
+        throw new Error(
+          'Native TypeScript config provenance requires an isolated Node entry'
+        )
+      if (
+        preserveCoverageSources &&
+        (environment !== 'node' ||
+          browserClient ||
+          sourceCoverage ||
+          browserSourceCoverage ||
+          dependencyPlan ||
+          route !== undefined ||
+          cohortFiles.length > 0)
+      )
+        throw new Error(
+          'Source preservation requires an isolated development Node entry'
+        )
+      requireImportCoverageCapability(binding, importCoverageRoles)
+      requireCompilerAliasCapability(binding, aliasFinds.length > 0)
+      requireBrowserClientCapability(binding, browserClient)
+      if (browserCoverage && !browserClient)
+        throw new Error(
+          'Browser coverage requires an actual client test entry.'
+        )
+      requireBrowserCoverageCapability(binding, browserCoverage)
+      if (
+        browserSourceCoverage &&
+        (!browserClient ||
+          !browserCoverage ||
+          sourceCoverage ||
+          environment !== 'browser')
+      )
+        throw new Error(
+          'Browser source coverage requires its explicit client coverage entry.'
+        )
+      if (sourceCoverage && (browserClient || environment !== 'node'))
+        throw new Error('Source coverage requires a Node test entry.')
+      if (
+        sourceCoverage &&
+        (typeof binding.projectTestEntrySourceCoverageVersion !== 'function' ||
+          binding.projectTestEntrySourceCoverageVersion() !== 1)
+      )
+        throw new Error(
+          'The installed Turbopack binding does not support source-preserving production coverage.'
+        )
+      if (
+        dependencyPlan &&
+        (typeof binding.projectTestEntryDependenciesVersion !== 'function' ||
+          binding.projectTestEntryDependenciesVersion() < 1)
+      ) {
+        throw new Error(
+          'Test dependency planning requires native source graph capability version 1'
+        )
+      }
+      if (typeof binding.projectTestEntry !== 'function') {
+        throw new Error(
+          'The installed Turbopack binding does not support test entries'
+        )
+      }
+      if (runtimeEnv) {
+        const version =
+          typeof binding.projectTestEntryRuntimeEnvVersion === 'function'
+            ? binding.projectTestEntryRuntimeEnvVersion()
+            : 0
+        if (!Number.isInteger(version) || version < 1)
+          throw new Error(
+            'The installed Turbopack binding does not support mutable Node test environment bindings'
+          )
+      }
+      requireTestRouteCapability(binding, route)
+      if (
+        inSource &&
+        (typeof binding.projectTestEntryInSourceVersion !== 'function' ||
+          binding.projectTestEntryInSourceVersion() < 1)
+      )
+        throw new Error(
+          'The installed Turbopack binding does not support native in-source test entries'
+        )
+      if (
+        setupFiles.length > 0 &&
+        (typeof binding.projectTestEntrySetupVersion !== 'function' ||
+          binding.projectTestEntrySetupVersion() < 1)
+      ) {
+        throw new Error(
+          'The installed Turbopack binding does not support compiled test setup files'
+        )
+      }
+      if (
+        snapshotSerializers.length &&
+        (typeof binding.projectTestEntrySetupVersion !== 'function' ||
+          binding.projectTestEntrySetupVersion() < 2)
+      )
+        throw new Error(
+          'The installed Turbopack binding does not support compiled snapshot serializer modules'
+        )
+      if (
+        setupFiles.length &&
+        setupFilesSequence === 'parallel' &&
+        (typeof binding.projectTestEntrySetupVersion !== 'function' ||
+          binding.projectTestEntrySetupVersion() < 3)
+      )
+        throw new Error(
+          'The installed Turbopack binding does not support parallel test setup loading'
+        )
+      if (
+        cohortFiles.length &&
+        (typeof binding.projectTestEntryCohortVersion !== 'function' ||
+          binding.projectTestEntryCohortVersion() < 1)
+      )
+        throw new Error(
+          'The installed Turbopack binding does not support shared immutable test cohorts'
+        )
+      const compilerArgs: [boolean?, boolean?, boolean?, string[]?, boolean?] =
+        importCoverageRoles
+          ? [
+              dependencyPlan,
+              browserClient,
+              sourceCoverage,
+              [...aliasFinds],
+              true,
+            ]
+          : aliasFinds.length
+            ? ([
+                dependencyPlan,
+                browserClient,
+                sourceCoverage,
+                [...aliasFinds],
+              ] as const)
+            : sourceCoverage
+              ? ([dependencyPlan, false, true] as const)
+              : browserClient
+                ? ([dependencyPlan, true] as const)
+                : dependencyPlan
+                  ? ([true] as const)
+                  : ([] as const)
+      const nativeArgs = withNativeNodeSourcePreservation(
+        binding,
+        withNativeBrowserSourceCoverage(
+          binding,
+          withNativeTsConfigRevision(
+            binding,
+            compilerArgs,
+            tsconfigInputRevision
+          ),
+          browserSourceCoverage
+        ),
+        preserveCoverageSources
+      )
+      return new EndpointImpl(
+        await binding.projectTestEntry(
+          this._nativeProject,
+          file,
+          id,
+          environment,
+          [...setupFiles],
+          [...snapshotSerializers],
+          [...cohortFiles],
+          runtimeEnv,
+          route,
+          ...nativeArgs
+        )
+      )
+    }
+
     async update(options: PartialProjectOptions) {
       await binding.projectUpdate(
         this._nativeProject,
@@ -867,6 +1142,15 @@ function bindingToApi(
 
     constructor(nativeEndpoint: { __napiType: 'Endpoint' }) {
       this._nativeEndpoint = nativeEndpoint
+    }
+
+    async writeToDiskSnapshot(
+      directory: string
+    ): Promise<TurbopackResult<WrittenEndpoint>> {
+      return (await binding.endpointWriteToDisk(
+        this._nativeEndpoint,
+        directory
+      )) as TurbopackResult<WrittenEndpoint>
     }
 
     async writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>> {
@@ -1304,6 +1588,10 @@ function bindingToApi(
     turboEngineOptions,
     callbacks?: import('./types').TurbopackProjectCallbacks
   ) {
+    requireProductionFixtureCapability(
+      binding,
+      Boolean(options.browserFixtureHost) && !options.dev
+    )
     const { value, issues } = await binding.projectNew(
       await rustifyProjectOptions(options),
       turboEngineOptions,

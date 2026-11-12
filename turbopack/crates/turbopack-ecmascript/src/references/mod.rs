@@ -135,7 +135,10 @@ use crate::{
             ImportMetaRef, UrlAssetReference, UrlRewriteBehavior, base::EsmAssetReferences,
             binding::EsmBindingsBuilder, module_id::EsmModuleIdAssetReference,
         },
-        exports::{EcmascriptExportsAnalysis, compute_ecmascript_module_exports},
+        exports::{
+            EcmascriptExportsAnalysis, compute_ecmascript_module_exports,
+            read_test_injected_commonjs_exports_role,
+        },
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         hot_module::{ModuleHotReferenceAssetReference, ModuleHotReferenceCodeGen},
         ident::IdentReplacement,
@@ -149,8 +152,8 @@ use crate::{
         },
     },
     runtime_functions::{
-        TURBOPACK_EXPORTS, TURBOPACK_GLOBAL, TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB,
-        TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
+        TURBOPACK_EXPORTS, TURBOPACK_GLOBAL, TURBOPACK_MODULE, TURBOPACK_REQUIRE_REAL,
+        TURBOPACK_REQUIRE_STUB, TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
     },
     source_map::parse_source_map_comment,
     utils::{AstPathRange, js_value_to_pattern, module_value_to_well_known_object},
@@ -555,6 +558,8 @@ struct AnalysisState<'a> {
     module_fragments_enabled: bool,
     cjs_tree_shaking: bool,
     cross_module_constants: bool,
+    mutable_import_meta_env: bool,
+    test_source_file_urls: bool,
     lazy_compilation: bool,
     import_externals: bool,
     ignore_dynamic_requests: bool,
@@ -601,6 +606,7 @@ impl<'a> AnalysisState<'a> {
                     &self.constants_cache,
                     self.import_references,
                     self.cross_module_constants,
+                    self.mutable_import_meta_env,
                 )
             },
             &self.fun_args_values,
@@ -746,6 +752,7 @@ async fn analyze_ecmascript_module_internal(
         source_map,
         source_mapping_url,
         program_source: _,
+        browser_jsx_imports: _,
     } = &*parsed
     else {
         return analysis.build(Default::default(), false).await;
@@ -759,10 +766,20 @@ async fn analyze_ecmascript_module_internal(
     }
 
     let is_esm = eval_context.is_esm(specified_type);
+    let injected_commonjs_exports = read_test_injected_commonjs_exports_role(
+        program,
+        globals,
+        eval_context,
+        specified_type,
+        options.test_injected_commonjs_exports,
+        raw_module.compile_time_info,
+    )
+    .await?;
 
     let compile_time_info = compile_time_info_for_module_options(
         *raw_module.compile_time_info,
         is_esm,
+        injected_commonjs_exports,
         options.enable_typeof_window_inlining,
     )
     .to_resolved()
@@ -841,11 +858,36 @@ async fn analyze_ecmascript_module_internal(
         let top_level_await_span =
             set_handler_and_globals(&handler, globals, || has_top_level_await(program));
         let has_top_level_await = top_level_await_span.is_some();
+        if options.lower_async_to_generator {
+            if let Some(span) =
+                crate::references::async_module::unlowered_top_level_for_await(program)
+            {
+                AnalyzeIssue::new(
+                    IssueSeverity::Error,
+                    source.ident(),
+                    rcstr!("unsupported top-level for-await in generator-lowered module"),
+                    rcstr!(
+                        "Top-level for-await requires iterator cleanup lowering before this \
+                         module can use owned asynchronous continuations."
+                    ),
+                    None,
+                    Some(issue_source(source, span)),
+                )
+                .to_resolved()
+                .await?
+                .emit();
+                anyhow::bail!(
+                    "Top-level for-await cannot be emitted before generator iterator cleanup \
+                     lowering is available"
+                );
+            }
+        }
 
         if eval_context.is_esm(specified_type) {
             let async_module = AsyncModule {
                 has_top_level_await,
                 import_externals,
+                lower_async_to_generator: options.lower_async_to_generator,
             }
             .resolved_cell();
             analysis.set_async_module(async_module);
@@ -902,6 +944,17 @@ async fn analyze_ecmascript_module_internal(
         // The module's static CommonJS exports, if any, for scope hoisting.
         analysis.cjs_static_exports = take(&mut var_graph.cjs_static_exports);
         let compile_time_info_ref = compile_time_info.await?;
+        let test_source_file_urls = if options.test_source_file_urls {
+            let source_file_system = source.ident().await?.path.fs;
+            compile_time_info_ref
+                .environment
+                .cwd()
+                .owned()
+                .await?
+                .is_some_and(|cwd| cwd.fs == source_file_system)
+        } else {
+            false
+        };
 
         let mut analysis_state = AnalysisState {
             arena,
@@ -927,6 +980,8 @@ async fn analyze_ecmascript_module_internal(
             module_fragments_enabled: options.module_fragments_enabled,
             cjs_tree_shaking: options.cjs_tree_shaking,
             cross_module_constants: options.cross_module_constants,
+            mutable_import_meta_env: options.import_meta_env_runtime.is_some(),
+            test_source_file_urls,
             lazy_compilation: options.lazy_compilation,
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
@@ -1536,7 +1591,7 @@ async fn analyze_ecmascript_module_internal(
                         .await?;
                     handle_typeof(&ast_path, arg, span, &analysis_state, &mut analysis).await?;
                 }
-                Effect::ImportMeta { ast_path, span: _ } => {
+                Effect::ImportMeta { ast_path, span } => {
                     debug_assert!(
                         analyze_mode.is_codegen,
                         "unexpected Effect::ImportMeta in tracing mode"
@@ -1558,6 +1613,40 @@ async fn analyze_ecmascript_module_internal(
                                 .await?,
                             Rendering::Server
                         );
+                        let env_runtime = if let Some(runtime) = options.import_meta_env_runtime {
+                            let runtime = runtime.await?;
+                            let request = runtime.request.clone();
+                            let export = runtime.export.clone();
+                            let reference = analysis
+                                .add_esm_reference_free_var(request.clone(), async || {
+                                    Ok(EsmAssetReference::new(
+                                        analysis_state.module,
+                                        analysis_state.origin,
+                                        request,
+                                        EsmAssetReferenceOptions {
+                                            issue_source: IssueSource::from_swc_offsets(
+                                                analysis_state.source,
+                                                span.lo.to_u32(),
+                                                span.hi.to_u32(),
+                                            ),
+                                            annotations: Default::default(),
+                                            export_name: Some(ModulePart::export(export.clone())),
+                                            import_usage: ImportUsage::TopLevel,
+                                            import_externals: analysis_state.import_externals,
+                                            module_fragments_enabled: analysis_state
+                                                .module_fragments_enabled,
+                                            export_usage_passthrough: None,
+                                            resolve_override: None,
+                                        },
+                                    )
+                                    .await?
+                                    .resolved_cell())
+                                })
+                                .await?;
+                            Some((reference, export))
+                        } else {
+                            None
+                        };
                         analysis.add_code_gen(ImportMetaBinding::new(
                             source.ident().await?.path.clone(),
                             analysis_state
@@ -1569,6 +1658,7 @@ async fn analyze_ecmascript_module_internal(
                                 .import_meta_env_base_url
                                 .clone(),
                             is_ssr,
+                            env_runtime,
                         ));
                     }
 
@@ -1597,6 +1687,7 @@ async fn analyze_ecmascript_module_internal(
 async fn compile_time_info_for_module_options(
     compile_time_info: Vc<CompileTimeInfo>,
     is_esm: bool,
+    injected_commonjs_exports: bool,
     enable_typeof_window_inlining: Option<TypeofWindow>,
 ) -> Result<Vc<CompileTimeInfo>> {
     let compile_time_info = compile_time_info.await?;
@@ -1621,6 +1712,11 @@ async fn compile_time_info_for_module_options(
             TURBOPACK_REQUIRE_REAL,
         )
     };
+    let (typeof_exports, typeof_module) = if injected_commonjs_exports {
+        (rcstr!("object"), rcstr!("object"))
+    } else {
+        (typeof_exports, typeof_module)
+    };
     let typeofs: [(&[RcStr], RcStr); _] = [
         (&[rcstr!("import"), rcstr!("meta")], rcstr!("object")),
         (&[rcstr!("exports")], typeof_exports),
@@ -1641,6 +1737,17 @@ async fn compile_time_info_for_module_options(
             .entry(name.clone())
             .or_insert(typeof_value.clone().into());
         defines.entry(name).or_insert(typeof_value.into());
+    }
+
+    if injected_commonjs_exports {
+        free_var_references.insert(
+            vec![DefinableNameSegment::Name(rcstr!("module"))],
+            TURBOPACK_MODULE.into(),
+        );
+        free_var_references.insert(
+            vec![DefinableNameSegment::Name(rcstr!("exports"))],
+            TURBOPACK_EXPORTS.into(),
+        );
     }
 
     free_var_references
@@ -2079,6 +2186,12 @@ where
     if new {
         match func {
             WellKnownFunctionKind::URLConstructor => {
+                // Node test code uses its actual authored source URL. Runtime file
+                // operations may intentionally name files which do not yet exist.
+                // Keep ImportMetaBinding and all ordinary asset contexts intact.
+                if state.test_source_file_urls {
+                    return Ok(());
+                }
                 let args = linked_args().await?;
                 if let [url, JsValue::Member(_, member_obj, member_prop)] = &args[..]
                     && let JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta) = &**member_obj
@@ -4151,6 +4264,7 @@ async fn value_visitor<'a>(
     constants_cache: &Mutex<FxHashMap<ModuleValue, Option<JsValue<'a>>>>,
     import_references: &[ResolvedVc<EsmAssetReference>],
     cross_module_constants: bool,
+    mutable_import_meta_env: bool,
 ) -> Result<(JsValue<'a>, Modified)> {
     let (mut v, modified) = value_visitor_inner(
         arena,
@@ -4165,6 +4279,7 @@ async fn value_visitor<'a>(
         constants_cache,
         import_references,
         cross_module_constants,
+        mutable_import_meta_env,
     )
     .await?;
     v.normalize_shallow(arena.get_or_default());
@@ -4184,7 +4299,32 @@ async fn value_visitor_inner<'a>(
     constants_cache: &Mutex<FxHashMap<ModuleValue, Option<JsValue<'a>>>>,
     import_references: &[ResolvedVc<EsmAssetReference>],
     cross_module_constants: bool,
+    mutable_import_meta_env: bool,
 ) -> Result<(JsValue<'a>, Modified)> {
+    // A configured runtime may mutate the shared import.meta.env object. Preserve
+    // member reads rather than folding native defaults or unknown keys to constants.
+    if mutable_import_meta_env {
+        let env_access = match &v {
+            JsValue::WellKnownObject(WellKnownObjectKind::ImportMetaEnv) => true,
+            JsValue::Member(_, object, property) => {
+                matches!(
+                    &**object,
+                    JsValue::WellKnownObject(WellKnownObjectKind::ImportMetaEnv)
+                ) || (matches!(
+                    &**object,
+                    JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta)
+                ) && property.as_str() == Some("env"))
+            }
+            _ => false,
+        };
+        if env_access {
+            return Ok((
+                v.into_unknown(true, rcstr!("mutable runtime import.meta.env")),
+                Modified::Yes,
+            ));
+        }
+    }
+
     if let JsValue::In(_, left, right) = &v
         && let Some(left) = left.as_str()
         && let right_name = right.get_definable_name(Some(var_graph))

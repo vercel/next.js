@@ -1,0 +1,6 @@
+export const initialType = typeof window
+export function currentType() { return typeof window }
+export function currentMarker() {
+  if (typeof window === 'undefined') return null
+  return window.marker
+}

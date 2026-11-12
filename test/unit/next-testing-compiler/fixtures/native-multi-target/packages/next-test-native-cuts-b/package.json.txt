@@ -1,0 +1,1 @@
+{"name": "next-test-native-cuts-b", "version": "1.0.0", "type": "commonjs", "main": "index.cjs", "exports": {".": "./index.cjs"}}

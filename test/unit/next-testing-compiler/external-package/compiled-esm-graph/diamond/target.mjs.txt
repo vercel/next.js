@@ -1,0 +1,3 @@
+import {left} from './left.mjs';import {right} from './right.mjs';
+globalThis.__ws2Graph ??= {};globalThis.__ws2Graph['diamond-root']=(globalThis.__ws2Graph['diamond-root']??0)+1;export const evaluation=globalThis.__ws2Graph['diamond-root'];
+export const token={kind:'root',count:0};export {left,right};export function read(){return [token.count,left.count,right.count,left===right]}

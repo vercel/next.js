@@ -1,0 +1,4 @@
+import {peer,readRoot} from './peer.mjs';
+globalThis.__ws2Graph ??= {};globalThis.__ws2Graph['cycle-root']=(globalThis.__ws2Graph['cycle-root']??0)+1;export const evaluation=globalThis.__ws2Graph['cycle-root'];
+export const token={kind:'root',count:0};export {peer};export function read(){return [token.count,peer.count,readRoot()]}
+export function getRoot(){return token}

@@ -1,0 +1,19 @@
+import { test, afterAll, vi } from 'vitest'
+const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
+const gate = () => { let release; const promise = new Promise(resolve => { release = resolve }); return { promise, release } }
+const bEntered = gate(), bContinue = gate(), bFinished = gate()
+test.concurrent('config writer resets after sibling finalization', async ({ signal }) => {
+  signal.addEventListener('abort', () => { bEntered.release(); bContinue.release(); bFinished.release() }, {once:true})
+  try {
+    await bEntered.promise
+    emit({kind:'A-set',returned:vi.setConfig({expect:{requireAssertions:true}})===undefined})
+    bContinue.release(); await bFinished.promise
+    emit({kind:'A-reset',returned:vi.resetConfig()===undefined})
+  } finally { bContinue.release() }
+})
+test.concurrent('sibling observes live required assertion config', async ({ signal, onTestFinished }) => {
+  signal.addEventListener('abort', () => { bEntered.release(); bContinue.release(); bFinished.release() }, {once:true})
+  onTestFinished(() => { emit({kind:'B-finished'}); bFinished.release() })
+  bEntered.release(); await bContinue.promise; emit({kind:'B-return-without-assertions'})
+})
+afterAll(() => { vi.resetConfig(); emit({kind:'afterAll'}) })

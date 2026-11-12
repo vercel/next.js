@@ -1,0 +1,130 @@
+{
+  "status": 1,
+  "rows": [
+    {
+      "kind": "normal",
+      "attempt": 1,
+      "value": 1,
+      "isExpectingAssertions": false,
+      "assertionCalls": 0
+    },
+    {
+      "kind": "normal",
+      "attempt": 2,
+      "value": 1,
+      "isExpectingAssertions": false,
+      "assertionCalls": 0
+    },
+    {
+      "kind": "raw",
+      "attempt": 1,
+      "value": 2,
+      "isExpectingAssertions": false,
+      "assertionCalls": 0
+    },
+    {
+      "kind": "raw",
+      "attempt": 2,
+      "value": 2,
+      "isExpectingAssertions": false,
+      "assertionCalls": 0
+    },
+    {
+      "kind": "table",
+      "attempt": 1,
+      "value": 11,
+      "isExpectingAssertions": false,
+      "assertionCalls": 0
+    },
+    {
+      "kind": "table",
+      "attempt": 2,
+      "value": 11,
+      "isExpectingAssertions": false,
+      "assertionCalls": 0
+    },
+    {
+      "kind": "afterAll"
+    }
+  ],
+  "cases": [
+    {
+      "name": "captured normal retry",
+      "state": "failed"
+    },
+    {
+      "name": "captured raw retry",
+      "state": "failed"
+    },
+    {
+      "name": "captured table retry 11",
+      "state": "failed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 2,
+    "numPassedTestSuites": 0,
+    "numFailedTestSuites": 2,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 3,
+    "numPassedTests": 0,
+    "numFailedTests": 3,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": false
+  },
+  "caseCallbacks": [
+    {
+      "name": "captured normal retry",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "Error",
+          "message": "expected any number of assertion, but got none",
+          "hasStack": true
+        },
+        {
+          "name": "Error",
+          "message": "expected any number of assertion, but got none",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "captured raw retry",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "Error",
+          "message": "expected any number of assertion, but got none",
+          "hasStack": true
+        },
+        {
+          "name": "Error",
+          "message": "expected any number of assertion, but got none",
+          "hasStack": true
+        }
+      ]
+    },
+    {
+      "name": "captured table retry 11",
+      "state": "failed",
+      "errors": [
+        {
+          "name": "Error",
+          "message": "expected any number of assertion, but got none",
+          "hasStack": true
+        },
+        {
+          "name": "Error",
+          "message": "expected any number of assertion, but got none",
+          "hasStack": true
+        }
+      ]
+    }
+  ],
+  "rawErrorCount": 0,
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "835c13d499c7e47cc011508a18d4b81b16ca77b5c6e34274bcdb86074232709e",
+  "undefinedErrorPayloads": []
+}

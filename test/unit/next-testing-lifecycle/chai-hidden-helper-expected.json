@@ -1,0 +1,52 @@
+[
+  {
+    "label": "callback-enter",
+    "value": {
+      "subject": "same",
+      "calls": 0,
+      "taskIsNull": true
+    }
+  },
+  {
+    "label": "callback-return",
+    "value": {
+      "returnedUndefined": false,
+      "returnedThis": false,
+      "calls": 0,
+      "taskIsNull": true
+    }
+  },
+  {
+    "label": "assert-strict-equal",
+    "value": {
+      "threw": false,
+      "returnedUndefined": true,
+      "calls": 0
+    }
+  },
+  {
+    "label": "callback-enter",
+    "value": {
+      "subject": "same",
+      "calls": 0,
+      "taskIsNull": true
+    }
+  },
+  {
+    "label": "callback-return",
+    "value": {
+      "returnedUndefined": false,
+      "returnedThis": false,
+      "calls": 0,
+      "taskIsNull": true
+    }
+  },
+  {
+    "label": "should-equal",
+    "value": {
+      "threw": false,
+      "returnedUndefined": true,
+      "calls": 0
+    }
+  }
+]

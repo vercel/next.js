@@ -1,0 +1,7 @@
+import { test as base, expect } from 'vitest'
+const label = 'extra-builder-option'
+const expected = 47
+const owned = base.extend('value', { scope: 'test', ignored: true }, () => 47)
+owned(label, ({ value }) => {
+  expect(value).toBe(expected)
+})

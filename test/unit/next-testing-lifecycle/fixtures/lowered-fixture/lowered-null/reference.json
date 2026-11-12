@@ -1,0 +1,45 @@
+{
+  "rows": [
+    {
+      "kind": "body",
+      "result": 8,
+      "trace": ["base-setup", "derived-setup"]
+    },
+    {
+      "kind": "afterAll",
+      "trace": [
+        "base-setup",
+        "derived-setup",
+        "derived-cleanup",
+        "base-cleanup"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "name": "actual lowered-null",
+      "state": "passed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "caseCallbacks": [
+    {
+      "name": "actual lowered-null",
+      "state": "passed"
+    }
+  ],
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "f7b877bf3692e3f113191955e3cb268579bd1265671981bc34d8fb9a721359e7",
+  "rawErrorCount": 0
+}

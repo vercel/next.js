@@ -164,13 +164,18 @@ function computeErrorName(error: Error): string {
   return error.name || 'Error'
 }
 
-// Records where the frames start in a stack produced by
-// `prepareUnsourcemappedStackTrace`, so they can be parsed without having to
-// guess where the message ends. Uses `Symbol.for` since this module is bundled
-// into several runtimes, and any copy may have formatted a given stack.
+// Records where the frames start without adding properties to authored Errors.
+// The weak association is shared because any bundled copy may have formatted a
+// given stack. It is installed only when a formatter is installed.
 const STACK_FRAMES_START = Symbol.for('next.dev.stackFramesStart')
-type ErrorWithStackFramesStart = Error & {
-  [STACK_FRAMES_START]?: { stack: string; framesStart: number }
+type GlobalWithStackFramesStart = typeof globalThis & {
+  [STACK_FRAMES_START]?: WeakMap<Error, { stack: string; framesStart: number }>
+}
+
+function installUnsourcemappedStackTrace(errorConstructor: ErrorConstructor) {
+  ;(globalThis as GlobalWithStackFramesStart)[STACK_FRAMES_START] ??=
+    new WeakMap()
+  errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
 }
 
 function prepareUnsourcemappedStackTrace(
@@ -184,18 +189,10 @@ function prepareUnsourcemappedStackTrace(
   for (let i = 0; i < structuredStackTrace.length; i++) {
     stack += '\n    at ' + structuredStackTrace[i].toString()
   }
-  // Record where the real stack frames start
-  try {
-    // Non-enumerable so that it doesn't show up when inspecting the error.
-    Object.defineProperty(error, STACK_FRAMES_START, {
-      value: { stack, framesStart },
-      configurable: true,
-      writable: true,
-    })
-  } catch {
-    // The error may be frozen. We'll fall back to finding the frames by
-    // matching the message.
-  }
+  ;(globalThis as GlobalWithStackFramesStart)[STACK_FRAMES_START]?.set(error, {
+    stack,
+    framesStart,
+  })
   return stack
 }
 
@@ -206,7 +203,9 @@ function prepareUnsourcemappedStackTrace(
  */
 function getUnparsedStackFrames(error: Error, errorName: string): string {
   let stack = String(error.stack)
-  const recorded = (error as ErrorWithStackFramesStart)[STACK_FRAMES_START]
+  const recorded = (globalThis as GlobalWithStackFramesStart)[
+    STACK_FRAMES_START
+  ]?.get(error)
   // `error.stack` may have been replaced after we formatted it.
   if (recorded !== undefined && recorded.stack === stack) {
     return stack.slice(recorded.framesStart)
@@ -237,7 +236,9 @@ interface SourcemappableStackFrame extends StackFrame {
 }
 
 interface SourceMappedFrame {
+  original: boolean
   stack: IgnorableStackFrame
+  getSourceContent?: () => string | null
   // DEV only
   code: string | null
 }
@@ -246,6 +247,7 @@ function createUnsourcemappedFrame(
   frame: SourcemappableStackFrame
 ): SourceMappedFrame {
   return {
+    original: false,
     stack: {
       file: frame.file,
       line1: frame.line1,
@@ -283,11 +285,9 @@ function ignoreListAnonymousStackFramesIfSandwiched(
 function getSourcemappedFrameIfPossible(
   frame: SourcemappableStackFrame,
   sourceMapCache: SourceMapCache,
-  inspectOptions: util.InspectOptions
-): {
-  stack: IgnorableStackFrame
-  code: string | null
-} {
+  inspectOptions: util.InspectOptions,
+  reportInvalidSourceMaps: boolean = true
+): SourceMappedFrame {
   const sourceMapCacheEntry = sourceMapCache.get(frame.file)
   let sourceMapConsumer: SyncSourceMapConsumer
   let sourceMapPayload: ModernSourceMapPayload
@@ -331,9 +331,10 @@ function getSourcemappedFrameIfPossible(
     } catch (cause) {
       // We should not log an actual error instance here because that will re-enter
       // this codepath during error inspection and could lead to infinite recursion.
-      console.error(
-        `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`
-      )
+      if (reportInvalidSourceMaps)
+        console.error(
+          `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`
+        )
       // If loading fails once, it'll fail every time.
       // So set the cache to avoid duplicate errors.
       sourceMapCache.set(frame.file, null)
@@ -370,9 +371,10 @@ function getSourcemappedFrameIfPossible(
     } catch (cause) {
       // We should not log an actual error instance here because that will re-enter
       // this codepath during error inspection and could lead to infinite recursion.
-      console.error(
-        `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`
-      )
+      if (reportInvalidSourceMaps)
+        console.error(
+          `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`
+        )
       // If creating the consumer fails once, it'll fail every time.
       // So set the cache to avoid duplicate errors.
       sourceMapCache.set(frame.file, null)
@@ -407,6 +409,7 @@ function getSourcemappedFrameIfPossible(
     sourceMapIgnoreListsEverything(applicableSourceMap)
   if (sourcePosition.source === null) {
     return {
+      original: false,
       stack: {
         arguments: frame.arguments,
         file: frame.file,
@@ -421,7 +424,11 @@ function getSourcemappedFrameIfPossible(
 
   // TODO(veil): Upstream a method to sourcemap consumer that immediately says if a frame is ignored or not.
   if (applicableSourceMap === undefined) {
-    console.error('No applicable source map found in sections for frame', frame)
+    if (reportInvalidSourceMaps)
+      console.error(
+        'No applicable source map found in sections for frame',
+        frame
+      )
   } else if (!ignored && shouldIgnoreListOriginalFrame(sourcePosition.source)) {
     // Externals may be libraries that don't ship ignoreLists.
     // This is really taking control away from libraries.
@@ -456,25 +463,77 @@ function getSourcemappedFrameIfPossible(
 
   /** undefined = not yet computed */
   let codeFrame: string | null | undefined
+  const getSourceContent = () =>
+    sourceMapConsumer.sourceContentFor(
+      sourcePosition.source,
+      /* returnNullOnMissing */ true
+    ) ?? null
 
   return {
+    original: true,
     stack: originalFrame,
+    getSourceContent,
     get code() {
       if (codeFrame === undefined) {
-        const sourceContent: string | null =
-          sourceMapConsumer.sourceContentFor(
-            sourcePosition.source,
-            /* returnNullOnMissing */ true
-          ) ?? null
         codeFrame = getOriginalCodeFrame(
           originalFrame,
-          sourceContent,
+          getSourceContent(),
           inspectOptions.colors
         )
       }
       return codeFrame
     },
   }
+}
+
+/**
+ * Source attribution for structured diagnostics, using the same lookup and
+ * consumer as Error inspection. Retains ignored and unmapped frames as evidence;
+ * never computes code frames or changes the original error's stack. Source
+ * content access is opt-in and lazy, and uses only the mapped payload.
+ */
+export function getSourceMappedStackFrames(
+  stack: string,
+  options: {
+    includeSourceContent?: boolean
+    reportInvalidSourceMaps?: boolean
+  } = {}
+): Array<
+  StackFrame & {
+    original: boolean
+    ignored: boolean
+    getSourceContent?: () => string | null
+  }
+> {
+  const cache: SourceMapCache = new Map()
+  return parseStack(stack).map((frame) => {
+    if (frame.file === null || frame.line1 === null || frame.column1 === null) {
+      return { ...frame, original: false, ignored: false }
+    }
+    try {
+      const mapped = getSourcemappedFrameIfPossible(
+        frame as SourcemappableStackFrame,
+        cache,
+        { colors: false },
+        options.reportInvalidSourceMaps
+      )
+      return {
+        ...mapped.stack,
+        original: mapped.original,
+        ...(options.includeSourceContent &&
+        mapped.original &&
+        !mapped.stack.ignored
+          ? { getSourceContent: mapped.getSourceContent }
+          : {}),
+      }
+    } catch {
+      // Invalid maps or a throwing bundler lookup must not mask the test error.
+      return {
+        ...createUnsourcemappedFrame(frame as SourcemappableStackFrame).stack,
+        original: false,
+      }
+    }
+  })
 }
 
 function parseAndSourceMap(
@@ -650,7 +709,7 @@ export function patchErrorInspectNodeJS(
 ): void {
   const inspectSymbol = Symbol.for('nodejs.util.inspect.custom')
 
-  errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
+  installUnsourcemappedStackTrace(errorConstructor)
 
   // @ts-expect-error -- TODO upstream types
   errorConstructor.prototype[inspectSymbol] = function (
@@ -687,7 +746,7 @@ export function patchErrorInspectEdgeLite(
 ): void {
   const inspectSymbol = Symbol.for('edge-runtime.inspect.custom')
 
-  errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
+  installUnsourcemappedStackTrace(errorConstructor)
 
   // @ts-expect-error -- TODO upstream types
   errorConstructor.prototype[inspectSymbol] = function ({

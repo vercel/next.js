@@ -141,8 +141,13 @@ struct WrittenEndpointWithIssues {
 #[turbo_tasks::function(operation, root)]
 async fn get_written_endpoint_with_issues_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
+    snapshot_directory: Option<RcStr>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
-    let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op);
+    let write_to_disk_op = if let Some(directory) = snapshot_directory {
+        next_api::testing::snapshot_endpoint_operation(endpoint_op, directory)
+    } else {
+        endpoint_write_to_disk_operation(endpoint_op)
+    };
     let filter = issue_filter_from_endpoint(endpoint_op).await;
     let (written, issues, effects) =
         strongly_consistent_catch_collectables(write_to_disk_op, &filter).await?;
@@ -158,6 +163,7 @@ async fn get_written_endpoint_with_issues_operation(
 #[napi]
 pub async fn endpoint_write_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: &External<ExternalEndpoint>,
+    snapshot_directory: Option<RcStr>,
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
     let ctx = endpoint.turbopack_ctx();
     let endpoint_op = ****endpoint;
@@ -165,7 +171,7 @@ pub async fn endpoint_write_to_disk(
         .turbo_tasks()
         .run(async move {
             let written_entrypoint_with_issues_op =
-                get_written_endpoint_with_issues_operation(endpoint_op);
+                get_written_endpoint_with_issues_operation(endpoint_op, snapshot_directory);
             let read = read_strongly_consistent_and_apply_effects(
                 written_entrypoint_with_issues_op,
                 |v| &v.effects,

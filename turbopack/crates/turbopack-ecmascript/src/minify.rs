@@ -43,7 +43,7 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
     let source_code = BytesStr::from_utf8(code.into_source_code().into_bytes())?;
 
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
-    let (src, mut src_map_buf, source_map_names) = {
+    let (src, mut src_map_buf, source_map_names, removed_comments) = {
         let fm = cm.new_source_file(FileName::Anon.into(), source_code);
 
         // Collect all comments and pass to the minifier so that `PURE` comments are respected.
@@ -57,7 +57,7 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
         );
         let mut parser = Parser::new_from(lexer);
 
-        let (program, source_map_names) =
+        let (program, source_map_names, removed_comments) =
             try_with_handler(cm.clone(), Default::default(), |handler| {
                 GLOBALS.set(&Default::default(), || {
                     let program = match parser.parse_program() {
@@ -66,6 +66,18 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
                             err.into_diagnostic(handler).emit();
                             bail!("failed to parse source code\n{}", fm.src)
                         }
+                    };
+
+                    // print_program emits no comments, including ones consumed by optimization.
+                    let removed_comments = if source_maps.is_some() {
+                        let (leading, trailing) = comments.borrow_all();
+                        leading
+                            .values()
+                            .chain(trailing.values())
+                            .flat_map(|comments| comments.iter().map(|comment| comment.span))
+                            .collect::<Vec<_>>()
+                    } else {
+                        Vec::new()
                     };
 
                     // Collect identifier names for source maps before minification
@@ -136,13 +148,13 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
                         &comments as &dyn Comments,
                     )));
 
-                    Ok((program, source_map_names))
+                    Ok((program, source_map_names, removed_comments))
                 })
             })
             .map_err(|e| e.to_pretty_error())?;
 
         let (src, src_map_buf) = print_program(cm.clone(), program, source_maps.is_some())?;
-        (src, src_map_buf, source_map_names)
+        (src, src_map_buf, source_map_names, removed_comments)
     };
 
     let mut builder = CodeBuilder::new(source_maps.is_some(), generate_debug_id);
@@ -160,6 +172,7 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
                 // the value user expect anyway.
                 false,
                 source_map_names,
+                &removed_comments,
             )?),
         );
     } else {

@@ -1,0 +1,24 @@
+{
+  "compatibility": "vitest",
+  "projects": [
+    {
+      "name": "component-dev",
+      "environment": "browser",
+      "mode": "development",
+      "browserFixtures": [
+        { "id": "greeting", "module": "fixtures/greeting.tsx" }
+      ],
+      "include": ["cases/component.case.mjs"],
+      "testTimeout": 60000,
+      "fileTimeout": 180000
+    },
+    {
+      "name": "production-browser",
+      "environment": "browser",
+      "mode": "production",
+      "include": ["cases/browser.case.mjs"],
+      "testTimeout": 60000,
+      "fileTimeout": 180000
+    }
+  ]
+}
