@@ -1,6 +1,7 @@
 import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Transform } from 'stream'
+import { finished } from 'stream/promises'
 import {
   formatDebugAddress,
   formatNodeOptions,
@@ -250,9 +251,10 @@ export class Worker {
           callback()
         },
       })
-      // Stop the activity if there's any output from the worker
-      this._worker.getStdout().pipe(abortActivityStreamOnLog)
-      this._worker.getStderr().pipe(abortActivityStreamOnLog)
+      // Stop the activity on worker output. Neither stream should end the
+      // shared sink.
+      this._worker.getStdout().pipe(abortActivityStreamOnLog, { end: false })
+      this._worker.getStderr().pipe(abortActivityStreamOnLog, { end: false })
 
       // Pipe the worker's stdout and stderr to the parent process
       this._worker.getStdout().pipe(process.stdout)
@@ -334,7 +336,21 @@ export class Worker {
     }
     this._worker = undefined
     await cleanupWorkers(worker)
-    return worker.end()
+    // Drain output before resolving; child exit can precede the final events.
+    const [result] = await Promise.all([
+      worker.end(),
+      finished(worker.getStdout(), {
+        readable: true,
+        writable: false,
+        cleanup: true,
+      }),
+      finished(worker.getStderr(), {
+        readable: true,
+        writable: false,
+        cleanup: true,
+      }),
+    ])
+    return result
   }
 
   /**
