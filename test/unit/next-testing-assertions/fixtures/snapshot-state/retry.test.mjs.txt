@@ -1,0 +1,36 @@
+import { expect, test, beforeAll, beforeEach, afterEach, afterAll } from 'vitest'
+import { appendFileSync } from 'node:fs'
+let collectedState, firstSnapshot, localSnapshot, lastGlobal, firstVisits = 0
+function observe(phase, local) {
+  const state = expect.getState(), snapshot = state.snapshotState
+  if (phase === 'collection') collectedState = state
+  if (snapshot && firstSnapshot === undefined) firstSnapshot = snapshot
+  const descriptor = Object.getOwnPropertyDescriptor(state, 'snapshotState')
+  const localState = local?.getState(), localValue = localState?.snapshotState
+  appendFileSync(process.env.SNAPSHOT_EXPOSURE_TRACE, JSON.stringify({ phase,
+    sameGlobalState: state === collectedState,
+    ownSnapshot: !!descriptor,
+    snapshotPresent: !!snapshot,
+    descriptor: descriptor ? { enumerable: descriptor.enumerable, configurable: descriptor.configurable, writable: descriptor.writable, valueType: typeof descriptor.value } : null,
+    sameActualSnapshot: snapshot ? snapshot === firstSnapshot : null,
+    constructorName: snapshot ? Object.getPrototypeOf(snapshot).constructor.name : null,
+    counters: snapshot ? {added:snapshot.added,matched:snapshot.matched,unmatched:snapshot.unmatched} : null,
+    local: localState ? { sameState:localState === state, snapshotPresent:!!localValue, sameSnapshot:localValue ? localValue === snapshot : null } : null
+  }) + '\n')
+}
+observe('collection')
+beforeAll(() => observe('before-all'))
+beforeEach(({ expect: local }) => observe('before-each', local))
+afterEach(({ expect: local }) => observe('after-each', local))
+afterAll(() => observe('after-all'))
+test('first real state', { retry: 1 }, ({ expect: local }) => {
+  observe('first-body-enter', local)
+  expect('stable snapshot').toMatchInlineSnapshot('"stable snapshot"')
+  observe('first-body-after-snapshot', local)
+  if (++firstVisits === 1) expect(1).toBe(2)
+})
+test('second real state', ({ expect: local }) => {
+  observe('second-body-enter', local)
+  local('stable snapshot').toMatchInlineSnapshot('"stable snapshot"')
+  observe('second-body-after-snapshot', local)
+})
