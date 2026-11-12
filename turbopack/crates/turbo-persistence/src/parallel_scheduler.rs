@@ -1,9 +1,8 @@
 /// Runs turbo-persistence's CPU-parallel work.
 ///
 /// Every method blocks until all of its work has finished, and may run the work on the calling
-/// thread. Implementations must not hand the calling thread off to a blocking pool (as tokio's
-/// blocking hand-off does): persistence work is sync and runs from inside async runtimes, and every
-/// hand-off can leave behind an extra idle thread.
+/// thread. If an implementation needs to block an async runtime thread while waiting (e.g. tokio's
+/// `block_in_place`), it handles that internally; callers don't wrap work in a separate hand-off.
 pub trait ParallelScheduler: Clone + Sync + Send {
     /// The number of tasks this scheduler can run at the same time. Always at least 1.
     fn parallelism(&self) -> usize;
