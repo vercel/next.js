@@ -43,7 +43,13 @@ const BABEL_CONFIG_FILES: &[&str] = &[
 static BABEL_LOADER_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(^|/)@?babel[-/]loader($|/|\.)").unwrap());
 
+/// The forked version of babel-loader that we should use for automatic configuration. This version
+/// is always available, as it's installed as part of next.js.
+static NEXT_JS_BABEL_LOADER: RcStr = rcstr!("next/dist/build/babel/loader");
+
 static BABEL_PLUGIN_REACT_COMPILER: RcStr = rcstr!("babel-plugin-react-compiler");
+static BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON: RcStr =
+    rcstr!("babel-plugin-react-compiler/package.json");
 
 /// Detect manually-configured babel loaders. This is used to generate a warning, suggesting using
 /// the built-in babel support.
@@ -259,10 +265,7 @@ pub async fn get_babel_loader_rules(
         rcstr!("*.{js,jsx,ts,tsx,cjs,mjs,mts,cts}"),
         LoaderRuleItem {
             loaders: ResolvedVc::cell(vec![WebpackLoaderItem {
-                // The forked version of babel-loader that we should use for automatic
-                // configuration. This version is always available, as it's installed as part of
-                // next.js.
-                loader: rcstr!("next/dist/build/babel/loader"),
+                loader: NEXT_JS_BABEL_LOADER.clone(),
                 options: loader_options.into(),
             }]),
             rename_as: Some(rcstr!("*")),
@@ -359,9 +362,9 @@ pub async fn resolve_babel_plugin_react_compiler(
     let babel_plugin_result = resolve(
         next_package.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
-        Request::parse(Pattern::Constant(rcstr!(
-            "babel-plugin-react-compiler/package.json"
-        ))),
+        Request::parse(Pattern::Constant(
+            BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON.clone(),
+        )),
         node_cjs_resolve_options(),
     );
     let Some(source) = babel_plugin_result.await?.first_source() else {
