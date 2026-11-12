@@ -132,7 +132,6 @@ import * as Log from './output/log'
 import createSpinner, { finishSpinner } from './spinner'
 import { trace, flushAllTraces, setGlobal, type Span } from '../trace'
 import { readAnalyzeRoutes, writeAnalyzeSnapshot } from './analyze/snapshot'
-import { writeRouteBundleStats } from './route-bundle-stats'
 import {
   detectConflictingPaths,
   printPrerenderMatchers,
@@ -4851,14 +4850,6 @@ export default async function build(
 
       if (process.env.NEXT_PRIVATE_DEBUG_PARAM_MATCHING) {
         printPrerenderMatchers(prerenderManifest, routesManifest.dynamicRoutes)
-      }
-
-      if (bundler === Bundler.Turbopack) {
-        await nextBuildSpan
-          .traceChild('write-route-bundle-stats')
-          .traceAsyncFn(() =>
-            writeRouteBundleStats(pageKeys, buildManifest, distDir, dir)
-          )
       }
 
       await nextBuildSpan

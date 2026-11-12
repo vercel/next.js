@@ -93,7 +93,8 @@ use crate::{
     project::{BaseAndFullModuleGraph, Project},
     route::{
         AnalyzeChunkGroup, AnalyzeChunkGroups, AnalyzeClientEntries, AnalyzeClientReference,
-        AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes,
+        AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, FirstLoadJs, ModuleGraphs,
+        Route, Routes,
     },
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
     service_worker::service_worker_output_assets,
@@ -1223,6 +1224,7 @@ impl Endpoint for GoRouteEndpoint {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,
                 output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                first_load_js: None,
             }
             .cell());
         }
@@ -1329,6 +1331,7 @@ impl Endpoint for GoRouteEndpoint {
                         build: Some((*result).clone()),
                     }
                     .resolved_cell(),
+                    first_load_js: None,
                 }
                 .cell());
             }
@@ -1410,6 +1413,7 @@ impl Endpoint for GoRouteEndpoint {
                 build: (*result).clone(),
             }
             .resolved_cell(),
+            first_load_js: None,
         }
         .cell())
     }
@@ -1635,30 +1639,35 @@ impl AppEndpoint {
                 .await?;
 
         // We only need the client runtime entries for pages not for Route Handlers
-        let (availability_info, client_shared_chunks, client_chunk_group_bootstrap_params) =
-            if is_app_page {
-                let client_shared_chunk_group = get_app_client_shared_chunk_group(
-                    AssetIdent::from_path(project.project_path().owned().await?)
-                        .with_modifier(rcstr!("client-shared-chunks"))
-                        .into_vc(),
-                    this.app_project.client_runtime_entries(),
-                    *module_graphs.full,
-                    *client_chunking_context,
-                );
+        let (
+            availability_info,
+            client_shared_chunks,
+            client_shared_chunks_vc,
+            client_chunk_group_bootstrap_params,
+        ) = if is_app_page {
+            let client_shared_chunk_group = get_app_client_shared_chunk_group(
+                AssetIdent::from_path(project.project_path().owned().await?)
+                    .with_modifier(rcstr!("client-shared-chunks"))
+                    .into_vc(),
+                this.app_project.client_runtime_entries(),
+                *module_graphs.full,
+                *client_chunking_context,
+            );
 
-                client_assets.extend(client_shared_chunk_group.all_assets().await?);
+            client_assets.extend(client_shared_chunk_group.all_assets().await?);
 
-                let client_shared_chunk_group = client_shared_chunk_group.await?;
-                (
-                    client_shared_chunk_group.availability_info,
-                    client_shared_chunk_group.assets.owned().await?,
-                    client_shared_chunk_group
-                        .chunk_group_bootstrap_params
-                        .clone(),
-                )
-            } else {
-                (AvailabilityInfo::root(), vec![], None)
-            };
+            let client_shared_chunk_group = client_shared_chunk_group.await?;
+            (
+                client_shared_chunk_group.availability_info,
+                client_shared_chunk_group.assets.owned().await?,
+                Some(client_shared_chunk_group.assets),
+                client_shared_chunk_group
+                    .chunk_group_bootstrap_params
+                    .clone(),
+            )
+        } else {
+            (AvailabilityInfo::root(), vec![], None, None)
+        };
 
         let client_references_chunks = get_app_client_references_chunks(
             *client_references,
@@ -1975,6 +1984,20 @@ impl AppEndpoint {
         // these references are important for turbotrace
         let mut client_reference_manifest = None;
 
+        // Only needed for the route bundle stats of production builds.
+        let first_load_js = if let Some(client_shared_chunks) = client_shared_chunks_vc
+            && emit_rsc_manifests
+            && project.next_mode().await?.is_production()
+        {
+            Some(FirstLoadJs::AppPage {
+                client_references,
+                client_references_chunks,
+                client_shared_chunks,
+            })
+        } else {
+            None
+        };
+
         if emit_rsc_manifests {
             let entry_manifest = ResolvedVc::upcast(
                 ClientReferenceManifest {
@@ -2173,6 +2196,7 @@ impl AppEndpoint {
                     files: app_entry_chunks,
                     server_assets,
                     client_assets,
+                    first_load_js,
                 }
             }
             NextRuntime::NodeJs => {
@@ -2255,6 +2279,7 @@ impl AppEndpoint {
                     rsc_chunk,
                     server_assets,
                     client_assets,
+                    first_load_js,
                 }
             }
         }
@@ -2638,11 +2663,17 @@ impl Endpoint for AppEndpoint {
                 },
             };
 
+            let first_load_js = match &*output.await? {
+                AppEndpointOutput::NodeJs { first_load_js, .. }
+                | AppEndpointOutput::Edge { first_load_js, .. } => first_load_js.clone(),
+            };
+
             anyhow::Ok(
                 EndpointOutput {
                     output_assets: output_assets.to_resolved().await?,
                     output_paths: written_endpoint.resolved_cell(),
                     project: project.to_resolved().await?,
+                    first_load_js,
                 }
                 .cell(),
             )
@@ -2916,11 +2947,15 @@ enum AppEndpointOutput {
         rsc_chunk: ResolvedVc<Box<dyn OutputAsset>>,
         server_assets: ResolvedVc<OutputAssets>,
         client_assets: ResolvedVc<OutputAssets>,
+        /// Only set for pages in production builds.
+        first_load_js: Option<FirstLoadJs>,
     },
     Edge {
         files: ResolvedVc<OutputAssets>,
         server_assets: ResolvedVc<OutputAssets>,
         client_assets: ResolvedVc<OutputAssets>,
+        /// Only set for pages in production builds.
+        first_load_js: Option<FirstLoadJs>,
     },
 }
 
