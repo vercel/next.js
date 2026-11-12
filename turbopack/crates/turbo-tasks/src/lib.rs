@@ -37,6 +37,7 @@ pub mod macro_helpers;
 mod manager;
 pub mod mapped_read_ref;
 mod marker_trait;
+pub mod memory;
 pub mod message_queue;
 mod native_function;
 mod once_map;
