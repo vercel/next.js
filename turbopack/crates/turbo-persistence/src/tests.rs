@@ -36,13 +36,6 @@ impl ParallelScheduler for RayonParallelScheduler {
         rayon::current_num_threads()
     }
 
-    fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
-    where
-        R: Send,
-    {
-        f()
-    }
-
     fn parallel_for_each<T>(&self, items: &[T], f: impl Fn(&T) + Send + Sync)
     where
         T: Sync,
