@@ -1837,10 +1837,13 @@ export default async function build(
 
       // Ensure commonjs handling is used for files in the distDir (generally .next)
       // Files outside of the distDir can be "type": "module"
-      await writeFileUtf8(
-        path.join(distDir, 'package.json'),
-        '{"type": "commonjs"}'
-      )
+      // Turbopack writes this file itself when creating the project.
+      if (bundler !== Bundler.Turbopack) {
+        await writeFileUtf8(
+          path.join(distDir, 'package.json'),
+          '{"type": "commonjs"}'
+        )
+      }
 
       // These are written to distDir, so they need to come after creating and cleaning distDr.
       await recordFrameworkVersion(process.env.__NEXT_VERSION as string)
