@@ -4,6 +4,7 @@
 
 import type {
   Context,
+  ContextManager,
   TextMapGetter,
   TextMapPropagator,
   TextMapSetter,
@@ -53,10 +54,6 @@ import {
   type Span,
 } from './tracer'
 
-const { StackContextManager } = jest.requireActual<
-  typeof import('@opentelemetry/sdk-trace')
->('@opentelemetry/sdk-trace')
-
 const customContextKey = createContextKey('next.tracer.test.custom-context')
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
@@ -99,6 +96,53 @@ function expectRecorded(name: string, expected: Partial<SpanStoreRecord>) {
 const getter: TextMapGetter<Record<string, string | undefined>> = {
   keys: (carrier) => Object.keys(carrier),
   get: (carrier, key) => carrier[key],
+}
+
+class TestContextManager implements ContextManager {
+  private currentContext: Context = ROOT_CONTEXT
+
+  active(): Context {
+    return this.currentContext
+  }
+
+  with<A extends unknown[], F extends (...args: A) => ReturnType<F>>(
+    newContext: Context,
+    fn: F,
+    thisArg?: ThisParameterType<F>,
+    ...args: A
+  ): ReturnType<F> {
+    const previousContext = this.currentContext
+    this.currentContext = newContext
+    try {
+      return fn.apply(thisArg, args)
+    } finally {
+      this.currentContext = previousContext
+    }
+  }
+
+  bind<T>(bindContext: Context, target: T): T {
+    if (typeof target !== 'function') {
+      return target
+    }
+
+    return ((...args: unknown[]) => {
+      return this.with(
+        bindContext,
+        target as (...args: unknown[]) => unknown,
+        undefined,
+        ...args
+      )
+    }) as T
+  }
+
+  enable(): this {
+    return this
+  }
+
+  disable(): this {
+    this.currentContext = ROOT_CONTEXT
+    return this
+  }
 }
 
 class CustomPropagator implements TextMapPropagator {
@@ -168,7 +212,7 @@ describe('withPropagatedContext', () => {
   beforeEach(() => {
     context.disable()
     propagation.disable()
-    context.setGlobalContextManager(new StackContextManager())
+    context.setGlobalContextManager(new TestContextManager())
     propagation.setGlobalPropagator(new CustomPropagator())
   })
 
@@ -215,7 +259,7 @@ describe('trace context with the W3C propagator', () => {
   beforeEach(() => {
     context.disable()
     propagation.disable()
-    context.setGlobalContextManager(new StackContextManager())
+    context.setGlobalContextManager(new TestContextManager())
     propagation.setGlobalPropagator(new TraceparentPropagator())
   })
 
@@ -531,7 +575,7 @@ describe('local span recording', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     process.env.NEXT_OTEL_VERBOSE = '1'
     context.disable()
-    context.setGlobalContextManager(new StackContextManager())
+    context.setGlobalContextManager(new TestContextManager())
 
     const exportedSpans: string[] = []
     const foregroundSpan = sdkSpan()
@@ -591,7 +635,7 @@ describe('local span recording', () => {
   it.each(['implicit', 'explicit', 'newer public'])(
     'preserves public context and local parenting with an %s parent',
     (mode) => {
-      context.setGlobalContextManager(new StackContextManager())
+      context.setGlobalContextManager(new TestContextManager())
       const publicParent = sdkSpan()
       const publicChild = sdkSpan('1123456789abcdef')
       const activePublic = mode === 'newer public' ? publicChild : publicParent
@@ -634,7 +678,7 @@ describe('local span recording', () => {
   )
 
   it('does not borrow an unrelated public span for an explicit local root', () => {
-    context.setGlobalContextManager(new StackContextManager())
+    context.setGlobalContextManager(new TestContextManager())
     const localRoot = getTracer().startSpan(
       AppRenderSpan.renderToReadableStream
     )
@@ -654,7 +698,7 @@ describe('local span recording', () => {
   })
 
   it('keeps a local helper under its local scope inside a newer public span', async () => {
-    context.setGlobalContextManager(new StackContextManager())
+    context.setGlobalContextManager(new TestContextManager())
     const publicChild = sdkSpan()
 
     await getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
@@ -673,7 +717,7 @@ describe('local span recording', () => {
   })
 
   it('updates the local scope attributes inside a newer public span', () => {
-    context.setGlobalContextManager(new StackContextManager())
+    context.setGlobalContextManager(new TestContextManager())
     const publicChild = sdkSpan()
 
     getTracer().trace(AppRenderSpan.renderToReadableStream, () => {
