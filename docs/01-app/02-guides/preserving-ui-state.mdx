@@ -299,29 +299,23 @@ Activity preserves local component state (`useState`, DOM input values) across n
 
 For logout flows, using `window.location.href` instead of `router.push` triggers a full page reload, clearing all client-side state.
 
-To reset specific state when the user changes without a full reload:
+To reset a form when the user changes without a full reload, key it by user ID. React creates a new form for each identity, including when signing in or out.
 
 ```tsx
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 
 function UserScopedForm({ userId }: { userId: string | null }) {
-  const [draft, setDraft] = useState('')
-  const lastUserIdRef = useRef<string | null>(null)
+  return <DraftForm key={userId} />
+}
 
-  useEffect(() => {
-    if (lastUserIdRef.current !== null && lastUserIdRef.current !== userId) {
-      setDraft('') // Reset on user change
-    }
-    lastUserIdRef.current = userId
-  }, [userId])
+function DraftForm() {
+  const [draft, setDraft] = useState('')
 
   return <textarea value={draft} onChange={(e) => setDraft(e.target.value)} />
 }
 ```
-
-Alternatively, key components by user ID to let React handle the reset: `<Form key={userId} />`.
 
 ## Global styles
 
