@@ -34,6 +34,25 @@ async function runTypegen(next: NextInstance) {
   expect({ code, output: stdout + stderr }).toMatchObject({ code: 0 })
 }
 
+// Runs the app's own `next` install, so React resolves from the app (like
+// `next.build()`). Unlike `next.build()`, it can run while `next dev` runs.
+async function runBuild(next: NextInstance) {
+  const env = { ...process.env, __NEXT_TEST_MODE: 'true' }
+  // Let Next.js decide the environment.
+  delete env.NODE_ENV
+  const result = await execa(
+    'pnpm',
+    ['next', 'build', ...(process.env.IS_WEBPACK_TEST ? ['--webpack'] : [])],
+    { cwd: next.testDir, env, extendEnv: false, reject: false }
+  )
+  const output = `${result.stdout}${result.stderr}`
+  // Prints the command output on failure.
+  expect({
+    code: result.exitCode,
+    output: result.exitCode === 0 ? '' : output,
+  }).toEqual({ code: 0, output: '' })
+}
+
 async function runTsc(next: NextInstance) {
   const result = await execa('pnpm', ['tsc', '--noEmit'], {
     cwd: next.testDir,
@@ -193,7 +212,10 @@ describe('stale-dev-types', () => {
     })
   })
 
-  describe('next typegen while next dev is running', () => {
+  describe.each([
+    ['typegen', runTypegen],
+    ['build', runBuild],
+  ])('next %s while next dev is running', (_, runCommand) => {
     const { next } = nextTestSetup({
       files: FIXTURE_DIR,
     })
@@ -201,7 +223,7 @@ describe('stale-dev-types', () => {
     it('should keep the dev types of the running dev server', async () => {
       await waitForDevValidator(next, '/temp-route', 'temp-route/page')
 
-      await runTypegen(next)
+      await runCommand(next)
 
       // The running dev server owns .next/dev/types and keeps them up to date.
       expect(await next.readFile(DEV_VALIDATOR)).toContain('temp-route/page')

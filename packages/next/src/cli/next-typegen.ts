@@ -125,10 +125,7 @@ const nextTypegen = async (options: NextTypegenOptions, directory?: string) => {
 
   // Types left behind by a stopped `next dev` would otherwise fail type checking
   // after routes are moved or deleted.
-  await removeStaleDevTypes({
-    distDirRoot: distDir,
-    lockDistDir: Boolean(nextConfig.experimental.lockDistDir),
-  })
+  await removeStaleDevTypes({ distDirRoot: distDir })
 
   console.log('✓ Types generated successfully')
 }

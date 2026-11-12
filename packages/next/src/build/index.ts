@@ -1709,7 +1709,6 @@ export default async function build(
           // `output: 'export'`.
           await removeStaleDevTypes({
             distDirRoot: path.join(dir, config.distDirRoot),
-            lockDistDir: Boolean(config.experimental.lockDistDir),
           })
         })
 

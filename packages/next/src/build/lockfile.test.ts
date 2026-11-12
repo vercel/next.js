@@ -18,7 +18,7 @@ describe('Lockfile.unlock', () => {
       lockfileUnlock,
     })
 
-    const lockfile = Lockfile.tryAcquire('/lock', false)!
+    const lockfile = Lockfile.tryAcquire('/lock', { unlockOnExit: false })!
 
     await expect(lockfile.unlock()).resolves.toBeUndefined()
     expect(lockfileUnlock).toHaveBeenCalledTimes(1)

@@ -17,11 +17,9 @@ import * as Log from '../../build/output/log'
  */
 export async function removeStaleDevTypes({
   distDirRoot,
-  lockDistDir,
 }: {
   /** The absolute configured `distDir`, before `next dev` appends `dev`. */
   distDirRoot: string
-  lockDistDir: boolean
 }): Promise<void> {
   const devDistDir = path.join(distDirRoot, 'dev')
   const devTypesDir = path.join(devDistDir, 'types')
@@ -31,16 +29,14 @@ export async function removeStaleDevTypes({
 
   let lockfile
   try {
-    if (lockDistDir) {
-      // Lazily required: the lockfile loads the SWC bindings module.
-      const { Lockfile } =
-        require('../../build/lockfile') as typeof import('../../build/lockfile')
-      // Uses the same lockfile as `next dev` (see `setup-dev-bundler.ts`).
-      lockfile = Lockfile.tryAcquire(path.join(devDistDir, 'lock'), true)
-      if (lockfile === undefined) {
-        // A running `next dev` server owns these types.
-        return
-      }
+    // Lazily required: the lockfile loads the SWC bindings module.
+    const { Lockfile } =
+      require('../../build/lockfile') as typeof import('../../build/lockfile')
+    // Uses the same lockfile as `next dev` (see `setup-dev-bundler.ts`).
+    lockfile = Lockfile.tryAcquire(path.join(devDistDir, 'lock'))
+    if (lockfile === undefined) {
+      // A running `next dev` server owns these types.
+      return
     }
 
     await rm(devTypesDir, { recursive: true, force: true })
