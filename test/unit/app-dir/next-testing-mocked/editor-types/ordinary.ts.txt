@@ -1,0 +1,5 @@
+import { mode } from 'ordinary-application'
+const unchanged: 'application' = mode
+// @ts-expect-error A test type opt-in does not widen an ordinary app package.
+const wrong: 'test' = mode
+void [unchanged, wrong]

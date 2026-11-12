@@ -1,0 +1,3 @@
+import { test } from 'vitest'
+
+test('selected file', () => console.log('selected file'))

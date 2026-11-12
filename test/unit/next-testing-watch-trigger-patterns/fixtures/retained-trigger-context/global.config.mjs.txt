@@ -1,0 +1,1 @@
+let calls=0;const rule={pattern:/payload/,testsToRun(){return 'case-'+(++calls)+'.test.mjs'}};export default {test:{watch:true,watchTriggerPatterns:[rule],projects:[{test:{name:'alpha',include:['alpha.test.mjs'],provide:{nested:{count:1}},globalSetup:['./global.mjs']}},{test:{name:'beta',include:['beta.test.mjs'],provide:{nested:{count:2}}}}]}};

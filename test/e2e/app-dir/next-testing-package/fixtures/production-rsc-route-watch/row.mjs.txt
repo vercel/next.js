@@ -1,0 +1,6 @@
+export function routeRow({status,contentType,body}) {
+ const match=body.match(/<pre id="route-values">([^<]+)<\/pre>/)
+ if(!match)throw Error('Missing actual HTML route values')
+ const decode=(value)=>value.replaceAll('&quot;','"').replaceAll('&amp;','&').replaceAll('&#x27;',"'").replaceAll('&lt;','<').replaceAll('&gt;','>')
+ return {status,contentType,rootVersion:body.match(/data-root-version="([^"]+)"/)?.[1]??null,nestedVersion:body.match(/data-nested-version="([^"]+)"/)?.[1]??null,layoutId:decode(body.match(/data-layout-id="([^"]+)"/)?.[1]??''),subject:JSON.parse(decode(match[1]))}
+}

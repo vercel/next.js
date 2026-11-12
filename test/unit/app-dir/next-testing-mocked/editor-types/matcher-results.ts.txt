@@ -1,0 +1,39 @@
+import {
+  expect,
+  type AsyncMatcherResult,
+  type MatcherResult,
+  type SyncMatcherResult,
+} from 'vitest'
+import {
+  asynchronousMatcher,
+  synchronousMatcher,
+  type HelperMatcherResult,
+} from 'next-matcher-type-helper'
+
+expect.extend({ synchronousMatcher, asynchronousMatcher })
+
+const synchronous: SyncMatcherResult = {
+  pass: true,
+  message: () => 'the values match',
+}
+const asynchronous: AsyncMatcherResult = Promise.resolve(synchronous)
+const eitherSynchronous: MatcherResult = synchronous
+const eitherAsynchronous: MatcherResult = asynchronous
+const helper: HelperMatcherResult = eitherSynchronous
+
+const wrongMessage: SyncMatcherResult = {
+  pass: true,
+  // @ts-expect-error Matcher messages remain callable, rather than plain strings.
+  message: 'wrong',
+}
+const wrongPass: SyncMatcherResult = {
+  // @ts-expect-error The pass field keeps its boolean type.
+  pass: 'wrong',
+  message: () => 'wrong',
+}
+// @ts-expect-error An async matcher result must be a Promise.
+const wrongAsync: AsyncMatcherResult = synchronous
+// @ts-expect-error The public facade does not invent unrelated helper names.
+import type { NonexistentMatcherResult } from 'vitest'
+
+void [helper, eitherAsynchronous, wrongMessage, wrongPass, wrongAsync]

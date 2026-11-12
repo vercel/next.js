@@ -1,0 +1,14 @@
+import {writeFileSync} from 'node:fs'
+import {hold} from './control.mjs'
+import {test,expect} from 'next/experimental/testing/vitest'
+import {rsc} from 'next/experimental/testing/rsc'
+import {version} from './view-version.mjs'
+import {routeRow} from './row.mjs'
+import expected from './expected.json'
+test('production explicit route preserves refreshed root and segment layouts plus request state',async()=>{
+ const result=await rsc.renderRoute({cacheScope:'file',format:'html',url:'http://localhost/proof/acme?tag=one&tag=two',headers:{'x-route-proof':'header-one',cookie:'rsc-session=session-one'}})
+ const row=routeRow(result)
+ console.log('RSC_ROUTE_WATCH '+JSON.stringify(row))
+ expect(expected).toContainEqual(row)
+ if(hold){writeFileSync(process.env.RSC_WATCH_ACTIVE,JSON.stringify(row));await new Promise(()=>{})}
+})

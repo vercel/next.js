@@ -1,0 +1,6 @@
+'use client'
+import {useContext,useState} from 'react'
+import {Scope} from './Provider'
+import {label} from './label'
+import styles from './counter.module.css'
+export default function Counter(){const [count,setCount]=useState(0);return <button className={styles.button} data-env={process.env.NODE_ENV} data-provider={useContext(Scope)} onClick={()=>setCount(count+1)}>{label}:{count}</button>}

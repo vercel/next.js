@@ -1,0 +1,5 @@
+import { test } from 'vitest'
+
+test('runtime selection must stay behind the executor seam', () => {
+  throw new Error('The component control must not execute this body')
+})

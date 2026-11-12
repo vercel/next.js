@@ -1544,6 +1544,199 @@ it.each(['source', 'configuration', 'cancellation'] as const)(
   }
 )
 
+it('retains the compile-only artifact lease until the parent broker derives declarations and acknowledges without runtime facts', async () => {
+  const { createExecutionBrokerHost, createExecutionBrokerClient } =
+    await import('next/dist/experimental/testing/execution/broker')
+  const { analyzeCompiledCoverageSource } = await import(
+    'next/dist/experimental/testing/coverage/source-analysis'
+  )
+  const owned = await typedCompilerAnalysisFixture(),
+    signal = new AbortController().signal
+  const requests: string[] = [],
+    replies: unknown[] = [],
+    parentFacts: unknown[] = []
+  let release!: () => void, entered!: () => void
+  const held = new Promise<void>((resolve) => {
+      release = resolve
+    }),
+    started = new Promise<void>((resolve) => {
+      entered = resolve
+    })
+  const client = createExecutionBrokerClient({
+    allowCoverage: true,
+    send: async (message) => {
+      requests.push(message.action)
+      expect(host.handle(message)).toBe(true)
+    },
+  })
+  const host = createExecutionBrokerHost({
+    signal,
+    onCoverageSource: async (compiled, parentSignal) => {
+      entered()
+      await held
+      parentFacts.push(
+        await analyzeCompiledCoverageSource(
+          compiled,
+          owned.expected,
+          parentSignal
+        )
+      )
+    },
+    send: async (message) => {
+      replies.push(message)
+      expect(client.handle(message)).toBe(true)
+    },
+  })
+  try {
+    let closed = false
+    const pending = client
+      .analyzeCoverageSource(owned.compiled, signal)
+      .then(() => {
+        closed = true
+      })
+    await started
+    expect(closed).toBe(false)
+    expect(parentFacts).toEqual([])
+    release()
+    await pending
+    expect(requests).toEqual(['source-analysis'])
+    expect(parentFacts).toMatchObject([
+      { kind: 'next-compiler-declarations', data: { f: { 0: 0 } } },
+    ])
+    expect(replies).toEqual([
+      {
+        type: 'execution-broker-response',
+        id: expect.any(String),
+        action: 'source-analysis-result',
+      },
+    ])
+  } finally {
+    await host.close()
+    client.disconnect(new Error('control closed'))
+    await rm(owned.root, { recursive: true, force: true })
+  }
+})
+
+it('requires explicit parent authorization for compiler analysis independently of runtime coverage permission', async () => {
+  const { createExecutionBrokerHost, createExecutionBrokerClient } =
+    await import('next/dist/experimental/testing/execution/broker')
+  const owned = await typedCompilerAnalysisFixture(),
+    signal = new AbortController().signal
+  const client = createExecutionBrokerClient({
+    allowCoverage: true,
+    send: async (message) => {
+      host.handle(message)
+    },
+  })
+  const host = createExecutionBrokerHost({
+    signal,
+    allowCoverage: true,
+    send: async (message) => {
+      client.handle(message)
+    },
+  })
+  try {
+    await expect(
+      client.analyzeCoverageSource(owned.compiled, signal)
+    ).rejects.toThrow('Unrequested compiler coverage source analysis')
+  } finally {
+    await host.close()
+    client.disconnect(new Error('control closed'))
+    await rm(owned.root, { recursive: true, force: true })
+  }
+})
+
+it.each(['result', 'coverage', 'event', 'opaque-ack'] as const)(
+  'rejects runtime or opaque broker payloads in a compiler-only request: %s',
+  async (kind) => {
+    const { createExecutionBrokerClient } = await import(
+      'next/dist/experimental/testing/execution/broker'
+    )
+    const owned = await typedCompilerAnalysisFixture(),
+      signal = new AbortController().signal
+    let sent!: (message: any) => void
+    const request = new Promise<any>((resolve) => {
+      sent = resolve
+    })
+    const client = createExecutionBrokerClient({
+      allowCoverage: true,
+      send: async (message) => {
+        sent(message)
+      },
+    })
+    try {
+      const pending = client.analyzeCoverageSource(owned.compiled, signal)
+      const message = await request
+      const response = {
+        type: 'execution-broker-response',
+        id: message.id,
+        action: kind === 'opaque-ack' ? 'source-analysis-result' : kind,
+        ...(kind === 'opaque-ack'
+          ? { facts: [{ kind: 'next-compiler-declarations' }] }
+          : {}),
+      }
+      expect(() => client.handle(response)).toThrow(
+        kind === 'opaque-ack'
+          ? 'acknowledgement cannot contain runtime facts'
+          : 'Runtime broker response cannot complete compiler coverage analysis'
+      )
+      client.disconnect(new Error('retire invalid broker generation'))
+      await expect(pending).rejects.toThrow('retire invalid broker generation')
+    } finally {
+      client.disconnect(new Error('control closed'))
+      await rm(owned.root, { recursive: true, force: true })
+    }
+  }
+)
+
+it('withholds compiler declarations when cancellation reaches a held parent analysis', async () => {
+  const { createExecutionBrokerHost, createExecutionBrokerClient } =
+    await import('next/dist/experimental/testing/execution/broker')
+  const owned = await typedCompilerAnalysisFixture(),
+    controller = new AbortController(),
+    parent = new AbortController()
+  let entered!: () => void
+  const started = new Promise<void>((resolve) => {
+    entered = resolve
+  })
+  const replies: string[] = []
+  const client = createExecutionBrokerClient({
+    allowCoverage: true,
+    send: async (message) => {
+      host.handle(message)
+    },
+  })
+  const host = createExecutionBrokerHost({
+    signal: parent.signal,
+    onCoverageSource: async (_compiled, signal) => {
+      entered()
+      await new Promise<void>((_resolve, reject) =>
+        signal.addEventListener('abort', () => reject(signal.reason), {
+          once: true,
+        })
+      )
+    },
+    send: async (message) => {
+      replies.push(message.action)
+      client.handle(message)
+    },
+  })
+  try {
+    const pending = client.analyzeCoverageSource(
+      owned.compiled,
+      controller.signal
+    )
+    await started
+    controller.abort(new Error('cancel held analysis'))
+    await expect(pending).rejects.toThrow('Test file cancelled')
+    expect(replies).toEqual(['error'])
+  } finally {
+    await host.close()
+    client.disconnect(new Error('control closed'))
+    await rm(owned.root, { recursive: true, force: true })
+  }
+})
+
 it('requires effective compiler source analysis before uncovered TypeScript or JSX expansion', async () => {
   const { createUncoveredSource } = await import(
     'next/dist/experimental/testing/coverage/istanbul'
@@ -2627,6 +2820,1494 @@ it.each(['fnMap', 'branchMap'] as const)(
     }
   }
 )
+
+describe('real custom coverage provider ownership', () => {
+  const config = {
+    enabled: true as const,
+    provider: 'custom' as const,
+    customProviderModule: './provider.mjs',
+    clean: true,
+    reportsDirectory: './coverage',
+    reportOnFailure: false,
+  }
+  async function customFixture(mode = 'normal', providerExtra = '') {
+    const root = await realpath(
+      await mkdtemp(join(tmpdir(), 'next-custom-coverage-'))
+    )
+    const fs = await import('node:fs/promises')
+    const original = join(
+      process.cwd(),
+      'test/unit/app-dir/next-testing-stable-release-gaps/fixtures/custom-coverage-provider'
+    )
+    await fs.copyFile(
+      join(original, 'contract.case.mjs'),
+      join(root, 'contract.case.mjs')
+    )
+    await fs.copyFile(
+      join(original, 'coverage-provider.mjs'),
+      join(root, 'provider.mjs')
+    )
+    if (providerExtra)
+      await fs.appendFile(join(root, 'provider.mjs'), providerExtra)
+    await fs.copyFile(
+      join(__dirname, 'custom-entry.cjs'),
+      join(root, 'entry.cjs')
+    )
+    await writeFile(
+      join(root, 'runtime-paths.json'),
+      JSON.stringify({
+        runner: require.resolve('next/dist/experimental/testing/runner'),
+        project: root,
+        mode,
+      })
+    )
+    const entry = {
+      id: 'custom:one',
+      file: join(root, 'contract.case.mjs'),
+      profile,
+    }
+    const artifact: CompiledTestArtifact = {
+      version: 2,
+      kind: 'node',
+      profile,
+      entryId: entry.id,
+      revision: 'custom-r1',
+      rootDir: root,
+      entryPath: 'entry.cjs',
+      files: ['entry.cjs', 'runtime-paths.json'],
+      diagnostics: [],
+      sourceHash: coverageHash(await readFile(entry.file, 'utf8')),
+    }
+    return { root, entry, artifact }
+  }
+  const openSession = async (
+    root: string,
+    signal = new AbortController().signal,
+    overrides = {}
+  ) => {
+    const { openCustomCoverageSession } = await import(
+      'next/dist/experimental/testing/coverage/custom-session'
+    )
+    return openCustomCoverageSession({
+      projectDir: root,
+      config: { ...config, ...overrides },
+      signal,
+    })
+  }
+  async function runFile(
+    f: Awaited<ReturnType<typeof customFixture>>,
+    session: Awaited<ReturnType<typeof openSession>>,
+    signal = new AbortController().signal
+  ) {
+    const { execute } = await import(
+      'next/dist/experimental/testing/execution/execute'
+    )
+    const facts: import('next/dist/experimental/testing/coverage/custom-types').CustomCoverageFact[] =
+      []
+    const result = await execute(f.artifact, {
+      runId: 'custom-run',
+      projectDir: f.root,
+      entry: f.entry,
+      setupFiles: [],
+      signal,
+      testTimeout: 2000,
+      hookTimeout: 1000,
+      fileTimeout: 5000,
+      snapshotUpdateMode: 'none',
+      customCoverage: session.request,
+      onEvent() {},
+      async onCustomCoverage(completion) {
+        const pid = JSON.parse(
+          await readFile(join(f.root, 'body-pid.json'), 'utf8')
+        )
+        expect(() => process.kill(pid, 0)).toThrow()
+        facts.push({
+          completion,
+          testFiles: ['contract.case.mjs'],
+          environment: 'ssr',
+        })
+      },
+    })
+    return { result, facts }
+  }
+  it.each(['held', 'reject', 'abort', 'worker-exit'])(
+    'owns the actual parent task callback drain for %s',
+    async (mode) => {
+      const f = await customFixture(
+        'normal',
+        `const actualInitialize=ReleaseProvider.prototype.initialize;ReleaseProvider.prototype.initialize=function(...args){const result=actualInitialize.apply(this,args);writeFileSync('actual-provider-pid.json',JSON.stringify(process.pid));return result};`
+      )
+      const controller = new AbortController()
+      let session: Awaited<ReturnType<typeof openSession>> | undefined
+      let release!: () => void
+      const held = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      let entered!: () => void
+      const actualEntry = new Promise<void>((resolve) => {
+        entered = resolve
+      })
+      let returned!: () => void
+      const actualReturn = new Promise<void>((resolve) => {
+        returned = resolve
+      })
+      let enteredDrain = false
+      let execution: Promise<unknown> | undefined
+      let actualProviderPid: number | undefined
+      const actualFailure = new TypeError(
+        'actual parent task callback rejection'
+      )
+      try {
+        session = await openSession(f.root, controller.signal)
+        actualProviderPid = JSON.parse(
+          await readFile(join(f.root, 'actual-provider-pid.json'), 'utf8')
+        )
+        const { execute } = await import(
+          'next/dist/experimental/testing/execution/execute'
+        )
+        const facts: import('next/dist/experimental/testing/coverage/custom-types').CustomCoverageFact[] =
+          []
+        execution = execute(f.artifact, {
+          runId: 'custom-owned-task-drain',
+          projectDir: f.root,
+          entry: f.entry,
+          setupFiles: [],
+          signal: controller.signal,
+          testTimeout: 2000,
+          hookTimeout: 1000,
+          fileTimeout: 5000,
+          snapshotUpdateMode: 'none',
+          customCoverage: session.request,
+          captureTaskResults: true,
+          onEvent() {},
+          async onConsoleDrain() {
+            const trace = await readFile(
+              join(f.root, 'provider-trace.jsonl'),
+              'utf8'
+            )
+            if (!trace.includes('"name":"suite"')) return
+            enteredDrain = true
+            entered()
+            try {
+              if (mode === 'reject') throw actualFailure
+              await held
+            } finally {
+              returned()
+            }
+          },
+          async onCustomCoverageSuite(completion) {
+            await session!.afterSuite({
+              completion,
+              testFiles: ['contract.case.mjs'],
+              environment: 'ssr',
+            })
+          },
+          async onCustomCoverage(completion) {
+            facts.push({
+              completion,
+              testFiles: ['contract.case.mjs'],
+              environment: 'ssr',
+            })
+          },
+        })
+        void execution.catch(() => {})
+        expect(
+          await Promise.race([
+            actualEntry.then(() => true),
+            execution.then(
+              () => false,
+              () => false
+            ),
+          ])
+        ).toBe(true)
+        const pid = JSON.parse(
+          await readFile(join(f.root, 'body-pid.json'), 'utf8')
+        )
+        if (mode !== 'reject') expect(() => process.kill(pid, 0)).not.toThrow()
+        if (mode === 'held') {
+          expect(
+            await readFile(join(f.root, 'provider-trace.jsonl'), 'utf8')
+          ).not.toContain('"name":"stop"')
+          release()
+          expect(await execution).toMatchObject({ status: 'passed' })
+          expect(facts).toHaveLength(1)
+        } else if (mode === 'reject') {
+          await expect(execution).rejects.toBe(actualFailure)
+        } else if (mode === 'abort') {
+          controller.abort(new Error('actual parent task drain cancellation'))
+          expect(await execution).toMatchObject({ status: 'cancelled' })
+        } else {
+          process.kill(pid, 'SIGKILL')
+          await expect(execution).rejects.toThrow(
+            'Test worker closed during task-update drain.'
+          )
+        }
+        if (mode !== 'held') expect(facts).toEqual([])
+        expect(() => process.kill(pid, 0)).toThrow()
+        await expect(
+          readFile(join(f.root, 'custom-coverage.json'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+      } finally {
+        release()
+        if (enteredDrain) await actualReturn
+        if (execution) await Promise.allSettled([execution])
+        try {
+          if (session) await expect(session.dispose()).resolves.toBeUndefined()
+          if (actualProviderPid !== undefined)
+            expect(() => process.kill(actualProviderPid!, 0)).toThrow()
+        } finally {
+          controller.abort(new Error('parent task drain test cleanup'))
+          await rm(f.root, { recursive: true, force: true })
+        }
+      }
+    }
+  )
+  it.each([
+    'request-run',
+    'request-entry',
+    'request-revision',
+    'duplicate',
+    'unrequested',
+    'reply-run',
+  ])('rejects an actual invalid task drain exchange for %s', async (mode) => {
+    const f = await customFixture('normal')
+    const controller = new AbortController()
+    let session: Awaited<ReturnType<typeof openSession>> | undefined
+    const facts: unknown[] = []
+    const diagnostics: string[] = []
+    try {
+      const script =
+        mode === 'unrequested'
+          ? `const actualLoad=exports.loadTestModule;exports.loadTestModule=async()=>{await actualLoad();runner.getTestApi().afterAll(()=>process.send({type:'task-updates-drain',runId:'custom-invalid-task-drain',entryId:'custom:one',revision:'custom-r1'}))};`
+          : mode === 'reply-run'
+            ? `process.prependListener('message',message=>{if(message.type==='task-updates-drained')message.runId='wrong-owned-reply'});`
+            : `const actualSend=process.send.bind(process);process.send=function(message,callback){if(message.type==='task-updates-drain'){${mode === 'duplicate' ? 'const sent=actualSend(message,callback);actualSend(message);return sent' : 'return actualSend({...message,' + (mode === 'request-run' ? 'runId' : mode === 'request-entry' ? 'entryId' : 'revision') + ":'wrong-owned-request'},callback)"}}return actualSend(message,callback)};`
+      await customFileSystem.appendFile(
+        join(f.root, 'entry.cjs'),
+        '\n' + script
+      )
+      if (mode !== 'unrequested')
+        session = await openSession(f.root, controller.signal)
+      const { execute } = await import(
+        'next/dist/experimental/testing/execution/execute'
+      )
+      let rejection: unknown
+      let result: unknown
+      try {
+        result = await execute(f.artifact, {
+          runId: 'custom-invalid-task-drain',
+          projectDir: f.root,
+          entry: f.entry,
+          setupFiles: [],
+          signal: controller.signal,
+          testTimeout: 2000,
+          hookTimeout: 1000,
+          fileTimeout: 5000,
+          snapshotUpdateMode: 'none',
+          ...(session ? { customCoverage: session.request } : {}),
+          captureTaskResults: true,
+          onEvent(event) {
+            if (event.type === 'diagnostic')
+              diagnostics.push(event.diagnostic.message)
+          },
+          ...(session
+            ? {
+                async onCustomCoverageSuite(
+                  completion: import('next/dist/experimental/testing/coverage/custom-types').CustomCoverageCompletion
+                ) {
+                  await session!.afterSuite({
+                    completion,
+                    testFiles: ['contract.case.mjs'],
+                    environment: 'ssr',
+                  })
+                },
+                async onCustomCoverage(completion: unknown) {
+                  facts.push(completion)
+                },
+              }
+            : {}),
+        })
+      } catch (error) {
+        rejection = error
+      }
+      if (mode === 'reply-run') {
+        expect(rejection).toBeUndefined()
+        expect(result).toMatchObject({ status: 'failed' })
+        expect(diagnostics).toContain('Mismatched task update acknowledgement.')
+      } else {
+        const messages: string[] = []
+        const visit = (error: unknown) => {
+          if (error instanceof Error) messages.push(error.message)
+          if (error instanceof AggregateError)
+            for (const item of error.errors) visit(item)
+        }
+        visit(rejection)
+        expect(messages).toContain('Invalid task update drain request.')
+      }
+      expect(facts).toEqual([])
+      const pid = JSON.parse(
+        await readFile(join(f.root, 'body-pid.json'), 'utf8')
+      )
+      expect(() => process.kill(pid, 0)).toThrow()
+      await expect(
+        readFile(join(f.root, 'custom-coverage.json'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      try {
+        await session?.dispose()
+      } finally {
+        controller.abort(new Error('invalid task drain test cleanup'))
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  })
+  it.each([
+    'normal',
+    'body-failure',
+    'take-failure',
+    'suite-failure',
+    'stop-failure',
+  ])(
+    'owns the final custom task batch through actual capture and cleanup for %s',
+    async (mode) => {
+      const f = await customFixture(
+        mode,
+        `
+${mode === 'take-failure' ? "import self from './provider.mjs';const actualTake=self.takeCoverage;self.takeCoverage=function(options){actualTake(options);throw new Error('actual final batch take failure')};" : ''}
+${mode === 'suite-failure' ? "const actualSuite=ReleaseProvider.prototype.onAfterSuiteRun;ReleaseProvider.prototype.onAfterSuiteRun=function(meta){actualSuite.call(this,meta);throw new Error('actual final batch suite failure')};" : ''}
+${mode === 'stop-failure' ? "import self from './provider.mjs';const actualStop=self.stopCoverage;self.stopCoverage=function(options){actualStop(options);throw new Error('actual final batch stop failure')};" : ''}
+`
+      )
+      const controller = new AbortController()
+      let session: Awaited<ReturnType<typeof openSession>> | undefined
+      try {
+        session = await openSession(f.root, controller.signal)
+        const { execute } = await import(
+          'next/dist/experimental/testing/execution/execute'
+        )
+        const { appendFileSync } = await import('node:fs')
+        const facts: import('next/dist/experimental/testing/coverage/custom-types').CustomCoverageFact[] =
+          []
+        const callbacks: string[] = []
+        const result = await execute(f.artifact, {
+          runId: 'custom-final-batch-run',
+          projectDir: f.root,
+          entry: f.entry,
+          setupFiles: [],
+          signal: controller.signal,
+          testTimeout: 2000,
+          hookTimeout: 1000,
+          fileTimeout: 5000,
+          snapshotUpdateMode: 'none',
+          customCoverage: session.request,
+          captureTaskResults: true,
+          onEvent(event) {
+            if (event.type === 'task-update')
+              for (const actualResult of event.caseResults ?? []) {
+                callbacks.push(actualResult.status)
+                appendFileSync(
+                  join(f.root, 'provider-trace.jsonl'),
+                  JSON.stringify({ name: 'actual-case-callback' }) + '\n'
+                )
+              }
+          },
+          async onCustomCoverageSuite(completion) {
+            await session!.afterSuite({
+              completion,
+              testFiles: ['contract.case.mjs'],
+              environment: 'ssr',
+            })
+          },
+          async onCustomCoverage(completion) {
+            const pid = JSON.parse(
+              await readFile(join(f.root, 'body-pid.json'), 'utf8')
+            )
+            expect(() => process.kill(pid, 0)).toThrow()
+            facts.push({
+              completion,
+              testFiles: ['contract.case.mjs'],
+              environment: 'ssr',
+            })
+          },
+        })
+        const trace = (
+          await readFile(join(f.root, 'provider-trace.jsonl'), 'utf8')
+        )
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line).name)
+        expect(callbacks).toEqual([
+          mode === 'body-failure' ? 'failed' : 'passed',
+        ])
+        expect(
+          trace.filter((name) => name === 'actual-case-callback')
+        ).toHaveLength(1)
+        expect(trace.indexOf('actual-case-callback')).toBeGreaterThan(
+          trace.indexOf('take')
+        )
+        if (mode !== 'take-failure')
+          expect(trace.indexOf('actual-case-callback')).toBeGreaterThan(
+            trace.indexOf('suite')
+          )
+        expect(trace.indexOf('stop')).toBeGreaterThan(
+          trace.indexOf('actual-case-callback')
+        )
+        expect(result.status).toBe(mode === 'normal' ? 'passed' : 'failed')
+        expect(facts).toHaveLength(
+          mode === 'normal' || mode === 'body-failure' ? 1 : 0
+        )
+        await expect(
+          readFile(join(f.root, 'custom-coverage.json'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+      } finally {
+        try {
+          if (mode === 'suite-failure')
+            await expect(session?.dispose()).rejects.toThrow()
+          else await session?.dispose()
+        } finally {
+          controller.abort(new Error('final custom task batch cleanup'))
+          await rm(f.root, { recursive: true, force: true })
+        }
+      }
+    }
+  )
+  it.each(['function', 'undefined'])(
+    'prepares an actual %s result without transferring it before reporting',
+    async (kind) => {
+      const f = await customFixture(
+        'normal',
+        `
+const actualNoJsonValue = ${kind === 'function' ? '() => 42' : 'undefined'};
+let actualNoJsonGenerations = 0;
+ReleaseProvider.prototype.generateCoverage = async function() {
+  actualNoJsonGenerations++;
+  record('prepare-enter');
+  await new Promise(resolve => setImmediate(resolve));
+  record('prepare-settled');
+  return actualNoJsonValue;
+};
+ReleaseProvider.prototype.reportCoverage = function(value) {
+  writeFileSync('custom-coverage.json', JSON.stringify({
+    same: value === actualNoJsonValue,
+    type: typeof value,
+    value: typeof value === 'function' ? value() : null,
+    generations: actualNoJsonGenerations
+  }));
+};
+`
+      )
+      let session: Awaited<ReturnType<typeof openSession>> | undefined
+      try {
+        session = await openSession(f.root)
+        const { result, facts } = await runFile(f, session)
+        expect(result.status).toBe('passed')
+        expect(facts).toHaveLength(1)
+        await expect(
+          session.prepare(facts, 'passed', true)
+        ).resolves.toBeUndefined()
+        const trace = (
+          await readFile(join(f.root, 'provider-trace.jsonl'), 'utf8')
+        )
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line).name)
+        expect(trace.slice(-2)).toEqual(['prepare-enter', 'prepare-settled'])
+        await expect(
+          readFile(join(f.root, 'custom-coverage.json'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+        await session.finish(facts, 'passed', true)
+        expect(
+          JSON.parse(
+            await readFile(join(f.root, 'custom-coverage.json'), 'utf8')
+          )
+        ).toEqual({
+          same: true,
+          type: kind,
+          value: kind === 'function' ? 42 : null,
+          generations: 1,
+        })
+      } finally {
+        await session?.dispose()
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+  it('rejects actual failed generation before no-JSON preparation completes', async () => {
+    const f = await customFixture(
+      'normal',
+      `
+ReleaseProvider.prototype.generateCoverage = async function() {
+  record('prepare-enter');
+  await new Promise(resolve => setImmediate(resolve));
+  throw new Error('actual no-JSON preparation failure');
+};
+`
+    )
+    let session: Awaited<ReturnType<typeof openSession>> | undefined
+    let failed = false
+    try {
+      session = await openSession(f.root)
+      const { result, facts } = await runFile(f, session)
+      expect(result.status).toBe('passed')
+      await expect(session.prepare(facts, 'passed', true)).rejects.toThrow(
+        'actual no-JSON preparation failure'
+      )
+      failed = true
+      await expect(
+        readFile(join(f.root, 'custom-coverage.json'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      if (failed)
+        await expect(session?.dispose()).rejects.toThrow(
+          'actual no-JSON preparation failure'
+        )
+      else await session?.dispose()
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+  it('joins a provider cancelled during actual no-JSON preparation without reporting', async () => {
+    const f = await customFixture(
+      'normal',
+      `
+ReleaseProvider.prototype.generateCoverage = async function() {
+  writeFileSync('prepare-pid.json', String(process.pid));
+  await new Promise(() => {});
+};
+`
+    )
+    const controller = new AbortController()
+    let session: Awaited<ReturnType<typeof openSession>> | undefined
+    try {
+      session = await openSession(f.root, controller.signal)
+      const { result, facts } = await runFile(f, session, controller.signal)
+      expect(result.status).toBe('passed')
+      const pending = session.prepare(facts, 'passed', true)
+      pending.catch(() => {})
+      const { retry } = await import('next-test-utils')
+      await retry(async () =>
+        expect(
+          await readFile(join(f.root, 'prepare-pid.json'), 'utf8')
+        ).toMatch(/^\d+$/)
+      )
+      controller.abort(new Error('actual preparation cancellation'))
+      await expect(pending).rejects.toThrow()
+      await expect(session.dispose()).resolves.toBeUndefined()
+      session = undefined
+      const pid = Number(
+        await readFile(join(f.root, 'prepare-pid.json'), 'utf8')
+      )
+      expect(() => process.kill(pid, 0)).toThrow()
+      await expect(
+        readFile(join(f.root, 'custom-coverage.json'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      controller.abort(new Error('preparation control cleanup'))
+      await session?.dispose()
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+  it.each([
+    'normal',
+    'body-failure',
+    'suite-failure',
+    'stop-failure',
+    'final-mismatch',
+  ])(
+    'awaits the actual provider suite hook before stopping the live collector for %s',
+    async (mode) => {
+      const f = await customFixture(
+        mode,
+        `
+const originalSuite = ReleaseProvider.prototype.onAfterSuiteRun;
+ReleaseProvider.prototype.onAfterSuiteRun = async function(meta) {
+  originalSuite.call(this, meta);
+  await new Promise(resolve => setImmediate(resolve));
+  record('suite-settled');
+  ${mode === 'suite-failure' ? "throw new Error('suite handoff sentinel');" : ''}
+};
+${mode === 'stop-failure' ? "import self from './provider.mjs'; const originalStop = self.stopCoverage; self.stopCoverage = function(options) {originalStop(options); throw new Error('collector stop sentinel')};" : ''}
+`
+      )
+      const controller = new AbortController()
+      let session: Awaited<ReturnType<typeof openSession>> | undefined
+      let expectedProviderFailure = false
+      try {
+        session = await openSession(f.root, controller.signal, {
+          reportOnFailure: true,
+        })
+        const { execute } = await import(
+          'next/dist/experimental/testing/execution/execute'
+        )
+        const facts: import('next/dist/experimental/testing/coverage/custom-types').CustomCoverageFact[] =
+          []
+        const trace = async () =>
+          (await readFile(join(f.root, 'provider-trace.jsonl'), 'utf8'))
+            .trim()
+            .split('\n')
+            .map((line) => JSON.parse(line).name)
+        let handoffs = 0
+        const result = await execute(f.artifact, {
+          runId: 'custom-suite-run',
+          projectDir: f.root,
+          entry: f.entry,
+          setupFiles: [],
+          signal: controller.signal,
+          testTimeout: 2000,
+          hookTimeout: 1000,
+          fileTimeout: 5000,
+          snapshotUpdateMode: 'none',
+          customCoverage: session.request,
+          onEvent() {},
+          async onCustomCoverageSuite(completion) {
+            handoffs++
+            const pid = JSON.parse(
+              await readFile(join(f.root, 'body-pid.json'), 'utf8')
+            )
+            expect(() => process.kill(pid, 0)).not.toThrow()
+            expect((await trace()).slice(-1)).toEqual(['take'])
+            await session!.afterSuite({
+              completion,
+              testFiles: ['contract.case.mjs'],
+              environment: 'ssr',
+            })
+            expect((await trace()).slice(-2)).toEqual([
+              'suite',
+              'suite-settled',
+            ])
+            expect(() => process.kill(pid, 0)).not.toThrow()
+          },
+          async onCustomCoverage(completion) {
+            const pid = JSON.parse(
+              await readFile(join(f.root, 'body-pid.json'), 'utf8')
+            )
+            expect(() => process.kill(pid, 0)).toThrow()
+            facts.push({
+              completion,
+              testFiles: ['contract.case.mjs'],
+              environment: 'ssr',
+            })
+          },
+        })
+        expect(handoffs).toBe(1)
+        expect(result.status).toBe(
+          mode === 'normal' || mode === 'final-mismatch' ? 'passed' : 'failed'
+        )
+        expect((await trace()).slice(6)).toEqual([
+          'take',
+          'suite',
+          'suite-settled',
+          'stop',
+        ])
+        await expect(
+          readFile(join(f.root, 'custom-coverage.json'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+        if (mode === 'suite-failure' || mode === 'stop-failure') {
+          expect(facts).toEqual([])
+          expectedProviderFailure = mode === 'suite-failure'
+        } else if (mode === 'final-mismatch') {
+          const wrong = structuredClone(facts)
+          if (!wrong[0].completion.complete)
+            throw new Error('Expected complete payload')
+          wrong[0].completion.payload = { releasePayload: 0 }
+          expectedProviderFailure = true
+          await expect(session.finish(wrong, 'passed', true)).rejects.toThrow(
+            'matching closed-worker facts'
+          )
+        } else {
+          await session.finish(
+            facts,
+            result.status as 'passed' | 'failed',
+            true
+          )
+          expect((await trace()).slice(-3)).toEqual([
+            'stop',
+            'generate',
+            'report',
+          ])
+          expect(
+            JSON.parse(
+              await readFile(join(f.root, 'custom-coverage.json'), 'utf8')
+            )
+          ).toEqual({ payloads: [{ releasePayload: 42 }] })
+        }
+      } finally {
+        if (expectedProviderFailure)
+          await expect(session?.dispose()).rejects.toThrow()
+        else await session?.dispose()
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+  it.each(['normal', 'body-failure'])(
+    'retains the original provider payload after real worker closure for %s',
+    async (mode) => {
+      const f = await customFixture(mode)
+      let session: Awaited<ReturnType<typeof openSession>> | undefined
+      try {
+        session = await openSession(f.root, undefined, {
+          reportOnFailure: true,
+        })
+        const { result, facts } = await runFile(f, session)
+        expect(result.status).toBe(mode === 'normal' ? 'passed' : 'failed')
+        expect(facts).toEqual([
+          expect.objectContaining({
+            completion: expect.objectContaining({
+              complete: true,
+              payload: { releasePayload: 42 },
+            }),
+          }),
+        ])
+        await expect(
+          readFile(join(f.root, 'custom-coverage.json'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+        await session.finish(facts, result.status as 'passed' | 'failed', true)
+        await session.dispose()
+        session = undefined
+        expect(
+          JSON.parse(
+            await readFile(join(f.root, 'custom-coverage.json'), 'utf8')
+          )
+        ).toEqual({ payloads: [{ releasePayload: 42 }] })
+        const trace = (
+          await readFile(join(f.root, 'provider-trace.jsonl'), 'utf8')
+        )
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line))
+        for (const hook of [
+          'get-provider',
+          'initialize',
+          'resolve',
+          'clean',
+          'run-start',
+          'start',
+          'take',
+          'stop',
+          'suite',
+          'generate',
+          'report',
+        ])
+          expect(trace.some((event) => event.name === hook)).toBe(true)
+      } finally {
+        await session?.dispose()
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+  it.each([
+    'cleanup-failure',
+    'source-mutation',
+    'source-retarget',
+    'output-mutation',
+    'provider-mutation',
+  ])('vetoes opaque publication after %s', async (mode) => {
+    const f = await customFixture(mode)
+    let session: Awaited<ReturnType<typeof openSession>> | undefined
+    try {
+      session = await openSession(f.root)
+      const { result, facts } = await runFile(f, session)
+      expect(result.status).toBe('failed')
+      expect(facts).toEqual([])
+      await expect(
+        readFile(join(f.root, 'custom-coverage.json'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      await session?.dispose().catch(() => {})
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+  it('cancels the actual file worker and retains no payload/report', async () => {
+    const f = await customFixture('cancel')
+    let session: Awaited<ReturnType<typeof openSession>> | undefined
+    const controller = new AbortController()
+    try {
+      session = await openSession(f.root)
+      const run = runFile(f, session, controller.signal)
+      const { retry } = await import('next-test-utils')
+      await retry(async () =>
+        expect(await readFile(join(f.root, 'body-pid.json'), 'utf8')).toMatch(
+          /^\d+$/
+        )
+      )
+      controller.abort(new Error('custom cancellation sentinel'))
+      const { result, facts } = await run
+      expect(result.status).toBe('cancelled')
+      expect(facts).toEqual([])
+      await expect(
+        readFile(join(f.root, 'custom-coverage.json'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      await session?.dispose()
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+  it('closes a provider and file worker sharing the same parent cancellation without a cleanup error', async () => {
+    const f = await customFixture(
+      'cancel',
+      `\nconst initial=ReleaseProvider.prototype.initialize;ReleaseProvider.prototype.initialize=function(ctx){writeFileSync('provider-pid.json',String(process.pid));return initial.call(this,ctx)}`
+    )
+    const controller = new AbortController()
+    let session: Awaited<ReturnType<typeof openSession>> | undefined
+    try {
+      session = await openSession(f.root, controller.signal)
+      const directory = session.request.coverageFilesDirectory
+      const run = runFile(f, session, controller.signal)
+      const { retry } = await import('next-test-utils')
+      await retry(async () =>
+        expect(await readFile(join(f.root, 'body-pid.json'), 'utf8')).toMatch(
+          /^\d+$/
+        )
+      )
+      controller.abort(new Error('shared custom parent cancellation'))
+      const { result, facts } = await run
+      expect(result.status).toBe('cancelled')
+      expect(facts).toEqual([])
+      await expect(session.dispose()).resolves.toBeUndefined()
+      session = undefined
+      for (const file of ['provider-pid.json', 'body-pid.json']) {
+        const pid = Number(await readFile(join(f.root, file), 'utf8'))
+        expect(() => process.kill(pid, 0)).toThrow()
+      }
+      await expect(
+        readFile(join(f.root, 'custom-coverage.json'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(customFileSystem.stat(directory)).rejects.toMatchObject({
+        code: 'ENOENT',
+      })
+    } finally {
+      await session?.dispose({ retainPayloads: true })
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+  it('does not report failed bodies by default', async () => {
+    const f = await customFixture('body-failure')
+    let session: Awaited<ReturnType<typeof openSession>> | undefined
+    try {
+      session = await openSession(f.root)
+      const { facts } = await runFile(f, session)
+      await session.finish(facts, 'failed', true)
+      await session.dispose()
+      session = undefined
+      await expect(
+        readFile(join(f.root, 'custom-coverage.json'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+      expect(
+        await readFile(join(f.root, 'provider-trace.jsonl'), 'utf8')
+      ).toContain('generate')
+    } finally {
+      await session?.dispose()
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+  it.each([
+    '\nReleaseProvider.prototype.onFileTransform = () => {};',
+    '\nReleaseProvider.prototype.initialize = function(ctx) {ctx.vite.moduleGraph};',
+    "\nReleaseProvider.prototype.generateCoverage = function() {throw new Error('custom generate sentinel')};",
+    "\nReleaseProvider.prototype.reportCoverage = function() {throw new Error('custom report sentinel')};",
+  ])(
+    'fails closed on unsupported service or failing real hook %s',
+    async (extra) => {
+      const f = await customFixture('normal', extra)
+      let session: Awaited<ReturnType<typeof openSession>> | undefined
+      try {
+        if (extra.includes('onFileTransform') || extra.includes('ctx.vite'))
+          await expect(openSession(f.root)).rejects.toThrow(
+            /unqualified|unavailable/
+          )
+        else {
+          session = await openSession(f.root)
+          const { facts } = await runFile(f, session)
+          await expect(session.finish(facts, 'passed', true)).rejects.toThrow(
+            /custom (generate|report) sentinel/
+          )
+        }
+        await expect(
+          readFile(join(f.root, 'custom-coverage.json'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+      } finally {
+        await session?.dispose().catch(() => {})
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+  it.each(['startCoverage', 'takeCoverage', 'stopCoverage'])(
+    'runs real %s failure cleanup and vetoes its payload',
+    async (hook) => {
+      const f = await customFixture(
+        'normal',
+        `\nimport self from './provider.mjs'; self.${hook}=()=>{throw new Error('custom runtime hook sentinel')}`
+      )
+      let session: Awaited<ReturnType<typeof openSession>> | undefined
+      try {
+        session = await openSession(f.root)
+        const { result, facts } = await runFile(f, session)
+        expect(result.status).toBe('failed')
+        expect(facts).toEqual([])
+        if (hook === 'startCoverage')
+          await expect(
+            readFile(join(f.root, 'body-pid.json'))
+          ).rejects.toMatchObject({ code: 'ENOENT' })
+        await expect(
+          readFile(join(f.root, 'custom-coverage.json'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+      } finally {
+        await session?.dispose()
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+  it('closes the real provider host before rejecting initialization cancellation', async () => {
+    const f = await customFixture(
+      'normal',
+      `\nReleaseProvider.prototype.initialize=async function(){writeFileSync('provider-pid.json',String(process.pid));await new Promise(()=>{})}`
+    )
+    const controller = new AbortController()
+    try {
+      const opened = openSession(f.root, controller.signal).then(
+        (value) => ({ value }),
+        (error) => ({ error })
+      )
+      const { retry } = await import('next-test-utils')
+      await retry(async () =>
+        expect(
+          await readFile(join(f.root, 'provider-pid.json'), 'utf8')
+        ).toMatch(/^\d+$/)
+      )
+      controller.abort(new Error('provider initialization cancellation'))
+      expect(await opened).toHaveProperty('error')
+      const pid = Number(
+        await readFile(join(f.root, 'provider-pid.json'), 'utf8')
+      )
+      expect(() => process.kill(pid, 0)).toThrow()
+      await expect(
+        readFile(join(f.root, 'custom-coverage.json'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+  it('retains payload storage after an uncertain file lease even when the provider host closes', async () => {
+    const f = await customFixture()
+    let session: Awaited<ReturnType<typeof openSession>> | undefined
+    const fs = customFileSystem,
+      originalRemove = fs.rm
+    let retainedCache: string | undefined
+    try {
+      session = await openSession(f.root)
+      fs.rm = (async (file, options) => {
+        if (
+          typeof file === 'string' &&
+          file.includes('next-test-cache-') &&
+          !retainedCache
+        ) {
+          retainedCache = file
+          throw new Error('uncertain custom file-cache lease')
+        }
+        return originalRemove(file, options)
+      }) as typeof fs.rm
+      await expect(runFile(f, session)).rejects.toThrow(
+        'uncertain custom file-cache lease'
+      )
+      fs.rm = originalRemove
+      const directory = session.request.coverageFilesDirectory
+      await writeFile(join(directory, 'provider-owned-payload.json'), '42')
+      await session.dispose({ retainPayloads: true })
+      session = undefined
+      expect(
+        await readFile(join(directory, 'provider-owned-payload.json'), 'utf8')
+      ).toBe('42')
+      await expect(
+        readFile(join(f.root, 'custom-coverage.json'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+      const workerPid = Number(
+        await readFile(join(f.root, 'body-pid.json'), 'utf8')
+      )
+      expect(() => process.kill(workerPid, 0)).toThrow()
+      await originalRemove(directory, { recursive: true, force: true })
+    } finally {
+      fs.rm = originalRemove
+      await session?.dispose({ retainPayloads: true })
+      if (retainedCache)
+        await originalRemove(retainedCache, { recursive: true, force: true })
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+  it('fails closed before provider evaluation when native loader hooks are absent', async () => {
+    const f = await customFixture(
+      'normal',
+      `\nwriteFileSync('provider-evaluated','bad')`
+    )
+    const module = require('node:module') as {
+      registerHooks?: unknown
+      register?: unknown
+    }
+    const original = module.registerHooks
+    const originalRegister = module.register
+    try {
+      module.registerHooks = undefined
+      module.register = undefined
+      const { resolveCustomCoverageProvider, loadCustomCoverageModule } =
+        await import('next/dist/experimental/testing/coverage/custom-runtime')
+      const identity = await resolveCustomCoverageProvider(
+        f.root,
+        './provider.mjs'
+      )
+      await expect(loadCustomCoverageModule(identity)).rejects.toThrow(
+        /runtime cannot certify provider imports/
+      )
+      await expect(
+        readFile(join(f.root, 'provider-evaluated'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      module.registerHooks = original
+      module.register = originalRegister
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+  it.each(['static-esm', 'dynamic-esm', 'commonjs'])(
+    'rejects uncertified provider helpers through the real loader for %s',
+    async (mode) => {
+      const f = await customFixture()
+      try {
+        await writeFile(
+          join(f.root, 'helper.mjs'),
+          `import {writeFileSync} from 'node:fs';writeFileSync('helper-evaluated','bad');export default 42`
+        )
+        if (mode === 'static-esm')
+          await writeFile(
+            join(f.root, 'provider.mjs'),
+            `import './helper.mjs';export default {getProvider(){},startCoverage(){},takeCoverage(){},stopCoverage(){}}`
+          )
+        if (mode === 'dynamic-esm')
+          await writeFile(
+            join(f.root, 'provider.mjs'),
+            `export default {async getProvider(){await import('./helper.mjs')},startCoverage(){},takeCoverage(){},stopCoverage(){}}`
+          )
+        if (mode === 'commonjs') {
+          await writeFile(
+            join(f.root, 'helper.cjs'),
+            `require('node:fs').writeFileSync('helper-evaluated','bad')`
+          )
+          await writeFile(
+            join(f.root, 'provider.cjs'),
+            `require('./helper.cjs');module.exports={getProvider(){},startCoverage(){},takeCoverage(){},stopCoverage(){}}`
+          )
+        }
+        await expect(
+          openSession(
+            f.root,
+            undefined,
+            mode === 'commonjs'
+              ? { customProviderModule: './provider.cjs' }
+              : {}
+          )
+        ).rejects.toThrow(/helper imports are unqualified/)
+        await expect(
+          readFile(join(f.root, 'helper-evaluated'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+      } finally {
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+  it.each([
+    'normal',
+    'snapshot-new',
+    'snapshot-all',
+    'snapshot-legacy',
+    'snapshot-cancel',
+    'snapshot-cancel-uncertain',
+    'missing-facts',
+    'mismatched-facts',
+    'unsafe-cleanup',
+  ])(
+    'supervises actual custom payload IPC and rejects %s ownership failures',
+    async (mode) => {
+      const cancelling = mode.startsWith('snapshot-cancel')
+      const controller = new AbortController()
+      const f = await customFixture(cancelling ? 'cancel' : 'normal')
+      let session: Awaited<ReturnType<typeof openSession>> | undefined
+      let retainedCache: string | undefined
+      try {
+        session = await openSession(f.root, controller.signal)
+        const runtime = join(
+          require.resolve('next/dist/experimental/testing/runner'),
+          '../..'
+        )
+        await writeFile(
+          join(f.root, 'producer-input.json'),
+          JSON.stringify({ ...f, runtime, mode })
+        )
+        const request = {
+          operation: 'run',
+          projectDir: f.root,
+          isolatedProfile: true,
+          customCoverageRequests: { [profile.id]: session.request },
+          ...(mode === 'snapshot-new' || cancelling
+            ? { snapshotUpdateMode: 'new' }
+            : mode === 'snapshot-all'
+              ? { snapshotUpdateMode: 'all' }
+              : mode === 'snapshot-legacy'
+                ? { updateSnapshots: true }
+                : { snapshotUpdateMode: 'none' }),
+          projects: [
+            {
+              profile,
+              customCoverage: config,
+              entries: [f.entry],
+              setupFiles: [],
+              include: [],
+              exclude: [],
+              testTimeout: 2000,
+              hookTimeout: 1000,
+              fileTimeout: 5000,
+            },
+          ],
+        }
+        const { runTestProcess } = await import(
+          'next/dist/experimental/testing/execution/process'
+        )
+        let outcome: any
+        const pending = runTestProcess(
+          join(__dirname, 'custom-supervisor.cjs'),
+          {
+            cwd: f.root,
+            env: process.env,
+            input: {
+              request,
+              runtime,
+              producer: join(__dirname, 'custom-producer.cjs'),
+              uncertainCancellation: mode === 'snapshot-cancel-uncertain',
+            },
+            signal: controller.signal,
+            timeoutMs: 15000,
+            shutdownGraceMs: 5000,
+            onMessage(message) {
+              outcome = message
+            },
+          }
+        )
+        if (cancelling) {
+          const { retry } = await import('next-test-utils')
+          await retry(async () =>
+            expect(
+              await readFile(join(f.root, 'body-pid.json'), 'utf8')
+            ).toMatch(/^\d+$/)
+          )
+          controller.abort(new Error('custom shared parent cancellation'))
+        }
+        const exit = await pending
+        expect(exit).toMatchObject({
+          reason: cancelling ? 'cancelled' : 'exit',
+          code: 0,
+        })
+        if (mode === 'normal' || mode === 'snapshot-new')
+          expect(outcome.value.result.customCoverage).toEqual([
+            expect.objectContaining({
+              completion: expect.objectContaining({
+                payload: { releasePayload: 42 },
+                complete: true,
+              }),
+            }),
+          ])
+        else if (cancelling) {
+          expect(outcome).not.toHaveProperty('value')
+          if (mode === 'snapshot-cancel') {
+            expect(outcome).toMatchObject({ cancelled: true, uncertain: false })
+            expect(outcome.error).not.toMatch(
+              /missing selected files|cleanup failed/
+            )
+          } else {
+            expect(outcome).toMatchObject({ cancelled: false, uncertain: true })
+            retainedCache = outcome.retainedCache
+            expect(retainedCache).toContain('next-test-cache-')
+          }
+        } else expect(outcome.error).toMatch(/custom coverage|Custom coverage/)
+        const producerPid = JSON.parse(
+          await readFile(join(f.root, 'producer-pid.json'), 'utf8')
+        )
+        expect(() => process.kill(producerPid, 0)).toThrow()
+        if (mode === 'snapshot-all' || mode === 'snapshot-legacy') {
+          expect(outcome.error).toContain('snapshot updates')
+          await expect(
+            readFile(join(f.root, 'body-pid.json'))
+          ).rejects.toMatchObject({ code: 'ENOENT' })
+        } else {
+          const workerPid = JSON.parse(
+            await readFile(join(f.root, 'body-pid.json'), 'utf8')
+          )
+          expect(() => process.kill(workerPid, 0)).toThrow()
+        }
+        await expect(
+          readFile(join(f.root, 'custom-coverage.json'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+        if (cancelling) {
+          const directory = session.request.coverageFilesDirectory
+          await session.dispose({
+            retainPayloads: mode === 'snapshot-cancel-uncertain',
+          })
+          session = undefined
+          if (mode === 'snapshot-cancel-uncertain') {
+            await writeFile(join(directory, 'retained-payload'), '42')
+            expect(
+              await readFile(join(directory, 'retained-payload'), 'utf8')
+            ).toBe('42')
+            await rm(directory, { recursive: true, force: true })
+          } else
+            await expect(readFile(directory)).rejects.toMatchObject({
+              code: 'ENOENT',
+            })
+        }
+      } finally {
+        await session?.dispose({
+          retainPayloads: mode === 'snapshot-cancel-uncertain',
+        })
+        if (retainedCache)
+          await rm(retainedCache, { recursive: true, force: true })
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+  it('validates the complete identity set before forwarding provider-owned payloads', async () => {
+    const f = await customFixture()
+    let session: Awaited<ReturnType<typeof openSession>> | undefined
+    try {
+      session = await openSession(f.root)
+      const { facts } = await runFile(f, session)
+      const { assertCustomCoverageFacts } = await import(
+        'next/dist/experimental/testing/coverage/custom-facts'
+      )
+      const projects = [
+        { profile, customCoverage: config, entries: [f.entry] },
+      ] as import('next/dist/experimental/testing/discovery').DiscoveredTestProject[]
+      const requests = { [profile.id]: session.request },
+        revisions = new Map([[f.entry.id, f.artifact.revision]])
+      expect(
+        assertCustomCoverageFacts(
+          facts,
+          f.root,
+          projects,
+          requests,
+          revisions,
+          'custom-run'
+        )
+      ).toBe(facts)
+      for (const bad of [
+        [],
+        [...facts, ...facts],
+        [{ ...facts[0], testFiles: ['wrong'] }],
+        [
+          {
+            ...facts[0],
+            completion: { ...facts[0].completion, revision: 'wrong' },
+          },
+        ],
+      ])
+        expect(() =>
+          assertCustomCoverageFacts(
+            bad,
+            f.root,
+            projects,
+            requests,
+            revisions,
+            'custom-run'
+          )
+        ).toThrow(/missing|Invalid/)
+    } finally {
+      await session?.dispose()
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    'mutation',
+    'failure-reject',
+    'generation-reject',
+    'legacy-function',
+  ])('settles failure hooks after generated results for %s', async (mode) => {
+    const extra = `
+let actual;
+ReleaseProvider.prototype.generateCoverage = function() {
+  record('generate');
+  if (${JSON.stringify(mode)} === 'generation-reject') throw new Error('actual113 generation rejection');
+  actual = ${JSON.stringify(mode)} === 'legacy-function' ? () => 42 : { value: 1 };
+  return actual;
+};
+ReleaseProvider.prototype.onTestFailure = async function() {
+  record('failure-enter');
+  if (${JSON.stringify(mode)} === 'failure-reject') throw new Error('actual113 failure rejection');
+  await Promise.resolve();
+  actual.value = 2;
+  record('failure-leave');
+};
+ReleaseProvider.prototype.reportCoverage = function(value) {
+  record('report');
+  writeFileSync('custom-coverage.json', JSON.stringify({
+    same: value === actual,
+    kind: typeof value,
+    value: typeof value === 'function' ? value() : value.value,
+    changed: value.value,
+  }));
+};
+`
+    const f = await customFixture('body-failure', extra)
+    let session: Awaited<ReturnType<typeof openSession>> | undefined
+    let rejected = false
+    const trace = async () =>
+      (await readFile(join(f.root, 'provider-trace.jsonl'), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line).name)
+    try {
+      session = await openSession(f.root, undefined, { reportOnFailure: true })
+      const { result, facts } = await runFile(f, session)
+      expect(result.status).toBe('failed')
+      if (mode === 'legacy-function') {
+        await session.finish(facts, 'failed', true)
+        expect((await trace()).slice(-4)).toEqual([
+          'generate',
+          'failure-enter',
+          'failure-leave',
+          'report',
+        ])
+        expect(
+          JSON.parse(
+            await readFile(join(f.root, 'custom-coverage.json'), 'utf8')
+          )
+        ).toEqual({
+          same: true,
+          kind: 'function',
+          value: 42,
+          changed: 2,
+        })
+      } else if (mode === 'generation-reject') {
+        rejected = true
+        await expect(session.generate(facts, 'failed', true)).rejects.toThrow(
+          'actual113 generation rejection'
+        )
+        expect((await trace()).slice(-1)).toEqual(['generate'])
+        expect(await trace()).not.toContain('failure-enter')
+      } else {
+        const receipt = await session.generate(facts, 'failed', true)
+        expect(receipt.coverage).toEqual({ value: 1 })
+        expect((await trace()).slice(-1)).toEqual(['generate'])
+        await expect(
+          readFile(join(f.root, 'custom-coverage.json'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+        if (mode === 'failure-reject') {
+          rejected = true
+          await expect(session.finish(facts, 'failed', true)).rejects.toThrow(
+            'actual113 failure rejection'
+          )
+          expect((await trace()).slice(-2)).toEqual([
+            'generate',
+            'failure-enter',
+          ])
+        } else {
+          await session.finish(facts, 'failed', true)
+          expect(receipt.coverage).toEqual({ value: 1 })
+          expect((await trace()).slice(-4)).toEqual([
+            'generate',
+            'failure-enter',
+            'failure-leave',
+            'report',
+          ])
+          expect(
+            JSON.parse(
+              await readFile(join(f.root, 'custom-coverage.json'), 'utf8')
+            )
+          ).toEqual({ same: true, kind: 'object', value: 2, changed: 2 })
+        }
+      }
+      if (rejected)
+        await expect(
+          readFile(join(f.root, 'custom-coverage.json'))
+        ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      if (rejected)
+        await expect(session?.dispose()).rejects.toThrow(/actual113/)
+      else await session?.dispose()
+      await rm(f.root, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    'typescript',
+    'jsx',
+    'route',
+    'browser',
+    'mocking',
+    'cache',
+    'cohort',
+    'dom',
+    'collection',
+    'snapshot-all',
+    'missing-consumer',
+  ])(
+    'preserves production custom capture boundaries for %s',
+    async (change) => {
+      const f = await customFixture()
+      let session: Awaited<ReturnType<typeof openSession>> | undefined
+      try {
+        session = await openSession(f.root)
+        const { assertCustomCoverageRequest } = await import(
+          'next/dist/experimental/testing/coverage/custom-runtime'
+        )
+        const artifact = {
+          ...f.artifact,
+          profile: { ...f.artifact.profile, mode: 'production' as const },
+        }
+        const entry = { ...f.entry, profile: artifact.profile }
+        const options: any = {
+          entry,
+          customCoverage: session.request,
+          snapshotUpdateMode: 'none',
+          onCustomCoverage: async () => {},
+        }
+        expect(() =>
+          assertCustomCoverageRequest(artifact, options)
+        ).not.toThrow()
+        if (change === 'typescript')
+          options.entry = {
+            ...entry,
+            file: entry.file.replace(/\.mjs$/, '.ts'),
+          }
+        if (change === 'jsx')
+          options.entry = {
+            ...entry,
+            file: entry.file.replace(/\.mjs$/, '.jsx'),
+          }
+        if (change === 'route')
+          artifact.profile = {
+            ...artifact.profile,
+            route: '/unsupported',
+          } as any
+        if (change === 'browser')
+          artifact.profile = {
+            ...artifact.profile,
+            environment: 'browser',
+          } as any
+        if (change === 'mocking')
+          Object.assign(artifact, { moduleMocking: { version: 1 } })
+        if (change === 'cache')
+          Object.assign(artifact, { moduleCache: { version: 1 } })
+        if (change === 'cohort')
+          Object.assign(artifact, { cohort: { version: 1 } })
+        if (change === 'dom')
+          options.entry = { ...entry, executionEnvironment: { name: 'jsdom' } }
+        if (change === 'collection') options.collectOnly = true
+        if (change === 'snapshot-all') options.snapshotUpdateMode = 'all'
+        if (change === 'missing-consumer') delete options.onCustomCoverage
+        expect(() => assertCustomCoverageRequest(artifact, options)).toThrow(
+          'Custom coverage requires'
+        )
+      } finally {
+        await session?.dispose()
+        await rm(f.root, { recursive: true, force: true })
+      }
+    }
+  )
+})
 
 it.each([
   undefined,
@@ -4138,6 +5819,287 @@ describe('native production source coverage provenance', () => {
   })
 })
 
+async function generationCoverageFixture() {
+  const f = await standardReportFixture()
+  const { createStandardCoverageGenerationCache } = await import(
+    'next/dist/experimental/testing/coverage/generation-cache'
+  )
+  const { snapshotWatchRegistry } = await import(
+    'next/dist/experimental/testing/incremental/registry-additions'
+  )
+  const one = join(f.root, 'one.test.mjs'),
+    two = join(f.root, 'two.test.mjs')
+  await writeFile(one, 'test("one", () => {})\n')
+  await writeFile(two, 'test("two", () => {})\n')
+  const registry = (ids = ['one', 'two'], configurationRevision = 'config') =>
+    snapshotWatchRegistry({
+      configurationRevision,
+      entries: ids.map((id) => ({ id, file: id === 'one' ? one : two })),
+      inputs: [],
+    })
+  const fact = (id: string, hits: number, revision = id) => {
+    const value = structuredClone(f.facts[0])
+    value.entryId = id
+    value.revision = revision
+    value.files[0].data.f['0'] = hits
+    return value
+  }
+  return {
+    ...f,
+    one,
+    two,
+    registry,
+    fact,
+    cache: createStandardCoverageGenerationCache(f.root),
+  }
+}
+
+it.each([undefined, true, false])(
+  'retains only the latest qualified watch facts with cleanOnRerun=%s',
+  async (cleanOnRerun) => {
+    const f = await generationCoverageFixture()
+    try {
+      const registry = await f.registry()
+      const first = await f.cache.prepare({
+        facts: [f.fact('one', 1), f.fact('two', 2)],
+        expected: new Set(['one', 'two']),
+        revisions: new Map([
+          ['one', 'one'],
+          ['two', 'two'],
+        ]),
+        registry,
+        cleanOnRerun,
+      })
+      first.commit()
+      // Mutating producer or returned report data cannot mutate parent-owned state.
+      first.facts[0].files[0].data.f['0'] = 100
+      const rerun = await f.cache.prepare({
+        facts: [f.fact('two', 3, 'fresh')],
+        expected: new Set(['two']),
+        revisions: new Map([['two', 'fresh']]),
+        registry,
+        cleanOnRerun,
+      })
+      expect(
+        rerun.facts.map((fact) => [fact.entryId, fact.files[0].data.f['0']])
+      ).toEqual(
+        cleanOnRerun === false
+          ? [
+              ['one', 1],
+              ['two', 3],
+            ]
+          : [['two', 3]]
+      )
+      rerun.commit()
+      const repeat = await f.cache.prepare({
+        facts: [f.fact('two', 3, 'again')],
+        expected: new Set(['two']),
+        revisions: new Map([['two', 'again']]),
+        registry,
+        cleanOnRerun,
+      })
+      expect(repeat.facts.map((fact) => fact.files[0].data.f['0'])).toEqual(
+        cleanOnRerun === false ? [1, 3] : [3]
+      )
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  }
+)
+
+it('broadens partial coverage execution when retained provenance is stale or missing', async () => {
+  const f = await generationCoverageFixture()
+  try {
+    const registry = await f.registry()
+    const select = (current = registry) =>
+      f.cache.selectEntryIds({
+        registry: current,
+        entryIds: ['one', 'two'],
+        selected: ['two'],
+        cleanOnRerun: false,
+      })
+    expect(await select()).toEqual(['one', 'two'])
+    const first = await f.cache.prepare({
+      facts: [f.fact('one', 1), f.fact('two', 2)],
+      expected: new Set(['one', 'two']),
+      revisions: new Map([
+        ['one', 'one'],
+        ['two', 'two'],
+      ]),
+      registry,
+      cleanOnRerun: false,
+    })
+    first.commit()
+    expect(await select()).toEqual(['two'])
+    expect(
+      await select(await f.registry(['one', 'two'], 'new-profile'))
+    ).toEqual(['one', 'two'])
+    await writeFile(f.one, 'test("one changed", () => {})\n')
+    expect(await select(await f.registry())).toEqual(['one', 'two'])
+    await writeFile(f.one, 'test("one", () => {})\n')
+    await writeFile(f.file, f.source + '\n// changed original\n')
+    expect(await select()).toEqual(['one', 'two'])
+    await expect(
+      f.cache.prepare({
+        facts: [f.fact('two', 3)],
+        expected: new Set(['two']),
+        revisions: new Map([['two', 'two']]),
+        registry,
+        cleanOnRerun: false,
+      })
+    ).rejects.toThrow('source changed')
+  } finally {
+    await rm(f.root, { recursive: true, force: true })
+  }
+})
+
+it('rejects unsealed revisions and cancelled cache commits without losing the previous generation', async () => {
+  const f = await generationCoverageFixture()
+  try {
+    const registry = await f.registry()
+    const initial = {
+      facts: [f.fact('one', 1), f.fact('two', 2)],
+      expected: new Set(['one', 'two']),
+      revisions: new Map([
+        ['one', 'one'],
+        ['two', 'two'],
+      ]),
+      registry,
+      cleanOnRerun: false,
+    }
+    ;(await f.cache.prepare(initial)).commit()
+    await expect(
+      f.cache.prepare({
+        ...initial,
+        revisions: new Map([
+          ['one', 'wrong'],
+          ['two', 'two'],
+        ]),
+      })
+    ).rejects.toThrow('unowned')
+    const controller = new AbortController(),
+      reason = new Error('superseded generation')
+    const pending = await f.cache.prepare({
+      ...initial,
+      facts: [f.fact('one', 9), f.fact('two', 9)],
+      signal: controller.signal,
+    })
+    controller.abort(reason)
+    expect(() => pending.commit()).toThrow(reason)
+    const next = await f.cache.prepare({
+      facts: [f.fact('two', 3)],
+      expected: new Set(['two']),
+      revisions: new Map([['two', 'two']]),
+      registry,
+      cleanOnRerun: false,
+    })
+    expect(next.facts.map((fact) => fact.files[0].data.f['0'])).toEqual([1, 3])
+    const removed = await f.cache.prepare({
+      facts: [],
+      expected: new Set<string>(),
+      revisions: new Map<string, string>(),
+      registry: await f.registry(['one']),
+      cleanOnRerun: false,
+    })
+    expect(removed.facts.map((fact) => fact.entryId)).toEqual(['one'])
+  } finally {
+    await rm(f.root, { recursive: true, force: true })
+  }
+})
+
+it.each([false, true])(
+  'uses explicit parent scheduling evidence for unimported watch sources (%s)',
+  async (includeUnimported) => {
+    const { publishStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-standard'
+    )
+    const f = await standardReportFixture()
+    try {
+      await publishStandardCoverage({
+        projectDir: f.root,
+        ...f,
+        status: 'passed',
+        includeUnimported,
+      })
+      const report = JSON.parse(
+        await readFile(join(f.root, 'coverage/coverage-final.json'), 'utf8')
+      )
+      expect(Object.keys(report)).toEqual(
+        includeUnimported ? [f.file, join(f.root, 'unimported.mjs')] : [f.file]
+      )
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  }
+)
+
+it('withholds failed-compilation watch coverage only with parent diagnostic and outcome proof', async () => {
+  const { validateStandardWatchCoverage } = await import(
+    'next/dist/experimental/testing/coverage/generation-cache'
+  )
+  const f = await generationCoverageFixture()
+  try {
+    const options = {
+      projectDir: f.root,
+      facts: [f.fact('one', 1)],
+      expected: new Set(['one', 'two']),
+      revisions: new Map([['one', 'one']]),
+      status: 'failed',
+      terminalStatus: 'failed',
+      compilationFailures: new Set(['two']),
+      fileOutcomes: new Map([
+        ['one', 'passed'],
+        ['two', 'failed'],
+      ]),
+      allowCompilationFailure: true,
+    }
+    expect(await validateStandardWatchCoverage(options)).toBeUndefined()
+    for (const changes of [
+      { allowCompilationFailure: false },
+      { status: 'passed' },
+      { terminalStatus: 'passed' },
+      { compilationFailures: new Set<string>() },
+      { compilationFailures: new Set(['foreign']) },
+      {
+        fileOutcomes: new Map([
+          ['one', 'passed'],
+          ['two', 'passed'],
+        ]),
+      },
+    ])
+      await expect(
+        validateStandardWatchCoverage({ ...options, ...changes })
+      ).rejects.toThrow('omitted an expected')
+    await expect(
+      validateStandardWatchCoverage({ ...options, facts: undefined })
+    ).rejects.toThrow('Missing standard')
+    await expect(
+      validateStandardWatchCoverage({
+        ...options,
+        facts: [f.fact('one', 1, 'wrong')],
+      })
+    ).rejects.toThrow('unowned')
+    const malformed = f.fact('one', 1)
+    malformed.files[0].sha256 = '0'.repeat(64)
+    await expect(
+      validateStandardWatchCoverage({ ...options, facts: [malformed] })
+    ).rejects.toThrow('source changed')
+    const complete = [f.fact('one', 1), f.fact('two', 2)]
+    expect(
+      await validateStandardWatchCoverage({
+        ...options,
+        facts: complete,
+        revisions: new Map([
+          ['one', 'one'],
+          ['two', 'two'],
+        ]),
+      })
+    ).toBe(complete)
+  } finally {
+    await rm(f.root, { recursive: true, force: true })
+  }
+})
+
 it('rejects unqualified TypeScript arrow binding maps at their authored location', async () => {
   const { remapStandardCoverage } = await import(
     'next/dist/experimental/testing/coverage/istanbul'
@@ -4395,6 +6357,102 @@ it('rejects a newly observed typed runtime source absent from parent source/prof
   } finally {
     await rm(owned.root, { recursive: true, force: true })
   }
+})
+
+it.each(['file', 'cohort'] as const)(
+  'rejects a compiler-analysis acknowledgement completing an ordinary %s request',
+  async (kind) => {
+    const { createExecutionBrokerClient } = await import(
+      'next/dist/experimental/testing/execution/broker'
+    )
+    const owned = await typedCompilerAnalysisFixture(),
+      signal = new AbortController().signal
+    let sent!: (message: { id: string }) => void
+    const request = new Promise<{ id: string }>((resolve) => {
+      sent = resolve
+    })
+    const client = createExecutionBrokerClient({
+      allowCohorts: true,
+      send: async (message) => {
+        sent({ id: message.id })
+      },
+    })
+    const options = {
+      signal,
+      runId: 'runtime-role-control',
+      projectDir: owned.root,
+      entry: {
+        id: owned.artifact.entryId,
+        file: join(owned.root, 'entry.test.ts'),
+        profile,
+      },
+      setupFiles: [],
+      testTimeout: 1000,
+      hookTimeout: 1000,
+      fileTimeout: 1000,
+      updateSnapshots: false,
+      onEvent: () => {},
+    }
+    try {
+      const pending =
+        kind === 'file'
+          ? client.execute(owned.artifact, options)
+          : client.executeCohort(
+              {
+                version: 1,
+                artifacts: [
+                  owned.artifact as import('next/dist/experimental/testing/contracts').CompiledNodeTestArtifact,
+                ],
+              },
+              [options]
+            )
+      const message = await request
+      expect(
+        client.handle({
+          type: 'execution-broker-response',
+          id: message.id,
+          action: 'source-analysis-result',
+        })
+      ).toBe(true)
+      await expect(pending).rejects.toThrow(
+        'Mismatched execution broker result kind'
+      )
+    } finally {
+      client.disconnect(new Error('control closed'))
+      await rm(owned.root, { recursive: true, force: true })
+    }
+  }
+)
+
+it('rejects collection coverage before source planning, compiler allocation or execution', async () => {
+  const { runTests } = await import(
+    'next/dist/experimental/testing/orchestrator'
+  )
+  const execute = jest.fn(),
+    allocateArtifact = jest.fn(),
+    onCoverageSource = jest.fn()
+  await expect(
+    runTests(join(tmpdir(), 'no-coverage-collection-project'), [], {
+      collectOnly: true,
+      coverage: true,
+      standardCoverageOptions: {
+        reporter: ['json'],
+        include: ['*.ts'],
+        exclude: [],
+        reportsDirectory: 'coverage',
+        reportOnFailure: false,
+        thresholds: {},
+      },
+      signal: new AbortController().signal,
+      write: () => {},
+      execute,
+      allocateArtifact,
+      onCoverageSource,
+    })
+  ).rejects.toThrow('Collection cannot request coverage or snapshot updates.')
+  expect(execute).not.toHaveBeenCalled()
+  expect(allocateArtifact).not.toHaveBeenCalled()
+  expect(onCoverageSource).not.toHaveBeenCalled()
 })
 
 it('retains parent source/profile and absence inventory through JSON transport arrays', async () => {
@@ -5783,6 +7841,328 @@ it('authorizes runtime module inputs independently from empty source expansion w
       configuration: [],
       inputs: [],
     })
+  } finally {
+    await rm(f.root, { recursive: true, force: true })
+  }
+})
+
+async function runtimeConfigurationGenerationFixture(mixedProfiles = false) {
+  const f = await generationCoverageFixture()
+  const { createRuntimeConfigurationPlan } = await import(
+    'next/dist/experimental/testing/coverage/runtime-configuration'
+  )
+  const configFile = join(f.root, 'next.config.mjs'),
+    helper = join(f.root, 'compiler-helper.mjs'),
+    other = join(f.root, 'other-helper.mjs')
+  const configSource =
+    "import './compiler-helper.mjs'; if (process.env.PROFILE_HELPER === 'two') await import('./other-helper.mjs'); export default {}"
+  await writeFile(configFile, configSource)
+  await writeFile(helper, 'export const marker = 1')
+  await writeFile(other, 'export const marker = 1')
+  const makePlan = async (ids = ['one', 'two']) =>
+    createRuntimeConfigurationPlan({
+      projectDir: f.root,
+      projects: (mixedProfiles ? ['one', 'two'] : ['node']).map((name) => ({
+        profile: { ...profile, id: name },
+        entries: ids
+          .filter((id) => !mixedProfiles || id === name)
+          .map((id) => ({
+            id,
+            file: id === 'one' ? f.one : f.two,
+            profile: { ...profile, id: name },
+          })),
+      })),
+      signal: new AbortController().signal,
+    })
+  // Pure cache controls start with parent-owned sealed inputs. Adjacent role
+  // controls exercise the sidecar/lease producer; public proofs use real compilers.
+  const receipt = async (
+    plan: Awaited<ReturnType<typeof makePlan>>,
+    id: string
+  ) => {
+    const request = plan.requests.find((request) =>
+      request.entries.some((entry) => entry.id === id)
+    )!
+    const entry = request.entries.find((entry) => entry.id === id)!
+    const modules = [
+      configFile,
+      helper,
+      ...(mixedProfiles && id === 'two' ? [other] : []),
+    ]
+    return {
+      version: 1 as const,
+      kind: 'next-runtime-config-modules' as const,
+      authority: {
+        version: 1 as const,
+        projectDir: plan.projectDir,
+        inputs: plan.inputs,
+        configuration: plan.configuration,
+        profile: request.profile,
+        authorization: request.authorization,
+        entry,
+      },
+      compiler: {
+        entryId: id,
+        revision: entry.revision,
+        rootDir: join(f.root, 'artifact-' + entry.revision),
+      },
+      graph: {
+        version: 1 as const,
+        configFile,
+        inputs: await Promise.all(
+          modules.map(async (file) => ({
+            file,
+            sha256: coverageHash(await readFile(file)),
+          }))
+        ),
+        imports: modules.slice(1).map((file) => ({
+          kind: 'module' as const,
+          parent: configFile,
+          request: './' + file.slice(f.root.length + 1),
+          target: file,
+        })),
+      },
+    }
+  }
+  const prepared = async (
+    plan: Awaited<ReturnType<typeof makePlan>>,
+    hits: Record<string, number>,
+    signal?: AbortSignal,
+    cleanOnRerun = false
+  ) => {
+    const ids = Object.keys(hits)
+    const receipts = await Promise.all(ids.map((id) => receipt(plan, id)))
+    const facts = ids.map((id) =>
+      f.fact(
+        id,
+        hits[id],
+        receipts.find((receipt) => receipt.compiler.entryId === id)!.compiler
+          .revision
+      )
+    )
+    return f.cache.prepare({
+      facts,
+      expected: new Set(ids),
+      revisions: new Map(facts.map((fact) => [fact.entryId, fact.revision])),
+      registry: await f.registry(),
+      cleanOnRerun,
+      runtimeConfiguration: { plan, receipts },
+      signal,
+    })
+  }
+  return { ...f, helper, other, makePlan, receipt, prepared }
+}
+
+it.each([true, false])(
+  'keeps actual runtime receipt authorization with retained entry revisions (clean=%s)',
+  async (cleanOnRerun) => {
+    const f = await runtimeConfigurationGenerationFixture()
+    try {
+      const initial = await f.makePlan()
+      const one = initial.requests[0].entries.find(
+        (entry) => entry.id === 'one'
+      )!
+      ;(await f.prepared(initial, { one: 1, two: 2 })).commit()
+      const current = await f.makePlan(['two'])
+      const next = await f.prepared(
+        current,
+        { two: 3 },
+        undefined,
+        cleanOnRerun
+      )
+      expect(next.facts.map((fact) => fact.files[0].data.f[0])).toEqual(
+        cleanOnRerun ? [3] : [1, 3]
+      )
+      const receipts = next.runtimeConfigurationReceipts!
+      expect(receipts).toHaveLength(cleanOnRerun ? 1 : 2)
+      if (!cleanOnRerun) {
+        const retained = receipts.find(
+          (receipt) => receipt.compiler.entryId === 'one'
+        )!
+        expect(retained.compiler.revision).toBe(one.revision)
+        expect(retained.authority.authorization.id).toBe(
+          initial.requests[0].authorization.id
+        )
+        expect(retained.authority.authorization.id).not.toBe(
+          current.requests[0].authorization.id
+        )
+      }
+      next.commit()
+    } finally {
+      await rm(f.root, { recursive: true, force: true })
+    }
+  }
+)
+
+it('broadens a partial watch run when a retained profile config helper is stale without borrowing the selected profile receipt', async () => {
+  const f = await runtimeConfigurationGenerationFixture(true)
+  try {
+    ;(await f.prepared(await f.makePlan(), { one: 1, two: 1 })).commit()
+    const options = {
+      registry: await f.registry(),
+      entryIds: ['one', 'two'],
+      selected: ['one'],
+      cleanOnRerun: false,
+      requireRuntimeConfiguration: true,
+    }
+    expect(await f.cache.selectEntryIds(options)).toEqual(['one'])
+    await writeFile(f.other, 'export const marker = 2')
+    expect(await f.cache.selectEntryIds(options)).toEqual(['one', 'two'])
+    await expect(
+      f.prepared(await f.makePlan(['one']), { one: 3 })
+    ).rejects.toThrow('changed after its actual load')
+    const recovered = await f.prepared(await f.makePlan(), { one: 4, two: 5 })
+    expect(recovered.facts.map((fact) => fact.files[0].data.f[0])).toEqual([
+      4, 5,
+    ])
+    recovered.commit()
+    expect(await f.cache.selectEntryIds(options)).toEqual(['one'])
+  } finally {
+    await rm(f.root, { recursive: true, force: true })
+  }
+})
+
+it('rejects a missing or relabeled fresh receipt without consuming the prior completed generation', async () => {
+  const f = await runtimeConfigurationGenerationFixture()
+  try {
+    const initial = await f.makePlan()
+    const old = await f.receipt(initial, 'two')
+    ;(await f.prepared(initial, { one: 1, two: 2 })).commit()
+    const current = await f.makePlan(['two']),
+      entry = current.requests[0].entries[0],
+      fact = f.fact('two', 9, entry.revision)
+    const options = {
+      facts: [fact],
+      expected: new Set(['two']),
+      revisions: new Map([['two', entry.revision]]),
+      registry: await f.registry(),
+      cleanOnRerun: false,
+    }
+    await expect(
+      f.cache.prepare({
+        ...options,
+        runtimeConfiguration: { plan: current, receipts: [] },
+      })
+    ).rejects.toThrow('Incomplete parent runtime configuration')
+    await expect(
+      f.cache.prepare({
+        ...options,
+        runtimeConfiguration: {
+          plan: current,
+          receipts: [
+            { ...old, compiler: { ...old.compiler, revision: entry.revision } },
+          ],
+        },
+      })
+    ).rejects.toThrow('Unrequested or incompatible')
+    await expect(f.cache.prepare(options)).rejects.toThrow(
+      'configuration context is missing'
+    )
+    const recovered = await f.prepared(current, { two: 3 })
+    expect(recovered.facts.map((fact) => fact.files[0].data.f[0])).toEqual([
+      1, 3,
+    ])
+    recovered.commit()
+  } finally {
+    await rm(f.root, { recursive: true, force: true })
+  }
+})
+
+it('retains the prior runtime receipts when a prepared generation is cancelled and permits fresh recovery', async () => {
+  const f = await runtimeConfigurationGenerationFixture()
+  try {
+    const initial = await f.makePlan()
+    ;(await f.prepared(initial, { one: 1, two: 2 })).commit()
+    const controller = new AbortController()
+    const pending = await f.prepared(
+      await f.makePlan(['two']),
+      { two: 9 },
+      controller.signal
+    )
+    controller.abort(new Error('cancel runtime receipt generation'))
+    expect(() => pending.commit()).toThrow('cancel runtime receipt generation')
+    const recovered = await f.prepared(await f.makePlan(['two']), { two: 3 })
+    expect(recovered.facts.map((fact) => fact.files[0].data.f[0])).toEqual([
+      1, 3,
+    ])
+    const old = recovered.runtimeConfigurationReceipts!.find(
+      (receipt) => receipt.compiler.entryId === 'one'
+    )!
+    expect(old.authority.authorization.id).toBe(
+      initial.requests[0].authorization.id
+    )
+    recovered.commit()
+  } finally {
+    await rm(f.root, { recursive: true, force: true })
+  }
+})
+
+it.each(['before', 'after'] as const)(
+  'keeps the last report when a current or retained runtime config helper changes %s rename',
+  async (when) => {
+    const { publishStandardCoverage } = await import(
+      'next/dist/experimental/testing/coverage/report-standard'
+    )
+    const fs = require('fs/promises') as typeof import('fs/promises')
+    const f = await runtimeConfigurationGenerationFixture(true)
+    try {
+      const first = await f.prepared(await f.makePlan(), { one: 1, two: 2 })
+      first.commit()
+      const next = await f.prepared(await f.makePlan(['one']), { one: 3 })
+      const options = {
+        projectDir: f.root,
+        facts: next.facts,
+        expected: next.expected,
+        config: f.config,
+        excludedFiles: [],
+        status: 'passed' as const,
+        includeUnimported: false,
+        runtimeConfiguration: { receipts: next.runtimeConfigurationReceipts! },
+      }
+      await publishStandardCoverage(options)
+      const path = join(f.root, 'coverage/coverage-final.json'),
+        previous = await readFile(path, 'utf8')
+      if (when === 'before') await writeFile(f.other, 'export const marker = 2')
+      else {
+        const originalRename = fs.rename
+        let changed = false
+        jest.spyOn(fs, 'rename').mockImplementation(async (from, to) => {
+          await originalRename(from, to)
+          if (!changed && to === join(f.root, 'coverage')) {
+            changed = true
+            await writeFile(f.other, 'export const marker = 2')
+          }
+        })
+      }
+      await expect(publishStandardCoverage(options)).rejects.toThrow(
+        'Next config imported module changed after its actual load'
+      )
+      expect(await readFile(path, 'utf8')).toBe(previous)
+    } finally {
+      jest.restoreAllMocks()
+      await rm(f.root, { recursive: true, force: true })
+    }
+  }
+)
+it('rejects a cached receipt whose own original entry revision was relabeled', async () => {
+  const { assertRuntimeConfigurationReceipts } = await import(
+    'next/dist/experimental/testing/coverage/runtime-configuration'
+  )
+  const f = await runtimeConfigurationGenerationFixture()
+  try {
+    const plan = await f.makePlan(),
+      receipt = await f.receipt(plan, 'one')
+    receipt.authority.entry = {
+      ...receipt.authority.entry,
+      revision: 'borrowed',
+    }
+    await expect(
+      assertRuntimeConfigurationReceipts({
+        receipts: [receipt],
+        facts: [{ entryId: 'one', revision: receipt.compiler.revision }],
+        signal: new AbortController().signal,
+      })
+    ).rejects.toThrow('incompatible parent runtime config receipt')
   } finally {
     await rm(f.root, { recursive: true, force: true })
   }
@@ -9071,6 +11451,303 @@ it('binds constructor property single-numeric-argument defaults through unique r
   expect(JSON.parse(result)).toEqual({ controls: 128, passed: 128 })
 })
 
+it('captures fresh orderly-cancel coverage only after actual dev/prod worker closure', () => {
+  const result = runNodeHelperSync(
+    [join(__dirname, 'orderly-cancel-producer.cjs')],
+    { encoding: 'utf8', timeout: 190000 }
+  )
+  expect(JSON.parse(result)).toEqual({
+    profiles: 10,
+    cases: 20,
+    completeReports: 10,
+    closedWorkers: 10,
+  })
+}, 200000)
+
+it.each([
+  'early-seal',
+  'foreign-seal',
+  'duplicate-seal',
+  'spontaneous-signal',
+  'late-rejection',
+  'before-seal-rejection',
+  'nonzero-exit',
+])(
+  'does not publish actual cancellation capture after %s',
+  (control) => {
+    const result = runNodeHelperSync(
+      [
+        join(__dirname, 'orderly-cancel-producer.cjs'),
+        '--mode=development',
+        `--control=${control}`,
+      ],
+      {
+        encoding: 'utf8',
+        timeout: 90000,
+        env: { ...process.env, NODE_ENV: 'development' },
+      }
+    )
+    const summaries = result
+      .split('\n')
+      .filter((line) => line.startsWith('{"mode":'))
+    expect(summaries).toHaveLength(1)
+    expect(JSON.parse(summaries[0])).toEqual({
+      mode: 'development',
+      control,
+      captures: 0,
+      closedWorkers: 1,
+    })
+  },
+  100000
+)
+
+it('keeps only actual captures in an initial cancelled generation with an unlaunched file', async () => {
+  const f = await generationCoverageFixture()
+  try {
+    const prepared = await f.cache.prepare({
+      facts: [f.fact('one', 1)],
+      expected: new Set(['one']),
+      notExecutedEntryIds: new Set(['two']),
+      revisions: new Map([['one', 'one']]),
+      registry: await f.registry(),
+      cleanOnRerun: false,
+    })
+    expect(prepared.facts.map((fact) => fact.entryId)).toEqual(['one'])
+    expect(prepared.retainedEntryIds.size).toBe(0)
+    prepared.commit()
+    await expect(
+      f.cache.prepare({
+        facts: [],
+        expected: new Set(['one']),
+        notExecutedEntryIds: new Set(['one']),
+        revisions: new Map(),
+        registry: await f.registry(),
+      })
+    ).rejects.toThrow('Invalid parent unexecuted')
+    await expect(
+      f.cache.prepare({
+        facts: [],
+        expected: new Set(),
+        notExecutedEntryIds: new Set(['foreign']),
+        revisions: new Map(),
+        registry: await f.registry(),
+      })
+    ).rejects.toThrow('Invalid parent unexecuted')
+  } finally {
+    await rm(f.root, { recursive: true, force: true })
+  }
+})
+
+it('retains original closed source counters across a queued test edit while preserving source and config vetoes', async () => {
+  const f = await runtimeConfigurationGenerationFixture()
+  try {
+    const initial = await f.makePlan()
+    const oldTwo = await f.receipt(initial, 'two')
+    ;(await f.prepared(initial, { one: 1, two: 2 })).commit()
+    await writeFile(f.two, 'test("changed queued title", () => {})\n')
+    const current = await f.makePlan()
+    const one = await f.receipt(current, 'one')
+    const fresh = f.fact('one', 3, one.compiler.revision)
+    const prepare = async () =>
+      f.cache.prepare({
+        facts: [fresh],
+        expected: new Set(['one']),
+        notExecutedEntryIds: new Set(['two']),
+        revisions: new Map([['one', fresh.revision]]),
+        registry: await f.registry(),
+        cleanOnRerun: false,
+        runtimeConfiguration: { plan: current, receipts: [one] },
+      })
+    const retained = await prepare()
+    expect(
+      retained.facts.map((fact) => [fact.entryId, fact.files[0].data.f[0]])
+    ).toEqual([
+      ['two', 2],
+      ['one', 3],
+    ])
+    expect([...retained.retainedEntryIds]).toEqual(['two'])
+    expect(
+      retained.runtimeConfigurationReceipts!.find(
+        (receipt) => receipt.compiler.entryId === 'two'
+      )
+    ).toEqual(oldTwo)
+    const helperBefore = await readFile(f.helper)
+    await writeFile(f.helper, 'export const marker = "changed config"')
+    await expect(prepare()).rejects.toThrow(/changed after|configuration/)
+    await writeFile(f.helper, helperBefore)
+    await writeFile(f.file, f.source + '\n// changed covered source\n')
+    await expect(prepare()).rejects.toThrow('source changed')
+    await writeFile(f.file, f.source)
+    const recovery = await f.prepared(await f.makePlan(), { one: 4, two: 5 })
+    expect(recovery.facts.map((fact) => fact.files[0].data.f[0])).toEqual([
+      4, 5,
+    ])
+    expect(recovery.retainedEntryIds.size).toBe(0)
+    recovery.commit()
+  } finally {
+    await rm(f.root, { recursive: true, force: true })
+  }
+})
+
+it('retains a never-launched file across only scheduling metadata revisions with parent coverage context', async () => {
+  const f = await generationCoverageFixture()
+  try {
+    ;(
+      await f.cache.prepare({
+        facts: [f.fact('one', 1), f.fact('two', 2)],
+        expected: new Set(['one', 'two']),
+        revisions: new Map([
+          ['one', 'one'],
+          ['two', 'two'],
+        ]),
+        registry: await f.registry(undefined, 'before-directory-metadata'),
+        retentionConfigurationRevision: 'same-effective-profile-and-config',
+        cleanOnRerun: false,
+      })
+    ).commit()
+    const registry = await f.registry(undefined, 'after-directory-metadata')
+    const prepare = (
+      retentionConfigurationRevision?: string,
+      current = registry
+    ) =>
+      f.cache.prepare({
+        facts: [f.fact('one', 3, 'fresh')],
+        expected: new Set(['one']),
+        notExecutedEntryIds: new Set(['two']),
+        revisions: new Map([['one', 'fresh']]),
+        registry: current,
+        retentionConfigurationRevision,
+        cleanOnRerun: false,
+      })
+    const retained = await prepare('same-effective-profile-and-config')
+    expect(
+      retained.facts.map((fact) => [fact.entryId, fact.files[0].data.f['0']])
+    ).toEqual([
+      ['two', 2],
+      ['one', 3],
+    ])
+    expect([...retained.retainedEntryIds]).toEqual(['two'])
+    for (const revision of [
+      undefined,
+      'changed-effective-config',
+      'changed-profile',
+    ]) {
+      const refused = await prepare(revision)
+      expect(refused.facts.map((fact) => fact.entryId)).toEqual(['one'])
+      expect(refused.retainedEntryIds.size).toBe(0)
+    }
+    const input = {
+      file: f.one,
+      sourceHash: coverageHash(await readFile(f.one)),
+    }
+    const changedInputs = await prepare('same-effective-profile-and-config', {
+      ...registry,
+      inputs: [input],
+    })
+    expect(changedInputs.retainedEntryIds.size).toBe(0)
+    await expect(
+      f.cache.prepare({
+        facts: [f.fact('one', 3, 'fresh')],
+        expected: new Set(['one']),
+        revisions: new Map([['one', 'fresh']]),
+        registry,
+        retentionConfigurationRevision: 'same-effective-profile-and-config',
+        cleanOnRerun: false,
+      })
+    ).rejects.toThrow('no valid facts')
+    expect(
+      await f.cache.selectEntryIds({
+        registry,
+        entryIds: ['one', 'two'],
+        selected: ['one'],
+        cleanOnRerun: false,
+      })
+    ).toEqual(['one', 'two'])
+  } finally {
+    await rm(f.root, { recursive: true, force: true })
+  }
+})
+
+it('matches pristine cancelled coverage with actually empty interactive new-mode snapshot plans', () => {
+  const stdout = runNodeHelperSync(
+    [join(__dirname, 'orderly-cancel-producer.cjs'), '--snapshot-mode=new'],
+    { encoding: 'utf8', timeout: 240000 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 10,
+    cases: 20,
+    completeReports: 10,
+    closedWorkers: 10,
+  })
+}, 250000)
+
+it.each(
+  (['development', 'production'] as const).flatMap((mode) =>
+    (['file', 'inline', 'path', 'cleanup-failure'] as const).map((intent) => ({
+      mode,
+      intent,
+    }))
+  )
+)(
+  'vetoes cancelled coverage for an actual $intent snapshot writer in $mode',
+  ({ mode, intent }) => {
+    const stdout = runNodeHelperSync(
+      [
+        join(__dirname, 'orderly-cancel-producer.cjs'),
+        `--mode=${mode}`,
+        '--snapshot-mode=new',
+        `--snapshot-intent=${intent}`,
+      ],
+      {
+        encoding: 'utf8',
+        timeout: 90000,
+        env: { ...process.env, NODE_ENV: mode },
+      }
+    )
+    const rows = stdout
+      .split('\n')
+      .filter((line: string) => line.startsWith('{"mode":'))
+    expect(rows).toHaveLength(1)
+    expect(JSON.parse(rows[0])).toEqual({
+      mode,
+      control: `snapshot-${intent}`,
+      captures: 0,
+      closedWorkers: 1,
+    })
+  },
+  100000
+)
+
+it.each(['development', 'production'] as const)(
+  'retains real read-only inline snapshot assertions during new-mode cancellation in %s',
+  (mode) => {
+    const stdout = runNodeHelperSync(
+      [
+        join(__dirname, 'orderly-cancel-producer.cjs'),
+        `--mode=${mode}`,
+        '--snapshot-mode=new',
+        '--snapshot-intent=read-only',
+      ],
+      {
+        encoding: 'utf8',
+        timeout: 90000,
+        env: { ...process.env, NODE_ENV: mode },
+      }
+    )
+    const rows = stdout
+      .split('\n')
+      .filter((line: string) => line.startsWith('{"mode":'))
+    expect(rows).toHaveLength(1)
+    expect(JSON.parse(rows[0])).toEqual({
+      mode,
+      cases: 2,
+      completeReports: 1,
+      closedWorkers: 1,
+    })
+  },
+  100000
+)
+
 describe('actual Browser import statement composition', () => {
   function body(count: number): StandardCoverageData {
     return {
@@ -10642,6 +13319,179 @@ it.each(['next.test.config.mjs', 'vitest.config.mjs', 'vite.config.mjs'])(
   }
 )
 
+describe('formatter current AST preparation before caller-owned commit', () => {
+  const rows = require('./fixtures/formatter-ast/cases.json').rows as {
+    name: string
+    before: string
+    profile: { edit?: string; glob?: boolean }
+    calls: number[][]
+  }[]
+  it.each(rows)(
+    'retains formatter calls and error ordering for $name in the actual configuration realm',
+    async (row) => {
+      const { openTestConfigModule } = await import(
+        'next/dist/experimental/testing/config-modules'
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-formatter-ast-realm-')),
+        trace = join(root, 'trace.jsonl'),
+        file = join(root, 'vitest.config.mjs')
+      const before = row.before.replaceAll(
+        '<TRACE_DIR>/' + row.name + '/trace.jsonl',
+        trace
+      )
+      await writeFile(file, before)
+      const realm = await openTestConfigModule(file, root)
+      try {
+        const alternate = join(root, 'next.test.config.mjs')
+        const alternateSource =
+          'export default {test:{coverage:{thresholds:{lines:123}}}}\n'
+        await writeFile(alternate, alternateSource)
+        if (row.profile.edit) await writeFile(file, row.profile.edit)
+        const current = await readFile(file, 'utf8')
+        const updates: import('next/dist/experimental/testing/coverage/types').StandardCoverageThresholdUpdate[] =
+          row.profile.glob
+            ? [
+                { metric: 'lines', previous: 0, value: 28.57 },
+                ...(
+                  ['lines', 'functions', 'statements', 'branches'] as const
+                ).map((metric) => ({
+                  pattern: 'fully.mjs',
+                  metric,
+                  previous: 0,
+                  value: 100,
+                })),
+              ]
+            : [
+                { metric: 'lines', previous: 0, value: 28.57 },
+                { metric: 'functions', previous: 0, value: 40 },
+                { metric: 'statements', previous: 0, value: 33.33 },
+                { metric: 'branches', previous: 0, value: 25 },
+              ]
+        const error = await realm.prepareCoverageThresholdUpdate!(
+          updates
+        ).catch((error) => error)
+        expect(error).toBeInstanceOf(Error)
+        const expected =
+          row.name === 'current-glob-missing'
+            ? "Cannot set properties of undefined (setting 'lines')"
+            : row.name === 'current-thresholds-null'
+              ? 'Unable to parse thresholds from configuration file: Expected config.test.coverage.thresholds to be an object'
+              : 'Failed to update coverage thresholds. Configuration file is too complex.'
+        expect(error.message).toBe(expected)
+        expect(error.name).toBe(
+          row.name === 'current-glob-missing' ? 'TypeError' : 'Error'
+        )
+        const { existsSync, readFileSync } = await import('fs')
+        expect(
+          existsSync(trace)
+            ? readFileSync(trace, 'utf8')
+                .trim()
+                .split('\n')
+                .map((line) => JSON.parse(line))
+            : []
+        ).toEqual(row.calls)
+        expect(await readFile(file, 'utf8')).toBe(current)
+        expect(await readFile(alternate, 'utf8')).toBe(alternateSource)
+      } finally {
+        await realm.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('publishes synchronous callbacks before returning the receipt and preserves late-abort errors', async () => {
+    const { openTestConfigModule } = await import(
+      'next/dist/experimental/testing/config-modules'
+    )
+    const { commitCoverageThresholdUpdate } = await import(
+      'next/dist/experimental/testing/coverage/threshold-update'
+    )
+    const root = await mkdtemp(
+        join(tmpdir(), 'next-formatter-sync-preparation-')
+      ),
+      file = join(root, 'vitest.config.mjs'),
+      trace = join(root, 'trace.jsonl')
+    const original = `import {appendFileSync}from'node:fs'\nlet value=0\nexport default {test:{coverage:{thresholds:{autoUpdate:function(next,previous){appendFileSync(${JSON.stringify(trace)},JSON.stringify([next,previous,value,this===undefined])+'\\n');queueMicrotask(()=>value++);return next+value},lines:0,functions:0}}}}\n`
+    await writeFile(file, original)
+    const realm = await openTestConfigModule(file, root)
+    try {
+      const source = await realm.prepareCoverageThresholdUpdate!([
+        { metric: 'lines', previous: 0, value: 10 },
+        { metric: 'functions', previous: 0, value: 20 },
+      ])
+      expect(source).toContain('lines:10')
+      expect(source).toContain('functions:20')
+      expect(
+        (await readFile(trace, 'utf8'))
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line))
+      ).toEqual([
+        [10, 0, 0, true],
+        [20, 0, 0, true],
+      ])
+      expect(await readFile(file, 'utf8')).toBe(source)
+      const controller = new AbortController()
+      controller.abort(new Error('actual abort before prepared commit'))
+      expect(() =>
+        commitCoverageThresholdUpdate({
+          configFile: file,
+          source,
+          signal: controller.signal,
+        })
+      ).toThrow('actual abort before prepared commit')
+      expect(await readFile(file, 'utf8')).toBe(source)
+      expect(commitCoverageThresholdUpdate({ configFile: file, source })).toBe(
+        true
+      )
+      expect(await readFile(file, 'utf8')).toBe(source)
+      await expect(
+        realm.formatCoverageThresholdUpdates!([
+          { metric: 'lines', previous: 0, value: 1 },
+        ])
+      ).resolves.toEqual([{ metric: 'lines', previous: 0, value: 3 }])
+    } finally {
+      await realm.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('retains complete callback execution and original selected bytes when the formatter realm cannot write', async () => {
+    const { openTestConfigModule } = await import(
+      'next/dist/experimental/testing/config-modules'
+    )
+    const { chmod } = await import('fs/promises')
+    const root = await mkdtemp(join(tmpdir(), 'next-formatter-write-error-')),
+      file = join(root, 'vitest.config.mjs'),
+      trace = join(root, 'trace.jsonl')
+    const original = `import {appendFileSync,chmodSync}from'node:fs'\nexport default {test:{coverage:{thresholds:{autoUpdate:function(next,previous){appendFileSync(${JSON.stringify(trace)},JSON.stringify([next,previous])+'\\n');chmodSync(${JSON.stringify(file)},0o444);return next},lines:0,functions:0}}}}\n`
+    await writeFile(file, original)
+    const realm = await openTestConfigModule(file, root)
+    try {
+      await expect(
+        realm.prepareCoverageThresholdUpdate!([
+          { metric: 'lines', previous: 0, value: 10 },
+          { metric: 'functions', previous: 0, value: 20 },
+        ])
+      ).rejects.toThrow(/EACCES/)
+      expect(
+        (await readFile(trace, 'utf8'))
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line))
+      ).toEqual([
+        [10, 0],
+        [20, 0],
+      ])
+      expect(await readFile(file, 'utf8')).toBe(original)
+    } finally {
+      await realm.dispose()
+      await chmod(file, 0o644)
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+})
+
 describe('private Istanbul JavaScript producer', () => {
   it('instruments selected raw modules without evaluating unimported code and rejects a different loader phase', async () => {
     const {
@@ -10804,6 +13654,50 @@ describe('private Istanbul JavaScript producer', () => {
       })
     ).rejects.toThrow('isolated development Node JavaScript')
   })
+
+  it('matches genuine complete models through the actual compiler and worker across selected, absent and selected requests', async () => {
+    const output = await mkdtemp(join(tmpdir(), 'next-istanbul-private-model-'))
+    try {
+      runNodeHelperSync(
+        [
+          join(__dirname, 'istanbul-provider-private.cjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        {
+          encoding: 'utf8',
+          timeout: 120000,
+          env: {
+            ...process.env,
+            TURBO_TASKS_AVAILABLE_PARALLELISM: '4',
+          },
+        }
+      )
+      expect(
+        JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+      ).toMatchObject({
+        actualPrivateCompilerWorkerCases: 2,
+        wholeThreeFileJSONSummaryLCOVEqual: true,
+        publicAdmission: false,
+      })
+      expect(
+        JSON.parse(await readFile(join(output, 'CLOSED.json'), 'utf8'))
+      ).toEqual({
+        fixtureRetired: true,
+        sessionDisposed: true,
+        serviceDisposed: true,
+      })
+    } finally {
+      if (process.env.NEXT_TESTING_ISTANBUL_EVIDENCE) {
+        const { cp } = await import('fs/promises')
+        await cp(output, process.env.NEXT_TESTING_ISTANBUL_EVIDENCE, {
+          recursive: true,
+        })
+      }
+      await rm(output, { recursive: true, force: true })
+    }
+  }, 125000)
 })
 
 describe('private settled suite coverage observations', () => {
@@ -10955,6 +13849,74 @@ describe('private settled suite coverage observations', () => {
     tracker.authorizeSettledSuiteErrors([reference])
     expect(tracker.complete).toBe(false)
   })
+})
+
+describe('private settled afterAll compiled producer', () => {
+  it.each([
+    'sync',
+    'async',
+    'timeout',
+    'parallel-timeout',
+    'scope-finalization',
+    'disposal',
+    'abort',
+  ])(
+    'retains actual completion and resource vetoes for %s',
+    async (scenario) => {
+      const output = await mkdtemp(join(tmpdir(), 'next-istanbul-afterall-'))
+      try {
+        runNodeHelperSync(
+          [
+            join(__dirname, 'istanbul-afterall-completion.cjs'),
+            'supervise',
+            join(__dirname, '../../..'),
+            output,
+            scenario,
+          ],
+          {
+            encoding: 'utf8',
+            timeout: 125000,
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+          }
+        )
+        const checks = JSON.parse(
+          await readFile(join(output, 'CHECKS.json'), 'utf8')
+        )
+        expect(checks).toMatchObject({
+          actualCrossModuleCompiledFailure: true,
+          captureCount: [
+            'sync',
+            'async',
+            'scope-finalization',
+            'disposal',
+          ].includes(scenario)
+            ? 3
+            : 2,
+          publicAdmission: false,
+        })
+        if (['sync', 'async'].includes(scenario))
+          expect(checks.errorOwnFieldsEqual).toBe(true)
+        expect(
+          JSON.parse(await readFile(join(output, 'CLOSED.json'), 'utf8'))
+        ).toEqual({
+          fixtureRetired: true,
+          sessionDisposed: true,
+          serviceDisposed: true,
+        })
+      } finally {
+        if (process.env.NEXT_TESTING_ISTANBUL_AFTERALL_EVIDENCE) {
+          const { cp } = await import('fs/promises')
+          await cp(
+            output,
+            join(process.env.NEXT_TESTING_ISTANBUL_AFTERALL_EVIDENCE, scenario),
+            { recursive: true }
+          )
+        }
+        await rm(output, { recursive: true, force: true })
+      }
+    },
+    130000
+  )
 })
 
 describe('Istanbul mapped fact wire and publication contract', () => {
@@ -11770,6 +14732,115 @@ describe('Istanbul loaded-source metadata', () => {
   })
 })
 
+describe('owned configuration readiness before prepared coverage', () => {
+  it('retains a real ready realm until disposal and rejects the closed owner', async () => {
+    const { openTestConfigModule } = await import(
+      'next/dist/experimental/testing/config-modules'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-coverage-ready-realm-'))
+    let realm: Awaited<ReturnType<typeof openTestConfigModule>> | undefined
+    try {
+      realm = await openTestConfigModule(undefined, root)
+      expect(() => realm!.assertReadyForCoverage()).not.toThrow()
+      await realm.dispose()
+      expect(() => realm!.assertReadyForCoverage()).toThrow(
+        'unavailable for coverage'
+      )
+    } finally {
+      await realm?.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+
+  it('preserves a real early config-child failure before map preparation', async () => {
+    const { openTestConfigModule } = await import(
+      'next/dist/experimental/testing/config-modules'
+    )
+    const { retry } = await import('next-test-utils')
+    const root = await mkdtemp(join(tmpdir(), 'next-coverage-dead-realm-'))
+    const config = join(root, 'vitest.config.mjs')
+    let realm: Awaited<ReturnType<typeof openTestConfigModule>> | undefined
+    try {
+      await writeFile(config, 'export default {pid:process.pid}\n')
+      realm = await openTestConfigModule(config, root)
+      const pid = (realm.value as { pid: number }).pid
+      expect(Number.isSafeInteger(pid)).toBe(true)
+      process.kill(pid, 'SIGTERM')
+      await retry(async () => {
+        expect(() => realm!.assertReadyForCoverage()).toThrow(
+          'Test configuration session ended unexpectedly'
+        )
+      })
+      let failure: unknown
+      try {
+        realm.assertReadyForCoverage()
+      } catch (error) {
+        failure = error
+      }
+      await expect(realm.dispose()).rejects.toBe(failure)
+      expect(() => process.kill(pid, 0)).toThrow()
+    } finally {
+      await realm?.dispose().catch(() => {})
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+
+  it('keeps an actual transform-host exit and closed broker as coverage failures', async () => {
+    const { openTestConfigModule } = await import(
+      'next/dist/experimental/testing/config-modules'
+    )
+    const { requestCompilerTransform } = await import(
+      'next/dist/experimental/testing/compiler/transform-broker'
+    )
+    const { retry } = await import('next-test-utils')
+    const root = await mkdtemp(join(tmpdir(), 'next-coverage-dead-transform-'))
+    const config = join(root, 'vitest.config.mjs')
+    let realm: Awaited<ReturnType<typeof openTestConfigModule>> | undefined
+    try {
+      await writeFile(
+        config,
+        "export default {test:{},plugins:[{name:'owned-transform-exit',transform(){process.exit(2)}}]}\n"
+      )
+      const setup = join(root, 'setup.mjs')
+      await writeFile(
+        setup,
+        "export default function(project){project.provide('ownerPid',process.pid)}\n"
+      )
+      realm = await openTestConfigModule(config, root)
+      const provided = await realm.setup([
+        { name: 'control', globalSetup: [setup], provide: {} },
+      ])
+      const pid = provided.control.ownerPid as number
+      expect(Number.isSafeInteger(pid)).toBe(true)
+      expect(realm.compilerTransform).toBeDefined()
+      await expect(
+        requestCompilerTransform(realm.compilerTransform!, {
+          file: join(root, 'subject.mjs'),
+          code: 'export const value = 1',
+          query: '',
+          moduleType: 'js',
+        })
+      ).rejects.toThrow()
+      await retry(async () => {
+        expect(() => realm!.assertReadyForCoverage()).toThrow()
+      })
+      await expect(realm.dispose()).rejects.toThrow()
+      expect(() => process.kill(pid, 0)).toThrow()
+      await expect(
+        requestCompilerTransform(realm.compilerTransform!, {
+          file: join(root, 'subject.mjs'),
+          code: 'export const value = 1',
+          query: '',
+          moduleType: 'js',
+        })
+      ).rejects.toThrow()
+    } finally {
+      await realm?.dispose().catch(() => {})
+      await rm(root, { recursive: true, force: true })
+    }
+  }, 30000)
+})
+
 describe('private settled file fixture coverage slots', () => {
   const owner = { runId: 'run', entryId: 'entry', revision: 'revision' }
   const diagnostic = {
@@ -12420,6 +15491,259 @@ it('keeps readonly snapshot bookkeeping unobservable to ordinary Set constructor
     await rm(output, { recursive: true, force: true })
   }
 }, 80000)
+
+describe('actual one-shot V8 readonly completion owner and suite slots', () => {
+  it('requires the exact positive owner, readonly mode and eligible artifact', async () => {
+    const { captureNodeV8ReadOnlySnapshotCoverage, assertCoverageCompletion } =
+      await import('next/dist/experimental/testing/execution/coverage')
+    const artifact: CompiledTestArtifact = {
+      version: 2,
+      kind: 'node',
+      profile,
+      entryId: 'readonly-owner',
+      revision: 'actual',
+      rootDir: '/readonly-owner',
+      entryPath: 'entry.js',
+      files: [],
+      diagnostics: [],
+      coverage: { version: 1, scripts: [], sources: {} },
+    }
+    const request = {
+      entry: {
+        id: artifact.entryId,
+        file: '/readonly-owner/entry.test.mjs',
+        profile,
+      },
+      coverage: { version: 1 as const, kind: 'node-line' as const },
+      snapshotUpdateMode: 'none' as const,
+    }
+    expect(captureNodeV8ReadOnlySnapshotCoverage(artifact, request)).toBe(false)
+    for (const role of [undefined, false, 1, 'true', {}, []])
+      expect(
+        Reflect.apply(captureNodeV8ReadOnlySnapshotCoverage, undefined, [
+          artifact,
+          { ...request, captureOneShotV8ReadOnlySnapshots: role },
+        ])
+      ).toBe(false)
+    const owned = {
+      ...request,
+      captureOneShotV8ReadOnlySnapshots: true as const,
+    }
+    expect(captureNodeV8ReadOnlySnapshotCoverage(artifact, owned)).toBe(true)
+    for (const mode of [undefined, 'all', 'new'])
+      expect(
+        Reflect.apply(captureNodeV8ReadOnlySnapshotCoverage, undefined, [
+          artifact,
+          { ...owned, snapshotUpdateMode: mode },
+        ])
+      ).toBe(false)
+    for (const file of [
+      'entry.test.ts',
+      'entry.test.tsx',
+      'entry.test.jsx',
+      'entry.test.cjs',
+    ])
+      expect(
+        captureNodeV8ReadOnlySnapshotCoverage(artifact, {
+          ...owned,
+          entry: { ...request.entry, file },
+        })
+      ).toBe(false)
+    expect(
+      captureNodeV8ReadOnlySnapshotCoverage(artifact, {
+        ...owned,
+        collectOnly: true,
+      })
+    ).toBe(false)
+    expect(
+      captureNodeV8ReadOnlySnapshotCoverage(
+        { ...artifact, profile: { ...profile, mode: 'production' } },
+        owned
+      )
+    ).toBe(false)
+    expect(
+      captureNodeV8ReadOnlySnapshotCoverage(
+        { ...artifact, profile: { ...profile, environment: 'browser' } },
+        owned
+      )
+    ).toBe(false)
+    const completion = {
+      version: 1,
+      runId: 'actual-run',
+      entryId: artifact.entryId,
+      revision: artifact.revision,
+      complete: true,
+      data: { version: 1, scripts: [] },
+      settledSuiteErrors: [{ suiteId: artifact.entryId, index: 0 }],
+    }
+    expect(() =>
+      assertCoverageCompletion(completion, artifact, 'actual-run')
+    ).toThrow('Unrequested')
+    expect(() =>
+      assertCoverageCompletion(completion, artifact, 'actual-run', true)
+    ).not.toThrow()
+    for (const role of [undefined, false, 1, 'true', {}])
+      expect(() =>
+        Reflect.apply(assertCoverageCompletion, undefined, [
+          completion,
+          artifact,
+          'actual-run',
+          role,
+        ])
+      ).toThrow('Unrequested')
+    expect(() =>
+      assertCoverageCompletion(
+        completion,
+        { ...artifact, profile: { ...profile, mode: 'production' } },
+        'actual-run',
+        true
+      )
+    ).toThrow('Unrequested')
+    expect(() =>
+      assertCoverageCompletion(
+        {
+          ...completion,
+          complete: false,
+          error: { message: 'actual failure' },
+        },
+        artifact,
+        'actual-run',
+        true
+      )
+    ).toThrow('Unrequested')
+    const { settledSuiteErrors: _slots, ...omitted } = completion
+    expect(() =>
+      assertCoverageCompletion(omitted, artifact, 'actual-run')
+    ).not.toThrow()
+    expect(Object.hasOwn(request, 'captureOneShotV8ReadOnlySnapshots')).toBe(
+      false
+    )
+    expect(Object.hasOwn(omitted, 'settledSuiteErrors')).toBe(false)
+  })
+  it('keeps malformed or unowned compiler-process requests outside the role', async () => {
+    const { runWatchProcess } = await import(
+      'next/dist/experimental/testing/watch-process'
+    )
+    const base = {
+      operation: 'run' as const,
+      projectDir: '/readonly-owner',
+      projects: [],
+      isolatedProfile: true,
+      snapshotUpdateMode: 'none' as const,
+      standardCoverageOptions: { provider: undefined },
+      captureOneShotV8ReadOnlySnapshots: true,
+    }
+    for (const changes of [
+      { captureOneShotV8ReadOnlySnapshots: 1 },
+      { isolatedProfile: false },
+      { watchCoverage: true },
+      { userCancellation: true },
+      { snapshotUpdateMode: 'new' },
+      { collectOnly: true },
+      { standardCoverageOptions: undefined },
+      { standardCoverageOptions: { provider: 'istanbul' } },
+    ])
+      await expect(
+        Reflect.apply(runWatchProcess, undefined, [
+          { ...base, ...changes },
+          { signal: new AbortController().signal },
+        ])
+      ).rejects.toThrow('actual read-only one-shot owner')
+  })
+})
+
+it('retains actual Istanbul typed-entry metadata and unsupported-source boundaries', async () => {
+  const { mkdtempSync, rmSync } = require('node:fs')
+  const { tmpdir } = require('node:os')
+  const output = mkdtempSync(join(tmpdir(), 'next-istanbul-typed-artifacts-'))
+  try {
+    await runNodeHelper(
+      [
+        join(__dirname, 'typed-entry-artifacts.cjs'),
+        join(__dirname, '../../..'),
+        output,
+      ],
+      { encoding: 'utf8', timeout: 130000, maxBuffer: 4 * 1024 * 1024 }
+    )
+  } finally {
+    rmSync(output, { recursive: true, force: true })
+  }
+}, 140000)
+
+describe('development Browser V8 watch coverage profile boundaries', () => {
+  const project = {
+    profile: {
+      id: 'browser-watch',
+      mode: 'development',
+      environment: 'browser',
+      runtime: 'nodejs',
+      bundler: 'turbopack',
+      browserClient: true,
+    },
+    entries: [
+      { file: '/project/one.case.js' },
+      { file: '/project/two.case.mjs' },
+    ],
+    setupFiles: [],
+    include: [],
+    exclude: [],
+  } as any
+  it.each([undefined, 'chromium'])(
+    'admits ordinary JavaScript in the actual %s client profile',
+    async (browserEngine) => {
+      const { isDevelopmentBrowserWatchCoverageProject } = await import(
+        'next/dist/experimental/testing/coverage/production-browser'
+      )
+      expect(
+        isDevelopmentBrowserWatchCoverageProject({ ...project, browserEngine })
+      ).toBe(true)
+    }
+  )
+  it.each([
+    { browserEngine: 'firefox' },
+    { browserEngine: 'webkit' },
+    { isolate: false },
+    { setupFiles: ['setup.mjs'] },
+    { snapshotSerializers: ['serializer.mjs'] },
+    { browserFixtures: [{}] },
+    { typecheck: { enabled: true } },
+    { executionEnvironment: {} },
+    { entries: [{ file: '/project/one.case.mjs', executionEnvironment: {} }] },
+    { entries: [{ file: '/project/one.case.mjs', inSource: true }] },
+    { entries: [{ file: '/project/one.case.mjs', typecheck: true }] },
+    ...['ts', 'mts', 'cts', 'cjs', 'jsx', 'tsx'].map((extension) => ({
+      entries: [{ file: `/project/one.case.${extension}` }],
+    })),
+    { profile: { ...project.profile, route: '/' } },
+    { profile: { ...project.profile, mode: 'production' } },
+    { profile: { ...project.profile, runtime: 'edge' } },
+    { profile: { ...project.profile, bundler: 'webpack' } },
+    { profile: { ...project.profile, browserClient: false } },
+    { profile: { ...project.profile, environment: 'node' } },
+  ])('keeps unqualified watch roles closed: %j', async (patch) => {
+    const { isDevelopmentBrowserWatchCoverageProject } = await import(
+      'next/dist/experimental/testing/coverage/production-browser'
+    )
+    expect(
+      isDevelopmentBrowserWatchCoverageProject({ ...project, ...patch })
+    ).toBe(false)
+  })
+  it('preserves the one-shot development predicate for typed entries and serializers', async () => {
+    const {
+      isDevelopmentBrowserCoverageProject,
+      isDevelopmentBrowserWatchCoverageProject,
+    } = await import(
+      'next/dist/experimental/testing/coverage/production-browser'
+    )
+    const oneShot = {
+      ...project,
+      entries: [{ file: '/project/one.case.tsx' }],
+      snapshotSerializers: ['serializer.mjs'],
+    }
+    expect(isDevelopmentBrowserCoverageProject(oneShot)).toBe(true)
+    expect(isDevelopmentBrowserWatchCoverageProject(oneShot)).toBe(false)
+  })
+})
 
 describe('Istanbul TypeScript function body map association', () => {
   it.each(['ts', 'mts'])(

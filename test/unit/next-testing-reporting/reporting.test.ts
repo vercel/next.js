@@ -6,6 +6,7 @@ import {
   mkdir,
   readFile,
   rm,
+  symlink,
   writeFile,
 } from 'node:fs/promises'
 import { killApp, retry } from 'next-test-utils'
@@ -2799,6 +2800,301 @@ describe('pinned built-in result reporters', () => {
   })
 })
 
+describe('owned custom completion reporters', () => {
+  async function custom(mode = 'normal', reporter = 'completion-reporter.mjs') {
+    const root = await mkdtemp(join(tmpdir(), 'next-custom-reporter-'))
+    await cp(join(__dirname, 'fixtures', reporter), join(root, reporter))
+    await writeFile(
+      join(root, 'reporter-options.json'),
+      JSON.stringify({ mode })
+    )
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: parseResultReporters(['json', join(root, reporter)]),
+      outputFile: 'result.json',
+      write: jest.fn(),
+    })
+    const localEntry = {
+      ...entry,
+      id: 'release:contract.case.mjs',
+      file: join(root, 'contract.case.mjs'),
+      profile: { ...entry.profile, id: 'release' },
+    }
+    function complete() {
+      const emit = (event: object) =>
+        machine.onEvent({ ...envelope, ...event } as ResultEvent)
+      emit({ type: 'run-start' })
+      emit({ type: 'file-start', entry: localEntry })
+      const suiteId = `${localEntry.id}/0`
+      for (const [index, name] of ['passes', 'skipped', 'future'].entries()) {
+        const caseId = `${suiteId}/${index}`
+        emit({
+          type: 'case-end',
+          ...result(0, index === 0 ? 'passed' : 'skipped'),
+          entryId: localEntry.id,
+          caseId,
+          attempt: { id: `${caseId}/0/0`, retry: 0, repeat: 0 },
+          name,
+          testName: name,
+          mode: index === 0 ? 'run' : index === 1 ? 'skip' : 'todo',
+          ancestors: [{ id: suiteId, name: 'outer' }],
+        })
+      }
+      emit({
+        type: 'suite-end',
+        entryId: localEntry.id,
+        suiteId,
+        name: 'outer',
+        ancestors: [],
+        mode: 'run',
+        status: 'passed',
+        durationMs: 3,
+        errors: [],
+      })
+      emit({
+        type: 'file-end',
+        entryId: localEntry.id,
+        status: 'passed',
+        durationMs: 3,
+      })
+      emit({ type: 'run-end', status: 'passed', durationMs: 3 })
+    }
+    const trace = async () =>
+      (await readFile(join(root, 'trace.jsonl'), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+    return { root, machine, complete, trace }
+  }
+
+  it.each(['error', 'exit'] as const)(
+    'retains an actual independent close %s after an already-owned completion failure',
+    async (mode) => {
+      const c = await custom(mode, 'completion-distinct-close.mjs')
+      try {
+        await c.machine.initialize()
+        const { pid } = JSON.parse(
+          await readFile(join(c.root, 'initialized.json'), 'utf8')
+        )
+        c.complete()
+        const completionError = await c.machine
+          .finish({ preparedCoverageMap: {} })
+          .catch((error) => error)
+        expect(completionError.message).toBe('owned earlier completion error')
+        await c.machine.dispose({ deferCustom: true })
+        expect(process.kill(pid, 0)).toBe(true)
+        const closeError = await c.machine
+          .dispose({ handledCustomFailure: completionError })
+          .catch((error) => error)
+        expect(closeError).not.toBe(completionError)
+        expect(closeError.message).toContain(
+          mode === 'exit'
+            ? 'Custom reporter process ended unexpectedly'
+            : 'owned distinct close error'
+        )
+        expect(() => process.kill(pid, 0)).toThrow()
+        expect(
+          JSON.parse(await readFile(join(c.root, 'result.json'), 'utf8'))
+        ).toMatchObject({ success: true, coverageMap: {} })
+      } finally {
+        await c.machine.dispose().catch(() => {})
+        await rm(c.root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('initializes before events, exposes real nested task identities and awaits async completion/close', async () => {
+    const c = await custom()
+    try {
+      expect(() => c.complete()).toThrow('initialize before execution events')
+      await c.machine.initialize()
+      const { pid } = JSON.parse(
+        await readFile(join(c.root, 'initialized.json'), 'utf8')
+      )
+      expect(pid).not.toBe(process.pid)
+      c.complete()
+      await c.machine.finish()
+      await c.machine.dispose()
+      expect(await c.trace()).toEqual([
+        { hook: 'init' },
+        {
+          hook: 'end',
+          reason: 'passed',
+          errors: [],
+          modules: [
+            {
+              type: 'module',
+              moduleId: '/contract.case.mjs',
+              state: 'passed',
+              ok: true,
+              size: 1,
+              tests: [
+                {
+                  type: 'test',
+                  name: 'passes',
+                  fullName: 'outer > passes',
+                  result: { state: 'passed' },
+                  sameModule: true,
+                  parentName: 'outer',
+                  annotations: [],
+                  meta: {},
+                  tags: [],
+                  mode: 'run',
+                },
+                {
+                  type: 'test',
+                  name: 'skipped',
+                  fullName: 'outer > skipped',
+                  result: { state: 'skipped' },
+                  sameModule: true,
+                  parentName: 'outer',
+                  annotations: [],
+                  meta: {},
+                  tags: [],
+                  mode: 'skip',
+                },
+                {
+                  type: 'test',
+                  name: 'future',
+                  fullName: 'outer > future',
+                  result: { state: 'skipped' },
+                  sameModule: true,
+                  parentName: 'outer',
+                  annotations: [],
+                  meta: {},
+                  tags: [],
+                  mode: 'todo',
+                },
+              ],
+            },
+          ],
+        },
+        { hook: 'close' },
+      ])
+      expect(() => process.kill(pid, 0)).toThrow(
+        expect.objectContaining({ code: 'ESRCH' })
+      )
+    } finally {
+      await c.machine.dispose()
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+
+  it('loads a CommonJS default constructor and reports actual cases', async () => {
+    const c = await custom('normal', 'commonjs-reporter.cjs')
+    try {
+      await c.machine.initialize()
+      c.complete()
+      await c.machine.finish()
+      expect(
+        JSON.parse(await readFile(join(c.root, 'commonjs-result.json'), 'utf8'))
+      ).toEqual([
+        { name: 'passes', state: 'passed' },
+        { name: 'skipped', state: 'skipped' },
+        { name: 'future', state: 'skipped' },
+      ])
+    } finally {
+      await c.machine.dispose()
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps the passing JSON result while surfacing an async reporter publication failure', async () => {
+    const c = await custom('end')
+    try {
+      await c.machine.initialize()
+      c.complete()
+      await expect(c.machine.finish()).rejects.toThrow(
+        'reporter publication failed'
+      )
+      expect(
+        JSON.parse(await readFile(join(c.root, 'result.json'), 'utf8'))
+      ).toMatchObject({ success: true, numPassedTests: 1 })
+      await c.machine.dispose()
+      expect((await c.trace()).at(-1)).toEqual({ hook: 'close' })
+    } finally {
+      await c.machine.dispose()
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+
+  it('admits the unchanged no-op Ready hook and closes its reporter realm', async () => {
+    const c = await custom('unsupported')
+    try {
+      await c.machine.initialize()
+      const { pid } = JSON.parse(
+        await readFile(join(c.root, 'initialized.json'), 'utf8')
+      )
+      expect(process.kill(pid, 0)).toBe(true)
+      await c.machine.dispose()
+      expect(() => process.kill(pid, 0)).toThrow()
+      expect(await c.trace()).toEqual([{ hook: 'init' }, { hook: 'close' }])
+    } finally {
+      await c.machine.dispose()
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    ['constructor', 'reporter constructor failed'],
+    ['init', 'reporter init failed'],
+    ['context', 'context.projects needs a broader Next tooling adapter'],
+  ])('reclaims the reporter realm after %s failure', async (mode, message) => {
+    const c = await custom(mode)
+    try {
+      await expect(c.machine.initialize()).rejects.toThrow(message)
+    } finally {
+      await c.machine.dispose()
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+
+  it('retains a real close callback failure after successful report publication', async () => {
+    const c = await custom('cleanup')
+    try {
+      await c.machine.initialize()
+      c.complete()
+      await c.machine.finish()
+      await expect(c.machine.dispose()).rejects.toThrow(
+        'reporter cleanup failed'
+      )
+    } finally {
+      await c.machine.dispose().catch(() => {})
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+
+  it('cancels an uncooperative initialization and waits for its owned process to exit', async () => {
+    const c = await custom('hang')
+    const controller = new AbortController()
+    const reason = new Error('custom reporter startup cancelled')
+    try {
+      const initialized = c.machine.initialize({ signal: controller.signal })
+      // Attach the rejection observer before initiating cancellation.
+      const rejected = initialized.then(
+        () => undefined,
+        (error) => error
+      )
+      let pid = 0
+      await retry(async () => {
+        pid = JSON.parse(
+          await readFile(join(c.root, 'initialized.json'), 'utf8')
+        ).pid
+        expect(pid).toBeGreaterThan(0)
+      })
+      controller.abort(reason)
+      expect(await rejected).toBe(reason)
+      expect(() => process.kill(pid, 0)).toThrow(
+        expect.objectContaining({ code: 'ESRCH' })
+      )
+    } finally {
+      controller.abort(reason)
+      await c.machine.dispose()
+      await rm(c.root, { recursive: true, force: true })
+    }
+  }, 15000)
+})
+
 describe('producer specification and declaration ordering', () => {
   function orderedRun(specificationOrder?: string[]) {
     const machine = createMachineReporter({
@@ -2954,6 +3250,368 @@ describe('producer specification and declaration ordering', () => {
       await c.machine.dispose()
       await rm(root, { recursive: true, force: true })
     }
+  })
+})
+
+describe('pinned foreign final-task blob import', () => {
+  const fixtures = join(__dirname, 'fixtures', 'vitest-5.0.4')
+  const scenarios = [
+    'original-public-merge',
+    'nested-pass-fail-retry',
+    'collection-error',
+    'unhandled-error',
+    'runtime-skip-retry-repeat',
+  ]
+  it.each(scenarios)(
+    'projects the actual pristine %s blob without manufacturing Next events',
+    async (scenario) => {
+      const root = await mkdtemp(join(tmpdir(), 'next-foreign-blob-'))
+      const input = join(root, 'blobs')
+      await mkdir(input)
+      const outputFile = join(root, 'result.json')
+      try {
+        const wire = await readFile(join(fixtures, `${scenario}.blob`), 'utf8')
+        await writeFile(join(input, 'reference.blob'), wire)
+        const expected = JSON.parse(
+          await readFile(join(fixtures, `${scenario}.json`), 'utf8')
+        )
+        const errorOutput = jest
+          .spyOn(process.stderr, 'write')
+          .mockImplementation(() => true)
+        let status
+        try {
+          status = await mergeResultReports(input, {
+            projectDir: root,
+            reporters: ['json'],
+            outputFile,
+          })
+        } finally {
+          errorOutput.mockRestore()
+        }
+        expect(status).toBe(expected.expectedCode ? 'failed' : 'passed')
+        const imported = JSON.parse(await readFile(outputFile, 'utf8'))
+        expect(imported).not.toHaveProperty('next')
+        expect(imported.vitest).toMatchObject({
+          version: '5.0.4',
+          evidence: 'foreign-final-task-graph',
+          attemptHistory: 'unavailable',
+          runBoundaries: 'unavailable',
+          snapshotSummary: 'not-serialized',
+          environmentGraphs: 'opaque-not-restored',
+        })
+        expect(imported.vitest.blobs[0].flatted).toEqual(JSON.parse(wire))
+        const { vitest: _foreign, ...standard } = imported
+        // Merge-context wall time is new; file times continue to come from producer cases.
+        const expectedReport = {
+          ...expected.report,
+          startTime: imported.startTime,
+          testResults: expected.report.testResults.map((file) =>
+            file.assertionResults.every((test) => test.duration === undefined)
+              ? {
+                  ...file,
+                  startTime: imported.startTime,
+                  endTime: imported.startTime,
+                }
+              : file
+          ),
+        }
+        expect(standard).toEqual(expectedReport)
+        if (scenario === 'unhandled-error') {
+          expect(imported.success).toBe(true)
+          expect(imported.numPassedTests).toBe(1)
+        }
+        if (scenario === 'nested-pass-fail-retry') {
+          const retryResult = imported.testResults
+            .flatMap((file) => file.assertionResults)
+            .find((test) => test.title === 'retry')
+          expect(retryResult.status).toBe('passed')
+          expect(retryResult.failureMessages).toEqual([
+            expect.stringContaining('first retry failure'),
+          ])
+        }
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('rejects malformed, incomplete, overlapping and mixed foreign inputs before replacing an existing report', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-invalid-foreign-blob-'))
+    const input = join(root, 'blobs')
+    await mkdir(input)
+    const source = await readFile(
+      join(fixtures, 'original-public-merge.blob'),
+      'utf8'
+    )
+    const outputFile = join(root, 'result.json')
+    const mutate = (change: (table: any[], context: any) => void) => {
+      const table = JSON.parse(source)
+      const tuple = table[0]
+      const files = table[Number(tuple[1])]
+      const fileIndex = Number(files[0])
+      const file = table[fileIndex]
+      const tasks = table[Number(file.tasks)]
+      const testIndex = Number(tasks[0])
+      const test = table[testIndex]
+      const result = table[Number(test.result)]
+      const ref = (value: unknown) => String(table.push(value) - 1)
+      change(table, {
+        tuple,
+        file,
+        fileIndex,
+        tasks,
+        test,
+        testIndex,
+        result,
+        ref,
+      })
+      return JSON.stringify(table)
+    }
+    try {
+      await writeFile(outputFile, 'previous report')
+      for (const text of [
+        '[',
+        mutate((table, { tuple }) => {
+          tuple[1] = String(table.length + 10)
+        }),
+        mutate((table, { tuple, ref }) => {
+          tuple[0] = ref('9.0.0')
+        }),
+        mutate((_table, { file, ref }) => {
+          file.filepath = ref('/project/../escape.case.mjs')
+        }),
+        mutate((_table, { file, ref }) => {
+          file.filepath = ref('/project/contract.case.mjs\0hidden')
+        }),
+        mutate((_table, { file, ref }) => {
+          file.name = ref('../contract.case.mjs')
+        }),
+        mutate((_table, { file, testIndex }) => {
+          file.file = String(testIndex)
+        }),
+        mutate((_table, { tasks }) => {
+          tasks.push(tasks[0])
+        }),
+        mutate((_table, { test, fileIndex }) => {
+          test.suite = String(fileIndex)
+        }),
+        mutate((_table, { test }) => {
+          delete test.result
+        }),
+        mutate((_table, { result, ref }) => {
+          result.state = ref('run')
+        }),
+        mutate((_table, { result }) => {
+          result.duration = -1
+        }),
+        mutate((_table, { tuple, ref }) => {
+          tuple[3] = ref({})
+        }),
+      ]) {
+        await writeFile(join(input, 'reference.blob'), text)
+        await expect(
+          mergeResultReports(input, {
+            projectDir: root,
+            reporters: ['json'],
+            outputFile,
+          })
+        ).rejects.toThrow()
+        expect(await readFile(outputFile, 'utf8')).toBe('previous report')
+      }
+      await writeFile(join(input, 'reference.blob'), source)
+      await writeFile(join(input, 'duplicate.blob'), source)
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).rejects.toThrow(/overlapping|duplicate/)
+      await rm(join(input, 'duplicate.blob'))
+      const ambiguous = mutate((_table, { file, ref }) => {
+        file.name = ref('different.case.mjs')
+        file.filepath = ref('/project/different.case.mjs')
+      })
+      await writeFile(join(input, 'ambiguous.blob'), ambiguous)
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).rejects.toThrow('ambiguous native task identity')
+      await rm(join(input, 'ambiguous.blob'))
+      await writeFile(
+        join(input, 'next.json'),
+        JSON.stringify({ version: 1, kind: 'next-test-results' })
+      )
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).rejects.toThrow('cannot mix')
+      await rm(join(input, 'next.json'))
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json', 'default'],
+          outputFile,
+        })
+      ).rejects.toThrow('requires the JSON reporter')
+      expect(await readFile(outputFile, 'utf8')).toBe('previous report')
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('merges real disjoint blobs in producer start order rather than directory or specification order', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-combined-foreign-blob-'))
+    const input = join(root, 'blobs')
+    const outputFile = join(root, 'result.json')
+    await mkdir(input)
+    try {
+      await cp(
+        join(fixtures, 'nested-pass-fail-retry.blob'),
+        join(input, 'a.blob')
+      )
+      await cp(
+        join(fixtures, 'original-public-merge.blob'),
+        join(input, 'b.blob')
+      )
+      const expected = JSON.parse(
+        await readFile(join(fixtures, 'combined-real-blobs.json'), 'utf8')
+      )
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).resolves.toBe('failed')
+      const { vitest, ...standard } = JSON.parse(
+        await readFile(outputFile, 'utf8')
+      )
+      expect(vitest.blobs).toHaveLength(2)
+      expect(standard).toEqual({
+        ...expected.report,
+        startTime: standard.startTime,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps serialized prototype names inert and refuses linked or nonfile inputs before publication', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-owned-foreign-blob-'))
+    const input = join(root, 'blobs')
+    const outputFile = join(root, 'result.json')
+    await mkdir(input)
+    try {
+      const source = await readFile(
+        join(fixtures, 'original-public-merge.blob'),
+        'utf8'
+      )
+      const table = JSON.parse(source)
+      const file = table[Number(table[Number(table[0][1])][0])]
+      const test = table[Number(table[Number(file.tasks)][0])]
+      Object.defineProperty(table[Number(test.meta)], '__proto__', {
+        enumerable: true,
+        value: String(table.push({ foreignPollution: true }) - 1),
+      })
+      await writeFile(join(input, 'reference.blob'), JSON.stringify(table))
+      await mergeResultReports(input, {
+        projectDir: root,
+        reporters: ['json'],
+        outputFile,
+      })
+      const previous = await readFile(outputFile, 'utf8')
+      const report = JSON.parse(previous)
+      expect(report.testResults[0].assertionResults[0].meta).toHaveProperty(
+        '__proto__.foreignPollution',
+        true
+      )
+      expect(({} as any).foreignPollution).toBeUndefined()
+      await rm(join(input, 'reference.blob'))
+      await writeFile(join(root, 'outside.blob'), source)
+      await symlink(
+        join(root, 'outside.blob'),
+        join(input, 'reference.blob'),
+        'file'
+      )
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).rejects.toThrow()
+      expect(await readFile(outputFile, 'utf8')).toBe(previous)
+      await rm(join(input, 'reference.blob'))
+      await writeFile(join(input, 'reference.blob'), source)
+      await mkdir(join(input, 'not-a-blob'))
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).rejects.toThrow('bounded regular file')
+      expect(await readFile(outputFile, 'utf8')).toBe(previous)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  // Windows has no POSIX FIFO directory entries or mkfifo utility.
+  const describePosix = process.platform === 'win32' ? describe.skip : describe
+  describePosix('POSIX foreign input ownership', () => {
+    it('rejects a POSIX FIFO before reading while reclaiming the isolated probe process', async () => {
+      const root = await mkdtemp(join(tmpdir(), 'next-fifo-foreign-blob-'))
+      const input = join(root, 'blobs')
+      const outputFile = join(root, 'result.json')
+      await mkdir(input)
+      try {
+        await writeFile(outputFile, 'previous report')
+        execFileSync('mkfifo', [join(input, 'blocked.blob')])
+        const script = `
+          process.stdout.write(JSON.stringify({ pid: process.pid }) + '\\n');
+          require(process.argv[1]).tryMergeVitestBlobReports(
+            process.argv[2], ['blocked.blob'],
+            { projectDir: process.argv[4], reporters: ['json'], outputFile: process.argv[3] }
+          ).then(
+            () => { process.exitCode = 2 },
+            (error) => process.stdout.write(JSON.stringify({ message: error.message }) + '\\n')
+          );
+        `
+        const output = execFileSync(
+          process.execPath,
+          [
+            '-e',
+            script,
+            require.resolve(
+              'next/dist/experimental/testing/reporting/vitest-blob'
+            ),
+            input,
+            outputFile,
+            root,
+          ],
+          { encoding: 'utf8', timeout: 3000, killSignal: 'SIGKILL' }
+        )
+        const [processInfo, failure] = output
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line))
+        expect(failure.message).toContain('bounded regular file')
+        expect(() => process.kill(processInfo.pid, 0)).toThrow(
+          expect.objectContaining({ code: 'ESRCH' })
+        )
+        expect(await readFile(outputFile, 'utf8')).toBe('previous report')
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    })
   })
 })
 
@@ -3596,6 +4254,15 @@ describe('live custom console reporter callbacks', () => {
       await rm(c.root, { recursive: true, force: true })
     }
   })
+})
+
+it('proves body timeout declaration origins from real leased chunks and refuses incomplete or foreign associations', () => {
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'registration-origin.cjs')],
+    { encoding: 'utf8' }
+  )
+  expect(JSON.parse(result)).toEqual({ profiles: 2, checks: 24 })
 })
 
 describe('authored Browser instance reporter labels', () => {
@@ -6209,6 +6876,140 @@ describe('actual queued module reporter ownership', () => {
 })
 
 it.each([
+  'collect-only',
+  'shared',
+  'typecheck',
+  'project-environment',
+  'file-environment',
+  'browser',
+  'rsc',
+] as const)(
+  'refuses unqualified queued module producer role %s before execution',
+  async (role) => {
+    const { normalizeTestConfig } = await import(
+      'next/dist/experimental/testing/config'
+    )
+    const { runTests } = await import(
+      'next/dist/experimental/testing/orchestrator'
+    )
+    const project = {
+      ...normalizeTestConfig({ test: { include: ['*.case.mjs'] } }).projects[0],
+      entries: [{ ...entry }],
+    }
+    if (role === 'shared') project.isolate = false
+    if (role === 'typecheck') project.entries[0].typecheck = true
+    if (role === 'project-environment')
+      project.executionEnvironment = { name: 'jsdom' }
+    if (role === 'file-environment')
+      project.entries[0].executionEnvironment = { name: 'jsdom' }
+    if (role === 'browser') project.profile.environment = 'browser'
+    if (role === 'rsc') project.profile.environment = 'rsc'
+    const queued = jest.fn()
+    await expect(
+      runTests('/project', [project], {
+        signal: new AbortController().signal,
+        write() {},
+        onModuleQueued: queued,
+        collectOnly: role === 'collect-only',
+      })
+    ).rejects.toThrow(
+      'Queued module reporters require one-shot isolated ordinary Node execution.'
+    )
+    expect(queued).not.toHaveBeenCalled()
+  }
+)
+
+it('reconstructs ordered independent queued transport failures, reused values and causes', async () => {
+  const { readQueuedModuleFailure } = await import(
+    'next/dist/experimental/testing/watch-process'
+  )
+  const shared = new Error('owned shared value', {
+    cause: new Error('owned cause'),
+  })
+  const diagnostic = serializeDiagnostic(
+    new AggregateError([shared, shared, undefined], 'owned combined failures'),
+    { phase: 'runtime' }
+  )
+  const error = readQueuedModuleFailure(diagnostic) as AggregateError
+  expect(error.errors.map((error) => error.message)).toEqual([
+    'owned shared value',
+    'owned shared value',
+    'undefined',
+  ])
+  expect(error.errors[0]).not.toBe(error.errors[1])
+  expect(error.errors[0].cause.message).toBe('owned cause')
+  expect(error.errors[1].cause.message).toBe('owned cause')
+  expect(error.errors[0].stack).toBe(shared.stack)
+  expect(serializeDiagnostic(error, { phase: 'runtime' })).toEqual(diagnostic)
+  for (const invalid of [
+    {},
+    { ...diagnostic, errors: [] },
+    { ...diagnostic, severity: 'warning' },
+    { ...diagnostic, errors: [undefined] },
+  ])
+    expect(() => readQueuedModuleFailure(invalid)).toThrow(
+      'Invalid queued module transport failure.'
+    )
+})
+
+it.each([
+  'both',
+  'two-writes',
+  'same-value',
+  'undefined-run',
+  'undefined-write',
+  'echo',
+] as const)(
+  'retains actual queued IPC and execution occurrences through the parent for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-queued-transport-'))
+    try {
+      const output = join(root, 'error.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'queued-transport.mjs'), mode, output],
+        { timeout: 45000, encoding: 'utf8' }
+      )
+      const error = JSON.parse(await readFile(output, 'utf8'))
+      const expected =
+        mode === 'two-writes'
+          ? ['owned queued write 1', 'owned queued write 2']
+          : mode === 'same-value'
+            ? [
+                'owned queued IPC write failure',
+                'owned queued IPC write failure',
+              ]
+            : mode === 'undefined-run'
+              ? ['undefined', 'owned queued IPC write failure']
+              : mode === 'undefined-write'
+                ? ['owned independent execution disposal failure', 'undefined']
+                : mode === 'echo'
+                  ? ['owned queued IPC write failure']
+                  : [
+                      'owned independent execution disposal failure',
+                      'owned queued IPC write failure',
+                    ]
+      expect(error.name).toBe('AggregateError')
+      expect(error.errors.map((item) => item.message)).toEqual(expected)
+      for (const item of error.errors) {
+        if (item.message === 'undefined') {
+          expect(item).not.toHaveProperty('name')
+          expect(item).not.toHaveProperty('stack')
+        }
+        if (item.message === 'owned queued IPC write failure')
+          expect(item.cause.message).toBe('owned actual write cause')
+      }
+      const result = JSON.parse(await readFile(output + '.result.json', 'utf8'))
+      expect(result.leakedProcesses).toEqual([])
+      expect(result.cleanupFailures).toEqual([])
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  60000
+)
+
+it.each([
   'plain',
   'undefined-load',
   'aggregate-load',
@@ -6241,6 +7042,52 @@ it.each([
     }
   },
   35000
+)
+
+it.each([
+  'missing-task-capture',
+  'active-v8',
+  'active-custom',
+  'collection-only',
+  'shared',
+  'typecheck',
+  'custom-environment',
+  'browser',
+  'rsc',
+] as const)(
+  'refuses unqualified actual collected-module role %s before execution',
+  async (role) => {
+    const { normalizeTestConfig } = await import(
+      'next/dist/experimental/testing/config'
+    )
+    const { runTests } = await import(
+      'next/dist/experimental/testing/orchestrator'
+    )
+    const project = {
+      ...normalizeTestConfig({ test: {} }).projects[0],
+      entries: [{ ...entry }],
+    }
+    if (role === 'shared') project.isolate = false
+    if (role === 'typecheck') project.entries[0].typecheck = true
+    if (role === 'custom-environment')
+      project.executionEnvironment = { name: 'jsdom' }
+    if (role === 'browser') project.profile.environment = 'browser'
+    if (role === 'rsc') project.profile.environment = 'rsc'
+    const options: import('next/dist/experimental/testing/orchestrator').RunTestsOptions =
+      {
+        captureModuleCollected: true,
+        captureTaskResults: role !== 'missing-task-capture',
+        signal: new AbortController().signal,
+        write() {},
+        coverage: role === 'active-v8',
+        collectOnly: role === 'collection-only',
+      }
+    if (role === 'active-custom')
+      options.customCoverageRequests = { active: {} as never }
+    await expect(runTests('/project', [project], options)).rejects.toThrow(
+      'Collected module reporters require one-shot isolated ordinary Node execution without active coverage and actual task-result capture.'
+    )
+  }
 )
 
 describe('actual collected reporter live callback ownership', () => {
@@ -6825,6 +7672,121 @@ describe('actual interrupted execution JSON publication', () => {
 })
 
 it.each([
+  'error',
+  'getters',
+  'throwing-getter',
+  'undefined',
+  'shared',
+  'unsupported',
+  'invalid',
+] as const)(
+  'captures one actual snapshot preparation error and validates its private owner for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-snapshot-capture-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'snapshot-preparation-capture.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        singleActualCapture: true,
+        explicitUndefined: true,
+        originalErrorUnchanged: true,
+        execPath: process.execPath,
+        version: process.version,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it.each([
+  'error',
+  'undefined',
+  'copy-event',
+  'missing-event',
+  'foreign-owner',
+  'event-before-case',
+  'late-diagnostic',
+  'duplicate',
+  'post-case',
+  'post-tree',
+  'post-snapshot',
+  'independent-file-error',
+  'reentrant-event',
+  'nested',
+] as const)(
+  'associates actual failed snapshot preparation with synchronous delivered reporting for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-snapshot-reporting-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'snapshot-preparation-reporting.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        actualPreparationFailed: true,
+        bodyInvocations: 0,
+        actualReceivedEventAssociation: true,
+        contradictionsRejected: true,
+        execPath: process.execPath,
+        version: process.version,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it.each([
+  'sync',
+  'undefined',
+  'on-event-throw',
+  'on-event-throw-undefined',
+  'on-event-reject',
+  'on-event-reject-undefined',
+  'on-event-fulfill',
+  'consumer-throw',
+  'consumer-throw-undefined',
+  'consumer-reject',
+  'consumer-reject-undefined',
+  'consumer-fulfill',
+  'missing',
+] as const)(
+  'owns synchronous snapshot preparation diagnostic forwarding and independent observer failure for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-snapshot-forwarding-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'snapshot-preparation-forwarding.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        actualForwardingOwnerMappedOnce: true,
+        physicalMockOwnerJoined: mode !== 'missing',
+        execPath: process.execPath,
+        version: process.version,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it.each([
   'skipped',
   'todo',
   'live',
@@ -6859,6 +7821,44 @@ it.each([
         presentationOnly: true,
         execPath: process.execPath,
         version: process.version,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+  35000
+)
+
+it.each([
+  'error',
+  'undefined',
+  'nested',
+  'cleanup',
+  'omitted',
+  'tty',
+  'missing-collected',
+  'copied-diagnostic',
+  'reentrant',
+  'write-throw',
+  'late-case',
+] as const)(
+  'projects human actual snapshot preparation without physical result changes for %s',
+  async (mode) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-human-preparation-'))
+    try {
+      const output = join(root, 'observed.json')
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'human-snapshot-preparation.mjs'), mode, output],
+        { timeout: 30000, encoding: 'utf8' }
+      )
+      expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+        mode,
+        realPreparation: true,
+        bodies: 0,
+        physicalEvidenceUnchanged: true,
+        version: process.version,
+        execPath: process.execPath,
       })
     } finally {
       await rm(root, { recursive: true, force: true })
@@ -7112,6 +8112,63 @@ it('preserves original Error getter and task meta effects with actual ModuleStar
     await rm(root, { recursive: true, force: true })
   }
 }, 65000)
+
+it.each([
+  'truthy',
+  'false',
+  'missing-preparation',
+  'missing-collected',
+  'missing-task-capture',
+  'active-v8',
+  'watch',
+  'multiple-files',
+] as const)(
+  'refuses unowned ModuleStart preparation before execution for %s',
+  async (role) => {
+    const { normalizeTestConfig } = await import(
+      'next/dist/experimental/testing/config'
+    )
+    const { runTests } = await import(
+      'next/dist/experimental/testing/orchestrator'
+    )
+    const project = {
+      ...normalizeTestConfig({ test: {} }).projects[0],
+      entries: [{ ...entry, file: '/project/actual.case.mjs' }],
+    }
+    if (role === 'multiple-files')
+      project.entries.push({
+        ...project.entries[0],
+        id: 'other',
+        file: '/project/other.case.mjs',
+      })
+    const options: import('next/dist/experimental/testing/orchestrator').RunTestsOptions =
+      {
+        captureModuleStart:
+          role === 'truthy'
+            ? ('true' as never)
+            : role === 'false'
+              ? (false as never)
+              : true,
+        captureModuleCollected: role === 'missing-collected' ? undefined : true,
+        captureTaskResults: role !== 'missing-task-capture',
+        ...(role === 'missing-preparation'
+          ? {}
+          : {
+              preparePublicSnapshots: true as const,
+              onSnapshotPreparationFailure() {},
+            }),
+        ...(role === 'watch'
+          ? { userCancelSignal: new AbortController().signal }
+          : {}),
+        coverage: role === 'active-v8',
+        signal: new AbortController().signal,
+        write() {},
+      }
+    await expect(runTests('/project', [project], options)).rejects.toThrow(
+      /Module Start requires|Public snapshot preparation requires/
+    )
+  }
+)
 
 it.each(['success', 'setup-failure', 'cleanup-failure'] as const)(
   'publishes actual prepared root data before its lazy file resource for %s',
@@ -8543,6 +9600,37 @@ it.each([undefined, true, false])(
       setBundlerFindSourceMapImplementation(() => undefined)
     }
   }
+)
+
+it.each([
+  'registration',
+  'scopes',
+  'occurrences',
+  'slots',
+  'host',
+  'globals',
+  'lifecycle',
+  'file-lifecycle',
+])(
+  'preserves actual parsed registration origins and host map roles for %s',
+  (mode) => {
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        ['--enable-source-maps', join(__dirname, 'parsed-origins.cjs'), mode],
+        {
+          encoding: 'utf8',
+          timeout: 15000,
+        }
+      )
+    )
+    expect(result).toMatchObject({
+      mode,
+      nativeAddonLoads: 0,
+      nativeProjectCalls: 0,
+    })
+  },
+  20000
 )
 
 describe('selected Run Start reporter specifications', () => {

@@ -1,0 +1,2656 @@
+import { supportsCustomCoverageMode } from './coverage/custom-options'
+import {
+  type SnapshotPreparationFailure,
+  assertSnapshotPreparationFailure,
+} from './execution/snapshot-preparation'
+import type { RuntimeModuleCompletion } from './execution/completed-module'
+import type {
+  IstanbulSourcePlan,
+  IstanbulSourceDeclarations,
+  IstanbulStandardFileCoverage,
+} from './coverage/istanbul-types'
+import {
+  createRuntimeConfigurationPlan,
+  assertRuntimeConfigurationPlan,
+  assertRuntimeConfigurationSelection,
+  prepareRuntimeConfigurationReceipt,
+  assertRuntimeConfigurationReceipts,
+  type RuntimeConfigurationPlan,
+  type RuntimeConfigurationReceipt,
+} from './coverage/runtime-configuration'
+import {
+  createCoverageSourcePlan,
+  assertCoverageSourcePlan,
+  assertCompilerSourceCoverage,
+  type CoverageSourcePlan,
+} from './coverage/source-analysis-plan'
+import { analyzeCompiledCoverageSource } from './coverage/source-analysis'
+import { analyzeCompiledBrowserCoverageSource } from './coverage/browser-source-analysis'
+import {
+  isProductionBrowserCoverageProject,
+  isDevelopmentBrowserCoverageProject,
+} from './coverage/production-browser'
+import type {
+  CustomCoverageRequest,
+  CustomCoverageFact,
+} from './coverage/custom-types'
+import { assertCustomCoverageFacts } from './coverage/custom-facts'
+import { assertCustomCoverageCompletion } from './coverage/custom-runtime'
+import { randomUUID } from 'crypto'
+import { isDeepStrictEqual } from 'util'
+import type {
+  StandardCoverageOptions,
+  StandardFileCoverage,
+  CompiledCoverageSource,
+  CompilerSourceCoverage,
+} from './coverage/types'
+import { mkdtemp } from 'fs/promises'
+import { tmpdir } from 'os'
+import { isAbsolute, join, relative } from 'path'
+import type {
+  CompiledTestArtifact,
+  ExecuteTest,
+  ExecuteTestCohort,
+  ExecuteTestOptions,
+  TestRecordEvent,
+  TestEntry,
+  TestCompilerSessionOptions,
+  TestFileCollection,
+} from './contracts'
+import { requireTestCapability } from './capabilities'
+import { forEachTestFile, parseMaxWorkers } from './scheduling'
+import { shuffle, shuffleFiles } from './runner/sequence'
+import { assertTestFileCollections } from './execution/collection'
+import type { DiscoveredTestProject } from './discovery'
+import type { ResultEvent, SerializedDiagnostic } from './reporting/events'
+import { serializeDiagnostic } from './reporting/diagnostics'
+import { getFinalCaseResults } from './reporting/final-cases'
+import {
+  createTestReporter,
+  type TestReporterOptions,
+} from './reporting/reporter'
+import {
+  commitSnapshotUpdates,
+  resolveSnapshotUpdateMode,
+  type SnapshotUpdate,
+  type SnapshotUpdateMode,
+} from './assertions/snapshots'
+
+import {
+  captureNodeV8CollectionCoverage,
+  captureNodeV8ReadOnlySnapshotCoverage,
+} from './execution/coverage'
+
+interface PreparedTest {
+  entry: TestEntry
+  artifact: CompiledTestArtifact
+  started: number
+  coverageLease?: () => void
+}
+
+export interface RunTestsOptions {
+  /** Private one-shot observation; never enables full authored task capture. */
+  captureJUnitSuiteTasks?: true
+  /** Private actual one-shot owner; never inferred from cancellation or artifacts. */
+  captureOneShotV8CollectionRestoration?: true
+  /** Positive one-shot phase request; no public configuration field. */
+  preparePublicSnapshots?: true
+  /** Forwarders own only their IPC write; the outer reporter observes synchronously. */
+  onSnapshotPreparationFailure?: (
+    failure: SnapshotPreparationFailure,
+    deliveredDiagnostic?: Extract<ResultEvent, { type: 'diagnostic' }>
+  ) => void | Promise<void>
+  /** Actual one-shot read-only V8 snapshot completion owner. */
+  captureOneShotV8ReadOnlySnapshots?: true
+  /** Private reporter request for actual collected-file observations. */
+  captureModuleCollected?: true
+  /** Actual prepared root pack; requires the positive one-shot snapshot owner. */
+  captureModuleStart?: true
+  /** Actual logical case preparation; absent for legacy task snapshots. */
+  captureCaseReady?: true
+  /** Actual Node suite and traditional hook-group observations. */
+  captureSuiteEvents?: true
+  captureHookEvents?: true
+  captureTestRecords?: true
+  onTestRecord?: ExecuteTestOptions['onTestRecord']
+  /** Actual selected-file scheduling; never a collected task snapshot. */
+  onModuleQueued?: (entry: TestEntry) => void
+  captureTaskResults?: boolean
+  /** Private direct-parent facts, published after compiler and runtime cleanup. */
+  onCompletedModules?: (facts: readonly RuntimeModuleCompletion[]) => void
+  compilerTransforms?: Record<
+    string,
+    import('./compiler/transform-broker').CompilerTransformDescriptor
+  >
+  signal: AbortSignal
+  /** Private scheduling cancellation; never aborts compiler/output ownership. */
+  userCancelSignal?: AbortSignal
+  collectOnly?: boolean
+  write(text: string): void
+  reporter?: Omit<TestReporterOptions, 'write' | 'projectDir' | 'fileCount'>
+  coverage?: boolean
+  standardCoverageOptions?: StandardCoverageOptions
+  /** Separate JavaScript instrumentation selection for explicit Istanbul. */
+  istanbulSourcePlan?: IstanbulSourcePlan
+  /** Parent-issued source/profile selection; compiler children cannot authorize themselves. */
+  coverageSourcePlan?: CoverageSourcePlan
+  /** Derived only from the existing isolated one-shot compiler request. */
+  nodeTypeScriptImportCoverage?: boolean
+  runtimeConfigurationPlan?: RuntimeConfigurationPlan
+  coverageInputs?: readonly string[]
+  includeUnimportedCoverage?: boolean
+  /** Separate parent broker channel; no runtime capture or child-derived declaration facts. */
+  onCoverageSource?: (
+    compiled: CompiledCoverageSource,
+    signal: AbortSignal
+  ) => Promise<void>
+  customCoverageRequests?: Record<string, CustomCoverageRequest>
+  /** Provisional suite handoff; report publication still requires full closure. */
+  onCustomCoverageSuite?: (fact: CustomCoverageFact) => Promise<void>
+  /** Original explicit CLI disable; configured project data remains intact. */
+  customCoverageDisabled?: true
+  inspect?: string
+  inspectBrk?: boolean
+  updateSnapshots?: boolean
+  snapshotUpdateMode?: SnapshotUpdateMode
+  snapshotFormat?: import('./snapshot-format').SnapshotFormat
+  testNamePattern?: string | RegExp
+  passWithNoTests?: boolean
+  /** Selected specification IDs before CLI sharding/file sequencing. */
+  specificationOrder?: readonly string[]
+  /** Failures already finalized by an outer profile coordinator. */
+  bailFailures?: number
+  /** Upper bound on fresh file workers; compilers and browser servers stay serial. */
+  maxWorkers?: number
+  /** Public one-shot Node/RSC runs supervise the compiler as well as workers. */
+  isolateProjects?: boolean
+  /** Watch uses a parent-owned execution broker; compilation stays in this process. */
+  execute?: ExecuteTest
+  /** The independent broker owns application/browser leases across compiler crashes. */
+  brokerOwnsBrowser?: boolean
+  /** A supervisor must retain the whole shared cohort process independently. */
+  executeCohort?: ExecuteTestCohort
+  allocateArtifact?: TestCompilerSessionOptions['allocateArtifact']
+  /** Watch forwards events to its parent, which seals the authoritative run end. */
+  onEvent?: (event: ResultEvent) => void
+  /** Parent-owned console callbacks; never a serializable runtime option. */
+  onConsoleDrain?: () => Promise<void>
+}
+
+/** Sequence real compiler/executor producers; compilation never owns evaluation. */
+export async function runTests(
+  projectDir: string,
+  projects: DiscoveredTestProject[],
+  options: RunTestsOptions
+) {
+  if (
+    options.captureJUnitSuiteTasks !== undefined &&
+    (options.captureJUnitSuiteTasks !== true ||
+      options.collectOnly ||
+      options.userCancelSignal ||
+      options.coverage ||
+      Object.keys(options.customCoverageRequests ?? {}).length > 0 ||
+      projects.length !== 1 ||
+      projects[0].entries.length !== 1 ||
+      projects.some(
+        (project) =>
+          project.isolate === false ||
+          project.typecheck?.enabled ||
+          project.profile.environment !== 'node' ||
+          project.profile.route !== undefined ||
+          project.profile.browserClient !== undefined ||
+          (project.executionEnvironment &&
+            project.executionEnvironment.name !== 'node') ||
+          project.entries.some(
+            (entry) =>
+              entry.typecheck ||
+              !/\.(?:js|mjs)$/.test(entry.file) ||
+              (entry.executionEnvironment &&
+                entry.executionEnvironment.name !== 'node')
+          )
+      ))
+  )
+    throw new Error(
+      'JUnit suite observation requires its isolated one-shot Node JavaScript owner.'
+    )
+  if (
+    (options.preparePublicSnapshots !== undefined &&
+      options.preparePublicSnapshots !== true) ||
+    (options.preparePublicSnapshots === true) !==
+      (typeof options.onSnapshotPreparationFailure === 'function') ||
+    (options.preparePublicSnapshots === true &&
+      (projects.length !== 1 ||
+        projects[0].entries.length !== 1 ||
+        options.collectOnly ||
+        options.userCancelSignal ||
+        options.coverage ||
+        Object.keys(options.customCoverageRequests ?? {}).length > 0 ||
+        projects.some(
+          (project) =>
+            project.isolate === false ||
+            project.typecheck?.enabled ||
+            project.profile.environment !== 'node' ||
+            project.profile.route !== undefined ||
+            project.profile.browserClient !== undefined ||
+            (project.executionEnvironment &&
+              project.executionEnvironment.name !== 'node') ||
+            project.entries.some(
+              (entry) =>
+                entry.typecheck ||
+                !/\.(?:js|mjs)$/.test(entry.file) ||
+                (entry.executionEnvironment &&
+                  entry.executionEnvironment.name !== 'node')
+            )
+        )))
+  )
+    throw new Error(
+      'Public snapshot preparation requires its one-shot isolated ordinary Node JavaScript owner.'
+    )
+  const recordBroker =
+    options.brokerOwnsBrowser === true &&
+    typeof options.execute === 'function' &&
+    typeof options.allocateArtifact === 'function'
+  if (
+    (options.captureTestRecords !== undefined ||
+      options.onTestRecord !== undefined) &&
+    (options.captureTestRecords !== true ||
+      (!recordBroker && typeof options.onTestRecord !== 'function') ||
+      (recordBroker && options.onTestRecord !== undefined) ||
+      (!recordBroker &&
+        (options.execute ||
+          options.executeCohort ||
+          options.allocateArtifact)) ||
+      options.captureTaskResults !== true ||
+      options.collectOnly ||
+      options.userCancelSignal ||
+      options.coverage ||
+      Object.keys(options.customCoverageRequests ?? {}).length > 0 ||
+      projects.some(
+        (project) =>
+          project.isolate === false ||
+          project.typecheck?.enabled ||
+          project.profile.environment !== 'node' ||
+          project.profile.route !== undefined ||
+          project.profile.browserClient !== undefined ||
+          (project.executionEnvironment &&
+            project.executionEnvironment.name !== 'node') ||
+          project.entries.some(
+            (entry) =>
+              entry.typecheck ||
+              entry.inSource ||
+              !/\.(?:js|mjs)$/.test(entry.file) ||
+              (entry.executionEnvironment &&
+                entry.executionEnvironment.name !== 'node')
+          )
+      ))
+  )
+    throw new Error(
+      'Test record callbacks require their one-shot isolated ordinary Node parent owner.'
+    )
+  if (
+    options.captureCaseReady !== undefined &&
+    (options.captureCaseReady !== true ||
+      options.captureTaskResults !== true ||
+      options.collectOnly ||
+      projects.some(
+        (project) =>
+          project.isolate === false ||
+          project.profile.environment !== 'node' ||
+          project.profile.runtime !== 'nodejs' ||
+          project.profile.bundler !== 'turbopack' ||
+          project.profile.route !== undefined ||
+          project.profile.browserClient !== undefined ||
+          (project.executionEnvironment &&
+            project.executionEnvironment.name !== 'node') ||
+          project.entries.some(
+            (entry) =>
+              entry.executionEnvironment &&
+              entry.executionEnvironment.name !== 'node'
+          )
+      ))
+  )
+    throw new Error(
+      'Case Ready requires actual task capture from isolated ordinary Node execution.'
+    )
+  if (
+    (options.captureSuiteEvents !== undefined ||
+      options.captureHookEvents !== undefined) &&
+    ((options.captureSuiteEvents !== undefined &&
+      options.captureSuiteEvents !== true) ||
+      (options.captureHookEvents !== undefined &&
+        options.captureHookEvents !== true) ||
+      options.captureTaskResults !== true ||
+      options.collectOnly ||
+      projects.some(
+        (project) =>
+          project.isolate === false ||
+          project.profile.environment !== 'node' ||
+          project.profile.runtime !== 'nodejs' ||
+          project.profile.bundler !== 'turbopack' ||
+          project.profile.route !== undefined ||
+          project.profile.browserClient !== undefined ||
+          (project.executionEnvironment &&
+            project.executionEnvironment.name !== 'node') ||
+          project.entries.some(
+            (entry) =>
+              entry.executionEnvironment &&
+              entry.executionEnvironment.name !== 'node'
+          )
+      ))
+  )
+    throw new Error(
+      'Suite and hook observations require actual task capture from isolated ordinary Node execution.'
+    )
+  if (
+    options.captureModuleStart !== undefined &&
+    (options.captureModuleStart !== true ||
+      options.preparePublicSnapshots !== true ||
+      options.captureModuleCollected !== true ||
+      options.captureTaskResults !== true)
+  )
+    throw new Error(
+      'Module Start requires its actual one-shot prepared File owner.'
+    )
+  if (
+    options.captureModuleCollected !== undefined &&
+    (options.captureModuleCollected !== true ||
+      options.captureTaskResults !== true ||
+      options.collectOnly ||
+      options.userCancelSignal ||
+      options.coverage ||
+      Object.keys(options.customCoverageRequests ?? {}).length > 0 ||
+      projects.some(
+        (project) =>
+          project.isolate === false ||
+          project.typecheck?.enabled ||
+          (project.executionEnvironment &&
+            project.executionEnvironment.name !== 'node') ||
+          project.profile.environment !== 'node' ||
+          project.profile.route !== undefined ||
+          project.entries.some(
+            (entry) =>
+              entry.typecheck ||
+              (entry.executionEnvironment &&
+                entry.executionEnvironment.name !== 'node')
+          )
+      ))
+  )
+    throw new Error(
+      'Collected module reporters require one-shot isolated ordinary Node execution without active coverage and actual task-result capture.'
+    )
+  if (
+    options.onModuleQueued &&
+    (options.collectOnly ||
+      options.userCancelSignal ||
+      projects.some(
+        (project) =>
+          project.isolate === false ||
+          project.typecheck?.enabled ||
+          project.executionEnvironment ||
+          project.entries.some(
+            (entry) => entry.executionEnvironment || entry.typecheck
+          ) ||
+          project.profile.environment !== 'node' ||
+          project.profile.route !== undefined
+      ))
+  )
+    throw new Error(
+      'Queued module reporters require one-shot isolated ordinary Node execution.'
+    )
+  if (
+    options.onCompletedModules &&
+    (!options.isolateProjects ||
+      options.execute ||
+      options.executeCohort ||
+      options.collectOnly ||
+      options.coverage ||
+      options.standardCoverageOptions ||
+      options.customCoverageRequests ||
+      options.userCancelSignal ||
+      projects.length !== 1 ||
+      projects.some(
+        (project) =>
+          project.isolate === false ||
+          project.typecheck?.enabled ||
+          project.executionEnvironment ||
+          project.profile.environment !== 'node' ||
+          project.profile.route !== undefined
+      ))
+  )
+    throw new Error(
+      'Module result capture requires one isolated ordinary Node execution project.'
+    )
+  const completedModules = options.onCompletedModules
+    ? ([] as RuntimeModuleCompletion[])
+    : undefined
+  const browserUserCancellation =
+    options.userCancelSignal !== undefined &&
+    !options.coverage &&
+    !options.standardCoverageOptions &&
+    projects.length > 0 &&
+    projects.every(
+      (project) =>
+        project.profile.browserClient === true &&
+        project.profile.environment === 'browser'
+    )
+  if (
+    options.userCancelSignal &&
+    (!options.execute ||
+      (!browserUserCancellation &&
+        (!options.coverage ||
+          !options.standardCoverageOptions?.formatterReports)) ||
+      options.collectOnly ||
+      options.customCoverageRequests ||
+      resolveSnapshotUpdateMode(options) === 'all' ||
+      projects.some(
+        (project) =>
+          project.isolate === false ||
+          (!browserUserCancellation &&
+            project.profile.environment !== 'node') ||
+          project.profile.route !== undefined ||
+          project.executionEnvironment
+      ))
+  )
+    throw new Error(
+      'User cancellation requires configured isolated Node watch coverage.'
+    )
+  if (options.standardCoverageOptions && !options.coverage)
+    throw new Error('Standard coverage options require coverage collection.')
+  if (options.collectOnly && options.coverage)
+    throw new Error('Collection cannot request coverage or snapshot updates.')
+  const istanbul = options.standardCoverageOptions?.provider === 'istanbul'
+  if (
+    istanbul &&
+    (projects.length !== 1 ||
+      projects[0].isolate === false ||
+      options.collectOnly ||
+      options.inspect ||
+      options.customCoverageRequests ||
+      options.userCancelSignal ||
+      projects[0].executionEnvironment ||
+      projects[0].typecheck?.enabled)
+  )
+    throw new Error(
+      'Istanbul currently requires one one-shot isolated development Node JavaScript project.'
+    )
+  if (
+    istanbul &&
+    projects.some(
+      (project) =>
+        project.profile.mode === 'production' &&
+        project.entries.some((entry) => !/\.(?:js|mjs)$/.test(entry.file))
+    )
+  )
+    throw new Error(
+      'Production Istanbul requires ordinary Node JS/MJS test entries.'
+    )
+  const istanbulSourcePlan = istanbul
+    ? (options.istanbulSourcePlan ??
+      (await (
+        await import('./coverage/istanbul-instrumentation.js')
+      ).createIstanbulSourcePlan({
+        projectDir,
+        profile: projects[0].profile,
+        config: options.standardCoverageOptions!,
+        excludedFiles: [
+          ...(options.coverageInputs ?? []),
+          ...projects[0].setupFiles,
+          ...projects[0].entries.map((entry) => entry.file),
+        ],
+        signal: options.signal,
+      })))
+    : undefined
+  if (options.istanbulSourcePlan && !istanbul)
+    throw new Error(
+      'An Istanbul source plan requires the explicit Istanbul provider.'
+    )
+  if (istanbulSourcePlan) {
+    if (!isDeepStrictEqual(istanbulSourcePlan.profile, projects[0].profile))
+      throw new Error(
+        'Istanbul source selection has a different compiler profile.'
+      )
+    await (
+      await import('./coverage/istanbul-instrumentation.js')
+    ).assertIstanbulSourcePlan(istanbulSourcePlan, options.signal)
+  }
+  const standardCoverage: StandardFileCoverage[] = []
+  const istanbulCoverage: IstanbulStandardFileCoverage[] = []
+  const istanbulSourceDeclarations: IstanbulSourceDeclarations[] = []
+  const typedIstanbulCandidates =
+    istanbulSourcePlan?.sources.some((source) =>
+      /\.(?:ts|mts|[jt]sx)$/.test(source.file)
+    ) === true
+  const compilerSourceCoverage: CompilerSourceCoverage[] = []
+  const runtimeConfigurationReceipts: RuntimeConfigurationReceipt[] = []
+  if (
+    (options.coverageSourcePlan ||
+      options.onCoverageSource ||
+      options.runtimeConfigurationPlan) &&
+    !options.standardCoverageOptions
+  )
+    throw new Error(
+      'Compiler source analysis requires standard coverage options'
+    )
+  const coverageSourcePlan =
+    options.standardCoverageOptions && !istanbul
+      ? (options.coverageSourcePlan ??
+        (await createCoverageSourcePlan({
+          projectDir,
+          projects,
+          config: options.standardCoverageOptions,
+          inputs: options.coverageInputs,
+          includeUnimported: options.includeUnimportedCoverage,
+          signal: options.signal,
+        })))
+      : { version: 1 as const, requests: [], inputs: [] }
+  await assertCoverageSourcePlan(coverageSourcePlan, options.signal)
+  const runtimeConfigurationPlan =
+    options.standardCoverageOptions && (!istanbul || typedIstanbulCandidates)
+      ? options.runtimeConfigurationPlan
+        ? structuredClone(options.runtimeConfigurationPlan)
+        : await createRuntimeConfigurationPlan({
+            projectDir,
+            projects,
+            inputs: options.coverageInputs,
+            signal: options.signal,
+          })
+      : undefined
+  if (runtimeConfigurationPlan) {
+    await assertRuntimeConfigurationPlan(
+      runtimeConfigurationPlan,
+      options.signal
+    )
+    assertRuntimeConfigurationSelection(
+      runtimeConfigurationPlan,
+      projectDir,
+      projects
+    )
+  }
+  const customCoverage: CustomCoverageFact[] = []
+  if (options.customCoverageDisabled && options.customCoverageRequests)
+    throw new Error(
+      'Disabled custom coverage cannot receive provider sessions.'
+    )
+  if (options.customCoverageRequests) {
+    if (
+      options.coverage ||
+      options.collectOnly ||
+      options.inspect ||
+      resolveSnapshotUpdateMode(options) === 'all'
+    )
+      throw new Error(
+        'Custom coverage requires a one-shot execution without V8, collection, debugging or snapshot updates.'
+      )
+    for (const id of Object.keys(options.customCoverageRequests))
+      if (
+        !projects.some(
+          (project) => project.profile.id === id && project.customCoverage
+        )
+      )
+        throw new Error('Unrequested custom coverage project.')
+  }
+  for (const project of projects)
+    if (
+      !options.customCoverageDisabled &&
+      project.customCoverage &&
+      project.entries.length
+    ) {
+      if (
+        !options.customCoverageRequests?.[project.profile.id] ||
+        project.isolate === false ||
+        project.profile.environment !== 'node' ||
+        !supportsCustomCoverageMode(
+          project.profile.mode,
+          project.entries.map((entry) => entry.file)
+        ) ||
+        project.profile.route ||
+        project.executionEnvironment ||
+        project.typecheck?.enabled ||
+        project.entries.some(
+          (entry) => entry.executionEnvironment || entry.typecheck
+        )
+      )
+        throw new Error(
+          'Custom coverage requires a parent-owned provider session and isolated Node files in development or plain JavaScript production.'
+        )
+    }
+  const maxWorkers = parseMaxWorkers(options.maxWorkers ?? 1)
+  if (options.customCoverageRequests && maxWorkers !== 1)
+    throw new Error('Custom coverage currently requires serial file execution.')
+  if (
+    options.inspect &&
+    (maxWorkers !== 1 || options.collectOnly || options.coverage)
+  )
+    throw new Error(
+      'Inspecting tests requires serial execution without collection or coverage.'
+    )
+  for (const project of projects) {
+    if (project.isolate !== false || !project.entries.length) continue
+    if (options.executeCohort && !options.allocateArtifact)
+      throw new Error(
+        'Injected shared executors require parent-retained artifact allocation through cleanup.'
+      )
+    if (
+      maxWorkers !== 1 ||
+      options.collectOnly ||
+      options.coverage ||
+      options.inspect ||
+      (options.execute && !options.executeCohort) ||
+      !(
+        (project.profile.environment === 'node' &&
+          project.profile.route === undefined) ||
+        (project.profile.environment === 'rsc' &&
+          project.profile.runtime === 'nodejs' &&
+          project.profile.bundler === 'turbopack' &&
+          project.profile.route !== undefined)
+      ) ||
+      project.profile.mode !== 'development' ||
+      project.setupFiles.length ||
+      project.snapshotSerializers?.length ||
+      project.globalSetup?.length ||
+      project.bail ||
+      project.executionEnvironment ||
+      project.entries.some(
+        (entry) =>
+          entry.typecheck || entry.inSource || entry.executionEnvironment
+      )
+    )
+      throw new Error(
+        'isolate:false currently supports serial development Node cohorts without collection, coverage, debugging, setup, serializers, bail or type tests. Supervisors must own the aggregate worker.'
+      )
+  }
+  const defaultSeed = Date.now()
+  projects = projects.map((project) => {
+    const sequence = {
+      ...project.sequence,
+      seed: project.sequence?.seed ?? defaultSeed,
+    }
+    return {
+      ...project,
+      sequence,
+    }
+  })
+  const snapshotUpdateMode = resolveSnapshotUpdateMode(options)
+  if (
+    options.collectOnly &&
+    (options.coverage || snapshotUpdateMode !== 'none')
+  )
+    throw new Error('Collection cannot request coverage or snapshot updates.')
+  options = {
+    ...options,
+    snapshotUpdateMode,
+    updateSnapshots: snapshotUpdateMode !== 'none',
+  }
+  if (options.coverage && snapshotUpdateMode === 'all') {
+    throw new Error('Coverage cannot be combined with snapshot updates.')
+  }
+  if (
+    projects.some(
+      (project) => project.entries.length > 0 && project.browserFixtures?.length
+    )
+  ) {
+    requireTestCapability('browserComponents')
+  }
+  const unsupportedCoverageBrowser =
+    options.coverage &&
+    projects.find(
+      (project) =>
+        project.entries.length > 0 &&
+        (project.browserEngine === 'firefox' ||
+          project.browserEngine === 'webkit') &&
+        !options.customCoverageRequests?.[project.profile.id]
+    )
+  if (unsupportedCoverageBrowser)
+    throw new Error(
+      `${unsupportedCoverageBrowser.browserEngine === 'webkit' ? 'WebKit' : 'Firefox'} Browser Mode V8 coverage is not implemented.`
+    )
+  const productionBrowserCoverage =
+    options.standardCoverageOptions !== undefined &&
+    projects.length === 1 &&
+    isProductionBrowserCoverageProject(projects[0])
+  const developmentBrowserCoverage =
+    options.standardCoverageOptions !== undefined &&
+    projects.length === 1 &&
+    isDevelopmentBrowserCoverageProject(projects[0])
+  if (
+    productionBrowserCoverage &&
+    coverageSourcePlan.requests.some(
+      (request) =>
+        request.profile.id === projects[0].profile.id &&
+        (!/\.(?:tsx?|jsx)$/.test(request.source.file) ||
+          /\.d\.tsx?$/.test(request.source.file))
+    )
+  )
+    throw new Error(
+      'Production Browser coverage currently requires JavaScript, TypeScript, or TSX source files.'
+    )
+  if (
+    developmentBrowserCoverage &&
+    coverageSourcePlan.requests.some(
+      (request) =>
+        request.profile.id === projects[0].profile.id &&
+        (!/\.(?:ts|mts|[jt]sx)$/.test(request.source.file) ||
+          /\.d\.(?:ts|mts|tsx)$/.test(request.source.file))
+    )
+  )
+    throw new Error(
+      'Development Browser coverage currently requires JavaScript or TypeScript source files.'
+    )
+  if (options.coverage) {
+    requireTestCapability('coverage')
+    if (
+      projects.some(
+        (project) =>
+          project.entries.length > 0 &&
+          (project.profile.route !== undefined ||
+            !(
+              (project.profile.environment === 'node' &&
+                !project.profile.browserClient) ||
+              (project.profile.environment === 'browser' &&
+                project.profile.browserClient === true &&
+                project.profile.mode === 'development') ||
+              productionBrowserCoverage
+            ))
+      )
+    ) {
+      throw new Error(
+        'Coverage requires route-less Node or development Browser Mode client profiles.'
+      )
+    }
+  }
+  if (options.updateSnapshots) {
+    requireTestCapability('snapshotUpdate')
+    const selected = projects.filter((project) => project.entries.length > 0)
+    const snapshotSources = selected.flatMap((project) =>
+      project.entries.map((entry) => entry.file)
+    )
+    if (
+      snapshotUpdateMode === 'all' &&
+      new Set(snapshotSources).size !== snapshotSources.length
+    ) {
+      throw new Error(
+        'Snapshot updates require a single selected profile per source file. Use --project to avoid conflicting snapshot writers.'
+      )
+    }
+    if (
+      selected.some((project) => project.profile.route !== undefined) &&
+      (selected.some(
+        (project) =>
+          project.profile.route !== undefined &&
+          project.profile.environment !== 'rsc'
+      ) ||
+        new Set(snapshotSources).size !== snapshotSources.length)
+    ) {
+      throw new Error(
+        'Route snapshot updates require RSC profiles and a single selected profile per source file.'
+      )
+    }
+  }
+  const isolateProjects =
+    options.isolateProjects &&
+    !projects.some(
+      (project) =>
+        project.entries.length > 0 && project.profile.environment === 'browser'
+    )
+  const coverageModule =
+    options.coverage && !options.standardCoverageOptions && !isolateProjects
+      ? await import('./coverage/report.js')
+      : undefined
+  const coverageReport = coverageModule?.createCoverageReport(
+    projects.flatMap((project) => project.entries.map((entry) => entry.id))
+  )
+  const runId = randomUUID()
+  const started = performance.now()
+  const controller = new AbortController()
+  const cancel = () => controller.abort(options.signal.reason)
+  if (options.signal.aborted) cancel()
+  else options.signal.addEventListener('abort', cancel, { once: true })
+  let reporterFailure: unknown
+  const preparationDispatches: Promise<void>[] = []
+  const preparationReporterFailures: unknown[] | undefined =
+    options.preparePublicSnapshots === true ? [] : undefined
+  let reporterFailed = false
+  function failReporter(error: unknown) {
+    if (preparationReporterFailures) {
+      preparationReporterFailures.push(error)
+      if (!reporterFailed) reporterFailure = error
+    } else reporterFailure ??= error
+    reporterFailed = true
+    controller.abort(error)
+  }
+  const reporter = createTestReporter({
+    ...options.reporter,
+    ...(options.preparePublicSnapshots === true
+      ? { preparePublicSnapshots: true as const }
+      : {}),
+    projectDir,
+    fileCount: projects.reduce(
+      (total, project) => total + project.entries.length,
+      0
+    ),
+    write: options.write,
+    onError(error) {
+      failReporter(error)
+      options.reporter?.onError?.(error)
+    },
+  })
+  const collections: TestFileCollection[] = []
+  let failed = false
+  let unsafeCleanup = false
+  const startedFiles = new Set<string>()
+  const endedFiles = new Set<string>()
+  const attemptsByFile = new Map<
+    string,
+    Extract<ResultEvent, { type: 'case-end' }>[]
+  >()
+  let failedCases = options.bailFailures ?? 0
+  const bailReached = (project: DiscoveredTestProject) =>
+    (project.bail ?? 0) > 0 && failedCases >= project.bail!
+  const previousNodeEnv = process.env.NODE_ENV
+  const envelope = () => ({
+    version: 1 as const,
+    runId,
+    timestamp: Date.now(),
+  })
+
+  function onEvent(
+    event: ResultEvent,
+    preparationDelivery?: { returned?: unknown }
+  ) {
+    if (event.type === 'file-start') startedFiles.add(event.entry.id)
+    if (event.type === 'case-end') {
+      let attempts = attemptsByFile.get(event.entryId)
+      if (!attempts) attemptsByFile.set(event.entryId, (attempts = []))
+      attempts.push(event)
+    }
+    if (event.type === 'file-end' && !endedFiles.has(event.entryId)) {
+      endedFiles.add(event.entryId)
+      for (const test of getFinalCaseResults(
+        attemptsByFile.get(event.entryId) ?? []
+      ).values()) {
+        if (test.status === 'failed') failedCases++
+      }
+      attemptsByFile.delete(event.entryId)
+    }
+    if (reporterFailed) return
+    try {
+      const returned = options.onEvent?.(event)
+      if (preparationDelivery) preparationDelivery.returned = returned
+      reporter.onEvent(event)
+    } catch (error) {
+      // Stop producers but let their finally blocks close workers and leases.
+      failReporter(error)
+      try {
+        reporter.dispose()
+      } catch {
+        // Keep the original failure if cursor restoration also fails.
+      }
+    }
+  }
+
+  function diagnostic(
+    error: unknown,
+    phase: SerializedDiagnostic['phase'],
+    entry?: TestEntry
+  ) {
+    failed = true
+    onEvent({
+      ...envelope(),
+      type: 'diagnostic',
+      entryId: entry?.id,
+      diagnostic: serializeDiagnostic(error, { phase }),
+    })
+  }
+
+  function reportCompilationIssues(
+    entry: TestEntry,
+    artifact: CompiledTestArtifact
+  ) {
+    const hasErrors = artifact.diagnostics.some(
+      (issue) => issue.severity === 'error'
+    )
+    if (hasErrors) failed = true
+    for (const issue of artifact.diagnostics) {
+      onEvent({
+        ...envelope(),
+        type: 'diagnostic',
+        entryId: entry.id,
+        revision: artifact.revision,
+        diagnostic: issue,
+      })
+    }
+    return hasErrors
+  }
+
+  function finishFailedFile(entry: TestEntry, fileStarted: number) {
+    if (!startedFiles.has(entry.id)) {
+      onEvent({ ...envelope(), type: 'file-start', entry })
+    }
+    if (!endedFiles.has(entry.id)) {
+      onEvent({
+        ...envelope(),
+        type: 'file-end',
+        entryId: entry.id,
+        status: controller.signal.aborted ? 'cancelled' : 'failed',
+        durationMs: performance.now() - fileStarted,
+      })
+    }
+  }
+
+  function isOnlyCancellation(error: unknown): boolean {
+    if (!controller.signal.aborted) return false
+    const pending = [error]
+    const seen = new Set<object>()
+    let inspected = 0
+    try {
+      while (pending.length) {
+        if (++inspected > 128) return false
+        const value = pending.pop()
+        if (value === controller.signal.reason) continue
+        if (
+          !value ||
+          (typeof value !== 'object' && typeof value !== 'function') ||
+          seen.has(value)
+        )
+          return false
+        seen.add(value)
+        const causes: unknown = Reflect.get(value, 'errors')
+        if (!Array.isArray(causes)) return false
+        const length: unknown = Reflect.get(causes, 'length')
+        if (
+          typeof length !== 'number' ||
+          !Number.isSafeInteger(length) ||
+          length < 1 ||
+          length > 128 - inspected - pending.length
+        )
+          return false
+        for (let index = 0; index < length; index++) {
+          pending.push(Reflect.get(causes, String(index)))
+        }
+      }
+      return true
+    } catch {
+      // Thrown values may have hostile getters/proxies. Classification must not
+      // replace the original failure or invoke user-provided array methods.
+      return false
+    }
+  }
+
+  async function executePrepared(
+    { entry, artifact, started: fileStarted, coverageLease }: PreparedTest,
+    project: DiscoveredTestProject
+  ) {
+    let serverModule: typeof import('./browser/server') | undefined
+    let server: import('./browser/server').ApplicationServer | undefined
+    let browserHost: import('./browser/host').BrowserHost | undefined
+    let browser: import('./contracts').ExecuteTestOptions['browser']
+    let stagedRuntimeConfiguration:
+      | Awaited<ReturnType<typeof prepareRuntimeConfigurationReceipt>>
+      | undefined
+    let acquiringResource = false
+    let executing = false
+    let notExecuted = false
+    let receivedExecutionEvent = false
+    const ownsFileEnd =
+      project.profile.environment === 'browser' && !options.collectOnly
+    const executionStarted = performance.now()
+    let pendingFileEnd: Extract<ResultEvent, { type: 'file-end' }> | undefined
+    let executionStatus:
+      | import('./reporting/events').FileResult['status']
+      | undefined
+    let fileFailed = false
+    let coverageReceived = false
+    let customCoverageReceived = false
+    let stagedSnapshotUpdates: SnapshotUpdate[] | undefined
+    const executionEvent = (event: ResultEvent) => {
+      receivedExecutionEvent = true
+      if (!ownsFileEnd || event.type !== 'file-end') {
+        onEvent(event)
+        return
+      }
+      if (pendingFileEnd || event.entryId !== entry.id) {
+        fileFailed = true
+        diagnostic(
+          new Error('Invalid browser worker file-end event.'),
+          'runtime',
+          entry
+        )
+        return
+      }
+      pendingFileEnd = event
+    }
+    const attachments = (
+      items: import('./browser/server').ApplicationServerAttachment[]
+    ) => {
+      for (const attachment of items) {
+        onEvent({
+          ...envelope(),
+          type: 'attachment',
+          entryId: entry.id,
+          revision: artifact.revision,
+          attachment,
+        })
+      }
+    }
+    try {
+      controller.signal.throwIfAborted()
+      if (
+        istanbulSourcePlan &&
+        !options.execute &&
+        artifact.coverage?.istanbul?.sources.some(
+          (source) => source.typeScriptSource
+        )
+      ) {
+        const { appendIstanbulDeclarations, readIstanbulRuntimeDeclarations } =
+          await import('./coverage/istanbul-typescript-parent.js')
+        appendIstanbulDeclarations(
+          istanbulSourceDeclarations,
+          await readIstanbulRuntimeDeclarations({
+            artifact,
+            entry,
+            projectDir,
+            plan: istanbulSourcePlan,
+            signal: controller.signal,
+            assertLease() {
+              controller.signal.throwIfAborted()
+              coverageLease?.()
+            },
+          })
+        )
+      }
+      if (
+        runtimeConfigurationPlan &&
+        (!options.execute || coverageLease) &&
+        (!istanbul || artifact.runtimeConfigurationImports)
+      )
+        stagedRuntimeConfiguration = await prepareRuntimeConfigurationReceipt({
+          artifact,
+          plan: runtimeConfigurationPlan,
+          artifactRoot: artifact.rootDir,
+          signal: controller.signal,
+        })
+      if (options.coverage && !artifact.coverage) {
+        throw new Error(
+          'Coverage requires compiler-issued source metadata for the selected artifact.'
+        )
+      }
+      if (
+        project.profile.environment === 'browser' &&
+        artifact.kind !== 'browser' &&
+        !options.brokerOwnsBrowser &&
+        !options.collectOnly
+      ) {
+        if (
+          artifact.kind !== 'node' ||
+          artifact.profile.environment !== 'browser' ||
+          artifact.profile.mode !== project.profile.mode ||
+          artifact.applicationServer?.mode !== project.profile.mode ||
+          artifact.applicationServer.lockDistDir !== true ||
+          (project.profile.mode === 'production' &&
+            (!artifact.applicationServer.distDir ||
+              !isAbsolute(artifact.applicationServer.distDir)))
+        ) {
+          throw new Error(
+            'Browser tests require a matching Node driver artifact with resolved experimental.lockDistDir enabled.'
+          )
+        }
+        // Retained for reported attachments, independently of compiler snapshots.
+        const outputDir = await mkdtemp(
+          join(tmpdir(), `next-test-browser-${runId}-`)
+        )
+        serverModule = await import('./browser/server.js')
+        acquiringResource = true
+        server = await serverModule.createApplicationServer({
+          projectDir,
+          mode: artifact.applicationServer.mode,
+          outputLockEnabled: artifact.applicationServer.lockDistDir,
+          distDir: artifact.applicationServer.distDir,
+          browserFixtures: project.browserFixtures,
+          outputDir,
+          signal: controller.signal,
+        })
+        acquiringResource = false
+        attachments(server.attachments)
+        controller.signal.throwIfAborted()
+        const { createBrowserHost } = await import('./browser/host.js')
+        acquiringResource = true
+        browserHost = await createBrowserHost({
+          projectDir,
+          signal: controller.signal,
+        })
+        acquiringResource = false
+        controller.signal.throwIfAborted()
+        browser = {
+          wsEndpoint: browserHost.wsEndpoint,
+          baseURL: server.baseURL,
+          outputDir,
+          ...(server.componentHost
+            ? { componentHost: server.componentHost }
+            : {}),
+        }
+      }
+      const execute =
+        options.execute ?? (await import('./execution/execute.js')).execute
+      executing = true
+      const result = await execute(artifact, {
+        ...(options.captureJUnitSuiteTasks === true
+          ? { captureJUnitSuiteTasks: true as const }
+          : {}),
+        ...(options.preparePublicSnapshots === true
+          ? {
+              preparePublicSnapshots: true as const,
+              onSnapshotPreparationFailure:
+                options.onSnapshotPreparationFailure,
+            }
+          : {}),
+        ...(options.captureModuleStart === true
+          ? { captureModuleStart: true as const }
+          : {}),
+        ...(options.captureCaseReady === true
+          ? { captureCaseReady: true as const }
+          : {}),
+        ...(options.captureSuiteEvents === true
+          ? { captureSuiteEvents: true as const }
+          : {}),
+        ...(options.captureHookEvents === true
+          ? { captureHookEvents: true as const }
+          : {}),
+        captureTaskResults: options.captureTaskResults,
+        ...(options.captureTestRecords === true
+          ? {
+              captureTestRecords: true as const,
+              ...(options.onTestRecord
+                ? { onTestRecord: options.onTestRecord }
+                : {}),
+            }
+          : {}),
+        ...(options.captureModuleCollected === true
+          ? { captureModuleCollected: true as const }
+          : {}),
+        collectOnly: options.collectOnly,
+        runId,
+        projectDir,
+        entry,
+        setupFiles: project.setupFiles,
+        snapshotSerializers: project.snapshotSerializers,
+        updateSnapshots: options.updateSnapshots ?? false,
+        snapshotUpdateMode,
+        snapshotFormat: options.snapshotFormat,
+        ...(project.profile.environment === 'browser' && options.updateSnapshots
+          ? {
+              onSnapshotUpdates: async (
+                _file: string,
+                updates: SnapshotUpdate[]
+              ) => {
+                if (stagedSnapshotUpdates)
+                  throw new Error('Duplicate browser snapshot update plan.')
+                stagedSnapshotUpdates = updates
+              },
+            }
+          : {}),
+        ...(options.customCoverageRequests?.[project.profile.id]
+          ? {
+              customCoverage:
+                options.customCoverageRequests[project.profile.id],
+              ...(options.onCustomCoverageSuite
+                ? {
+                    onCustomCoverageSuite: async (
+                      completion: import('./coverage/custom-types').CustomCoverageCompletion
+                    ) => {
+                      assertCustomCoverageCompletion(
+                        completion,
+                        artifact,
+                        runId,
+                        options.customCoverageRequests![project.profile.id]
+                      )
+                      await options.onCustomCoverageSuite!({
+                        completion,
+                        testFiles: [
+                          relative(projectDir, entry.file).replaceAll(
+                            '\\',
+                            '/'
+                          ),
+                        ],
+                        environment: 'ssr',
+                        ...(project.displayName === undefined
+                          ? {}
+                          : { projectName: project.displayName }),
+                      })
+                    },
+                  }
+                : {}),
+              onCustomCoverage: async (
+                completion: import('./coverage/custom-types').CustomCoverageCompletion
+              ) => {
+                assertCustomCoverageCompletion(
+                  completion,
+                  artifact,
+                  runId,
+                  options.customCoverageRequests![project.profile.id]
+                )
+                if (
+                  customCoverageReceived ||
+                  !completion.complete ||
+                  completion.runId !== runId ||
+                  completion.entryId !== entry.id ||
+                  completion.revision !== artifact.revision
+                )
+                  throw new Error(
+                    'Invalid or duplicate custom coverage completion.'
+                  )
+                customCoverageReceived = true
+                customCoverage.push({
+                  completion,
+                  testFiles: [
+                    relative(projectDir, entry.file).replaceAll('\\', '/'),
+                  ],
+                  environment: 'ssr',
+                  ...(project.displayName === undefined
+                    ? {}
+                    : { projectName: project.displayName }),
+                })
+              },
+            }
+          : {}),
+        ...(istanbul
+          ? {
+              coverage: { version: 1 as const, kind: 'node-istanbul' as const },
+              onIstanbulCoverage: async (
+                completion: import('./contracts').IstanbulCoverageCompletion
+              ) => {
+                if (
+                  coverageReceived ||
+                  completion.version !== 1 ||
+                  completion.runId !== runId ||
+                  completion.entryId !== entry.id ||
+                  completion.revision !== artifact.revision
+                )
+                  throw new Error(
+                    'Invalid or duplicate Istanbul coverage completion.'
+                  )
+                coverageReceived = true
+                if (!completion.complete)
+                  throw new Error(
+                    'Istanbul coverage collection did not complete.'
+                  )
+                const { remapIstanbulCapture } = await import(
+                  './coverage/istanbul-capture.js'
+                )
+                istanbulCoverage.push(
+                  await remapIstanbulCapture(
+                    artifact,
+                    completion.data,
+                    projectDir,
+                    controller.signal
+                  )
+                )
+              },
+            }
+          : {}),
+        ...(!istanbul && (coverageReport || options.standardCoverageOptions)
+          ? {
+              ...(options.captureOneShotV8CollectionRestoration === true &&
+              captureNodeV8CollectionCoverage(artifact, {
+                entry,
+                coverage: { version: 1, kind: 'node-line' },
+              })
+                ? { captureOneShotV8CollectionRestoration: true as const }
+                : {}),
+              ...(captureNodeV8ReadOnlySnapshotCoverage(artifact, {
+                entry,
+                coverage: { version: 1, kind: 'node-line' },
+                snapshotUpdateMode,
+                ...(options.captureOneShotV8ReadOnlySnapshots === true
+                  ? { captureOneShotV8ReadOnlySnapshots: true as const }
+                  : {}),
+              })
+                ? { captureOneShotV8ReadOnlySnapshots: true as const }
+                : {}),
+              coverage: {
+                version: 1 as const,
+                kind: artifact.profile.browserClient
+                  ? ('browser-v8' as const)
+                  : ('node-line' as const),
+              },
+              onCoverage: async (
+                completion: import('./contracts').TestCoverageCompletion
+              ) => {
+                if (
+                  coverageReceived ||
+                  completion.version !== 1 ||
+                  completion.runId !== runId ||
+                  completion.entryId !== entry.id ||
+                  completion.revision !== artifact.revision
+                ) {
+                  throw new Error('Invalid or duplicate coverage completion.')
+                }
+                coverageReceived = true
+                if (!completion.complete) {
+                  coverageReport?.incomplete(entry.id, completion.error.message)
+                  throw new Error('Coverage collection did not complete.')
+                }
+                let remapped
+                if (options.standardCoverageOptions) {
+                  const {
+                    remapStandardCoverage,
+                    remapPlannedStandardCoverage,
+                    remapPlannedBrowserStandardCoverage,
+                  } = await import('./coverage/istanbul.js')
+                  const { standardCoverageSourceSelector } = await import(
+                    './coverage/options.js'
+                  )
+                  const selectSource = standardCoverageSourceSelector(
+                    projectDir,
+                    options.standardCoverageOptions
+                  )
+                  if (coverageLease) {
+                    if (
+                      !runtimeConfigurationPlan ||
+                      !stagedRuntimeConfiguration
+                    )
+                      throw new Error(
+                        'Planned JSX coverage requires current runtime configuration inputs'
+                      )
+                    const receipt = await stagedRuntimeConfiguration.seal()
+                    stagedRuntimeConfiguration = undefined
+                    runtimeConfigurationReceipts.push(receipt)
+                    const authorization = {
+                      runId,
+                      entry,
+                      sourcePlan: coverageSourcePlan,
+                      runtimeConfigurationPlan,
+                      runtimeConfigurationReceipt: receipt,
+                      assertLease: coverageLease,
+                    }
+                    remapped =
+                      artifact.kind === 'browser'
+                        ? await remapPlannedBrowserStandardCoverage(
+                            artifact,
+                            completion,
+                            {
+                              ...authorization,
+                              sourceDeclarations: compilerSourceCoverage,
+                            },
+                            controller.signal,
+                            selectSource
+                          )
+                        : await remapPlannedStandardCoverage(
+                            artifact,
+                            completion,
+                            authorization,
+                            controller.signal,
+                            selectSource
+                          )
+                  } else {
+                    remapped = await remapStandardCoverage(
+                      artifact,
+                      completion.data,
+                      selectSource
+                    )
+                  }
+                  standardCoverage.push(remapped)
+                } else {
+                  const { remapCoverage } = await import('./coverage/remap.js')
+                  remapped = await remapCoverage(artifact, completion.data)
+                  coverageReport!.add(remapped)
+                }
+                if (!remapped.complete || remapped.errors.length > 0) {
+                  throw new Error('Coverage remapping did not complete.')
+                }
+              },
+            }
+          : {}),
+        ...(project.tags === undefined ? {} : { tags: project.tags }),
+        ...(project.strictTags === undefined
+          ? {}
+          : { strictTags: project.strictTags }),
+        ...(project.attachmentsDir === undefined
+          ? {}
+          : { attachmentsDir: project.attachmentsDir }),
+        globals: project.globals,
+        includeTaskLocation: project.includeTaskLocation,
+        fakeTimers: project.fakeTimers,
+        clearMocks: project.clearMocks,
+        mockReset: project.mockReset,
+        restoreMocks: project.restoreMocks,
+        unstubGlobals: project.unstubGlobals,
+        unstubEnvs: project.unstubEnvs,
+        sequence: project.sequence,
+        maxConcurrency: project.maxConcurrency,
+        retry: project.retry,
+        bail: project.bail ? Math.max(1, project.bail - failedCases) : 0,
+        allowOnly: project.allowOnly ?? !process.env.CI,
+        passWithNoTests: project.passWithNoTests,
+        provide: project.provide,
+        env: project.env,
+        browserViewport: project.browserViewport,
+        ...(project.profile.browserClient === true
+          ? {
+              browserLocatorErrorFormat:
+                project.browserLocatorErrorFormat ?? 'all',
+              ...(project.browserLocatorTestIdAttribute === undefined
+                ? {}
+                : {
+                    browserLocatorTestIdAttribute:
+                      project.browserLocatorTestIdAttribute,
+                  }),
+            }
+          : {}),
+        ...(project.browserEngine === undefined
+          ? {}
+          : { browserEngine: project.browserEngine }),
+        ...(project.browserHeadless === undefined
+          ? {}
+          : { browserHeadless: project.browserHeadless }),
+        testTimeout: project.testTimeout,
+        hookTimeout: project.hookTimeout,
+        testNamePattern: options.testNamePattern ?? project.testNamePattern,
+        inspect: options.inspect,
+        inspectBrk: options.inspectBrk,
+        fileTimeout: project.fileTimeout,
+        signal: controller.signal,
+        ...(options.userCancelSignal
+          ? { userCancelSignal: options.userCancelSignal }
+          : {}),
+        onEvent: executionEvent,
+        ...(options.onConsoleDrain
+          ? { onConsoleDrain: options.onConsoleDrain }
+          : {}),
+        ...(browser ? { browser } : {}),
+      })
+      executing = false
+      if (result.notExecuted) {
+        if (
+          !options.execute ||
+          !options.userCancelSignal?.aborted ||
+          result.entryId !== entry.id ||
+          result.status !== 'cancelled' ||
+          result.durationMs !== 0 ||
+          result.collection !== undefined ||
+          coverageReceived ||
+          customCoverageReceived ||
+          receivedExecutionEvent ||
+          startedFiles.has(entry.id) ||
+          pendingFileEnd !== undefined
+        )
+          throw new Error('Invalid parent non-execution acknowledgment.')
+        notExecuted = true
+        return
+      }
+      if (
+        (coverageReport || options.standardCoverageOptions) &&
+        !coverageReceived &&
+        !controller.signal.aborted
+      ) {
+        throw new Error('Worker completed without coverage collection.')
+      }
+      if (
+        options.customCoverageRequests?.[project.profile.id] &&
+        !customCoverageReceived &&
+        !controller.signal.aborted
+      )
+        throw new Error('Worker completed without custom coverage collection.')
+      if (options.collectOnly && result.status === 'passed') {
+        if (!result.collection)
+          throw new Error('Worker completed without collection facts.')
+        collections.push(result.collection)
+      }
+      executionStatus = result.status
+      if (ownsFileEnd && !pendingFileEnd && result.status !== 'cancelled') {
+        throw new Error('Browser worker completed without a file-end event.')
+      }
+      if (result.status === 'failed' || pendingFileEnd?.status === 'failed') {
+        fileFailed = true
+      }
+      if (result.status === 'failed') failed = true
+    } catch (error) {
+      if (
+        serverModule &&
+        error instanceof serverModule.ApplicationServerError
+      ) {
+        attachments(error.attachments)
+      }
+      coverageReport?.incomplete(
+        entry.id,
+        'Execution or coverage processing failed.'
+      )
+      if (!isOnlyCancellation(error)) {
+        fileFailed = true
+        diagnostic(error, 'runtime', entry)
+      }
+      if (!ownsFileEnd) finishFailedFile(entry, fileStarted)
+      // A failed acquisition may include failed cleanup without returning a
+      // lease to dispose. Conservatively stop rather than acquire another owner.
+      if (acquiringResource || executing) {
+        unsafeCleanup = true
+        controller.abort(error)
+      }
+    } finally {
+      // Acquisition signals do not dispose leases. B must close first, including
+      // after cancellation or a hard kill, so its own teardown can still run.
+      for (const resource of [browserHost, server]) {
+        try {
+          await resource?.dispose()
+        } catch (error) {
+          fileFailed = true
+          unsafeCleanup = true
+          diagnostic(error, 'cleanup', entry)
+          // Failed parent disposal may leave an output owner alive. Do not
+          // acquire another server or resume compilation in this run.
+          controller.abort(error)
+        }
+      }
+      if (
+        stagedSnapshotUpdates &&
+        !fileFailed &&
+        executionStatus === 'passed' &&
+        !controller.signal.aborted
+      ) {
+        try {
+          if (artifact.kind === 'browser') {
+            const { createClientSnapshotAccess } = await import(
+              './client/snapshot-access.js'
+            )
+            await (
+              await createClientSnapshotAccess(
+                artifact.client.sourceFile,
+                artifact.sourceHash
+              )
+            ).verify()
+          }
+          await commitSnapshotUpdates(entry.file, stagedSnapshotUpdates, {
+            projectDir,
+            signal: controller.signal,
+            sourceHash: artifact.sourceHash,
+          })
+        } catch (error) {
+          fileFailed = true
+          failed = true
+          diagnostic(error, 'cleanup', entry)
+        }
+      }
+      if (
+        stagedRuntimeConfiguration &&
+        !controller.signal.aborted &&
+        !unsafeCleanup
+      ) {
+        try {
+          runtimeConfigurationReceipts.push(
+            await stagedRuntimeConfiguration.seal()
+          )
+        } catch (error) {
+          fileFailed = true
+          failed = true
+          diagnostic(error, 'cleanup', entry)
+        }
+      }
+      if (ownsFileEnd && !notExecuted) {
+        if (!startedFiles.has(entry.id)) {
+          onEvent({ ...envelope(), type: 'file-start', entry })
+        }
+        onEvent({
+          ...envelope(),
+          type: 'file-end',
+          entryId: entry.id,
+          status:
+            fileFailed || pendingFileEnd?.status === 'failed'
+              ? 'failed'
+              : controller.signal.aborted
+                ? 'cancelled'
+                : (executionStatus ?? pendingFileEnd?.status ?? 'failed'),
+          durationMs: performance.now() - executionStarted,
+        })
+      }
+    }
+  }
+
+  async function runIsolatedProject(group: DiscoveredTestProject[]) {
+    const recordDeliveries =
+      options.captureTestRecords === true
+        ? new WeakMap<TestRecordEvent, TestRecordEvent>()
+        : undefined
+    const selected = new Set(
+      group.flatMap((project) => project.entries.map((entry) => entry.id))
+    )
+    const collectionRevisions = new Map<string, string>()
+    const { runWatchProcess, WatchOwnershipError } = await import(
+      './watch-process.js'
+    )
+    try {
+      const completion = await runWatchProcess(
+        {
+          operation: 'run',
+          ...(options.captureJUnitSuiteTasks === true
+            ? { captureJUnitSuiteTasks: true as const }
+            : {}),
+          ...(options.captureOneShotV8CollectionRestoration === true
+            ? { captureOneShotV8CollectionRestoration: true as const }
+            : {}),
+          ...(options.preparePublicSnapshots === true
+            ? { preparePublicSnapshots: true as const }
+            : {}),
+          ...(options.captureOneShotV8ReadOnlySnapshots === true
+            ? { captureOneShotV8ReadOnlySnapshots: true as const }
+            : {}),
+          ...(options.onModuleQueued
+            ? { captureModuleQueued: true as const }
+            : {}),
+          ...(options.captureModuleStart === true
+            ? { captureModuleStart: true as const }
+            : {}),
+          ...(options.captureCaseReady === true
+            ? { captureCaseReady: true as const }
+            : {}),
+          ...(options.captureSuiteEvents === true
+            ? { captureSuiteEvents: true as const }
+            : {}),
+          ...(options.captureHookEvents === true
+            ? { captureHookEvents: true as const }
+            : {}),
+          captureTaskResults: options.captureTaskResults,
+          ...(options.captureTestRecords === true
+            ? { captureTestRecords: true as const }
+            : {}),
+          ...(options.captureModuleCollected === true
+            ? { captureModuleCollected: true as const }
+            : {}),
+          projectDir,
+          projects: group,
+          ...(options.compilerTransforms
+            ? { compilerTransforms: options.compilerTransforms }
+            : {}),
+          maxWorkers,
+          isolatedProfile: true,
+          collectOnly: options.collectOnly,
+          inspect: options.inspect,
+          inspectBrk: options.inspectBrk,
+          updateSnapshots: options.updateSnapshots,
+          snapshotUpdateMode,
+          snapshotFormat: options.snapshotFormat,
+          coverage: options.coverage,
+          standardCoverageOptions: options.standardCoverageOptions,
+          customCoverageDisabled: options.customCoverageDisabled,
+          ...(istanbulSourcePlan
+            ? {
+                istanbulSourcePlan,
+                ...(typedIstanbulCandidates
+                  ? { runtimeConfigurationPlan }
+                  : {}),
+                ...(options.coverageInputs
+                  ? { coverageInputs: options.coverageInputs }
+                  : {}),
+              }
+            : {}),
+          ...(options.standardCoverageOptions && !istanbul
+            ? {
+                runtimeConfigurationPlan: {
+                  ...runtimeConfigurationPlan!,
+                  requests: runtimeConfigurationPlan!.requests.filter(
+                    (request) =>
+                      group.some(
+                        (project) => project.profile.id === request.profile.id
+                      )
+                  ),
+                },
+                coverageSourcePlan: {
+                  ...coverageSourcePlan,
+                  requests: coverageSourcePlan.requests.filter((request) =>
+                    group.some(
+                      (project) => project.profile.id === request.profile.id
+                    )
+                  ),
+                },
+              }
+            : {}),
+          ...(options.customCoverageRequests
+            ? {
+                customCoverageRequests: Object.fromEntries(
+                  group
+                    .filter((project) => project.customCoverage)
+                    .map((project) => [
+                      project.profile.id,
+                      options.customCoverageRequests![project.profile.id],
+                    ])
+                ),
+              }
+            : {}),
+          testNamePattern: options.testNamePattern,
+          passWithNoTests: options.passWithNoTests,
+          bailFailures: failedCases,
+        },
+        {
+          signal: controller.signal,
+          write: options.write,
+          writeError: options.reporter?.writeError,
+          report: false,
+          ...(completedModules
+            ? {
+                onCompletedModules(facts: readonly RuntimeModuleCompletion[]) {
+                  completedModules.push(...facts)
+                },
+              }
+            : {}),
+          onCustomCoverageSuite: options.onCustomCoverageSuite,
+          onConsoleDrain: options.onConsoleDrain,
+          onModuleQueued: options.onModuleQueued,
+          ...(options.preparePublicSnapshots === true
+            ? {
+                onSnapshotPreparationFailure(
+                  failure: SnapshotPreparationFailure
+                ) {
+                  const mapped: SnapshotPreparationFailure = {
+                    ...failure,
+                    runId,
+                  }
+                  assertSnapshotPreparationFailure(mapped, {
+                    runId,
+                    entryId: failure.entryId,
+                    revision: failure.revision,
+                  })
+                  let delivered:
+                    | Extract<ResultEvent, { type: 'diagnostic' }>
+                    | undefined
+                  if (failure.outcome.kind === 'error') {
+                    delivered = {
+                      ...envelope(),
+                      type: 'diagnostic',
+                      diagnostic: failure.outcome.diagnostic,
+                    }
+                    const receipt: { returned?: unknown } = {}
+                    onEvent(delivered, receipt)
+                    if (reporterFailed) return
+                    if (receipt.returned !== undefined) {
+                      preparationDispatches.push(
+                        Promise.resolve(receipt.returned).then(
+                          () =>
+                            failReporter(
+                              new Error(
+                                'Snapshot diagnostic delivery requires a synchronous observer.'
+                              )
+                            ),
+                          (error: unknown) => failReporter(error)
+                        )
+                      )
+                      return
+                    }
+                  }
+                  const returned = options.onSnapshotPreparationFailure!(
+                    mapped,
+                    delivered
+                  )
+                  if (returned !== undefined)
+                    preparationDispatches.push(
+                      Promise.resolve(returned).then(
+                        () =>
+                          failReporter(
+                            new Error(
+                              'Snapshot reporter association requires a synchronous observer.'
+                            )
+                          ),
+                        (error: unknown) => failReporter(error)
+                      )
+                    )
+                  else reporter.onSnapshotPreparationFailure(mapped, delivered)
+                },
+              }
+            : {}),
+          ...(options.captureTestRecords === true
+            ? {
+                onTestRecord(event: TestRecordEvent) {
+                  controller.signal.throwIfAborted()
+                  const mapped = recordDeliveries!.get(event)
+                  if (!mapped || !options.onTestRecord)
+                    throw new Error(
+                      'Test record callback lacks its actual delivered event.'
+                    )
+                  recordDeliveries!.delete(event)
+                  return options.onTestRecord(mapped)
+                },
+              }
+            : {}),
+          onEvent(event) {
+            if (
+              event.type === 'file-start' &&
+              typeof event.revision === 'string'
+            )
+              collectionRevisions.set(event.entry.id, event.revision)
+            if (event.type === 'run-start' || event.type === 'run-end') return
+            const mapped = { ...event, runId }
+            if (
+              recordDeliveries &&
+              (event.type === 'test-annotation' ||
+                event.type === 'test-artifact')
+            )
+              recordDeliveries.set(event, mapped as TestRecordEvent)
+            onEvent(mapped)
+          },
+        }
+      )
+      if (completion.operation !== 'run')
+        throw new Error('Invalid isolated project result.')
+      if (completion.result.collections !== undefined) {
+        if (!options.collectOnly)
+          throw new Error(
+            'Isolated project returned unsolicited collection facts.'
+          )
+        assertTestFileCollections(
+          completion.result.collections,
+          selected,
+          collectionRevisions,
+          completion.result.status === 'passed'
+        )
+      }
+      if (options.customCoverageRequests) {
+        if (completion.result.unsafeCleanup)
+          throw new Error('Custom coverage generation cleanup failed.')
+        customCoverage.push(
+          ...assertCustomCoverageFacts(
+            completion.result.customCoverage,
+            projectDir,
+            group,
+            options.customCoverageRequests,
+            collectionRevisions
+          )
+        )
+      } else if (completion.result.customCoverage !== undefined)
+        throw new Error('Unrequested custom coverage facts.')
+      if (istanbul) {
+        const { assertIstanbulCoverageFacts } = await import(
+          './coverage/report-istanbul.js'
+        )
+        istanbulCoverage.push(
+          ...(await assertIstanbulCoverageFacts({
+            facts: completion.result.istanbulCoverage,
+            projectDir,
+            plan: istanbulSourcePlan!,
+            ...(completion.result.istanbulSourceDeclarations
+              ? { declarations: completion.result.istanbulSourceDeclarations }
+              : {}),
+            expected: selected,
+            revisions: collectionRevisions,
+            signal: controller.signal,
+          }))
+        )
+        if (completion.result.istanbulSourceDeclarations) {
+          const { appendIstanbulDeclarations } = await import(
+            './coverage/istanbul-typescript-parent.js'
+          )
+          appendIstanbulDeclarations(
+            istanbulSourceDeclarations,
+            completion.result.istanbulSourceDeclarations
+          )
+          runtimeConfigurationReceipts.push(
+            ...(completion.result.runtimeConfigurationReceipts ?? [])
+          )
+        }
+      } else if (options.standardCoverageOptions) {
+        const { assertStandardCoverageFacts } = await import(
+          './coverage/report-standard.js'
+        )
+        standardCoverage.push(
+          ...(await assertStandardCoverageFacts(
+            completion.result.standardCoverage,
+            projectDir,
+            selected,
+            collectionRevisions,
+            runtimeConfigurationPlan
+              ? { sourcePlan: coverageSourcePlan, runtimeConfigurationPlan }
+              : undefined,
+            controller.signal
+          ))
+        )
+        if (!Array.isArray(completion.result.compilerSourceCoverage))
+          throw new Error(
+            'Isolated project omitted parent compiler source analyses'
+          )
+        compilerSourceCoverage.push(...completion.result.compilerSourceCoverage)
+        if (!Array.isArray(completion.result.runtimeConfigurationReceipts))
+          throw new Error(
+            'Isolated project omitted parent runtime config receipts'
+          )
+        runtimeConfigurationReceipts.push(
+          ...completion.result.runtimeConfigurationReceipts
+        )
+      } else if (completion.result.standardCoverage !== undefined) {
+        throw new Error('Unrequested standard coverage facts.')
+      }
+      if (completion.result.status !== 'passed') failed = true
+      else if (options.collectOnly) {
+        if (!completion.result.collections)
+          throw new Error('Missing isolated collection facts.')
+        collections.push(...completion.result.collections)
+      }
+      if (completion.result.unsafeCleanup) {
+        unsafeCleanup = true
+        controller.abort(new Error('Isolated project cleanup failed.'))
+      }
+    } catch (error) {
+      if (!isOnlyCancellation(error)) diagnostic(error, 'runtime')
+      if (error instanceof WatchOwnershipError) {
+        unsafeCleanup = true
+        controller.abort(error)
+      }
+    }
+  }
+
+  try {
+    onEvent({
+      ...envelope(),
+      type: 'run-start',
+      snapshotUpdateMode,
+      specificationOrder: [
+        ...(options.specificationOrder ??
+          projects.flatMap((project) =>
+            project.entries.map((entry) => entry.id)
+          )),
+      ],
+    })
+    const selected = projects.filter(
+      (project) =>
+        project.entries.length > 0 ||
+        coverageSourcePlan.requests.some(
+          (request) => request.profile.id === project.profile.id
+        )
+    )
+    const modes = new Set(selected.map((project) => project.profile.mode))
+    if (
+      !projects.some((project) => project.entries.length) &&
+      !options.passWithNoTests
+    ) {
+      // No selected files is a failed run policy, not an unhandled Error.
+      failed = true
+      onEvent({
+        ...envelope(),
+        type: 'output',
+        stream: 'stderr',
+        text: 'No test files selected.\n',
+      })
+    }
+    if (!selected.length) {
+      // Empty selection still emits a complete machine report.
+    } else if (
+      modes.size === 1 &&
+      previousNodeEnv &&
+      previousNodeEnv !== selected[0].profile.mode
+    ) {
+      diagnostic(
+        new Error(
+          `Selected test projects require NODE_ENV=${selected[0].profile.mode}; the current NODE_ENV conflicts with their Next compilation profile.`
+        ),
+        'configuration'
+      )
+    } else if (modes.size !== 1 || isolateProjects) {
+      if (
+        selected.some((project) => project.profile.environment === 'browser') ||
+        options.execute ||
+        options.allocateArtifact
+      ) {
+        diagnostic(
+          new Error(
+            'Mixed compilation modes support one-shot Node/RSC projects only; browser and nested orchestration are unsupported. Use --project.'
+          ),
+          'configuration'
+        )
+      } else {
+        // Fresh config/env/module caches for each mode. Configured output
+        // directories can overlap, so await full generation disposal in order.
+        const groups =
+          modes.size === 1 ? [selected] : selected.map((project) => [project])
+        for (const group of groups) {
+          if (controller.signal.aborted) break
+          if (
+            group.every(bailReached) &&
+            !coverageSourcePlan.requests.some((request) =>
+              group.some((project) => project.profile.id === request.profile.id)
+            )
+          )
+            break
+          await runIsolatedProject(group)
+        }
+      }
+    } else {
+      const mode = selected[0].profile.mode
+      if (previousNodeEnv && previousNodeEnv !== mode) {
+        diagnostic(
+          new Error(
+            `Selected test projects require NODE_ENV=${mode}; the current NODE_ENV conflicts with their Next compilation profile.`
+          ),
+          'configuration'
+        )
+      } else {
+        // Set before importing compiler setup or loading Next's environment files.
+        ;(process.env as any).NODE_ENV = mode
+        for (const project of selected) {
+          if (controller.signal.aborted) break
+          if (
+            bailReached(project) &&
+            !coverageSourcePlan.requests.some(
+              (request) => request.profile.id === project.profile.id
+            )
+          )
+            continue
+          if (
+            (options.isolateProjects ||
+              (project.isolate === false && !options.executeCohort)) &&
+            project.profile.environment !== 'browser'
+          ) {
+            await runIsolatedProject([project])
+            continue
+          }
+          const runtimeEntries = project.entries.filter(
+            (entry) => !entry.typecheck
+          )
+          const sourceRequests = coverageSourcePlan.requests.filter(
+            (request) => request.profile.id === project.profile.id
+          )
+          if (
+            (!runtimeEntries.length && !sourceRequests.length) ||
+            controller.signal.aborted
+          )
+            continue
+          let session:
+            | Awaited<
+                ReturnType<
+                  typeof import('./compiler').createTestCompilerSession
+                >
+              >
+            | undefined
+          let projectPhase: SerializedDiagnostic['phase'] = 'compilation'
+          let sessionClosed = false
+          let instrumentation:
+            | Awaited<
+                ReturnType<
+                  typeof import('./coverage/istanbul-instrumentation').openIstanbulInstrumentation
+                >
+              >
+            | undefined
+          const plannedBrowserDeclarations =
+            (productionBrowserCoverage || developmentBrowserCoverage) &&
+            sourceRequests.length > 0
+          const plannedDevelopmentBrowserImports =
+            developmentBrowserCoverage &&
+            plannedBrowserDeclarations &&
+            sourceRequests.some(
+              (request) =>
+                isDeepStrictEqual(request.profile, project.profile) &&
+                /\.[jt]sx$/.test(request.source.file)
+            )
+          const plannedJsx =
+            project.profile.environment === 'node' &&
+            sourceRequests.some((request) =>
+              /\.[jt]sx$/.test(request.source.file)
+            )
+          const plannedIstanbulJsxImports =
+            istanbulSourcePlan?.sources.some((source) =>
+              /\.[jt]sx$/.test(source.file)
+            ) === true
+          const plannedTypeScriptImports =
+            options.nodeTypeScriptImportCoverage === true &&
+            project.isolate !== false &&
+            project.profile.environment === 'node' &&
+            project.profile.runtime === 'nodejs' &&
+            ['development', 'production'].includes(project.profile.mode) &&
+            !project.profile.browserClient &&
+            project.profile.route === undefined &&
+            sourceRequests.some(
+              (request) =>
+                isDeepStrictEqual(request.profile, project.profile) &&
+                /\.[cm]?ts$/.test(request.source.file) &&
+                !/\.d\.[cm]?ts$/.test(request.source.file)
+            )
+          try {
+            if (istanbulSourcePlan) {
+              const { openIstanbulInstrumentation, istanbulSourceSelector } =
+                await import('./coverage/istanbul-instrumentation.js')
+              instrumentation = await openIstanbulInstrumentation({
+                projectDir,
+                plan: istanbulSourcePlan,
+                signal: controller.signal,
+                ...(istanbulSourcePlan.importedOnly
+                  ? {
+                      selectSource: istanbulSourceSelector(
+                        projectDir,
+                        options.standardCoverageOptions!,
+                        [
+                          ...(options.coverageInputs ?? []),
+                          ...project.setupFiles,
+                          ...project.entries.map((entry) => entry.file),
+                        ]
+                      ),
+                    }
+                  : {}),
+              })
+            }
+            const { createTestCompilerSession } = await import(
+              './compiler/index.js'
+            )
+            session = await createTestCompilerSession(
+              projectDir,
+              project.profile,
+              {
+                allocateArtifact: options.allocateArtifact,
+                ...(instrumentation
+                  ? {
+                      istanbulInstrumentation: instrumentation.descriptor,
+                      ...(instrumentation.prepareTypeScript
+                        ? {
+                            prepareIstanbulTypeScript:
+                              instrumentation.prepareTypeScript,
+                          }
+                        : {}),
+                      ...(instrumentation.readMetadata
+                        ? {
+                            readIstanbulInstrumentation:
+                              instrumentation.readMetadata,
+                          }
+                        : {}),
+                    }
+                  : {}),
+                ...(project.env !== undefined &&
+                project.isolate !== false &&
+                project.profile.environment === 'node' &&
+                project.profile.runtime === 'nodejs' &&
+                project.profile.bundler === 'turbopack' &&
+                !project.profile.browserClient &&
+                project.profile.route === undefined &&
+                (!project.executionEnvironment ||
+                  project.executionEnvironment.name === 'node') &&
+                !project.customCoverage
+                  ? { compilerEnvKeys: true as const }
+                  : {}),
+                ...(plannedBrowserDeclarations
+                  ? { browserCoverageDeclarations: true }
+                  : {}),
+                ...(plannedDevelopmentBrowserImports
+                  ? { browserDevelopmentImportPlan: coverageSourcePlan }
+                  : {}),
+                ...(plannedJsx ||
+                plannedTypeScriptImports ||
+                plannedIstanbulJsxImports
+                  ? { nativeImportCoverageRoles: true }
+                  : {}),
+                ...(project.compilerAliases
+                  ? { compilerAliases: project.compilerAliases }
+                  : {}),
+                ...(options.compilerTransforms?.[project.profile.id]
+                  ? {
+                      compilerTransforms:
+                        options.compilerTransforms[project.profile.id],
+                    }
+                  : {}),
+              }
+            )
+            const compilerSession = session
+            const assertCoverageLease = () => {
+              controller.signal.throwIfAborted()
+              if (sessionClosed || session !== compilerSession)
+                throw new Error('Planned JSX coverage artifact lease closed')
+            }
+            if (
+              istanbulSourcePlan &&
+              typedIstanbulCandidates &&
+              !istanbulSourcePlan.importedOnly
+            ) {
+              const {
+                appendIstanbulDeclarations,
+                readIstanbulCompilerDeclarations,
+              } = await import('./coverage/istanbul-typescript-parent.js')
+              const configuration = runtimeConfigurationPlan!.requests.find(
+                (request) => isDeepStrictEqual(request.profile, project.profile)
+              )
+              if (!configuration)
+                throw new Error('Missing typed Istanbul configuration request.')
+              for (const source of istanbulSourcePlan.sources) {
+                if (!source.declarationRevision) continue
+                const compiled = await compilerSession.compileCoverageSource(
+                  { file: source.file, sha256: source.sha256 },
+                  {
+                    signal: controller.signal,
+                    revision: source.declarationRevision,
+                    configurationImports: configuration.authorization,
+                  }
+                )
+                if (options.onCoverageSource)
+                  await options.onCoverageSource(compiled, controller.signal)
+                else {
+                  if (options.execute)
+                    throw new Error(
+                      'Typed Istanbul source analysis requires its parent broker.'
+                    )
+                  appendIstanbulDeclarations(
+                    istanbulSourceDeclarations,
+                    await readIstanbulCompilerDeclarations({
+                      compiled,
+                      projectDir,
+                      plan: istanbulSourcePlan,
+                      configurationPlan: runtimeConfigurationPlan!,
+                      signal: controller.signal,
+                      assertLease: assertCoverageLease,
+                    })
+                  )
+                }
+              }
+            }
+            for (const request of sourceRequests) {
+              const compiled = await compilerSession.compileCoverageSource(
+                request.source,
+                {
+                  signal: controller.signal,
+                  revision: request.revision,
+                  configurationImports: request.configurationImports,
+                }
+              )
+              if (options.onCoverageSource)
+                await options.onCoverageSource(compiled, controller.signal)
+              else {
+                if (options.execute)
+                  throw new Error(
+                    'Compiler source analysis requires a parent broker consumer'
+                  )
+                if (plannedBrowserDeclarations) {
+                  const configurationImports = request.configurationImports
+                  if (!configurationImports)
+                    throw new Error(
+                      'Planned Browser coverage requires current configuration imports'
+                    )
+                  compilerSourceCoverage.push(
+                    await analyzeCompiledBrowserCoverageSource(
+                      compiled,
+                      {
+                        projectDir,
+                        artifactRoot: compiled.artifact.rootDir,
+                        profile: request.profile,
+                        source: request.source,
+                        revision: request.revision,
+                        configurationImports,
+                        assertLease: assertCoverageLease,
+                      },
+                      controller.signal
+                    )
+                  )
+                } else {
+                  compilerSourceCoverage.push(
+                    await analyzeCompiledCoverageSource(
+                      compiled,
+                      {
+                        projectDir,
+                        artifactRoot: compiled.artifact.rootDir,
+                        profile: request.profile,
+                        source: request.source,
+                        revision: request.revision,
+                        configurationImports: request.configurationImports,
+                        ...(plannedJsx || plannedTypeScriptImports
+                          ? {
+                              nativeImportCoverageRoles: {
+                                version: 1 as const,
+                                assertLease: assertCoverageLease,
+                              },
+                            }
+                          : {}),
+                      },
+                      controller.signal
+                    )
+                  )
+                }
+              }
+            }
+            if (project.isolate === false && runtimeEntries.length) {
+              const ordered = shuffleFiles(project.sequence?.shuffle)
+                ? shuffle(
+                    [...runtimeEntries],
+                    project.sequence?.seed ?? defaultSeed
+                  )
+                : runtimeEntries
+              const cohort = await compilerSession.compileCohort(ordered, {
+                signal: controller.signal,
+              })
+              let compilationFailed = false
+              for (const [index, artifact] of cohort.artifacts.entries())
+                compilationFailed =
+                  reportCompilationIssues(ordered[index], artifact) ||
+                  compilationFailed
+              if (compilationFailed) {
+                for (const entry of ordered) finishFailedFile(entry, started)
+                continue
+              }
+              projectPhase = 'runtime'
+              const executeCohort = options.executeCohort
+              if (!executeCohort)
+                throw new Error(
+                  'Shared cohorts require a parent-owned execution broker.'
+                )
+              let results: readonly import('./contracts').TestExecutionResult[]
+              try {
+                results = await executeCohort(
+                  cohort,
+                  ordered.map((entry) => ({
+                    captureTaskResults: options.captureTaskResults,
+                    ...(options.captureModuleCollected === true
+                      ? { captureModuleCollected: true as const }
+                      : {}),
+                    runId,
+                    projectDir,
+                    entry,
+                    setupFiles: [],
+                    updateSnapshots: options.updateSnapshots ?? false,
+                    snapshotUpdateMode,
+                    tags: project.tags,
+                    strictTags: project.strictTags,
+                    attachmentsDir: project.attachmentsDir,
+                    globals: project.globals,
+                    includeTaskLocation: project.includeTaskLocation,
+                    fakeTimers: project.fakeTimers,
+                    clearMocks: project.clearMocks,
+                    mockReset: project.mockReset,
+                    restoreMocks: project.restoreMocks,
+                    unstubGlobals: project.unstubGlobals,
+                    unstubEnvs: project.unstubEnvs,
+                    sequence: project.sequence,
+                    maxConcurrency: project.maxConcurrency,
+                    retry: project.retry,
+                    allowOnly: project.allowOnly ?? !process.env.CI,
+                    passWithNoTests: project.passWithNoTests,
+                    provide: project.provide,
+                    env: project.env,
+                    browserViewport: project.browserViewport,
+                    testTimeout: project.testTimeout,
+                    hookTimeout: project.hookTimeout,
+                    fileTimeout: project.fileTimeout,
+                    testNamePattern:
+                      options.testNamePattern ?? project.testNamePattern,
+                    signal: controller.signal,
+                    onEvent,
+                  }))
+                )
+              } catch (error) {
+                // A rejected aggregate may represent a process/group/cache disposal failure.
+                // Keep the compiler/artifact lease until the producer has settled, then
+                // retire this run rather than certifying uncertain ownership.
+                const { isCohortExecutionClosedError } = await import(
+                  './execution/execute-cohort.js'
+                )
+                if (!isCohortExecutionClosedError(error)) {
+                  unsafeCleanup = true
+                  controller.abort(error)
+                }
+                throw error
+              }
+              if (
+                results.length !== ordered.length ||
+                results.some(
+                  (result, index) =>
+                    result.entryId !== ordered[index].id ||
+                    !['passed', 'failed', 'cancelled'].includes(result.status)
+                )
+              )
+                throw new Error(
+                  'Shared worker returned incomplete or foreign file results.'
+                )
+              if (results.some((result) => result.status !== 'passed'))
+                failed = true
+              continue
+            }
+            const browserTests: PreparedTest[] = []
+            await forEachTestFile(
+              shuffleFiles(project.sequence?.shuffle)
+                ? shuffle(
+                    [...runtimeEntries],
+                    project.sequence?.seed ?? defaultSeed
+                  )
+                : runtimeEntries,
+              project.profile.environment === 'browser' ? 1 : maxWorkers,
+              controller.signal,
+              async (entry) => {
+                if (bailReached(project) || options.userCancelSignal?.aborted)
+                  return
+                const fileStarted = performance.now()
+                try {
+                  options.onModuleQueued?.(entry)
+                  const runtimeRequest =
+                    runtimeConfigurationPlan?.requests.find(
+                      (request) => request.profile.id === project.profile.id
+                    )
+                  const runtimeEntry = runtimeRequest?.entries.find(
+                    (candidate) => candidate.id === entry.id
+                  )
+                  if (
+                    runtimeConfigurationPlan &&
+                    (!runtimeRequest || !runtimeEntry)
+                  )
+                    throw new Error(
+                      'Missing parent runtime config request for selected entry'
+                    )
+                  const artifact = await compilerSession.compile(entry, {
+                    ...(runtimeRequest && runtimeEntry
+                      ? {
+                          runtimeConfigurationImports: {
+                            authorization: runtimeRequest.authorization,
+                            entry: runtimeEntry,
+                          },
+                        }
+                      : {}),
+                    signal: controller.signal,
+                    setupFiles: project.setupFiles,
+                    setupFilesSequence: project.sequence?.setupFiles ?? 'list',
+                    snapshotSerializers: project.snapshotSerializers,
+                    ...(options.coverage
+                      ? {
+                          coverage: {
+                            version: 1 as const,
+                            kind: istanbul
+                              ? ('node-istanbul' as const)
+                              : project.profile.browserClient
+                                ? ('browser-v8' as const)
+                                : ('node-line' as const),
+                          },
+                        }
+                      : {}),
+                  })
+                  if (reportCompilationIssues(entry, artifact)) {
+                    finishFailedFile(entry, fileStarted)
+                    return
+                  }
+                  controller.signal.throwIfAborted()
+                  if (options.userCancelSignal?.aborted) return
+                  const prepared = {
+                    entry,
+                    artifact,
+                    started: fileStarted,
+                    ...(plannedJsx ||
+                    plannedTypeScriptImports ||
+                    typedIstanbulCandidates ||
+                    plannedBrowserDeclarations
+                      ? { coverageLease: assertCoverageLease }
+                      : {}),
+                  }
+                  if (
+                    project.profile.environment === 'browser' &&
+                    !options.collectOnly
+                  ) {
+                    browserTests.push(prepared)
+                  } else {
+                    await executePrepared(prepared, project)
+                  }
+                } catch (error) {
+                  if (!isOnlyCancellation(error))
+                    diagnostic(error, 'compilation', entry)
+                  finishFailedFile(entry, fileStarted)
+                }
+              },
+              () => options.userCancelSignal?.aborted === true
+            )
+            if (browserTests.length && !controller.signal.aborted) {
+              projectPhase = 'cleanup'
+              // Release actual native output/cache ownership before Next's
+              // normal app server takes its output lock. Keep snapshots leased.
+              await session.shutdownCompilation()
+              for (const prepared of browserTests) {
+                if (controller.signal.aborted) break
+                if (bailReached(project)) break
+                await executePrepared(prepared, project)
+              }
+            }
+          } catch (error) {
+            if (!isOnlyCancellation(error)) {
+              if (!project.entries.length) diagnostic(error, projectPhase)
+              for (const entry of project.entries) {
+                if (endedFiles.has(entry.id)) continue
+                diagnostic(error, projectPhase, entry)
+                finishFailedFile(entry, started)
+              }
+            }
+          } finally {
+            // B.execute resolves only after bounded child closure, including
+            // cancellation. Keep the snapshot lease alive until that point.
+            try {
+              sessionClosed = true
+              await session?.dispose()
+            } catch (error) {
+              unsafeCleanup = true
+              diagnostic(error, 'cleanup')
+              controller.abort(error)
+            }
+            try {
+              await instrumentation?.dispose()
+            } catch (error) {
+              unsafeCleanup = true
+              diagnostic(error, 'cleanup')
+              controller.abort(error)
+            }
+          }
+        }
+      }
+    }
+  } finally {
+    if (preparationDispatches.length) await Promise.all(preparationDispatches)
+    if (
+      options.standardCoverageOptions &&
+      !istanbul &&
+      !options.onCoverageSource &&
+      !controller.signal.aborted &&
+      !unsafeCleanup
+    ) {
+      try {
+        if (runtimeConfigurationPlan && !options.execute)
+          await assertRuntimeConfigurationReceipts({
+            receipts: runtimeConfigurationReceipts,
+            facts: standardCoverage,
+            plan: runtimeConfigurationPlan,
+            signal: controller.signal,
+          })
+        await assertCompilerSourceCoverage(
+          compilerSourceCoverage,
+          coverageSourcePlan,
+          controller.signal
+        )
+      } catch (error) {
+        if (!isOnlyCancellation(error)) diagnostic(error, 'reporter')
+      }
+    }
+    if (controller.signal.aborted) {
+      for (const project of projects) {
+        for (const entry of project.entries) {
+          if (!endedFiles.has(entry.id)) finishFailedFile(entry, started)
+        }
+      }
+    }
+    if (coverageReport && coverageModule) {
+      try {
+        if (controller.signal.aborted || unsafeCleanup || reporterFailed) {
+          coverageReport.incomplete(
+            'run',
+            'Coverage run was interrupted or cleanup failed.'
+          )
+        }
+        const report = coverageReport.finish()
+        if (!report.complete && !controller.signal.aborted)
+          diagnostic(new Error('Coverage report is incomplete.'), 'reporter')
+        const output = await coverageModule.writeCoverageReport(
+          report,
+          tmpdir(),
+          controller.signal
+        )
+        onEvent({
+          ...envelope(),
+          type: 'output',
+          stream: 'stdout',
+          text: output.text,
+        })
+        for (const [name, path, contentType] of [
+          ['coverage.json', output.jsonPath, 'application/json'],
+          ['coverage.txt', output.textPath, 'text/plain'],
+        ]) {
+          onEvent({
+            ...envelope(),
+            type: 'attachment',
+            attachment: { name, path, contentType, kind: 'file' },
+          })
+        }
+      } catch (error) {
+        if (!isOnlyCancellation(error)) diagnostic(error, 'reporter')
+      }
+    }
+    options.signal.removeEventListener('abort', cancel)
+    if (previousNodeEnv === undefined) delete (process.env as any).NODE_ENV
+    else (process.env as any).NODE_ENV = previousNodeEnv
+    onEvent({
+      ...envelope(),
+      type: 'run-end',
+      status: failed
+        ? 'failed'
+        : controller.signal.aborted
+          ? 'cancelled'
+          : 'passed',
+      durationMs: performance.now() - started,
+    })
+    try {
+      reporter.dispose()
+    } catch (error) {
+      failReporter(error)
+    }
+  }
+  if (preparationReporterFailures && preparationReporterFailures.length > 1)
+    throw new AggregateError(
+      preparationReporterFailures,
+      'Test reporter delivery occurrences failed.'
+    )
+  if (reporterFailed) throw reporterFailure
+  if (completedModules && !controller.signal.aborted && !unsafeCleanup)
+    options.onCompletedModules!(completedModules)
+  return {
+    ...reporter.getSummary(),
+    unsafeCleanup,
+    ...(options.collectOnly ? { collections } : {}),
+    ...(istanbul
+      ? {
+          istanbulCoverage,
+          ...(!options.execute
+            ? {
+                istanbulSourcePlan,
+                ...(istanbulSourceDeclarations.length
+                  ? {
+                      istanbulSourceDeclarations,
+                      runtimeConfigurationPlan,
+                      runtimeConfigurationReceipts,
+                    }
+                  : {}),
+              }
+            : {}),
+        }
+      : {}),
+    ...(options.standardCoverageOptions && !istanbul
+      ? { standardCoverage }
+      : {}),
+    ...(options.standardCoverageOptions &&
+    !istanbul &&
+    !options.onCoverageSource
+      ? {
+          compilerSourceCoverage,
+          coverageSourcePlan,
+          runtimeConfigurationPlan,
+          runtimeConfigurationReceipts,
+        }
+      : {}),
+    ...(options.customCoverageRequests ? { customCoverage } : {}),
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "development": [
+    {
+      "stage": "initial-empty",
+      "cases": [],
+      "outputs": [],
+      "total": 0,
+      "passed": 0,
+      "success": true
+    },
+    {
+      "stage": "beta-edit",
+      "cases": [
+        {
+          "fullName": "beta dependency",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "outputs": [
+        {
+          "case": "beta",
+          "value": 45,
+          "shared": 0,
+          "mode": "development"
+        }
+      ],
+      "total": 1,
+      "passed": 1,
+      "success": true
+    },
+    {
+      "stage": "unrelated-edit",
+      "noNewReport": true
+    },
+    {
+      "stage": "alpha-edit",
+      "cases": [
+        {
+          "fullName": "alpha dependency",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "outputs": [
+        {
+          "case": "alpha",
+          "value": 44,
+          "shared": 0,
+          "mode": "development"
+        }
+      ],
+      "total": 1,
+      "passed": 1,
+      "success": true
+    }
+  ],
+  "production": [
+    {
+      "stage": "initial-empty",
+      "cases": [],
+      "outputs": [],
+      "total": 0,
+      "passed": 0,
+      "success": true
+    },
+    {
+      "stage": "beta-edit",
+      "cases": [
+        {
+          "fullName": "beta dependency",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "outputs": [
+        {
+          "case": "beta",
+          "value": 45,
+          "shared": 0,
+          "mode": "production"
+        }
+      ],
+      "total": 1,
+      "passed": 1,
+      "success": true
+    },
+    {
+      "stage": "unrelated-edit",
+      "noNewReport": true
+    },
+    {
+      "stage": "alpha-edit",
+      "cases": [
+        {
+          "fullName": "alpha dependency",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "outputs": [
+        {
+          "case": "alpha",
+          "value": 44,
+          "shared": 0,
+          "mode": "production"
+        }
+      ],
+      "total": 1,
+      "passed": 1,
+      "success": true
+    }
+  ]
+}

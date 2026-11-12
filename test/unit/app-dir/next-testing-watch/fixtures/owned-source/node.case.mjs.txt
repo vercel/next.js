@@ -1,0 +1,2 @@
+import { test, expect } from 'vitest'
+test('real ordinary Node watch case', () => expect(21 * 2).toBe(42))

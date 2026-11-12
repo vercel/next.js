@@ -1,0 +1,4 @@
+import {headers,cookies} from 'next/headers'
+import {version} from '../../../view-version.mjs'
+export const dynamic='force-dynamic'
+export default async function Page({params,searchParams}) {const {id}=await params;const {tag}=await searchParams;const h=await headers();const c=await cookies();return <pre id="route-values">{JSON.stringify({version,id,tag,header:h.get('x-route-proof'),cookie:c.get('rsc-session')?.value??null})}</pre>}

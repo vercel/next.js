@@ -1,0 +1,2 @@
+import {version} from '../../../view-version.mjs'
+export default async function Layout({children,params}) {const {id}=await params;return <section data-nested-version={version} data-layout-id={id}>{children}</section>}

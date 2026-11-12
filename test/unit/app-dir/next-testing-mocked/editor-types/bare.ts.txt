@@ -1,0 +1,31 @@
+import {
+  vi,
+  type MockContext,
+  type MockResultReturn,
+  type MockedFunction,
+} from 'vitest'
+import type { HelperResult } from 'next-test-type-helper'
+import { mode } from 'ordinary-application'
+
+const mock = vi.fn((value: number) => value * 2)
+const same: MockedFunction<(value: number) => number> = vi.mocked(mock)
+const result: number = same(3)
+// @ts-expect-error A typed mock does not accept an unrelated argument.
+same('wrong')
+declare const context: MockContext<() => number>
+type Returned = Extract<(typeof context.results)[number], { type: 'return' }>
+const marker: number | undefined = (null as unknown as Returned).helperMarker
+const direct: MockResultReturn<number> = {
+  type: 'return',
+  value: 2,
+  helperMarker: 3,
+}
+const helper: HelperResult = direct
+const wrong: MockResultReturn<number> = {
+  type: 'return',
+  value: 2,
+  // @ts-expect-error The helper's original generic marker retains its number type.
+  helperMarker: 'wrong',
+}
+const ordinary: 'application' = mode
+void [result, marker, helper, ordinary, wrong]

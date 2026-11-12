@@ -1,0 +1,2 @@
+import Fixture from '../Fixture'
+export default function Page(){return <Fixture label="mounted"/>}

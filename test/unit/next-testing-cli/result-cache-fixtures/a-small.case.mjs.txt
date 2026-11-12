@@ -1,0 +1,2 @@
+import{test,expect}from'vitest';test('selected',()=>{console.log('CACHE:a-small.case.mjs:selected');expect(2+2).toBe(4)});test('other',()=>{console.log('CACHE:a-small.case.mjs:other');expect(2+2).toBe(4)})
+//
