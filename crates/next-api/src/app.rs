@@ -29,6 +29,7 @@ use next_core::{
     next_manifests::{
         AppPathsManifest, BuildManifest, EdgeFunctionDefinition, MiddlewaresManifestV2,
         PagesManifest, ProxyMatcher, Regions, client_reference_manifest::ClientReferenceManifest,
+        entry_js_files_manifest::EntryJsFilesManifest,
     },
     next_server::{
         ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
@@ -1976,6 +1977,8 @@ impl AppEndpoint {
         let mut client_reference_manifest = None;
 
         if emit_rsc_manifests {
+            let mode = *project.next_mode().await?;
+            let next_config = project.next_config().to_resolved().await?;
             let entry_manifest = ResolvedVc::upcast(
                 ClientReferenceManifest {
                     node_root: node_root.clone(),
@@ -1986,12 +1989,27 @@ impl AppEndpoint {
                     client_chunking_context,
                     ssr_chunking_context,
                     async_module_info: module_graphs.full.async_module_info().to_resolved().await?,
-                    next_config: project.next_config().to_resolved().await?,
+                    next_config,
                     runtime,
-                    mode: *project.next_mode().await?,
+                    mode,
                 }
                 .resolved_cell(),
             );
+            if mode.is_production() {
+                // Only read by `next build` to write route bundle stats, so it is not added to
+                // the page's file trace.
+                server_assets.insert(ResolvedVc::upcast(
+                    EntryJsFilesManifest {
+                        node_root: node_root.clone(),
+                        client_relative_path: client_relative_path.clone(),
+                        entry_name: app_entry.original_name.clone(),
+                        client_references,
+                        client_references_chunks,
+                        next_config,
+                    }
+                    .resolved_cell(),
+                ));
+            }
             server_assets.insert(entry_manifest);
             if runtime == NextRuntime::Edge {
                 middleware_assets.insert(entry_manifest);

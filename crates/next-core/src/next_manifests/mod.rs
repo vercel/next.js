@@ -2,6 +2,7 @@
 
 pub mod client_reference_manifest;
 mod encode_uri_component;
+pub mod entry_js_files_manifest;
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
