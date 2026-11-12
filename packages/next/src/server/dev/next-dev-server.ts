@@ -40,7 +40,12 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { Telemetry } from '../../telemetry/storage'
-import { Span, hrtimeToEpochNanoseconds, setGlobal } from '../../trace'
+import {
+  hrtimeToEpochNanoseconds,
+  setGlobal,
+  trace,
+  type Span,
+} from '../../trace'
 import { recordSpan } from '../../trace/trace'
 import { traceGlobals } from '../../trace/shared'
 import { findPageFile } from '../lib/find-page-file'
@@ -207,7 +212,7 @@ export default class DevServer extends Server {
       unsubscribeNativeRoutes()
     })
     this.startServerSpan =
-      options.startServerSpan ?? new Span({ name: 'start-next-dev-server' })
+      options.startServerSpan ?? trace('start-next-dev-server')
     this.renderOpts.ErrorDebug = ReactDevOverlay
     this.staticPathsCache = new LRUCache(
       // 5MB
@@ -561,7 +566,7 @@ export default class DevServer extends Server {
     res: NodeNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
-    const span = new Span({ name: 'handle-request', attrs: { url: req.url } })
+    const span = trace('handle-request', undefined, { url: req.url })
     const result = await span.traceAsyncFn(async () => {
       await this.ready?.promise
       addRequestMeta(req, 'PagesErrorDebug', this.renderOpts.ErrorDebug)

@@ -1,6 +1,6 @@
-import { Span } from '../../trace'
 import v8 from 'v8'
 import { info, warn } from '../../build/output/log'
+import { type Span, trace } from '../../trace'
 import { bold, italic } from '../picocolors'
 import { join } from 'path'
 import { traceGlobals } from '../../trace/shared'
@@ -45,7 +45,8 @@ export function getAllMemoryUsageSpans(): MemoryUsage[] {
 }
 
 /**
- * Captures a memory usage snapshot for the process summary/debug report.
+ * Records a snapshot of memory usage at this moment in time to the .next/trace
+ * file.
  */
 export function traceMemoryUsage(
   description: string,
@@ -68,12 +69,14 @@ export function traceMemoryUsage(
       String(value),
     ])
   )
-  new Span({
-    name: 'memory-usage',
-    parent: parentSpan,
-    attrs: tracedMemoryUsageAsStrings,
-    reportToOtel: true,
-  }).stop()
+  const span = parentSpan
+    ? parentSpan.traceChild('memory-usage', tracedMemoryUsageAsStrings, {
+        reportToOtel: true,
+      })
+    : trace('memory-usage', undefined, tracedMemoryUsageAsStrings, {
+        reportToOtel: true,
+      })
+  span.stop()
   if (process.env.EXPERIMENTAL_DEBUG_MEMORY_USAGE) {
     const percentageHeapUsed = (100 * heapUsed) / heapMax
 
