@@ -37,6 +37,7 @@ async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
 bincode = { workspace = true }
 concurrent-queue = { workspace = true }
+crossbeam-utils = { workspace = true }
 dashmap = { workspace = true }
 either = { workspace = true }
 event-listener = "5.4.0"
@@ -57,6 +58,7 @@ tracing = { workspace = true }
 triomphe = { workspace = true, features = ["unsize", "unstable"] }
 turbo-bincode = { workspace = true }
 turbo-bitset = { workspace = true }
+turbo-concurrent-slice = { workspace = true }
 turbo-dyn-eq-hash = { workspace = true }
 turbo-frozenmap = { workspace = true }
 turbo-rcstr = { workspace = true }

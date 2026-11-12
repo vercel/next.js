@@ -10,12 +10,14 @@ use std::{
     },
 };
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use async_trait::async_trait;
+use crossbeam_utils::CachePadded;
 use futures::{StreamExt, TryStreamExt};
 use parking_lot::{Mutex, MutexGuard};
 use rustc_hash::FxHashMap;
 use tracing::Instrument;
+use turbo_concurrent_slice::ConcurrentSlice;
 
 use crate::{
     self as turbo_tasks, CollectiblesSource, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
@@ -38,6 +40,10 @@ const APPLY_EFFECTS_CONCURRENCY_LIMIT: usize = 1024;
 #[turbo_tasks::value_trait]
 pub trait Effect {
     /// Read any Vc data needed for `apply()` and return the [`CapturedEffect`] that performs it.
+    ///
+    /// Must not create cells (e.g. with `.cell()`): [`take_effects`] captures many effects
+    /// concurrently as part of the one task calling it, so the order in which cells were created,
+    /// which assigns their indices in that task, wouldn't be deterministic.
     ///
     /// An implementation may elect to elide capturing data if the `EffectStateStorage` state is
     /// already up to date.
@@ -366,29 +372,19 @@ async fn capture_effects(
 
     let span = tracing::info_span!("capture effects", count = len, workers);
     async move {
-        let effects: Arc<[ResolvedVc<Box<dyn Effect>>]> = effects.into();
-        let next = Arc::new(AtomicUsize::new(0));
+        let state = Arc::new(CaptureEffectsState {
+            effects,
+            next: CachePadded::new(AtomicUsize::new(0)),
+            captured: ConcurrentSlice::new((0..len).map(|_| None).collect()),
+        });
         let handles = (0..workers)
             .map(|_| {
-                let effects = effects.clone();
-                let next = next.clone();
+                let state = state.clone();
                 spawn_in_current_task(async move {
-                    let mut captured = Vec::new();
-                    loop {
-                        let idx = next.fetch_add(1, Ordering::Relaxed);
-                        let Some(&effect) = effects.get(idx) else {
-                            break;
-                        };
-                        match capture_effect(effect).await {
-                            Ok(effect) => captured.push((idx, effect)),
-                            Err(err) => {
-                                // Make the other workers stop early, the result is an error anyway.
-                                next.store(effects.len(), Ordering::Relaxed);
-                                return Err(err);
-                            }
-                        }
-                    }
-                    Ok(captured)
+                    let result = state.capture_until_done().await;
+                    // Release the shared state before the result is handed to the joining side.
+                    drop(state);
+                    result
                 })
             })
             .collect::<Vec<_>>();
@@ -396,20 +392,57 @@ async fn capture_effects(
         // Wait for every worker, even after an error, so none of them is still reading as part of
         // this task when we return.
         let results = futures::future::join_all(handles).await;
-        let mut ordered: Vec<Option<Box<dyn CapturedEffect>>> =
-            std::iter::repeat_with(|| None).take(len).collect();
-        for result in results {
-            for (idx, effect) in result? {
-                ordered[idx] = Some(effect);
-            }
-        }
-        Ok(ordered
+        results.into_iter().collect::<Result<()>>()?;
+        let Some(state) = Arc::into_inner(state) else {
+            bail!("capture workers finished while still holding the shared state");
+        };
+        Ok(state
+            .captured
+            .into_inner()
             .into_iter()
             .map(|effect| effect.expect("every effect is captured exactly once"))
             .collect())
     }
     .instrument(span)
     .await
+}
+
+/// State shared by the workers of [`capture_effects`].
+struct CaptureEffectsState {
+    effects: Vec<ResolvedVc<Box<dyn Effect>>>,
+    /// Index of the next effect to capture. Every worker increments it for every effect, so it is
+    /// kept on its own cache line to avoid false sharing with the fields around it.
+    next: CachePadded<AtomicUsize>,
+    /// `captured[i]` is the captured `effects[i]`, written by the worker that took index `i`.
+    captured: ConcurrentSlice<CapturedSlots>,
+}
+
+/// One slot per effect, `None` until the effect is captured.
+type CapturedSlots = Box<[Option<Box<dyn CapturedEffect>>]>;
+
+impl CaptureEffectsState {
+    /// Captures effects until there are none left or a capture fails.
+    async fn capture_until_done(&self) -> Result<()> {
+        let len = self.effects.len();
+        loop {
+            let idx = self.next.fetch_add(1, Ordering::Relaxed);
+            let Some(&effect) = self.effects.get(idx) else {
+                return Ok(());
+            };
+            let captured = match capture_effect(effect).await {
+                Ok(captured) => captured,
+                Err(err) => {
+                    // Make the other workers stop early, the result is an error anyway. Indices
+                    // handed out after this are `>= len`, so no index is handed out twice.
+                    self.next.store(len, Ordering::Relaxed);
+                    return Err(err);
+                }
+            };
+            // SAFETY: `fetch_add` hands out every index below `len` at most once (`store` above
+            // only sets the counter to `len`), so this is the only write of `idx`.
+            unsafe { self.captured.write(idx, Some(captured)) };
+        }
+    }
 }
 
 #[derive(thiserror::Error, Debug, NonLocalValue)]

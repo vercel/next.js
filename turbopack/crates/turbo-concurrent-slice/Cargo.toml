@@ -1,0 +1,11 @@
+[package]
+name = "turbo-concurrent-slice"
+version = "0.1.0"
+description = "A mutably borrowed slice whose elements can be written once each from multiple threads"
+license = "MIT"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
