@@ -24,8 +24,6 @@ A page or layout on this route exports [`ensureStatic`](/docs/app/api-reference/
 
 During [prerendering](/docs/app/glossary#prerendering), [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) read request-specific data from [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional). Reading these values in `generateViewport()` requires rendering at request time, which conflicts with the route's static requirement.
 
-A [`use cache`](/docs/app/api-reference/directives/use-cache) scope also triggers this error when its [`expire`](/docs/app/api-reference/functions/cacheLife#expire) is under five minutes, [`stale`](/docs/app/api-reference/functions/cacheLife#stale) is under 30 seconds, or [`revalidate`](/docs/app/api-reference/functions/cacheLife#revalidate) is `0`.
-
 Uncached [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch) requests, database calls, and [`connection()`](/docs/app/api-reference/functions/connection) have different fixes. See [Uncached data in `generateViewport()` on a route that must be fully static](/docs/messages/static-viewport-dynamic).
 
 ## Ways to fix this
@@ -71,14 +69,6 @@ The viewport is determined during prerendering rather than per request.
 
 - This fixes viewport settings only. Page content, metadata, and other segments must also satisfy the static requirement.
 - A static export cannot read `cookies()`, `headers()`, `params`, or `searchParams`.
-
-## Other options
-
-### Extend the cache lifetime
-
-Set `expire` to at least five minutes, `stale` to at least 30 seconds, and `revalidate` above `0`. Increase the lifetime only when serving shared, older viewport data is acceptable.
-
-Learn more: [`cacheLife`](/docs/app/api-reference/functions/cacheLife).
 
 ## Verifying the fix
 

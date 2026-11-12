@@ -1,4 +1,7 @@
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import {
+  createShortLivedCacheError,
   createRuntimeBodyErrorInStaticRoute,
   createDynamicBodyErrorInStaticRoute,
   createNonPrerenderableBodyErrorInStaticRoute,
@@ -36,14 +39,17 @@ import {
   type SyncIOApiType,
 } from '../../../server/app-render/sync-io-messages'
 import { ClientHookDynamicError } from '../../../server/dynamic-rendering-utils'
+import { InstantHeaderExplanation } from '../components/instant/instant-guidance'
 import {
   CACHE_STAGE_METADATA_EXPLANATION,
+  EXPLANATIONS,
   CACHE_STAGE_VIEWPORT_EXPLANATION,
   getCards,
   getStaticRouteDocsUrl,
 } from '../components/instant/instant-guidance-data'
 import {
   deriveCauseFromCodeFrame,
+  formatErrorHeadline,
   getBlockingRouteErrorDetails,
   getErrorTypeLabel,
   getLinkPrefetchPartialErrorDetails,
@@ -986,7 +992,7 @@ describe('deriveCauseFromCodeFrame', () => {
 
 describe('fully static route errors', () => {
   const runtimeDataExplanation =
-    'This route is configured to be fully static, but runtime data from `cookies()`, `headers()`, `params`, `searchParams`, or a short-lived cache requires rendering at request time.'
+    'This route is configured to be fully static, but runtime data from `cookies()`, `headers()`, `params`, or `searchParams` requires rendering at request time.'
   const uncachedDataExplanation =
     'This route is configured to be fully static, but an uncached `fetch(...)`, database call, or `connection()` requires rendering at request time.'
   const combinedDataExplanation =
@@ -1041,12 +1047,15 @@ describe('fully static route errors', () => {
     expect(cards.length).toBeGreaterThan(0)
     expect(cards.map((card) => card.group)).not.toContain('stream')
     expect(cards.map((card) => card.group)).not.toContain('block')
-    expect(cards.map((card) => card.group)).toEqual(
-      Array.from(
-        error.message.matchAll(/^\s*-\s*\[([a-z-]+)\]/gm),
-        (match) => match[1]
-      )
-    )
+    // Combined messages can offer two conditional remedies in the Cache group.
+    expect(cards.map((card) => card.group)).toEqual([
+      ...new Set(
+        Array.from(
+          error.message.matchAll(/^\s*-\s*\[([a-z-]+)\]/gm),
+          (match) => match[1]
+        )
+      ),
+    ])
     for (const card of cards) {
       expect(card.link?.split('#')[0]).toBe(
         getStaticRouteDocsUrl(kind, variant)
@@ -1068,4 +1077,226 @@ describe('fully static route errors', () => {
       ).not.toContain('cache')
     }
   )
+})
+
+describe('short-lived cache diagnostics', () => {
+  it('describes an App Shell exclusion without claiming prerendering failed', () => {
+    const error = createShortLivedCacheError(ROUTE, 'viewport', false, true)
+    expect(error.message.split('\n\n')[1]).toBe(
+      CACHE_STAGE_VIEWPORT_EXPLANATION
+    )
+    expect(getBlockingRouteErrorDetails(error)).toMatchObject({
+      type: 'dynamic-viewport',
+      variant: 'short-cache',
+      explanation: CACHE_STAGE_VIEWPORT_EXPLANATION,
+    })
+  })
+
+  it('uses the existing context explanation and scoped docs link in the overlay', () => {
+    for (const kind of [
+      'blocking-route',
+      'metadata',
+      'viewport',
+      'static-route',
+      'static-metadata',
+      'static-viewport',
+    ] as const) {
+      const html = renderToStaticMarkup(
+        createElement(InstantHeaderExplanation, {
+          kind,
+          variant: 'short-cache',
+        })
+      )
+      expect(html.replace(/&#x27;/g, "'")).toContain(EXPLANATIONS[kind])
+      expect(html).toContain(
+        `https://nextjs.org/docs/messages/${kind.startsWith('static-') ? 'static-short-lived-cache' : 'short-lived-cache'}#${kind.endsWith('metadata') ? 'metadata' : kind.endsWith('viewport') ? 'viewport' : 'route-content'}`
+      )
+      expect(html).not.toContain('cacheLife')
+      expect(html).not.toContain('300')
+    }
+  })
+
+  it.each([false, true])(
+    'explains the blocked body output (navigation: %s)',
+    (inNavigation) => {
+      const message = createShortLivedCacheError(
+        ROUTE,
+        'body',
+        false,
+        inNavigation
+      ).message
+      expect(message.split('\n')[0]).toBe(
+        `Route "${ROUTE}": Next.js encountered a short-lived cache during ${inNavigation ? 'prerendering or a navigation' : 'prerendering'}.`
+      )
+      expect(message.split('\n\n')[1]).toContain(
+        inNavigation
+          ? 'prevents the navigation from being instant'
+          : 'prevents the route from being prerendered'
+      )
+      expect(message).not.toContain('seconds')
+    }
+  )
+
+  it.each(['metadata', 'viewport'] as const)(
+    'preserves inline code in %s headlines',
+    (scope) => {
+      for (const fullyStatic of [false, true]) {
+        const error = createShortLivedCacheError(ROUTE, scope, fullyStatic)
+        const html = renderToStaticMarkup(
+          formatErrorHeadline(error.message.split('\n')[0])
+        )
+        expect(html).toContain(
+          `<code>generate${scope === 'metadata' ? 'Metadata' : 'Viewport'}()</code>`
+        )
+        expect(html).not.toContain('`')
+      }
+    }
+  )
+
+  it.each(['body', 'metadata', 'viewport'] as const)(
+    'selects cache guidance for %s with and without ensureStatic',
+    (scope) => {
+      for (const fullyStatic of [false, true]) {
+        const error = createShortLivedCacheError(ROUTE, scope, fullyStatic)
+        const details = getBlockingRouteErrorDetails(error)
+        expect(details).toMatchObject({ variant: 'short-cache' })
+        expect(details?.type).toBe(
+          fullyStatic
+            ? 'static-route'
+            : scope === 'body'
+              ? 'blocking-route'
+              : `dynamic-${scope}`
+        )
+        expect(error.message).not.toContain('300 seconds')
+        expect(error.message).not.toContain('`stale`')
+        expect(error.message).not.toContain('`revalidate`')
+        expect(error.message).toContain(
+          '  - [cache] Increase the cache lifetime'
+        )
+        expect(error.message).toContain(
+          `Learn more: https://nextjs.org/docs/messages/${fullyStatic ? 'static-short-lived-cache' : 'short-lived-cache'}#${scope === 'body' ? 'route-content' : scope}`
+        )
+        expect(error.message).not.toContain('params')
+        expect(error.message).not.toContain('searchParams')
+      }
+    }
+  )
+})
+
+it('keeps short-stale App Shell findings as Instant Insights', () => {
+  for (const scope of ['body', 'metadata', 'viewport'] as const) {
+    const error = createShortLivedCacheError(ROUTE, scope, false, true)
+    expect(isInstantNavigationError(error)).toBe(true)
+    expect(
+      getErrorTypeLabel(error, 'console', getBlockingRouteErrorDetails(error)!)
+    ).toBe('Instant')
+  }
+})
+
+it('offers both conditional Cache remedies when the build cannot identify the cause', () => {
+  const cases = [
+    [
+      createDynamicOrRuntimeBodyError,
+      'blocking-route',
+      'short-lived-cache#route-content',
+    ],
+    [
+      createDynamicOrRuntimeMetadataError,
+      'metadata',
+      'short-lived-cache#metadata',
+    ],
+    [
+      createDynamicOrRuntimeViewportError,
+      'viewport',
+      'short-lived-cache#viewport',
+    ],
+    [
+      createNonPrerenderableBodyErrorInStaticRoute,
+      'static-route',
+      'static-short-lived-cache#route-content',
+    ],
+    [
+      createNonPrerenderableMetadataErrorInStaticRoute,
+      'static-metadata',
+      'static-short-lived-cache#metadata',
+    ],
+    [
+      createNonPrerenderableViewportErrorInStaticRoute,
+      'static-viewport',
+      'static-short-lived-cache#viewport',
+    ],
+  ] as const
+  for (const [createError, kind, page] of cases) {
+    const message = createError(ROUTE).message
+    const remedies = message
+      .split('Ways to fix this:\n')[1]
+      .split('\n\n')[0]
+      .split('\n')
+    const cardGroups = new Set(
+      (['runtime', 'dynamic', 'short-cache'] as const).flatMap((variant) =>
+        getCards(kind, variant).map((card) => card.group)
+      )
+    )
+    expect(
+      [
+        ...new Set(remedies.map((line) => line.match(/\[([a-z-]+)\]/)![1])),
+      ].sort()
+    ).toEqual([...cardGroups].sort())
+    const cacheOptions = remedies.filter((line) =>
+      line.startsWith('  - [cache]')
+    )
+    expect(cacheOptions).toHaveLength(2)
+    expect(cacheOptions[0]).toMatch(
+      /^ {2}- \[cache\] For uncached data(?: \([^)]*\))?: /
+    )
+    expect(cacheOptions[0]).toContain('"use cache"')
+    expect(cacheOptions[0]).toContain('(does not apply to `connection()`)')
+    expect(cacheOptions[1]).toBe(
+      `  - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/${page}`
+    )
+    expect(remedies.indexOf(cacheOptions[1])).toBe(
+      remedies.indexOf(cacheOptions[0]) + 1
+    )
+    expect(message).not.toContain('300 seconds')
+  }
+})
+
+it('keeps Cache remedies specific when validation identifies the cause', () => {
+  for (const createError of [
+    createRuntimeBodyError,
+    createRuntimeMetadataError,
+    createRuntimeViewportError,
+    createRuntimeBodyErrorInStaticRoute,
+    createRuntimeMetadataErrorInStaticRoute,
+    createRuntimeViewportErrorInStaticRoute,
+  ]) {
+    expect(
+      createError(ROUTE)
+        .message.split('\n')
+        .filter((line) => line.startsWith('  - [cache]'))
+    ).toEqual([])
+  }
+  for (const createError of [
+    createDynamicBodyError,
+    createDynamicMetadataError,
+    createDynamicViewportError,
+    createDynamicBodyErrorInStaticRoute,
+    createDynamicMetadataErrorInStaticRoute,
+    createDynamicViewportErrorInStaticRoute,
+  ]) {
+    const cacheOptions = createError(ROUTE)
+      .message.split('\n')
+      .filter((line) => line.startsWith('  - [cache]'))
+    expect(cacheOptions).toHaveLength(1)
+    expect(cacheOptions[0]).toContain('"use cache"')
+    expect(cacheOptions[0]).not.toContain('cacheLife')
+  }
+  for (const scope of ['body', 'metadata', 'viewport'] as const) {
+    for (const fullyStatic of [false, true]) {
+      const cacheOptions = createShortLivedCacheError(ROUTE, scope, fullyStatic)
+        .message.split('\n')
+        .filter((line) => line.startsWith('  - [cache]'))
+      expect(cacheOptions).toEqual(['  - [cache] Increase the cache lifetime'])
+    }
+  }
 })

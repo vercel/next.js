@@ -67,6 +67,18 @@ function matchLinkType(text: string): string | null {
   return null
 }
 
+export function formatErrorHeadline(text: string) {
+  return text
+    .split(/`([^`]+)`/g)
+    .map((part, index) =>
+      index % 2 === 1 ? (
+        <code key={index}>{part}</code>
+      ) : (
+        <HotlinkedText key={index} text={part} matcher={matchLinkType} />
+      )
+    )
+}
+
 function HydrationErrorDescription({ message }: { message: string }) {
   return <HotlinkedText text={message} matcher={matchLinkType} />
 }
@@ -113,7 +125,8 @@ export function getErrorTypeLabel(
   ) {
     if (
       errorDetails.variant === 'prefetch' ||
-      errorDetails.variant === 'navigation'
+      errorDetails.variant === 'navigation' ||
+      errorDetails.inNavigation
     ) {
       return `Instant`
     }
@@ -186,12 +199,14 @@ type DynamicMetadataErrorDetails = {
   type: 'dynamic-metadata'
   variant: GuidanceVariant
   explanation?: string
+  inNavigation?: boolean
 }
 
 type DynamicViewportErrorDetails = {
   type: 'dynamic-viewport'
   variant: GuidanceVariant
   explanation?: string
+  inNavigation?: boolean
 }
 
 type SyncIOErrorDetails = {
@@ -381,6 +396,7 @@ function InstantRuntimeError({
 }
 
 export function getGuidanceVariant(message: string): GuidanceVariant {
+  if (message.includes('encountered a short-lived cache')) return 'short-cache'
   // Discriminates between `createNavigationBodyErrorInNavigation`,
   // `createLinkBodyErrorInNavigation`, `createRuntimeBodyError`, and
   // `createDynamicBodyError` (and their in-navigation variants).
@@ -464,6 +480,33 @@ export function getBlockingRouteErrorDetails(
 ): null | ErrorDetails {
   const message = error.message
   const inNavigation = isBlockingRouteInNavError(message)
+  if (message.includes('Next.js encountered a short-lived cache')) {
+    const scope = message.includes('generateMetadata()')
+      ? 'metadata'
+      : message.includes('generateViewport()')
+        ? 'viewport'
+        : 'route'
+    if (message.includes('must be fully static')) {
+      return {
+        type: 'static-route',
+        kind: `static-${scope}`,
+        variant: 'short-cache',
+        headline: message.split('\n')[0].replace(/^Route "[^"]*": /, ''),
+      }
+    }
+    if (scope === 'metadata')
+      return { type: 'dynamic-metadata', variant: 'short-cache', inNavigation }
+    if (scope === 'viewport')
+      return {
+        type: 'dynamic-viewport',
+        variant: 'short-cache',
+        inNavigation,
+        explanation: inNavigation
+          ? CACHE_STAGE_VIEWPORT_EXPLANATION
+          : undefined,
+      }
+    return { type: 'blocking-route', variant: 'short-cache', inNavigation }
+  }
 
   const staticRouteMatch =
     /https:\/\/nextjs\.org\/docs\/messages\/static-(route|metadata|viewport)\b/.exec(
@@ -613,7 +656,11 @@ export function isInstantNavigationError(error: Error): boolean {
     details?.type === 'dynamic-metadata' ||
     details?.type === 'dynamic-viewport'
   ) {
-    return details.variant === 'prefetch' || details.variant === 'navigation'
+    return (
+      details.variant === 'prefetch' ||
+      details.variant === 'navigation' ||
+      details.inNavigation === true
+    )
   }
   return false
 }
@@ -955,6 +1002,11 @@ export function Errors({
       break
     case 'blocking-route': {
       switch (errorDetails.variant) {
+        case 'short-cache':
+          errorMessage = errorDetails.inNavigation
+            ? 'Next.js encountered a short-lived cache during a navigation.'
+            : 'Next.js encountered a short-lived cache during prerendering.'
+          break
         case 'runtime':
           errorMessage = errorDetails.inNavigation
             ? 'Next.js encountered runtime data during a navigation.'
@@ -1077,12 +1129,7 @@ export function Errors({
       return (
         <ErrorOverlayLayout
           errorType={errorType}
-          errorMessage={
-            <HotlinkedText
-              text={errorDetails.headline}
-              matcher={matchLinkType}
-            />
-          }
+          errorMessage={formatErrorHeadline(errorDetails.headline)}
           headerChildren={
             <InstantHeaderExplanation
               kind={errorDetails.kind}
@@ -1120,6 +1167,11 @@ export function Errors({
     }
     case 'dynamic-metadata': {
       switch (errorDetails.variant) {
+        case 'short-cache':
+          errorMessage = formatErrorHeadline(
+            'Next.js encountered a short-lived cache in `generateMetadata()`.'
+          )
+          break
         case 'runtime':
           errorMessage = (
             <>
@@ -1204,6 +1256,11 @@ export function Errors({
     }
     case 'dynamic-viewport': {
       switch (errorDetails.variant) {
+        case 'short-cache':
+          errorMessage = formatErrorHeadline(
+            'Next.js encountered a short-lived cache in `generateViewport()`.'
+          )
+          break
         case 'link':
           errorMessage = (
             <>

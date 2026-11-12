@@ -20,6 +20,12 @@ import {
 
 const ERROR_PATTERNS = {
   body: {
+    shortLivedCache: {
+      dev: literalError('Next.js encountered a short-lived cache'),
+      build: literalError(
+        'Next.js encountered uncached or runtime data on a route that must be fully static'
+      ),
+    },
     uncachedData: {
       dev: literalError(
         'Next.js encountered uncached data on a route that must be fully static'
@@ -52,7 +58,7 @@ const ERROR_PATTERNS = {
   metadata: {
     uncachedData: {
       dev: literalError(
-        `Next.js encountered uncached data in \`generateMetadata()\` on a route that must be fully static`
+        `Next.js encountered uncached data in generateMetadata() on a route that must be fully static`
       ),
       build: literalError(
         `Next.js encountered uncached or runtime data in \`generateMetadata()\` on a route that must be fully static`
@@ -62,7 +68,7 @@ const ERROR_PATTERNS = {
   viewport: {
     uncachedData: {
       dev: literalError(
-        `Next.js encountered uncached data in \`generateViewport()\` on a route that must be fully static`
+        `Next.js encountered uncached data in generateViewport() on a route that must be fully static`
       ),
       build: literalError(
         `Next.js encountered uncached or runtime data in \`generateViewport()\` on a route that must be fully static`
@@ -232,6 +238,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/static-short-lived-cache#route-content
            - [remove] Remove the data access
            - [client] Read the data on the client
 
@@ -287,6 +294,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/static-short-lived-cache#route-content
            - [remove] Remove the data access
            - [client] Read the data on the client
 
@@ -342,6 +350,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/static-short-lived-cache#route-content
            - [remove] Remove the data access
            - [client] Read the data on the client
 
@@ -397,6 +406,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/static-short-lived-cache#route-content
            - [remove] Remove the data access
            - [client] Read the data on the client
 
@@ -452,6 +462,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/static-short-lived-cache#route-content
            - [remove] Remove the data access
            - [client] Read the data on the client
 
@@ -523,14 +534,15 @@ describe('ensureStatic = "navigation"', () => {
         const error = await getRedboxErrors(browser, 'open')
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
-{
-  "description": "Page "/default/fallback-params/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
-  "environmentLabel": null,
-  "label": "Runtime Error",
-  "source": null,
-  "stack": [],
-}
-`)
+         {
+           "description": "Page "/default/fallback-params/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.
+         Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         }
+        `)
       } else {
         const result = await prerenderPage(routeInBuild)
         const error = getPrerenderOutput(result.cliOutput, {
@@ -564,14 +576,15 @@ describe('ensureStatic = "navigation"', () => {
         const error = await getRedboxErrors(browser, 'open')
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
-{
-  "description": "Page "/default/fallback-params-passed-to-client/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
-  "environmentLabel": null,
-  "label": "Runtime Error",
-  "source": null,
-  "stack": [],
-}
-`)
+         {
+           "description": "Page "/default/fallback-params-passed-to-client/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.
+         Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         }
+        `)
       } else {
         const result = await prerenderPage(routeInBuild)
         const error = getPrerenderOutput(result.cliOutput, {
@@ -602,14 +615,15 @@ describe('ensureStatic = "navigation"', () => {
         const error = await getRedboxErrors(browser, 'open')
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
-{
-  "description": "Page "/default/fallback-params-client-segment/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
-  "environmentLabel": null,
-  "label": "Runtime Error",
-  "source": null,
-  "stack": [],
-}
-`)
+         {
+           "description": "Page "/default/fallback-params-client-segment/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.
+         Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         }
+        `)
       } else {
         const result = await prerenderPage(routeInBuild)
         const error = getPrerenderOutput(result.cliOutput, {
@@ -642,7 +656,7 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
          {
-           "description": "Next.js encountered uncached data in \`generateMetadata()\` on a route that must be fully static.",
+           "description": "Next.js encountered uncached data in generateMetadata() on a route that must be fully static.",
            "environmentLabel": "Server",
            "label": "Static Route",
            "source": "app/default/dynamic-metadata/page.tsx (7:19) @ Module.generateMetadata
@@ -664,6 +678,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data: cache the data used by \`generateMetadata()\` with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/static-short-lived-cache#metadata
            - [static] Replace the dynamic data used by \`generateMetadata()\` with static data
 
          Learn more: https://nextjs.org/docs/messages/static-metadata-dynamic
@@ -694,7 +709,7 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
          {
-           "description": "Next.js encountered uncached data in \`generateViewport()\` on a route that must be fully static.",
+           "description": "Next.js encountered uncached data in generateViewport() on a route that must be fully static.",
            "environmentLabel": "Server",
            "label": "Static Route",
            "source": "app/default/dynamic-viewport/page.tsx (7:19) @ Module.generateViewport
@@ -716,6 +731,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data: cache the data used by \`generateViewport()\` with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/static-short-lived-cache#viewport
            - [static] Replace the dynamic data used by \`generateViewport()\` with static data
 
          Learn more: https://nextjs.org/docs/messages/static-viewport-dynamic
@@ -837,14 +853,15 @@ describe('ensureStatic = "navigation"', () => {
         const error = await getRedboxErrors(browser, 'open')
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
-{
-  "description": "Page "/default/static-params-incomplete/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
-  "environmentLabel": null,
-  "label": "Runtime Error",
-  "source": null,
-  "stack": [],
-}
-`)
+         {
+           "description": "Page "/default/static-params-incomplete/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".
+         Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         }
+        `)
       } else {
         const result = await prerenderPage(routeInBuild)
         const error = getPrerenderOutput(result.cliOutput, { isMinified: true })
@@ -874,14 +891,15 @@ describe('ensureStatic = "navigation"', () => {
         const error = await getRedboxErrors(browser, 'open')
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
-{
-  "description": "Page "/default/static-params-incomplete-unused/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
-  "environmentLabel": null,
-  "label": "Runtime Error",
-  "source": null,
-  "stack": [],
-}
-`)
+         {
+           "description": "Page "/default/static-params-incomplete-unused/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".
+         Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         }
+        `)
       } else {
         const result = await prerenderPage(routeInBuild)
         const error = getPrerenderOutput(result.cliOutput, { isMinified: true })
@@ -904,7 +922,7 @@ describe('ensureStatic = "navigation"', () => {
 
   describe('excluded caches', () => {
     it('does not allow using a non-prerenderable cache despite suspense', async () => {
-      const errorPattern = ERROR_PATTERNS.body.runtimeData
+      const errorPattern = ERROR_PATTERNS.body.shortLivedCache
       const route = '/default/excluded-caches/non-prerenderable-cache'
       if (isNextDev) {
         const browser = await next.browser(route)
@@ -912,7 +930,7 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
          {
-           "description": "Next.js encountered runtime data on a route that must be fully static.",
+           "description": "Next.js encountered a short-lived cache on a route that must be fully static.",
            "environmentLabel": "Server",
            "label": "Static Route",
            "source": "app/default/excluded-caches/non-prerenderable-cache/page.tsx (17:9) @ Inner
@@ -935,6 +953,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/static-short-lived-cache#route-content
            - [remove] Remove the data access
            - [client] Read the data on the client
 
@@ -1150,6 +1169,7 @@ describe('ensureStatic = "navigation"', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
            - [block] Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -1206,6 +1226,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/static-short-lived-cache#route-content
            - [remove] Remove the data access
            - [client] Read the data on the client
 
@@ -1262,6 +1283,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/static-short-lived-cache#route-content
            - [remove] Remove the data access
            - [client] Read the data on the client
 
@@ -1344,6 +1366,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/static-short-lived-cache#route-content
            - [remove] Remove the data access
            - [client] Read the data on the client
 
@@ -1364,6 +1387,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/static-short-lived-cache#route-content
            - [remove] Remove the data access
            - [client] Read the data on the client
 

@@ -273,6 +273,8 @@ A short cache lifetime changes where the cached content can be delivered from:
 
 Of the presets, only `seconds` falls under any of these thresholds: its `expire` of 1 minute excludes it from prerenders.
 
+If a short lifetime blocks required prerendered output, development validation can surface a [short-lived cache error](/docs/messages/short-lived-cache), or its [fully static variant](/docs/messages/static-short-lived-cache) when [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation) is set. Production builds can also fail for these caches, sometimes reporting a combined uncached or runtime data error.
+
 This behavior allows you to mix static and dynamic content within the same page. Static parts are prerendered, while short-lived caches create boundaries where data is fetched at request time rather than build time. Use a `<Suspense>` boundary around dynamic caches to provide a fallback while content loads.
 
 ## Examples

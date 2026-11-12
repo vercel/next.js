@@ -469,7 +469,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "description": "Next.js encountered runtime data during prerendering.",
+               "description": "Next.js encountered a short-lived cache during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
                "source": "app/use-cache-low-expire/fast/page.tsx (3:16) @ Page
@@ -504,6 +504,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -530,6 +531,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -556,6 +558,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+  - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
   - [block] Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
@@ -569,6 +572,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+  - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
   - [block] Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
@@ -586,7 +590,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "description": "Next.js encountered runtime data during prerendering.",
+               "description": "Next.js encountered a short-lived cache during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
                "source": "app/use-cache-low-expire/slow/page.tsx (3:16) @ Page
@@ -621,6 +625,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -647,6 +652,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -673,6 +679,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+  - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
   - [block] Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
@@ -686,6 +693,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+  - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
   - [block] Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
@@ -866,7 +874,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "description": "Next.js encountered runtime data during prerendering.",
+               "description": "Next.js encountered a short-lived cache during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
                "source": "app/use-cache-revalidate-0/fast/page.tsx (3:16) @ Page
@@ -901,6 +909,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -927,6 +936,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -953,6 +963,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+  - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
   - [block] Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
@@ -966,6 +977,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+  - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
   - [block] Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
@@ -983,7 +995,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "description": "Next.js encountered runtime data during prerendering.",
+               "description": "Next.js encountered a short-lived cache during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
                "source": "app/use-cache-revalidate-0/slow/page.tsx (3:16) @ Page
@@ -1018,6 +1030,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -1044,6 +1057,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                    - [block] Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -1070,6 +1084,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+  - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
   - [block] Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
@@ -1083,6 +1098,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+  - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
   - [block] Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
@@ -1338,6 +1354,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -1362,6 +1379,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic

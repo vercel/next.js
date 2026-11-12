@@ -917,12 +917,6 @@ export function registerHeadAndReportingTests(
           // Caches with `stale < MIN_SHELL_STALE` are not allowed in app shells
           // (although they are allowed in runtime prefetches).
 
-          // TODO(app-shells): We're reporting caches that only resolve in a prefetch
-          // as URL data (same as `prefetch()`) which is a bit misleading.
-          // The suggested fixes might also be confusing, because they don't mention
-          // that increasing `stale` would help.
-          // We should improve this.
-
           beforeEach(async () => {
             await restartDevServerToEnsureColdCaches()
           })
@@ -947,7 +941,7 @@ export function registerHeadAndReportingTests(
                      ],
                    },
                  ],
-                 "description": "Next.js encountered URL data outside of Suspense.",
+                 "description": "Next.js encountered a short-lived cache during a navigation.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/shells/(default)/invalid-non-shell-cache/page.tsx (23:9) @ PrefetchContent
@@ -963,15 +957,16 @@ export function registerHeadAndReportingTests(
               const result = await prerender(routeInBuild)
               expect(extractBuildValidationError(result.cliOutput))
                 .toMatchInlineSnapshot(`
-                  "Error: Route "/shells/invalid-non-shell-cache": Next.js encountered URL data during prerendering or a navigation.
+                  "Error: Route "/shells/invalid-non-shell-cache": Next.js encountered a short-lived cache during prerendering or a navigation.
 
-                  \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+                  Accessing a short-lived cache outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
 
                   Ways to fix this:
-                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                    - [cache] Increase the cache lifetime
+                    - [stream] Wrap the short-lived cache access in \`<Suspense fallback={...}>\`
                     - [block] Set \`export const instant = false\` to allow a blocking route
 
-                  Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+                  Learn more: https://nextjs.org/docs/messages/short-lived-cache#route-content
                       at main (<anonymous>)
                       at body (<anonymous>)
                       at html (<anonymous>)
@@ -1002,7 +997,7 @@ export function registerHeadAndReportingTests(
                      ],
                    },
                  ],
-                 "description": "Next.js encountered URL data outside of Suspense.",
+                 "description": "Next.js encountered a short-lived cache during a navigation.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/shells/(default)/invalid-non-shell-cache/page.tsx (23:9) @ PrefetchContent
@@ -1438,6 +1433,7 @@ export function registerHeadAndReportingTests(
 
                Ways to fix this:
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/static-short-lived-cache#route-content
                  - [remove] Remove the data access
                  - [client] Read the data on the client
 
@@ -2331,7 +2327,7 @@ export function registerHeadAndReportingTests(
                      ],
                    },
                  ],
-                 "description": "Next.js encountered runtime data during a navigation.",
+                 "description": "Next.js encountered a short-lived cache during a navigation.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (22:9) @ SessionContent
@@ -2347,15 +2343,16 @@ export function registerHeadAndReportingTests(
               const result = await prerender(route)
               expect(extractBuildValidationError(result.cliOutput))
                 .toMatchInlineSnapshot(`
-               "Error: Route "/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache": Next.js encountered runtime data during prerendering or a navigation.
+               "Error: Route "/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache": Next.js encountered a short-lived cache during prerendering or a navigation.
 
-               \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+               Accessing a short-lived cache outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
 
                Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [cache] Increase the cache lifetime
+                 - [stream] Wrap the short-lived cache access in \`<Suspense fallback={...}>\`
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
-               Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime
+               Learn more: https://nextjs.org/docs/messages/short-lived-cache#route-content
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -2387,7 +2384,7 @@ export function registerHeadAndReportingTests(
                      ],
                    },
                  ],
-                 "description": "Next.js encountered runtime data during a navigation.",
+                 "description": "Next.js encountered a short-lived cache during a navigation.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (22:9) @ SessionContent

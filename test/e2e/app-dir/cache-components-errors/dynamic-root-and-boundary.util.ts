@@ -93,6 +93,7 @@ export function registerDynamicRootAndBoundaryTests(
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -114,6 +115,7 @@ export function registerDynamicRootAndBoundaryTests(
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -142,6 +144,7 @@ export function registerDynamicRootAndBoundaryTests(
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -166,6 +169,7 @@ export function registerDynamicRootAndBoundaryTests(
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -189,6 +193,7 @@ export function registerDynamicRootAndBoundaryTests(
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -210,6 +215,7 @@ export function registerDynamicRootAndBoundaryTests(
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -238,6 +244,7 @@ export function registerDynamicRootAndBoundaryTests(
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -276,6 +283,7 @@ export function registerDynamicRootAndBoundaryTests(
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic

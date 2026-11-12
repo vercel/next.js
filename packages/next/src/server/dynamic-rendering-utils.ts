@@ -387,6 +387,10 @@ function trackRuntimeDataAccessed(
           currentPrerenderStage = currentStage
           break
         case RenderStage.Before:
+        case RenderStage.PrefetchStatic_cache:
+        case RenderStage.ShellRuntime_cache:
+        case RenderStage.PrefetchRuntime_cache:
+        case RenderStage.Dynamic_cache:
         case RenderStage.PrefetchStatic_prefetchApi:
         case RenderStage.ShellRuntime:
         case RenderStage.PrefetchRuntime_prefetchApi:

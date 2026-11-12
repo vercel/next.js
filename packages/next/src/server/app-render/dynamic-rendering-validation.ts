@@ -9,6 +9,7 @@ import {
   ROOT_LAYOUT_BOUNDARY_NAME,
 } from '../../lib/framework/boundary-constants'
 import {
+  createShortLivedCacheError,
   createRuntimeBodyError,
   createDynamicBodyError,
   createRuntimeBodyErrorInNavigation,
@@ -357,6 +358,10 @@ export enum DynamicHoleKind {
   Dynamic = 5,
   /** We know that this hole is caused by runtime or dynamic data, but don't know which. */
   RuntimeOrDynamic = 6,
+  /** A cache entry omitted because of its cacheLife. */
+  ShortLivedCache = 7,
+  /** A prerenderable cache excluded only from App Shells by stale. */
+  ShortShellCache = 8,
 }
 
 // In Instant Validation we can always discriminate between runtime and dynamic.
@@ -366,6 +371,7 @@ export type InstantValidationHoleKind = Exclude<
 >
 
 export type StaticValidationHoleKind =
+  | DynamicHoleKind.ShortLivedCache
   // During dev-time static validation we can discriminate runtime and dynamic.
   | DynamicHoleKind.Runtime
   | DynamicHoleKind.Dynamic
@@ -539,6 +545,8 @@ export function trackDynamicHoleInNavigation(
 
 function createBodyError(kind: StaticValidationHoleKind, route: string): Error {
   switch (kind) {
+    case DynamicHoleKind.ShortLivedCache:
+      return createShortLivedCacheError(route, 'body', false)
     case DynamicHoleKind.Runtime:
       return createRuntimeBodyError(route)
     case DynamicHoleKind.Dynamic:
@@ -553,6 +561,10 @@ function createBodyErrorInNavigation(
   route: string
 ): Error {
   switch (kind) {
+    case DynamicHoleKind.ShortShellCache:
+      return createShortLivedCacheError(route, 'body', false, true)
+    case DynamicHoleKind.ShortLivedCache:
+      return createShortLivedCacheError(route, 'body', false, true)
     case DynamicHoleKind.Runtime:
       return createRuntimeBodyErrorInNavigation(route)
     case DynamicHoleKind.Link:
@@ -568,6 +580,10 @@ function createBodyErrorInNavigation(
 
 function createMetadataError(kind: DynamicHoleKind, route: string): Error {
   switch (kind) {
+    case DynamicHoleKind.ShortShellCache:
+      return createShortLivedCacheError(route, 'metadata', false, true)
+    case DynamicHoleKind.ShortLivedCache:
+      return createShortLivedCacheError(route, 'metadata', false)
     case DynamicHoleKind.Runtime:
       return createRuntimeMetadataError(route)
     case DynamicHoleKind.Link:
@@ -585,6 +601,10 @@ function createMetadataError(kind: DynamicHoleKind, route: string): Error {
 
 function createViewportError(kind: DynamicHoleKind, route: string): Error {
   switch (kind) {
+    case DynamicHoleKind.ShortShellCache:
+      return createShortLivedCacheError(route, 'viewport', false, true)
+    case DynamicHoleKind.ShortLivedCache:
+      return createShortLivedCacheError(route, 'viewport', false)
     case DynamicHoleKind.Runtime:
       return createRuntimeViewportError(route)
     case DynamicHoleKind.Link:
@@ -605,6 +625,8 @@ function createBodyErrorInStaticRoute(
   route: string
 ): Error {
   switch (kind) {
+    case DynamicHoleKind.ShortLivedCache:
+      return createShortLivedCacheError(route, 'body', true)
     case DynamicHoleKind.Runtime:
       return createRuntimeBodyErrorInStaticRoute(route)
     case DynamicHoleKind.Dynamic:
@@ -619,6 +641,8 @@ function createMetadataErrorInStaticRoute(
   route: string
 ) {
   switch (kind) {
+    case DynamicHoleKind.ShortLivedCache:
+      return createShortLivedCacheError(route, 'metadata', true)
     case DynamicHoleKind.Runtime:
       return createRuntimeMetadataErrorInStaticRoute(route)
     case DynamicHoleKind.Dynamic:
@@ -633,6 +657,8 @@ function createViewportErrorInStaticRoute(
   route: string
 ) {
   switch (kind) {
+    case DynamicHoleKind.ShortLivedCache:
+      return createShortLivedCacheError(route, 'viewport', true)
     case DynamicHoleKind.Runtime:
       return createRuntimeViewportErrorInStaticRoute(route)
     case DynamicHoleKind.Dynamic:
@@ -721,7 +747,10 @@ export function trackDynamicHoleInStaticShell(
   componentStack: string,
   dynamicValidation: DynamicValidationState,
   clientDynamic: DynamicTrackingState,
-  kind: DynamicHoleKind.Runtime | DynamicHoleKind.Dynamic
+  kind:
+    | DynamicHoleKind.Runtime
+    | DynamicHoleKind.Dynamic
+    | DynamicHoleKind.ShortLivedCache
 ) {
   const syncDynamicError = getPendingClientSyncDynamicError(clientDynamic)
 
@@ -773,9 +802,7 @@ export function trackDynamicHoleInStaticShell(
   }
 
   const error = addErrorContext(
-    kind === DynamicHoleKind.Runtime
-      ? createRuntimeBodyError(workStore.route)
-      : createDynamicBodyError(workStore.route),
+    createBodyError(kind, workStore.route),
     componentStack,
     null
   )

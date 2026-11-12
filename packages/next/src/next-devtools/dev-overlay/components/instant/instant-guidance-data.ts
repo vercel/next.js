@@ -1,3 +1,5 @@
+import { getShortLivedCacheDocsUrl } from '../../../../shared/lib/instant-messages'
+
 export type CardColor = 'blue' | 'purple' | 'red' | 'amber' | 'teal' | 'gray'
 
 export type FixCardGroup =
@@ -874,6 +876,7 @@ export type GuidanceKind =
   | 'link-prefetch-partial'
 
 export type GuidanceVariant =
+  | 'short-cache'
   | 'link'
   | 'runtime'
   | 'prefetch'
@@ -900,6 +903,7 @@ export const DOCS_URLS: Record<GuidanceKind, string> = {
 }
 
 export const BLOCKING_ROUTE_DOCS_URLS: Record<GuidanceVariant, string> = {
+  'short-cache': getShortLivedCacheDocsUrl('body', false),
   runtime: 'https://nextjs.org/docs/messages/blocking-prerender-runtime',
   // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
   link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime',
@@ -909,6 +913,7 @@ export const BLOCKING_ROUTE_DOCS_URLS: Record<GuidanceVariant, string> = {
 }
 
 export const BLOCKING_METADATA_DOCS_URLS: Record<GuidanceVariant, string> = {
+  'short-cache': getShortLivedCacheDocsUrl('metadata', false),
   runtime:
     'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime',
   // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
@@ -922,6 +927,7 @@ export const BLOCKING_METADATA_DOCS_URLS: Record<GuidanceVariant, string> = {
 }
 
 export const BLOCKING_VIEWPORT_DOCS_URLS: Record<GuidanceVariant, string> = {
+  'short-cache': getShortLivedCacheDocsUrl('viewport', false),
   runtime:
     'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime',
   // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
@@ -1068,11 +1074,54 @@ function filterCacheForConnection(
   return cards.filter((card) => card.group !== 'cache')
 }
 
+function getShortCacheDocsUrl(kind: GuidanceKind): string {
+  const scope =
+    kind === 'metadata' || kind === 'static-metadata'
+      ? 'metadata'
+      : kind === 'viewport' || kind === 'static-viewport'
+        ? 'viewport'
+        : 'body'
+  return getShortLivedCacheDocsUrl(scope, kind.startsWith('static-'))
+}
+
 export function getCards(
   kind: GuidanceKind,
   variant: GuidanceVariant,
   cause?: string
 ): FixCard[] {
+  if (variant === 'short-cache') {
+    const docsUrl = getShortCacheDocsUrl(kind).split('#')[0]
+    const increase: FixCard = {
+      id: 'increase-the-cache-lifetime',
+      title: 'Increase the cache lifetime',
+      group: 'cache',
+      link: `${docsUrl}#increase-the-cache-lifetime`,
+      snippets: [
+        { text: 'cacheLife({' },
+        { text: '  expire: 300,', highlight: true },
+        { text: '  // ...' },
+      ],
+      copyable: true,
+    }
+    // Runtime cards already offer the correct streaming/blocking alternatives.
+    // A lifetime fix replaces the inapplicable "add use cache" advice.
+    return [
+      increase,
+      ...getCards(kind, 'runtime', cause)
+        .filter((card) => card.group !== 'client')
+        .map((card) => ({
+          ...card,
+          link: `${docsUrl}#${card.id}`,
+          snippets:
+            kind === 'static-route' && card.group === 'remove'
+              ? [
+                  { text: '- const data = await getData()', highlight: true },
+                  { text: "+ const data = 'Static data'", highlight: true },
+                ]
+              : card.snippets,
+        })),
+    ]
+  }
   switch (kind) {
     case 'static-viewport':
       return variant === 'runtime'
@@ -1153,6 +1202,7 @@ export function getStaticRouteDocsUrl(
   kind: GuidanceKind,
   variant: GuidanceVariant
 ): string {
+  if (variant === 'short-cache') return getShortCacheDocsUrl(kind)
   if (variant === 'runtime' || variant === 'dynamic') {
     return `${DOCS_URLS[kind]}-${variant}`
   }

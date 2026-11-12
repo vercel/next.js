@@ -1,3 +1,69 @@
+import { getShortLivedCacheDocsUrl } from '../../shared/lib/instant-messages'
+
+/** Cache-specific guidance shared by route, metadata, and viewport validation. */
+export function createShortLivedCacheError(
+  route: string,
+  scope: 'body' | 'metadata' | 'viewport',
+  fullyStatic: boolean,
+  inNavigation = false
+): Error {
+  const location =
+    scope === 'body'
+      ? ''
+      : ` in \`generate${scope === 'metadata' ? 'Metadata' : 'Viewport'}()\``
+  const requirement = fullyStatic
+    ? ' on a route that must be fully static'
+    : inNavigation
+      ? ' during prerendering or a navigation'
+      : scope === 'body'
+        ? ' during prerendering'
+        : ''
+  let explanation: string
+  if (fullyStatic) {
+    explanation =
+      'This route is configured to be fully static, but the short-lived cache requires rendering at request time.'
+  } else if (scope === 'metadata') {
+    explanation =
+      "This route's metadata is blocked, but the rest of its content can be prerendered."
+  } else if (scope === 'viewport') {
+    explanation = inNavigation
+      ? 'This prevents Next.js from creating the App Shell, leading to a slower user experience.'
+      : 'This prevents the page from being prerendered, leading to a slower user experience. Unlike metadata, viewport cannot be streamed behind `<Suspense>` because it affects the initial page load.'
+  } else {
+    explanation = inNavigation
+      ? 'Accessing a short-lived cache outside of `<Suspense>` prevents the navigation from being instant, leading to a slower user experience.'
+      : 'Accessing a short-lived cache outside of `<Suspense>` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.'
+  }
+  let remedies = '  - [cache] Increase the cache lifetime\n'
+  if (fullyStatic) {
+    remedies +=
+      scope === 'body'
+        ? '  - [remove] Remove the short-lived cache access\n'
+        : '  - [static] Replace the short-lived cache access with static data\n'
+  } else if (scope === 'metadata') {
+    remedies +=
+      '  - [static] Use a static metadata export instead of `generateMetadata()`\n'
+    remedies +=
+      '  - [dynamic] Render a marker component that calls `await connection()` inside `<Suspense>` on the page\n'
+  } else {
+    if (scope === 'viewport')
+      remedies +=
+        '  - [static] Use a static viewport export instead of `generateViewport()`\n'
+    if (scope === 'body') {
+      remedies +=
+        '  - [stream] Wrap the short-lived cache access in `<Suspense fallback={...}>`\n'
+    }
+    remedies +=
+      '  - [block] Set `export const instant = false` to allow a blocking route\n'
+  }
+  return new Error(
+    `Route "${route}": Next.js encountered a short-lived cache${location}${requirement}.\n\n` +
+      `${explanation}\n\n` +
+      `Ways to fix this:\n${remedies}\n` +
+      `Learn more: ${getShortLivedCacheDocsUrl(scope, fullyStatic)}`
+  )
+}
+
 export function createRuntimeBodyError(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered runtime data during prerendering.\n\n` +
@@ -89,6 +155,7 @@ export function createDynamicOrRuntimeBodyError(route: string): Error {
       `Ways to fix this:\n` +
       `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
       `  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)\n` +
+      `  - [cache] For short-lived caches: increase the cache lifetime. See ${getShortLivedCacheDocsUrl('body', false)}\n` +
       `  - [block] Set \`export const instant = false\` to allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
   )
@@ -216,6 +283,7 @@ export function createDynamicOrRuntimeViewportError(route: string): Error {
       `Ways to fix this:\n` +
       `  - [static] Use a static viewport export instead of \`generateViewport()\`\n` +
       `  - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)\n` +
+      `  - [cache] For short-lived caches: increase the cache lifetime. See ${getShortLivedCacheDocsUrl('viewport', false)}\n` +
       `  - [block] Set \`export const instant = false\` to allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime`
   )
@@ -232,7 +300,8 @@ export function createDynamicOrRuntimeMetadataError(route: string): Error {
       `This route's metadata is blocked, but the rest of its content can be prerendered.\n\n` +
       `Ways to fix this:\n` +
       `  - [static] Use a static metadata export instead of \`generateMetadata()\`\n` +
-      `  - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)\n` +
+      `  - [cache] For uncached data: cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)\n` +
+      `  - [cache] For short-lived caches: increase the cache lifetime. See ${getShortLivedCacheDocsUrl('metadata', false)}\n` +
       `  - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page\n\n` +
       `Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime`
   )
@@ -245,7 +314,7 @@ export function createDynamicOrRuntimeMetadataError(route: string): Error {
 export function createRuntimeBodyErrorInStaticRoute(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered runtime data on a route that must be fully static.\n\n` +
-      `This route is configured to be fully static, but runtime data from \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or a short-lived cache requires rendering at request time.\n\n` +
+      `This route is configured to be fully static, but runtime data from \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` requires rendering at request time.\n\n` +
       `Ways to fix this:\n` +
       `  - [remove] Remove the data access\n` +
       `  - [client] Read the data on the client\n\n` +
@@ -273,6 +342,7 @@ export function createNonPrerenderableBodyErrorInStaticRoute(
       `This route is configured to be fully static, but some data requires rendering at request time.\n\n` +
       `Ways to fix this:\n` +
       `  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)\n` +
+      `  - [cache] For short-lived caches: increase the cache lifetime. See ${getShortLivedCacheDocsUrl('body', true)}\n` +
       `  - [remove] Remove the data access\n` +
       `  - [client] Read the data on the client\n\n` +
       `Learn more: https://nextjs.org/docs/messages/static-route-dynamic`
@@ -282,7 +352,7 @@ export function createNonPrerenderableBodyErrorInStaticRoute(
 export function createRuntimeMetadataErrorInStaticRoute(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered runtime data in \`generateMetadata()\` on a route that must be fully static.\n\n` +
-      `This route is configured to be fully static, but runtime data from \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or a short-lived cache requires rendering at request time.\n\n` +
+      `This route is configured to be fully static, but runtime data from \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` requires rendering at request time.\n\n` +
       `Ways to fix this:\n` +
       `  - [static] Replace the dynamic data used by \`generateMetadata()\` with static data\n\n` +
       `Learn more: https://nextjs.org/docs/messages/static-metadata-runtime`
@@ -308,6 +378,7 @@ export function createNonPrerenderableMetadataErrorInStaticRoute(
       `This route is configured to be fully static, but some data requires rendering at request time.\n\n` +
       `Ways to fix this:\n` +
       `  - [cache] For uncached data: cache the data used by \`generateMetadata()\` with \`"use cache"\` (does not apply to \`connection()\`)\n` +
+      `  - [cache] For short-lived caches: increase the cache lifetime. See ${getShortLivedCacheDocsUrl('metadata', true)}\n` +
       `  - [static] Replace the dynamic data used by \`generateMetadata()\` with static data\n\n` +
       `Learn more: https://nextjs.org/docs/messages/static-metadata-dynamic`
   )
@@ -316,7 +387,7 @@ export function createNonPrerenderableMetadataErrorInStaticRoute(
 export function createRuntimeViewportErrorInStaticRoute(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered runtime data in \`generateViewport()\` on a route that must be fully static.\n\n` +
-      `This route is configured to be fully static, but runtime data from \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or a short-lived cache requires rendering at request time.\n\n` +
+      `This route is configured to be fully static, but runtime data from \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` requires rendering at request time.\n\n` +
       `Ways to fix this:\n` +
       `  - [static] Replace the dynamic data used by \`generateViewport()\` with static data\n\n` +
       `Learn more: https://nextjs.org/docs/messages/static-viewport-runtime`
@@ -342,6 +413,7 @@ export function createNonPrerenderableViewportErrorInStaticRoute(
       `This route is configured to be fully static, but some data requires rendering at request time.\n\n` +
       `Ways to fix this:\n` +
       `  - [cache] For uncached data: cache the data used by \`generateViewport()\` with \`"use cache"\` (does not apply to \`connection()\`)\n` +
+      `  - [cache] For short-lived caches: increase the cache lifetime. See ${getShortLivedCacheDocsUrl('viewport', true)}\n` +
       `  - [static] Replace the dynamic data used by \`generateViewport()\` with static data\n\n` +
       `Learn more: https://nextjs.org/docs/messages/static-viewport-dynamic`
   )
