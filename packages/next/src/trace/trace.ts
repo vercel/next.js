@@ -1,4 +1,4 @@
-import { toHrTime } from '../server/lib/trace/utils'
+import { getTimestamp, toHrTime } from '../server/lib/trace/utils'
 import { reporter } from './report'
 import {
   createRecordingSpan,
@@ -70,7 +70,16 @@ export class Span {
   }
 
   stop(stopTime?: bigint): void {
-    this.recorder.end(stopTime === undefined ? undefined : toHrTime(stopTime))
+    const source = getTraceSpanSource(this.recorder)!
+    this.recorder.end(
+      stopTime === undefined
+        ? undefined
+        : toHrTime(
+            stopTime -
+              source.startTime +
+              epochMillisecondsToNanoseconds(source.wallStartTimeMs)
+          )
+    )
   }
 
   traceChild(name: string, attrs?: Attributes): Span {
@@ -83,10 +92,19 @@ export class Span {
     stopTime?: bigint,
     attrs?: Attributes
   ): void {
-    recordSpan(
-      { name, startTime, endTime: stopTime, attributes: attrs },
-      this.recorder
-    )
+    const correction =
+      process.hrtime.bigint() - BigInt(Date.now()) * NUM_OF_MILLISEC_IN_NANOSEC
+    const span = new Span({
+      name,
+      parent: this,
+      attrs,
+      startTime: startTime === undefined ? undefined : startTime + correction,
+      wallStartTimeMs:
+        startTime === undefined
+          ? undefined
+          : Number(startTime / NUM_OF_MILLISEC_IN_NANOSEC),
+    })
+    span.stop(stopTime === undefined ? undefined : stopTime + correction)
   }
 
   getId(): SpanId {
@@ -152,41 +170,6 @@ function isAttributeValue(value: unknown): value is AttributeValue {
   )
 }
 
-/** Completed observations use nanoseconds since Unix epoch. */
-type SpanObservation = {
-  name: string
-  startTime?: bigint
-  endTime?: bigint
-  attributes?: Record<string, unknown>
-}
-
-export function recordSpan(
-  observation: SpanObservation,
-  parent?: OpenTelemetrySpan
-): void {
-  const clock = { monotonic: process.hrtime.bigint(), wallTimeMs: Date.now() }
-  const nsPerMs = BigInt(1_000_000)
-  // Preserve completed timestamps when mapping wall time onto the local clock.
-  const correction = clock.monotonic - BigInt(clock.wallTimeMs) * nsPerMs
-  const monotonicEndTime =
-    observation.endTime !== undefined
-      ? observation.endTime + correction
-      : clock.monotonic
-  createTraceSpan({
-    name: observation.name,
-    attributes: observation.attributes,
-    parent,
-    monotonicStartTime:
-      observation.startTime !== undefined
-        ? observation.startTime + correction
-        : clock.monotonic,
-    wallStartTimeMs:
-      observation.startTime !== undefined
-        ? Number(observation.startTime / nsPerMs)
-        : clock.wallTimeMs,
-  }).end(toHrTime(monotonicEndTime))
-}
-
 export type LocalSpanTiming = {
   startTime?: import('@opentelemetry/api').SpanOptions['startTime']
   monotonicStartTime?: bigint
@@ -210,9 +193,7 @@ export function getTraceSpanSource(
   return traceSources.get(span)
 }
 
-export function createTraceSpan(
-  options: LocalSpanOptions & { scope?: boolean }
-): LocalRecordingSpan {
+export function createTraceSpan(options: LocalSpanOptions): LocalRecordingSpan {
   const parent = typeof options.parent === 'object' ? options.parent : undefined
   const ancestor = parent ? getTraceSpanSource(parent) : undefined
   const source = captureTraceSpanSource(
@@ -235,7 +216,7 @@ export function createTraceSpan(
       attributes: normalizeTraceAttributes(options.attributes),
       clock: {
         start: source.startTime + offset,
-        end: (time) => getTraceSpanEndTime(time) + offset,
+        end: (time) => getTraceSpanEndTime(time, offset),
       },
       onError: (recording, error) => {
         recording.setAttribute('failed', true)
@@ -249,7 +230,6 @@ export function createTraceSpan(
           source,
           record.name,
           record.attributes ?? {},
-          undefined,
           end! - offset
         )
       }
@@ -263,19 +243,10 @@ export function captureTraceSpanSource(
   options: LocalSpanTiming & { parent?: SpanId | null },
   parent?: TraceSpanSource
 ): TraceSpanSource {
-  const time = options.startTime
-  let epochMs: number | undefined
-  if (time instanceof Date) {
-    epochMs = time.getTime()
-  } else if (Array.isArray(time)) {
-    epochMs = time[0] * 1000 + time[1] / 1_000_000
-  } else if (typeof time === 'number') {
-    if (time < performance.timeOrigin / 2) {
-      epochMs = performance.timeOrigin + time
-    } else {
-      epochMs = time
-    }
-  }
+  const epochMs =
+    options.startTime === undefined
+      ? undefined
+      : getTimestamp(options.startTime)
   const monotonicStartTime =
     options.monotonicStartTime ??
     (epochMs === undefined
@@ -305,21 +276,15 @@ function epochMillisecondsToNanoseconds(time: number): bigint {
 }
 
 function getTraceSpanEndTime(
-  endTime?: Parameters<OpenTelemetrySpan['end']>[0]
+  endTime: Parameters<OpenTelemetrySpan['end']>[0],
+  offset: bigint
 ): bigint {
   if (Array.isArray(endTime)) {
     return BigInt(endTime[0]) * NUM_OF_SEC_IN_NANOSEC + BigInt(endTime[1])
   } else if (endTime === undefined) {
-    return process.hrtime.bigint()
+    return process.hrtime.bigint() + offset
   } else {
-    const epochMs = endTime instanceof Date ? endTime.getTime() : endTime
-    const correction =
-      process.hrtime.bigint() - BigInt(Date.now()) * NUM_OF_MILLISEC_IN_NANOSEC
-    const timeMs =
-      epochMs < performance.timeOrigin / 2
-        ? performance.timeOrigin + epochMs
-        : epochMs
-    return epochMillisecondsToNanoseconds(timeMs) + correction
+    return epochMillisecondsToNanoseconds(getTimestamp(endTime))
   }
 }
 
@@ -327,8 +292,7 @@ export function completeTraceSpan(
   source: TraceSpanSource,
   name: string,
   attributes: Record<string, AttributeValue>,
-  endTime?: Parameters<OpenTelemetrySpan['end']>[0],
-  end = getTraceSpanEndTime(endTime)
+  end: bigint
 ): TraceEvent {
   const duration = (end - source.startTime) / NUM_OF_MICROSEC_IN_NANOSEC
   if (duration > Number.MAX_SAFE_INTEGER) {
@@ -400,7 +364,7 @@ export const clearTraceEvents = () => {
  * epoch-based times are nanoseconds since Unix epoch (Jan 1, 1970).
  *
  * This is useful when passing hrtime values to APIs that expect epoch-based times,
- * such as completed observations passed to recordSpan().
+ * such as Span.manualTraceChild().
  */
 export function hrtimeToEpochNanoseconds(hrtimeValue: bigint): bigint {
   const offset =

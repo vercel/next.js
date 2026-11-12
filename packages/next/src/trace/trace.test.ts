@@ -14,11 +14,13 @@ import { setGlobal } from './shared'
 import {
   clearTraceEvents,
   closeAllTraces,
+  createTraceSpan,
   exportTraceState,
   flushAllTraces,
   getTraceEvents,
   initializeTraceState,
   recordTraceEvents,
+  Span,
   trace,
 } from './trace'
 
@@ -91,6 +93,30 @@ describe('Trace', () => {
   })
 
   describe('Tracer', () => {
+    it('keeps epoch end times separate from monotonic stop times', () => {
+      const start = Date.now()
+      const end = start + 5
+      for (const endTime of [
+        new Date(end),
+        end,
+        end - performance.timeOrigin,
+        [Math.floor(end / 1000), (end % 1000) * 1_000_000] as [number, number],
+      ]) {
+        createTraceSpan({ name: 'epoch', startTime: new Date(start) }).end(
+          endTime
+        )
+      }
+      const span = new Span({
+        name: 'monotonic',
+        startTime: BigInt(123_456_789),
+        wallStartTimeMs: start,
+      })
+      span.stop(BigInt(123_462_788))
+      expect(getTraceEvents().map((event) => event.duration)).toEqual([
+        5000, 5000, 5000, 5000, 5,
+      ])
+    })
+
     it('shares legacy and recorder completion when callbacks fail', async () => {
       const root = trace('root')
       const error = new Error('failed')
