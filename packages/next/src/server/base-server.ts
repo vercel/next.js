@@ -279,13 +279,6 @@ export interface Options {
 
 export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
 
-// Where a platform registers its cache handlers. `IncrementalCache` reads
-// `FetchCache` from it when no `cacheHandler` is configured.
-const CACHE_HANDLERS_SYMBOL = Symbol.for('@next/cache-handlers')
-type GlobalWithCacheHandlers = typeof globalThis & {
-  [CACHE_HANDLERS_SYMBOL]?: { FetchCache?: unknown }
-}
-
 export type LoadedRenderOpts<
   NextModule extends GenericComponentMod = GenericComponentMod,
 > = RenderOpts & LoadComponentsReturnType<NextModule> & RequestLifecycleOpts
@@ -434,30 +427,6 @@ export default abstract class Server<
     query: ParsedUrlQuery,
     match: PagesAPIRouteMatch
   ): Promise<boolean>
-
-  /**
-   * The request headers a new `IncrementalCache` is given.
-   *
-   * A cache handler other than the built-in one receives them as
-   * `_requestHeaders` and may keep them, and in development the cache reads
-   * them again after it was constructed. Both get a snapshot, taken here as
-   * before. Otherwise the headers are only read while the cache is
-   * constructed, nothing can tell a copy from the original, and the copy is
-   * not made.
-   */
-  private getIncrementalCacheRequestHeaders(
-    req: ServerRequest
-  ): Record<string, undefined | string | string[]> {
-    if (
-      this.dev ||
-      this.nextConfig.cacheHandler ||
-      (globalThis as GlobalWithCacheHandlers)[CACHE_HANDLERS_SYMBOL]?.FetchCache
-    ) {
-      return Object.assign({}, req.headers)
-    }
-
-    return req.headers
-  }
 
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
@@ -1659,7 +1628,7 @@ export default abstract class Server<
         !getRequestMeta(req, 'incrementalCache')
       ) {
         const incrementalCache = await this.getIncrementalCache({
-          requestHeaders: this.getIncrementalCacheRequestHeaders(req),
+          requestHeaders: req.headers,
         })
 
         incrementalCache.resetRequestCache()
@@ -2433,7 +2402,7 @@ export default abstract class Server<
   }: {
     pathname: string
     urlPathname: string
-    requestHeaders: import('./lib/incremental-cache').IncrementalCache['requestHeaders']
+    requestHeaders: import('./lib/incremental-cache').IncrementalCacheRequestHeaders
     page: string
     isAppPath: boolean
   }): Promise<Partial<StaticPathsResult> & { staticPaths?: string[] }> {
@@ -2850,7 +2819,7 @@ export default abstract class Server<
     // use existing incrementalCache instance if available
     const incrementalCache: import('./lib/incremental-cache').IncrementalCache =
       await this.getIncrementalCache({
-        requestHeaders: this.getIncrementalCacheRequestHeaders(req),
+        requestHeaders: req.headers,
       })
 
     // TODO: investigate, this is not safe across multiple concurrent requests
