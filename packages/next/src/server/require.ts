@@ -14,7 +14,27 @@ import { loadManifest } from './load-manifest.external'
 import { promises } from 'fs'
 
 const isDev = process.env.NODE_ENV === 'development'
-const pagePathCache = !isDev ? new LRUCache<string | null>(1000) : null
+
+/**
+ * What `pagePathCache` stores for a page that is in neither manifest, next to
+ * the resolved file path it stores for a page that is in one.
+ */
+const enum PagePathCacheEntry {
+  NotInManifest = 0,
+}
+
+const pagePathCache = !isDev
+  ? new LRUCache<string | PagePathCacheEntry>(1000)
+  : null
+
+function getPagePathCacheKey(
+  page: string,
+  distDir: string,
+  locales: readonly string[] | undefined,
+  isAppPath: boolean
+): string {
+  return `${page}:${distDir}:${locales}:${isAppPath}`
+}
 
 export function getMaybePagePath(
   page: string,
@@ -22,22 +42,27 @@ export function getMaybePagePath(
   locales: readonly string[] | undefined,
   isAppPath: boolean
 ): string | null {
-  const cacheKey = `${page}:${distDir}:${locales}:${isAppPath}`
+  const cacheKey = getPagePathCacheKey(page, distDir, locales, isAppPath)
 
-  let pagePath = pagePathCache?.get(cacheKey)
+  const cached = pagePathCache?.get(cacheKey)
 
   // If we have a cached path, we can return it directly.
-  if (pagePath) return pagePath
+  if (typeof cached === 'string') return cached
 
-  // `null` is stored below for a page that neither manifest has. Outside of a
-  // dev server the manifests are loaded once and frozen, so looking again
-  // gives the same answer, and it is returned here. A dev server compiles
-  // pages on demand and reloads its manifests, so a page that was missing can
-  // exist a moment later: there the lookup is always redone. The cache also
-  // exists in a dev server that runs with a `NODE_ENV` other than
-  // `development`, hence the second check, which is read on every call
-  // because the variable is set when the dev server starts.
-  if (pagePath === null && !process.env.__NEXT_DEV_SERVER) return null
+  // Outside of a dev server the manifests are loaded once and frozen, so a
+  // page that was in neither manifest is still in neither, and the stored
+  // miss is returned. A dev server compiles pages on demand and reloads its
+  // manifests, so a page that was missing can exist a moment later: there
+  // the lookup is always redone. The cache also exists in a dev server that
+  // runs with a `NODE_ENV` other than `development`, hence the second check,
+  // which is read on every call because the variable is set when the dev
+  // server starts.
+  if (
+    cached === PagePathCacheEntry.NotInManifest &&
+    !process.env.__NEXT_DEV_SERVER
+  ) {
+    return null
+  }
 
   const serverBuildPath = path.join(
     /* turbopackIgnore: true */ distDir,
@@ -81,6 +106,8 @@ export function getMaybePagePath(
     return curPath
   }
 
+  let pagePath: string | undefined
+
   if (appPathsManifest) {
     pagePath = checkManifest(appPathsManifest)
   }
@@ -90,7 +117,7 @@ export function getMaybePagePath(
   }
 
   if (!pagePath) {
-    pagePathCache?.set(cacheKey, null)
+    pagePathCache?.set(cacheKey, PagePathCacheEntry.NotInManifest)
     return null
   }
 
@@ -121,7 +148,9 @@ export function isPagePathStoredMiss(
   if (!pagePathCache || process.env.__NEXT_DEV_SERVER) return false
 
   return (
-    pagePathCache.get(`${page}:${distDir}:${locales}:${isAppPath}`) === null
+    pagePathCache.get(
+      getPagePathCacheKey(page, distDir, locales, isAppPath)
+    ) === PagePathCacheEntry.NotInManifest
   )
 }
 
