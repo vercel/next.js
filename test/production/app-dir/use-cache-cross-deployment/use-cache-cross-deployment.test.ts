@@ -343,6 +343,15 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1', true)
     })
 
+    it('keeps durable cache handler keys JSON-parseable', () => {
+      const match = key1.keyPrerender.match(
+        /^CustomCacheHandler::get (.*) \[\[/
+      )
+      expect(match).not.toBeNull()
+      const parts = JSON.parse(match![1])
+      expect(parts).toBeArray()
+    })
+
     describe('behavioral tests', () => {
       it('client component should return baseline', async () => {
         const browser = await next.browser('/import-use-client')
