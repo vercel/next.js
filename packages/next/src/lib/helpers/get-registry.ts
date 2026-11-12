@@ -1,4 +1,5 @@
 import { execFile } from 'child_process'
+import { constants as osConstants, setPriority } from 'os'
 import { promisify } from 'util'
 import { getPkgManager } from './get-pkg-manager'
 import { getFormattedNodeOptionsWithoutInspect } from '../../server/lib/utils'
@@ -12,9 +13,10 @@ const execFileAsync = promisify(execFile)
  */
 export async function getRegistry(baseDir: string = process.cwd()) {
   // Package managers export their resolved registry to the scripts they run
-  // (e.g. `pnpm dev`, `npm run dev`). Prefer it over spawning the package
-  // manager, which costs hundreds of milliseconds of CPU and, in `next dev`,
-  // competes with the first compiles while the HMR SYNC message waits on it.
+  // (e.g. `pnpm dev`, or `npm run dev` with a non-default registry). Prefer it
+  // over spawning the package manager, which costs hundreds of milliseconds of
+  // CPU. In `next dev` the spawn starts when the first browser connects, so it
+  // competes with the first route compiles.
   const envRegistry = process.env.npm_config_registry
   if (envRegistry?.startsWith('http')) {
     return envRegistry.endsWith('/') ? envRegistry : `${envRegistry}/`
@@ -33,12 +35,22 @@ export async function getRegistry(baseDir: string = process.cwd()) {
   let registry = `https://registry.npmjs.org/`
 
   try {
-    const { stdout } = await execFileAsync(pkgManager, args, {
+    const pending = execFileAsync(pkgManager, args, {
       env: {
         ...process.env,
         NODE_OPTIONS: getFormattedNodeOptionsWithoutInspect(),
       },
     })
+    // The registry lookup is never latency-critical, so run it at the lowest
+    // OS priority. It then only uses CPU that compiles and requests leave idle.
+    try {
+      if (pending.child.pid !== undefined) {
+        setPriority(pending.child.pid, osConstants.priority.PRIORITY_LOW)
+      }
+    } catch {
+      // Lowering priority is best-effort.
+    }
+    const { stdout } = await pending
     const output = stdout.toString().trim()
 
     if (output.startsWith('http')) {
