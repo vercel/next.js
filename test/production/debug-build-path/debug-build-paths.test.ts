@@ -292,41 +292,6 @@ describe('debug-build-paths', () => {
         `)
       })
     })
-  })
-
-  describe('with-type-error fixture', () => {
-    const { next } = nextTestSetup({
-      files: path.join(__dirname, 'fixtures/with-type-error'),
-      skipStart: true,
-      env: {
-        __NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT: '1',
-      },
-    })
-
-    describe('typechecking with debug-build-paths', () => {
-      it('should typecheck excluded app routes through the generated route types', async () => {
-        // Build only a pages route. The app route with a type error is not
-        // compiled, but the generated route types (validator.ts) cover every
-        // route, so it is still type checked.
-        const buildResult = await next.build({
-          args: ['--debug-build-paths', 'pages/foo.tsx'],
-        })
-        expect(buildResult.exitCode).toBe(1)
-        expect(buildResult.cliOutput).toContain('Type error')
-        expect(buildResult.cliOutput).toContain('with-type-error/page.tsx')
-      })
-
-      it('should fail typechecking when route with type error is included', async () => {
-        // Build all app routes including the one with type error
-        const buildResult = await next.build({
-          args: ['--debug-build-paths', 'app/**/page.tsx'],
-        })
-        // Build should fail due to type error in with-type-error/page.tsx
-        expect(buildResult.exitCode).toBe(1)
-        expect(buildResult.cliOutput).toContain('Type error')
-        expect(buildResult.cliOutput).toContain('with-type-error/page.tsx')
-      })
-    })
 
     describe('metadata routes', () => {
       it.each([
@@ -380,6 +345,41 @@ describe('debug-build-paths', () => {
           )
           .sort()
         expect(builtRoutes).toEqual(routes)
+      })
+    })
+  })
+
+  describe('with-type-error fixture', () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'fixtures/with-type-error'),
+      skipStart: true,
+      env: {
+        __NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT: '1',
+      },
+    })
+
+    describe('typechecking with debug-build-paths', () => {
+      it('should typecheck excluded app routes through the generated route types', async () => {
+        // Build only a pages route. The app route with a type error is not
+        // compiled, but the generated route types (validator.ts) cover every
+        // route, so it is still type checked.
+        const buildResult = await next.build({
+          args: ['--debug-build-paths', 'pages/foo.tsx'],
+        })
+        expect(buildResult.exitCode).toBe(1)
+        expect(buildResult.cliOutput).toContain('Type error')
+        expect(buildResult.cliOutput).toContain('with-type-error/page.tsx')
+      })
+
+      it('should fail typechecking when route with type error is included', async () => {
+        // Build all app routes including the one with type error
+        const buildResult = await next.build({
+          args: ['--debug-build-paths', 'app/**/page.tsx'],
+        })
+        // Build should fail due to type error in with-type-error/page.tsx
+        expect(buildResult.exitCode).toBe(1)
+        expect(buildResult.cliOutput).toContain('Type error')
+        expect(buildResult.cliOutput).toContain('with-type-error/page.tsx')
       })
     })
   })
