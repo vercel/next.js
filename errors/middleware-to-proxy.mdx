@@ -41,7 +41,7 @@ The codemod will rename the file and the function name from `middleware` to `pro
 
 ### Remove the runtime config
 
-Proxy always runs on the Node.js runtime, and the runtime can't be configured. Setting `runtime` in a Proxy file fails `next build` with any value, including `'nodejs'`. The codemod removes it, or you can delete it from the `config` export yourself:
+Proxy always runs on the Node.js runtime, and you can't configure it to use a different runtime. Setting `runtime` in a Proxy file causes `next build` to fail, even when set to `'nodejs'`. The codemod removes this setting automatically, or you can remove it manually from the `config` export:
 
 ```diff
 // proxy.ts
