@@ -46,7 +46,6 @@ import {
   trace,
   type Span,
 } from '../../trace'
-import { recordSpan } from '../../trace/trace'
 import { traceGlobals } from '../../trace/shared'
 import { findPageFile } from '../lib/find-page-file'
 import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
@@ -540,17 +539,12 @@ export default class DevServer extends Server {
               'devRequestTimingInternalsEnd'
             )
             if (devRequestTimingInternalsEnd) {
-              recordSpan(
-                {
-                  name: 'render-path',
-                  reportToOtel: true,
-                  startTime: hrtimeToEpochNanoseconds(
-                    devRequestTimingInternalsEnd
-                  ),
-                  endTime: hrtimeToEpochNanoseconds(requestEnd),
-                  attributes: { path: req.url || '' },
-                },
-                this.startServerSpan?.recorder
+              this.startServerSpan.manualTraceChild(
+                'render-path',
+                hrtimeToEpochNanoseconds(devRequestTimingInternalsEnd),
+                hrtimeToEpochNanoseconds(requestEnd),
+                { path: req.url || '' },
+                { reportToOtel: true }
               )
             }
           })

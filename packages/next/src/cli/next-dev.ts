@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import '../server/lib/cpu-profile'
 import { saveCpuProfile } from '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
@@ -49,7 +51,7 @@ import os from 'os'
 import fs from 'node:fs'
 import { once } from 'node:events'
 import { clearTimeout } from 'timers'
-import { initializeTraceState, exportTraceState, trace } from '../trace'
+import { trace, initializeTraceState, exportTraceState } from '../trace'
 import { traceId } from '../trace/shared'
 import { Bundler, parseBundlerArgs } from '../lib/bundler'
 
@@ -118,7 +120,8 @@ const DEV_STATE_FILE = path.join(
   'dev-state.json'
 )
 
-// Allow the child to clean up before sending SIGKILL.
+// How long should we wait for the child to cleanly exit after sending
+// SIGINT/SIGTERM to the child process before sending SIGKILL?
 const CHILD_EXIT_TIMEOUT_MS = parseInt(
   process.env.NEXT_EXIT_TIMEOUT_MS ?? '100',
   10
@@ -457,7 +460,7 @@ const nextDev = async (
   )
 
   for (const [key, value] of Object.entries(enabledFeatures)) {
-    sessionSpan.recorder.setAttributes({ [`feature.${key}`]: value })
+    sessionSpan.setAttribute(`feature.${key}`, value)
   }
 
   initializeTraceState({

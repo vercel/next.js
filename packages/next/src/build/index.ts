@@ -1272,14 +1272,16 @@ export default async function build(
       setGlobal('telemetry', telemetry)
       const { getSessionAttributes } =
         require('../trace/session') as typeof import('../trace/session')
-      nextBuildSpan.recorder.setAttributes(
+      for (const [key, value] of Object.entries(
         getSessionAttributes(
           dir,
           'build',
           bundler === Bundler.Turbopack,
           telemetry
         )
-      )
+      )) {
+        nextBuildSpan.setAttribute(key, value)
+      }
 
       // Reuse the loaded config; ordinary builds do not load upgrade tooling.
       if (
