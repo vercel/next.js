@@ -1,0 +1,130 @@
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -2,6 +2,65 @@
+ 	return typeof fn === "function" && "_isMockFunction" in fn && fn._isMockFunction === true;
+ }
+ const MOCK_RESTORE = new Set();
++// Next's private synchronous file-restoration observation. Inactive calls retain
++// the original invocation; no mock fields, promise handlers or getters are added.
++const MOCK_RESTORE_OWNERS = new WeakMap();
++const readMockRestoreOwner = Function.prototype.call.bind(WeakMap.prototype.get);
++const writeMockRestoreOwner = Function.prototype.call.bind(WeakMap.prototype.set);
++let activeMockRestorationObservation;
++function createMockRestorationObservation() {
++	const observation = { calls: [], invalid: false };
++	let state = 0;
++	let completed;
++	return Object.freeze({
++		run(callback) {
++			if (state !== 0) {
++				observation.invalid = true;
++				throw new Error("Mock restoration observation already ran.");
++			}
++			state = 1;
++			const previous = activeMockRestorationObservation;
++			activeMockRestorationObservation = observation;
++			try {
++				return callback();
++			} finally {
++				activeMockRestorationObservation = previous;
++				state = 2;
++				try {
++					completed = Object.freeze(observation.calls);
++				} catch {
++					observation.invalid = true;
++				}
++			}
++		},
++		take() {
++			return state === 2 && !observation.invalid ? completed : undefined;
++		}
++	});
++}
++function observeMockRestoration(restore, mock) {
++	const observation = activeMockRestorationObservation;
++	const owner = readMockRestoreOwner(MOCK_RESTORE_OWNERS, restore);
++	const record = (outcome) => {
++		try {
++			if (!owner || owner.ambiguous || (mock && owner.mock !== mock)) {
++				observation.invalid = true;
++				return;
++			}
++			observation.calls.push(Object.freeze({ restore, mock: owner.mock, ...outcome }));
++		} catch {
++			observation.invalid = true;
++		}
++	};
++	try {
++		const value = restore();
++		record({ status: "fulfilled", value });
++		return value;
++	} catch (reason) {
++		record({ status: "rejected", reason });
++		throw reason;
++	}
++}
+ // Jest keeps the state in a separate WeakMap which is good for memory,
+ // but it makes the state slower to access and return different values
+ // if you stored it before calling `mockClear` where it will be recreated
+@@ -55,6 +114,10 @@
+ 		state,
+ 		...options
+ 	});
++	if (typeof restore === "function") {
++		const previous = readMockRestoreOwner(MOCK_RESTORE_OWNERS, restore);
++		writeMockRestoreOwner(MOCK_RESTORE_OWNERS, restore, previous ? { ambiguous: true } : { mock });
++	}
+ 	const mockLength = (mockImplementation || originalImplementation)?.length ?? 0;
+ 	Object.defineProperty(mock, "length", {
+ 		writable: true,
+@@ -213,7 +276,9 @@
+ 	};
+ 	mock.mockRestore = function mockRestore() {
+ 		mock.mockReset();
+-		return restore?.();
++		return activeMockRestorationObservation && restore
++			? observeMockRestoration(restore, mock)
++			: restore?.();
+ 	};
+ 	mock.mockName = function mockName(name) {
+ 		if (typeof name === "string") {
+@@ -563,7 +628,11 @@
+ }
+ function restoreAllMocks() {
+ 	for (const restore of MOCK_RESTORE) {
+-		restore();
++		if (activeMockRestorationObservation) {
++			observeMockRestoration(restore);
++		} else {
++			restore();
++		}
+ 	}
+ 	MOCK_RESTORE.clear();
+ }
+@@ -580,4 +649,4 @@
+ 	throw new TypeError(`Cannot use \`${shorthand}\` when called with \`new\`. Use \`mockImplementation\` with a \`class\` keyword instead. See https://vitest.dev/api/mock#class-support for more information.`);
+ }
+ 
+-export { clearAllMocks, createMockInstance, fn, isMockFunction, resetAllMocks, restoreAllMocks, spyOn };
++export { clearAllMocks, createMockInstance, createMockRestorationObservation, fn, isMockFunction, resetAllMocks, restoreAllMocks, spyOn };
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -424,9 +424,17 @@
+ 	T extends object,
+ 	K extends keyof any
+ >(object: T, key: SpyOnMethodKey<T, K>): Mock<SpyOnMethod<T, K>>;
++/** @internal Next-only synchronous actual restoration occurrences. */
++declare function createMockRestorationObservation(): Readonly<{
++	run<T>(callback: () => T): T;
++	take(): readonly (Readonly<{
++		restore: () => unknown;
++		mock: MockInstance;
++	}> & (Readonly<{ status: "fulfilled"; value: unknown }> | Readonly<{ status: "rejected"; reason: unknown }>))[] | undefined;
++}>;
+ declare function restoreAllMocks(): void;
+ declare function clearAllMocks(): void;
+ declare function resetAllMocks(): void;
+ 
+-export { clearAllMocks, createMockInstance, fn, isMockFunction, resetAllMocks, restoreAllMocks, spyOn };
++export { clearAllMocks, createMockInstance, createMockRestorationObservation, fn, isMockFunction, resetAllMocks, restoreAllMocks, spyOn };
+ export type { Constructable, MaybeMocked, MaybeMockedConstructor, MaybeMockedDeep, MaybePartiallyMocked, MaybePartiallyMockedDeep, Mock, MockContext, MockInstance, MockInstanceOption, MockParameters, MockProcedureContext, MockResult, MockResultIncomplete, MockResultReturn, MockResultThrow, MockReturnType, MockSettledResult, MockSettledResultFulfilled, MockSettledResultIncomplete, MockSettledResultRejected, Mocked, MockedClass, MockedFunction, MockedFunctionDeep, MockedObject, MockedObjectDeep, PartialMock, PartiallyMockedFunction, PartiallyMockedFunctionDeep, Procedure };

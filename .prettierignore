@@ -82,6 +82,9 @@ test/development/mcp-server/fixtures/compilation-errors-app/app/syntax-error/pag
 
 /apps/*/next-env.d.ts
 
+# This coverage fixture intentionally spans expressions across source lines.
+/test/e2e/app-dir/next-testing-stage3-reference/coverage/multiline.ts
+
 # Symlink files
 readme.md
 test/development/app-dir/hmr-symlink/app/symlink-chain/page.tsx
@@ -93,3 +96,49 @@ test/production/app-dir/symbolic-file-links/src/app/page.tsx
 turbopack/crates/turbopack-tracing/tests/node-file-trace/integration/pnpm/node_modules/*
 turbopack/crates/turbopack-tracing/tests/node-file-trace/integration/symlink-to-file/linked.js
 turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/node_modules/component
+
+# Preserve byte-exact genuine runner JSON reports, including their missing terminal newline.
+/test/e2e/app-dir/next-testing-package/browser-native-promise-calls/**/report.raw.json
+
+# Preserve original Browser concurrency runner report bytes.
+/test/e2e/app-dir/next-testing-package/browser-public-concurrency/**/report.raw.json
+/test/e2e/app-dir/next-testing-package/browser-plain-fixtures/**/report.raw.json
+/test/e2e/app-dir/next-testing-package/browser-native-fixtures/**/report.raw.json
+
+/test/e2e/app-dir/next-testing-package/browser-public-default-cleanup/**/report.raw.json
+
+# Preserve genuine mixed Browser cleanup reference report bytes.
+test/e2e/app-dir/next-testing-package/browser-mixed-cleanup/**/report.raw.json
+
+# Preserve genuine Browser Native cleanup reference report bytes.
+test/e2e/app-dir/next-testing-package/browser-default-cleanup-native/**/report.raw.json
+
+# Preserve genuine component Native cleanup reference report bytes.
+test/e2e/app-dir/next-testing-package/browser-component-cleanup-native/**/report.raw.json
+
+# Exact authored bodies shared by native parser and public regression controls.
+/crates/next-api/tests/fixtures/native-multi-target/*.mjs
+
+# Exact ordinary AppPage shared RSC reference source bytes.
+test/unit/next-testing-compiler/fixtures/shared-rsc/sources/
+
+# Exact authored SuiteAPI bodies, strict type programs and genuine runner records.
+test/unit/next-testing-lifecycle/normal-suite-records/
+
+# Exact BenchFn strict type programs and genuine diagnostics.
+test/unit/next-testing-assertions/bench-fn-records/
+
+# Exact Browser clock tick-mode inputs and complete genuine reports.
+test/unit/next-testing-browser-clock-tick-modes/records/
+
+# Exact test-fixture Context inputs and whole genuine reports.
+test/unit/next-testing-fixture-context/node-records/
+
+# Exact fixture factory receiver inputs and whole genuine reports.
+test/unit/next-testing-fixture-receivers/node-records/
+
+# Exact fixture ordering inputs and whole genuine reports.
+test/unit/next-testing-fixture-order/node-records/
+
+# Exact public error metadata type programs and genuine diagnostics.
+test/unit/next-testing-assertions/error-metadata-type-records/

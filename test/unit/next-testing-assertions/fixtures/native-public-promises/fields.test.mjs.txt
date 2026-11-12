@@ -1,0 +1,87 @@
+import { test, expect, afterEach } from 'vitest'
+import assert from 'node:assert/strict'
+function assertQueue(task, length) {
+  const queue = task.promises
+  assert(Array.isArray(queue))
+  assert.equal(Object.getPrototypeOf(queue), Array.prototype)
+  assert.equal(Object.hasOwn(queue, 'push'), false)
+  assert.equal(queue.length, length)
+  assert.deepEqual(Object.getOwnPropertyDescriptor(task, 'promises'), {
+    value: queue,
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  })
+  return queue
+}
+afterEach(({ task }) => {
+  if (task.name === 'plain custom matcher keeps native field absent')
+    assert.equal(task.promises, undefined)
+  else assertQueue(task, 0)
+})
+test('native fulfilled field', async ({ task, expect: local }) => {
+  assert.equal(task.promises, undefined)
+  let release
+  const real = new Promise((resolve) => {
+    release = resolve
+  })
+  const pending = local(real).resolves.toBe(17)
+  const queue = assertQueue(task, 1)
+  assert(queue[0] instanceof Promise)
+  assert.notEqual(queue[0], pending)
+  assert.equal(Object.prototype.toString.call(pending), '[object Promise]')
+  release(17)
+  await pending
+  assert.equal(assertQueue(task, 0), queue)
+})
+test('native rejected field', async ({ task }) => {
+  assert.equal(task.promises, undefined)
+  let reject
+  const reason = new Error('actual native rejection')
+  const real = new Promise((_resolve, no) => {
+    reject = no
+  })
+  const pending = expect(real).rejects.toBe(reason)
+  const queue = assertQueue(task, 1)
+  assert(queue[0] instanceof Promise)
+  assert.notEqual(queue[0], pending)
+  reject(reason)
+  await pending
+  assert.equal(assertQueue(task, 0), queue)
+})
+test('public queue reassignment preserves actual operation', async ({
+  task,
+  expect: local,
+}) => {
+  let release
+  const real = new Promise((resolve) => {
+    release = resolve
+  })
+  const pending = local(real).resolves.toBe(23)
+  const original = assertQueue(task, 1)
+  const native = original[0]
+  task.promises = []
+  const replacement = assertQueue(task, 0)
+  assert.equal(original[0], native)
+  release(23)
+  await pending
+  assert.equal(assertQueue(task, 0), replacement)
+  assert.equal(original.length, 1)
+  assert.equal(original[0], native)
+})
+expect.extend({
+  async nativeFieldsCustom(value) {
+    await Promise.resolve()
+    return { pass: value === 29, message: () => 'controlled custom matcher' }
+  },
+})
+test('plain custom matcher keeps native field absent', async ({
+  task,
+  expect: local,
+}) => {
+  assert.equal(task.promises, undefined)
+  const pending = local(29).nativeFieldsCustom()
+  assert.equal(task.promises, undefined)
+  await pending
+  assert.equal(task.promises, undefined)
+})

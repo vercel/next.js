@@ -103,6 +103,74 @@ const externals = {
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
 }
 externals['node-html-parser'] = 'next/dist/compiled/node-html-parser'
+// Bundle the independent primitives together so assertions and spies share state.
+export async function ncc_next_test_primitives(task) {
+  await task.clear('src/compiled/next-test-primitives')
+  await task
+    .source('src/bundles/next-test-primitives/index.js')
+    .ncc({ license: 'LICENSE', target: 'es2020' })
+    .target('src/compiled/next-test-primitives')
+  await task
+    .source('src/bundles/next-test-primitives/package.json')
+    .target('src/compiled/next-test-primitives')
+  await task
+    .source('src/bundles/next-test-primitives/browser/index.js')
+    .webpack({
+      name: 'next-test-primitives-browser',
+      config: {
+        mode: 'production',
+        target: ['web', 'es2020'],
+        entry: join(
+          __dirname,
+          'src/bundles/next-test-primitives/browser/index.js'
+        ),
+        output: {
+          path: join(__dirname, 'src/compiled/next-test-primitives/browser'),
+          filename: 'index.js',
+          library: { type: 'commonjs2' },
+        },
+        // The application compiler owns loading; expose a single static module.
+        module: { parser: { javascript: { dynamicImportMode: 'eager' } } },
+        optimization: { splitChunks: false, runtimeChunk: false },
+      },
+    })
+  await task
+    .source('src/bundles/next-test-primitives/browser/package.json')
+    .target('src/compiled/next-test-primitives/browser')
+  await task
+    .source('src/bundles/next-test-primitives/diff/index.js')
+    .ncc({ license: 'LICENSE', target: 'es2020' })
+    .target('src/compiled/next-test-primitives/diff')
+  await task
+    .source('src/bundles/next-test-primitives/diff/package.json')
+    .target('src/compiled/next-test-primitives/diff')
+
+  await task
+    .source('src/bundles/next-test-primitives/error/index.js')
+    .ncc({ license: 'LICENSE', target: 'es2020' })
+    .target('src/compiled/next-test-primitives/error')
+  await task
+    .source('src/bundles/next-test-primitives/error/package.json')
+    .target('src/compiled/next-test-primitives/error')
+
+  await task
+    .source('src/bundles/next-test-primitives/timers/index.js')
+    .ncc({ license: 'LICENSE', target: 'es2020' })
+    .target('src/compiled/next-test-primitives/timers')
+  await task
+    .source('src/bundles/next-test-primitives/timers/package.json')
+    .target('src/compiled/next-test-primitives/timers')
+
+  await execa('node', ['src/bundles/next-test-primitives/static-chunks.js'], {
+    cwd: __dirname,
+    stdio: 'inherit',
+  })
+  await execa('node', ['src/bundles/next-test-primitives/build-types.js'], {
+    cwd: __dirname,
+    stdio: 'inherit',
+  })
+}
+
 export async function ncc_node_html_parser(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('node-html-parser')))
@@ -2423,6 +2491,7 @@ export async function ncc(task, opts) {
       'ncc_mswjs_interceptors',
       'ncc_rsc_poison_packages',
       'ncc_modelcontextprotocol_sdk',
+      'ncc_next_test_primitives',
       'ncc_vercel_routing_utils',
       'ncc_vercel_detect_agent',
     ],

@@ -1,0 +1,215 @@
+/* eslint-disable import/no-extraneous-dependencies -- Build tooling only; not shipped as runtime code. */
+const { rollup } = require('rollup')
+const { dts } = require('rollup-plugin-dts')
+const { join, dirname } = require('node:path')
+const { readFile, writeFile } = require('node:fs/promises')
+const { createRequire } = require('node:module')
+
+async function build() {
+  const output = join(__dirname, '../../compiled/next-test-primitives')
+  const expectTypeDirectory = dirname(require.resolve('expect-type'))
+  for (const entry of [
+    'expect-type-overloads',
+    '',
+    'browser',
+    'diff',
+    'error',
+    'timers',
+  ]) {
+    const declaration =
+      entry === 'expect-type-overloads'
+        ? 'expect-type-overloads.d.ts'
+        : join(entry, 'index.d.ts')
+    const assertions = entry === '' || entry === 'browser'
+    const bundle = await rollup({
+      input: join(__dirname, declaration),
+      plugins: [
+        {
+          name: 'shared-expect-type-overloads',
+          resolveId(source, importer) {
+            // Share structural helpers while retaining each entry's symbol brands.
+            if (
+              assertions &&
+              source === './overloads' &&
+              importer &&
+              dirname(importer) === expectTypeDirectory
+            ) {
+              return {
+                id:
+                  entry === 'browser'
+                    ? '../expect-type-overloads'
+                    : './expect-type-overloads',
+                external: true,
+              }
+            }
+          },
+        },
+        dts({ respectExternal: true }),
+      ],
+      external: assertions ? ['chai'] : undefined,
+      onwarn(warning, warn) {
+        if (warning.code === 'UNRESOLVED_IMPORT')
+          throw new Error(warning.message)
+        warn(warning)
+      },
+    })
+    try {
+      await bundle.write({ file: join(output, declaration), format: 'es' })
+    } finally {
+      await bundle.close()
+    }
+  }
+
+  const declarationPath = join(output, 'index.d.ts')
+  await writeFile(
+    declarationPath,
+    (await readFile(declarationPath, 'utf8'))
+      .replaceAll("from 'chai'", "from './chai'")
+      .replaceAll(/\bChai\b/g, 'NextTestChai')
+  )
+  const browserDeclarationPath = join(output, 'browser/index.d.ts')
+  await writeFile(
+    browserDeclarationPath,
+    (await readFile(browserDeclarationPath, 'utf8'))
+      .replaceAll("from 'chai'", "from '../chai'")
+      .replaceAll(/\bChai\b/g, 'NextTestChai')
+  )
+  const chaiManifest = createRequire(
+    require.resolve('@vitest/expect/package.json')
+  ).resolve('@types/chai/package.json')
+  const chaiRequire = createRequire(chaiManifest)
+  const chaiTypes = await readFile(
+    join(dirname(chaiManifest), 'index.d.ts'),
+    'utf8'
+  )
+  await writeFile(
+    join(output, 'chai.d.ts'),
+    chaiTypes
+      .replaceAll(/\bChai\b/g, 'NextTestChai')
+      .replace('require("deep-eql")', 'require("./deep-eql")')
+      .replace('from "assertion-error"', 'from "./assertion-error"')
+  )
+  await writeFile(
+    join(output, 'deep-eql.d.ts'),
+    await readFile(
+      join(
+        dirname(chaiRequire.resolve('@types/deep-eql/package.json')),
+        'index.d.ts'
+      )
+    )
+  )
+  await writeFile(
+    join(output, 'assertion-error.d.ts'),
+    await readFile(
+      join(dirname(chaiRequire.resolve('assertion-error')), 'index.d.ts')
+    )
+  )
+
+  // NCC's license discovery omits some concatenated ESM modules. Preserve all
+  // production dependency licenses explicitly, including declaration dependencies.
+  const licenses = new Map()
+  async function collect(name, from) {
+    const resolver = createRequire(from)
+    let manifest
+    try {
+      manifest = resolver.resolve(`${name}/package.json`)
+    } catch {
+      let directory = dirname(resolver.resolve(name))
+      while (true) {
+        try {
+          const candidate = join(directory, 'package.json')
+          const pkg = JSON.parse(await readFile(candidate, 'utf8'))
+          if (pkg.name === name) {
+            manifest = candidate
+            break
+          }
+        } catch {}
+        const parent = dirname(directory)
+        if (parent === directory)
+          throw new Error(`Missing manifest for ${name}`)
+        directory = parent
+      }
+    }
+    const pkg = JSON.parse(await readFile(manifest, 'utf8'))
+    const key = `${pkg.name}@${pkg.version}`
+    if (licenses.has(key)) return
+    let license
+    for (const file of [
+      'LICENSE',
+      'LICENSE.md',
+      'LICENSE.txt',
+      'LICENSE-MIT.txt',
+      'LICENCE',
+      'license',
+      'license.md',
+    ]) {
+      try {
+        license = await readFile(join(dirname(manifest), file), 'utf8')
+        break
+      } catch {}
+    }
+    if (!license) throw new Error(`Missing license for ${key}`)
+    licenses.set(key, license)
+    for (const dependency of Object.keys(pkg.dependencies ?? {}))
+      await collect(dependency, manifest)
+  }
+  for (const name of [
+    '@vitest/expect',
+    '@vitest/spy',
+    '@vitest/snapshot',
+    '@vitest/mocker',
+  ])
+    await collect(name, __filename)
+  await writeFile(
+    join(output, 'LICENSE'),
+    [...licenses]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, license]) => `${name}\n\n${license}`)
+      .join('\n\n')
+  )
+  await collect('expect-type', __filename)
+  await collect('@vitest/utils', __filename)
+  await collect('@testing-library/dom', __filename)
+  await collect('@testing-library/jest-dom', __filename)
+  await collect('@sinonjs/fake-timers', __filename)
+  await collect('@types/sinonjs__fake-timers', __filename)
+  licenses.set(
+    '@vitest/browser@5.0.4 pure locator and ARIA primitives',
+    await readFile(join(__dirname, 'browser/locator/LICENSE'), 'utf8')
+  )
+  await writeFile(
+    join(output, 'browser/LICENSE'),
+    [...licenses]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, license]) => `${name}\n\n${license}`)
+      .join('\n\n')
+  )
+  licenses.clear()
+  await collect('@sinonjs/fake-timers', __filename)
+  await collect('@types/sinonjs__fake-timers', __filename)
+  licenses.set(
+    'Jest/Vitest timer and wait adapters',
+    await readFile(join(__dirname, 'timers/ADAPTER_LICENSE'), 'utf8')
+  )
+  await writeFile(
+    join(output, 'timers/LICENSE'),
+    [...licenses]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, license]) => `${name}\n\n${license}`)
+      .join('\n\n')
+  )
+  licenses.clear()
+  await collect('@vitest/utils', __filename)
+  await writeFile(
+    join(output, 'diff/LICENSE'),
+    [...licenses]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, license]) => `${name}\n\n${license}`)
+      .join('\n\n')
+  )
+}
+
+build().catch((error) => {
+  console.error(error)
+  process.exitCode = 1
+})
