@@ -14,7 +14,7 @@ use std::sync::{
 };
 
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, TaskId, TryJoinIterExt, TurboTasks, Vc};
+use turbo_tasks::{ResolvedVc, TaskId, TransientValue, TryJoinIterExt, TurboTasks, Vc};
 use turbo_tasks_backend::TurboTasksBackend;
 
 use crate::{
@@ -382,5 +382,95 @@ async fn parentless_call_still_pins_task_against_gc() {
     assert_eq!(backend.gc_for_testing(&tt), 1);
     assert_eq!(backend.gc_for_testing(&tt), 0);
     backend.assert_task_exists_for_testing(held, &tt);
+    tt.stop_and_wait().await;
+}
+
+/// A transient (non-root) function task, transient because of its argument.
+#[turbo_tasks::function]
+async fn transient_endpoint(
+    input: ResolvedVc<Constant>,
+    salt: TransientValue<u32>,
+) -> Result<Vc<u32>> {
+    Ok(Vc::cell(*endpoint(*input, 0).await? ^ *salt))
+}
+
+/// A transient root operation, transient because of its argument.
+#[turbo_tasks::function(operation, root)]
+async fn transient_root_operation(
+    input: ResolvedVc<Constant>,
+    salt: TransientValue<u32>,
+) -> Result<Vc<u32>> {
+    Ok(Vc::cell(*transient_endpoint(*input, salt).await? ^ 1))
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn parentless_calls_of_transient_tasks_are_only_roots_if_root_functions() {
+    let (tt, _persistence_dir) =
+        create_tt("parentless_calls_of_transient_tasks_are_only_roots_if_root_functions");
+    let input = turbo_tasks::run_once(tt.clone(), async move {
+        anyhow::Ok(create_constant().resolve().strongly_consistent().await?)
+    })
+    .await
+    .unwrap();
+
+    let salt = TransientValue::new(7);
+    let salt2 = salt.clone();
+    let (non_root, operation, operation_id) = tt
+        .run(async move {
+            let operation = transient_root_operation(input, salt2);
+            Ok((
+                task_id_of(transient_endpoint(*input, salt)),
+                operation,
+                task_id_of(operation.connect()),
+            ))
+        })
+        .await
+        .unwrap();
+    let backend = tt.backend();
+    assert!(non_root.is_transient());
+    // A parentless transient task isn't made a root...
+    assert!(
+        backend
+            .aggregation_number_for_testing(non_root, &tt)
+            .is_some_and(|n| n != ROOT)
+    );
+    assert_eq!(backend.transient_ref_count_for_testing(non_root), 1);
+    // ...but a `root` function is a root from its creation.
+    assert!(operation_id.is_transient());
+    assert_eq!(
+        backend.aggregation_number_for_testing(operation_id, &tt),
+        Some(ROOT)
+    );
+
+    // Strongly consistent reads of the transient root see values and invalidation.
+    turbo_tasks::run_once(tt.clone(), async move {
+        // `endpoint(input, 0)` reads modules 0, 1 and MODULES - 1.
+        let expected_for = |input: u32| {
+            let mut modules = vec![0u32; MODULES as usize];
+            modules[0] = input;
+            for i in 1..MODULES {
+                let a = modules[(i / 2) as usize];
+                let b = modules[((i * 7 + 3) % i) as usize];
+                modules[i as usize] = a.wrapping_add(b).wrapping_add(i);
+            }
+            [0, 1, MODULES - 1]
+                .into_iter()
+                .fold(0u32, |acc, i| acc.wrapping_add(modules[i as usize]))
+                ^ 7
+                ^ 1
+        };
+        assert_eq!(
+            *operation.read_strongly_consistent().await?,
+            expected_for(0)
+        );
+        create_constant().read_strongly_consistent().await?.set(4);
+        assert_eq!(
+            *operation.read_strongly_consistent().await?,
+            expected_for(4)
+        );
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap();
     tt.stop_and_wait().await;
 }
