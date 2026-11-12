@@ -33,20 +33,14 @@ let cachedNonJsBotsRegex: RegExp | undefined
 
 export function shouldDisableProgressiveLoading(
   userAgent: string | null | undefined,
-  experimental: {
-    disableProgressiveLoadingForNonJsBots?: boolean
-    nonJsBots?: string
-  }
+  nonJsBots: string | undefined
 ): boolean {
-  if (!experimental.disableProgressiveLoadingForNonJsBots) {
-    return false
-  }
   // No real UA string exceeds this bound, so oversized UAs are not bots we need
   // to identify; skip the (possibly user-configured) regex on them entirely.
   if (!userAgent || isOversizedUserAgent(userAgent)) {
     return false
   }
-  const pattern = experimental.nonJsBots || NON_JS_BOT_UA_RE_STRING
+  const pattern = nonJsBots || NON_JS_BOT_UA_RE_STRING
   if (cachedNonJsBotsPattern !== pattern) {
     cachedNonJsBotsPattern = pattern
     cachedNonJsBotsRegex = new RegExp(pattern, 'i')

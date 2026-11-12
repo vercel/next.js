@@ -24,8 +24,15 @@ describe('app-dir - metadata-streaming-config-customized', () => {
     )
     const { routes } = prerenderManifest
 
+    const htmlLimitedBotsBypass = `.*(?:${requiredServerFiles.config.htmlLimitedBots}).*`
     const bypassConfigs = Object.keys(routes)
-      .map((route) => [route, routes[route].experimentalBypassFor?.[2]])
+      // Pick the htmlLimitedBots bypass config of each route
+      .map((route) => [
+        route,
+        routes[route].experimentalBypassFor?.find(
+          (bypassConfig) => bypassConfig.value === htmlLimitedBotsBypass
+        ),
+      ])
       .filter(([, bypassConfig]) => Boolean(bypassConfig))
       .reduce((acc, [route, bypassConfig]) => {
         acc[route] = bypassConfig

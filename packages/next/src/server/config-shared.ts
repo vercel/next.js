@@ -73,9 +73,9 @@ export type NextConfigComplete = Required<
     // override NextConfigComplete.experimental.htmlLimitedBots to string
     // because it's not defined in NextConfigComplete.experimental
     htmlLimitedBots: string | undefined
-    experimental: Omit<ExperimentalConfig, 'nonJsBots'> & {
-      // Normalized by config.ts: the RegExp config is serialized to its source string
-      nonJsBots?: string
+    // Normalized by config.ts: the RegExp config is serialized to its source string
+    nonJsBots: string | undefined
+    experimental: ExperimentalConfig & {
       // Normalized by config.ts: true and partial objects become resolved objects
       prefetchInlining?: PrefetchInliningConfig
       // Normalized by config.ts: defaulted to 90% of staticPageGenerationTimeout
@@ -716,21 +716,6 @@ export interface ExperimentalConfig {
   scrollRestoration?: boolean
   externalDir?: boolean
   disableOptimizedLoading?: boolean
-
-  /**
-   * Disables progressive loading for crawlers and agents that do not execute
-   * JavaScript (see `nonJsBots`): their document is rendered dynamically,
-   * after all Suspense boundaries resolve, with every boundary inlined at its
-   * position instead of being revealed by client JS.
-   */
-  disableProgressiveLoadingForNonJsBots?: boolean
-
-  /**
-   * User agents considered non-JS bots when
-   * `disableProgressiveLoadingForNonJsBots` is enabled. Defaults to a list of
-   * known AI crawlers and agents. Replaces the default list when set.
-   */
-  nonJsBots?: RegExp
 
   /** @deprecated A no-op as of Next 16, size metrics were removed from the build output. */
   gzipSize?: boolean
@@ -2354,6 +2339,17 @@ export interface NextConfig {
   htmlLimitedBots?: RegExp
 
   /**
+   * User agents of bots that do not execute JavaScript (AI crawlers and
+   * agents). Matching requests are rendered without progressive loading:
+   * dynamically, after all Suspense boundaries resolve, with every completed
+   * boundary inlined at its position instead of being revealed by client JS.
+   * Defaults to a list of known AI crawlers and agents. Replaces the default
+   * list when set. Matching is always case-insensitive; flags on the
+   * expression are not supported.
+   */
+  nonJsBots?: RegExp
+
+  /**
    * @internal
    */
   configFile?: string | undefined
@@ -2480,8 +2476,6 @@ export const defaultConfig = Object.freeze({
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,
-    disableProgressiveLoadingForNonJsBots: undefined,
-    nonJsBots: undefined,
     cachedNavigations: false,
     dynamicOnHover: false,
     reactBrowserBailout: true,
@@ -2582,6 +2576,7 @@ export const defaultConfig = Object.freeze({
     turbopackMangleExportNames: undefined,
   },
   htmlLimitedBots: undefined,
+  nonJsBots: undefined,
   bundlePagesRouterDependencies: false,
 } satisfies NextConfig)
 
@@ -2634,6 +2629,7 @@ export interface NextConfigRuntime {
   partialPrefetching: NextConfigComplete['partialPrefetching']
   agentRules: NextConfigComplete['agentRules']
   htmlLimitedBots: NextConfigComplete['htmlLimitedBots']
+  nonJsBots: NextConfigComplete['nonJsBots']
   assetPrefix: NextConfigComplete['assetPrefix']
   output?: NextConfigComplete['output']
   crossOrigin: NextConfigComplete['crossOrigin']
@@ -2683,8 +2679,6 @@ export interface NextConfigRuntime {
     | 'optimizeCss'
     | 'nextScriptWorkers'
     | 'disableOptimizedLoading'
-    | 'disableProgressiveLoadingForNonJsBots'
-    | 'nonJsBots'
     | 'largePageDataBytes'
     | 'serverComponentsHmrCache'
     | 'serverComponentsHmrCancellation'
@@ -2758,9 +2752,6 @@ export function getNextConfigRuntime(
     optimizeCss: ex.optimizeCss,
     nextScriptWorkers: ex.nextScriptWorkers,
     disableOptimizedLoading: ex.disableOptimizedLoading,
-    disableProgressiveLoadingForNonJsBots:
-      ex.disableProgressiveLoadingForNonJsBots,
-    nonJsBots: ex.nonJsBots,
     largePageDataBytes: ex.largePageDataBytes,
     serverComponentsHmrCache: ex.serverComponentsHmrCache,
     serverComponentsHmrCancellation: ex.serverComponentsHmrCancellation,
@@ -2809,6 +2800,7 @@ export function getNextConfigRuntime(
     partialPrefetching: config.partialPrefetching,
     agentRules: config.agentRules,
     htmlLimitedBots: config.htmlLimitedBots,
+    nonJsBots: config.nonJsBots,
     assetPrefix: config.assetPrefix,
     output: config.output,
     crossOrigin: config.crossOrigin,

@@ -13,13 +13,7 @@ describe('non-js-bots', () => {
     ['/large-boundary', 'app'],
     ['/ssr-large', 'pages'],
   ])('%s', (route, marker) => {
-    it('shows large boundaries to non-JS bots when enabled', async () => {
-      // Resolved-config gate conditions do not see env-forced values in
-      // adapter deploy jobs, so read the job env directly.
-      const disableProgressiveLoadingForNonJsBots =
-        process.env
-          .__NEXT_EXPERIMENTAL_DISABLE_PROGRESSIVE_LOADING_FOR_NON_JS_BOTS ===
-        'true'
+    it('shows large boundaries to non-JS bots', async () => {
       const browser = await next.browser(route, {
         userAgent: NON_JS_BOT,
         disableJavaScript: true,
@@ -30,14 +24,14 @@ describe('non-js-bots', () => {
         { state: 'attached' }
       )
       expect(await start.evaluate((el: Element) => el.checkVisibility())).toBe(
-        disableProgressiveLoadingForNonJsBots
+        true
       )
       const end = await browser.waitForElementByCss(
         `[data-testid="marker-${marker}-end"]`,
         { state: 'attached' }
       )
       expect(await end.evaluate((el: Element) => el.checkVisibility())).toBe(
-        disableProgressiveLoadingForNonJsBots
+        true
       )
     })
 
@@ -72,13 +66,7 @@ describe('non-js-bots', () => {
   })
 
   describe('prerendered routes', () => {
-    it('shows prerendered boundaries to non-JS bots when enabled (app)', async () => {
-      // Resolved-config gate conditions do not see env-forced values in
-      // adapter deploy jobs, so read the job env directly.
-      const disableProgressiveLoadingForNonJsBots =
-        process.env
-          .__NEXT_EXPERIMENTAL_DISABLE_PROGRESSIVE_LOADING_FOR_NON_JS_BOTS ===
-        'true'
+    it('shows prerendered boundaries to non-JS bots (app)', async () => {
       const browser = await next.browser('/static-large-boundary', {
         userAgent: NON_JS_BOT,
         disableJavaScript: true,
@@ -89,14 +77,14 @@ describe('non-js-bots', () => {
         { state: 'attached' }
       )
       expect(await start.evaluate((el: Element) => el.checkVisibility())).toBe(
-        disableProgressiveLoadingForNonJsBots
+        true
       )
       const end = await browser.waitForElementByCss(
         '[data-testid="marker-app-end"]',
         { state: 'attached' }
       )
       expect(await end.evaluate((el: Element) => el.checkVisibility())).toBe(
-        disableProgressiveLoadingForNonJsBots
+        true
       )
     })
 
@@ -114,13 +102,7 @@ describe('non-js-bots', () => {
       ).toBe(false)
     })
 
-    it('shows prerendered boundaries to non-JS bots when enabled (pages)', async () => {
-      // Resolved-config gate conditions do not see env-forced values in
-      // adapter deploy jobs, so read the job env directly.
-      const disableProgressiveLoadingForNonJsBots =
-        process.env
-          .__NEXT_EXPERIMENTAL_DISABLE_PROGRESSIVE_LOADING_FOR_NON_JS_BOTS ===
-        'true'
+    it('shows prerendered boundaries to non-JS bots (pages)', async () => {
       const browser = await next.browser('/static-large', {
         userAgent: NON_JS_BOT,
         disableJavaScript: true,
@@ -131,14 +113,14 @@ describe('non-js-bots', () => {
         { state: 'attached' }
       )
       expect(await start.evaluate((el: Element) => el.checkVisibility())).toBe(
-        disableProgressiveLoadingForNonJsBots
+        true
       )
       const end = await browser.waitForElementByCss(
         '[data-testid="marker-pages-end"]',
         { state: 'attached' }
       )
       expect(await end.evaluate((el: Element) => el.checkVisibility())).toBe(
-        disableProgressiveLoadingForNonJsBots
+        true
       )
     })
 
@@ -158,13 +140,7 @@ describe('non-js-bots', () => {
   })
 
   describe('/slow-boundary', () => {
-    it('shows resolved content to non-JS bots when enabled', async () => {
-      // Resolved-config gate conditions do not see env-forced values in
-      // adapter deploy jobs, so read the job env directly.
-      const disableProgressiveLoadingForNonJsBots =
-        process.env
-          .__NEXT_EXPERIMENTAL_DISABLE_PROGRESSIVE_LOADING_FOR_NON_JS_BOTS ===
-        'true'
+    it('shows resolved content to non-JS bots', async () => {
       const browser = await next.browser('/slow-boundary', {
         userAgent: NON_JS_BOT,
         disableJavaScript: true,
@@ -176,11 +152,11 @@ describe('non-js-bots', () => {
       )
       expect(
         await content.evaluate((el: Element) => el.checkVisibility())
-      ).toBe(disableProgressiveLoadingForNonJsBots)
-      // The fallback never renders for non-JS bots when enabled.
+      ).toBe(true)
+      // The fallback never renders for non-JS bots.
       expect(
         await browser.hasElementByCss('[data-testid="slow-fallback-marker"]')
-      ).toBe(!disableProgressiveLoadingForNonJsBots)
+      ).toBe(false)
     })
 
     it('shows pending fallbacks to regular browsers', async () => {

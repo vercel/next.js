@@ -2243,7 +2243,7 @@ export default abstract class Server<
         ),
         disableProgressiveLoading: shouldDisableProgressiveLoading(
           partialContext.req.headers['user-agent'],
-          this.nextConfig.experimental
+          this.nextConfig.nonJsBots
         ),
       },
     }

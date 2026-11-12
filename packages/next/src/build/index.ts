@@ -3571,7 +3571,7 @@ export default async function build(
             // nonJsBots has been converted to a string during loadConfig. The
             // configured pattern replaces the default non-JS bot pattern.
             const nonJsBotsBypassRegexString = `.*(?:${
-              config.experimental.nonJsBots || NON_JS_BOT_UA_RE_STRING
+              config.nonJsBots || NON_JS_BOT_UA_RE_STRING
             }).*`
 
             // this flag is used to selectively bypass the static cache and invoke the lambda directly
@@ -3587,15 +3587,11 @@ export default async function build(
               // the progressive reveal in the artifact would never run
               // without JavaScript, so every prerendered route bypasses the
               // static cache for them and renders dynamically.
-              ...(config.experimental.disableProgressiveLoadingForNonJsBots
-                ? [
-                    {
-                      type: 'header' as const,
-                      key: 'user-agent',
-                      value: nonJsBotsBypassRegexString,
-                    },
-                  ]
-                : []),
+              {
+                type: 'header' as const,
+                key: 'user-agent',
+                value: nonJsBotsBypassRegexString,
+              },
               // For PPR routes, bypass the shell for user agents configured
               // to receive blocking metadata and produce a dynamic render.
               ...(isRoutePPREnabled
