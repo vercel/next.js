@@ -190,7 +190,7 @@ These are combined into:
 - `/tops/[product]`, `/shorts/[product]`: category header rendered, product shows fallback
 - `/[category]/[product]`: both show fallback
 
-Shells leave params open only from the end of the route. A URL can't leave a middle segment unknown, so there is no `/[category]/tee` shell. A visit with an unlisted category gets `/[category]/[product]`, whatever the product.
+A shell's unknown params always come last, in route order. A URL can't have an unknown segment in the middle, so there is no `/[category]/tee` shell. A visit with an unlisted category gets `/[category]/[product]`, whatever the product.
 
 ### At runtime
 
