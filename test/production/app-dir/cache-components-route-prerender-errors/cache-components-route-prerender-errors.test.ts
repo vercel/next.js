@@ -9,6 +9,7 @@ describe('cache-components-route-prerender-errors', () => {
   it.each([
     ['handler-error', 'handler failed after an immediate'],
     ['body-error', 'body failed after an immediate'],
+    ['image-error', 'image component failed during serialization'],
     ['invalid-response', 'Expected a Response object but received'],
   ])('fails the build for %s', async (fixture, message) => {
     await next.patchFile(
