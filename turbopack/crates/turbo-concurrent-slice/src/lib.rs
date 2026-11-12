@@ -19,9 +19,17 @@ use std::{cell::UnsafeCell, mem::ManuallyDrop, ops::Deref};
 ///   nothing else may access the elements while the [`Cells`] exist, except through the cells.
 /// - [`from_cells`] must return the storage of the elements, given cells returned by
 ///   [`into_cells`].
-/// - [`Cells`] must be `Send` when `Self` is `Send`, and its `deref` must be safe to call from
-///   multiple threads at the same time. `ConcurrentSlice` relies on this for its `Send` and `Sync`
-///   implementations.
+/// - Dereferencing the [`Cells`] must always return the same slice (same pointer and length).
+/// - `ConcurrentSlice` only accesses the elements through [`ConcurrentSlice::write`] (which callers
+///   guarantee never touches an element from two threads at once) and by dropping or returning the
+///   cells when it is owned. Under that access discipline:
+///   - when `Self: Send`, moving the [`Cells`] to another thread and dropping or converting them
+///     back there must be sound, even if the `Cells` type itself isn't `Send` (e.g.
+///     `&[UnsafeCell<T>]` never is);
+///   - when `Self::Item: Send`, dereferencing the same [`Cells`] from multiple threads at the same
+///     time must be sound.
+///
+///   `ConcurrentSlice`'s `Send` and `Sync` implementations rely on this.
 ///
 /// [`into_cells`]: ConcurrentSliceStorage::into_cells
 /// [`from_cells`]: ConcurrentSliceStorage::from_cells
@@ -42,7 +50,10 @@ pub unsafe trait ConcurrentSliceStorage: Sized {
 }
 
 // SAFETY: The cells are the borrowed elements, and the mutable borrow guarantees that nothing else
-// accesses them for `'l`. A shared slice reference can be dereferenced from any thread.
+// accesses them for `'l`. Dereferencing a shared slice reference is a pure read of the pointer and
+// length, so it always returns the same slice and is sound from any thread. Moving the cells to
+// another thread is equivalent to moving the `&'l mut [T]` there, which is sound when `T: Send`,
+// i.e. when `&'l mut [T]: Send`.
 unsafe impl<'l, T> ConcurrentSliceStorage for &'l mut [T] {
     type Item = T;
     type Cells = &'l [UnsafeCell<T>];
@@ -64,7 +75,9 @@ unsafe impl<'l, T> ConcurrentSliceStorage for &'l mut [T] {
 }
 
 // SAFETY: The box owns the elements and is moved into the cells, so nothing else can access them.
-// `Box<[UnsafeCell<T>]>` is `Send` when `T` is, and dereferencing a box is thread-safe.
+// Dereferencing a box is a pure read of its pointer and length, so it always returns the same
+// slice and is sound from any thread. Moving the cells to another thread is equivalent to moving
+// the `Box<[T]>` there, which is sound when `T: Send`.
 unsafe impl<T> ConcurrentSliceStorage for Box<[T]> {
     type Item = T;
     type Cells = Box<[UnsafeCell<T>]>;
@@ -128,20 +141,22 @@ unsafe impl<T> ConcurrentSliceStorage for Vec<T> {
 /// [`into_inner`]: ConcurrentSlice::into_inner
 /// [`write`]: ConcurrentSlice::write
 pub struct ConcurrentSlice<S: ConcurrentSliceStorage> {
+    // No `Drop` impl: dropping the cells drops the storage, and `into_inner` moves them out.
     cells: S::Cells,
 }
 
-// SAFETY: Moving a `ConcurrentSlice` to another thread moves the storage's cells, which are `Send`
-// when `S` is (required by `ConcurrentSliceStorage`).
+// SAFETY: Moving a `ConcurrentSlice` to another thread moves the storage's cells. That is sound
+// when `S: Send` (required by `ConcurrentSliceStorage`), as `ConcurrentSlice` only accesses the
+// elements through `write` and by dropping or returning the cells.
 unsafe impl<S: ConcurrentSliceStorage + Send> Send for ConcurrentSlice<S> {}
 // SAFETY: Through a shared `ConcurrentSlice`, other threads move `S::Item` values into the slice
 // and drop the values they replace, which requires `S::Item: Send`. It never hands out references
 // to elements, so it doesn't require `S::Item: Sync`. Dereferencing the cells from multiple threads
-// is safe (required by `ConcurrentSliceStorage`). Callers of `write` guarantee that no element is
-// accessed by two threads. Distinct elements are distinct memory locations, so writes from
-// different threads to different elements never race or tear, even when an element is a single
-// byte. This is the same guarantee that makes sending the halves of `split_at_mut` to different
-// threads sound.
+// is sound when `S::Item: Send` (required by `ConcurrentSliceStorage`). Callers of `write`
+// guarantee that no element is accessed by two threads. Distinct elements are distinct memory
+// locations, so writes from different threads to different elements never race or tear, even when
+// an element is a single byte. This is the same guarantee that makes sending the halves of
+// `split_at_mut` to different threads sound.
 unsafe impl<S: ConcurrentSliceStorage> Sync for ConcurrentSlice<S> where S::Item: Send {}
 
 impl<S: ConcurrentSliceStorage> ConcurrentSlice<S> {
@@ -329,13 +344,14 @@ mod tests {
     fn owned_drops_every_element_once_when_partially_written() {
         const LEN: usize = 16;
         let drops = Arc::new(AtomicUsize::new(0));
-        let values: Box<[Option<Tracked>]> = (0..LEN).map(|_| None).collect();
+        let values: Box<[Option<Tracked>]> = (0..LEN)
+            .map(|index| (index == 5).then(|| Tracked::new(5, &drops)))
+            .collect();
         let writer = ConcurrentSlice::new(values);
-        // Write only some elements, one of them replacing a previous value.
-        // SAFETY: Single-threaded, so no element is accessed concurrently.
+        // Write only some elements, one of them replacing an initial value.
+        // SAFETY: Each index is written once.
         unsafe {
             writer.write(1, Some(Tracked::new(1, &drops)));
-            writer.write(5, Some(Tracked::new(5, &drops)));
             writer.write(5, Some(Tracked::new(55, &drops)));
         }
         assert_eq!(
@@ -380,6 +396,33 @@ mod tests {
         assert_eq!(drops.load(Ordering::Relaxed), 0);
         drop(writer);
         assert_eq!(drops.load(Ordering::Relaxed), written);
+    }
+
+    #[test]
+    fn owned_outlives_its_creator_and_drops_every_element_once() {
+        const LEN: usize = 8;
+        let drops = Arc::new(AtomicUsize::new(0));
+        let values: Vec<Option<Tracked>> = (0..LEN).map(|_| None).collect();
+        let writer = Arc::new(ConcurrentSlice::new(values));
+        let (start, started) = std::sync::mpsc::channel::<()>();
+        let worker = {
+            let writer = writer.clone();
+            let drops = drops.clone();
+            std::thread::spawn(move || {
+                started.recv().unwrap();
+                for index in 0..LEN / 2 {
+                    // SAFETY: Only this thread writes, each index once.
+                    unsafe { writer.write(index, Some(Tracked::new(index, &drops))) };
+                }
+                // The last reference is dropped here.
+            })
+        };
+        // The creator gives up its reference before the worker writes, as when the owner of a
+        // detached worker is cancelled.
+        drop(writer);
+        start.send(()).unwrap();
+        worker.join().unwrap();
+        assert_eq!(drops.load(Ordering::Relaxed), LEN / 2);
     }
 
     #[test]
