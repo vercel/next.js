@@ -647,6 +647,15 @@ impl MetaFile {
         #[allow(unused_mut, reason = "It's used when stats are enabled")]
         let mut lookup_result = MetaBatchLookupResult::default();
         let start_index = cells.partition_point(|&(hash, _)| hash < range.min_hash);
+        if !is_last && start_index >= cells.len() {
+            // Every key hash is below the range: skip computing `end_index`. The last file can't
+            // return early, since it still has to report the misses.
+            #[cfg(feature = "stats")]
+            {
+                lookup_result.range_misses += 1;
+            }
+            return Ok(lookup_result);
+        }
         let end_index = cells.partition_point(|&(hash, _)| hash <= range.max_hash);
         if start_index >= end_index {
             #[cfg(feature = "stats")]
