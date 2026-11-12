@@ -1,0 +1,40 @@
+import { test, expect, vi } from 'vitest'
+import * as heldStatic from 'ws2-genuine-external-original'
+vi.mock('ws2-genuine-external-original', () => ({
+  value: 5,
+}))
+test('native cjs static and runtime unmock-first', async () => {
+  const before = await import('ws2-genuine-external-original')
+  vi.doUnmock('ws2-genuine-external-original')
+  const released = await import('ws2-genuine-external-original')
+  vi.resetModules()
+  const afterReset = await import('ws2-genuine-external-original')
+  vi.doUnmock('ws2-genuine-external-original')
+  const repeated = await import('ws2-genuine-external-original')
+  vi.doMock('ws2-genuine-external-original', () => ({
+    value: 73,
+  }))
+  const mocked = await import('ws2-genuine-external-original')
+  vi.doUnmock('ws2-genuine-external-original')
+  const final = await import('ws2-genuine-external-original')
+  {
+    const observed = {
+      beforeStatic: before === heldStatic,
+      staticValue: heldStatic.value,
+      mockedValue: mocked.value,
+      releasedValue: released.value ?? null,
+      releasedResetIdentity: released === afterReset,
+      repeatedIdentity: afterReset === repeated,
+      finalIdentity: final === repeated,
+    }
+    expect(observed.beforeStatic).toBe(true)
+    expect(observed.staticValue).toBe(5)
+    expect(observed.mockedValue).toBe(73)
+    expect(observed.releasedValue).toBe(19)
+    expect(observed.releasedResetIdentity).toBe(false)
+    expect(observed.repeatedIdentity).toBe(true)
+    expect(observed.finalIdentity).toBe(true)
+  }
+  expect(mocked.value).toBe(73)
+  expect(heldStatic.value).toBe(5)
+})

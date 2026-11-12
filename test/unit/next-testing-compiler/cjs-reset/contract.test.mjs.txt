@@ -1,0 +1,31 @@
+import { expect, test, vi } from 'vitest'
+function row(value) { console.log('WS2_CJS_RESET_RAW:' + JSON.stringify(value)) }
+
+test('resetModules preserves held CJS object and evaluates a fresh original', async () => {
+  const first = await import('./object.cjs')
+  const cached = await import('./object.cjs')
+  const returned = vi.resetModules()
+  const second = await import('./object.cjs')
+  const result = { name: 'object', cached: first === cached, namespaceChanged: first !== second, defaultChanged: first.default !== second.default, held: first.default.evaluation, fresh: second.default.evaluation, value: second.default.value, fluent: returned === vi }
+  row(result)
+  expect(result).toEqual({ name: 'object', cached: true, namespaceChanged: true, defaultChanged: true, held: 1, fresh: 2, value: 17, fluent: true })
+})
+
+test('resetModules keeps held callable CJS values while producing a fresh function', async () => {
+  const first = await import('./callable.cjs')
+  vi.resetModules()
+  const second = await import('./callable.cjs')
+  const result = { name: 'callable', changed: first.default !== second.default, held: first.default(), fresh: second.default() }
+  row(result)
+  expect(result).toEqual({ name: 'callable', changed: true, held: 1, fresh: 2 })
+})
+
+test('resetModules replaces a Promise-valued CJS default while held promises settle', async () => {
+  const first = await import('./promise.cjs')
+  const held = first.default
+  vi.resetModules()
+  const second = await import('./promise.cjs')
+  const result = { name: 'promise', namespaceChanged: first !== second, defaultChanged: held !== second.default, held: await held, fresh: await second.default, evaluations: globalThis.__ws2ResetPromise }
+  row(result)
+  expect(result).toEqual({ name: 'promise', namespaceChanged: true, defaultChanged: true, held: 'promise-1', fresh: 'promise-2', evaluations: 2 })
+})

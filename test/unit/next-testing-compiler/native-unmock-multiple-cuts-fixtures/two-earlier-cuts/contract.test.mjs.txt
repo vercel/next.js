@@ -1,0 +1,94 @@
+import { test, expect, vi } from 'vitest'
+
+vi.unmock('next-test-native-cycle2')
+vi.unmock('next-test-native-cycle2')
+vi.mock('next-test-native-cycle2', () => {
+  globalThis.__nativeCycle2Static = (globalThis.__nativeCycle2Static ?? 0) + 1
+  return {
+    value: 5,
+    phase: 'static-cycle',
+    fn(value) {
+      return ['static-cycle', value]
+    },
+  }
+})
+
+import * as staticCycle from 'next-test-native-cycle2'
+
+test('retains actual external CommonJS cycle across static runtime actual reset and unmock', async () => {
+  let calls = 0
+  let original
+  const before = await import('next-test-native-cycle2')
+  vi.doMock('next-test-native-cycle2', async (importOriginal) => {
+    calls++
+    original = await importOriginal()
+    return {
+      value: 73,
+      phase: 'runtime-cycle',
+      fn(value) {
+        return ['runtime-cycle', value]
+      },
+    }
+  })
+  const runtime = await import('next-test-native-cycle2')
+  const actual = await vi.importActual('next-test-native-cycle2')
+  vi.resetModules()
+  const afterReset = await import('next-test-native-cycle2')
+  const actualAfter = await vi.importActual('next-test-native-cycle2')
+  vi.doUnmock('next-test-native-cycle2')
+  const unmocked = await import('next-test-native-cycle2')
+
+  expect(before).toBe(staticCycle)
+  expect(afterReset).toBe(runtime)
+  expect(actualAfter).not.toBe(actual)
+  expect(unmocked).toBe(actualAfter)
+  expect(original).toBe(actual)
+  expect(staticCycle.value).toBe(5)
+  expect(staticCycle.phase).toBe('static-cycle')
+  expect(staticCycle.fn('static')).toEqual(['static-cycle', 'static'])
+  expect(Object.hasOwn(staticCycle, 'default')).toBe(false)
+  expect(new Set([staticCycle, runtime, actual, actualAfter]).size).toBe(4)
+
+  expect(runtime.value).toBe(73)
+  expect(runtime.phase).toBe('runtime-cycle')
+  expect(runtime.fn('runtime')).toEqual(['runtime-cycle', 'runtime'])
+  expect(Object.hasOwn(runtime, 'default')).toBe(false)
+  expect(afterReset.fn).toBe(runtime.fn)
+  expect(calls).toBe(1)
+
+  expect(actual.value).toBe(30)
+  expect(actual.phase).toBe('original-cycle')
+  expect(actualAfter.value).toBe(30)
+  expect(unmocked.value).toBe(30)
+  expect(actualAfter.default).toBe(actual.default)
+  expect(unmocked.default).toBe(actual.default)
+  expect(actualAfter.fn).toBe(actual.fn)
+  expect(unmocked.fn).toBe(actual.fn)
+  expect(actual.default.fn).toBe(actual.fn)
+  expect(actual.fn('namespace')).toEqual([
+    'original-cycle',
+    'namespace',
+    1,
+    true,
+  ])
+  expect(actual.default.fn('default')).toEqual([
+    'original-cycle',
+    'default',
+    1,
+    true,
+  ])
+
+  const dependency = actual.default.dependency
+  expect(dependency.root).toBe(actual.default)
+  expect(dependency.root.fn).toBe(actual.fn)
+  expect(dependency.rootHadFunctionDuringCycle).toBe(false)
+  expect(actual.default.evaluation).toBe(1)
+  expect(dependency.evaluation).toBe(1)
+  expect(globalThis.__nativeCycle2Root).toBe(1)
+  expect(globalThis.__nativeCycle2Dependency).toBe(1)
+  expect(globalThis.__nativeCycle2Static ?? 0).toBe(1)
+  for (const namespace of [staticCycle, runtime, actual]) {
+    expect(namespace.fn.name).toBe('fn')
+    expect(namespace.fn.length).toBe(1)
+  }
+})

@@ -1,0 +1,103 @@
+{
+  "names": [
+    "when matches deep, iterable and asymmetric arguments",
+    "when stacks once and times actions before their earlier fallback",
+    "when returns, resolves, throws and rejects exact configured values",
+    "when preserves default, custom and throwing unmatched behavior",
+    "when disposal restores the original mock implementation and ordinary resets still work",
+    "when uses the existing custom equality testers for argument matching"
+  ],
+  "rows": [
+    {
+      "label": "matching",
+      "value": {
+        "values": ["first", "deep", "asymmetric", "fallback"],
+        "sameBranch": true,
+        "chain": true,
+        "branch": true,
+        "plain": false,
+        "mock": false
+      }
+    },
+    {
+      "label": "limits",
+      "value": {
+        "values": ["once", "twice", "twice", "always", "always"],
+        "errors": [
+          {
+            "name": "RangeError",
+            "message": "vi.when: `times` option must be greater than 0"
+          },
+          {
+            "name": "RangeError",
+            "message": "vi.when: `times` option must be greater than 0"
+          }
+        ]
+      }
+    },
+    {
+      "label": "actions",
+      "value": {
+        "returned": true,
+        "resolved": true,
+        "thrown": true,
+        "rejected": true,
+        "afterResolve": "fallback",
+        "afterThrow": "fallback",
+        "afterReject": "fallback"
+      }
+    },
+    {
+      "label": "receivers",
+      "value": {
+        "before": {
+          "marker": "receiver",
+          "value": 1
+        },
+        "unmatched": {
+          "marker": null,
+          "value": 3
+        },
+        "matched": "matched",
+        "branchSame": true,
+        "detected": true
+      }
+    },
+    {
+      "label": "unmatched",
+      "value": {
+        "values": [100, 5, "a:b"],
+        "empty": true,
+        "customCalls": [["a", "b"]],
+        "error": {
+          "name": "Error",
+          "message": "vi.when: no behavior defined when called with [Object {\n  \"key\": 1,\n}, \"x\"]"
+        },
+        "notMock": {
+          "name": "TypeError",
+          "message": "vi.when: the argument must be a mock function created with `vi.fn()` or `vi.spyOn()`"
+        }
+      }
+    },
+    {
+      "label": "cleanup",
+      "value": {
+        "before": 100,
+        "after": 4,
+        "restoredIdentity": true,
+        "blankUndefined": true,
+        "afterClear": 7,
+        "afterReset": 6,
+        "spied": 12,
+        "restored": 8,
+        "methodRestored": true
+      }
+    },
+    {
+      "label": "testers",
+      "value": {
+        "value": "equal"
+      }
+    }
+  ]
+}

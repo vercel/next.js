@@ -1,0 +1,4 @@
+let value = 0
+export function next() {
+  return ++value
+}

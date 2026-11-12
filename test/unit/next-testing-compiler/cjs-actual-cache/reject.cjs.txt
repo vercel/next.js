@@ -1,0 +1,1 @@
+exports.then = function then(resolve, reject) { globalThis.__ws2RejectedThenCalls = (globalThis.__ws2RejectedThenCalls || 0) + 1; reject(globalThis.__ws2ThenFailure || (globalThis.__ws2ThenFailure = new Error('original then failure'))) }

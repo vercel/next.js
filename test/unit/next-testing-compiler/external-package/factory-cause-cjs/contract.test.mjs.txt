@@ -1,0 +1,37 @@
+import { test, expect, vi } from 'vitest'
+
+test('retries failed CommonJS mock factories with fresh wrappers and the original cause', async () => {
+  const cause = new Error('raw cjs failure')
+  let calls = 0
+  vi.doMock('ws2-genuine-external-original', () => {
+    calls++
+    throw cause
+  })
+
+  const first = await import('ws2-genuine-external-original').catch(
+    (error) => error
+  )
+  expect(calls).toBe(1)
+  expect(first).not.toBe(cause)
+  expect(first.name).toBe('Error')
+  expect(first.message).toMatch(/error when mocking a module/)
+  expect(first.cause).toBe(cause)
+
+  const second = await import('ws2-genuine-external-original').catch(
+    (error) => error
+  )
+  expect(calls).toBe(2)
+  expect(second).not.toBe(first)
+  expect(second.cause).toBe(cause)
+  expect(second.message).toBe(first.message)
+
+  vi.resetModules()
+  const third = await import('ws2-genuine-external-original').catch(
+    (error) => error
+  )
+  expect(calls).toBe(3)
+  expect(third).not.toBe(first)
+  expect(third).not.toBe(second)
+  expect(third.cause).toBe(cause)
+  expect(third.message).toBe(first.message)
+})

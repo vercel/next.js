@@ -1,0 +1,52 @@
+import { test, expect, vi } from 'vitest'
+
+vi.mock('next-test-native-helpers-cjs', () => ({ value: 5, phase: 'static' }))
+import * as staticNamespace from 'next-test-native-helpers-cjs'
+
+test('native cjs static runtime actual reset and unmock composition', async () => {
+  let calls = 0
+  let original
+  const before = await import('next-test-native-helpers-cjs')
+  vi.doMock('next-test-native-helpers-cjs', async (importOriginal) => {
+    calls++
+    original = await importOriginal()
+    return { value: 73, phase: 'runtime', actualValue: original.value }
+  })
+  const runtime = await import('next-test-native-helpers-cjs')
+  const actual = await vi.importActual('next-test-native-helpers-cjs')
+  vi.resetModules()
+  const afterReset = await import('next-test-native-helpers-cjs')
+  const actualAfter = await vi.importActual('next-test-native-helpers-cjs')
+  vi.doUnmock('next-test-native-helpers-cjs')
+  const afterUnmock = await import('next-test-native-helpers-cjs')
+
+  const values = [
+    staticNamespace,
+    before,
+    runtime,
+    actual,
+    afterReset,
+    actualAfter,
+    afterUnmock,
+  ]
+  expect(values.map((value) => value.value)).toEqual([5, 5, 73, 20, 73, 20, 20])
+  expect(values.map((value) => value.phase)).toEqual([
+    'static',
+    'static',
+    'runtime',
+    'actual',
+    'runtime',
+    'actual',
+    'actual',
+  ])
+  expect(before).toBe(staticNamespace)
+  expect(afterReset).toBe(runtime)
+  expect(original).toBe(actual)
+  expect(afterUnmock).toBe(actualAfter)
+  expect(actualAfter).not.toBe(actual)
+  expect(actualAfter.default).toBe(actual.default)
+  expect(new Set(values).size).toBe(4)
+  expect(runtime.actualValue).toBe(20)
+  expect(calls).toBe(1)
+  expect(globalThis.__nativeHelpers300_cjs).toBe(1)
+})

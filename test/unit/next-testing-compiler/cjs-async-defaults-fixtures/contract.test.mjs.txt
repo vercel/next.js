@@ -1,0 +1,173 @@
+import { test, expect, vi } from 'vitest'
+import { form, family } from './form.mjs'
+
+const kind = form.split(':')[0]
+const role = form.split(':')[1]
+const arrow = family === 'arrow' || role.startsWith('arrow')
+const recursive = form.endsWith(':binding-recursive')
+const generator = kind.includes('generator')
+const bodyScope = form.includes('body-scope')
+const selfDefault = form.endsWith('-self')
+const literal = form.endsWith(':literal')
+const defaultCount = () => globalThis.__cjsNamedShorthandDefaults ?? 0
+const rootCount = () => globalThis.__cjsNamedShorthandRoot ?? 0
+const originalName = arrow || role.startsWith('anonymous') ? '' : 'callable'
+const originalLength = family === 'whole-array' ? 0 : 1
+
+function argument(value, empty = false) {
+  if (family === 'array' || family === 'whole-array')
+    return empty ? [] : [value]
+  return empty ? {} : { value }
+}
+
+function assertCallable(raw, held = false) {
+  expect(typeof raw).toBe('function')
+  expect(raw.name).toBe(held ? 'owned-renamed-callable' : originalName)
+  expect(raw.length).toBe(held ? 7 : originalLength)
+  for (const key of ['name', 'length']) {
+    expect(Object.getOwnPropertyDescriptor(raw, key)).toMatchObject({
+      writable: false,
+      enumerable: false,
+      configurable: true,
+    })
+  }
+  expect(Object.hasOwn(raw, 'prototype')).toBe(!arrow && kind !== 'async')
+  if (!arrow && kind === 'sync') expect(raw.prototype.constructor).toBe(raw)
+}
+
+async function assertValue(raw, evaluation, args, value, useDefault) {
+  const before = defaultCount()
+  const receiver = { receiver: 'authored', current: raw }
+  const result = raw.apply(receiver, args)
+  const expected = literal
+    ? value
+    : {
+        evaluation,
+        dependency: 'dependency-1',
+        valueType: typeof value,
+        value: typeof value === 'function' ? value.name : value,
+        receiver: arrow || recursive ? null : 'authored',
+        valueIsCurrent: value === raw && !arrow && !recursive,
+      }
+  if (generator) {
+    const iterator =
+      kind === 'async-generator' ? Symbol.asyncIterator : Symbol.iterator
+    expect(result[iterator]()).toBe(result)
+    expect(await result.next()).toEqual({ value: expected, done: false })
+    expect(await result.next()).toEqual({
+      value: { returned: true, evaluation },
+      done: true,
+    })
+  } else {
+    expect(await result).toEqual(expected)
+  }
+  expect(defaultCount()).toBe(
+    before + (useDefault && !selfDefault && !literal ? 1 : 0)
+  )
+}
+
+async function assertFailure(raw, args, errorType) {
+  const before = defaultCount()
+  const call = () => raw.apply({ receiver: 'authored', current: raw }, args)
+  if (kind === 'async') {
+    await expect(call()).rejects.toMatchObject({ name: errorType.name })
+  } else {
+    let failure
+    try {
+      call()
+    } catch (error) {
+      failure = error
+    }
+    expect(failure).toMatchObject({ name: errorType.name })
+  }
+  expect(defaultCount()).toBe(before)
+}
+
+async function assertParameters(raw, evaluation, held = false) {
+  assertCallable(raw, held)
+  const defaultValue = selfDefault
+    ? raw
+    : literal
+      ? 1
+      : `dependency-1@${evaluation}`
+  for (const args of [[argument(undefined, true)], [argument(undefined)]]) {
+    if (bodyScope) await assertFailure(raw, args, ReferenceError)
+    else await assertValue(raw, evaluation, args, defaultValue, true)
+  }
+  if (family === 'whole-array') {
+    await assertValue(raw, evaluation, [], defaultValue, true)
+    await assertValue(raw, evaluation, [undefined], defaultValue, true)
+  }
+  await assertValue(raw, evaluation, [argument(0)], 0, false)
+  await assertValue(raw, evaluation, [argument(null)], null, false)
+  await assertFailure(raw, [null], TypeError)
+  expect(globalThis.__cjsNamedShorthandDependency).toBe(1)
+}
+
+test('caches functions until module reset', async () => {
+  const before = rootCount()
+  vi.resetModules()
+  const first = await import('./root.cjs')
+  const cached = await import('./root.cjs')
+  expect(cached).toBe(first)
+  expect(cached.default).toBe(first.default)
+  expect(rootCount()).toBe(before + 1)
+  vi.resetModules()
+  const fresh = await import('./root.cjs')
+  expect(fresh).not.toBe(first)
+  expect(fresh.default).not.toBe(first.default)
+  expect(rootCount()).toBe(before + 2)
+  await assertParameters(first.default, before + 1)
+  await assertParameters(cached.default, before + 1)
+  await assertParameters(fresh.default, before + 2)
+})
+
+test('shares actual and ordinary imports until reset', async () => {
+  const before = rootCount()
+  vi.resetModules()
+  const first = await vi.importActual('./root.cjs')
+  const ordinary = await import('./root.cjs')
+  const again = await vi.importActual('./root.cjs')
+  expect(ordinary).toBe(first)
+  expect(again).toBe(first)
+  expect(ordinary.default).toBe(first.default)
+  expect(again.default).toBe(first.default)
+  expect(rootCount()).toBe(before + 1)
+  vi.resetModules()
+  const fresh = await vi.importActual('./root.cjs')
+  expect(fresh).not.toBe(first)
+  expect(fresh.default).not.toBe(first.default)
+  expect(rootCount()).toBe(before + 2)
+  for (const value of [first, ordinary, again])
+    await assertParameters(value.default, before + 1)
+  await assertParameters(fresh.default, before + 2)
+})
+
+test('retains held functions and restores fresh function properties', async () => {
+  const before = rootCount()
+  vi.resetModules()
+  const first = await import('./root.cjs')
+  const raw = first.default
+  const extra = { held: true }
+  raw.extra = extra
+  Object.defineProperty(raw, 'name', {
+    value: 'owned-renamed-callable',
+    configurable: true,
+  })
+  Object.defineProperty(raw, 'length', { value: 7, configurable: true })
+  if (raw.prototype !== undefined) raw.prototype.ownedPrototype = 'held'
+  await assertParameters(raw, before + 1, true)
+  vi.resetModules()
+  const fresh = await import('./root.cjs')
+  expect(rootCount()).toBe(before + 2)
+  expect(first.default).toBe(raw)
+  expect(raw.extra).toBe(extra)
+  expect(fresh.default).not.toBe(raw)
+  expect(Object.hasOwn(fresh.default, 'extra')).toBe(false)
+  if (raw.prototype !== undefined) {
+    expect(raw.prototype.ownedPrototype).toBe('held')
+    expect(Object.hasOwn(fresh.default.prototype, 'ownedPrototype')).toBe(false)
+  }
+  await assertParameters(raw, before + 1, true)
+  await assertParameters(fresh.default, before + 2)
+})

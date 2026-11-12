@@ -1,0 +1,3 @@
+const key = Symbol.for('next-test-reset-utility-identity-counter')
+export const ordinal = (globalThis[key] ?? 0) + 1
+globalThis[key] = ordinal

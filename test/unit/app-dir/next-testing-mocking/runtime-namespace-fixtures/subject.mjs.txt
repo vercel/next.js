@@ -1,0 +1,2 @@
+export const value = 'actual'
+export default { actual: true }
