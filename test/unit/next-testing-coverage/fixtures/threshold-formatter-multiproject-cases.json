@@ -1,0 +1,250 @@
+{
+  "rows": [
+    {
+      "name": "development-root-two",
+      "mode": "development",
+      "projects": 2,
+      "configTemplate": "import {appendFileSync} from 'node:fs'\nlet calls = 0\nexport default { test: { projects: [{\"test\":{\"name\":\"project-a\",\"mode\":\"development\",\"include\":[\"contract.test.mjs\"]}},{\"test\":{\"name\":\"project-b\",\"mode\":\"development\",\"include\":[\"contract.test.mjs\"]}}], maxWorkers: 1, fileParallelism: false, coverage: { enabled: true, provider: 'v8', include: [\"subject.mjs\"], reporter: ['json','json-summary','lcovonly'], reportsDirectory: 'coverage', thresholds: { \"lines\": 0, \"functions\": 0, \"statements\": 0, \"branches\": 0, autoUpdate: function(value, previous) { calls++; appendFileSync('<OUTPUT_DIR>/trace.jsonl', JSON.stringify({calls,value,previous,receiver:this===undefined})+'\\n'); return Math.floor(value*10)/10 } } } } }\n",
+      "status": 0,
+      "after": "import {appendFileSync} from 'node:fs'\nlet calls = 0\nexport default { test: { projects: [{\"test\":{\"name\":\"project-a\",\"mode\":\"development\",\"include\":[\"contract.test.mjs\"]}},{\"test\":{\"name\":\"project-b\",\"mode\":\"development\",\"include\":[\"contract.test.mjs\"]}}], maxWorkers: 1, fileParallelism: false, coverage: { enabled: true, provider: 'v8', include: [\"subject.mjs\"], reporter: ['json','json-summary','lcovonly'], reportsDirectory: 'coverage', thresholds: { \"lines\": 33.3, \"functions\": 50, \"statements\": 50, \"branches\": 50, autoUpdate: function(value, previous) { calls++; appendFileSync('<output>/trace.jsonl', JSON.stringify({calls,value,previous,receiver:this===undefined})+'\\n'); return Math.floor(value*10)/10 } } } } }\n",
+      "trace": [
+        {
+          "calls": 1,
+          "value": 33.33,
+          "previous": 0,
+          "receiver": true
+        },
+        {
+          "calls": 2,
+          "value": 50,
+          "previous": 0,
+          "receiver": true
+        },
+        {
+          "calls": 3,
+          "value": 50,
+          "previous": 0,
+          "receiver": true
+        },
+        {
+          "calls": 4,
+          "value": 50,
+          "previous": 0,
+          "receiver": true
+        }
+      ],
+      "coverageFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ],
+      "passed": 2,
+      "sourceFiles": {
+        "contract.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('each inherited project owns its case',()=>{expect(process.env.NODE_ENV).toBe('development');expect(choose(true)).toBe(1)})\n"
+        },
+        "subject.mjs": {
+          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n"
+        }
+      }
+    },
+    {
+      "name": "development-root-three-glob",
+      "mode": "development",
+      "projects": 3,
+      "configTemplate": "import {appendFileSync} from 'node:fs'\nlet calls = 0\nexport default { test: { projects: [{\"test\":{\"name\":\"project-a\",\"mode\":\"development\",\"include\":[\"contract.test.mjs\"]}},{\"test\":{\"name\":\"project-b\",\"mode\":\"development\",\"include\":[\"contract.test.mjs\"]}},{\"test\":{\"name\":\"project-c\",\"mode\":\"development\",\"include\":[\"contract.test.mjs\"]}}], maxWorkers: 1, fileParallelism: false, coverage: { enabled: true, provider: 'v8', include: [\"subject.mjs\",\"unimported.mjs\"], reporter: ['json','json-summary','lcovonly'], reportsDirectory: 'coverage', thresholds: { \"lines\": -20, \"functions\": -20, \"statements\": -20, \"branches\": -20, \"subject.mjs\": {\"lines\":0,\"functions\":0,\"statements\":0,\"branches\":0}, autoUpdate: function(value, previous) { calls++; appendFileSync('<OUTPUT_DIR>/trace.jsonl', JSON.stringify({calls,value,previous,receiver:this===undefined})+'\\n'); return Math.floor(value*10)/10 } } } } }\n",
+      "status": 0,
+      "after": "import {appendFileSync} from 'node:fs'\nlet calls = 0\nexport default { test: { projects: [{\"test\":{\"name\":\"project-a\",\"mode\":\"development\",\"include\":[\"contract.test.mjs\"]}},{\"test\":{\"name\":\"project-b\",\"mode\":\"development\",\"include\":[\"contract.test.mjs\"]}},{\"test\":{\"name\":\"project-c\",\"mode\":\"development\",\"include\":[\"contract.test.mjs\"]}}], maxWorkers: 1, fileParallelism: false, coverage: { enabled: true, provider: 'v8', include: [\"subject.mjs\",\"unimported.mjs\"], reporter: ['json','json-summary','lcovonly'], reportsDirectory: 'coverage', thresholds: { \"lines\": -5, \"functions\": -3, \"statements\": -6, \"branches\": -3, \"subject.mjs\": {\"lines\":33.3,\"functions\":50,\"statements\":50,\"branches\":50}, autoUpdate: function(value, previous) { calls++; appendFileSync('<output>/trace.jsonl', JSON.stringify({calls,value,previous,receiver:this===undefined})+'\\n'); return Math.floor(value*10)/10 } } } } }\n",
+      "trace": [
+        {
+          "calls": 1,
+          "value": -5,
+          "previous": -20,
+          "receiver": true
+        },
+        {
+          "calls": 2,
+          "value": -3,
+          "previous": -20,
+          "receiver": true
+        },
+        {
+          "calls": 3,
+          "value": -6,
+          "previous": -20,
+          "receiver": true
+        },
+        {
+          "calls": 4,
+          "value": -3,
+          "previous": -20,
+          "receiver": true
+        },
+        {
+          "calls": 5,
+          "value": 33.33,
+          "previous": 0,
+          "receiver": true
+        },
+        {
+          "calls": 6,
+          "value": 50,
+          "previous": 0,
+          "receiver": true
+        },
+        {
+          "calls": 7,
+          "value": 50,
+          "previous": 0,
+          "receiver": true
+        },
+        {
+          "calls": 8,
+          "value": 50,
+          "previous": 0,
+          "receiver": true
+        }
+      ],
+      "coverageFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ],
+      "passed": 3,
+      "sourceFiles": {
+        "contract.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('each inherited project owns its case',()=>{expect(process.env.NODE_ENV).toBe('development');expect(choose(true)).toBe(1)})\n"
+        },
+        "subject.mjs": {
+          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n"
+        },
+        "unimported.mjs": {
+          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n"
+        }
+      }
+    },
+    {
+      "name": "production-root-two",
+      "mode": "production",
+      "projects": 2,
+      "configTemplate": "import {appendFileSync} from 'node:fs'\nlet calls = 0\nexport default { test: { projects: [{\"test\":{\"name\":\"project-a\",\"mode\":\"production\",\"include\":[\"contract.test.mjs\"]}},{\"test\":{\"name\":\"project-b\",\"mode\":\"production\",\"include\":[\"contract.test.mjs\"]}}], maxWorkers: 1, fileParallelism: false, coverage: { enabled: true, provider: 'v8', include: [\"subject.mjs\"], reporter: ['json','json-summary','lcovonly'], reportsDirectory: 'coverage', thresholds: { \"lines\": 0, \"functions\": 0, \"statements\": 0, \"branches\": 0, autoUpdate: function(value, previous) { calls++; appendFileSync('<OUTPUT_DIR>/trace.jsonl', JSON.stringify({calls,value,previous,receiver:this===undefined})+'\\n'); return Math.floor(value*10)/10 } } } } }\n",
+      "status": 0,
+      "after": "import {appendFileSync} from 'node:fs'\nlet calls = 0\nexport default { test: { projects: [{\"test\":{\"name\":\"project-a\",\"mode\":\"production\",\"include\":[\"contract.test.mjs\"]}},{\"test\":{\"name\":\"project-b\",\"mode\":\"production\",\"include\":[\"contract.test.mjs\"]}}], maxWorkers: 1, fileParallelism: false, coverage: { enabled: true, provider: 'v8', include: [\"subject.mjs\"], reporter: ['json','json-summary','lcovonly'], reportsDirectory: 'coverage', thresholds: { \"lines\": 33.3, \"functions\": 50, \"statements\": 50, \"branches\": 50, autoUpdate: function(value, previous) { calls++; appendFileSync('<output>/trace.jsonl', JSON.stringify({calls,value,previous,receiver:this===undefined})+'\\n'); return Math.floor(value*10)/10 } } } } }\n",
+      "trace": [
+        {
+          "calls": 1,
+          "value": 33.33,
+          "previous": 0,
+          "receiver": true
+        },
+        {
+          "calls": 2,
+          "value": 50,
+          "previous": 0,
+          "receiver": true
+        },
+        {
+          "calls": 3,
+          "value": 50,
+          "previous": 0,
+          "receiver": true
+        },
+        {
+          "calls": 4,
+          "value": 50,
+          "previous": 0,
+          "receiver": true
+        }
+      ],
+      "coverageFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ],
+      "passed": 2,
+      "sourceFiles": {
+        "contract.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('each inherited project owns its case',()=>{expect(process.env.NODE_ENV).toBe('production');expect(choose(true)).toBe(1)})\n"
+        },
+        "subject.mjs": {
+          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n"
+        }
+      }
+    },
+    {
+      "name": "production-root-three-glob",
+      "mode": "production",
+      "projects": 3,
+      "configTemplate": "import {appendFileSync} from 'node:fs'\nlet calls = 0\nexport default { test: { projects: [{\"test\":{\"name\":\"project-a\",\"mode\":\"production\",\"include\":[\"contract.test.mjs\"]}},{\"test\":{\"name\":\"project-b\",\"mode\":\"production\",\"include\":[\"contract.test.mjs\"]}},{\"test\":{\"name\":\"project-c\",\"mode\":\"production\",\"include\":[\"contract.test.mjs\"]}}], maxWorkers: 1, fileParallelism: false, coverage: { enabled: true, provider: 'v8', include: [\"subject.mjs\",\"unimported.mjs\"], reporter: ['json','json-summary','lcovonly'], reportsDirectory: 'coverage', thresholds: { \"lines\": -20, \"functions\": -20, \"statements\": -20, \"branches\": -20, \"subject.mjs\": {\"lines\":0,\"functions\":0,\"statements\":0,\"branches\":0}, autoUpdate: function(value, previous) { calls++; appendFileSync('<OUTPUT_DIR>/trace.jsonl', JSON.stringify({calls,value,previous,receiver:this===undefined})+'\\n'); return Math.floor(value*10)/10 } } } } }\n",
+      "status": 0,
+      "after": "import {appendFileSync} from 'node:fs'\nlet calls = 0\nexport default { test: { projects: [{\"test\":{\"name\":\"project-a\",\"mode\":\"production\",\"include\":[\"contract.test.mjs\"]}},{\"test\":{\"name\":\"project-b\",\"mode\":\"production\",\"include\":[\"contract.test.mjs\"]}},{\"test\":{\"name\":\"project-c\",\"mode\":\"production\",\"include\":[\"contract.test.mjs\"]}}], maxWorkers: 1, fileParallelism: false, coverage: { enabled: true, provider: 'v8', include: [\"subject.mjs\",\"unimported.mjs\"], reporter: ['json','json-summary','lcovonly'], reportsDirectory: 'coverage', thresholds: { \"lines\": -5, \"functions\": -3, \"statements\": -6, \"branches\": -3, \"subject.mjs\": {\"lines\":33.3,\"functions\":50,\"statements\":50,\"branches\":50}, autoUpdate: function(value, previous) { calls++; appendFileSync('<output>/trace.jsonl', JSON.stringify({calls,value,previous,receiver:this===undefined})+'\\n'); return Math.floor(value*10)/10 } } } } }\n",
+      "trace": [
+        {
+          "calls": 1,
+          "value": -5,
+          "previous": -20,
+          "receiver": true
+        },
+        {
+          "calls": 2,
+          "value": -3,
+          "previous": -20,
+          "receiver": true
+        },
+        {
+          "calls": 3,
+          "value": -6,
+          "previous": -20,
+          "receiver": true
+        },
+        {
+          "calls": 4,
+          "value": -3,
+          "previous": -20,
+          "receiver": true
+        },
+        {
+          "calls": 5,
+          "value": 33.33,
+          "previous": 0,
+          "receiver": true
+        },
+        {
+          "calls": 6,
+          "value": 50,
+          "previous": 0,
+          "receiver": true
+        },
+        {
+          "calls": 7,
+          "value": 50,
+          "previous": 0,
+          "receiver": true
+        },
+        {
+          "calls": 8,
+          "value": 50,
+          "previous": 0,
+          "receiver": true
+        }
+      ],
+      "coverageFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ],
+      "passed": 3,
+      "sourceFiles": {
+        "contract.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('each inherited project owns its case',()=>{expect(process.env.NODE_ENV).toBe('production');expect(choose(true)).toBe(1)})\n"
+        },
+        "subject.mjs": {
+          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n"
+        },
+        "unimported.mjs": {
+          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n"
+        }
+      }
+    }
+  ]
+}

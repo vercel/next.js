@@ -1,0 +1,4 @@
+/** @jsxRuntime classic */
+import React from 'react'
+export const View = function ViewBody(props: {label:string}) { const {label} = props; return <b>{label}</b> }
+export const Unused = () => <i />

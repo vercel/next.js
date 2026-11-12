@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///Users/timneutkens/projects/next-testing-inventory-update/.next-test-real-jsx-creator-coverage-WeJjuU/subject.jsx"],"sourcesContent":["import React from 'react'\n\nexport function createSubject(value) {\n  const pending = new Promise((resolve) => resolve(value ? 'selected' : 'other'))\n  const request = fetch('data:text/plain,creator-coverage')\n  const element = <span>{value ? 'selected' : 'other'}</span>\n  return { element, pending, request }\n}\n"],"names":["createSubject","value","pending","Promise","resolve","request","fetch","element"],"mappings":"A;;;;;;AAAA;;;;AAEO,SAASA,cAAcC,KAAK;IACjC,MAAMC,UAAU,4OAAIC,SAAQ,CAACC,UAAYA,QAAQH,QAAQ,aAAa;IACtE,MAAMI,UAAUC,mOAAAA,OAAM;IACtB,MAAMC,wBAAU,+PAAC,QAAD;kBAAON,QAAQ,aAAa;IAAc;;;;;IAC1D,OAAO;QAAEM;QAASL;QAASG;IAAQ;AACrC"}}]
+}

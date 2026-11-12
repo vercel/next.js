@@ -1,0 +1,10 @@
+/** @jsxRuntime classic */
+/** @jsx h */
+/** @jsxFrag Frag */
+import { createElement as h, Fragment as Frag } from 'react'
+type Input = { active: boolean; label: string }
+function Badge({label}: {label:string}) { return <b>{label}</b> }
+export function Card({ active, label }: Input) {
+  return <section>{active ? <Badge label={label} /> : <Badge label="fallback" />}</section>
+}
+export const Unused = () => <i />

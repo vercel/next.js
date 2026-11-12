@@ -1,0 +1,60 @@
+{
+  "subject.ts": {
+    "$coverage": "range-tuples-v1",
+    "path": "subject.ts",
+    "statements": {
+      "0": [1, 23, 1, null],
+      "1": [2, 41, 2, 59],
+      "2": [4, 32, 4, 63],
+      "3": [6, 50, 6, 83]
+    },
+    "functions": {
+      "0": {
+        "name": "prefix",
+        "decl": [2, 9, 2, 16],
+        "loc": [2, 39, 2, null],
+        "line": 2
+      },
+      "1": {
+        "name": "read",
+        "decl": [4, 2, 4, 7],
+        "loc": [4, 30, 4, null],
+        "line": 4
+      },
+      "2": {
+        "name": "exercise",
+        "decl": [6, 16, 6, 25],
+        "loc": [6, 48, 6, null],
+        "line": 6
+      }
+    },
+    "branches": {},
+    "s": {
+      "0": 1,
+      "1": 2,
+      "2": 2,
+      "3": 2
+    },
+    "f": {
+      "0": 2,
+      "1": 2,
+      "2": 2
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 3,
+      "lastStatement": 4,
+      "seen": {
+        "s:1:23:1:Infinity": 0,
+        "f:2:9:2:16": 0,
+        "s:2:41:2:59": 1,
+        "f:4:2:4:7": 1,
+        "s:4:32:4:63": 2,
+        "f:6:16:6:25": 2,
+        "s:6:50:6:83": 3
+      },
+      "fnNames": {}
+    }
+  }
+}

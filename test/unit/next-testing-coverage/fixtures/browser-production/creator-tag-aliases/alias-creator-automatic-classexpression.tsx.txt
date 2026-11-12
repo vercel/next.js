@@ -1,0 +1,7 @@
+import React from 'react'
+type Input = { active: boolean; label: string }
+const ViewShell = class SpecificBody extends React.Component<{label:string}> { render(){ return <b>{this.props.label}</b> } }
+export function MakeCard({ active, label }: Input) {
+  return <section>{active ? <ViewShell label={label} /> : <ViewShell label="fallback" />}</section>
+}
+export const Unused = () => <i />

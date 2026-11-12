@@ -1,0 +1,4 @@
+import { test, expect } from 'vitest'
+import { choose, double } from './subject.js'
+test('branch', () => expect(choose(2)).toBe(3))
+test('arrow', () => expect(double(4)).toBe(8))

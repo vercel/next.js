@@ -1,0 +1,1464 @@
+{
+  "counters": {
+    "fully.mjs": {
+      "s": {
+        "0": 1
+      },
+      "f": {
+        "0": 1
+      },
+      "b": {}
+    },
+    "subject.mjs": {
+      "s": {
+        "0": 1,
+        "1": 1,
+        "2": 0,
+        "3": 0
+      },
+      "f": {
+        "0": 1,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 0]
+      }
+    },
+    "unimported.mjs": {
+      "s": {
+        "0": 0,
+        "1": 0,
+        "2": 0,
+        "3": 0
+      },
+      "f": {
+        "0": 0,
+        "1": 0
+      },
+      "b": {
+        "0": [0, 0]
+      }
+    }
+  },
+  "rows": [
+    {
+      "name": "disabled",
+      "profile": {
+        "name": "disabled",
+        "thresholds": {
+          "autoUpdate": false,
+          "lines": 0,
+          "functions": 0,
+          "statements": 0,
+          "branches": 0
+        }
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": false,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": false,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": false,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": false,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "global",
+      "profile": {
+        "name": "global",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 0,
+          "functions": 0,
+          "statements": 0,
+          "branches": 0
+        }
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 28.57,\n        \"functions\": 40,\n        \"statements\": 33.33,\n        \"branches\": 25\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [
+        {
+          "metric": "lines",
+          "previous": 0,
+          "value": 28.57
+        },
+        {
+          "metric": "functions",
+          "previous": 0,
+          "value": 40
+        },
+        {
+          "metric": "statements",
+          "previous": 0,
+          "value": 33.33
+        },
+        {
+          "metric": "branches",
+          "previous": 0,
+          "value": 25
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "unchanged",
+      "profile": {
+        "name": "unchanged",
+        "thresholds": {
+          "autoUpdate": true
+        }
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": false,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": false,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "per-file-minimum",
+      "profile": {
+        "name": "per-file-minimum",
+        "thresholds": {
+          "autoUpdate": true,
+          "perFile": true,
+          "lines": 0,
+          "functions": 0,
+          "statements": 0,
+          "branches": 0
+        }
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"perFile\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"perFile\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": false,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": false,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "negative",
+      "profile": {
+        "name": "negative",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": -20,
+          "functions": -20,
+          "statements": -20,
+          "branches": -20
+        }
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": -20,\n        \"functions\": -20,\n        \"statements\": -20,\n        \"branches\": -20\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": -5,\n        \"functions\": -3,\n        \"statements\": -6,\n        \"branches\": -3\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [
+        {
+          "metric": "lines",
+          "previous": -20,
+          "value": -5
+        },
+        {
+          "metric": "functions",
+          "previous": -20,
+          "value": -3
+        },
+        {
+          "metric": "statements",
+          "previous": -20,
+          "value": -6
+        },
+        {
+          "metric": "branches",
+          "previous": -20,
+          "value": -3
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "negative-zero",
+      "profile": {
+        "name": "negative-zero",
+        "thresholds": {
+          "autoUpdate": true,
+          "fully.mjs": {
+            "lines": -20,
+            "functions": -20,
+            "statements": -20,
+            "branches": -20
+          }
+        }
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"fully.mjs\": {\n          \"lines\": -20,\n          \"functions\": -20,\n          \"statements\": -20,\n          \"branches\": -20\n        }\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"fully.mjs\": {\n          \"lines\": 100,\n          \"functions\": 100,\n          \"statements\": 100,\n          \"branches\": 100\n        }\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [
+        {
+          "metric": "lines",
+          "previous": -20,
+          "value": 100,
+          "pattern": "fully.mjs"
+        },
+        {
+          "metric": "functions",
+          "previous": -20,
+          "value": 100,
+          "pattern": "fully.mjs"
+        },
+        {
+          "metric": "statements",
+          "previous": -20,
+          "value": 100,
+          "pattern": "fully.mjs"
+        },
+        {
+          "metric": "branches",
+          "previous": -20,
+          "value": 100,
+          "pattern": "fully.mjs"
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "overlapping-globs",
+      "profile": {
+        "name": "overlapping-globs",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 0,
+          "subject.mjs": {
+            "lines": 0
+          },
+          "*.mjs": {
+            "functions": 0
+          }
+        }
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n        \"subject.mjs\": {\n          \"lines\": 0\n        },\n        \"*.mjs\": {\n          \"functions\": 0\n        }\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 28.57,\n        \"subject.mjs\": {\n          \"lines\": 33.33\n        },\n        \"*.mjs\": {\n          \"functions\": 40\n        }\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [
+        {
+          "metric": "lines",
+          "previous": 0,
+          "value": 28.57
+        },
+        {
+          "metric": "lines",
+          "previous": 0,
+          "value": 33.33,
+          "pattern": "subject.mjs"
+        },
+        {
+          "metric": "functions",
+          "previous": 0,
+          "value": 40,
+          "pattern": "*.mjs"
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "empty-per-file",
+      "profile": {
+        "name": "empty-per-file",
+        "thresholds": {
+          "autoUpdate": true,
+          "absent*.mjs": {
+            "perFile": true,
+            "functions": 0
+          }
+        }
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"absent*.mjs\": {\n          \"perFile\": true,\n          \"functions\": 0\n        }\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"absent*.mjs\": {\n          \"perFile\": true,\n          \"functions\": 0\n        }\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": false,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": false,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "threshold-failure",
+      "profile": {
+        "name": "threshold-failure",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 100,
+          "functions": 0
+        }
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 100,\n        \"functions\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 100,\n        \"functions\": 40\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 1,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [
+        {
+          "metric": "functions",
+          "previous": 0,
+          "value": 40
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": [
+        "ERROR: Coverage for lines (28.57%) does not meet global threshold (100%)"
+      ]
+    },
+    {
+      "name": "cli-enable",
+      "profile": {
+        "name": "cli-enable",
+        "thresholds": {
+          "autoUpdate": false,
+          "lines": 0
+        },
+        "flags": ["--coverage.thresholds.autoUpdate=true"]
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": false,\n        \"lines\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": false,\n        \"lines\": 28.57\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [
+        {
+          "metric": "lines",
+          "previous": 0,
+          "value": 28.57
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "cli-disable",
+      "profile": {
+        "name": "cli-disable",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 0
+        },
+        "flags": ["--coverage.thresholds.autoUpdate=false"]
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": false,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": false,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "cli-add-metric",
+      "profile": {
+        "name": "cli-add-metric",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 0
+        },
+        "flags": ["--coverage.thresholds.functions=0"]
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 28.57,\n        functions: 40\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [
+        {
+          "metric": "lines",
+          "previous": 0,
+          "value": 28.57
+        },
+        {
+          "metric": "functions",
+          "previous": 0,
+          "value": 40
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "cli-100",
+      "profile": {
+        "name": "cli-100",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 0
+        },
+        "flags": ["--coverage.thresholds.100=true"]
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": false,
+      "exitCode": 1,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": false,
+      "error": null,
+      "thresholdErrors": [
+        "ERROR: Coverage for lines (28.57%) does not meet global threshold (100%)",
+        "ERROR: Coverage for functions (40%) does not meet global threshold (100%)",
+        "ERROR: Coverage for statements (33.33%) does not meet global threshold (100%)",
+        "ERROR: Coverage for branches (25%) does not meet global threshold (100%)"
+      ]
+    },
+    {
+      "name": "cli-100-then-update",
+      "profile": {
+        "name": "cli-100-then-update",
+        "thresholds": {
+          "autoUpdate": false,
+          "lines": 0
+        },
+        "flags": [
+          "--coverage.thresholds.100=true",
+          "--coverage.thresholds.autoUpdate=true"
+        ]
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": false,\n        \"lines\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": false,\n        \"lines\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": false,
+      "exitCode": 1,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": false,
+      "error": null,
+      "thresholdErrors": [
+        "ERROR: Coverage for lines (28.57%) does not meet global threshold (100%)",
+        "ERROR: Coverage for functions (40%) does not meet global threshold (100%)",
+        "ERROR: Coverage for statements (33.33%) does not meet global threshold (100%)",
+        "ERROR: Coverage for branches (25%) does not meet global threshold (100%)"
+      ]
+    },
+    {
+      "name": "cli-update-then-100",
+      "profile": {
+        "name": "cli-update-then-100",
+        "thresholds": {
+          "autoUpdate": false,
+          "lines": 0
+        },
+        "flags": [
+          "--coverage.thresholds.autoUpdate=true",
+          "--coverage.thresholds.100=true"
+        ]
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": false,\n        \"lines\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": false,\n        \"lines\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": false,
+      "exitCode": 1,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": false,
+      "error": null,
+      "thresholdErrors": [
+        "ERROR: Coverage for lines (28.57%) does not meet global threshold (100%)",
+        "ERROR: Coverage for functions (40%) does not meet global threshold (100%)",
+        "ERROR: Coverage for statements (33.33%) does not meet global threshold (100%)",
+        "ERROR: Coverage for branches (25%) does not meet global threshold (100%)"
+      ]
+    },
+    {
+      "name": "define-config",
+      "profile": {
+        "name": "define-config",
+        "shape": "define",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 0,
+          "functions": 0,
+          "statements": 0,
+          "branches": 0
+        }
+      },
+      "before": "// retained configuration header\nimport { defineConfig, mergeConfig } from 'vitest/config'\nexport default defineConfig({\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n});\n// retained configuration footer\n",
+      "after": "// retained configuration header\nimport { defineConfig, mergeConfig } from 'vitest/config'\nexport default defineConfig({\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 28.57,\n        \"functions\": 40,\n        \"statements\": 33.33,\n        \"branches\": 25\n      }\n    }\n  }\n});\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [
+        {
+          "metric": "lines",
+          "previous": 0,
+          "value": 28.57
+        },
+        {
+          "metric": "functions",
+          "previous": 0,
+          "value": 40
+        },
+        {
+          "metric": "statements",
+          "previous": 0,
+          "value": 33.33
+        },
+        {
+          "metric": "branches",
+          "previous": 0,
+          "value": 25
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "define-arrow",
+      "profile": {
+        "name": "define-arrow",
+        "shape": "arrow",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 0,
+          "functions": 0,
+          "statements": 0,
+          "branches": 0
+        }
+      },
+      "before": "// retained configuration header\nimport { defineConfig, mergeConfig } from 'vitest/config'\nexport default defineConfig(() => ({\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n}));\n// retained configuration footer\n",
+      "after": "// retained configuration header\nimport { defineConfig, mergeConfig } from 'vitest/config'\nexport default defineConfig(() => ({\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 28.57,\n        \"functions\": 40,\n        \"statements\": 33.33,\n        \"branches\": 25\n      }\n    }\n  }\n}));\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [
+        {
+          "metric": "lines",
+          "previous": 0,
+          "value": 28.57
+        },
+        {
+          "metric": "functions",
+          "previous": 0,
+          "value": 40
+        },
+        {
+          "metric": "statements",
+          "previous": 0,
+          "value": 33.33
+        },
+        {
+          "metric": "branches",
+          "previous": 0,
+          "value": 25
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "merge-config",
+      "profile": {
+        "name": "merge-config",
+        "shape": "merge",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 0,
+          "functions": 0,
+          "statements": 0,
+          "branches": 0
+        }
+      },
+      "before": "// retained configuration header\nimport { defineConfig, mergeConfig } from 'vitest/config'\nexport default mergeConfig({ test: {} }, defineConfig({\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n}));\n// retained configuration footer\n",
+      "after": "// retained configuration header\nimport { defineConfig, mergeConfig } from 'vitest/config'\nexport default mergeConfig({ test: {} }, defineConfig({\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 28.57,\n        \"functions\": 40,\n        \"statements\": 33.33,\n        \"branches\": 25\n      }\n    }\n  }\n}));\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [
+        {
+          "metric": "lines",
+          "previous": 0,
+          "value": 28.57
+        },
+        {
+          "metric": "functions",
+          "previous": 0,
+          "value": 40
+        },
+        {
+          "metric": "statements",
+          "previous": 0,
+          "value": 33.33
+        },
+        {
+          "metric": "branches",
+          "previous": 0,
+          "value": 25
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "complex-config",
+      "profile": {
+        "name": "complex-config",
+        "shape": "complex",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 0,
+          "functions": 0,
+          "statements": 0,
+          "branches": 0
+        }
+      },
+      "before": "// retained configuration header\nexport default Object.assign({}, {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n});\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default Object.assign({}, {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n});\n// retained configuration footer\n",
+      "configChanged": false,
+      "exitCode": 1,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": false,
+      "error": "Failed to update coverage thresholds. Configuration file is too complex.",
+      "thresholdErrors": []
+    },
+    {
+      "name": "missing-threshold-object",
+      "profile": {
+        "name": "missing-threshold-object",
+        "flags": [
+          "--coverage.thresholds.autoUpdate=true",
+          "--coverage.thresholds.lines=0"
+        ]
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": false,
+      "exitCode": 1,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": false,
+      "error": "Unable to parse thresholds from configuration file: Expected config.test.coverage.thresholds to be an object",
+      "thresholdErrors": []
+    },
+    {
+      "name": "missing-config",
+      "profile": {
+        "name": "missing-config",
+        "noConfig": true,
+        "flags": [
+          "--coverage",
+          "--coverage.provider=v8",
+          "--coverage.reporter=json",
+          "--coverage.reporter=json-summary",
+          "--coverage.reporter=text",
+          "--coverage.reporter=lcovonly",
+          "--coverage.include=subject.mjs",
+          "--coverage.include=unimported.mjs",
+          "--coverage.include=fully.mjs",
+          "--coverage.thresholds.autoUpdate=true",
+          "--coverage.thresholds.lines=0"
+        ]
+      },
+      "before": null,
+      "after": null,
+      "configChanged": false,
+      "exitCode": 1,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": false,
+      "error": "Missing configurationFile. The \"coverage.thresholds.autoUpdate\" can only be enabled when configuration file is used.",
+      "thresholdErrors": []
+    },
+    {
+      "name": "name-filter",
+      "profile": {
+        "name": "name-filter",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 0,
+          "functions": 0,
+          "statements": 0,
+          "branches": 0
+        },
+        "flags": ["--testNamePattern=only true branch is executed"]
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 14.28,\n        \"functions\": 20,\n        \"statements\": 22.22,\n        \"branches\": 25\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 1
+      },
+      "measuredUpdates": [
+        {
+          "metric": "lines",
+          "previous": 0,
+          "value": 14.28
+        },
+        {
+          "metric": "functions",
+          "previous": 0,
+          "value": 20
+        },
+        {
+          "metric": "statements",
+          "previous": 0,
+          "value": 22.22
+        },
+        {
+          "metric": "branches",
+          "previous": 0,
+          "value": 25
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": false,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "file-filter",
+      "profile": {
+        "name": "file-filter",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 0,
+          "functions": 0,
+          "statements": 0,
+          "branches": 0
+        },
+        "flags": ["contract.test.mjs"]
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 14.28,\n        \"functions\": 20,\n        \"statements\": 22.22,\n        \"branches\": 25\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [
+        {
+          "metric": "lines",
+          "previous": 0,
+          "value": 14.28
+        },
+        {
+          "metric": "functions",
+          "previous": 0,
+          "value": 20
+        },
+        {
+          "metric": "statements",
+          "previous": 0,
+          "value": 22.22
+        },
+        {
+          "metric": "branches",
+          "previous": 0,
+          "value": 25
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": false,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "body-failure",
+      "profile": {
+        "name": "body-failure",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 0,
+          "functions": 0,
+          "statements": 0,
+          "branches": 0
+        },
+        "failed": true
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": false,
+      "exitCode": 1,
+      "reportSummary": {
+        "success": false,
+        "numTotalTests": 3,
+        "numPassedTests": 2,
+        "numFailedTests": 1,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [],
+      "reports": [],
+      "fullTestRan": false,
+      "updated": false,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "unreported-body-failure",
+      "profile": {
+        "name": "unreported-body-failure",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 0,
+          "functions": 0,
+          "statements": 0,
+          "branches": 0
+        },
+        "failed": true,
+        "reportOnFailure": false
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      },\n      \"reportOnFailure\": false\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      },\n      \"reportOnFailure\": false\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": false,
+      "exitCode": 1,
+      "reportSummary": {
+        "success": false,
+        "numTotalTests": 3,
+        "numPassedTests": 2,
+        "numFailedTests": 1,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [],
+      "reports": [],
+      "fullTestRan": false,
+      "updated": false,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "body-failure-report-enabled",
+      "profile": {
+        "name": "body-failure-report-enabled",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 0,
+          "functions": 0,
+          "statements": 0,
+          "branches": 0
+        },
+        "failed": true,
+        "reportOnFailure": true
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      },\n      \"reportOnFailure\": true\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 28.57,\n        \"functions\": 40,\n        \"statements\": 33.33,\n        \"branches\": 25\n      },\n      \"reportOnFailure\": true\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 1,
+      "reportSummary": {
+        "success": false,
+        "numTotalTests": 3,
+        "numPassedTests": 2,
+        "numFailedTests": 1,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [
+        {
+          "metric": "lines",
+          "previous": 0,
+          "value": 28.57
+        },
+        {
+          "metric": "functions",
+          "previous": 0,
+          "value": 40
+        },
+        {
+          "metric": "statements",
+          "previous": 0,
+          "value": 33.33
+        },
+        {
+          "metric": "branches",
+          "previous": 0,
+          "value": 25
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    }
+  ],
+  "sharedCliRows": [
+    {
+      "name": "missing-config-shared-cli",
+      "profile": {
+        "name": "missing-config-shared-cli",
+        "noConfig": true,
+        "flags": [
+          "--coverage",
+          "--coverage.reporter=json",
+          "--coverage.reporter=json-summary",
+          "--coverage.reporter=lcovonly",
+          "--coverage.include=subject.mjs",
+          "--coverage.include=unimported.mjs",
+          "--coverage.include=fully.mjs",
+          "--coverage.thresholds.autoUpdate=true",
+          "--coverage.thresholds.lines=0"
+        ]
+      },
+      "before": null,
+      "after": null,
+      "configChanged": false,
+      "exitCode": 1,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": false,
+      "error": "Missing configurationFile. The \"coverage.thresholds.autoUpdate\" can only be enabled when configuration file is used.",
+      "thresholdErrors": []
+    },
+    {
+      "name": "compact-insert",
+      "profile": {
+        "name": "compact-insert",
+        "shape": "compact",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 0
+        },
+        "flags": ["--coverage.thresholds.functions=0"]
+      },
+      "before": "// retained configuration header\nexport default {\"test\":{\"include\":[\"contract.test.mjs\",\"full.test.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\",\"unimported.mjs\",\"fully.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"text\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"thresholds\":{\"autoUpdate\":true,\"lines\":0}}}};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\"test\":{\"include\":[\"contract.test.mjs\",\"full.test.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\",\"unimported.mjs\",\"fully.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"text\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"thresholds\":{\n  \"autoUpdate\":true,\n  \"lines\":28.57,\n  functions: 40\n}}}};\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [
+        {
+          "metric": "lines",
+          "previous": 0,
+          "value": 28.57
+        },
+        {
+          "metric": "functions",
+          "previous": 0,
+          "value": 40
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "trailing-comma-insert",
+      "profile": {
+        "name": "trailing-comma-insert",
+        "shape": "trailing",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 0
+        },
+        "flags": ["--coverage.thresholds.functions=0"]
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 28.57,\n        functions: 40\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [
+        {
+          "metric": "lines",
+          "previous": 0,
+          "value": 28.57
+        },
+        {
+          "metric": "functions",
+          "previous": 0,
+          "value": 40
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "empty-object-insert",
+      "profile": {
+        "name": "empty-object-insert",
+        "thresholds": {},
+        "flags": [
+          "--coverage.thresholds.autoUpdate=true",
+          "--coverage.thresholds.lines=0",
+          "--coverage.thresholds.functions=0"
+        ]
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {}\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        lines: 28.57,\n        functions: 40\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [
+        {
+          "metric": "lines",
+          "previous": 0,
+          "value": 28.57
+        },
+        {
+          "metric": "functions",
+          "previous": 0,
+          "value": 40
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "cli-auto-yes",
+      "profile": {
+        "name": "cli-auto-yes",
+        "thresholds": {
+          "autoUpdate": false,
+          "lines": 0
+        },
+        "flags": ["--coverage.thresholds.autoUpdate=yes"]
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": false,\n        \"lines\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": false,\n        \"lines\": 28.57\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [
+        {
+          "metric": "lines",
+          "previous": 0,
+          "value": 28.57
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "cli-auto-no",
+      "profile": {
+        "name": "cli-auto-no",
+        "thresholds": {
+          "autoUpdate": false,
+          "lines": 0
+        },
+        "flags": ["--coverage.thresholds.autoUpdate=no"]
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": false,\n        \"lines\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": false,\n        \"lines\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": false,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": false,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "cli-auto-maybe",
+      "profile": {
+        "name": "cli-auto-maybe",
+        "thresholds": {
+          "autoUpdate": false,
+          "lines": 0
+        },
+        "flags": ["--coverage.thresholds.autoUpdate=maybe"]
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": false,\n        \"lines\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": false,\n        \"lines\": 28.57\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [
+        {
+          "metric": "lines",
+          "previous": 0,
+          "value": 28.57
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "cli-auto-0",
+      "profile": {
+        "name": "cli-auto-0",
+        "thresholds": {
+          "autoUpdate": false,
+          "lines": 0
+        },
+        "flags": ["--coverage.thresholds.autoUpdate=0"]
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": false,\n        \"lines\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": false,\n        \"lines\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": false,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": false,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "cli-auto-empty",
+      "profile": {
+        "name": "cli-auto-empty",
+        "thresholds": {
+          "autoUpdate": false,
+          "lines": 0
+        },
+        "flags": ["--coverage.thresholds.autoUpdate="]
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": false,\n        \"lines\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": false,\n        \"lines\": 28.57\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "configChanged": true,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [
+        {
+          "metric": "lines",
+          "previous": 0,
+          "value": 28.57
+        }
+      ],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    }
+  ],
+  "currentEditRows": [
+    {
+      "name": "disk-edit-numeric",
+      "profile": {
+        "name": "disk-edit-numeric",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 0,
+          "functions": 0,
+          "statements": 0,
+          "branches": 0
+        },
+        "edit": "numeric"
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"edit-config.case.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"edit-config.case.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 28.57,\n        \"functions\": 40,\n        \"statements\": 33.33,\n        \"branches\": 25\n      }\n    }\n  }\n};\n// retained configuration footer\n\n// actual on-disk user edit retained\n",
+      "configChanged": true,
+      "exitCode": 0,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 3,
+        "numPassedTests": 3,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": true,
+      "error": null,
+      "thresholdErrors": []
+    },
+    {
+      "name": "disk-edit-complex",
+      "profile": {
+        "name": "disk-edit-complex",
+        "thresholds": {
+          "autoUpdate": true,
+          "lines": 0,
+          "functions": 0,
+          "statements": 0,
+          "branches": 0
+        },
+        "edit": "complex"
+      },
+      "before": "// retained configuration header\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"edit-config.case.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n};\n// retained configuration footer\n",
+      "after": "// retained configuration header\nexport default Object.assign({}, {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"edit-config.case.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n});\n// retained configuration footer\n\n// actual on-disk user edit retained\n",
+      "configChanged": true,
+      "exitCode": 1,
+      "reportSummary": {
+        "success": true,
+        "numTotalTests": 3,
+        "numPassedTests": 3,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "measuredUpdates": [],
+      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+      "fullTestRan": true,
+      "updated": false,
+      "error": "Failed to update coverage thresholds. Configuration file is too complex.",
+      "thresholdErrors": []
+    }
+  ]
+}

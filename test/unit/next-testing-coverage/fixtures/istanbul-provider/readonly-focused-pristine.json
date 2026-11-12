@@ -1,0 +1,1093 @@
+{
+  "coverageMaps": {
+    "v8-focused-test-none-removed": {
+      "subject.mjs": {
+        "statements": [0, 0, 0, 0],
+        "functions": [0, 0],
+        "branches": [[0, 0]]
+      }
+    },
+    "v8-focused-nested-only-removed": {
+      "subject.mjs": {
+        "statements": [1, 0, 1, 0],
+        "functions": [1, 0],
+        "branches": [[0, 1]]
+      }
+    }
+  },
+  "defaults": {
+    "sourceFiles": {
+      "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+      "setup.mjs": "",
+      "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+      "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest.only('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
+    },
+    "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"allowOnly\":true}}\n",
+    "flags": ["-t", ".*"],
+    "snapshots": {
+      "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n\nexports[`removed owned body 1`] = `true`;\n"
+    },
+    "exitCode": 1,
+    "caseStarts": 1,
+    "expected": {
+      "passed": 1,
+      "failed": 0,
+      "pending": 1,
+      "cases": [
+        ["first owned body", "passed", []],
+        ["second owned body", "skipped", []]
+      ],
+      "fileErrors": [
+        "Obsolete snapshots found when no snapshot update is expected."
+      ],
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 0,
+        "total": 0,
+        "unchecked": 2,
+        "uncheckedKeysByFile": [
+          {
+            "filePath": "<fixture>/suite.test.mjs",
+            "keys": ["first owned body 1", "removed owned body 1"]
+          }
+        ],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      }
+    },
+    "rootErrors": [
+      {
+        "name": "Error",
+        "message": "Obsolete snapshots found when no snapshot update is expected.\n· first owned body 1\n· removed owned body 1\n"
+      }
+    ],
+    "coverage": {
+      "subject.mjs": {
+        "statements": [1, 1, 0, 0],
+        "functions": [1, 0],
+        "branches": [[1, 0]]
+      }
+    }
+  },
+  "rows": [
+    {
+      "name": "v8-focused-test-all-removed"
+    },
+    {
+      "name": "v8-focused-test-none-removed",
+      "flags": ["-t", "no owned selected case"],
+      "exitCode": 0,
+      "caseStarts": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 2,
+        "cases": [
+          ["first owned body", "skipped", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": [""],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "rootErrors": [],
+      "coverage": "v8-focused-test-none-removed"
+    },
+    {
+      "name": "v8-focused-suite-all-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ndescribe.only('focused suite',()=>{test('first owned body',()=>{choose(true)})})\ntest('second owned body',()=>{choose(false)})\n"
+      },
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 1,
+        "cases": [
+          ["focused suite first owned body", "passed", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      }
+    },
+    {
+      "name": "v8-focused-suite-none-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ndescribe.only('focused suite',()=>{test('first owned body',()=>{choose(true)})})\ntest('second owned body',()=>{choose(false)})\n"
+      },
+      "flags": ["-t", "no owned selected case"],
+      "exitCode": 0,
+      "caseStarts": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 2,
+        "cases": [
+          ["focused suite first owned body", "skipped", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": [""],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "rootErrors": [],
+      "coverage": "v8-focused-test-none-removed"
+    },
+    {
+      "name": "v8-focused-skip-todo-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest.only('first owned body',()=>choose(true));describe.skip('outer',()=>describe.todo('explicit todo',()=>describe('untouched',()=>test('pending',()=>choose(false)))))\n"
+      },
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 0,
+        "cases": [
+          ["first owned body", "passed", []],
+          ["outer explicit todo untouched pending", "pending", []]
+        ],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      }
+    },
+    {
+      "name": "v8-focused-todo-skip-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest.only('first owned body',()=>choose(true));describe.todo('outer',()=>describe.skip('explicit skip',()=>describe('untouched',()=>test('pending',()=>choose(false)))))\n"
+      },
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 0,
+        "cases": [
+          ["first owned body", "passed", []],
+          ["outer explicit skip untouched pending", "pending", []]
+        ],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      }
+    },
+    {
+      "name": "v8-focused-opposed-suite-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ndescribe.only('focused suite',()=>{test('first owned body',()=>choose(true));describe.skip('outer',()=>describe.todo('explicit todo',()=>test('pending',()=>choose(false))))});test('second owned body',()=>choose(false))\n"
+      },
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 1,
+        "cases": [
+          ["focused suite first owned body", "passed", []],
+          ["focused suite outer explicit todo pending", "pending", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      }
+    },
+    {
+      "name": "v8-focused-under-skip-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ndescribe.skip('outer',()=>test.only('first owned body',()=>choose(true)));test('second owned body',()=>choose(false))\n"
+      },
+      "exitCode": 0,
+      "caseStarts": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 1,
+        "cases": [
+          ["outer first owned body", "pending", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": [""],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "rootErrors": [],
+      "coverage": "v8-focused-test-none-removed"
+    },
+    {
+      "name": "v8-focused-under-todo-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ndescribe.todo('outer',()=>test.only('first owned body',()=>choose(true)));test('second owned body',()=>choose(false))\n"
+      },
+      "exitCode": 0,
+      "caseStarts": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 1,
+        "cases": [
+          ["outer first owned body", "pending", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": [""],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "rootErrors": [],
+      "coverage": "v8-focused-test-none-removed"
+    },
+    {
+      "name": "v8-focused-nested-only-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ndescribe.only('focused suite',()=>{test('first owned body',()=>choose(true));describe.only('narrower',()=>test('second owned body',()=>choose(false)))});test('outside',()=>choose(true))\n"
+      },
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 2,
+        "cases": [
+          ["focused suite first owned body", "skipped", []],
+          ["focused suite narrower second owned body", "passed", []],
+          ["outside", "skipped", []]
+        ],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "coverage": "v8-focused-nested-only-removed"
+    },
+    {
+      "name": "v8-focused-test-no-pattern-removed",
+      "flags": []
+    },
+    {
+      "name": "v8-focused-suite-no-pattern-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ndescribe.only('focused suite',()=>{test('first owned body',()=>{choose(true)})})\ntest('second owned body',()=>{choose(false)})\n"
+      },
+      "flags": [],
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 1,
+        "cases": [
+          ["focused suite first owned body", "passed", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      }
+    },
+    {
+      "name": "istanbul-focused-test-all-removed",
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"allowOnly\":true}}\n"
+    },
+    {
+      "name": "istanbul-focused-test-none-removed",
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"allowOnly\":true}}\n",
+      "flags": ["-t", "no owned selected case"],
+      "exitCode": 0,
+      "caseStarts": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 2,
+        "cases": [
+          ["first owned body", "skipped", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": [""],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "rootErrors": [],
+      "coverage": "v8-focused-test-none-removed"
+    },
+    {
+      "name": "istanbul-focused-suite-all-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ndescribe.only('focused suite',()=>{test('first owned body',()=>{choose(true)})})\ntest('second owned body',()=>{choose(false)})\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"allowOnly\":true}}\n",
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 1,
+        "cases": [
+          ["focused suite first owned body", "passed", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      }
+    },
+    {
+      "name": "istanbul-focused-suite-none-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ndescribe.only('focused suite',()=>{test('first owned body',()=>{choose(true)})})\ntest('second owned body',()=>{choose(false)})\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"allowOnly\":true}}\n",
+      "flags": ["-t", "no owned selected case"],
+      "exitCode": 0,
+      "caseStarts": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 2,
+        "cases": [
+          ["focused suite first owned body", "skipped", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": [""],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "rootErrors": [],
+      "coverage": "v8-focused-test-none-removed"
+    },
+    {
+      "name": "istanbul-focused-skip-todo-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest.only('first owned body',()=>choose(true));describe.skip('outer',()=>describe.todo('explicit todo',()=>describe('untouched',()=>test('pending',()=>choose(false)))))\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"allowOnly\":true}}\n",
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 0,
+        "cases": [
+          ["first owned body", "passed", []],
+          ["outer explicit todo untouched pending", "pending", []]
+        ],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      }
+    },
+    {
+      "name": "istanbul-focused-todo-skip-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest.only('first owned body',()=>choose(true));describe.todo('outer',()=>describe.skip('explicit skip',()=>describe('untouched',()=>test('pending',()=>choose(false)))))\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"allowOnly\":true}}\n",
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 0,
+        "cases": [
+          ["first owned body", "passed", []],
+          ["outer explicit skip untouched pending", "pending", []]
+        ],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      }
+    },
+    {
+      "name": "istanbul-focused-opposed-suite-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ndescribe.only('focused suite',()=>{test('first owned body',()=>choose(true));describe.skip('outer',()=>describe.todo('explicit todo',()=>test('pending',()=>choose(false))))});test('second owned body',()=>choose(false))\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"allowOnly\":true}}\n",
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 1,
+        "cases": [
+          ["focused suite first owned body", "passed", []],
+          ["focused suite outer explicit todo pending", "pending", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      }
+    },
+    {
+      "name": "istanbul-focused-under-skip-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ndescribe.skip('outer',()=>test.only('first owned body',()=>choose(true)));test('second owned body',()=>choose(false))\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"allowOnly\":true}}\n",
+      "exitCode": 0,
+      "caseStarts": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 1,
+        "cases": [
+          ["outer first owned body", "pending", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": [""],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "rootErrors": [],
+      "coverage": "v8-focused-test-none-removed"
+    },
+    {
+      "name": "istanbul-focused-under-todo-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ndescribe.todo('outer',()=>test.only('first owned body',()=>choose(true)));test('second owned body',()=>choose(false))\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"allowOnly\":true}}\n",
+      "exitCode": 0,
+      "caseStarts": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 1,
+        "cases": [
+          ["outer first owned body", "pending", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": [""],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "rootErrors": [],
+      "coverage": "v8-focused-test-none-removed"
+    },
+    {
+      "name": "istanbul-focused-nested-only-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ndescribe.only('focused suite',()=>{test('first owned body',()=>choose(true));describe.only('narrower',()=>test('second owned body',()=>choose(false)))});test('outside',()=>choose(true))\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"allowOnly\":true}}\n",
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 2,
+        "cases": [
+          ["focused suite first owned body", "skipped", []],
+          ["focused suite narrower second owned body", "passed", []],
+          ["outside", "skipped", []]
+        ],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "coverage": "v8-focused-nested-only-removed"
+    },
+    {
+      "name": "istanbul-focused-test-no-pattern-removed",
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"allowOnly\":true}}\n",
+      "flags": []
+    },
+    {
+      "name": "istanbul-focused-suite-no-pattern-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ndescribe.only('focused suite',()=>{test('first owned body',()=>{choose(true)})})\ntest('second owned body',()=>{choose(false)})\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"allowOnly\":true}}\n",
+      "flags": [],
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 1,
+        "cases": [
+          ["focused suite first owned body", "passed", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      }
+    },
+    {
+      "name": "v8-focused-active-only-under-skip-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest.only('first owned body',()=>choose(true));describe.skip('outer',()=>test.only('second owned body',()=>choose(false)))\n"
+      },
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 0,
+        "cases": [
+          ["first owned body", "passed", []],
+          ["outer second owned body", "pending", []]
+        ],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      }
+    },
+    {
+      "name": "v8-focused-active-only-under-todo-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest.only('first owned body',()=>choose(true));describe.todo('outer',()=>describe.only('inner',()=>test('second owned body',()=>choose(false))))\n"
+      },
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 0,
+        "cases": [
+          ["first owned body", "passed", []],
+          ["outer inner second owned body", "pending", []]
+        ],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      }
+    },
+    {
+      "name": "istanbul-focused-active-only-under-skip-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest.only('first owned body',()=>choose(true));describe.skip('outer',()=>test.only('second owned body',()=>choose(false)))\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"allowOnly\":true}}\n",
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 0,
+        "cases": [
+          ["first owned body", "passed", []],
+          ["outer second owned body", "pending", []]
+        ],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      }
+    },
+    {
+      "name": "istanbul-focused-active-only-under-todo-removed",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest.only('first owned body',()=>choose(true));describe.todo('outer',()=>describe.only('inner',()=>test('second owned body',()=>choose(false))))\n"
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"allowOnly\":true}}\n",
+      "expected": {
+        "passed": 1,
+        "failed": 0,
+        "pending": 0,
+        "cases": [
+          ["first owned body", "passed", []],
+          ["outer inner second owned body", "pending", []]
+        ],
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 2,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "<fixture>/suite.test.mjs",
+              "keys": ["first owned body 1", "removed owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      }
+    }
+  ]
+}

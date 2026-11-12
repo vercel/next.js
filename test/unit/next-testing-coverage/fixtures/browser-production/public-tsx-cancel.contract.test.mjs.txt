@@ -1,0 +1,3 @@
+import { expect, test } from 'vitest'
+import { Fragment } from './subject.tsx'
+test('actual public TSX cancel after subject execution', async()=>{expect(Fragment({active:true,name:'cancel'}).props.children[0].props.children).toBe('cancel!');console.log('NEXT_COVERAGE_BODY_STARTED');await new Promise(()=>{})})

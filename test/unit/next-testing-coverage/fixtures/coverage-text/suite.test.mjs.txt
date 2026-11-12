@@ -1,0 +1,4 @@
+import {test,expect} from 'vitest'
+import {full} from './subjects/full.js'
+import {choose} from './subjects/a-directory-name-long-enough-to-exercise-width/partial.js'
+test('coverage text options', () => { expect(full).toBe(1); expect(choose(true)).toBe('hit') })

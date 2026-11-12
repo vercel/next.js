@@ -1,0 +1,2 @@
+export const offset = 2;
+export function prefix(value) { return value + 1; }

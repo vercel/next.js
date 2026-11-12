@@ -1,0 +1,85 @@
+{
+  "helper.ts": {
+    "$coverage": "range-tuples-v1",
+    "path": "helper.ts",
+    "statements": {
+      "0": [1, 0, 1, null],
+      "1": [2, 30, 2, null],
+      "2": [3, 48, 3, 66]
+    },
+    "functions": {
+      "0": {
+        "name": "prefix",
+        "decl": [3, 16, 3, 23],
+        "loc": [3, 46, 3, null],
+        "line": 3
+      }
+    },
+    "branches": {},
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0
+    },
+    "f": {
+      "0": 0
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 1,
+      "lastStatement": 3,
+      "seen": {
+        "s:1:0:1:Infinity": 0,
+        "s:2:30:2:Infinity": 1,
+        "f:3:16:3:23": 0,
+        "s:3:48:3:66": 2
+      },
+      "fnNames": {}
+    }
+  },
+  "subject.ts": {
+    "$coverage": "range-tuples-v1",
+    "path": "subject.ts",
+    "statements": {
+      "0": [3, 32, 3, 63],
+      "1": [5, 50, 5, 83]
+    },
+    "functions": {
+      "0": {
+        "name": "read",
+        "decl": [3, 2, 3, 7],
+        "loc": [3, 30, 3, null],
+        "line": 3
+      },
+      "1": {
+        "name": "exercise",
+        "decl": [5, 16, 5, 25],
+        "loc": [5, 48, 5, null],
+        "line": 5
+      }
+    },
+    "branches": {},
+    "s": {
+      "0": 0,
+      "1": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 2,
+      "lastStatement": 2,
+      "seen": {
+        "f:3:2:3:7": 0,
+        "s:3:32:3:63": 0,
+        "f:5:16:5:25": 1,
+        "s:5:50:5:83": 1
+      },
+      "fnNames": {}
+    }
+  }
+}

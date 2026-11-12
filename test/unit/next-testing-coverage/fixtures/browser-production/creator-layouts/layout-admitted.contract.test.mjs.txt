@@ -1,0 +1,17 @@
+import { expect, test } from 'vitest'
+import { View as View0 } from './layout-classic-multiline.tsx'
+import { View as View1 } from './layout-classic-multiple.tsx'
+import { View as View2 } from './layout-classic-expression.tsx'
+import { View as View3 } from './layout-classic-static.tsx'
+import { View as View4 } from './layout-automatic-multiline.tsx'
+import { View as View5 } from './layout-automatic-multiple.tsx'
+import { View as View6 } from './layout-automatic-expression.tsx'
+import { View as View7 } from './layout-automatic-static.tsx'
+test('classic multiline preserves actual method layout and execution',()=>{for(const label of ['hello','world']){const view=new View0({label}),output=view.render();expect(output.type).toBe('b');expect(output.props.children).toBe(label);}})
+test('classic multiple preserves actual method layout and execution',()=>{for(const label of ['hello','world']){const view=new View1({label}),output=view.render();expect(output.type).toBe('b');expect(output.props.children).toBe(label);expect(view.extra().props.children).toBe(label)}})
+test('classic expression preserves actual method layout and execution',()=>{for(const label of ['hello','world']){const view=new View2({label}),output=view.render();expect(output.type).toBe('b');expect(output.props.children).toBe(label);}})
+test('classic static preserves actual method layout and execution',()=>{for(const label of ['hello','world']){const view=new View3({label}),output=view.render();expect(output.type).toBe('b');expect(output.props.children).toBe(label);expect(View3.create(label).props.children).toBe(label)}})
+test('automatic multiline preserves actual method layout and execution',()=>{for(const label of ['hello','world']){const view=new View4({label}),output=view.render();expect(output.type).toBe('b');expect(output.props.children).toBe(label);}})
+test('automatic multiple preserves actual method layout and execution',()=>{for(const label of ['hello','world']){const view=new View5({label}),output=view.render();expect(output.type).toBe('b');expect(output.props.children).toBe(label);expect(view.extra().props.children).toBe(label)}})
+test('automatic expression preserves actual method layout and execution',()=>{for(const label of ['hello','world']){const view=new View6({label}),output=view.render();expect(output.type).toBe('b');expect(output.props.children).toBe(label);}})
+test('automatic static preserves actual method layout and execution',()=>{for(const label of ['hello','world']){const view=new View7({label}),output=view.render();expect(output.type).toBe('b');expect(output.props.children).toBe(label);expect(View7.create(label).props.children).toBe(label)}})

@@ -1,0 +1,3 @@
+export function total(values: number[]) {
+  return values.map(function (value: number) { return value * 2 }).reduce(function (sum: number, value: number) { return sum + value }, 0)
+}

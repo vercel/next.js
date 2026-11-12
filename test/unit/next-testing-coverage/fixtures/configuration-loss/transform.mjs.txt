@@ -1,0 +1,15 @@
+export default {
+  plugins: [{ name: 'owned-real-transform', transform: (code) => code }],
+  test: {
+    include: ['contract.test.mjs'],
+    globalSetup: ['./setup.mjs'],
+    maxWorkers: 1,
+    coverage: {
+      enabled: true,
+      provider: 'v8',
+      include: ['subject.mjs'],
+      clean: false,
+      reporter: ['json'],
+    },
+  },
+}

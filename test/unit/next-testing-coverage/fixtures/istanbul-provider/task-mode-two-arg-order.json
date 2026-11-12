@@ -1,0 +1,42 @@
+{
+  "trace": [
+    "tasks.iterator",
+    "map.set-get",
+    "mode-get:mode-read-order",
+    "mode-get:mode-read-order",
+    "map.set-get",
+    "mode-get:mode-read-order/0",
+    "mode-get:mode-read-order/0",
+    "map.set-get",
+    "mode-get:mode-read-order/1",
+    "mode-get:mode-read-order/1",
+    "mode-get:mode-read-order/1",
+    "map.set-get",
+    "mode-get:mode-read-order/2",
+    "mode-get:mode-read-order/2",
+    "map.set-get",
+    "mode-get:mode-read-order/2/0",
+    "mode-get:mode-read-order/2/0",
+    "map.set-get",
+    "map.set-get",
+    "tasks.get:mode-read-order",
+    "mode-get:mode-read-order",
+    "mode-set:mode-read-order:skip",
+    "tasks.get:mode-read-order/0",
+    "mode-get:mode-read-order/0",
+    "tasks.get:mode-read-order/1",
+    "mode-get:mode-read-order/1",
+    "tasks.get:mode-read-order/2",
+    "mode-get:mode-read-order/2",
+    "mode-set:mode-read-order/2:skip",
+    "tasks.get:mode-read-order/2/0",
+    "mode-get:mode-read-order/2/0"
+  ],
+  "rows": [
+    ["mode-read-order", "skip"],
+    ["mode-read-order/0", "skip"],
+    ["mode-read-order/1", "todo"],
+    ["mode-read-order/2", "skip"],
+    ["mode-read-order/2/0", "skip"]
+  ]
+}

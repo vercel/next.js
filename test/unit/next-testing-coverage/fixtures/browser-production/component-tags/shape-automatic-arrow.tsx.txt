@@ -1,0 +1,6 @@
+type Input = { active: boolean; label: string }
+const Badge = ({label}: {label:string}) => <b>{label}</b>
+export function Card({ active, label }: Input) {
+  return <Badge label={active ? 'on' : 'off'} />
+}
+export const Unused = () => <i />

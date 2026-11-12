@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "scope": "Retained actual S39 lowering/instrumenter tuple and genuine5.0.4 complete zero report; no execution of this tuple",
+  "originalSerializedTupleSha256": "d9c0ba0b2747d7b017b76f18231dbdfe0608099eb44a982223a108fcfec2a739",
+  "file": "/Users/timneutkens/projects/next-testing-run/work-3/istanbul-provider66/typed-source102/swc-lowering-currentS39-initialized/subject.mts",
+  "authoredSha256": "4c5941494c006c4c9466ca5e5625e2e7ae0f90f311adb4dd7bb60ab531d1d67c",
+  "emittedSha256": "938423a8e00f0693059648064e409fa2cbe5174f04878d7014cb2f2fc97f47c1",
+  "authoredSource": "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n",
+  "emittedSource": "export function choose(value) {\n    if (value) return 1;\n    return 0;\n}\nexport function unused() {\n    return 9;\n}\n",
+  "rawCoverage": {
+    "$coverage": "range-tuples-v1",
+    "path": "/Users/timneutkens/projects/next-testing-run/work-3/istanbul-provider66/typed-source102/swc-lowering-currentS39-initialized/subject.mts",
+    "statements": {
+      "0": [2, 4, 2, 24],
+      "1": [2, 15, 2, 24],
+      "2": [3, 4, 3, 13],
+      "3": [6, 4, 6, 13]
+    },
+    "functions": {
+      "0": {
+        "name": "choose",
+        "decl": [1, 16, 1, 22],
+        "loc": [1, 30, 4, 1],
+        "line": 1
+      },
+      "1": {
+        "name": "unused",
+        "decl": [5, 16, 5, 22],
+        "loc": [5, 25, 7, 1],
+        "line": 5
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [2, 4, 2, 24],
+        "type": "if",
+        "locations": [
+          [2, 4, 2, 24],
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 2
+      }
+    },
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0
+    },
+    "b": {
+      "0": [0, 0]
+    },
+    "inputSourceMap": {
+      "version": 3,
+      "sources": [
+        "/Users/timneutkens/projects/next-testing-run/work-3/istanbul-provider66/typed-source102/swc-lowering-currentS39-initialized/subject.mts"
+      ],
+      "sourcesContent": [
+        "export type Input = boolean\nexport function choose(value: Input): number {\n  if (value) return 1\n  return 0\n}\nexport function unused(): number { return 9 }\n"
+      ],
+      "names": ["choose", "value", "unused"],
+      "mappings": "AACA,OAAO,SAASA,OAAOC,KAAY;IACjC,IAAIA,OAAO,OAAO;IAClB,OAAO;AACT;AACA,OAAO,SAASC;IAAmB,OAAO;AAAE"
+    }
+  },
+  "genuineFile": "/Users/timneutkens/projects/next-testing-run/work-3/reference/.next-typed-entry101-GyRr3w/subject.mts",
+  "genuineCoverage": {
+    "$coverage": "range-tuples-v1",
+    "path": "/Users/timneutkens/projects/next-testing-run/work-3/reference/.next-typed-entry101-GyRr3w/subject.mts",
+    "statements": {
+      "0": [3, 2, 3, null],
+      "1": [3, 13, 3, null],
+      "2": [4, 2, 4, null],
+      "3": [6, 35, 6, 44]
+    },
+    "functions": {
+      "0": {
+        "name": "choose",
+        "decl": [2, 16, 2, 23],
+        "loc": [2, 45, 5, null]
+      },
+      "1": {
+        "name": "unused",
+        "decl": [6, 16, 6, 33],
+        "loc": [6, 33, 6, null]
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [3, 2, 3, null],
+        "type": "if",
+        "locations": [
+          [3, 2, 3, null],
+          {
+            "start": {},
+            "end": {}
+          }
+        ]
+      }
+    },
+    "s": {
+      "0": 0,
+      "1": 0,
+      "2": 0,
+      "3": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0
+    },
+    "b": {
+      "0": [0, 0]
+    }
+  }
+}

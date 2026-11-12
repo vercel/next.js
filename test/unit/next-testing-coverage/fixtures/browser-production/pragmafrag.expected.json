@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "mode": "production",
+  "sdks": ["1.61.0", "1.64.0"],
+  "reference": "Fresh Vitest5.0.4/provider5.0.4 actual Chromium named pragma fragment layout; complete reports/cases equal both SDKs",
+  "sourceSyntax": "named-classic-fragment",
+  "sourceFiles": {
+    "layout-pragmafrag.tsx": {
+      "sha256": "cf32c9de20d545cf5d66c9eee1438ef763b53e5fe6b7150b40d7657843dcb56f"
+    },
+    "layout-pragmafrag.contract.test.mjs": {
+      "sha256": "82049d40df5a9c242094b235fc0cf41727292c2e823df9c3a10311092ed009ce"
+    }
+  },
+  "numPassedTests": 1,
+  "cases": [
+    {
+      "file": "layout-pragmafrag.contract.test.mjs",
+      "status": "passed",
+      "cases": [
+        {
+          "ancestorTitles": [],
+          "fullName": "classic fragment uses actual authored pragma factory and fragment",
+          "status": "passed",
+          "title": "classic fragment uses actual authored pragma factory and fragment",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "layout-pragmafrag.tsx": {
+      "$coverage": "range-tuples-v1",
+      "path": "layout-pragmafrag.tsx",
+      "statements": {
+        "0": [7, 2, 7, null],
+        "1": [9, 13, 9, null],
+        "2": [9, 28, 9, null]
+      },
+      "functions": {
+        "0": {
+          "name": "Card",
+          "decl": [6, 16, 6, 21],
+          "loc": [6, 39, 8, null],
+          "line": 6
+        },
+        "1": {
+          "name": "(anonymous_1)",
+          "decl": [9, 13, 9, 28],
+          "loc": [9, 28, 9, null],
+          "line": 9
+        }
+      },
+      "branches": {
+        "0": {
+          "loc": [7, 12, 7, 36],
+          "type": "cond-expr",
+          "locations": [
+            [7, 21, 7, 29],
+            [7, 29, 7, 36]
+          ],
+          "line": 7
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 1,
+        "2": 0
+      },
+      "f": {
+        "0": 2,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 1]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 3,
+        "seen": {
+          "f:6:16:6:21": 0,
+          "s:7:2:7:Infinity": 0,
+          "b:7:21:7:29:7:29:7:36": 0,
+          "s:9:13:9:Infinity": 1,
+          "f:9:13:9:28": 1,
+          "s:9:28:9:Infinity": 2
+        },
+        "fnNames": {}
+      }
+    }
+  }
+}

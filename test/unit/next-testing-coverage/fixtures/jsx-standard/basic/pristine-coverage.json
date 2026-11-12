@@ -1,0 +1,68 @@
+{
+  "helper.js": {
+    "$coverage": "range-tuples-v1",
+    "path": "helper.js",
+    "statements": {
+      "0": [1, 31, 1, 49]
+    },
+    "functions": {
+      "0": {
+        "name": "label",
+        "decl": [1, 16, 1, 21],
+        "loc": [1, 29, 1, null],
+        "line": 1
+      }
+    },
+    "branches": {},
+    "s": {
+      "0": 2
+    },
+    "f": {
+      "0": 2
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:1:16:1:21": 0,
+        "s:1:31:1:49": 0
+      },
+      "fnNames": {}
+    }
+  },
+  "subject.jsx": {
+    "$coverage": "range-tuples-v1",
+    "path": "subject.jsx",
+    "statements": {
+      "0": [4, 2, 4, null]
+    },
+    "functions": {
+      "0": {
+        "name": "Basic",
+        "decl": [3, 16, 3, 22],
+        "loc": [3, 32, 5, null],
+        "line": 3
+      }
+    },
+    "branches": {},
+    "s": {
+      "0": 2
+    },
+    "f": {
+      "0": 2
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:3:16:3:22": 0,
+        "s:4:2:4:Infinity": 0
+      },
+      "fnNames": {}
+    }
+  }
+}

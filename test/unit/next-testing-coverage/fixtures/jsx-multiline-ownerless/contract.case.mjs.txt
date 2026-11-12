@@ -1,0 +1,6 @@
+import { expect, test } from 'vitest'
+import { Multiline } from './subject.tsx'
+test('renders both multiline ownerless logical return paths', () => {
+  expect(Multiline({ active: true }).props.children).toBe('active!')
+  expect(Multiline({ active: false })).toBe(false)
+})

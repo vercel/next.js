@@ -1,0 +1,6 @@
+import { expect, test } from 'vitest'
+import { Nested } from './subject.jsx'
+test('renders nested imported helper children', () => {
+  expect(Nested({ name: 'first' }).props.children.map(child => child.props.children)).toEqual(['first!', 'tail!'])
+  expect(Nested({ name: 'second' }).props.children.map(child => child.props.children)).toEqual(['second!', 'tail!'])
+})

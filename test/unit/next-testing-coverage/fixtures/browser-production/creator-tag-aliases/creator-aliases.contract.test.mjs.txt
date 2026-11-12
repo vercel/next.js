@@ -1,0 +1,7 @@
+import { expect, test } from 'vitest'
+import { MakeRow as Run0 } from './alias-creator-classic-expression.tsx'
+import { MakeCard as Run1 } from './alias-creator-automatic-classexpression.tsx'
+import { BuildOutput as Run2 } from './alias-creator-automatic-member.tsx'
+test('actual renamed creator component 0',()=>{const yes=Run0({active:true,label:'hello'}),no=Run0({active:false,label:'world'});for(const [element,label]of [[yes.props.children,'hello'],[no.props.children,'fallback']]){const output=element.type(element.props);expect(output.type).toBe('b');expect(output.props.children).toBe(label)}})
+test('actual renamed creator component 1',()=>{const yes=Run1({active:true,label:'hello'}),no=Run1({active:false,label:'world'});for(const [element,label]of [[yes.props.children,'hello'],[no.props.children,'fallback']]){const output=new element.type(element.props).render();expect(output.type).toBe('b');expect(output.props.children).toBe(label)}})
+test('actual renamed creator component 2',()=>{const yes=Run2({active:true,label:'hello'}),no=Run2({active:false,label:'world'});for(const [element,label]of [[yes.props.children,'hello'],[no.props.children,'fallback']]){const output=new element.type(element.props).render();expect(output.type).toBe('b');expect(output.props.children).toBe(label)}})

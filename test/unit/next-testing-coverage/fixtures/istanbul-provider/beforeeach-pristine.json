@@ -1,0 +1,467 @@
+{
+  "defaults": {
+    "sourceFiles": {
+      "subject.mjs": {
+        "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+      },
+      "setup.mjs": {
+        "source": "import {beforeEach} from 'vitest'\nimport {choose} from './subject.mjs'\nbeforeEach(async()=>{await Promise.resolve();choose(false);throw new Error('owned settled setup beforeEach failure')})\n",
+        "sha256": "f589409486a0130b4bc3b97cd5b1806389330d8a8106cb9cb8a5c7d4107240b6"
+      },
+      "serializer.mjs": {
+        "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+      },
+      "suite.test.mjs": {
+        "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
+        "sha256": "054e054db9e97ce68126a737c4d533b46529f7b96d5ef604894c61d5b5156b19"
+      }
+    },
+    "snapshots": {},
+    "exitCode": 1,
+    "independentAfterEach": false,
+    "unqualifiedSnapshotDiagnostic": false,
+    "coverage": {
+      "subject.mjs": {
+        "statements": [2, 0, 2, 0],
+        "functions": [2, 0],
+        "branches": [[0, 2]]
+      }
+    },
+    "reportFiles": [
+      "coverage-final.json",
+      "coverage-summary.json",
+      "lcov.info"
+    ],
+    "setupErrorLines": [[3], [3]]
+  },
+  "rows": [
+    {
+      "name": "beforeeach-sync-no-snapshots",
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+        },
+        "setup.mjs": {
+          "source": "import {beforeEach} from 'vitest'\nimport {choose} from './subject.mjs'\nbeforeEach(()=>{choose(false);throw new Error('owned settled setup beforeEach failure')})\n",
+          "sha256": "61e99bdfd5c2f3d63c7b3618dced2a6e0a49e8d8b3644ffd842c8b90a7d8e2fd"
+        },
+        "serializer.mjs": {
+          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
+          "sha256": "054e054db9e97ce68126a737c4d533b46529f7b96d5ef604894c61d5b5156b19"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 0,
+        "numFailedTests": 2,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-u0uHU0/suite.test.mjs",
+            "status": "failed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "first owned body",
+                "status": "failed",
+                "title": "first owned body",
+                "failureMessages": [
+                  "Error: owned settled setup beforeEach failure"
+                ]
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "second owned body",
+                "status": "failed",
+                "title": "second owned body",
+                "failureMessages": [
+                  "Error: owned settled setup beforeEach failure"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "beforeeach-async-no-snapshots",
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 0,
+        "numFailedTests": 2,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-qgM09q/suite.test.mjs",
+            "status": "failed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "first owned body",
+                "status": "failed",
+                "title": "first owned body",
+                "failureMessages": [
+                  "Error: owned settled setup beforeEach failure"
+                ]
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "second owned body",
+                "status": "failed",
+                "title": "second owned body",
+                "failureMessages": [
+                  "Error: owned settled setup beforeEach failure"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "beforeeach-sync-no-snapshots-report-false",
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+        },
+        "setup.mjs": {
+          "source": "import {beforeEach} from 'vitest'\nimport {choose} from './subject.mjs'\nbeforeEach(()=>{choose(false);throw new Error('owned settled setup beforeEach failure')})\n",
+          "sha256": "61e99bdfd5c2f3d63c7b3618dced2a6e0a49e8d8b3644ffd842c8b90a7d8e2fd"
+        },
+        "serializer.mjs": {
+          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
+          "sha256": "054e054db9e97ce68126a737c4d533b46529f7b96d5ef604894c61d5b5156b19"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false}}}\n",
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 0,
+        "numFailedTests": 2,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-ML1ZBN/suite.test.mjs",
+            "status": "failed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "first owned body",
+                "status": "failed",
+                "title": "first owned body",
+                "failureMessages": [
+                  "Error: owned settled setup beforeEach failure"
+                ]
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "second owned body",
+                "status": "failed",
+                "title": "second owned body",
+                "failureMessages": [
+                  "Error: owned settled setup beforeEach failure"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "reportFiles": []
+    },
+    {
+      "name": "beforeeach-async-no-snapshots-report-false",
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false}}}\n",
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 0,
+        "numFailedTests": 2,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-xyc3lc/suite.test.mjs",
+            "status": "failed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "first owned body",
+                "status": "failed",
+                "title": "first owned body",
+                "failureMessages": [
+                  "Error: owned settled setup beforeEach failure"
+                ]
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "second owned body",
+                "status": "failed",
+                "title": "second owned body",
+                "failureMessages": [
+                  "Error: owned settled setup beforeEach failure"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "reportFiles": []
+    },
+    {
+      "name": "beforeeach-mixed-stage-no-snapshots",
+      "sourceFiles": {
+        "subject.mjs": {
+          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+        },
+        "setup.mjs": {
+          "source": "import {beforeEach,afterEach} from 'vitest'\nimport {choose} from './subject.mjs'\nconst failure=new Error('same actual beforeEach and afterEach failure')\nbeforeEach(()=>{choose(false);throw failure})\nafterEach(()=>{throw failure})\n",
+          "sha256": "691d1ea61a9081638748ca356b83e79cb7664ad9790d16c5a3c7c1d3f73ac560"
+        },
+        "serializer.mjs": {
+          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+        },
+        "suite.test.mjs": {
+          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
+          "sha256": "054e054db9e97ce68126a737c4d533b46529f7b96d5ef604894c61d5b5156b19"
+        }
+      },
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "independentAfterEach": true,
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 0,
+        "numFailedTests": 2,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-GQcGZg/suite.test.mjs",
+            "status": "failed",
+            "message": "",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "first owned body",
+                "status": "failed",
+                "title": "first owned body",
+                "failureMessages": [
+                  "Error: same actual beforeEach and afterEach failure",
+                  "Error: same actual beforeEach and afterEach failure"
+                ]
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "second owned body",
+                "status": "failed",
+                "title": "second owned body",
+                "failureMessages": [
+                  "Error: same actual beforeEach and afterEach failure",
+                  "Error: same actual beforeEach and afterEach failure"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "setupErrorLines": [
+        [3, 3],
+        [3, 3]
+      ]
+    },
+    {
+      "name": "beforeeach-async",
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "snapshots": {
+        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
+      },
+      "unqualifiedSnapshotDiagnostic": true,
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 0,
+        "numFailedTests": 2,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 1,
+          "uncheckedKeysByFile": [
+            {
+              "filePath": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-TZ3v2e/suite.test.mjs",
+              "keys": ["first owned body 1"]
+            }
+          ],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-TZ3v2e/suite.test.mjs",
+            "status": "failed",
+            "message": "Obsolete snapshots found when no snapshot update is expected.\n· first owned body 1\n",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "first owned body",
+                "status": "failed",
+                "title": "first owned body",
+                "failureMessages": [
+                  "Error: owned settled setup beforeEach failure"
+                ]
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "second owned body",
+                "status": "failed",
+                "title": "second owned body",
+                "failureMessages": [
+                  "Error: owned settled setup beforeEach failure"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
