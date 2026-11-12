@@ -122,6 +122,13 @@ When merging chunks, the trade-off being made is an improvement to performance o
 loads at the cost of navigation performance. This is because each additional network request
 being made is costly, however, smaller chunks are more likely to be re-usable across pages.
 
+> **Good to know**: The size thresholds depend on the experimental
+> `experimental.turbopackMinifyBeforeChunking` option. When it is enabled (and minification is on),
+> Turbopack minifies each module before chunking and measures sizes in bytes of minified code
+> instead. The default thresholds and `requestCost`, including the server chunk thresholds below,
+> are then scaled down to 40% of the values listed here. Values you set explicitly are used as-is,
+> so you may need to lower them when enabling the option.
+
 ## Server Chunks
 
 The size thresholds above only apply to client-side JavaScript. Server-side JavaScript for the
