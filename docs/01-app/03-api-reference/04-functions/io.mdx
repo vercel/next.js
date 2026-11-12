@@ -79,10 +79,13 @@ export function CurrentTime() {
 
 ## When you don't need `io()`
 
-- The component already awaits a [Request-time API](/docs/app/glossary#request-time-apis) like `cookies()` or `headers()`, and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) is disabled. The request-time API is itself the suspension point.
-- The data comes from an awaited `fetch` or async database query wrapped in `<Suspense>`. The `await` is the suspension point.
+If an operation already suspends prerendering, such as an uncached `fetch` or async database query inside `<Suspense>`, you don't need an additional `io()` call before it.
 
-With Partial Prefetching enabled, `cookies()` and `headers()` can resolve during runtime prerendering. An uncached synchronous operation after them still needs `await io()`, even inside `<Suspense>`. This includes clock reads inside auth libraries and SDKs. See [Defer an auth or SDK call](/docs/messages/blocking-prerender-current-time#defer-an-auth-or-sdk-call) for the deferral and caching options.
+### Synchronous IO after request data
+
+During build-time prerendering, awaiting [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) suspends before the following code executes. With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), these APIs can resolve during runtime prerendering. An uncached read of time or randomness after these APIs can still trigger a prerender error, even inside `<Suspense>`.
+
+Call `await io()` before the synchronous read, or before calling a helper that performs it. To keep the helper eligible for runtime prefetching instead, [read the required request values outside a `use cache` scope and pass them as arguments](/docs/app/getting-started/caching#passing-runtime-values-to-cached-functions). Include the synchronous read in the cached scope.
 
 ## How `io()` differs from `connection()`
 

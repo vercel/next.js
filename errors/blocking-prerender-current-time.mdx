@@ -122,33 +122,13 @@ export async function UpdatedAt() {
 
 Learn more: [`io`](/docs/app/api-reference/functions/io), [Streaming](/docs/app/guides/streaming).
 
-#### Defer an auth or SDK call
-
-With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) can resolve during runtime prerendering. An auth library that reads the clock to check session expiry can therefore trigger this error after an awaited cookie read, even inside [`<Suspense>`](https://react.dev/reference/react/Suspense). The same applies to SDKs that read the current time internally.
-
-Add [`await io()`](/docs/app/api-reference/functions/io) before calling the helper to defer its uncached work. Use [`await connection()`](/docs/app/api-reference/functions/connection) instead when the helper must wait for a user request. Keep the component inside a `<Suspense>` boundary.
-
-```jsx filename="app/session-status.js"
-import { io } from 'next/cache'
-import { getCurrentUser } from '@/app/lib/auth'
-
-export async function SessionStatus() {
-  await io()
-  const user = await getCurrentUser()
-  return <p>{user ? 'Signed in' : 'Signed out'}</p>
-}
-```
-
-At build time, prerendering can stop at `cookies()` before reaching the clock read. A successful build therefore doesn't rule out this error during runtime prerendering.
-
-To keep the helper eligible for runtime prefetching, see [Cache the timestamp](#cache-the-timestamp) for the constraints on caching an auth or SDK helper.
-
 ### Trade-off
 
 The route renders on every request. The shell still ships instantly because of the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, but the dynamic region waits on the server render before it paints. Design the fallback so it approximates the final layout. A generic spinner or empty box causes a layout shift when the content arrives. See [minimizing layout shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
+- For errors after awaiting request data, see [Synchronous IO after request data](/docs/app/api-reference/functions/io#synchronous-io-after-request-data).
 - Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) in any of them raises this same error.
 - If you're showing a relative time ("3 minutes ago"), the relative formatting belongs on the client so it can update without a re-render. See [Render on the client](#render-on-the-client).
 
@@ -239,7 +219,6 @@ Every visitor in the cache window sees the same timestamp. That's fine for "as o
 ### Gotchas
 
 - A cached timestamp is the time of the most recent cache miss, not the time of the current visit. If users expect the displayed time to match their visit, use [Generate on every request](#generate-on-every-request) instead.
-- For an auth or SDK helper, [read the required request values outside the cache and pass them as arguments](/docs/app/getting-started/caching#passing-runtime-values-to-cached-functions). The cached scope must include the SDK's clock read, rather than only the query that follows it. This requires a helper that accepts those values without reading `cookies()` or `headers()` internally. If you cache session verification, its lifetime and invalidation must respect session expiry and revocation.
 - If you cache a function and still see this error, the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) may be too short to prerender. See [Short-lived caches](#short-lived-caches).
 
 ### Short-lived caches

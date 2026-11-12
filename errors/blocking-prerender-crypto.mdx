@@ -145,7 +145,7 @@ The route renders on every request. The shell still ships instantly because of t
 
 ### Gotchas
 
-- For errors inside auth libraries or SDKs after awaiting [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers), see [Defer an auth or SDK call](/docs/messages/blocking-prerender-current-time#defer-an-auth-or-sdk-call).
+- For errors after awaiting request data, see [Synchronous IO after request data](/docs/app/api-reference/functions/io#synchronous-io-after-request-data).
 - Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling a crypto API in any of them raises this same error.
 - For genuinely security-critical tokens (session IDs, CSRF), [Generate on every request](#generate-on-every-request) is the only correct choice. Caching a CSRF token across visitors defeats its purpose.
 - This error only fires for synchronous random-producing APIs. Async crypto operations ([`crypto.subtle.digest()`](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/digest), [`crypto.generateKeyPair()`](https://nodejs.org/api/crypto.html#cryptogeneratekeypairtype-options-callback)) integrate with [`<Suspense>`](https://react.dev/reference/react/Suspense) naturally and don't trip the error.
