@@ -22,7 +22,7 @@ import { bold, yellow } from '../lib/picocolors'
 import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
 import os from 'os'
-import { Worker } from '../lib/worker/index'
+import { ForkServer, Worker } from '../lib/worker/index'
 import { defaultConfig, getNextConfigRuntime } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
@@ -1024,12 +1024,15 @@ export function createStaticWorker(
       run: () => void
       clear: () => void
     }
+    /** Spawn the worker processes through this fork server */
+    forkServer?: ForkServer
   }
 ): StaticWorker {
-  const { numberOfWorkers, debuggerPortOffset, progress } = options
+  const { numberOfWorkers, debuggerPortOffset, progress, forkServer } = options
   return new Worker(staticWorkerPath, {
     workerName: 'Next.js static worker',
     maxWorkers: numberOfWorkers,
+    forkServer,
     onActivity: () => {
       progress?.run()
     },
@@ -1137,7 +1140,7 @@ export default async function build(
   let loadedConfig: NextConfigComplete | undefined
   let pendingUpgradeNudge: Promise<void> | undefined
   let staticWorker: StaticWorker
-
+  let staticWorkerForkServer: ForkServer | undefined
   // Turbopack compile warnings are deferred until after static generation.
   let deferredTurbopackWarnings: string[] | undefined
   const flushTurbopackWarnings = () => {
@@ -1906,6 +1909,29 @@ export default async function build(
       let shutdownPromise = Promise.resolve()
       if (!isGenerateMode) {
         if (bundler === Bundler.Turbopack) {
+          // Turbopack compiles in this process, so its heap is large once
+          // the static workers are spawned. Forking it then is slow: the
+          // kernel copies and later tears down its page tables, and the
+          // copy-on-write faults it causes slow down the threads that are
+          // still running (e.g. Turbopack persisting its cache). Start a small
+          // fork server now, while this process is still small, to spawn
+          // the static workers later. The workers are still spawned on
+          // demand, at the same time as before.
+          //
+          // Not needed for `compile` mode, which doesn't use the static
+          // worker, or for worker threads, which aren't forked. Skipped with
+          // `memoryBasedWorkersCount` and `runAfterProductionCompile` to keep
+          // their memory and environment behavior exactly as before.
+          if (
+            !isCompileMode &&
+            !config.experimental.workerThreads &&
+            !config.experimental.memoryBasedWorkersCount &&
+            !config.compiler?.runAfterProductionCompile
+          ) {
+            staticWorkerForkServer = nextBuildSpan
+              .traceChild('start-static-worker-fork-server')
+              .traceFn(() => ForkServer.start())
+          }
           const {
             duration: compilerDuration,
             shutdownPromise: p,
@@ -2366,6 +2392,7 @@ export default async function build(
         // Port offset 0: export-page workers get the first debugger port after
         // the parent process (base + 1 + 0).
         debuggerPortOffset: 0,
+        forkServer: staticWorkerForkServer,
       })
 
       const analysisBegin = process.hrtime()
@@ -4948,9 +4975,15 @@ export default async function build(
     }
     throw e
   } finally {
-    // @ts-expect-error Existence of staticWorker is checked here intentionally.
-    if (staticWorker) {
-      await staticWorker.shutdown()
+    try {
+      // @ts-expect-error Existence of staticWorker is checked here intentionally.
+      if (staticWorker) {
+        await staticWorker.shutdown()
+      }
+    } finally {
+      // After the static worker: workers spawned by the fork server rely on it
+      // to report their exit.
+      staticWorkerForkServer?.shutdown()
     }
     // Ensure we wait for lockfile patching if present
     await lockfilePatchPromise.cur
