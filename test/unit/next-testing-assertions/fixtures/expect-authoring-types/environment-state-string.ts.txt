@@ -1,0 +1,5 @@
+import{expect,type MatcherState}from'vitest'
+const environment:string=expect.getState().environment
+expect.setState({environment:'authored'})
+declare const state:MatcherState
+const declared:string=state.environment

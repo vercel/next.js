@@ -1,0 +1,6 @@
+import type {DiffOptions} from 'vitest'
+import type{DiffOptions as Actual}from'actual-origin'
+type Equal<A,B>=(<T>()=>T extends A?1:2)extends(<T>()=>T extends B?1:2)?true:false
+const identity:Equal<DiffOptions,Actual>=true
+const color:Equal<DiffOptions['aColor'],Actual['aColor']>=true
+const comparer:Equal<DiffOptions['compareKeys'],Actual['compareKeys']>=true

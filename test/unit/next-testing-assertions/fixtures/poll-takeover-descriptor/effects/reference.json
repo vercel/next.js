@@ -1,0 +1,164 @@
+{
+  "reference": "Actual Vitest5.0.4 effects callable tag contract; identity whole-model remains required/open",
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "9718c7b970609322176fea8073f4fab0a00c15f7a7378e73e0d658bba5eb5780",
+  "rows": [
+    {
+      "kind": "producer",
+      "records": [
+        {
+          "kind": "absent",
+          "own": {
+            "own": false
+          },
+          "keysBefore": false,
+          "keysAfter": false,
+          "getterReads": 0,
+          "sameMethod": true
+        },
+        {
+          "kind": "false",
+          "own": {
+            "own": false
+          },
+          "keysBefore": false,
+          "keysAfter": false,
+          "getterReads": 0,
+          "sameMethod": true
+        },
+        {
+          "kind": "true",
+          "own": {
+            "own": true,
+            "data": true,
+            "value": true,
+            "configurable": false,
+            "enumerable": false,
+            "writable": false
+          },
+          "keysBefore": true,
+          "keysAfter": true,
+          "getterReads": 0,
+          "sameMethod": true
+        },
+        {
+          "kind": "getter-false",
+          "own": {
+            "own": false
+          },
+          "keysBefore": false,
+          "keysAfter": false,
+          "getterReads": 1,
+          "sameMethod": true
+        },
+        {
+          "kind": "getter-true",
+          "own": {
+            "own": true,
+            "data": true,
+            "value": true,
+            "configurable": false,
+            "enumerable": false,
+            "writable": false
+          },
+          "keysBefore": true,
+          "keysAfter": true,
+          "getterReads": 1,
+          "sameMethod": true
+        }
+      ],
+      "readonly": {
+        "rejected": true,
+        "message": "Cannot redefine property: __vitest_poll_takeover__"
+      },
+      "current": {
+        "own": true,
+        "data": true,
+        "value": true,
+        "configurable": false,
+        "enumerable": false,
+        "writable": false
+      }
+    },
+    {
+      "kind": "accessor",
+      "reads": 0,
+      "writes": 0,
+      "sameGetter": true,
+      "sameSetter": true,
+      "hasValue": false,
+      "hasWritable": false,
+      "configurable": true,
+      "enumerable": true
+    },
+    {
+      "kind": "retained",
+      "tagged": {
+        "own": true,
+        "data": true,
+        "value": true,
+        "configurable": false,
+        "enumerable": false,
+        "writable": false
+      },
+      "absent": {
+        "own": false
+      },
+      "inputGetterReads": {
+        "absent": 0,
+        "false": 0,
+        "true": 0,
+        "getter-false": 1,
+        "getter-true": 1
+      }
+    },
+    {
+      "kind": "afterAll",
+      "tagged": {
+        "own": true,
+        "data": true,
+        "value": true,
+        "configurable": false,
+        "enumerable": false,
+        "writable": false
+      },
+      "absent": {
+        "own": false
+      },
+      "inputGetterReads": {
+        "absent": 0,
+        "false": 0,
+        "true": 0,
+        "getter-false": 1,
+        "getter-true": 1
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "actual primitive tag producer descriptors",
+      "state": "passed"
+    },
+    {
+      "name": "authored tag accessor keeps real descriptor identity",
+      "state": "passed"
+    },
+    {
+      "name": "retained tag metadata is readonly data after task completion",
+      "state": "passed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 3,
+    "numPassedTests": 3,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "rawErrorCount": 0
+}

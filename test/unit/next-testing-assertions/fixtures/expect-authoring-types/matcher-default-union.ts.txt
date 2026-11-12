@@ -1,0 +1,5 @@
+import {expect,type ExpectStatic,type ExpectPollOptions,type Assertion,type Matchers}from'vitest'
+declare module 'vitest'{interface Matchers<R,T>{toBePayload(value:T,count:number):R}}
+declare const value:Matchers
+type Equal<A,B>=(<T>()=>T extends A?1:2)extends(<T>()=>T extends B?1:2)?true:false
+const exact:Equal<ReturnType<typeof value.toBePayload>,void|Promise<void>>=true

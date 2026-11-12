@@ -1,0 +1,3 @@
+import {expect,type ExpectStatic,type ExpectPollOptions,type Assertion,type Matchers}from'vitest'
+const view:ExpectStatic=expect
+view.missingPublicMethod()

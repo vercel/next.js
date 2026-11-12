@@ -1,0 +1,3 @@
+import type {DiffOptions} from 'vitest'
+const color=(value:string)=>'['+value+']'
+const options:DiffOptions={aAnnotation:'actual',bAnnotation:'expected',aColor:color,bColor:color,aIndicator:'-',bIndicator:'+',changeColor:color,changeLineTrailingSpaceColor:color,commonColor:color,commonIndicator:' ',commonLineTrailingSpaceColor:color,contextLines:3,emptyFirstOrLastLinePlaceholder:' ',expand:false,includeChangeCounts:true,omitAnnotationLines:false,patchColor:color,printBasicPrototype:false,maxDepth:5,compareKeys:(left,right)=>left.localeCompare(right),truncateThreshold:100,truncateAnnotation:'...',truncateAnnotationColor:color}

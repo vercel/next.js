@@ -1,0 +1,106 @@
+import { chai, test, afterAll } from 'vitest'
+import assert from 'node:assert/strict'
+function emit(row) {
+  if ('descriptorIdentity' in row) assert.equal(row.descriptorIdentity, true)
+  if ('sameCallable' in row) assert.equal(row.sameCallable, true)
+  for (const call of row.calls ?? [row.call])
+    assert.equal(call.success, true, call.error?.message)
+}
+chai.use((_chai, utils) =>
+  utils.addMethod(
+    _chai.Assertion.prototype,
+    'toOwnIdentity',
+    function (expected) {
+      this.assert(
+        this._obj === expected,
+        'owned mismatch #{act} expected #{exp}',
+        'owned unexpected match',
+        expected,
+        this._obj
+      )
+    }
+  )
+)
+const invoke = (name, method, receiver, expected) => {
+  try {
+    method.call(receiver, expected)
+    return { name, success: true }
+  } catch (error) {
+    return {
+      name,
+      success: false,
+      error: { name: error.name, message: error.message },
+    }
+  }
+}
+let retained, original
+let concurrentMethod, concurrentAssertion, ready, release
+const available = new Promise((resolve) => {
+  ready = resolve
+})
+const done = new Promise((resolve) => {
+  release = resolve
+})
+test('capture a real prototype callable and assertion', () => {
+  retained = chai.Assertion.prototype.toOwnIdentity
+  original = chai.expect(1)
+  emit({
+    kind: 'first',
+    descriptorIdentity:
+      retained ===
+      Object.getOwnPropertyDescriptor(chai.Assertion.prototype, 'toOwnIdentity')
+        .value,
+    calls: [invoke('own', retained, original, 1)],
+  })
+})
+test('retained callable fresh receiver and retained receiver across scopes', () => {
+  const fresh = chai.Assertion.prototype.toOwnIdentity
+  const current = chai.expect(2)
+  emit({
+    kind: 'next',
+    sameCallable: retained === fresh,
+    calls: [
+      invoke('retained-on-current', retained, current, 2),
+      invoke('fresh-on-original', fresh, original, 1),
+      invoke('retained-on-original', retained, original, 1),
+    ],
+  })
+})
+test.concurrent('actual concurrent callable owner A', async () => {
+  concurrentMethod = chai.Assertion.prototype.toOwnIdentity
+  concurrentAssertion = chai.expect(3)
+  ready()
+  await done
+  emit({
+    kind: 'concurrent-A',
+    call: invoke('A-restored-owner', concurrentMethod, concurrentAssertion, 3),
+  })
+})
+test.concurrent('actual concurrent callable receiver B', async () => {
+  await available
+  try {
+    const method = chai.Assertion.prototype.toOwnIdentity
+    const current = chai.expect(4)
+    emit({
+      kind: 'concurrent-B',
+      sameCallable: method === concurrentMethod,
+      calls: [
+        invoke('A-method-on-B', concurrentMethod, current, 4),
+        invoke('B-method-on-A', method, concurrentAssertion, 3),
+        invoke('B-method-on-B', method, current, 4),
+      ],
+    })
+  } finally {
+    release()
+  }
+})
+afterAll(() =>
+  emit({
+    kind: 'afterAll',
+    sameCallable: retained === chai.Assertion.prototype.toOwnIdentity,
+    calls: [
+      invoke('retained-afterAll', retained, chai.expect(5), 5),
+      invoke('retained-original-afterAll', retained, original, 1),
+    ],
+  })
+)

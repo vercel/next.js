@@ -1,0 +1,3 @@
+import{expect,type Matcher}from'vitest'
+const own:Matcher=function(received){const name:string=this.environment;return{pass:received===name,message:()=>name}}
+expect.extend({own})

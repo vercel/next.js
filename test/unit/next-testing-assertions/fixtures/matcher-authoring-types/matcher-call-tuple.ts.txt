@@ -1,0 +1,4 @@
+import type {Matcher,MatcherState,MatchersObject} from 'vitest'
+declare const match:Matcher<MatcherState,[number]>
+declare const state:MatcherState
+match.call(state,1,'wrong')

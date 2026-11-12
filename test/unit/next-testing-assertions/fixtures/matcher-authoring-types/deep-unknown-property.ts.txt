@@ -1,0 +1,3 @@
+import {expect} from 'vitest'
+import type{DeeplyAllowMatchers}from'vitest'
+const expected:DeeplyAllowMatchers<{value:number}>={value:1,unknown:true}

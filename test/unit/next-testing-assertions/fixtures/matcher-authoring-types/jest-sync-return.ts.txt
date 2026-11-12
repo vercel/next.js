@@ -1,0 +1,7 @@
+import{expect}from'vitest'
+import type{JestAssertion}from'vitest'
+const assertion:JestAssertion<void,{value:number}>=expect({value:1})
+const result:void=assertion.toEqual({value:1})
+assertion.toHaveProperty(['value'],1)
+assertion.toBeOneOf(new Set([1,2]))
+assertion.toSatisfy(value=>Boolean(value))

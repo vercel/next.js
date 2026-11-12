@@ -1,0 +1,4 @@
+import{test,type ExpectStatic}from'vitest'
+declare module 'vitest'{interface Matchers<R,T>{toBePayload(value:T,count:number):R}}
+declare module 'vitest'{interface ExpectStatic{readonly userMarker?:true}}
+test('real task',({expect})=>{const view:ExpectStatic=expect;const marker:true|undefined=expect.userMarker;const result:Promise<void>=expect.poll(()=>1).toBePayload(1,2)})

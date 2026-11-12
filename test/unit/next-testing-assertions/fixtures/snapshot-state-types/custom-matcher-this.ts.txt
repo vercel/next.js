@@ -1,0 +1,1 @@
+import {expect} from 'vitest'; expect.extend({toHaveSnapshot(actual:unknown){return{pass:this.snapshotState.matched.total()===0,message:()=>String(actual)}}});

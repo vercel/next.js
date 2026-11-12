@@ -1,0 +1,4 @@
+import{expect}from'vitest'
+import type{JestAssertion}from'vitest'
+declare const assertion:JestAssertion<void>
+assertion.toHaveProperty({value:1})

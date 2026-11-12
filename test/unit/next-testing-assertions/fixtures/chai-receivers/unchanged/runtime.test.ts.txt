@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict'
+import { test, chai, expect } from 'vitest'
+function proxify<T extends object>(value: T, ...name: [] | [string]): T {
+  return Reflect.apply(chai.util.proxify, chai.util, [value, ...name]) as T
+}
+test('proxied assertions preserve values and require explicit method receivers', () => {
+  const original = chai.expect(3)
+  const proxied = proxify(original)
+  assert.notEqual(proxied, original)
+  proxied.to.equal(3)
+  const method = proxify(original.equal, 'equal')
+  assert.throws(
+    () => method(3),
+    (error) => error instanceof TypeError && /undefined/.test(error.message)
+  )
+  const returned = Reflect.apply(method, original, [3])
+  assert.equal(typeof returned, 'object')
+  assert.equal(chai.util.flag(returned, 'object'), 3)
+  const previous = chai.config.useProxy
+  try {
+    chai.config.useProxy = false
+    assert.equal(proxify(original), original)
+    const wrapped = expect(6)
+    assert.equal(proxify(wrapped), wrapped)
+    wrapped.to.equal(6)
+    assert.equal(expect.getState().assertionCalls, 1)
+  } finally {
+    chai.config.useProxy = previous
+  }
+})
