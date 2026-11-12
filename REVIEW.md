@@ -41,7 +41,7 @@ Every finding gets one severity. Only escalations withhold approval.
 - **Comment.** A real issue that doesn't block approval on its own. Raise it; the author decides whether to iterate.
 - **Nit.** Taste. At most 3, prefixed `nit:`. They never count toward anything.
 - **Triggers are context.** A medium [trigger](#escalation-triggers) describes what the PR touches, so it can't be justified. One medium trigger alone doesn't escalate. Two do, and so does one plus a medium finding.
-- **Accumulation.** 5+ comments from the correctness rules (tests and bugfixes, scope and description, Next.js internals) count as one medium finding. Comments from the style rules never count.
+- **Accumulation.** 5+ comments from the correctness rules (tests and bugfixes, scope and description, Next.js internals) count as one medium finding. Comments from the style rules and comment-level findings under `no-stale-docs` never count.
 - **Correctness evidence is strong.** A bugfix with no root cause, no regression test, or a hidden failure doesn't get automated approval.
 - When it's close, approve, and say what you weighed.
 
@@ -131,7 +131,7 @@ One line per rule, with its signs. Open a rule's file before you raise a finding
 
 **Documentation**
 
-- [no-stale-docs](review/rules/no-stale-docs.md) **medium** for guidance that would lead to incorrect implementation or validation, **strong** for substantial guidance loss or changes to agent activation, permissions, consent, or stopping conditions, otherwise **comment**: docs, comments, and skills preserve correct advice. Signs: a removed safeguard or condition; contradictory prose and examples; a fix that fails in its stated mode; migration advice that hides a behavior change; a rewrite that drops useful guidance. These severities apply even when the author owns the area.
+- [no-stale-docs](review/rules/no-stale-docs.md), for docs, skills, and other agent instructions: **medium** for guidance that would lead to incorrect implementation or validation, **strong** for substantial guidance loss or changes to agent activation, permissions, consent, or stopping conditions, otherwise **comment**: docs, comments, and skills preserve correct advice. Signs: a removed safeguard or condition; contradictory prose and examples; a fix that fails in its stated mode; migration advice that hides a behavior change; a rewrite that drops useful guidance. These escalation tiers apply even when the author owns the area. Stale source-code comments remain **comment** only. A medium finding requires evidence that the advice is correct to be dismissed.
 
 **Style** (comment-only, and never counts toward accumulation)
 

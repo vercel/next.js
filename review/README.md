@@ -19,7 +19,7 @@ Reviews currently run in a single pass. The index in `REVIEW.md` has to be enoug
 
 ## Reviewing documentation
 
-Docs-only changes are reviewed for the behavior their advice produces. The [docs rubric](areas/docs.md) covers the checks; [no-stale-docs](rules/no-stale-docs.md) defines when incorrect advice or lost guidance withholds approval. The same rule covers skills and other agent instructions: review changes to what the agent will do and the safeguards it must follow. Wording and presentation preferences remain advisory.
+Docs-only changes are reviewed for the behavior their advice produces. The [docs rubric](areas/docs.md) covers the checks; [no-stale-docs](rules/no-stale-docs.md) defines when incorrect advice or lost guidance withholds approval. The same rule covers skills and other agent instructions: review changes to what the agent will do and the safeguards it must follow. Wording and presentation preferences remain advisory. Stale source-code comments keep their comment-only severity, and comment-level findings under this rule do not accumulate into an escalation.
 
 These are repository review criteria. They don't configure the review service's approval mode or how it publishes advisory feedback and escalation reasons.
 

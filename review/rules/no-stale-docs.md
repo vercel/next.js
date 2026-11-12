@@ -2,7 +2,9 @@
 
 rule: Docs, comments, and skills preserve the conditions and safeguards that make their advice correct.
 
-severity: escalate (medium) for guidance that would lead to incorrect implementation or validation; escalate (strong) for substantial loss of decision branches, fixes, caveats, or examples with no verified replacement, or changes to agent activation, permissions, consent, or stopping conditions; comment otherwise
+severity: for docs, skills, and other agent instructions, escalate (medium) for guidance that would lead to incorrect implementation or validation; escalate (strong) for substantial loss of decision branches, fixes, caveats, or examples with no verified replacement, or changes to agent activation, permissions, consent, or stopping conditions; comment otherwise
+
+The escalation tiers apply to documentation, skills, and other agent instructions. Stale comments in source code remain comment-only. Incorrect guidance within a documented code example is still documentation. Comment-level findings under this rule never count toward accumulation.
 
 ## Signs in review
 
@@ -19,6 +21,7 @@ severity: escalate (medium) for guidance that would lead to incorrect implementa
 
 ## How to apply
 
+- A medium finding can be dismissed only with evidence that the advice is correct for its stated conditions. A reason for leaving known incorrect advice in place does not waive the finding. This takes precedence over the general allowance for a justified medium.
 - Check changed claims against the implementation and relevant tests. A docs correction can describe existing behavior without a code change in the same PR.
 - Compare examples with their prose and expected output. Check the mode the advice targets; success in `next dev` doesn't establish that a build-time fix works.
 - Follow related references when the changed claim would leave conflicting advice. Cite the affected lines and the implementation or related page that contradicts them.
@@ -27,7 +30,7 @@ severity: escalate (medium) for guidance that would lead to incorrect implementa
 - Size prompts a closer look, not a verdict. A one-word change can alter correctness. Wording, repetition, section order, and presentation remain advisory when they preserve meaning.
 - These severities apply even when the author owns the area. They take precedence over treating stale docs as style feedback. Security concerns follow the separate policy in [REVIEW.md](../../REVIEW.md#security-is-out-of-scope).
 
-## Example
+## Example (comment-only)
 
 Bad: changes the default from 0 to 30 and leaves `// Defaults to 0, so dynamic pages always refetch` above it.
 
@@ -39,7 +42,6 @@ Good: the comment changes with the code.
 - Bad: calls disabling a validation check "opting out of prerendering" when prerendering still occurs. Good: distinguishes validation from rendering behavior and checks the relevant implementation.
 - Bad: replaces a migration step without mentioning the prefetched UI it stops preserving. Good: explains the behavior change and how to validate the intended UI before and after migration.
 - Bad: deletes a troubleshooting page's alternate fixes and caveats with no replacement. Good: maps each still-relevant case to its replacement section, or escalates the removal for human review.
-
 - Bad: treats a skill changing "ask before publishing" to "publish after validation" as a wording edit. Good: requests human review because the agent would now publish without consent.
 
 ## Why
