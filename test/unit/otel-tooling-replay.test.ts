@@ -122,7 +122,7 @@ describe('tooling OTel safety', () => {
   function child(
     name: string,
     parent?: Span | number | null,
-    options: Partial<Parameters<typeof recorder.createRecordingSpan>[0]> = {}
+    options: Partial<Parameters<typeof tracing.createTraceSpan>[0]> = {}
   ) {
     return tracing.createTraceSpan({
       name,
@@ -185,16 +185,6 @@ describe('tooling OTel safety', () => {
     tracing.recordSpan({ name, attributes, reportToOtel: true }, parent)
   }
 
-  function invalidate(action: string) {
-    if (action === 'close') backend.closeReporting()
-    else {
-      const replacement = buildRoot('replacement-root')
-      backend.enableReporting()
-      child('replacement-child', replacement).end()
-      replacement.end()
-    }
-  }
-
   function buildRoot(name = 'next-build') {
     return new tracing.Span({
       name,
@@ -202,6 +192,21 @@ describe('tooling OTel safety', () => {
       reportingRoot: true,
     }).recorder
   }
+
+  it('keeps legacy trace tags while normalizing OTel attributes', () => {
+    const root = new tracing.Span({
+      name: 'next-build',
+      attrs: { metadata: { nested: true } },
+      reportToOtel: true,
+      reportingRoot: true,
+    })
+    installProvider()
+    backend.enableReporting()
+    root.stop()
+
+    expect(local[0].tags?.metadata).toEqual({ nested: true })
+    expect(exported[0].attributes.metadata).toBe('{"nested":true}')
+  })
 
   it.each(['live', 'early'])(
     'preserves processor names for untouched %s local spans',
@@ -374,71 +379,6 @@ describe('tooling OTel safety', () => {
     )
   })
 
-  it('detaches early span and completed observation data without custom serializers', () => {
-    const serialize = jest.fn(() => {
-      throw new Error('custom serializer called')
-    })
-    const attributeValues = Object.assign(['attribute-before'], {
-      toJSON: serialize,
-    })
-    const linkValues = Object.assign(['link-before'], { toJSON: serialize })
-    const eventValues = Object.assign(['event-before'], { toJSON: serialize })
-    const workerValues = Object.assign(['worker-before'], { toJSON: serialize })
-    const observationValues = Object.assign(['observation-before'], {
-      toJSON: serialize,
-    })
-    const link = {
-      context: { ...linkedContext },
-      attributes: { values: linkValues },
-    }
-    const root = buildRoot()
-    const operation = child('early-copy', root, { links: [link] })
-    link.context.spanId = 'fedcba9876543210'
-    linkValues[0] = 'link-after'
-    operation.setAttribute('values', attributeValues)
-    operation.addEvent('checkpoint', { values: eventValues })
-    operation.end()
-    attributeValues[0] = 'attribute-after'
-    eventValues[0] = 'event-after'
-
-    const rootId = (
-      require('../../packages/next/src/trace/trace') as typeof import('../../packages/next/src/trace/trace')
-    ).getTraceSpanSource(root)!.id
-    replay({
-      id: 100,
-      parentId: rootId,
-      name: 'worker-copy',
-      timestamp: 1,
-      duration: 1,
-      tags: { values: workerValues },
-    })
-    workerValues[0] = 'worker-after'
-    observe('observation-copy', { values: observationValues }, root)
-    observationValues[0] = 'observation-after'
-    installProvider()
-    backend.enableReporting()
-    root.end()
-
-    expectExported(
-      'early-copy',
-      'worker-copy',
-      'observation-copy',
-      'next-build'
-    )
-    expect(exported[0].attributes.values).toBe('["attribute-before"]')
-    expect(exported[0].links[0]).toMatchObject({
-      context: { spanId: '0123456789abcdef' },
-      attributes: { values: ['link-before'] },
-    })
-    expect(exported[0].events[0]).toMatchObject({
-      name: 'checkpoint',
-      attributes: { values: ['event-before'] },
-    })
-    expect(exported[1].attributes.values).toBe('["worker-before"]')
-    expect(exported[2].attributes.values).toBe('["observation-before"]')
-    expect(serialize).not.toHaveBeenCalled()
-  })
-
   it('preserves mixed span events across SDK registration and the final name', () => {
     const root = buildRoot()
     const operation = child('mixed-operation', root)
@@ -517,70 +457,24 @@ describe('tooling OTel safety', () => {
     expect(warn).toHaveBeenCalledTimes(1)
   })
 
-  it.each(['explicit', 'getter'])(
-    'keeps explicit status and ignores late writes when copying triggers %s failure',
-    (failure) => {
-      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
-      const root = buildRoot()
-      const operation = child('clone-error', root)
-      if (failure === 'explicit') {
-        operation.setStatus({ code: api.SpanStatusCode.ERROR })
-      }
-      operation.setAttribute(
-        'payload',
-        Object.defineProperty([''], '0', {
-          get() {
-            if (failure === 'getter') operation.setAttribute('failed', true)
-            throw new Error('attribute getter failed')
-          },
-        })
-      )
-      operation.end()
-      child('after-clone-error', root).end()
-      installProvider()
-      backend.enableReporting()
-      root.end()
+  it('bounds worker batches queued before registration', () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const root = buildRoot()
+    replay(
+      ...Array.from({ length: 1_000 }, (_, index) => ({
+        id: 10_000 + index,
+        name: `worker-${index}`,
+      }))
+    )
+    installProvider()
+    backend.enableReporting()
+    root.end()
 
-      expectExported('clone-error', 'after-clone-error', 'next-build')
-      expect(exported[0].status.code).toBe(
-        failure === 'explicit'
-          ? api.SpanStatusCode.ERROR
-          : api.SpanStatusCode.UNSET
-      )
-      expect(exported[0].attributes.payload).toBeUndefined()
-      expect(
-        local.find((event) => event.name === 'clone-error')?.tags?.payload
-      ).toBeInstanceOf(Array)
-      if (failure === 'getter') {
-        expect(
-          local.find((event) => event.name === 'clone-error')?.tags?.failed
-        ).toBeUndefined()
-      }
-      expect(warn).toHaveBeenCalledTimes(1)
-    }
-  )
-
-  it.each(['close', 'reset'])(
-    'rejects stale work when an SDK callback triggers %s',
-    (action) => {
-      const root = buildRoot()
-      const invalidateReporting = jest.fn(() => {
-        invalidate(action)
-      })
-      installProvider((span) => {
-        if (span.name === 'next-build') invalidateReporting()
-      })
-      backend.enableReporting()
-      root.end()
-      expect(invalidateReporting).toHaveBeenCalled()
-      expect(exported.map((span) => span.name).sort()).toEqual(
-        action === 'close' ? [] : ['replacement-child', 'replacement-root']
-      )
-      expect(local.map((event) => event.name)).toEqual(
-        expect.arrayContaining(['next-build'])
-      )
-    }
-  )
+    expect(exported).toHaveLength(1_000)
+    expect(exported.some((span) => span.name === 'worker-998')).toBe(true)
+    expect(exported.some((span) => span.name === 'worker-999')).toBe(false)
+    expect(warn).toHaveBeenCalledTimes(1)
+  })
 
   it('keeps local diagnostics when application SDK callbacks throw', async () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
@@ -660,47 +554,6 @@ describe('tooling OTel safety', () => {
     expect(exported[2].parentSpanContext?.spanId).toBe(
       exported[3].spanContext().spanId
     )
-  })
-
-  it('parents worker children to the root when their parent SDK callback fails', () => {
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
-    const root = buildRoot()
-    const rootId = (
-      require('../../packages/next/src/trace/trace') as typeof import('../../packages/next/src/trace/trace')
-    ).getTraceSpanSource(root)!.id
-    const parentName = 'worker-parent'
-
-    replay(
-      {
-        id: 101,
-        parentId: 100,
-        name: 'worker-child',
-        timestamp: 2,
-        duration: 1,
-      },
-      {
-        id: 100,
-        parentId: rootId,
-        name: parentName,
-        timestamp: 1,
-        duration: 3,
-      }
-    )
-    installProvider((span) => {
-      if (span.name === parentName) throw new Error('parent processor failed')
-    })
-    backend.enableReporting()
-    root.end()
-
-    expectExported('worker-child', 'next-build')
-    expect(exported[0].parentSpanContext?.spanId).toBe(
-      exported[1].spanContext().spanId
-    )
-    expect(exported[0].attributes['next.tooling.parent_id']).toBe(100)
-    expect(local).toHaveLength(3)
-    expect(local.some((event) => event.name === parentName)).toBe(true)
-    expect(local.some((event) => event.name === 'worker-child')).toBe(true)
-    expect(warn).toHaveBeenCalledTimes(1)
   })
 
   it.each(['on', 'off'])(

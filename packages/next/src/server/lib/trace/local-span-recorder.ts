@@ -21,7 +21,7 @@ import {
 } from './span-store'
 import type { SpanId } from '../../../trace/types'
 import { getTimestamp, toHrTime } from './utils'
-import type { ReportingToken, ReportingStart } from './local-span-replay.node'
+import type { ReportingSpan } from './local-span-replay.node'
 
 export { isLocalSpanRecordingEnabled } from './span-store'
 
@@ -131,9 +131,9 @@ export function createRecordingSpan(
     clock: options.clock,
     onError: options.onError,
     delegateSpan,
-    parentReporting:
+    parentReportingId:
       parent instanceof LocalRecordingSpan
-        ? parent.getReportingToken()
+        ? parent.getReportingId()
         : undefined,
     publicParentSpan: options.publicParentSpan,
     traceId:
@@ -498,9 +498,8 @@ function getLocalSpanAsyncStorage() {
 export class LocalRecordingSpan implements Span {
   public name: string
   private nameUpdated = false
-  private reportingStart?: ReportingStart
-  private reportingToken?: ReportingToken
-  private readonly parentReporting?: ReportingToken
+  private reportingSpan?: ReportingSpan
+  private readonly parentReportingId?: number
 
   private attributes: SpanStoreAttributes
   private events: SpanStoreEvent[]
@@ -526,7 +525,7 @@ export class LocalRecordingSpan implements Span {
     startTime,
     clock,
     onError,
-    parentReporting,
+    parentReportingId,
     delegateSpan,
     publicParentSpan,
     traceId,
@@ -536,7 +535,7 @@ export class LocalRecordingSpan implements Span {
     isolateOpenTelemetry,
   }: LocalSpanOptions & {
     attributes?: LocalSpanAttributes
-    parentReporting?: ReportingToken
+    parentReportingId?: number
     traceId: string
     spanId: string
     parentSpanId?: string
@@ -546,7 +545,7 @@ export class LocalRecordingSpan implements Span {
     this.name = name
     this.clock = clock
     this.onError = onError
-    this.parentReporting = parentReporting
+    this.parentReportingId = parentReportingId
     this.attributes = cleanSpanStoreAttributes(attributes)
     this.events = []
     this.delegateSpan = delegateSpan
@@ -567,8 +566,8 @@ export class LocalRecordingSpan implements Span {
     this.ended = false
   }
 
-  getReportingToken(): ReportingToken | undefined {
-    return this.reportingToken ?? this.parentReporting
+  getReportingId(): number | undefined {
+    return this.reportingSpan?.id ?? this.parentReportingId
   }
 
   startReporting(
@@ -577,46 +576,25 @@ export class LocalRecordingSpan implements Span {
     completed = false
   ): void {
     const replay = getReplay()!
-    this.reportingStart = {
-      name: this.name,
-      start: this.clock?.start ?? epochNanoseconds(this.startTime),
-      parentId: identity?.parentId,
-      attributes: identity?.attributes,
-      links: this.links?.map(({ traceId, spanId, attributes }) => ({
-        context: { traceId, spanId, traceFlags: 0 },
-        attributes,
-      })),
-    }
-    const token = (this.reportingToken = replay.prepare(
-      {},
-      identity?.id ?? --nextReportingId,
-      identity?.parentId,
-      this.parentReporting,
+    this.reportingSpan = replay.startSpan(
+      {
+        id: identity?.id ?? --nextReportingId,
+        parentId: this.parentReportingId ?? identity?.parentId,
+        name: this.name,
+        start: this.clock?.start ?? epochNanoseconds(this.startTime),
+        attributes: identity?.attributes,
+        links: this.links?.map(({ traceId, spanId, attributes }) => ({
+          context: { traceId, spanId, traceFlags: 0 },
+          attributes,
+        })),
+      },
       root
-    ))
-    if (token && !completed)
-      replay.deliverReportingSpan(token, this.reportingStart)
+    )
+    if (!completed) replay.flushReporting()
   }
 
-  private updateDelegate(
-    update: (span: Span) => void,
-    events?: SpanStoreEvent[]
-  ): void {
-    const token = this.reportingToken
-    const span = token ? token.span : this.delegateSpan
-    if (!span || (token && !spanReplay!.isReady(token))) return
-    try {
-      if (token && events) {
-        spanReplay!.deliverEvents(token, events, () =>
-          spanReplay!.isReady(token)
-        )
-      } else {
-        update(span)
-      }
-    } catch (error) {
-      if (!token) throw error
-      spanReplay!.finish(token, true)
-    }
+  private updateDelegate(update: (span: Span) => void): void {
+    if (this.delegateSpan) update(this.delegateSpan)
   }
 
   addDelivery(deliver: LocalSpanDelivery): void {
@@ -639,10 +617,9 @@ export class LocalRecordingSpan implements Span {
   }
 
   getOpenTelemetrySpan(): Span | undefined {
-    const context =
-      this.reportingToken?.context ?? this.openTelemetrySpanContext
+    const context = this.reportingSpan?.context ?? this.openTelemetrySpanContext
     return (
-      this.reportingToken?.span ??
+      this.reportingSpan?.span ??
       this.openTelemetrySpan ??
       (context
         ? (
@@ -692,9 +669,8 @@ export class LocalRecordingSpan implements Span {
         ? cleanSpanStoreAttributes(attributesOrStartTime)
         : undefined,
     })
-    this.updateDelegate(
-      (span) => span.addEvent(name, attributesOrStartTime, startTime),
-      this.events
+    this.updateDelegate((span) =>
+      span.addEvent(name, attributesOrStartTime, startTime)
     )
     return this
   }
@@ -726,9 +702,9 @@ export class LocalRecordingSpan implements Span {
     try {
       const end =
         this.clock?.end(endTime) ??
-        (this.reportingToken ? epochNanoseconds(endTime) : undefined)
+        (this.reportingSpan ? epochNanoseconds(endTime) : undefined)
       try {
-        if (!this.reportingToken)
+        if (!this.reportingSpan)
           this.delegateSpan?.end(this.clock ? toHrTime(end!) : endTime)
       } finally {
         this.record(endTime, end)
@@ -768,10 +744,7 @@ export class LocalRecordingSpan implements Span {
       timestamp: getTimestamp(time),
       attributes: Object.keys(attributes).length ? attributes : undefined,
     })
-    this.updateDelegate(
-      (span) => span.recordException(exception, time),
-      this.events
-    )
+    this.updateDelegate((span) => span.recordException(exception, time))
   }
 
   private record(endTime: Parameters<Span['end']>[0], end?: bigint): void {
@@ -807,9 +780,8 @@ export class LocalRecordingSpan implements Span {
         end
       )
     } finally {
-      const token = this.reportingToken
-      if (token && this.reportingStart)
-        spanReplay!.deliverReportingSpan(token, this.reportingStart, {
+      if (this.reportingSpan)
+        spanReplay!.completeSpan(this.reportingSpan, {
           end: end!,
           attributes: this.attributes,
           name: this.nameUpdated ? this.name : undefined,
@@ -823,7 +795,7 @@ export class LocalRecordingSpan implements Span {
     this.name = ''
     this.attributes = {}
     this.delegateSpan = undefined
-    this.reportingStart = undefined
+    this.reportingSpan = undefined
     this.clock = undefined
     this.onError = undefined
     this.events = []

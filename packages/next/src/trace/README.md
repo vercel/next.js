@@ -30,12 +30,12 @@ Local trace files and Request Insights remain independent of build registration 
 
 ## Capture and replay
 
-`LocalRecordingSpan` owns capture and completion for requests and tooling. `local-span-replay.node.ts` buffers and delivers tooling spans to the SDK, including completed worker records. Selected operations preserve explicit parent relationships. `scope: true` activates coarse local operations; `recordToInsights: true` selects Request Insights independently of external reporting. Compiler workers return completed records and selection metadata for coordinator replay without initializing another SDK.
+`LocalRecordingSpan` owns capture and completion for requests and tooling. `local-span-replay.node.ts` queues tooling span starts and completions until the SDK is registered. Selected operations preserve explicit parent relationships. `scope: true` activates coarse local operations; `recordToInsights: true` selects Request Insights independently of external reporting. Compiler workers return completed records and selection metadata for coordinator replay without initializing another SDK.
 
-The replay module buffers detached OTel data until registration, then drains it with original timestamps. Snapshots copy supported values without invoking JSON serializers. Later spans go directly to the SDK without buffering or admission. Worker batches resolve their IDs and parent order once when ingested. Metrics use the normal meter API independently of the tracer provider.
+Registration drains one bounded queue through the normal tracer API with the original timestamps. Later starts and completions use the same queue and drain immediately. Worker batches resolve their selected parent order when ingested. Metrics use the normal meter API independently of the tracer provider.
 
-One snapshot queue also defers work created by SDK callbacks until the current callback returns. It holds at most 1,000 entries, with one slot reserved for the root. Full queues warn and drop external reporting without dropping local traces. Individual payload size is uncapped. Active numeric-parent lookup retains only bounded context tokens. SDK calls run synchronously, so application processors can block tooling work. Closing releases pending records without fabricating completion times for unfinished work.
+The queue guard defers work created by synchronous SDK callbacks until the current item returns. It holds at most 1,000 spans before registration, with one slot reserved for the root. Full queues warn and drop external reporting without dropping local traces. Closing drops pending records without fabricating completion times for unfinished work.
 
 ## Tests
 
-`test/e2e/app-dir/otel-tooling` covers configuration, sampling, HMR, worker replay, restarts and build failures. Its synchronous exporter verifies SDK delivery, not network delivery or batched-exporter draining. `test/unit/otel-tooling-replay.test.ts` covers replay limits, SDK callback failures/reentrancy and closing.
+`test/e2e/app-dir/otel-tooling` covers configuration, sampling, HMR, worker replay, restarts and build failures. Its synchronous exporter verifies SDK delivery, not network delivery or batched-exporter draining. `test/unit/otel-tooling-replay.test.ts` covers queue draining, replay limits, worker parentage, SDK failures and reentrancy.
