@@ -1496,6 +1496,7 @@ impl AppEndpoint {
             self.app_project.project().project_path().owned().await?,
             // Route Handlers only use their own exports, not ancestor layout configuration.
             None,
+            false,
             next_config,
         ))
     }

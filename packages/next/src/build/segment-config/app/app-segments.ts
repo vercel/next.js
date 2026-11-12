@@ -21,7 +21,6 @@ import type { DynamicParamTypes } from '../../../shared/lib/app-router-types'
 import { resolveEnsureStaticConfig } from '../../../server/app-render/segment-config/ensure-static'
 import { anySegmentHasPartialPrefetchingEnabled } from '../../../server/app-render/instant-validation/instant-config'
 import { isPlainObject } from '../../../shared/lib/is-plain-object'
-import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
 
@@ -327,9 +326,13 @@ async function collectAppRouteSegments(routeModule: AppRouteRouteModule) {
   // Extract the segment config from the userland module.
   // A handler owns its complete URL, independently of page layouts. Metadata
   // generators own the synthetic ID; it is not an authored matching parameter.
-  const metadataRoute = isMetadataRoute(routeModule.definition.page)
-  const visibleParamNames = segments.flatMap(({ paramName }) =>
-    paramName && !(metadataRoute && paramName === '__metadata_id__')
+  const visibleParamNames = segments.flatMap(({ paramName }, index) =>
+    paramName &&
+    !(
+      routeModule.isMetadataRoute &&
+      index === segments.length - 1 &&
+      paramName === '__metadata_id__'
+    )
       ? [paramName]
       : []
   )

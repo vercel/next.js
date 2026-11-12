@@ -35,6 +35,7 @@ pub async fn get_app_route_entry(
     page: AppPage,
     project_root: FileSystemPath,
     original_segment_config: Option<Vc<NextSegmentConfig>>,
+    is_metadata_route: bool,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<AppEntry>> {
     let segment_from_source = parse_segment_config_from_source(source, ParseSegmentMode::App);
@@ -84,7 +85,13 @@ pub async fn get_app_route_entry(
             ("VAR_RESOLVED_PAGE_PATH", &path.to_string_ref().await?),
             ("VAR_USERLAND", &inner),
         ],
-        [("nextConfigOutput", output_type)],
+        [
+            ("nextConfigOutput", output_type),
+            (
+                "isMetadataRoute",
+                if is_metadata_route { "true" } else { "false" },
+            ),
+        ],
         [],
     )
     .await?;
