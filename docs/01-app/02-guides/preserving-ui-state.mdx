@@ -73,7 +73,7 @@ You can also use `Link`'s [`onNavigate`](/docs/app/api-reference/components/link
 
 #### Native popovers
 
-For browser-managed state, use the element's DOM API to reset it. For example, this native popover calls [`hidePopover()`](https://developer.mozilla.org/docs/Web/API/HTMLElement/hidePopover) in the cleanup so it is closed when the user returns:
+Native popovers keep their open state in the DOM. In this example, a `useLayoutEffect` cleanup calls [`hidePopover()`](https://developer.mozilla.org/docs/Web/API/HTMLElement/hidePopover) to close the popover when Activity hides the component:
 
 ```tsx highlight={9-12}
 'use client'
@@ -101,7 +101,7 @@ function SettingsPopover() {
 }
 ```
 
-Hidden pages remain in the document, so a hard-coded ID can match an element on a preserved page instead of the visible one. [`useId`](https://react.dev/reference/react/useId) gives each component instance a unique ID, keeping the button associated with its own popover. The same applies to IDs used by labels, `aria-describedby`, and the `form` attribute.
+Because hidden pages remain in the DOM, reusing a hard-coded ID across pages can associate a button with the wrong popover. [`useId`](https://react.dev/reference/react/useId) gives each component instance a unique ID, keeping the button associated with its own popover. The same applies to IDs used by labels, `aria-describedby`, and the `form` attribute.
 
 ### Dialog and initialization logic
 
@@ -161,7 +161,7 @@ function ProductDialog() {
 }
 ```
 
-The trigger stays outside the [`Suspense` boundary](/docs/app/api-reference/functions/use-search-params#prerendering) so it can prerender while the dialog reads the search parameters. If the parent already provides an appropriate boundary, it can wrap `ProductDialog` there instead.
+Keeping the button outside the [`Suspense` boundary](/docs/app/api-reference/functions/use-search-params#prerendering) lets it prerender while the dialog reads search parameters. If a parent already provides a suitable boundary, omit the boundary in this example.
 
 Returning through a link without `?edit=true` closes the dialog. Browser back and forward navigation restore the URL for that history entry, so returning to a URL with `?edit=true` opens it again.
 
@@ -503,7 +503,7 @@ function CommentsSkeleton() {
 }
 ```
 
-The Server Component starts fetching comments immediately and passes the promise down. While hidden, the data streams at lower priority. When the user clicks "Show Comments", the `Comments` component resolves the promise with `use()` and the content appears instantly.
+The Server Component starts fetching comments immediately and passes the promise to `ExpandableComments`. Activity renders the hidden content at lower priority. When the user clicks "Show Comments", the comments appear immediately if the data is ready. Otherwise, Suspense shows `CommentsSkeleton` until the request completes.
 
 ### Effect and media cleanup
 
