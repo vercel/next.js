@@ -3,6 +3,8 @@ mod counter;
 mod eager_purge;
 mod memory_footprint;
 mod memory_pressure;
+#[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
+mod option_override;
 
 use std::{
     alloc::{GlobalAlloc, Layout},
