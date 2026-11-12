@@ -380,9 +380,9 @@ describe('router-hooks-hidden-routes', () => {
   }
 
   // `error.js`, `not-found.js` and `catchError()` boundaries reset when the
-  // pathname changes. A hidden route sees the active route's pathname, so its
-  // boundaries reset while it is hidden, and the route is shown without its
-  // fallback when navigating back to it.
+  // pathname changes. The pathname of a hidden route doesn't change, and it is
+  // the same again when navigating back to the route, so the boundaries also
+  // reset when their route is shown again.
   describe.each([
     {
       away: '/acme/b',
@@ -422,7 +422,7 @@ describe('router-hooks-hidden-routes', () => {
         expect(new URL(await browser.url()).pathname).toBe(away)
         expect(await readBoundaryMarkers(browser)).toEqual(awayMarkers)
       })
-      // Let the hidden route render with the pathname of the active route.
+      // Let the hidden route render, so that it knows it was hidden.
       await waitForIdle(browser)
 
       await browser.elementByCss('a[href="/acme/a"]').click()
