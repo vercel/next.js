@@ -180,34 +180,31 @@ describe('imageOptimizerTransform', () => {
       }
     )
 
-    // `imageOptimizerTransform()` passes SVGs through, so this calls
-    // `nsioOptimizeImage()` directly.
-    it.each([true, false])(
-      'decodes svg input with dangerouslyAllowSVG=%s',
-      async (dangerouslyAllowSVG) => {
-        const { nsioOptimizeImage } =
-          require('next/dist/server/image-optimizer/nsio') as typeof import('next/dist/server/image-optimizer/nsio')
-        const optimized = nsioOptimizeImage({
+    it('passes svg input through with dangerouslyAllowSVG', async () => {
+      const source = await getImage('test.svg')
+      const result = await transform('test.svg', 'image/webp', safeOptions)
+      expect(result.error).toBeUndefined()
+      expect(result.optimized).toBe(false)
+      expect(result.buffer).toEqual(source)
+      expect(result.contentType).toBe('image/svg+xml')
+    })
+
+    // SVG is only decoded if `detectContentType()` misidentifies it (type
+    // confusion), and `imageOptimizerTransform()` passes real SVGs through, so
+    // this calls `nsioOptimizeImage()` directly.
+    it('rejects svg input', async () => {
+      const { nsioOptimizeImage } =
+        require('next/dist/server/image-optimizer/nsio') as typeof import('next/dist/server/image-optimizer/nsio')
+      await expect(
+        nsioOptimizeImage({
           buffer: await getImage('test.svg'),
           contentType: 'image/png',
           quality: 75,
           width: 64,
           timeoutInSeconds: 6,
-          dangerouslyAllowSVG,
         })
-        if (dangerouslyAllowSVG) {
-          const sharp = getSharp(1, false)
-          expect(await sharp(await optimized).metadata()).toMatchObject({
-            format: 'png',
-            width: 64,
-          })
-        } else {
-          await expect(optimized).rejects.toMatchObject({
-            code: 'ERR_UNSUPPORTED_FORMAT',
-          })
-        }
-      }
-    )
+      ).rejects.toMatchObject({ code: 'ERR_UNSUPPORTED_FORMAT' })
+    })
 
     it.each([
       ['test.png', 'image/webp', 'webp'],
