@@ -1,0 +1,4 @@
+export class Counter {
+  constructor(public value: number, private step: number) {}
+  read() { return this.value + this.step }
+}

@@ -1,0 +1,35 @@
+{
+  "file": "/private/tmp/next-testing-ws1-timer-mode-overloads191/clean07/consumer/.next-test-class-callables192-observer10-local-arrows-development/subject.ts",
+  "sourceMap": {
+    "version": 3,
+    "sources": [
+      "/private/tmp/next-testing-ws1-timer-mode-overloads191/clean07/consumer/.next-test-class-callables192-observer10-local-arrows-development/subject.ts"
+    ],
+    "names": [],
+    "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;A;;;;;;AAAA,MAAM,SAAiB;AACvB,SAAS,OAAO,KAAa;IAAY,OAAO,QAAQ;AAAG;AACpD,MAAM;IAEX,YAAY,KAAa,CAAE;QAAE,IAAI,CAAC,KAAK,GAAG;IAAO;IACxC,OAAO,CAAC,QAA0B,IAAI,CAAC,KAAK,GAAG,MAAM;IAC9D,OAAgB,UAAU,CAAC,QAA0B,QAAQ,EAAE;IAC/D,OAAO,KAAa,EAAU;QAAE,OAAO,IAAI,CAAC,KAAK,GAAG;IAAO;AAC7D;AACO,SAAS,SAAS,KAAa;IACpC,MAAM,UAAU,IAAI,QAAQ,OAAO;IACnC,OAAO,QAAQ,IAAI,CAAC,UAAU,QAAQ,OAAO,CAAC,SAAS,QAAQ,MAAM,CAAC;AACxE",
+    "sourcesContent": [
+      "const offset: number = 2;\nfunction prefix(value: number): number { return value + 1; }\nexport class Counter {\n  declare total: number;\n  constructor(value: number) { this.total = value; }\n  readonly read = (delta: number): number => this.total + delta;\n  static readonly combine = (value: number): number => value * 2;\n  method(delta: number): number { return this.total + delta; }\n}\nexport function exercise(value: number): number {\n  const counter = new Counter(prefix(value));\n  return counter.read(offset) + Counter.combine(value) + counter.method(offset);\n}\n"
+    ]
+  },
+  "coverage": {
+    "url": "file:///private/tmp/next-testing-ws1-timer-mode-overloads191/clean07/consumer/.next-test-class-callables192-observer10-local-arrows-development/.next/.next-test-94aae729-3b08-4657-8127-f209ed14b851/server/chunks/%5Broot-of-the-server%5D__0tj3bpmcz5ubv._.js",
+    "functions": [
+      {
+        "isBlockCoverage": true,
+        "ranges": [
+          {
+            "startOffset": 0,
+            "endOffset": 4413,
+            "count": 0
+          }
+        ]
+      }
+    ]
+  },
+  "model": {
+    "path": "/private/tmp/next-testing-ws1-timer-mode-overloads191/clean07/consumer/.next-test-class-callables192-observer10-local-arrows-development/subject.ts"
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-ws1-timer-mode-overloads191/clean07/consumer/.next-test-class-callables192-observer10-local-arrows-development/subject.ts"
+  }
+}

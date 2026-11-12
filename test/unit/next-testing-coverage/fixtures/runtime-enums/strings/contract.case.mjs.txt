@@ -1,0 +1,7 @@
+import { test, expect } from 'vitest'
+import { Label, choose } from './subject.ts'
+test('string enum members', () => {
+  expect(Object.keys(Label)).toEqual(['First', 'Next'])
+  expect(choose(true)).toBe('first')
+  expect(choose(false)).toBe('next')
+})

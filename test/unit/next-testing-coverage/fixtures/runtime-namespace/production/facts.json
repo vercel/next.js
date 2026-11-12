@@ -1,0 +1,20 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime175-namespace-production/subject.ts",
+  "sourceMap": {
+    "version": 3,
+    "sources": [
+      "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime175-namespace-production/subject.ts"
+    ],
+    "names": [],
+    "mappings": ";;;;;A;A;A;;;A,I,6C,E,qB;I,I,+C,E,4C,C,M,C,O,I,C;I,I,+C,E,4C,C,M,C,Q,I,C;A;;;;;A;;;;UAAiB;QACF,QAAQ;IACd,SAAS,OAAO,MAAe;QACpC,IAAI,QAAQ,WAAO;QACnB,OAAO;IACT;QAHgB,SAAA;AAIlB,GANiB,QAAA;;;;;;A,4E;A,+E;A;;;;;;;;;;;;A,M;A,M;A,e;I,8D;I;A;A,e,iB,qB,M;I,K,mB,qD;;I,M,e,E;I,I,uB,Y;Q,M,Q,G,C,a,G,C,C,O;I,O;Q,K,M,Q,a,M;I;A;A,S;I,O,W,yB,C;A;;;;;A;;;;;;;;;;;;;;I,O,E;e;;I,wB,E;e;;;A,I;A,4E;A,+E;A,I;A,S,yB,O;I,I,S,M,I,M;I,M,U;Q,G,O;Q,U,I;I;I,U;I,wB,Q,gB;I,O;Q;Y,I,Y,S,U;Q;I;A;A,S;I,M,U;I,M,U,yB,O,K,I;I,I,C,S;Q,M,I,M;I;I,I,C,S;Q,M,I,M;I;I,Q,M,C,c;I,I,U,Q,Q,C,G,C;I,I,C,S;Q,U,Q,a,C;Q,Q,Q,C,G,C,S;I;I,O;A",
+    "sourcesContent": [
+      "export namespace Box {\n  export const label = \"box\"\n  export function choose(active: boolean) {\n    if (active) return label\n    return \"empty\"\n  }\n}\n"
+    ]
+  },
+  "model": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime175-namespace-production/subject.ts"
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime175-namespace-production/subject.ts"
+  }
+}

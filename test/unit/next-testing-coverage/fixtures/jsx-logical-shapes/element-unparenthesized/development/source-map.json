@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "sources": [
+    "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-jsx173-private03-element-unparenthesized-development/helper.js",
+    "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-jsx173-private03-element-unparenthesized-development/subject.tsx"
+  ],
+  "names": [],
+  "mappings": ";;;;A;A;A;;;A,I,+K,E,uD;I,M,S,I,qN,E;Q,Q;I,G,K,C,Q;I,I,iL,E,M,C,E,C,K,C,Q,E,I,C;I,I,iL,E,M,C,E,C,K,C,Q,E,I,C;I,M,W,I,qN,E;Q,Q;I,G,K,C,Q;I,I,iL,E,Q,C,E,E,I,C;I,I,iL,E,Q,C,E,C,K,C,Q,E,I,C;A;;;;;A;;;;AAAO,SAAS,MAAM,KAAK;IAAI,OAAO,QAAQ;AAAI;;;;;A;;;;;ACClD;;;AAEO,SAAS,UAAU,EAAE,MAAM,EAAS;IACzC,qBAAO,6PAAC,WAAD;;YACF,wBACC,6PAAC,QAAD;gBAAM,aAAU;0BACb,IAAA,+MAAK,EAAC;YACH;;;;;0BAER,6PAAC,MAAD;0BAAK,IAAA,+MAAK,EAAC;YAAY;;;;;;IAChB;;;;;AACb",
+  "sourcesContent": [
+    "export function label(value) { return value + '!' }\n",
+    "import React from 'react'\nimport { label } from './helper.js'\ntype Props = { active: boolean }\nexport function Multiline({ active }: Props) {\n  return <section>\n      {active &&\n        <span data-kind=\"active\">\n          {label('active')}\n        </span>\n      }\n      <em>{label('tail')}</em>\n    </section>\n}\n"
+  ]
+}

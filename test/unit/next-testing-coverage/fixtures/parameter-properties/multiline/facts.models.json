@@ -1,0 +1,108 @@
+{
+  "model": {
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [6, 11, 6, 40]
+    },
+    "functions": {
+      "0": {
+        "name": "constructor",
+        "decl": [2, 2, 2, 13],
+        "loc": [5, 4, 5, null],
+        "line": 5
+      },
+      "1": {
+        "name": "read",
+        "decl": [6, 2, 6, 6],
+        "loc": [6, 9, 6, null],
+        "line": 6
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [4, 12, 4, 20],
+        "type": "default-arg",
+        "locations": [[4, 19, 4, 20]],
+        "line": 4
+      }
+    },
+    "s": {
+      "0": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0
+    },
+    "b": {
+      "0": [0]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 2,
+      "lastStatement": 1,
+      "seen": {
+        "f:2:2:2:13": 0,
+        "b:4:19:4:20": 0,
+        "f:6:2:6:6": 1,
+        "s:6:11:6:40": 0
+      },
+      "fnNames": {}
+    }
+  },
+  "observed": {
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [3, 11, 3, 24],
+      "1": [4, 12, 4, 19],
+      "2": [6, 11, 6, 41]
+    },
+    "functions": {
+      "0": {
+        "name": "constructor",
+        "decl": [2, 2, 2, null],
+        "loc": [5, 4, 5, null],
+        "line": 5
+      },
+      "1": {
+        "name": "read",
+        "decl": [6, 2, 6, 9],
+        "loc": [6, 9, 6, null],
+        "line": 6
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [4, 4, 4, 20],
+        "type": "default-arg",
+        "locations": [[4, 19, 4, 20]],
+        "line": 4
+      }
+    },
+    "s": {
+      "0": 1,
+      "1": 1,
+      "2": 1
+    },
+    "f": {
+      "0": 1,
+      "1": 1
+    },
+    "b": {
+      "0": [1]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 2,
+      "lastStatement": 3,
+      "seen": {
+        "f:2:2:2:Infinity": 0,
+        "b:4:19:4:20": 0,
+        "s:3:11:3:24": 0,
+        "s:4:12:4:19": 1,
+        "f:6:2:6:9": 1,
+        "s:6:11:6:41": 2
+      },
+      "fnNames": {}
+    }
+  }
+}

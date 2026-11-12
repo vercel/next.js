@@ -1,0 +1,987 @@
+{
+  "reference": "Vitest 5.0.4, @vitest/coverage-v8 5.0.4",
+  "profiles": [
+    {
+      "mode": "development",
+      "name": "defaults",
+      "coverage": {
+        "next.config.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "next.config.mjs",
+          "statements": {},
+          "functions": {},
+          "branches": {},
+          "s": {},
+          "f": {},
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 0,
+            "lastStatement": 0,
+            "seen": {},
+            "fnNames": {}
+          }
+        },
+        "subject.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "subject.mjs",
+          "statements": {
+            "0": [2, 2, 2, null],
+            "1": [2, 12, 2, null],
+            "2": [3, 2, 3, null],
+            "3": [6, 2, 6, null]
+          },
+          "functions": {
+            "0": {
+              "name": "choose",
+              "decl": [1, 16, 1, 22],
+              "loc": [1, 29, 4, null],
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": [5, 16, 5, 22],
+              "loc": [5, 25, 7, null],
+              "line": 5
+            }
+          },
+          "branches": {
+            "0": {
+              "loc": [2, 2, 2, null],
+              "type": "if",
+              "locations": [
+                [2, 2, 2, null],
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        },
+        "unimported.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "unimported.mjs",
+          "statements": {
+            "0": [2, 2, 2, null]
+          },
+          "functions": {
+            "0": {
+              "name": "untouched",
+              "decl": [1, 16, 1, 25],
+              "loc": [1, 28, 3, null],
+              "line": 1
+            }
+          },
+          "branches": {},
+          "s": {
+            "0": 0
+          },
+          "f": {
+            "0": 0
+          },
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 1,
+            "lastStatement": 1,
+            "seen": {
+              "f:1:16:1:25": 0,
+              "s:2:2:2:Infinity": 0
+            },
+            "fnNames": {}
+          }
+        }
+      },
+      "cases": [
+        {
+          "fullName": "only true branch is executed",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "exit": 0,
+      "assetHashes": {
+        "block-navigation.js": "c964530b19f1fd3290fa53bbc185af53b2f55132ba1e13528e09fb67657b763c",
+        "prettify.js": "5b36332f32c5a4781348fb2c63f5f672c01497eb9508989ff1c8ac3795061386",
+        "favicon.png": "5b0cfd52dc0bfbe544f4e1a9c77aa46b8629b0e0aad6c54f95eef457b86c2a89",
+        "prettify.css": "31c66a00ede9f0a6ac6dfc0c3819a6cb925ebb771cde59d8228ec8bc8595a91b",
+        "sorter.js": "e281b0b47445030f6e26cbf7ab1187498516694b8716ed1351c875129d567c0c",
+        "base.css": "75168965707cf3596c967ba36e82c91207d2a30eb00d798f7bce06ce9dfb59f2",
+        "sort-arrow-sprite.png": "42c895355f9838ede83fdfdca90127d8471aefed5ecf5342374f65ec7c3f10ab"
+      }
+    },
+    {
+      "mode": "development",
+      "name": "explicit",
+      "coverage": {
+        "next.config.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "next.config.mjs",
+          "statements": {},
+          "functions": {},
+          "branches": {},
+          "s": {},
+          "f": {},
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 0,
+            "lastStatement": 0,
+            "seen": {},
+            "fnNames": {}
+          }
+        },
+        "subject.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "subject.mjs",
+          "statements": {
+            "0": [2, 2, 2, null],
+            "1": [2, 12, 2, null],
+            "2": [3, 2, 3, null],
+            "3": [6, 2, 6, null]
+          },
+          "functions": {
+            "0": {
+              "name": "choose",
+              "decl": [1, 16, 1, 22],
+              "loc": [1, 29, 4, null],
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": [5, 16, 5, 22],
+              "loc": [5, 25, 7, null],
+              "line": 5
+            }
+          },
+          "branches": {
+            "0": {
+              "loc": [2, 2, 2, null],
+              "type": "if",
+              "locations": [
+                [2, 2, 2, null],
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        },
+        "unimported.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "unimported.mjs",
+          "statements": {
+            "0": [2, 2, 2, null]
+          },
+          "functions": {
+            "0": {
+              "name": "untouched",
+              "decl": [1, 16, 1, 25],
+              "loc": [1, 28, 3, null],
+              "line": 1
+            }
+          },
+          "branches": {},
+          "s": {
+            "0": 0
+          },
+          "f": {
+            "0": 0
+          },
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 1,
+            "lastStatement": 1,
+            "seen": {
+              "f:1:16:1:25": 0,
+              "s:2:2:2:Infinity": 0
+            },
+            "fnNames": {}
+          }
+        }
+      },
+      "cases": [
+        {
+          "fullName": "only true branch is executed",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "exit": 0
+    },
+    {
+      "mode": "development",
+      "name": "clean-false",
+      "coverage": {
+        "next.config.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "next.config.mjs",
+          "statements": {},
+          "functions": {},
+          "branches": {},
+          "s": {},
+          "f": {},
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 0,
+            "lastStatement": 0,
+            "seen": {},
+            "fnNames": {}
+          }
+        },
+        "subject.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "subject.mjs",
+          "statements": {
+            "0": [2, 2, 2, null],
+            "1": [2, 12, 2, null],
+            "2": [3, 2, 3, null],
+            "3": [6, 2, 6, null]
+          },
+          "functions": {
+            "0": {
+              "name": "choose",
+              "decl": [1, 16, 1, 22],
+              "loc": [1, 29, 4, null],
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": [5, 16, 5, 22],
+              "loc": [5, 25, 7, null],
+              "line": 5
+            }
+          },
+          "branches": {
+            "0": {
+              "loc": [2, 2, 2, null],
+              "type": "if",
+              "locations": [
+                [2, 2, 2, null],
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        },
+        "unimported.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "unimported.mjs",
+          "statements": {
+            "0": [2, 2, 2, null]
+          },
+          "functions": {
+            "0": {
+              "name": "untouched",
+              "decl": [1, 16, 1, 25],
+              "loc": [1, 28, 3, null],
+              "line": 1
+            }
+          },
+          "branches": {},
+          "s": {
+            "0": 0
+          },
+          "f": {
+            "0": 0
+          },
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 1,
+            "lastStatement": 1,
+            "seen": {
+              "f:1:16:1:25": 0,
+              "s:2:2:2:Infinity": 0
+            },
+            "fnNames": {}
+          }
+        }
+      },
+      "cases": [
+        {
+          "fullName": "only true branch is executed",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "exit": 0
+    },
+    {
+      "mode": "development",
+      "name": "cli-override",
+      "coverage": {
+        "subject.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "subject.mjs",
+          "statements": {
+            "0": [2, 2, 2, null],
+            "1": [2, 12, 2, null],
+            "2": [3, 2, 3, null],
+            "3": [6, 2, 6, null]
+          },
+          "functions": {
+            "0": {
+              "name": "choose",
+              "decl": [1, 16, 1, 22],
+              "loc": [1, 29, 4, null],
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": [5, 16, 5, 22],
+              "loc": [5, 25, 7, null],
+              "line": 5
+            }
+          },
+          "branches": {
+            "0": {
+              "loc": [2, 2, 2, null],
+              "type": "if",
+              "locations": [
+                [2, 2, 2, null],
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        }
+      },
+      "cases": [
+        {
+          "fullName": "only true branch is executed",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "exit": 0
+    },
+    {
+      "mode": "production",
+      "name": "defaults",
+      "coverage": {
+        "next.config.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "next.config.mjs",
+          "statements": {},
+          "functions": {},
+          "branches": {},
+          "s": {},
+          "f": {},
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 0,
+            "lastStatement": 0,
+            "seen": {},
+            "fnNames": {}
+          }
+        },
+        "subject.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "subject.mjs",
+          "statements": {
+            "0": [2, 2, 2, null],
+            "1": [2, 12, 2, null],
+            "2": [3, 2, 3, null],
+            "3": [6, 2, 6, null]
+          },
+          "functions": {
+            "0": {
+              "name": "choose",
+              "decl": [1, 16, 1, 22],
+              "loc": [1, 29, 4, null],
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": [5, 16, 5, 22],
+              "loc": [5, 25, 7, null],
+              "line": 5
+            }
+          },
+          "branches": {
+            "0": {
+              "loc": [2, 2, 2, null],
+              "type": "if",
+              "locations": [
+                [2, 2, 2, null],
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        },
+        "unimported.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "unimported.mjs",
+          "statements": {
+            "0": [2, 2, 2, null]
+          },
+          "functions": {
+            "0": {
+              "name": "untouched",
+              "decl": [1, 16, 1, 25],
+              "loc": [1, 28, 3, null],
+              "line": 1
+            }
+          },
+          "branches": {},
+          "s": {
+            "0": 0
+          },
+          "f": {
+            "0": 0
+          },
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 1,
+            "lastStatement": 1,
+            "seen": {
+              "f:1:16:1:25": 0,
+              "s:2:2:2:Infinity": 0
+            },
+            "fnNames": {}
+          }
+        }
+      },
+      "cases": [
+        {
+          "fullName": "only true branch is executed",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "exit": 0,
+      "assetHashes": {
+        "block-navigation.js": "c964530b19f1fd3290fa53bbc185af53b2f55132ba1e13528e09fb67657b763c",
+        "prettify.js": "5b36332f32c5a4781348fb2c63f5f672c01497eb9508989ff1c8ac3795061386",
+        "favicon.png": "5b0cfd52dc0bfbe544f4e1a9c77aa46b8629b0e0aad6c54f95eef457b86c2a89",
+        "prettify.css": "31c66a00ede9f0a6ac6dfc0c3819a6cb925ebb771cde59d8228ec8bc8595a91b",
+        "sorter.js": "e281b0b47445030f6e26cbf7ab1187498516694b8716ed1351c875129d567c0c",
+        "base.css": "75168965707cf3596c967ba36e82c91207d2a30eb00d798f7bce06ce9dfb59f2",
+        "sort-arrow-sprite.png": "42c895355f9838ede83fdfdca90127d8471aefed5ecf5342374f65ec7c3f10ab"
+      }
+    },
+    {
+      "mode": "production",
+      "name": "explicit",
+      "coverage": {
+        "next.config.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "next.config.mjs",
+          "statements": {},
+          "functions": {},
+          "branches": {},
+          "s": {},
+          "f": {},
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 0,
+            "lastStatement": 0,
+            "seen": {},
+            "fnNames": {}
+          }
+        },
+        "subject.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "subject.mjs",
+          "statements": {
+            "0": [2, 2, 2, null],
+            "1": [2, 12, 2, null],
+            "2": [3, 2, 3, null],
+            "3": [6, 2, 6, null]
+          },
+          "functions": {
+            "0": {
+              "name": "choose",
+              "decl": [1, 16, 1, 22],
+              "loc": [1, 29, 4, null],
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": [5, 16, 5, 22],
+              "loc": [5, 25, 7, null],
+              "line": 5
+            }
+          },
+          "branches": {
+            "0": {
+              "loc": [2, 2, 2, null],
+              "type": "if",
+              "locations": [
+                [2, 2, 2, null],
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        },
+        "unimported.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "unimported.mjs",
+          "statements": {
+            "0": [2, 2, 2, null]
+          },
+          "functions": {
+            "0": {
+              "name": "untouched",
+              "decl": [1, 16, 1, 25],
+              "loc": [1, 28, 3, null],
+              "line": 1
+            }
+          },
+          "branches": {},
+          "s": {
+            "0": 0
+          },
+          "f": {
+            "0": 0
+          },
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 1,
+            "lastStatement": 1,
+            "seen": {
+              "f:1:16:1:25": 0,
+              "s:2:2:2:Infinity": 0
+            },
+            "fnNames": {}
+          }
+        }
+      },
+      "cases": [
+        {
+          "fullName": "only true branch is executed",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "exit": 0
+    },
+    {
+      "mode": "production",
+      "name": "clean-false",
+      "coverage": {
+        "next.config.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "next.config.mjs",
+          "statements": {},
+          "functions": {},
+          "branches": {},
+          "s": {},
+          "f": {},
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 0,
+            "lastStatement": 0,
+            "seen": {},
+            "fnNames": {}
+          }
+        },
+        "subject.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "subject.mjs",
+          "statements": {
+            "0": [2, 2, 2, null],
+            "1": [2, 12, 2, null],
+            "2": [3, 2, 3, null],
+            "3": [6, 2, 6, null]
+          },
+          "functions": {
+            "0": {
+              "name": "choose",
+              "decl": [1, 16, 1, 22],
+              "loc": [1, 29, 4, null],
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": [5, 16, 5, 22],
+              "loc": [5, 25, 7, null],
+              "line": 5
+            }
+          },
+          "branches": {
+            "0": {
+              "loc": [2, 2, 2, null],
+              "type": "if",
+              "locations": [
+                [2, 2, 2, null],
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        },
+        "unimported.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "unimported.mjs",
+          "statements": {
+            "0": [2, 2, 2, null]
+          },
+          "functions": {
+            "0": {
+              "name": "untouched",
+              "decl": [1, 16, 1, 25],
+              "loc": [1, 28, 3, null],
+              "line": 1
+            }
+          },
+          "branches": {},
+          "s": {
+            "0": 0
+          },
+          "f": {
+            "0": 0
+          },
+          "b": {},
+          "meta": {
+            "lastBranch": 0,
+            "lastFunction": 1,
+            "lastStatement": 1,
+            "seen": {
+              "f:1:16:1:25": 0,
+              "s:2:2:2:Infinity": 0
+            },
+            "fnNames": {}
+          }
+        }
+      },
+      "cases": [
+        {
+          "fullName": "only true branch is executed",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "exit": 0
+    },
+    {
+      "mode": "production",
+      "name": "cli-override",
+      "coverage": {
+        "subject.mjs": {
+          "$coverage": "range-tuples-v1",
+          "path": "subject.mjs",
+          "statements": {
+            "0": [2, 2, 2, null],
+            "1": [2, 12, 2, null],
+            "2": [3, 2, 3, null],
+            "3": [6, 2, 6, null]
+          },
+          "functions": {
+            "0": {
+              "name": "choose",
+              "decl": [1, 16, 1, 22],
+              "loc": [1, 29, 4, null],
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": [5, 16, 5, 22],
+              "loc": [5, 25, 7, null],
+              "line": 5
+            }
+          },
+          "branches": {
+            "0": {
+              "loc": [2, 2, 2, null],
+              "type": "if",
+              "locations": [
+                [2, 2, 2, null],
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 1,
+            "2": 0,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [1, 0]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        }
+      },
+      "cases": [
+        {
+          "fullName": "only true branch is executed",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "exit": 0
+    },
+    {
+      "mode": "development",
+      "name": "disabled",
+      "coverage": null,
+      "cases": [
+        {
+          "fullName": "only true branch is executed",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ]
+    },
+    {
+      "mode": "production",
+      "name": "disabled",
+      "coverage": null,
+      "cases": [
+        {
+          "fullName": "only true branch is executed",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ]
+    }
+  ]
+}

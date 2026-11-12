@@ -1,0 +1,48 @@
+{
+  "subject.mjs": {
+    "$coverage": "range-tuples-v1",
+    "path": "subject.mjs",
+    "statements": {
+      "0": [2, 2, 2, null]
+    },
+    "functions": {
+      "0": {
+        "name": "subject",
+        "decl": [1, 16, 1, 23],
+        "loc": [1, 31, 3, null],
+        "line": 1
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [2, 9, 2, null],
+        "type": "cond-expr",
+        "locations": [
+          [2, 21, 2, 30],
+          [2, 33, 2, null]
+        ],
+        "line": 2
+      }
+    },
+    "s": {
+      "0": 3
+    },
+    "f": {
+      "0": 3
+    },
+    "b": {
+      "0": [2, 1]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:1:16:1:23": 0,
+        "s:2:2:2:Infinity": 0,
+        "b:2:21:2:30:2:33:2:Infinity": 0
+      },
+      "fnNames": {}
+    }
+  }
+}

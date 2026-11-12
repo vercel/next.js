@@ -1,0 +1,209 @@
+module.exports = [
+(()=>{"use strict";return[
+7457, ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([]);
+var __TURBOPACK__imported__module__2558__ = __turbopack_context__.i(2558);
+var __TURBOPACK__imported__module__626__ = __turbopack_context__.i(626);
+;
+;
+(0, __TURBOPACK__imported__module__2558__["test"])('renders both multiline fragment logical child paths', ()=>{
+    const active = (0, __TURBOPACK__imported__module__626__["Multiline"])({
+        active: true
+    }).props.children;
+    (0, __TURBOPACK__imported__module__2558__["expect"])(active[0].props.children).toBe('active!');
+    (0, __TURBOPACK__imported__module__2558__["expect"])(active[1].props.children).toBe('tail!');
+    const inactive = (0, __TURBOPACK__imported__module__626__["Multiline"])({
+        active: false
+    }).props.children;
+    (0, __TURBOPACK__imported__module__2558__["expect"])(inactive[0]).toBe(false);
+    (0, __TURBOPACK__imported__module__2558__["expect"])(inactive[1].props.children).toBe('tail!');
+});
+}),
+6565, ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "label",
+    ()=>label
+]);
+function label(value) {
+    return value + '!';
+}
+}),
+626, ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "Multiline",
+    ()=>Multiline
+]);
+var __TURBOPACK__imported__module__8223__ = __turbopack_context__.i(8223);
+var __TURBOPACK__imported__module__6565__ = __turbopack_context__.i(6565);
+;
+;
+function Multiline({ active }) {
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__8223__["jsxs"])(__TURBOPACK__imported__module__8223__["Fragment"], {
+        children: [
+            active && /*#__PURE__*/ (0, __TURBOPACK__imported__module__8223__["jsx"])("span", {
+                "data-kind": "active",
+                children: (0, __TURBOPACK__imported__module__6565__["label"])('active')
+            }),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__8223__["jsx"])("em", {
+                children: (0, __TURBOPACK__imported__module__6565__["label"])('tail')
+            })
+        ]
+    });
+}
+}),
+8629, ((__turbopack_context__, module, exports) => {
+"use strict";
+
+/**
+ * @license React
+ * react-jsx-runtime.production.js
+ *
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"), REACT_FRAGMENT_TYPE = Symbol.for("react.fragment");
+function jsxProd(type, config, maybeKey) {
+    var key = null;
+    void 0 !== maybeKey && (key = "" + maybeKey);
+    void 0 !== config.key && (key = "" + config.key);
+    if ("key" in config) {
+        maybeKey = {};
+        for(var propName in config)"key" !== propName && (maybeKey[propName] = config[propName]);
+    } else maybeKey = config;
+    config = maybeKey.ref;
+    return {
+        $$typeof: REACT_ELEMENT_TYPE,
+        type: type,
+        key: key,
+        ref: void 0 !== config ? config : null,
+        props: maybeKey
+    };
+}
+exports.Fragment = REACT_FRAGMENT_TYPE;
+exports.jsx = jsxProd;
+exports.jsxs = jsxProd;
+}),
+8223, ((__turbopack_context__, module, exports) => {
+"use strict";
+
+if ("TURBOPACK compile-time truthy", 1) {
+    module.exports = __turbopack_context__.r(8629);
+} else //TURBOPACK unreachable
+;
+}),
+857, ((__turbopack_context__) => {
+"use strict";
+
+// Explicit Node unit/browser-driver entry. Collection and imports share one
+// runtime; no React server condition or App Router renderer is installed here.
+__turbopack_context__.s([
+    "browserTesting",
+    ()=>browserTesting,
+    "initializeModuleImportTracking",
+    ()=>initializeModuleImportTracking,
+    "loadSetupModules",
+    ()=>loadSetupModules,
+    "loadTestModule",
+    ()=>loadTestModule,
+    "testRunner",
+    ()=>testRunner
+]);
+const testRunner = __turbopack_context__.r(8892);
+const browserTesting = __turbopack_context__.r(4395);
+async function loadTestModule() {
+    // eslint-disable-next-line @next/internal/typechecked-require
+    return __turbopack_context__.r(7457);
+}
+async function loadSetupModules(setupFilesSequence = 'list') {
+    void setupFilesSequence // Referenced by the compiler-injected setup loaders.
+    ;
+    const setupLoaders = [];
+    if (setupFilesSequence === 'parallel') {
+        await Promise.all(setupLoaders.map((load)=>load()));
+    } else {
+        for (const load of setupLoaders)await load();
+    }
+}
+function initializeModuleImportTracking() {
+    return testRunner.createModuleImportTracker(__turbopack_context__);
+}
+}),
+4395, ((__turbopack_context__, module, exports) => {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+0 && (module.exports = {
+    browser: null,
+    initializeBrowserTesting: null
+});
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: all[name]
+    });
+}
+_export(exports, {
+    browser: function() {
+        return browser;
+    },
+    initializeBrowserTesting: function() {
+        return initializeBrowserTesting;
+    }
+});
+let binding;
+// Retain only the actual C scope guard after revocation. A caught late call
+// must still reach C's originating-scope error sink during the worker's drain.
+let getOriginatingAttempt;
+function initializeBrowserTesting(options) {
+    if (binding) throw new Error('Next browser testing is already initialized');
+    const current = {
+        ...options,
+        fixtures: new WeakMap()
+    };
+    binding = current;
+    getOriginatingAttempt = options.getActiveAttempt;
+    return {
+        dispose () {
+            if (binding === current) binding = undefined;
+        }
+    };
+}
+function browser() {
+    const current = binding;
+    const attempt = getOriginatingAttempt == null ? void 0 : getOriginatingAttempt();
+    if (!current) {
+        throw new Error('Browser fixtures require an initialized Next browser test environment');
+    }
+    if (!attempt) {
+        throw new Error('Browser fixtures require an active Next test attempt');
+    }
+    attempt.signal.throwIfAborted();
+    let fixture = current.fixtures.get(attempt);
+    if (!fixture) {
+        fixture = current.createFixture(attempt);
+        current.fixtures.set(attempt, fixture);
+    }
+    return fixture;
+}
+}),
+]})(),
+7385, ((__turbopack_context__) => {
+
+__turbopack_context__.v((parentImport) => {
+    return Promise.resolve().then(() => {
+        return parentImport(2558);
+    });
+});
+}),
+];
+
+//# sourceMappingURL=_0ottfba-9xdez._.js.map

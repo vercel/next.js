@@ -1,0 +1,89 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-strings-production/subject.ts",
+  "sourceMap": {
+    "version": 3,
+    "sources": [
+      "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-strings-production/subject.ts"
+    ],
+    "names": [],
+    "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAO,IAAA,AAAK,+BAAA;;;WAAA;;AACL,SAAS,OAAO,MAAe;IACpC,IAAI,QAAQ;IACZ;AACF",
+    "sourcesContent": [
+      "export enum Label { First = 'first', Next = 'next' }\nexport function choose(active: boolean) {\n  if (active) return Label.First\n  return Label.Next\n}\n"
+    ]
+  },
+  "model": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-strings-production/subject.ts"
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-strings-production/subject.ts"
+  },
+  "generated": {
+    "$coverage": "range-tuples-v1",
+    "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-strings-production/.next-test-ab83dd53-6b27-4153-8ddf-4ef5e95f10b1/server/chunks/_1e7unewxddxqy._.js",
+    "statements": {
+      "0": [1, 0, 145, null],
+      "12": [29, 26, 33, 5],
+      "13": [30, 4, 30, null],
+      "14": [31, 4, 31, null],
+      "15": [32, 4, 32, null]
+    },
+    "functions": {
+      "0": {
+        "name": "(anonymous_0)",
+        "decl": [2, 1, 2, 2],
+        "loc": [2, 5, 136, 2],
+        "line": 2
+      },
+      "6": {
+        "name": "(anonymous_6)",
+        "decl": [29, 26, 29, 34],
+        "loc": [29, 42, 33, 1],
+        "line": 29
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [35, 4, 35, null],
+        "type": "if",
+        "locations": [
+          [35, 4, 35, null],
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 35
+      }
+    },
+    "s": {
+      "0": 1,
+      "12": 1,
+      "13": 1,
+      "14": 1,
+      "15": 1
+    },
+    "f": {
+      "0": 1,
+      "6": 1
+    },
+    "b": {
+      "0": [1, 1]
+    },
+    "meta": {
+      "lastBranch": 10,
+      "lastFunction": 28,
+      "lastStatement": 66,
+      "seen": {
+        "s:1:0:145:Infinity": 0,
+        "f:2:1:2:2": 0,
+        "s:29:26:33:5": 12,
+        "f:29:26:29:34": 6,
+        "s:30:4:30:Infinity": 13,
+        "s:31:4:31:Infinity": 14,
+        "s:32:4:32:Infinity": 15,
+        "b:35:4:35:Infinity:undefined:undefined:undefined:undefined": 0
+      },
+      "fnNames": {}
+    }
+  }
+}

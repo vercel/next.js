@@ -1,0 +1,79 @@
+{
+  "subject.ts": {
+    "$coverage": "range-tuples-v1",
+    "path": "subject.ts",
+    "statements": {
+      "0": [2, 21, 2, 36],
+      "1": [2, 44, 2, 51],
+      "2": [4, 4, 4, null],
+      "3": [4, 16, 4, null],
+      "4": [5, 4, 5, null]
+    },
+    "functions": {
+      "0": {
+        "name": "constructor",
+        "decl": [2, 2, 2, 14],
+        "loc": [2, 54, 2, null],
+        "line": 2
+      },
+      "1": {
+        "name": "add",
+        "decl": [3, 2, 3, 6],
+        "loc": [3, 23, 6, null],
+        "line": 3
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [2, 36, 2, 54],
+        "type": "default-arg",
+        "locations": [[2, 51, 2, 54]],
+        "line": 2
+      },
+      "1": {
+        "loc": [4, 4, 4, null],
+        "type": "if",
+        "locations": [
+          [4, 4, 4, null],
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 4
+      }
+    },
+    "s": {
+      "0": 1,
+      "1": 1,
+      "2": 2,
+      "3": 1,
+      "4": 1
+    },
+    "f": {
+      "0": 1,
+      "1": 2
+    },
+    "b": {
+      "0": [1],
+      "1": [1, 1]
+    },
+    "meta": {
+      "lastBranch": 2,
+      "lastFunction": 2,
+      "lastStatement": 5,
+      "seen": {
+        "f:2:2:2:14": 0,
+        "b:2:51:2:54": 0,
+        "s:2:21:2:36": 0,
+        "s:2:44:2:51": 1,
+        "f:3:2:3:6": 1,
+        "b:4:4:4:Infinity:undefined:undefined:undefined:undefined": 1,
+        "s:4:4:4:Infinity": 2,
+        "s:4:16:4:Infinity": 3,
+        "s:5:4:5:Infinity": 4
+      },
+      "fnNames": {}
+    }
+  }
+}

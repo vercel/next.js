@@ -1,0 +1,15 @@
+{
+  "mode": "development",
+  "metadata": {
+    "path": "server/chunks/_next-test-jsx167-private07-arrow-development_07cyfzuf94bd3._.js",
+    "sha256": "db458be189306d94f1b7c7010d373922a40271128616e85699042cef7d45e7d3",
+    "mapPath": "server/chunks/_next-test-jsx167-private07-arrow-development_07cyfzuf94bd3._.js.map",
+    "mapSha256": "c3faaed39a78789bc2ab091ad72c3bb30ff5fb910d4e89d7c2cf6587ff1abc52"
+  },
+  "sourceSHA256": "3703e4e3489b9f2f23a4db7ac19805fb0c60e533e550d1a1a06283c8987f1c49",
+  "rawNativeMapSHA256": "c3faaed39a78789bc2ab091ad72c3bb30ff5fb910d4e89d7c2cf6587ff1abc52",
+  "emittedSHA256": "db458be189306d94f1b7c7010d373922a40271128616e85699042cef7d45e7d3",
+  "normalizedMapSHA256": "0a706bae367019427e569ad39f80db4da8789c7b54d9442cdc1f2365668f6a9a",
+  "completeRawV8FunctionsSHA256": "f1d21ad949ffdbb1a5ff3a49f192d12f4942c2f969bee51dc9682cbe1dbb6e22",
+  "sourceModel": "actual authored AST and identity-map descriptors only; zero counters never become observed runtime facts"
+}

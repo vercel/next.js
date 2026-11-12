@@ -1,0 +1,38 @@
+(()=>{"use strict";module.exports = [
+"[project]/.next-test-ts-runtime176-quoted-development/contract.case.mjs [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/packages/next/dist/experimental/testing/vitest.js [next-test-node] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime176$2d$quoted$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/.next-test-ts-runtime176-quoted-development/subject.ts [next-test-node] (ecmascript)");
+;
+;
+(0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["test"])('quoted enum member names', ()=>{
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])(__TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime176$2d$quoted$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["Status"][3]).toBe('in progress');
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])(__TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime176$2d$quoted$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["Status"][8]).toBe('done');
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime176$2d$quoted$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["choose"])(true)).toBe(3);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$ts$2d$runtime176$2d$quoted$2d$development$2f$subject$2e$ts__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["choose"])(false)).toBe(8);
+});
+}),
+"[project]/.next-test-ts-runtime176-quoted-development/subject.ts [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "Status",
+    ()=>Status,
+    "choose",
+    ()=>choose
+]);
+var Status = /*#__PURE__*/ function(Status) {
+    Status[Status["in progress"] = 3] = "in progress";
+    Status[Status["done"] = 8] = "done";
+    return Status;
+}({});
+function choose(active) {
+    if (active) return 3;
+    return 8;
+}
+}),
+];})()
+
+//# sourceMappingURL=_next-test-ts-runtime176-quoted-development_0l74m0kgpv8u0._.js.map

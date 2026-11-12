@@ -1,0 +1,100 @@
+(()=>{"use strict";module.exports = [
+"[project]/.next-test-fragment149-development/contract.test.mjs [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/packages/next/dist/experimental/testing/vitest.js [next-test-node] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$fragment149$2d$development$2f$subject$2e$tsx__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/.next-test-fragment149-development/subject.tsx [next-test-node] (ecmascript)");
+;
+;
+(0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["test"])('renders fragment logical child branches', ()=>{
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$fragment149$2d$development$2f$subject$2e$tsx__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["Fragment"])({
+        active: true,
+        name: 'first'
+    }).props.children.map((child)=>child.props.children)).toEqual([
+        'first!',
+        'tail!'
+    ]);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$fragment149$2d$development$2f$subject$2e$tsx__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["Fragment"])({
+        active: false,
+        name: 'second'
+    }).props.children[0]).toBe(false);
+});
+(0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["test"])('renders parenthesized typed fragment arrow', ()=>{
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$fragment149$2d$development$2f$subject$2e$tsx__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["Arrow"])({
+        name: 'first'
+    }).props.children.props).toEqual({
+        'data-name': 'first',
+        children: 'first!'
+    });
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$packages$2f$next$2f$dist$2f$experimental$2f$testing$2f$vitest$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["expect"])((0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$fragment149$2d$development$2f$subject$2e$tsx__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["Arrow"])({
+        name: 'second'
+    }).props.children.props.children).toBe('second!');
+});
+}),
+"[project]/.next-test-fragment149-development/helper.js [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "label",
+    ()=>label
+]);
+function label(value) {
+    return value + '!';
+}
+}),
+"[project]/.next-test-fragment149-development/subject.tsx [next-test-node] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "Arrow",
+    ()=>Arrow,
+    "Fragment",
+    ()=>Fragment
+]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$react$40$19$2e$3$2e$0$2d$canary$2d$b618bbb4$2d$20261007$2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/.pnpm/react@19.3.0-canary-b618bbb4-20261007/node_modules/react/jsx-dev-runtime.js [next-test-node] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$fragment149$2d$development$2f$helper$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/.next-test-fragment149-development/helper.js [next-test-node] (ecmascript)");
+;
+;
+function Fragment({ active, name }) {
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$react$40$19$2e$3$2e$0$2d$canary$2d$b618bbb4$2d$20261007$2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$react$40$19$2e$3$2e$0$2d$canary$2d$b618bbb4$2d$20261007$2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["Fragment"], {
+        children: [
+            active && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$react$40$19$2e$3$2e$0$2d$canary$2d$b618bbb4$2d$20261007$2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                children: (0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$fragment149$2d$development$2f$helper$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["label"])(name)
+            }, void 0, false, {
+                fileName: "[project]/.next-test-fragment149-development/subject.tsx",
+                lineNumber: 5,
+                columnNumber: 23
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$react$40$19$2e$3$2e$0$2d$canary$2d$b618bbb4$2d$20261007$2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["jsxDEV"])("em", {
+                children: (0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$fragment149$2d$development$2f$helper$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["label"])('tail')
+            }, void 0, false, {
+                fileName: "[project]/.next-test-fragment149-development/subject.tsx",
+                lineNumber: 5,
+                columnNumber: 50
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/.next-test-fragment149-development/subject.tsx",
+        lineNumber: 5,
+        columnNumber: 10
+    }, this);
+}
+const Arrow = ({ name })=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$react$40$19$2e$3$2e$0$2d$canary$2d$b618bbb4$2d$20261007$2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$react$40$19$2e$3$2e$0$2d$canary$2d$b618bbb4$2d$20261007$2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["Fragment"], {
+        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f2e$pnpm$2f$react$40$19$2e$3$2e$0$2d$canary$2d$b618bbb4$2d$20261007$2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+            "data-name": name,
+            children: (0, __TURBOPACK__imported__module__$5b$project$5d2f2e$next$2d$test$2d$fragment149$2d$development$2f$helper$2e$js__$5b$next$2d$test$2d$node$5d$__$28$ecmascript$29$__["label"])(name)
+        }, void 0, false, {
+            fileName: "[project]/.next-test-fragment149-development/subject.tsx",
+            lineNumber: 9,
+            columnNumber: 5
+        }, ("TURBOPACK compile-time value", void 0))
+    }, void 0, false, {
+        fileName: "[project]/.next-test-fragment149-development/subject.tsx",
+        lineNumber: 8,
+        columnNumber: 3
+    }, ("TURBOPACK compile-time value", void 0));
+}),
+];})()
+
+//# sourceMappingURL=_next-test-fragment149-development_0cye0rpacbg48._.js.map

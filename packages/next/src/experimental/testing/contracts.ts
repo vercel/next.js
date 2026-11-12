@@ -122,6 +122,11 @@ export interface CompiledSourceDependencies {
 }
 
 export interface CompileTestOptions {
+  /** Parent-issued ordinary runtime config receipt; distinct from compile-only roles. */
+  runtimeConfigurationImports?: {
+    authorization: import('./compiler/config-import-proof').ConfigurationImportAuthorization
+    entry: import('./compiler/runtime-config-proof').RuntimeConfigurationEntry
+  }
   /** Compile-only planner request; never a runtime execution option. */
   dependencyPlan?: boolean
   setupFilesSequence?: 'list' | 'parallel'
@@ -142,6 +147,8 @@ export interface TestCompilerSessionOptions {
   nativeImportCoverageRoles?: boolean
   /** Private actual Browser declaration analysis; never a Node analysis permission. */
   browserCoverageDeclarations?: true
+  /** Private planned development JSX imports; never enabled by a filename alone. */
+  browserDevelopmentImportPlan?: import('./coverage/source-analysis-plan').CoverageSourcePlan
   /** Validated config data translated into the actual Next resolver. */
   compilerAliases?: import('./compiler/aliases').CompilerAliases
   /** Exact retained executable configuration realm; never a public config value. */
@@ -238,6 +245,10 @@ interface CompiledTestArtifactBase<
   version: 2
   /** Exact emitted script/map identities, produced only on explicit request. */
   coverage?: CoverageArtifactMetadata
+  /** Exact ordinary compiler config module graph for parent runtime authorization. */
+  runtimeConfigurationImports?: import('./compiler/config-import-proof').ConfigurationImportProof
+  /** Data-only native input reference; legacy coverage APIs refuse its presence. */
+  nativeTsConfigInputs?: import('./coverage/native-tsconfig-inputs').NativeTsConfigInputsReference
   entryId: string
   profile: TestProfile & { environment: Environment }
   revision: string

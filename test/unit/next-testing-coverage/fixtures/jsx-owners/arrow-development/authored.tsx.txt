@@ -1,0 +1,6 @@
+import React from 'react'
+import { label } from './helper.js'
+type Props = { name: string }
+export const Arrow = ({ name }: Props): React.ReactElement => (
+  <p data-name={name}>{label(name)}</p>
+)

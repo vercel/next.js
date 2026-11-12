@@ -1,0 +1,95 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/tooling-editor143/.next-test-jsx144-logical-development/subject.tsx",
+  "observed": {
+    "$coverage": "range-tuples-v1",
+    "path": "/private/tmp/next-testing-parallel-20261019/tooling-editor143/.next-test-jsx144-logical-development/subject.tsx",
+    "statements": {
+      "0": [5, 2, 5, null]
+    },
+    "functions": {
+      "0": {
+        "name": "Logical",
+        "decl": [4, 16, 4, 24],
+        "loc": [4, 41, 6, null],
+        "line": 4
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [5, 19, 5, 69],
+        "type": "binary-expr",
+        "locations": [
+          [5, 19, 5, 29],
+          [5, 29, 5, 69]
+        ],
+        "line": 5
+      }
+    },
+    "s": {
+      "0": 2
+    },
+    "f": {
+      "0": 2
+    },
+    "b": {
+      "0": [2, 1]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:4:16:4:24": 0,
+        "s:5:2:5:Infinity": 0,
+        "b:5:19:5:29:5:29:5:69": 0
+      },
+      "fnNames": {}
+    }
+  },
+  "model": {
+    "$coverage": "range-tuples-v1",
+    "path": "/private/tmp/next-testing-parallel-20261019/tooling-editor143/.next-test-jsx144-logical-development/subject.tsx",
+    "statements": {
+      "0": [5, 2, 5, null]
+    },
+    "functions": {
+      "0": {
+        "name": "Logical",
+        "decl": [4, 16, 4, 23],
+        "loc": [4, 43, 6, null],
+        "line": 4
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [5, 19, 5, 59],
+        "type": "binary-expr",
+        "locations": [
+          [5, 19, 5, 25],
+          [5, 29, 5, 59]
+        ],
+        "line": 5
+      }
+    },
+    "s": {
+      "0": 0
+    },
+    "f": {
+      "0": 0
+    },
+    "b": {
+      "0": [0, 0]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:4:16:4:23": 0,
+        "s:5:2:5:Infinity": 0,
+        "b:5:19:5:25:5:29:5:59": 0
+      },
+      "fnNames": {}
+    }
+  }
+}

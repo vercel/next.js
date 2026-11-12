@@ -1,0 +1,5 @@
+export enum Kind { First, Next = 4, Word = "word" }
+export function choose(value: Kind) {
+  if (value === Kind.First) return Kind.Next
+  return Kind.Word
+}

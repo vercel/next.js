@@ -1,0 +1,81 @@
+{
+  "helper.js": {
+    "$coverage": "range-tuples-v1",
+    "path": "helper.js",
+    "statements": {
+      "0": [1, 31, 1, 49]
+    },
+    "functions": {
+      "0": {
+        "name": "label",
+        "decl": [1, 16, 1, 21],
+        "loc": [1, 29, 1, null],
+        "line": 1
+      }
+    },
+    "branches": {},
+    "s": {
+      "0": 3
+    },
+    "f": {
+      "0": 3
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:1:16:1:21": 0,
+        "s:1:31:1:49": 0
+      },
+      "fnNames": {}
+    }
+  },
+  "subject.tsx": {
+    "$coverage": "range-tuples-v1",
+    "path": "subject.tsx",
+    "statements": {
+      "0": [5, 2, 13, null]
+    },
+    "functions": {
+      "0": {
+        "name": "Multiline",
+        "decl": [4, 16, 4, 26],
+        "loc": [4, 45, 15, null],
+        "line": 4
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [7, 7, 10, null],
+        "type": "binary-expr",
+        "locations": [
+          [7, 7, 7, null],
+          [8, 8, 10, null]
+        ],
+        "line": 7
+      }
+    },
+    "s": {
+      "0": 2
+    },
+    "f": {
+      "0": 2
+    },
+    "b": {
+      "0": [2, 1]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:4:16:4:26": 0,
+        "s:5:2:13:Infinity": 0,
+        "b:7:7:7:Infinity:8:8:10:Infinity": 0
+      },
+      "fnNames": {}
+    }
+  }
+}

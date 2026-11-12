@@ -1,0 +1,88 @@
+{
+  "model": {
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [3, 11, 3, 40]
+    },
+    "functions": {
+      "0": {
+        "name": "constructor",
+        "decl": [2, 2, 2, 13],
+        "loc": [2, 58, 2, null],
+        "line": 2
+      },
+      "1": {
+        "name": "read",
+        "decl": [3, 2, 3, 6],
+        "loc": [3, 9, 3, null],
+        "line": 3
+      }
+    },
+    "branches": {},
+    "s": {
+      "0": 0
+    },
+    "f": {
+      "0": 0,
+      "1": 0
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 2,
+      "lastStatement": 1,
+      "seen": {
+        "f:2:2:2:13": 0,
+        "f:3:2:3:6": 1,
+        "s:3:11:3:40": 0
+      },
+      "fnNames": {}
+    }
+  },
+  "observed": {
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [2, 21, 2, 34],
+      "1": [2, 44, 2, 56],
+      "2": [3, 11, 3, 41]
+    },
+    "functions": {
+      "0": {
+        "name": "constructor",
+        "decl": [2, 2, 2, 14],
+        "loc": [2, 58, 2, null],
+        "line": 2
+      },
+      "1": {
+        "name": "read",
+        "decl": [3, 2, 3, 9],
+        "loc": [3, 9, 3, null],
+        "line": 3
+      }
+    },
+    "branches": {},
+    "s": {
+      "0": 1,
+      "1": 1,
+      "2": 1
+    },
+    "f": {
+      "0": 1,
+      "1": 1
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 2,
+      "lastStatement": 3,
+      "seen": {
+        "f:2:2:2:14": 0,
+        "s:2:21:2:34": 0,
+        "s:2:44:2:56": 1,
+        "f:3:2:3:9": 1,
+        "s:3:11:3:41": 2
+      },
+      "fnNames": {}
+    }
+  }
+}

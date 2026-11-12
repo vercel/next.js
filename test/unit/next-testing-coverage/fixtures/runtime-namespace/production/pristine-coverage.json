@@ -1,0 +1,82 @@
+{
+  "subject.ts": {
+    "$coverage": "range-tuples-v1",
+    "path": "subject.ts",
+    "statements": {
+      "0": [1, 7, 7, 1],
+      "1": [2, 15, 2, null],
+      "2": [4, 4, 4, null],
+      "3": [4, 16, 4, null],
+      "4": [5, 4, 5, null]
+    },
+    "functions": {
+      "0": {
+        "name": "(anonymous_0)",
+        "decl": [1, 7, 1, 17],
+        "loc": [1, 7, 7, null],
+        "line": 1
+      },
+      "1": {
+        "name": "choose",
+        "decl": [3, 18, 3, 25],
+        "loc": [3, 42, 6, null],
+        "line": 3
+      }
+    },
+    "branches": {
+      "0": {
+        "loc": [4, 4, 4, null],
+        "type": "if",
+        "locations": [
+          [4, 4, 4, null],
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 4
+      },
+      "1": {
+        "loc": [7, 1, 7, null],
+        "type": "binary-expr",
+        "locations": [
+          [7, 1, 7, null],
+          [7, 1, 7, null]
+        ],
+        "line": 7
+      }
+    },
+    "s": {
+      "0": 1,
+      "1": 1,
+      "2": 2,
+      "3": 1,
+      "4": 1
+    },
+    "f": {
+      "0": 1,
+      "1": 2
+    },
+    "b": {
+      "0": [1, 1],
+      "1": [1, 1]
+    },
+    "meta": {
+      "lastBranch": 2,
+      "lastFunction": 2,
+      "lastStatement": 5,
+      "seen": {
+        "s:1:7:7:1": 0,
+        "f:1:7:1:17": 0,
+        "s:2:15:2:Infinity": 1,
+        "f:3:18:3:25": 1,
+        "b:4:4:4:Infinity:undefined:undefined:undefined:undefined": 0,
+        "s:4:4:4:Infinity": 2,
+        "s:4:16:4:Infinity": 3,
+        "s:5:4:5:Infinity": 4,
+        "b:7:1:7:Infinity:7:1:7:Infinity": 1
+      },
+      "fnNames": {}
+    }
+  }
+}

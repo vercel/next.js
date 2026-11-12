@@ -1,0 +1,20 @@
+{
+  "file": "/private/tmp/next-testing-parallel-20261019/watch-shutdown201/.next-test-constructor-literal-arguments200-actual14-executed-development/subject.ts",
+  "model": {
+    "path": "/private/tmp/next-testing-parallel-20261019/watch-shutdown201/.next-test-constructor-literal-arguments200-actual14-executed-development/subject.ts"
+  },
+  "observed": {
+    "path": "/private/tmp/next-testing-parallel-20261019/watch-shutdown201/.next-test-constructor-literal-arguments200-actual14-executed-development/subject.ts"
+  },
+  "sourceMap": {
+    "version": 3,
+    "sources": [
+      "/private/tmp/next-testing-parallel-20261019/watch-shutdown201/.next-test-constructor-literal-arguments200-actual14-executed-development/subject.ts"
+    ],
+    "names": [],
+    "mappings": ";;;;A;;;;;;AAAA,SAAS,QAAQ,KAAa;IAAY,OAAO;AAAM;AAChD,MAAM;;IACX,YAAY,AAAO,QAAgB,QAAQ,EAAE,CAAE;aAA5B,QAAA;IAA6B;IAChD,IAAI,KAAa,EAAU;QACzB,IAAI,CAAC,KAAK,IAAI;QACd,OAAO,IAAI,CAAC,KAAK;IACnB;AACF;AACO,SAAS;IACd,MAAM,UAAU,IAAI;IACpB,OAAO;QAAC,QAAQ,KAAK;QAAE,QAAQ,GAAG,CAAC;KAAG;AACxC",
+    "sourcesContent": [
+      "function initial(value: number): number { return value }\nexport class Counter {\n  constructor(public value: number = initial(3)) {}\n  add(delta: number): number {\n    this.value += delta\n    return this.value\n  }\n}\nexport function exercise(): number[] {\n  const counter = new Counter()\n  return [counter.value, counter.add(2)]\n}\n"
+    ]
+  }
+}
