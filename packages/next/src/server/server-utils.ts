@@ -259,6 +259,27 @@ export function normalizeDynamicRouteParams(
   }
 }
 
+export type DynamicRouteUtils = {
+  page: string
+  defaultRouteRegex: ReturnType<typeof getNamedRouteRegex>
+  dynamicRouteMatcher: RouteMatchFn
+  defaultRouteMatches: ParsedUrlQuery
+}
+
+/**
+ * Compiles the route regex and matcher of a dynamic page. They only depend on
+ * the page, so a caller that serves the same page for many requests can create
+ * them once and pass them to `getServerUtils` with every call.
+ */
+export function getDynamicRouteUtils(page: string): DynamicRouteUtils {
+  const defaultRouteRegex = getNamedRouteRegex(page, {
+    prefixRouteKeys: false,
+  })
+  const dynamicRouteMatcher = getRouteMatcher(defaultRouteRegex)
+  const defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
+  return { page, defaultRouteRegex, dynamicRouteMatcher, defaultRouteMatches }
+}
+
 export function getServerUtils({
   page,
   i18n,
@@ -267,6 +288,7 @@ export function getServerUtils({
   pageIsDynamic,
   trailingSlash,
   caseSensitive,
+  dynamicRouteUtils,
 }: {
   page: string
   i18n?: NextConfig['i18n']
@@ -279,17 +301,24 @@ export function getServerUtils({
   pageIsDynamic: boolean
   trailingSlash?: boolean
   caseSensitive: boolean
+  /**
+   * The result of `getDynamicRouteUtils` for this page, if the caller has
+   * one. It is used only when it was created for the same page.
+   */
+  dynamicRouteUtils?: DynamicRouteUtils
 }) {
   let defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
   let dynamicRouteMatcher: RouteMatchFn | undefined
   let defaultRouteMatches: ParsedUrlQuery | undefined
 
   if (pageIsDynamic) {
-    defaultRouteRegex = getNamedRouteRegex(page, {
-      prefixRouteKeys: false,
-    })
-    dynamicRouteMatcher = getRouteMatcher(defaultRouteRegex)
-    defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
+    const routeUtils =
+      dynamicRouteUtils?.page === page
+        ? dynamicRouteUtils
+        : getDynamicRouteUtils(page)
+    defaultRouteRegex = routeUtils.defaultRouteRegex
+    dynamicRouteMatcher = routeUtils.dynamicRouteMatcher
+    defaultRouteMatches = routeUtils.defaultRouteMatches
   }
 
   function handleRewrites(
