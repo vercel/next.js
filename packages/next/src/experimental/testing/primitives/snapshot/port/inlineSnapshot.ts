@@ -24,8 +24,7 @@ export async function saveInlineSnapshots(
   environment: SnapshotEnvironment,
   snapshots: Array<InlineSnapshot>
 ): Promise<void> {
-  const MagicString = (await import('../../utils/magic-string/index.js'))
-    .default
+  const { MagicString } = await import('../../utils/magic-string/index.js')
   const files = new Set(snapshots.map((i) => i.file))
   await Promise.all(
     Array.from(files).map(async (file) => {
