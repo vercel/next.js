@@ -6,6 +6,20 @@ mod memory_pressure;
 #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
 mod option_override;
 
+/// Overrides mimalloc's `arena_purge_min_size` option (in KiB) with one arena slice, see
+/// [`TurboMalloc::collect_and_purge_all`]. mimalloc reads it afresh on every purge, and it only
+/// decides which free ranges are purged, so changing it at runtime is benign (see
+/// [`option_override`]). 0, the default, picks the size automatically (2 MiB with transparent huge
+/// pages); any other value was set explicitly and is left alone.
+///
+/// Don't override `allow_thp` instead: it also decides whether new memory uses huge pages.
+#[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
+static PURGE_SMALL_RANGES: option_override::OptionOverride = option_override::OptionOverride::new(
+    mimalloc::sys::mi_option_arena_purge_min_size,
+    64,
+    |previous| previous == 0,
+);
+
 use std::{
     alloc::{GlobalAlloc, Layout},
     marker::PhantomData,
@@ -186,6 +200,30 @@ impl TurboMalloc {
     /// [`TurboMalloc::collect(true)`]: TurboMalloc::collect
     pub fn enter_eager_purge_mode() -> EagerPurgeGuard {
         EagerPurgeGuard::new()
+    }
+
+    /// Like [`TurboMalloc::collect(true)`], but also returns freed memory to the OS that lies in
+    /// small free ranges between memory that's still in use.
+    ///
+    /// mimalloc only returns free ranges of a minimal size to the OS. On Linux with transparent
+    /// huge pages available, mimalloc v3 sets that size to the huge page size (2 MiB), to avoid
+    /// breaking up huge pages. After freeing most of a large, fragmented heap, most free ranges are
+    /// smaller than that, so [`TurboMalloc::collect(true)`] leaves them resident. This lowers the
+    /// minimal size to one arena slice (64 KiB) for the duration of the collect, unless it was set
+    /// explicitly (`MIMALLOC_ARENA_PURGE_MIN_SIZE`).
+    ///
+    /// Breaking up huge pages makes memory that's still in use slower to access, so only use this
+    /// when the remaining heap is small or won't be used much any more (e.g. after shutting down).
+    ///
+    /// This changes a process-wide mimalloc option while other threads use the allocator, which
+    /// mimalloc doesn't formally support; it only affects which free ranges are returned to the
+    /// OS, see the `option_override` module.
+    ///
+    /// [`TurboMalloc::collect(true)`]: TurboMalloc::collect
+    pub fn collect_and_purge_all() {
+        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
+        let _override = PURGE_SMALL_RANGES.enter();
+        Self::collect(true);
     }
 
     pub fn allocation_counters() -> AllocationCounters {
