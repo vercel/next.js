@@ -1,0 +1,16 @@
+import {test,expect,afterAll,describe} from 'vitest';
+import {cachedTest,cachedDescribe,cachedRaw} from './realm-cache.mjs';
+const trace=[];const extended=test.extend({value:3});
+const errors=(label,operation)=>{try{const result=operation();trace.push({label,type:typeof result})}catch(error){trace.push({label,error:{name:error.name,message:error.message}})}};
+for(const key of ['each','for']){
+ const extracted=test[key];errors('extracted '+key,()=>extracted([1]));errors('invalid receiver '+key,()=>extracted.call({},[1]));
+ extracted.bind(test)([2])('bound '+key+' %i',(value)=>{trace.push({label:'bound '+key,value});expect(value).toBe(2)});
+ extracted.call(test,[4])('called '+key+' %i',(value)=>{trace.push({label:'called '+key,value});expect(value).toBe(4)});
+}
+test.for.call(extended,[6])('borrowed fixture %i',(value,{value:fixture})=>{trace.push({label:'borrowed fixture',value,fixture});expect(fixture).toBe(3)});
+for(const [key,condition]of [['skipIf',false],['skipIf',true],['runIf',true],['runIf',false]]){const extracted=test[key];errors('extracted '+key+' '+condition,()=>extracted(condition));}
+trace.push({label:'conditions',skipFalse:test.skipIf.call(extended,false)===extended,runTrue:test.runIf.call(extended,true)===extended,boundSkipFalse:test.skipIf.bind(test)(false)===test,boundRunTrue:test.runIf.bind(test)(true)===test});
+test.skipIf.call(test,true)('called skipped',()=>{throw new Error('must skip')});
+test.runIf.call(test,false)('called not run',()=>{throw new Error('must skip')});
+test('first realm aliases',()=>{expect(cachedTest).toBe(test);expect(cachedDescribe).toBe(describe);expect(cachedRaw.describe).toBe(describe);expect(cachedRaw.suite).toBe(describe);expect(test.describe).toBe(describe);trace.push({label:'first realm',test:cachedTest===test,describe:cachedDescribe===describe,rawDescribe:cachedRaw.describe===describe,rawSuite:cachedRaw.suite===describe,testDescribe:test.describe===describe})});
+afterAll(()=>console.log('DECLARATION_FN:'+JSON.stringify({kind:'ordinary-retention',trace})));

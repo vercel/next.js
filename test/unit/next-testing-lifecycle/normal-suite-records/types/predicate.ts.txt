@@ -1,0 +1,2 @@
+import {describe,type SuiteAPI,type SuiteCollector} from 'vitest'
+const api:SuiteAPI=describe;const result:SuiteCollector=api.skipIf(false).only('suite',()=>{});void result

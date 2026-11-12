@@ -1,0 +1,13 @@
+import {describe,suite,type SuiteCollector,type TaskCustomOptions,type TestContext} from 'vitest'
+const flags={concurrent:false,only:false,skip:false,todo:false,shuffle:false}
+const value:SuiteCollector=describe.fn.call(flags,'suite',{},provided=>{provided('child',context=>{const expected:TestContext=context;void expected})})
+const alias:typeof describe.fn=suite.fn
+const options:TaskCustomOptions={each:true,handler(context){context.expect(1).toBe(1)}}
+value.task('manual',options)
+const collected:ReturnType<SuiteCollector['collect']>=value.collect(value.file)
+value.on('beforeAll',suite=>{const name:string=suite.name;void name})
+value.on('beforeEach',(context,suite)=>{context.expect(suite.name).toBeTypeOf('string')})
+declare const extended:SuiteCollector<{value:number}>
+extended.test('fixture',context=>{context.value.toFixed();context.expect(true).toBe(true)})
+extended.on('beforeEach',context=>{context.value.toFixed()})
+void [alias,collected]

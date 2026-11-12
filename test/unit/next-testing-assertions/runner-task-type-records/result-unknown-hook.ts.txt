@@ -1,0 +1,3 @@
+import type { RunnerTaskResult } from 'vitest'
+const value: RunnerTaskResult = { state: 'pass', hooks: { beforeRun: 'pass' } }
+void value

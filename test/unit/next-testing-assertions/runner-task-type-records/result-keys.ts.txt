@@ -1,0 +1,4 @@
+import type { RunnerTaskResult } from 'vitest'
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false
+const exact: Equal<keyof RunnerTaskResult, 'state' | 'errors' | 'duration' | 'startTime' | 'heap' | 'hooks' | 'retryCount' | 'repeatCount'> = true
+void exact

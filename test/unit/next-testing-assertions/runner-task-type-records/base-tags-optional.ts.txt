@@ -1,0 +1,5 @@
+import type { RunnerTaskBase } from 'vitest'
+declare const value: RunnerTaskBase
+const tags: string[] | undefined = value.tags
+const title: string | undefined = value.fullTestName
+void [tags, title]

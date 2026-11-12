@@ -1,0 +1,2 @@
+import { RunnerTaskBase, RunnerTaskResult, RunnerTaskResultPack, RunnerTaskEventPack } from 'vitest'
+void [RunnerTaskBase, RunnerTaskResult, RunnerTaskResultPack, RunnerTaskEventPack]

@@ -1,0 +1,12 @@
+import {test,it,expectTypeOf,type TestAPI} from 'vitest';
+const receiver={concurrent:false,only:false,skip:false,todo:false,fails:false};
+const outcome:void=test.fn.call(receiver,'name',{},({expect})=>{expect(1).toBe(1)});
+const api:TestAPI=test;
+const callback:Parameters<TestAPI['fn']>[2]=({expect})=>{expect(true).toBe(true)};
+it.fn.call(receiver,'alias',{},callback);
+const fixture=test.extend({value:3});
+fixture.fn.call(receiver,'fixture',{},({value})=>{const number:number=value; void number});
+const chainFn:TestAPI['fn']=test.skip.fn;
+const rawReturn:ReturnType<TestAPI['fn']>=outcome;
+expectTypeOf(outcome).toEqualTypeOf<void>();
+void [api,chainFn,rawReturn];
