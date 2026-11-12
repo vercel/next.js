@@ -77,6 +77,13 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import type { Params } from '../server/request/params'
 import { Bundler } from '../lib/bundler'
 import { getBuildDistDir, getExportPathPageKey } from './utils'
+import {
+  formatStaticGenerationSummary,
+  isStaticGenerationProfileEnabled,
+  resetStaticGenerationProfile,
+  writeStaticGenerationSummary,
+  type StaticGenerationPhase,
+} from './static-generation-profile'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -694,6 +701,7 @@ async function exportAppImpl(
   const exportPagesInBatches = async (
     worker: StaticWorker,
     exportPaths: ExportPathEntry[],
+    phase: StaticGenerationPhase,
     renderResumeDataCachesByPage?: Record<string, string>
   ): Promise<ExportPagesResult> => {
     // Batch filtered pages into smaller batches, and call the export worker on
@@ -762,6 +770,7 @@ async function exportAppImpl(
             fetchCache: true,
             fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
             renderResumeDataCachesByPage: batchRenderResumeDataCaches,
+            phase,
           })
         })
       )
@@ -823,7 +832,16 @@ async function exportAppImpl(
       })
     }
 
-    results = await exportPagesInBatches(worker, initialPhaseExportPaths)
+    const profileStaticGeneration = isStaticGenerationProfileEnabled()
+    if (profileStaticGeneration) {
+      resetStaticGenerationProfile(distDir)
+    }
+
+    results = await exportPagesInBatches(
+      worker,
+      initialPhaseExportPaths,
+      'initial'
+    )
 
     if (finalPhaseExportPaths.length > 0) {
       const renderResumeDataCachesByPage = buildRDCCacheByPage(
@@ -834,10 +852,18 @@ async function exportAppImpl(
       const finalPhaseResults = await exportPagesInBatches(
         worker,
         finalPhaseExportPaths,
+        'final',
         renderResumeDataCachesByPage
       )
 
       results.push(...finalPhaseResults)
+    }
+
+    if (profileStaticGeneration) {
+      const summary = writeStaticGenerationSummary(distDir)
+      if (summary && !options.silent) {
+        Log.info(formatStaticGenerationSummary(summary))
+      }
     }
   }
 
