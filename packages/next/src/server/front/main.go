@@ -27,6 +27,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -64,6 +65,9 @@ func main() {
 		if err := srv.Shutdown(context.Background()); err != nil {
 			fmt.Fprintln(os.Stderr, "next-front: shutdown:", err)
 		}
+		// Shutdown doesn't track hijacked connections; wait for the responses
+		// writeCustomStatusLine is still sending.
+		hijackedResponses.Wait()
 		close(stopped)
 	}()
 
@@ -156,6 +160,12 @@ type responseWriterKey struct{}
 // sent the response.
 var errResponseWritten = errors.New("response written on the hijacked connection")
 
+// hijackedResponses counts the responses writeCustomStatusLine is sending.
+// Each is added before its connection is hijacked, while Shutdown still waits
+// for that connection, so the count can't go up from zero after Shutdown
+// returns.
+var hijackedResponses sync.WaitGroup
+
 // writeCustomStatusLine sends Node's response itself when its status line
 // isn't the one Go's server would write. Node lets apps set any reason phrase
 // (`res.statusMessage`, like "400 Invalid JSON") and uses its own texts for
@@ -175,6 +185,8 @@ func writeCustomStatusLine(res *http.Response) error {
 	if !ok {
 		return nil
 	}
+	hijackedResponses.Add(1)
+	defer hijackedResponses.Done()
 	conn, buf, err := hijacker.Hijack()
 	if err != nil {
 		return nil

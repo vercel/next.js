@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -9,6 +10,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // received is what the stub upstream saw.
@@ -214,5 +216,60 @@ func TestKeepsNodesStatusLine(t *testing.T) {
 				t.Errorf("got %q %q %q, want %q hello yes", res.Status, body, res.Header.Get("X-Kept"), status)
 			}
 		})
+	}
+}
+
+func TestShutdownWaitsForACustomStatusLineResponse(t *testing.T) {
+	release := make(chan struct{})
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, buf, _ := w.(http.Hijacker).Hijack()
+		defer conn.Close()
+		io.WriteString(buf, "HTTP/1.1 400 Invalid JSON\r\nContent-Length: 10\r\n\r\nfirst")
+		buf.Flush()
+		<-release
+		io.WriteString(conn, "-last")
+	}))
+	t.Cleanup(upstream.Close)
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	front := &http.Server{Handler: newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr))}
+	go front.Serve(ln)
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	io.WriteString(conn, get("/"))
+	reader := bufio.NewReader(conn)
+	res, err := http.ReadResponse(reader, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Drain the way main does, while the body is still streaming.
+	stopped := make(chan struct{})
+	go func() {
+		front.Shutdown(context.Background())
+		hijackedResponses.Wait()
+		close(stopped)
+	}()
+	select {
+	case <-stopped:
+		t.Fatal("shutdown finished before the response did")
+	case <-time.After(200 * time.Millisecond):
+	}
+	close(release)
+	body, _ := io.ReadAll(res.Body)
+	if string(body) != "first-last" {
+		t.Errorf("body = %q, want the whole response", body)
+	}
+	select {
+	case <-stopped:
+	case <-time.After(5 * time.Second):
+		t.Fatal("shutdown never finished")
 	}
 }
