@@ -1,0 +1,6 @@
+import {test,afterAll} from 'vitest';
+const trace=[],flags={concurrent:false,only:false,skip:false,todo:false,fails:false};
+test('unfocused ordinary',()=>trace.push('ordinary'));
+test.fn.call({...flags,only:true},'focused raw',{},ctx=>trace.push({name:ctx.task.name,mode:ctx.task.mode,fails:ctx.task.fails??null}));
+test.fn.call(flags,'unfocused raw',{},()=>trace.push('unfocused raw'));
+afterAll(()=>console.log('DECLARATION_FN:'+JSON.stringify({kind:'focus',trace})));

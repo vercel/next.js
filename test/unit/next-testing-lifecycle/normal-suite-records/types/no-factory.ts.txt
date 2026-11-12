@@ -1,0 +1,2 @@
+import {describe,type SuiteAPI,type SuiteCollector} from 'vitest'
+const result:SuiteCollector=describe('suite');void result

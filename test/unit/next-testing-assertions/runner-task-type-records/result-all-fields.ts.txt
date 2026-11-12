@@ -1,0 +1,3 @@
+import type { RunnerTaskResult } from 'vitest'
+const value: RunnerTaskResult = { state: 'pass', errors: [{ name: 'Error', message: 'message' }], duration: 1, startTime: 2, heap: 3, hooks: { beforeAll: 'pass', afterAll: 'pass', aroundAll: 'run', beforeEach: 'pass', afterEach: 'pass', aroundEach: 'queued' }, retryCount: 1, repeatCount: 2 }
+void value

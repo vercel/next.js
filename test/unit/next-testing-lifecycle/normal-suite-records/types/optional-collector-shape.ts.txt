@@ -1,0 +1,6 @@
+import type {SuiteCollector} from 'vitest'
+declare const collector: SuiteCollector
+const optional: Pick<SuiteCollector, 'suite' | 'options'> = {}
+const suite: NonNullable<SuiteCollector['suite']> | undefined = collector.suite
+const options: NonNullable<SuiteCollector['options']> | undefined = collector.options
+void optional; void suite; void options

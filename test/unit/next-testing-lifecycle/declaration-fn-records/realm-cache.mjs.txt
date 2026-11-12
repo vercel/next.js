@@ -1,0 +1,4 @@
+import {test,describe} from 'vitest';
+export const cachedTest=test;
+export const cachedDescribe=describe;
+export const cachedRaw=test.fn;

@@ -1,0 +1,584 @@
+{
+  "reference": {
+    "version": "5.0.4",
+    "publicRoot": "vitest"
+  },
+  "runtime": "v20.20.0",
+  "typescript": "6.0.2",
+  "programs": [
+    {
+      "name": "base-minimal.ts",
+      "sourceSHA256": "f9fe2286533c6da91b641a8e76715173a5c264ba960baa50dde0264512dd022d",
+      "accepted": true,
+      "diagnostics": [],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "base-fields.ts",
+      "sourceSHA256": "f1f95ef546a2a7a160e6c6d8615fb71250967423665ab195f25f9d3f8d294f4a",
+      "accepted": true,
+      "diagnostics": [],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "base-actual-context.ts",
+      "sourceSHA256": "390c3c7cd580786127d650a1752a35dc765000906e57e590c979afcf316984cf",
+      "accepted": true,
+      "diagnostics": [],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "base-tags-optional.ts",
+      "sourceSHA256": "e6e85483abec364fa38c9c02d3eb48f5f4854922f23ca6e0808cb65558387d19",
+      "accepted": true,
+      "diagnostics": [],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "base-keys.ts",
+      "sourceSHA256": "b3751b05e572b83db0aa8d591ea1ed5ebff0c1a537236bfaa02781d94844c05e",
+      "accepted": true,
+      "diagnostics": [],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "base-log-read.ts",
+      "sourceSHA256": "d01f77d7376758f6c5f8b82e13fa7e007da9128c885730f887d8ce4e34761f96",
+      "accepted": true,
+      "diagnostics": [],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "base-missing-id.ts",
+      "sourceSHA256": "faf908275a8e7b3dda6611739e9855c3c758cbcd5b3dc49d5704084b76a488b3",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2741,
+          "category": 1,
+          "line": 2,
+          "column": 7,
+          "message": "Property 'id' is missing in type '{ name: string; fullName: string; mode: \"run\"; meta: {}; }' but required in type 'TaskBase'."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "base-no-file.ts",
+      "sourceSHA256": "7d00cf25c91df98ceb9c96bff7bf52b77d06104474b21b6fed6a639ba8b5e759",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2339,
+          "category": 1,
+          "line": 3,
+          "column": 7,
+          "message": "Property 'file' does not exist on type 'TaskBase'."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "base-no-promises.ts",
+      "sourceSHA256": "eaacdba342f6855a77fc87d6275d72438ab47d7cdbb5d567f5452f8bb9cdc471",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2339,
+          "category": 1,
+          "line": 3,
+          "column": 7,
+          "message": "Property 'promises' does not exist on type 'TaskBase'."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "base-wrong-tags.ts",
+      "sourceSHA256": "b27a6a08a961fc41ee6df4e1566ce71c4a873f60342ef69f3cdddeb363f52dff",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "line": 2,
+          "column": 105,
+          "message": "Type 'number' is not assignable to type 'string'."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "base-wrong-mode.ts",
+      "sourceSHA256": "0d9a46817509a35d0a1b6bc24e45c39a5f663f102b84bacce5e3ecb5b2ffe4e7",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "line": 2,
+          "column": 75,
+          "message": "Type '\"passed\"' is not assignable to type 'RunMode'."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "base-log-wrong-stream.ts",
+      "sourceSHA256": "6492180920ef374014d1e8f162dddb9f0c8f69bfbef28d264813c334c1056315",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "line": 2,
+          "column": 120,
+          "message": "Type '\"log\"' is not assignable to type '\"stdout\" | \"stderr\"'."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "base-log-missing-time.ts",
+      "sourceSHA256": "8a0e5d58c6bd138444a603e938c084d02962685dc9c90707fb6138b327cc8eed",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2741,
+          "category": 1,
+          "line": 2,
+          "column": 105,
+          "message": "Property 'time' is missing in type '{ content: string; type: \"stdout\"; size: number; }' but required in type 'UserConsoleLog'."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "result-all-fields.ts",
+      "sourceSHA256": "f71dd3d5caf4c07dc4c8089edcfed39bec99f06d42589b6b9b63f4584b5361bc",
+      "accepted": true,
+      "diagnostics": [],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "result-minimal.ts",
+      "sourceSHA256": "b96c5ba318a282f5ec74656ac6047234d0447e746946f4f3acb252ea616dd825",
+      "accepted": true,
+      "diagnostics": [],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "result-keys.ts",
+      "sourceSHA256": "6ccfc46c829405dafe4036f7eb7a64f51984f72c3e8572e5de208c11d0b8385e",
+      "accepted": true,
+      "diagnostics": [],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "result-hook-keys.ts",
+      "sourceSHA256": "ae182d6ff95bd4d24c15dddf7081f4cd6e5efe2c40bec7eed036e52ae1237a09",
+      "accepted": true,
+      "diagnostics": [],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "result-no-private-note.ts",
+      "sourceSHA256": "51ec7511c740330d4333a8f0767e4e01f148dc9a07c9bbd7256ca77bed678524",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2353,
+          "category": 1,
+          "line": 2,
+          "column": 50,
+          "message": "Object literal may only specify known properties, and 'note' does not exist in type 'TaskResult'."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "result-no-private-pending.ts",
+      "sourceSHA256": "0502b97c144a9867d6baffa4682d67f4bb8f51fecec28f6f81f36c15393b7c0a",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2353,
+          "category": 1,
+          "line": 2,
+          "column": 49,
+          "message": "Object literal may only specify known properties, and 'pending' does not exist in type 'TaskResult'."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "result-wrong-heap.ts",
+      "sourceSHA256": "38804d2ffebff73e9bca87d27ef00e3e68f67bcc9a9dd5dee0db528db2b075cc",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "line": 2,
+          "column": 50,
+          "message": "Type 'string' is not assignable to type 'number'."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "result-wrong-state.ts",
+      "sourceSHA256": "514c14417aa819a1264de93cbd111584b6eba8bd0e8445e375a532fe29fa70a3",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2820,
+          "category": 1,
+          "line": 2,
+          "column": 35,
+          "message": "Type '\"passed\"' is not assignable to type 'TaskState'. Did you mean '\"pass\"'?"
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "result-unknown-hook.ts",
+      "sourceSHA256": "51f4574c4c9033128b195174d7839d23766423ff2962de697b5c741b4d836f7b",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2353,
+          "category": 1,
+          "line": 2,
+          "column": 59,
+          "message": "Object literal may only specify known properties, and 'beforeRun' does not exist in type 'Partial<Record<keyof SuiteHooks<object>, TaskState>>'."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "pack-result.ts",
+      "sourceSHA256": "fc4d899bbf7c6d43a409d5c19722d8140f3c44db14f65c3e63654687bd2d5b3b",
+      "accepted": true,
+      "diagnostics": [],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "pack-result-missing-meta.ts",
+      "sourceSHA256": "6408397936dc16aa0af315d41bc9fb544f47b5b2dada7d6e0f3583b9e24fa4fa",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "line": 2,
+          "column": 7,
+          "message": "Type '[string, undefined]' is not assignable to type 'TaskResultPack'.\n  Source has 2 element(s) but target requires 3."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "pack-result-extra.ts",
+      "sourceSHA256": "c344ecf2ffac1518041ea9250cd7b8b16fca34a86c82e30384f5b59e4c71d3f8",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "line": 2,
+          "column": 7,
+          "message": "Type '[string, undefined, {}, string]' is not assignable to type 'TaskResultPack'.\n  Source has 4 element(s) but target allows only 3."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "pack-result-readonly.ts",
+      "sourceSHA256": "309455b5a963f95e1bd2769b61a1cd7f3d84af4287b2b6165f53191d15059435",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 4104,
+          "category": 1,
+          "line": 3,
+          "column": 7,
+          "message": "The type 'readonly [string, undefined, {}]' is 'readonly' and cannot be assigned to the mutable type 'TaskResultPack'."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "pack-result-wrong-state.ts",
+      "sourceSHA256": "54d65ff3ec54fe5c920e62d27485343a854a196abb08d3e34817c00b668bcc13",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2820,
+          "category": 1,
+          "line": 2,
+          "column": 46,
+          "message": "Type '\"passed\"' is not assignable to type 'TaskState'. Did you mean '\"pass\"'?"
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "pack-event-all.ts",
+      "sourceSHA256": "e92b85bbfde36a5373a17281d79a2263fafc711dc03c1fb77131f9b957355803",
+      "accepted": true,
+      "diagnostics": [],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "pack-event-data.ts",
+      "sourceSHA256": "66df4180fbf2678a0a1349aad00ca9683c81f2782ebcf811f1cabffa0d6a421d",
+      "accepted": true,
+      "diagnostics": [],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "pack-event-wrong-event.ts",
+      "sourceSHA256": "018fcf30d19739f78aabc45261068c97f9d971d020ef791bd1cb89b016ff8cad",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "line": 2,
+          "column": 43,
+          "message": "Type '\"case-start\"' is not assignable to type 'TaskUpdateEvent'."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "pack-event-missing-data.ts",
+      "sourceSHA256": "85ad65b48a126024048abd5ac52867d13398aa225abd47a861e10e3be83879c7",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "line": 2,
+          "column": 7,
+          "message": "Type '[string, \"test-prepare\"]' is not assignable to type 'TaskEventPack'.\n  Source has 2 element(s) but target requires 3."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "pack-event-unknown-data.ts",
+      "sourceSHA256": "1c42536c97e15734f2c5ee9acd638100ef7d9411d2c229f38504bec7f9d40482",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2353,
+          "category": 1,
+          "line": 2,
+          "column": 61,
+          "message": "Object literal may only specify known properties, and 'custom' does not exist in type 'TaskEventData'."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "pack-event-wrong-annotation.ts",
+      "sourceSHA256": "6ec22ae6dae69e912d0a0db709c6fcfb922999ca0c47ce19e7fbe4e88052e1e2",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "line": 2,
+          "column": 78,
+          "message": "Type 'number' is not assignable to type 'string'."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "pack-event-wrong-artifact.ts",
+      "sourceSHA256": "685427fc906fbe1e6264527a66961994dc6ec5839d64ccdec1ee9885c2dc2d81",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "category": 1,
+          "line": 2,
+          "column": 74,
+          "message": "Type '\"missing\"' is not assignable to type '\"internal:browserTrace\" | \"internal:failureScreenshot\" | \"internal:annotation\" | \"internal:toMatchScreenshot\"'."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "pack-shape-arity.ts",
+      "sourceSHA256": "fa3389409440354d672c7dec6a6a8db2aadb90dfc673e05aeffb84188f9b0798",
+      "accepted": true,
+      "diagnostics": [],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "exports-type-only.ts",
+      "sourceSHA256": "e7824ce0a06dc2f1bec2b96d9c0546dafa0d626b235ee09cd9d7900674232ffb",
+      "accepted": true,
+      "diagnostics": [],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "exports-not-values.ts",
+      "sourceSHA256": "7392e4dbae618c90a273420cceefd19ce23223e8aac55de3ffe2cbb7519f8e01",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2693,
+          "category": 1,
+          "line": 2,
+          "column": 7,
+          "message": "'RunnerTaskBase' only refers to a type, but is being used as a value here."
+        },
+        {
+          "code": 2693,
+          "category": 1,
+          "line": 2,
+          "column": 23,
+          "message": "'RunnerTaskResult' only refers to a type, but is being used as a value here."
+        },
+        {
+          "code": 2693,
+          "category": 1,
+          "line": 2,
+          "column": 41,
+          "message": "'RunnerTaskResultPack' only refers to a type, but is being used as a value here."
+        },
+        {
+          "code": 2693,
+          "category": 1,
+          "line": 2,
+          "column": 63,
+          "message": "'RunnerTaskEventPack' only refers to a type, but is being used as a value here."
+        }
+      ],
+      "exactOptionalPropertyTypes": false
+    },
+    {
+      "name": "exact-base-retry-undefined.ts",
+      "sourceSHA256": "a943d2a21c3d413243d93bc5c18be4db964005235bd93d0efc79ab68853222bb",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2375,
+          "category": 1,
+          "line": 2,
+          "column": 7,
+          "message": "Type '{ id: string; name: string; fullName: string; mode: \"run\"; meta: {}; retry: undefined; }' is not assignable to type 'TaskBase' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.\n  Types of property 'retry' are incompatible.\n    Type 'undefined' is not assignable to type 'Retry'."
+        }
+      ],
+      "exactOptionalPropertyTypes": true
+    },
+    {
+      "name": "exact-base-context-assignable.ts",
+      "sourceSHA256": "3918c44db743c88351d16bb9cef9ab191bc65ea50b7083c45d8d7832137181ec",
+      "accepted": true,
+      "diagnostics": [],
+      "exactOptionalPropertyTypes": true
+    },
+    {
+      "name": "exact-base-tags-undefined.ts",
+      "sourceSHA256": "6e9529e897c28464f51f31b9282e8fe1e83f71ae319b21fd01ec171accfb7a8e",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2375,
+          "category": 1,
+          "line": 2,
+          "column": 7,
+          "message": "Type '{ id: string; name: string; fullName: string; mode: \"run\"; meta: {}; tags: undefined; }' is not assignable to type 'TaskBase' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.\n  Types of property 'tags' are incompatible.\n    Type 'undefined' is not assignable to type 'string[]'."
+        }
+      ],
+      "exactOptionalPropertyTypes": true
+    },
+    {
+      "name": "exact-event-data-undefined.ts",
+      "sourceSHA256": "b62ea7f075223790b696e4900000684871693317e378a3c1114d63959ff54bb1",
+      "accepted": true,
+      "diagnostics": [],
+      "exactOptionalPropertyTypes": true
+    },
+    {
+      "name": "exact-result-heap-undefined.ts",
+      "sourceSHA256": "ec0f14c59347e51549753bc4aeddc79bf78a30688a672338d40a3c752ed08f83",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2375,
+          "category": 1,
+          "line": 2,
+          "column": 7,
+          "message": "Type '{ state: \"pass\"; heap: undefined; }' is not assignable to type 'TaskResult' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.\n  Types of property 'heap' are incompatible.\n    Type 'undefined' is not assignable to type 'number'."
+        }
+      ],
+      "exactOptionalPropertyTypes": true
+    },
+    {
+      "name": "exact-base-retry-options.ts",
+      "sourceSHA256": "892e0b35df1519aebc2c8a7745ae6c9525044b6811c81fc0679b097a8eb94f7b",
+      "accepted": true,
+      "diagnostics": [],
+      "exactOptionalPropertyTypes": true
+    },
+    {
+      "name": "exact-base-log-origin-undefined.ts",
+      "sourceSHA256": "aa0685d57ff1f315f76cf8f7399ecb05034d3a98868ae97c828470e0219fdc76",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2375,
+          "category": 1,
+          "line": 2,
+          "column": 105,
+          "message": "Type '{ content: string; type: \"stdout\"; time: number; size: number; origin: undefined; }' is not assignable to type 'UserConsoleLog' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.\n  Types of property 'origin' are incompatible.\n    Type 'undefined' is not assignable to type 'string'."
+        }
+      ],
+      "exactOptionalPropertyTypes": true
+    },
+    {
+      "name": "exact-result-hooks-undefined.ts",
+      "sourceSHA256": "4622cbad320e63bf3d2142bb9707912214d3dab3d29038dbe3f56d7b8c91396d",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2375,
+          "category": 1,
+          "line": 2,
+          "column": 7,
+          "message": "Type '{ state: \"pass\"; hooks: undefined; }' is not assignable to type 'TaskResult' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.\n  Types of property 'hooks' are incompatible.\n    Type 'undefined' is not assignable to type 'Partial<Record<keyof SuiteHooks<object>, TaskState>>'."
+        }
+      ],
+      "exactOptionalPropertyTypes": true
+    }
+  ],
+  "typeOnlySymbols": [
+    {
+      "name": "RunnerTaskBase",
+      "exported": true,
+      "hasValueFlag": false
+    },
+    {
+      "name": "RunnerTaskResult",
+      "exported": true,
+      "hasValueFlag": false
+    },
+    {
+      "name": "RunnerTaskResultPack",
+      "exported": true,
+      "hasValueFlag": false
+    },
+    {
+      "name": "RunnerTaskEventPack",
+      "exported": true,
+      "hasValueFlag": false
+    }
+  ]
+}

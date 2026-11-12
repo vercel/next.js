@@ -1,0 +1,4 @@
+import type { RunnerTaskBase, TestContext } from 'vitest'
+declare const context: TestContext
+const value: RunnerTaskBase = context.task
+void value

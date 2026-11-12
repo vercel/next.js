@@ -1,0 +1,79 @@
+import { test, expect, chai, beforeEach, afterEach, afterAll } from 'vitest'
+import assert from 'node:assert/strict'
+let probes = 0
+const tasks = new Map()
+function probe(task, stage, assertion) {
+  const flagged = chai.util.flag(assertion, 'vitest-test')
+  assert.equal(flagged?.type, 'test')
+  assert.equal(flagged.file, task.file)
+  assert.equal(chai.util.flag(assertion, 'vitest-test'), flagged)
+  if (task.name.startsWith('concurrent') && !stage.endsWith('local'))
+    assert.equal(flagged.name, 'concurrent second')
+  else assert.equal(flagged, task)
+  probes++
+}
+beforeEach((context) => {
+  tasks.set(context.task.name, context.task)
+  probe(context.task, 'beforeEach-global', expect(0))
+  probe(context.task, 'beforeEach-local', context.expect(0))
+})
+afterEach((context) => {
+  probe(context.task, 'afterEach-global', expect(0))
+  probe(context.task, 'afterEach-local', context.expect(0))
+})
+expect.extend({
+  globalFlagProbe(name) {
+    const task = tasks.get(name)
+    probe(task, 'custom-sync', this.assertion)
+    assert.equal(this.task, task)
+    return { pass: true, message: () => 'global flag probe' }
+  },
+  async globalAsyncFlagProbe(name) {
+    const task = tasks.get(name)
+    probe(task, 'custom-async-enter', this.assertion)
+    assert.equal(this.task, task)
+    await Promise.resolve()
+    probe(task, 'custom-async-resume', this.assertion)
+    return { pass: true, message: () => 'global async flag probe' }
+  },
+})
+test('ordinary global flags', async (context) => {
+  const global = expect(Promise.resolve(1))
+  probe(context.task, 'body-global', global)
+  probe(context.task, 'body-local', context.expect(0))
+  await global.resolves.toBe(1)
+  probe(context.task, 'after-native-await', global)
+})
+test('custom global flags', async (context) => {
+  expect(context.task.name).globalFlagProbe()
+  await expect(context.task.name).globalAsyncFlagProbe()
+  probe(context.task, 'custom-body-end', expect(0))
+})
+test('foreign raw payload', (context) => {
+  const assertion = expect(0),
+    foreign = tasks.get('ordinary global flags')
+  chai.util.flag(assertion, 'vitest-test', foreign)
+  assert.equal(chai.util.flag(assertion, 'vitest-test'), foreign)
+  chai.util.flag(assertion, 'vitest-test', context.task)
+  probe(context.task, 'restored-current', assertion)
+})
+let release
+const gate = new Promise((resolve) => {
+  release = resolve
+})
+test.concurrent('concurrent first', async (context) => {
+  probe(context.task, 'concurrent-enter-global', expect(0))
+  probe(context.task, 'concurrent-enter-local', context.expect(0))
+  await gate
+  probe(context.task, 'concurrent-resume-global', expect(0))
+  probe(context.task, 'concurrent-resume-local', context.expect(0))
+})
+test.concurrent('concurrent second', async (context) => {
+  probe(context.task, 'concurrent-enter-global', expect(0))
+  probe(context.task, 'concurrent-enter-local', context.expect(0))
+  release()
+  await Promise.resolve()
+  probe(context.task, 'concurrent-resume-global', expect(0))
+  probe(context.task, 'concurrent-resume-local', context.expect(0))
+})
+afterAll(() => assert.equal(probes, 36))

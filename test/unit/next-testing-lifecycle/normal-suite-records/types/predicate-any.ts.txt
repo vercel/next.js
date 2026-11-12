@@ -1,0 +1,5 @@
+import type {SuiteAPI} from 'vitest'
+type IsAny<T> = 0 extends (1 & T) ? true : false
+const skip: true = true as IsAny<Parameters<SuiteAPI['skipIf']>[0]>
+const run: true = true as IsAny<Parameters<SuiteAPI['runIf']>[0]>
+void skip; void run

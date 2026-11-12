@@ -1,0 +1,2 @@
+import {describe,type SuiteAPI,type SuiteCollector} from 'vitest'
+const api:SuiteAPI=describe;api.for([{value:1}] as const)('suite %s',item=>{const value:1=item.value;void value})

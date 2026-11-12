@@ -1,0 +1,4 @@
+import type { RunnerTaskEventPack } from 'vitest'
+const events: RunnerTaskEventPack[1][] = ['test-failed-early', 'suite-failed-early', 'test-prepare', 'test-finished', 'test-retried', 'test-cancel', 'suite-prepare', 'suite-finished', 'before-hook-start', 'before-hook-end', 'after-hook-start', 'after-hook-end', 'test-annotation', 'test-artifact']
+const values: RunnerTaskEventPack[] = events.map(event => ['id', event, undefined])
+void values

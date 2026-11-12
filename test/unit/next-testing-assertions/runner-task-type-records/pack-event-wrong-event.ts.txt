@@ -1,0 +1,3 @@
+import type { RunnerTaskEventPack } from 'vitest'
+const value: RunnerTaskEventPack = ['id', 'case-start', undefined]
+void value

@@ -1,0 +1,10 @@
+import {test,describe,expect,afterAll} from 'vitest';
+const flags=()=>({concurrent:false,only:false,skip:false,todo:false,shuffle:false});
+const trace=[];
+const add=(name,factory)=>describe.fn.call(flags(),name,{},factory);
+const first=add('outer',async provided=>{trace.push({kind:'factory',name:'outer',stage:'start'});await Promise.resolve();describe('ordinary child',async nested=>{trace.push({kind:'factory',name:'ordinary',stage:'start'});await Promise.resolve();nested('ordinary leaf',context=>{trace.push({kind:'body',name:context.task.name,parent:context.task.suite.name});expect(true).toBe(true)});trace.push({kind:'factory',name:'ordinary',stage:'end'})});add('raw child',async nested=>{trace.push({kind:'factory',name:'raw child',stage:'start'});await Promise.resolve();nested('raw leaf',context=>{trace.push({kind:'body',name:context.task.name,parent:context.task.suite.name});expect(true).toBe(true)});trace.push({kind:'factory',name:'raw child',stage:'end'})});provided('outer leaf',context=>{trace.push({kind:'body',name:context.task.name,parent:context.task.suite.name});expect(true).toBe(true)});trace.push({kind:'factory',name:'outer',stage:'end'})});
+add('sibling',provided=>{trace.push({kind:'factory',name:'sibling'});provided('sibling leaf',context=>{trace.push({kind:'body',name:context.task.name,parent:context.task.suite.name});expect(true).toBe(true)})});
+await first.collect(first.file);
+trace.push({kind:'manual-complete',tasks:first.tasks.map(task=>({type:task.type,name:task.name})),published:first.suite.tasks.map(task=>({type:task.type,name:task.name}))});
+test('control',()=>expect(true).toBe(true));
+afterAll(()=>console.log('DECLARATION_FN:'+JSON.stringify({kind:'suite-queue',trace,tasks:first.tasks.map(task=>({type:task.type,name:task.name})),published:first.suite.tasks.map(task=>({type:task.type,name:task.name}))})));
