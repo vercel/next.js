@@ -14,7 +14,7 @@ describe('Lockfile.unlock', () => {
       .mockRejectedValue(new Error('An IO error occurred'))
     ;(getBindingsSync as jest.Mock).mockReturnValue({
       isWasm: false,
-      lockfileTryAcquireSync: () => ({}),
+      lockfileTryAcquireSync: () => ({ type: 'acquired', lockfile: {} }),
       lockfileUnlock,
     })
 
