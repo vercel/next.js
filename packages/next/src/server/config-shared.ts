@@ -40,11 +40,11 @@ export type PrefetchInliningConfig =
   | { maxSize: number; maxBundleSize: number }
 
 /**
- * Resolved form of the `imgOptSafeImageOptimization` config after
+ * Resolved form of the `imgOptSafeMode` config after
  * normalization in config.ts. Booleans and partial objects are converted to
  * this shape.
  */
-export interface ImgOptSafeImageOptimizationConfig {
+export interface ImgOptSafeModeConfig {
   nextImage: boolean
   imageResponse: boolean
 }
@@ -98,7 +98,7 @@ export type NextConfigComplete = Required<
       turbopackGcOptions: TurbopackGcOptions | undefined
       // Normalized by config.ts: booleans and partial objects become resolved
       // objects
-      imgOptSafeImageOptimization: ImgOptSafeImageOptimizationConfig
+      imgOptSafeMode: ImgOptSafeModeConfig
     }
     // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
     // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
@@ -672,12 +672,12 @@ export interface ExperimentalConfig {
   /**
    * The maximum number of images to optimize in parallel. With `sharp`, this
    * is the size of libvips's thread pool. With
-   * `imgOptSafeImageOptimization`, this is the size of the worker process
+   * `imgOptSafeMode`, this is the size of the worker process
    * pool.
    *
    * `null` selects a default. With `sharp`, this is a fraction of the
    * available CPUs, depending on `NODE_ENV`. With
-   * `imgOptSafeImageOptimization`, this is the number of available CPUs.
+   * `imgOptSafeMode`, this is the number of available CPUs.
    */
   imgOptConcurrency?: number | null
   imgOptOperationCache?: boolean | null
@@ -722,7 +722,7 @@ export interface ExperimentalConfig {
    *
    * @default false
    */
-  imgOptSafeImageOptimization?:
+  imgOptSafeMode?:
     | boolean
     | {
         nextImage?: boolean
@@ -2557,7 +2557,7 @@ export const defaultConfig = Object.freeze({
     imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
     imgOptSequentialRead: null,
     imgOptMozjpeg: true,
-    imgOptSafeImageOptimization: false,
+    imgOptSafeMode: false,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -2748,7 +2748,7 @@ export interface NextConfigRuntime {
     | 'imgOptSequentialRead'
     | 'imgOptTimeoutInSeconds'
     | 'imgOptMozjpeg'
-    | 'imgOptSafeImageOptimization'
+    | 'imgOptSafeMode'
     | 'proxyClientMaxBodySize'
     | 'proxyTimeout'
     | 'testProxy'
@@ -2823,7 +2823,7 @@ export function getNextConfigRuntime(
     imgOptSequentialRead: ex.imgOptSequentialRead,
     imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
     imgOptMozjpeg: ex.imgOptMozjpeg,
-    imgOptSafeImageOptimization: ex.imgOptSafeImageOptimization,
+    imgOptSafeMode: ex.imgOptSafeMode,
     proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
     proxyTimeout: ex.proxyTimeout,
     testProxy: ex.testProxy,

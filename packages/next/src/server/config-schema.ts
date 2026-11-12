@@ -296,7 +296,7 @@ export const experimentalSchema = {
   imgOptMaxInputPixels: z.number().int().optional(),
   imgOptSequentialRead: z.boolean().optional().nullable(),
   imgOptMozjpeg: z.boolean().optional(),
-  imgOptSafeImageOptimization: z
+  imgOptSafeMode: z
     .union([
       z.boolean(),
       z.strictObject({

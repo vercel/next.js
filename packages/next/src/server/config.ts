@@ -926,9 +926,9 @@ function assignDefaultsAndValidate(
     }
   }
 
-  // Normalize imgOptSafeImageOptimization: boolean | { nextImage?,
+  // Normalize imgOptSafeMode: boolean | { nextImage?,
   // imageResponse? } into a resolved object. `true` enables every feature.
-  const safeImgOpt = result.experimental.imgOptSafeImageOptimization
+  const safeImgOpt = result.experimental.imgOptSafeMode
   const resolvedSafeImgOpt =
     typeof safeImgOpt === 'object'
       ? {
@@ -936,7 +936,7 @@ function assignDefaultsAndValidate(
           imageResponse: safeImgOpt.imageResponse ?? false,
         }
       : { nextImage: !!safeImgOpt, imageResponse: !!safeImgOpt }
-  ;(result as NextConfigComplete).experimental.imgOptSafeImageOptimization =
+  ;(result as NextConfigComplete).experimental.imgOptSafeMode =
     resolvedSafeImgOpt
 
   // `ImageOptimizerCache.validateParams` filters out unsupported formats. Nsio
@@ -959,13 +959,13 @@ function assignDefaultsAndValidate(
       (format) => !NSIO_OUTPUT_MIME_TYPES.includes(format)
     )
     if (unsupportedFormats.length > 0) {
-      // TODO: when turning on `imgOptSafeImageOptimization` by default, give
+      // TODO: when turning on `imgOptSafeMode` by default, give
       // users an easy way to disable this warning if they're using an external
       // image optimization provider that supports the output format, and then
       // document that in the warning. E.g. Vercel does this at the proxy layer
       // for `_next/image`, so we can't know that here.
       Log.warnOnce(
-        `Some "images.formats" are ignored when using "experimental.imgOptSafeImageOptimization": ${unsupportedFormats.join(', ')}`
+        `Some "images.formats" are ignored when using "experimental.imgOptSafeMode": ${unsupportedFormats.join(', ')}`
       )
     }
   }

@@ -89,7 +89,7 @@ All fields are optional.
 
 [`sequentialRead`]: https://sharp.pixelplumbing.com/api-constructor/#new
 
-These correspond to the [`images`](/docs/app/api-reference/config/next-config-js/images) and `experimental.imgOpt*` options in `next.config.js`, but the defaults are not the same. For example, Next.js defaults `images.minimumCacheTTL` to `14400`. `safeImageOptimization` corresponds to `experimental.imgOptSafeImageOptimization.nextImage`.
+These correspond to the [`images`](/docs/app/api-reference/config/next-config-js/images) and `experimental.imgOpt*` options in `next.config.js`, but the defaults are not the same. For example, Next.js defaults `images.minimumCacheTTL` to `14400`. `safeImageOptimization` corresponds to `experimental.imgOptSafeMode.nextImage`.
 
 When `safeImageOptimization` is `true`, only WebP, PNG, JPEG, and GIF output are supported. Requesting another output type returns the upstream image with `error` set. `operationCache` and `sequentialRead` are ignored.
 
