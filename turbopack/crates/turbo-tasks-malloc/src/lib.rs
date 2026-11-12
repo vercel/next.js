@@ -1,5 +1,6 @@
 mod base;
 mod counter;
+mod eager_purge;
 mod memory_footprint;
 mod memory_pressure;
 
@@ -10,6 +11,7 @@ use std::{
 };
 
 use self::counter::{add, flush, remove, update};
+pub use self::eager_purge::EagerPurgeGuard;
 
 #[derive(Default, Clone, Debug)]
 pub struct AllocationInfo {
@@ -158,6 +160,30 @@ impl TurboMalloc {
         {
             let _ = force;
         }
+    }
+
+    /// Makes the allocator return memory to the OS as soon as it's freed, until the returned guard
+    /// is dropped. Guards can overlap; the previous behavior is restored when the last one is
+    /// dropped.
+    ///
+    /// By default mimalloc delays returning freed pages to the OS, so they can be reused cheaply.
+    /// Use this while freeing a lot of memory that won't be reused soon (e.g. when dropping caches
+    /// at shutdown), so it doesn't stay resident. Don't use it during normal operation: returning
+    /// and recommitting memory often is expensive.
+    ///
+    /// Freed memory whose return was already scheduled before entering this mode is returned once
+    /// the mode ends (when the delay expires, or with [`TurboMalloc::collect(true)`]), and forced
+    /// collects don't return it while the mode is active.
+    ///
+    /// Has no effect without mimalloc, or if returning memory is disabled (a negative
+    /// `MIMALLOC_PURGE_DELAY`).
+    ///
+    /// This changes a process-wide mimalloc option while other threads use the allocator, which
+    /// mimalloc doesn't formally support; it only affects purge timing, see [`EagerPurgeGuard`].
+    ///
+    /// [`TurboMalloc::collect(true)`]: TurboMalloc::collect
+    pub fn enter_eager_purge_mode() -> EagerPurgeGuard {
+        EagerPurgeGuard::new()
     }
 
     pub fn allocation_counters() -> AllocationCounters {

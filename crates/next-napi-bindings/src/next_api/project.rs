@@ -69,6 +69,7 @@ use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemPath, canonicalize_to_rcstr, invalidation,
     util::uri_from_file,
 };
+use turbo_tasks_malloc::TurboMalloc;
 use turbo_unix_path::{get_relative_path_to, unix_to_sys};
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
@@ -898,9 +899,11 @@ async fn run_shutdown_hooks(project: &ProjectInstance) {
 
 /// Runs resource cleanup, stops Turbo Tasks, and then flushes the project's exit handlers.
 ///
-/// Stopping drops the turbo-tasks storage, which is most of the process's heap. Before resolving,
-/// this also returns that memory to the OS (see [`release_freed_memory`]), so it isn't held while
-/// the caller goes on to other memory-hungry work (e.g. static generation workers).
+/// Stopping persists and drops the turbo-tasks storage, which is most of the process's heap. The
+/// allocator is in eager purge mode meanwhile (see [`TurboMalloc::enter_eager_purge_mode`]), so
+/// that memory is returned to the OS progressively while it's freed, and before resolving, this
+/// also returns the rest (see [`release_freed_memory`]). That way it isn't held while the caller
+/// does other memory-hungry work (e.g. static generation workers), during or after the shutdown.
 ///
 /// This is used in builds where it's important that we completely persist turbo-tasks to disk, but
 /// it's skipped in the development server (`project_on_exit` is used instead with a short timeout),
@@ -911,9 +914,13 @@ pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<()> {
     let tt = project.turbopack_ctx.turbo_tasks();
+    let eager_purge = TurboMalloc::enter_eager_purge_mode();
     run_shutdown_hooks(project).await;
     tt.stop_and_wait().await;
     run_exit_handlers(&project.exit_receiver).await;
+    // End eager purge mode first: memory whose return was scheduled before it started is only
+    // returned by the forced collect in `release_freed_memory` once it has ended.
+    drop(eager_purge);
     release_freed_memory()
         .instrument(tracing::info_span!("release freed memory"))
         .await;
