@@ -77,6 +77,8 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import type { Params } from '../server/request/params'
 import { Bundler } from '../lib/bundler'
 import { getBuildDistDir, getExportPathPageKey } from './utils'
+import { mapWithConcurrency } from './helpers/map-with-concurrency'
+import { getStaticGenerationChunkSize } from './helpers/static-generation-chunk-size'
 import {
   formatStaticGenerationSummary,
   isStaticGenerationProfileEnabled,
@@ -698,6 +700,11 @@ async function exportAppImpl(
     )
   }
 
+  // Identifies this export run so workers can scope per-run state to it.
+  const sessionId = `${process.pid}-${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2)}`
+
   const exportPagesInBatches = async (
     worker: StaticWorker,
     exportPaths: ExportPathEntry[],
@@ -718,6 +725,73 @@ async function exportAppImpl(
       Math.ceil(exportPaths.length / minPageCountPerBatch)
     )
 
+    const exportBatch = (batch: ExportPathEntry[], placement?: string) => {
+      // Only send the seeds this batch needs. Sending the whole map to
+      // every worker can exceed the maximum IPC message size.
+      let batchRenderResumeDataCaches: Record<string, string> | undefined
+      if (renderResumeDataCachesByPage) {
+        batchRenderResumeDataCaches = {}
+        for (const exportPath of batch) {
+          const pageKey = getExportPathPageKey(exportPath)
+          if (Object.hasOwn(renderResumeDataCachesByPage, pageKey)) {
+            batchRenderResumeDataCaches[pageKey] =
+              renderResumeDataCachesByPage[pageKey]
+          }
+        }
+      }
+
+      return worker.exportPages({
+        buildId,
+        deploymentId: nextConfig.deploymentId,
+        clientAssetToken: nextConfig.supportsImmutableAssets
+          ? ''
+          : nextConfig.deploymentId,
+        exportPaths: batch,
+        parentSpanId: span.getId(),
+        pagesDataDir,
+        renderOpts,
+        options,
+        dir,
+        distDir,
+        outDir: options.buildExport ? join(distDir, 'server', 'pages') : outDir,
+        nextConfig,
+        cacheHandler: nextConfig.cacheHandler,
+        cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
+        fetchCache: true,
+        fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
+        renderResumeDataCachesByPage: batchRenderResumeDataCaches,
+        phase,
+        sessionId,
+        placement,
+      })
+    }
+
+    if (nextConfig.experimental.staticGenerationAdaptive) {
+      // Dynamic dispatch: cut the pages into small chunks and keep one chunk
+      // in flight per worker. Whichever worker finishes first pulls the next
+      // chunk, so a run of slow pages spreads over every worker instead of
+      // becoming one worker's long tail. Each worker keeps its incremental
+      // cache across chunks (see `getSharedIncrementalCache` in the worker).
+      const chunkSize = getStaticGenerationChunkSize(
+        exportPaths.length,
+        numWorkers,
+        nextConfig.experimental.staticGenerationMaxConcurrency ?? 8,
+        nextConfig.experimental.staticGenerationChunkSize
+      )
+      const chunks: ExportPathEntry[][] = []
+      for (let i = 0; i < exportPaths.length; i += chunkSize) {
+        chunks.push(exportPaths.slice(i, i + chunkSize))
+      }
+
+      // Results are concatenated in chunk order, so they keep the order of
+      // `exportPaths` no matter which worker rendered which chunk.
+      return (
+        await mapWithConcurrency(chunks, numWorkers, (chunk, index) =>
+          exportBatch(chunk, `shared-queue:chunk-${index + 1}/${chunks.length}`)
+        )
+      ).flat()
+    }
+
     // Calculate the page count per batch based on the number of workers.
     const pageCountPerBatch = Math.ceil(exportPaths.length / numWorkers)
 
@@ -732,48 +806,7 @@ async function exportAppImpl(
     })
 
     return (
-      await Promise.all(
-        batches.map(async (batch) => {
-          // Only send the seeds this batch needs. Sending the whole map to
-          // every worker can exceed the maximum IPC message size.
-          let batchRenderResumeDataCaches: Record<string, string> | undefined
-          if (renderResumeDataCachesByPage) {
-            batchRenderResumeDataCaches = {}
-            for (const exportPath of batch) {
-              const pageKey = getExportPathPageKey(exportPath)
-              if (Object.hasOwn(renderResumeDataCachesByPage, pageKey)) {
-                batchRenderResumeDataCaches[pageKey] =
-                  renderResumeDataCachesByPage[pageKey]
-              }
-            }
-          }
-
-          return worker.exportPages({
-            buildId,
-            deploymentId: nextConfig.deploymentId,
-            clientAssetToken: nextConfig.supportsImmutableAssets
-              ? ''
-              : nextConfig.deploymentId,
-            exportPaths: batch,
-            parentSpanId: span.getId(),
-            pagesDataDir,
-            renderOpts,
-            options,
-            dir,
-            distDir,
-            outDir: options.buildExport
-              ? join(distDir, 'server', 'pages')
-              : outDir,
-            nextConfig,
-            cacheHandler: nextConfig.cacheHandler,
-            cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
-            fetchCache: true,
-            fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
-            renderResumeDataCachesByPage: batchRenderResumeDataCaches,
-            phase,
-          })
-        })
-      )
+      await Promise.all(batches.map((batch) => exportBatch(batch)))
     ).flat()
   }
 
