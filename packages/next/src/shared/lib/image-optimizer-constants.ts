@@ -6,6 +6,9 @@
 /** The default for `experimental.imgOptTimeoutInSeconds`. */
 export const DEFAULT_IMG_OPT_TIMEOUT_IN_SECONDS = 7
 
+/** The default for `experimental.imageResponseTimeoutInSeconds`. */
+export const DEFAULT_IMAGE_RESPONSE_TIMEOUT_IN_SECONDS = 7
+
 /** The content types that nsio can encode. */
 export const NSIO_OUTPUT_MIME_TYPES: readonly string[] = [
   'image/gif',

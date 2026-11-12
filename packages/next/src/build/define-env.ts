@@ -8,6 +8,8 @@ import type { Rewrite } from '../lib/load-custom-routes'
 import path from 'node:path'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { getBuildDistDir } from '../export/utils'
+import type { NsioImageResponseOptions } from '../server/og/nsio-image-response.external'
+import { DEFAULT_IMAGE_RESPONSE_TIMEOUT_IN_SECONDS } from '../shared/lib/image-optimizer-constants'
 import {
   getNextConfigEnv,
   getNextPublicEnvironmentVariables,
@@ -56,6 +58,7 @@ interface DefineEnv {
     | NextConfigComplete['cacheLife']
     | I18NDomains
     | I18NConfig
+    | NsioImageResponseOptions
 }
 
 interface SerializedDefineEnv {
@@ -193,6 +196,16 @@ export function getDefineEnv({
       dev && !!config.experimental.requestInsights,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
     'process.env.__NEXT_USE_NODE_STREAMS': isEdgeServer ? false : true,
+    // nsio is Node.js-only, so edge `ImageResponse`s always use resvg-wasm
+    'process.env.__NEXT_IMAGE_RESPONSE_SAFE_IMAGE_OPTIMIZATION':
+      !isEdgeServer &&
+      Boolean(config.experimental.imgOptSafeMode?.imageResponse),
+    'process.env.__NEXT_IMAGE_RESPONSE_NSIO_OPTS': {
+      concurrency: config.experimental.imgOptConcurrency ?? null,
+      timeoutInSeconds:
+        config.experimental.imageResponseTimeoutInSeconds ??
+        DEFAULT_IMAGE_RESPONSE_TIMEOUT_IN_SECONDS,
+    } satisfies NsioImageResponseOptions,
 
     'process.env.NEXT_SUPPORTS_IMMUTABLE_ASSETS':
       config.supportsImmutableAssets || false,

@@ -8462,8 +8462,40 @@ index 962342eb3326a7cdaf1f3111d8b1994dc150ebd6..8cd9c3c07ff245a162e87fe11aa0ddcf
  parse-css-color/dist/index.esm.js:
    (**
     * parse-css-color
+diff --git a/dist/index.node.d.ts b/dist/index.node.d.ts
+index 55d622ff1991224183828b9fae2d1fca148f9280..47507bbff1f2665651a3cccf5421afa490a6b995 100644
+--- a/dist/index.node.d.ts
++++ b/dist/index.node.d.ts
+@@ -25,6 +25,26 @@ declare class ImageResponse extends Response {
+  * ```
+  */
+ declare function unstable_createNodejsStream(element: ReactElement, options?: Omit<ImageResponseNodeOptions, 'status' | 'statusText' | 'headers'>): Promise<Readable>;
++/**
++ * The subset of sharp's API that is used to rasterize the SVG produced by
++ * satori. `sharp` itself satisfies this.
++ */
++type SharpLike = (input: Uint8Array) => {
++    resize(width: number): {
++        png(): {
++            toBuffer(): Promise<Uint8Array>;
++        };
++    };
++};
++/**
++ * Renders the PNG bytes of an `ImageResponse`, rasterizing with `sharp` instead
++ * of the bundled resvg build or the optionally installed `sharp` package.
++ * Options are the same as `ImageResponse`'s, but only the image options are
++ * used.
++ *
++ * Added by a Next.js patch.
++ */
++declare function unstable_renderWithSharp(sharp: SharpLike, element: ReactElement, options?: ImageResponseOptions): Promise<Uint8Array>;
+ type NodeImageResponse = typeof ImageResponse;
+ 
+-export { ImageResponse, ImageResponseOptions, NodeImageResponse, unstable_createNodejsStream };
++export { ImageResponse, ImageResponseOptions, NodeImageResponse, SharpLike, unstable_createNodejsStream, unstable_renderWithSharp };
 diff --git a/dist/index.node.js b/dist/index.node.js
-index 65b6b13e4583f0e52131129febe6d7943f772567..279524efd3e94fc0e9965f633736e8fba1aa6b04 100644
+index 65b6b13e4583f0e52131129febe6d7943f772567..101acc5b7d55ad57152bef73afed9bbfa7ed2b76 100644
 --- a/dist/index.node.js
 +++ b/dist/index.node.js
 @@ -28,6 +28,53 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
@@ -16427,7 +16459,26 @@ index 65b6b13e4583f0e52131129febe6d7943f772567..279524efd3e94fc0e9965f633736e8fb
  var fontData = fs2.readFileSync(
    fileURLToPath(new URL("./Geist-Regular.ttf", import.meta.url))
  );
-@@ -20577,12 +20613,6 @@ export {
+@@ -20570,19 +20606,24 @@ async function unstable_createNodejsStream(element, options = {}) {
+   );
+   return Readable.from(Buffer.from(result));
+ }
++async function unstable_renderWithSharp(sharp, element, options = {}) {
++  return render(
++    satori,
++    resvg_wasm_exports,
++    sharp,
++    options,
++    fonts,
++    element
++  );
++}
+ export {
+   ImageResponse,
+-  unstable_createNodejsStream
++  unstable_createNodejsStream,
++  unstable_renderWithSharp
+ };
  /*! Copyright Twitter Inc. and other contributors. Licensed under MIT */
  /*! Bundled license information:
  
@@ -16440,7 +16491,7 @@ index 65b6b13e4583f0e52131129febe6d7943f772567..279524efd3e94fc0e9965f633736e8fb
  escape-html/index.js:
    (*!
     * escape-html
-@@ -20592,6 +20622,12 @@ escape-html/index.js:
+@@ -20592,6 +20633,12 @@ escape-html/index.js:
     * MIT Licensed
     *)
  

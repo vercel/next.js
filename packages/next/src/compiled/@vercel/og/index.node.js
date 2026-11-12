@@ -20606,9 +20606,20 @@ async function unstable_createNodejsStream(element, options = {}) {
   );
   return Readable.from(Buffer.from(result));
 }
+async function unstable_renderWithSharp(sharp, element, options = {}) {
+  return render(
+    satori,
+    resvg_wasm_exports,
+    sharp,
+    options,
+    fonts,
+    element
+  );
+}
 export {
   ImageResponse,
-  unstable_createNodejsStream
+  unstable_createNodejsStream,
+  unstable_renderWithSharp
 };
 /*! Copyright Twitter Inc. and other contributors. Licensed under MIT */
 /*! Bundled license information:

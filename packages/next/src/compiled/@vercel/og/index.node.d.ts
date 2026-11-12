@@ -25,6 +25,26 @@ declare class ImageResponse extends Response {
  * ```
  */
 declare function unstable_createNodejsStream(element: ReactElement, options?: Omit<ImageResponseNodeOptions, 'status' | 'statusText' | 'headers'>): Promise<Readable>;
+/**
+ * The subset of sharp's API that is used to rasterize the SVG produced by
+ * satori. `sharp` itself satisfies this.
+ */
+type SharpLike = (input: Uint8Array) => {
+    resize(width: number): {
+        png(): {
+            toBuffer(): Promise<Uint8Array>;
+        };
+    };
+};
+/**
+ * Renders the PNG bytes of an `ImageResponse`, rasterizing with `sharp` instead
+ * of the bundled resvg build or the optionally installed `sharp` package.
+ * Options are the same as `ImageResponse`'s, but only the image options are
+ * used.
+ *
+ * Added by a Next.js patch.
+ */
+declare function unstable_renderWithSharp(sharp: SharpLike, element: ReactElement, options?: ImageResponseOptions): Promise<Uint8Array>;
 type NodeImageResponse = typeof ImageResponse;
 
-export { ImageResponse, ImageResponseOptions, NodeImageResponse, unstable_createNodejsStream };
+export { ImageResponse, ImageResponseOptions, NodeImageResponse, SharpLike, unstable_createNodejsStream, unstable_renderWithSharp };

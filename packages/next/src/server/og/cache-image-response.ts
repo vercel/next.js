@@ -12,6 +12,7 @@ import {
 } from '../app-render/manifests-singleton'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromNodeStream } from 'react-server-dom-webpack/client'
+import type { NsioImageResponseOptions } from './nsio-image-response.external'
 
 type OgModule = typeof import('next/dist/compiled/@vercel/og')
 
@@ -401,6 +402,18 @@ function updateHashWithBytes(hash: Hash, tag: string, bytes: Uint8Array): void {
 async function renderImageResponseArrayBuffer(
   args: ImageResponseArgs
 ): Promise<ArrayBuffer> {
+  if (process.env.__NEXT_IMAGE_RESPONSE_SAFE_IMAGE_OPTIMIZATION) {
+    const { renderImageResponseWithNsio } =
+      require('./nsio-image-response.external') as typeof import('./nsio-image-response.external')
+    const png = await renderImageResponseWithNsio(
+      args,
+      process.env
+        .__NEXT_IMAGE_RESPONSE_NSIO_OPTS as unknown as NsioImageResponseOptions
+    )
+    // Copy, as nsio's `Buffer` may be a view into a larger pooled buffer
+    return new Uint8Array(png).buffer
+  }
+
   const OGImageResponse = (await importOgModule()).ImageResponse
   const imageResponse = new OGImageResponse(...args)
 

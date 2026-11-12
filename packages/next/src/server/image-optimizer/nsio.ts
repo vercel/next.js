@@ -3,37 +3,28 @@
 //
 // This module is imported by `transform.ts`, which runs in a child process, so
 // keep its imports minimal. nsio itself is only required when it's used.
-import type { Pool } from '@next/safe-image-optimization'
 import { GIF, JPEG, PNG, WEBP } from './image-type'
 import {
   NSIO_INPUT_FORMATS,
   NSIO_OUTPUT_MIME_TYPES,
 } from '../../shared/lib/image-optimizer-constants'
-
-let _pool: Pool | undefined
+import { getNsioPool } from '../lib/nsio-pool.external'
 
 function getPool(
   concurrency: number | null | undefined,
   logger: { warnOnce(message: string): void } | undefined
-): Pool {
-  if (!_pool) {
-    try {
-      const { Pool } =
-        require('@next/safe-image-optimization') as typeof import('@next/safe-image-optimization')
-      // `Pool` rejects `0`, but sharp treats it as "use the default", so match
-      // that
-      _pool = new Pool({ concurrency: concurrency || undefined })
-    } catch (error) {
-      // The caller falls back to the unoptimized image without logging, so
-      // warn here, or a misconfiguration (e.g. no worker binary for this
-      // platform) would go unnoticed
-      logger?.warnOnce(
-        `Failed to initialize "@next/safe-image-optimization" for "experimental.imgOptSafeMode", images will not be optimized: ${error}`
-      )
-      throw error
-    }
+) {
+  try {
+    return getNsioPool(concurrency)
+  } catch (error) {
+    // The caller falls back to the unoptimized image without logging, so warn
+    // here, or a misconfiguration (e.g. no worker binary for this platform)
+    // would go unnoticed
+    logger?.warnOnce(
+      `Failed to initialize "@next/safe-image-optimization" for "experimental.imgOptSafeMode", images will not be optimized: ${error}`
+    )
+    throw error
   }
-  return _pool
 }
 
 /**

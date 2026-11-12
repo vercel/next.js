@@ -189,7 +189,7 @@ patchedDependencies:
   '@types/node@20.17.7': fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab
   '@vercel/agent-eval@2.2.1': f89d8e50c6627841d89b2307f56a606d7a8c179061e145d95c3213f51e2d8b82
   '@vercel/blob': cb53bfa5effb15b3a361e176003df667cadf757b27b7c9b458c2f0fce86ea893
-  '@vercel/og@1.0.1': 3d59af991a9f85bbc368d2891b4e965f10dd11c86b9786e79fc4a362bb01401b
+  '@vercel/og@1.0.1': a8fbc3560336a9acec342eef149a55f6965bf651851a7651a91051cad6b43bf0
   minizlib@3.1.0: 587688821244aaee46680929cd869947377a284ac1b30c9ae8660a5ea7d2be67
   playwright-core@1.61.0: 1a56033776b3ac43fe8f35b6c9afa6d9f13a0d5163892f2a31d7661504b93b93
   postcss-scss: 88893e632b3e099730dc0ffcc93cf3654b31c277da9e2796e822f6b5aeedc093
@@ -392,7 +392,7 @@ importers:
         version: 3.0.0
       '@vercel/og':
         specifier: 1.0.1
-        version: 1.0.1(patch_hash=3d59af991a9f85bbc368d2891b4e965f10dd11c86b9786e79fc4a362bb01401b)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))
+        version: 1.0.1(patch_hash=a8fbc3560336a9acec342eef149a55f6965bf651851a7651a91051cad6b43bf0)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))
       '@vercel/sandbox':
         specifier: 1.8.0
         version: 1.8.0
@@ -25254,7 +25254,7 @@ snapshots:
       - rollup
       - supports-color
 
-  '@vercel/og@1.0.1(patch_hash=3d59af991a9f85bbc368d2891b4e965f10dd11c86b9786e79fc4a362bb01401b)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))':
+  '@vercel/og@1.0.1(patch_hash=a8fbc3560336a9acec342eef149a55f6965bf651851a7651a91051cad6b43bf0)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))':
     dependencies:
       '@resvg/resvg-wasm': 2.4.1
       satori: 0.29.0

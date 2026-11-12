@@ -305,6 +305,7 @@ export const experimentalSchema = {
       }),
     ])
     .optional(),
+  imageResponseTimeoutInSeconds: z.number().int().nonnegative().optional(),
   isrFlushToDisk: z.boolean().optional(),
   largePageDataBytes: z.number().optional(),
   linkNoTouchStart: z.boolean().optional(),

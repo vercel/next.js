@@ -1,3 +1,5 @@
+import type { NsioImageResponseOptions } from './nsio-image-response.external'
+
 type OgModule = typeof import('next/dist/compiled/@vercel/og')
 
 function importModule(): Promise<
@@ -34,6 +36,25 @@ if (
   ).getCachedImageResponseBody
 }
 
+let renderImageResponseWithNsio:
+  | ((
+      args: ConstructorParameters<OgModule['ImageResponse']>
+    ) => Promise<Uint8Array>)
+  | undefined
+if (
+  process.env.NEXT_RUNTIME !== 'edge' &&
+  process.env.__NEXT_IMAGE_RESPONSE_SAFE_IMAGE_OPTIMIZATION
+) {
+  const nsio =
+    require('./nsio-image-response.external') as typeof import('./nsio-image-response.external')
+  renderImageResponseWithNsio = (args) =>
+    nsio.renderImageResponseWithNsio(
+      args,
+      process.env
+        .__NEXT_IMAGE_RESPONSE_NSIO_OPTS as unknown as NsioImageResponseOptions
+    )
+}
+
 /**
  * The ImageResponse class allows you to generate dynamic images using JSX and CSS.
  * This is useful for generating social media images such as Open Graph images, Twitter cards, and more.
@@ -50,6 +71,11 @@ export class ImageResponse extends Response {
       ? getCachedImageResponseBody(args)
       : new ReadableStream({
           async start(controller) {
+            if (renderImageResponseWithNsio) {
+              controller.enqueue(await renderImageResponseWithNsio(args))
+              return controller.close()
+            }
+
             const OGImageResponse: typeof import('next/dist/compiled/@vercel/og').ImageResponse =
               // So far we have to manually determine which build to use, as the
               // auto resolving is not working
