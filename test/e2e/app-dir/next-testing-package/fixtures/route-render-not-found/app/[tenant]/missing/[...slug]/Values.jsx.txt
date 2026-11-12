@@ -1,0 +1,2 @@
+import Client from './Client'
+export default function Values({values,outcome}) {return <main data-outcome={outcome}><div id="not-found-values">{JSON.stringify(values)}</div><Client outcome={outcome}/></main>}

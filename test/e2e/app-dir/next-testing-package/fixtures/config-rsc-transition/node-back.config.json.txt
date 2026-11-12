@@ -1,0 +1,1 @@
+{"maxWorkers":1,"projects":[{"name":"node-back","mode":"development","environment":"node","include":["node-back.case.mjs"],"provide":{"phase":"node-back"},"testTimeout":60000,"fileTimeout":120000}]}

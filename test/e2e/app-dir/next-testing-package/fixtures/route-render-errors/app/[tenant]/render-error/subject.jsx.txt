@@ -1,0 +1,30 @@
+import { headers, cookies } from 'next/headers'
+import { tenant as rootTenant } from 'next/root-params'
+import { after } from 'next/server'
+import Client from '../ancestor/[...slug]/Client'
+import { requests, errors, completedRequests } from './state'
+
+export default async function Subject({ params, searchParams }, scope) {
+  const values = await params
+  const query = await searchParams
+  const requestHeaders = await headers()
+  const requestCookies = await cookies()
+  const request = requestHeaders.get('x-route-request')
+  const row = { request, scope, params: values, query, root: await rootTenant(), header: requestHeaders.get('x-route-proof'), cookie: requestCookies.get('route-session')?.value ?? null }
+  requests.set(request, row)
+  console.log('ROUTE_RENDER_ERROR_REQUEST ' + JSON.stringify(row))
+  after(async () => {
+    await Promise.resolve()
+    const completed = { request, root: row.root, header: row.header, cookie: row.cookie }
+    completedRequests.push(completed)
+    const failure = errors.get(request)
+    if (failure) console.log('ROUTE_RENDER_ERROR_SOURCE ' + JSON.stringify({ request, name: failure.name, message: failure.message, stack: failure.stack, digest: failure.digest }))
+    console.log('ROUTE_RENDER_ERROR_AFTER ' + JSON.stringify(completed))
+  })
+  if (query.fail === '1') {
+    const error = new Error('Owned ordinary AppPage render failure')
+    errors.set(request, error)
+    throw error
+  }
+  return <><div id="render-error-values">{JSON.stringify(row)}</div><Client request={request} /></>
+}

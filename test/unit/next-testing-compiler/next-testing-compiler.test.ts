@@ -31,6 +31,8 @@ import { requireTestRouteCapability } from 'next/dist/build/swc/test-route'
 import { mkdtemp, mkdir, readdir, rm, symlink } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
+import { createCompiledRouteRenderOpts } from 'next/dist/experimental/testing/compiler/route-render'
+import { serialize, deserialize } from 'v8'
 
 jest.mock('next/dist/build/swc', () => ({
   loadBindings: async () => ({ isWasm: false }),
@@ -1347,6 +1349,86 @@ it.each(['development', 'production'])(
         validateTestProfile({ ...profile, ...unsupported })
       ).toThrow()
     }
+  }
+)
+
+it.each(['development', 'production'] as const)(
+  'preserves resolved full-route options through %s execution IPC',
+  (mode) => {
+    const { defaultConfig } = jest.requireActual(
+      'next/dist/server/config-shared'
+    )
+    const pattern = new URL('https://images.example.test:8443/images/**?size=2')
+    const config = {
+      ...defaultConfig,
+      basePath: '/actual',
+      deploymentId: 'actual-deployment',
+      trailingSlash: true,
+      images: { ...defaultConfig.images, remotePatterns: [pattern] },
+      experimental: {
+        ...defaultConfig.experimental,
+        inlineCss: true,
+        serverActions: {
+          allowedOrigins: ['actions.example.test'],
+          bodySizeLimit: '64kb',
+        },
+      },
+    } as NextConfigComplete
+    const options = createCompiledRouteRenderOpts(config, mode)
+    const transported = deserialize(serialize(options))
+    expect(transported).toEqual(options)
+    expect(transported).toMatchObject({
+      basePath: '/actual',
+      clientAssetToken: 'actual-deployment',
+      trailingSlash: true,
+      images: {
+        remotePatterns: [
+          {
+            protocol: 'https',
+            hostname: 'images.example.test',
+            port: '8443',
+            pathname: '/images/**',
+            search: '?size=2',
+          },
+        ],
+      },
+      serverActions: {
+        allowedOrigins: ['actions.example.test'],
+        bodySizeLimit: '64kb',
+      },
+      experimental: { inlineCss: true, exposeTestingApi: false },
+    })
+    expect(config.images.remotePatterns[0]).toBe(pattern)
+    expect(
+      createCompiledRouteRenderOpts(
+        { ...config, supportsImmutableAssets: true },
+        mode
+      ).clientAssetToken
+    ).toBe('')
+  }
+)
+
+it.each(
+  (['development', 'production'] as const).flatMap((mode) =>
+    ([true, false, undefined] as const).map((flag) => [mode, flag] as const)
+  )
+)(
+  'preserves resolved AppPage debug channel option for %s with %s',
+  (mode, flag) => {
+    const { defaultConfig } = jest.requireActual(
+      'next/dist/server/config-shared'
+    )
+    const config = {
+      ...defaultConfig,
+      experimental: { ...defaultConfig.experimental, reactDebugChannel: flag },
+    } as NextConfigComplete
+    const options = createCompiledRouteRenderOpts(config, mode)
+    expect(options.reactDebugChannel).toBe(
+      mode === 'development' && flag === true
+    )
+    expect(deserialize(serialize(options)).reactDebugChannel).toBe(
+      options.reactDebugChannel
+    )
   }
 )
 

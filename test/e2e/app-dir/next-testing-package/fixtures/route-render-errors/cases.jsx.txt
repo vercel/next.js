@@ -1,0 +1,61 @@
+import { expect, test } from 'next/experimental/testing/vitest'
+import { rsc } from 'next/experimental/testing/rsc'
+import { requests, errors, completedRequests } from './app/[tenant]/render-error/state'
+import { bodyRow } from './body-row.mjs'
+import { semanticResponse, ownedTestManifests } from './error-proof.mjs'
+import stringHash from 'next/dist/compiled/string-hash'
+import expected from './expected.json'
+
+async function render(options) {
+  if (api === 'buffered') return rsc.renderRoute(options)
+  const handle = await rsc.renderRouteStream(options)
+  let reader
+  try {
+    const response = await handle.response
+    reader = handle.stream.getReader()
+    const decoder = new TextDecoder()
+    let body = ''
+    for (;;) {
+      const chunk = await reader.read()
+      if (chunk.done) break
+      body += decoder.decode(chunk.value, { stream: true })
+    }
+    body += decoder.decode()
+    expect(await handle.completed).toEqual({ status: 'completed' })
+    return { ...response, body }
+  } finally {
+    reader?.releaseLock()
+    await handle.dispose()
+  }
+}
+for (const format of ['html', 'flight']) {
+  test(`${api} ${scope} actual AppPage render error ${format}`, async () => {
+    const request = scope + '-' + format
+    const followingId = 'following-' + request
+    const path = '/acme/render-error/' + (scope === 'nested' ? 'nested/' : '') + 'alpha/c'
+    const urlFor = fail => new URL(path + '?tag=one&tag=two&unicode=%E2%9C%93' + (fail ? '&fail=1' : '') + (format === 'flight' ? '&_rsc=' : ''), 'http://localhost')
+    const headersFor = id => ({ 'x-route-request': id, 'x-route-proof': 'request-value', cookie: 'route-session=session-value' })
+    const url = urlFor(true)
+    let response
+    let thrown
+    try { response = await render({ cacheScope: 'file', format, url: url.href, headers: headersFor(request) }) }
+    catch (error) { thrown = { name: error?.name, message: error?.message, stack: error?.stack, digest: error?.digest, errors: error?.errors?.map(value => ({ name: value?.name, message: value?.message })) } }
+    const followUrl = urlFor(false)
+    const following = await render({ cacheScope: 'file', format, url: followUrl.href, headers: headersFor(followingId) })
+    const sourceError = errors.get(request)
+    const row = { api, scope, format, pathname: url.pathname, search: url.search, error: response ? bodyRow(response, format) : null, thrown: thrown ?? null, sourceError: sourceError ? { name: sourceError.name, message: sourceError.message, digest: sourceError.digest, stack: sourceError.stack } : null, request: requests.get(request), after: completedRequests.find(value => value.request === request), following: bodyRow(following, format), followingRequest: requests.get(followingId), followingAfter: completedRequests.find(value => value.request === followingId) }
+    const manifests = ownedTestManifests(process.cwd())
+    const semantic = { scope, format, pathname: url.pathname, search: url.search, error: response ? semanticResponse(response, format, manifests, sourceError, process.cwd(), stringHash) : null, request: row.request, after: row.after, following: semanticResponse(following, format, manifests, undefined, process.cwd(), stringHash), followingRequest: row.followingRequest, followingAfter: row.followingAfter }
+    console.log('ROUTE_RENDER_ERROR_MANIFESTS ' + JSON.stringify({ api, scope, format, manifests }))
+    console.log('ROUTE_RENDER_ERROR_SEMANTIC ' + JSON.stringify({ api, row: semantic }))
+    console.log('ROUTE_RENDER_ERROR_ROW ' + JSON.stringify(row))
+    console.log('ROUTE_RENDER_ERROR_RAW ' + JSON.stringify({ api, scope, format, response: response ?? null, following }))
+    expect(semantic.following.subject).toEqual(row.followingRequest)
+    expect(semantic).toEqual(expected.find(value => value.scope === scope && value.format === format))
+    expect(thrown).toBeUndefined()
+    expect(response.status).toBe(format === 'html' ? 500 : 200)
+    expect(following.status).toBe(200)
+    expect(row.after).toEqual({ request, root: 'acme', header: 'request-value', cookie: 'session-value' })
+    expect(row.followingAfter).toEqual({ request: followingId, root: 'acme', header: 'request-value', cookie: 'session-value' })
+  })
+}

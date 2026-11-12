@@ -1,0 +1,326 @@
+{
+  "cases": [
+    {
+      "fullName": "plain ASCII as html",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "plain ASCII as flight",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "spaces in root and catch-all as html",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "spaces in root and catch-all as flight",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "Unicode in root and catch-all as html",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "Unicode in root and catch-all as flight",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "literal percent and encoded slash as html",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "literal percent and encoded slash as flight",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "encoded slash in root and catch-all as html",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "fullName": "encoded slash in root and catch-all as flight",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "rows": [
+    {
+      "name": "plain ASCII",
+      "format": "html",
+      "pathname": "/acme/ancestor/alpha/c",
+      "search": "?tag=one&tag=two&tag=%252F&unicode=%25%20%2F%E2%9C%93",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two", "%2F"],
+        "unicode": "% /✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "ancestors": {
+        "document": "html",
+        "rootLayout": "acme",
+        "provider": "acme",
+        "nestedLayout": "acme",
+        "layoutHeader": "request-value",
+        "providerContext": "acme",
+        "clientRequest": "encoded-0-html"
+      },
+      "after": "encoded-0-html"
+    },
+    {
+      "name": "plain ASCII",
+      "format": "flight",
+      "pathname": "/acme/ancestor/alpha/c",
+      "search": "?tag=one&tag=two&tag=%252F&unicode=%25%20%2F%E2%9C%93&_rsc=",
+      "status": 200,
+      "contentType": "text/x-component",
+      "subject": {
+        "tenant": "acme",
+        "slug": ["alpha", "c"],
+        "root": "acme",
+        "tag": ["one", "two", "%2F"],
+        "unicode": "% /✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "ancestors": {
+        "document": "html",
+        "rootLayout": "acme",
+        "provider": "acme",
+        "nestedLayout": "acme",
+        "layoutHeader": "request-value",
+        "providerContext": null,
+        "clientRequest": "encoded-0-flight"
+      },
+      "after": "encoded-0-flight"
+    },
+    {
+      "name": "spaces in root and catch-all",
+      "format": "html",
+      "pathname": "/ac%20me/ancestor/a%20b/c",
+      "search": "?tag=one&tag=two&tag=%252F&unicode=%25%20%2F%E2%9C%93",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "subject": {
+        "tenant": "ac%20me",
+        "slug": ["a%20b", "c"],
+        "root": "ac%20me",
+        "tag": ["one", "two", "%2F"],
+        "unicode": "% /✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "ancestors": {
+        "document": "html",
+        "rootLayout": "ac%20me",
+        "provider": "ac%20me",
+        "nestedLayout": "ac%20me",
+        "layoutHeader": "request-value",
+        "providerContext": "ac%20me",
+        "clientRequest": "encoded-1-html"
+      },
+      "after": "encoded-1-html"
+    },
+    {
+      "name": "spaces in root and catch-all",
+      "format": "flight",
+      "pathname": "/ac%20me/ancestor/a%20b/c",
+      "search": "?tag=one&tag=two&tag=%252F&unicode=%25%20%2F%E2%9C%93&_rsc=",
+      "status": 200,
+      "contentType": "text/x-component",
+      "subject": {
+        "tenant": "ac%20me",
+        "slug": ["a%20b", "c"],
+        "root": "ac%20me",
+        "tag": ["one", "two", "%2F"],
+        "unicode": "% /✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "ancestors": {
+        "document": "html",
+        "rootLayout": "ac%20me",
+        "provider": "ac%20me",
+        "nestedLayout": "ac%20me",
+        "layoutHeader": "request-value",
+        "providerContext": null,
+        "clientRequest": "encoded-1-flight"
+      },
+      "after": "encoded-1-flight"
+    },
+    {
+      "name": "Unicode in root and catch-all",
+      "format": "html",
+      "pathname": "/%E6%9D%B1%E4%BA%AC/ancestor/%e2%9c%93/%F0%9F%9A%80",
+      "search": "?tag=one&tag=two&tag=%252F&unicode=%25%20%2F%E2%9C%93",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "subject": {
+        "tenant": "%E6%9D%B1%E4%BA%AC",
+        "slug": ["%E2%9C%93", "%F0%9F%9A%80"],
+        "root": "%E6%9D%B1%E4%BA%AC",
+        "tag": ["one", "two", "%2F"],
+        "unicode": "% /✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "ancestors": {
+        "document": "html",
+        "rootLayout": "%E6%9D%B1%E4%BA%AC",
+        "provider": "%E6%9D%B1%E4%BA%AC",
+        "nestedLayout": "%E6%9D%B1%E4%BA%AC",
+        "layoutHeader": "request-value",
+        "providerContext": "%E6%9D%B1%E4%BA%AC",
+        "clientRequest": "encoded-2-html"
+      },
+      "after": "encoded-2-html"
+    },
+    {
+      "name": "Unicode in root and catch-all",
+      "format": "flight",
+      "pathname": "/%E6%9D%B1%E4%BA%AC/ancestor/%e2%9c%93/%F0%9F%9A%80",
+      "search": "?tag=one&tag=two&tag=%252F&unicode=%25%20%2F%E2%9C%93&_rsc=",
+      "status": 200,
+      "contentType": "text/x-component",
+      "subject": {
+        "tenant": "%E6%9D%B1%E4%BA%AC",
+        "slug": ["%E2%9C%93", "%F0%9F%9A%80"],
+        "root": "%E6%9D%B1%E4%BA%AC",
+        "tag": ["one", "two", "%2F"],
+        "unicode": "% /✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "ancestors": {
+        "document": "html",
+        "rootLayout": "%E6%9D%B1%E4%BA%AC",
+        "provider": "%E6%9D%B1%E4%BA%AC",
+        "nestedLayout": "%E6%9D%B1%E4%BA%AC",
+        "layoutHeader": "request-value",
+        "providerContext": null,
+        "clientRequest": "encoded-2-flight"
+      },
+      "after": "encoded-2-flight"
+    },
+    {
+      "name": "literal percent and encoded slash",
+      "format": "html",
+      "pathname": "/acme/ancestor/%2520/%252F/a%2Fb",
+      "search": "?tag=one&tag=two&tag=%252F&unicode=%25%20%2F%E2%9C%93",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "subject": {
+        "tenant": "acme",
+        "slug": ["%2520", "%252F", "a%2Fb"],
+        "root": "acme",
+        "tag": ["one", "two", "%2F"],
+        "unicode": "% /✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "ancestors": {
+        "document": "html",
+        "rootLayout": "acme",
+        "provider": "acme",
+        "nestedLayout": "acme",
+        "layoutHeader": "request-value",
+        "providerContext": "acme",
+        "clientRequest": "encoded-3-html"
+      },
+      "after": "encoded-3-html"
+    },
+    {
+      "name": "literal percent and encoded slash",
+      "format": "flight",
+      "pathname": "/acme/ancestor/%2520/%252F/a%2Fb",
+      "search": "?tag=one&tag=two&tag=%252F&unicode=%25%20%2F%E2%9C%93&_rsc=",
+      "status": 200,
+      "contentType": "text/x-component",
+      "subject": {
+        "tenant": "acme",
+        "slug": ["%2520", "%252F", "a%2Fb"],
+        "root": "acme",
+        "tag": ["one", "two", "%2F"],
+        "unicode": "% /✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "ancestors": {
+        "document": "html",
+        "rootLayout": "acme",
+        "provider": "acme",
+        "nestedLayout": "acme",
+        "layoutHeader": "request-value",
+        "providerContext": null,
+        "clientRequest": "encoded-3-flight"
+      },
+      "after": "encoded-3-flight"
+    },
+    {
+      "name": "encoded slash in root and catch-all",
+      "format": "html",
+      "pathname": "/a%2Fb/ancestor/a%2Fb/%252f",
+      "search": "?tag=one&tag=two&tag=%252F&unicode=%25%20%2F%E2%9C%93",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "subject": {
+        "tenant": "a%2Fb",
+        "slug": ["a%2Fb", "%252f"],
+        "root": "a%2Fb",
+        "tag": ["one", "two", "%2F"],
+        "unicode": "% /✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "ancestors": {
+        "document": "html",
+        "rootLayout": "a%2Fb",
+        "provider": "a%2Fb",
+        "nestedLayout": "a%2Fb",
+        "layoutHeader": "request-value",
+        "providerContext": "a%2Fb",
+        "clientRequest": "encoded-4-html"
+      },
+      "after": "encoded-4-html"
+    },
+    {
+      "name": "encoded slash in root and catch-all",
+      "format": "flight",
+      "pathname": "/a%2Fb/ancestor/a%2Fb/%252f",
+      "search": "?tag=one&tag=two&tag=%252F&unicode=%25%20%2F%E2%9C%93&_rsc=",
+      "status": 200,
+      "contentType": "text/x-component",
+      "subject": {
+        "tenant": "a%2Fb",
+        "slug": ["a%2Fb", "%252f"],
+        "root": "a%2Fb",
+        "tag": ["one", "two", "%2F"],
+        "unicode": "% /✓",
+        "header": "request-value",
+        "cookie": "session-value"
+      },
+      "ancestors": {
+        "document": "html",
+        "rootLayout": "a%2Fb",
+        "provider": "a%2Fb",
+        "nestedLayout": "a%2Fb",
+        "layoutHeader": "request-value",
+        "providerContext": null,
+        "clientRequest": "encoded-4-flight"
+      },
+      "after": "encoded-4-flight"
+    }
+  ]
+}

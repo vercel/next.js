@@ -1,0 +1,4 @@
+import {test,expect,inject} from 'vitest'
+import {writeFileSync} from 'node:fs'
+import {hold} from './node-control.mjs'
+test("returned Node profile receives own provided value",async()=>{const phase=inject('phase');expect(phase).toBe("node-back");console.log('NODE_TRANSITION '+JSON.stringify({phase}));if(hold){writeFileSync(process.env.TRANSITION_ACTIVE,JSON.stringify({phase}));await new Promise(()=>{})}})

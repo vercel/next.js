@@ -37,7 +37,12 @@ import type { CacheControl, Revalidate } from '../cache-control'
 import { getPreviouslyRevalidatedTags } from '../../server-utils'
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
-import { areTagsExpired, areTagsStale } from './tags-manifest.external'
+import {
+  areTagsExpired,
+  areTagsStale,
+  tagsManifest,
+} from './tags-manifest.external'
+import type { IncrementalCacheState } from './memory-cache.external'
 import type { __ApiPreviewProps } from '../../api-utils'
 
 export interface CacheHandlerContext {
@@ -45,6 +50,7 @@ export interface CacheHandlerContext {
   dev?: boolean
   flushToDisk?: boolean
   serverDistDir?: string
+  cacheHandlerState?: IncrementalCacheState
   maxMemoryCacheSize?: number
   fetchCacheKeyPrefix?: string
   prerenderManifest?: PrerenderManifest
@@ -181,6 +187,8 @@ export class IncrementalCache implements IncrementalCacheType {
   private readonly cacheControls: SharedCacheControls
   private readonly locales?: readonly string[]
 
+  private readonly tagsManifest: typeof tagsManifest
+
   constructor({
     fs,
     dev,
@@ -189,6 +197,7 @@ export class IncrementalCache implements IncrementalCacheType {
     serverDistDir,
     requestHeaders,
     maxMemoryCacheSize,
+    cacheHandlerState,
     previewProps,
     prerenderManifest,
     fetchCacheKeyPrefix,
@@ -204,12 +213,14 @@ export class IncrementalCache implements IncrementalCacheType {
     allowedRevalidateHeaderKeys?: string[]
     locales?: readonly string[]
     requestHeaders: IncrementalCache['requestHeaders']
+    cacheHandlerState?: IncrementalCacheState
     maxMemoryCacheSize?: number
     previewProps: DeepReadonly<__ApiPreviewProps>
     prerenderManifest: DeepReadonly<PrerenderManifest>
     fetchCacheKeyPrefix?: string
     CurCacheHandler?: typeof CacheHandler
   }) {
+    this.tagsManifest = cacheHandlerState?.tagsManifest ?? tagsManifest
     this.hasCustomCacheHandler = Boolean(CurCacheHandler)
 
     const cacheHandlersSymbol = Symbol.for('@next/cache-handlers')
@@ -260,7 +271,8 @@ export class IncrementalCache implements IncrementalCacheType {
     this.locales = locales
     this.cacheControls = new SharedCacheControls(
       this.prerenderManifest,
-      locales
+      locales,
+      cacheHandlerState?.cacheControls
     )
     this.fetchCacheKeyPrefix = fetchCacheKeyPrefix
     let revalidatedTags: string[] = []
@@ -289,6 +301,7 @@ export class IncrementalCache implements IncrementalCacheType {
         maxMemoryCacheSize,
         _requestHeaders: requestHeaders,
         fetchCacheKeyPrefix,
+        ...(cacheHandlerState ? { cacheHandlerState } : {}),
       })
     }
   }
@@ -641,9 +654,13 @@ export class IncrementalCache implements IncrementalCacheType {
       let isStale = age > revalidate
       const data = cacheData.value.data
 
-      if (areTagsExpired(combinedTags, cacheData.lastModified)) {
+      if (
+        areTagsExpired(combinedTags, cacheData.lastModified, this.tagsManifest)
+      ) {
         return null
-      } else if (areTagsStale(combinedTags, cacheData.lastModified)) {
+      } else if (
+        areTagsStale(combinedTags, cacheData.lastModified, this.tagsManifest)
+      ) {
         isStale = true
       }
 
@@ -714,9 +731,11 @@ export class IncrementalCache implements IncrementalCacheType {
             const cacheTags = tagsHeader.split(',')
 
             if (cacheTags.length > 0) {
-              if (areTagsExpired(cacheTags, lastModified)) {
+              if (areTagsExpired(cacheTags, lastModified, this.tagsManifest)) {
                 isStale = -1
-              } else if (areTagsStale(cacheTags, lastModified)) {
+              } else if (
+                areTagsStale(cacheTags, lastModified, this.tagsManifest)
+              ) {
                 isStale = true
               }
             }

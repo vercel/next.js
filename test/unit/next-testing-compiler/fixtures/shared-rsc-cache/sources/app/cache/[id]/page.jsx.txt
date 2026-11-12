@@ -1,0 +1,40 @@
+import { headers, cookies } from 'next/headers'
+import { after } from 'next/server'
+import { revalidateTag } from 'next/cache'
+import { getCacheHandler } from 'next/dist/server/use-cache/handlers'
+import { mainValue, afterValue, nextRender, finishAfter, actualState, sharedTag } from '../../../cache-state.mjs'
+
+export const runtime = 'nodejs'
+
+export default async function Page({ params, searchParams }) {
+  const [path, query, request, cookie] = await Promise.all([params, searchParams, headers(), cookies()])
+  const count = nextRender()
+  const expiration = await getCacheHandler('default').getExpiration([sharedTag])
+  const first = await mainValue()
+  const second = await mainValue()
+  const fromAfter = query.observeAfter === 'yes' ? await afterValue() : null
+  const row = {
+    count,
+    id: path.id,
+    label: query.label,
+    language: request.get('accept-language'),
+    cookie: cookie.get('scope')?.value ?? null,
+    first,
+    second,
+    fromAfter,
+    expiration,
+    state: actualState(),
+  }
+  if (query.invalidate === 'yes') {
+    after(async () => {
+      // Actual expiry applies strictly after the cached value's timestamp.
+      // Wait for that real clock boundary, without inventing an expiry value.
+      while (Date.now() <= first.createdAt) await new Promise(resolve => setImmediate(resolve))
+      const value = await afterValue()
+      revalidateTag(sharedTag, { expire: 0 })
+      const completed = finishAfter()
+      console.log('SHARED_CACHE_AFTER ' + JSON.stringify({ id: path.id, label: query.label, value, completed, state: actualState() }))
+    })
+  }
+  return <pre id="shared-cache-values">{JSON.stringify(row)}</pre>
+}

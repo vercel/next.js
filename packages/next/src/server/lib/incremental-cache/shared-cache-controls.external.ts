@@ -29,7 +29,8 @@ export class SharedCacheControls {
     private readonly prerenderManifest: DeepReadonly<
       Pick<PrerenderManifest, 'routes' | 'dynamicRoutes'>
     >,
-    private readonly locales?: readonly string[]
+    private readonly locales?: readonly string[],
+    private readonly cacheControls = SharedCacheControls.cacheControls
   ) {}
 
   /**
@@ -49,9 +50,7 @@ export class SharedCacheControls {
     // This is a copy on write cache that is updated when the cache is updated.
     // If the cache is never written to, then the values will be sourced from
     // the prerender manifest.
-    let cacheControl = SharedCacheControls.cacheControls.get(
-      getRouteCacheKey(route, owner)
-    )
+    let cacheControl = this.cacheControls.get(getRouteCacheKey(route, owner))
     if (cacheControl) return cacheControl
 
     let prerenderData = this.prerenderManifest.routes[route]
@@ -100,13 +99,13 @@ export class SharedCacheControls {
    * @param cacheControl the cache control for the route
    */
   public set(route: string, cacheControl: CacheControl) {
-    SharedCacheControls.cacheControls.set(route, cacheControl)
+    this.cacheControls.set(route, cacheControl)
   }
 
   /**
    * Clear the in-memory cache of cache controls for routes.
    */
   public clear() {
-    SharedCacheControls.cacheControls.clear()
+    this.cacheControls.clear()
   }
 }
