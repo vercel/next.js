@@ -27,10 +27,7 @@ import { loadComponents } from '../server/load-components'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import {
-  createLocalSpan,
-  traceLocalSpan,
-} from '../server/lib/trace/local-span-recorder'
+import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import { addRequestMeta } from '../server/request-meta'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
@@ -599,11 +596,10 @@ export async function exportPages(
 async function exportPage(
   input: ExportPageInput
 ): Promise<ExportPageResult | undefined> {
-  createLocalSpan({
-    name: 'export-page',
-    parent: input.parentSpanId,
-    attributes: { path: input.exportPath.path },
-  })
+  trace('export-page', input.parentSpanId).setAttribute(
+    'path',
+    input.exportPath.path
+  )
 
   // Configure the http agent.
   setHttpClientAndAgentOptions({
@@ -615,10 +611,7 @@ async function exportPage(
     mkdir: (dir) => fs.mkdir(dir, { recursive: true }),
   })
 
-  const exportPageSpan = createLocalSpan({
-    name: 'export-page-worker',
-    parent: input.parentSpanId,
-  })
+  const exportPageSpan = trace('export-page-worker', input.parentSpanId)
 
   const start = Date.now()
 
@@ -627,7 +620,7 @@ async function exportPage(
   // Export the page.
   let result: ExportRouteResult | undefined
   try {
-    result = await traceLocalSpan({ span: exportPageSpan }, () =>
+    result = await exportPageSpan.traceAsyncFn(() =>
       turborepoTraceAccess(
         () => exportPageImpl(input, fileWriter),
         turborepoAccessTraceResult

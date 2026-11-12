@@ -1,6 +1,5 @@
 import type { NextConfigComplete } from '../server/config-shared'
-import type { Span } from '@opentelemetry/api'
-import { traceLocalSpan } from '../server/lib/trace/local-span-recorder'
+import type { Span } from '../trace'
 
 import * as Log from './output/log'
 import createSpinner from './spinner'
@@ -44,12 +43,11 @@ export async function runAfterProductionCompile({
 
   try {
     const startTime = process.hrtime.bigint()
-    await traceLocalSpan(
-      { name: 'after-production-compile', parent: buildSpan },
-      async () => {
+    await buildSpan
+      .traceChild('after-production-compile')
+      .traceAsyncFn(async () => {
         await run(metadata)
-      }
-    )
+      })
     const duration = process.hrtime.bigint() - startTime
     const formattedDuration = hrtimeBigIntDurationToString(duration)
     Log.event(`Completed runAfterProductionCompile in ${formattedDuration}`)

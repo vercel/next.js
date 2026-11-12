@@ -1,12 +1,5 @@
 import { NormalModule } from 'next/dist/compiled/webpack/webpack'
-import type { Span } from '@opentelemetry/api'
-import {
-  createLocalSpan,
-  type LocalRecordingSpan,
-} from '../../../server/lib/trace/local-span-recorder'
-import { getTracer } from '../../../server/lib/trace/tracer'
-import { ToolingSpan } from '../../../server/lib/trace/constants'
-import { normalizeToolingAttributes } from '../../../trace/trace'
+import type { Span } from '../../../trace'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
 
@@ -14,7 +7,7 @@ const pluginName = 'ProfilingPlugin'
 export const spans = new WeakMap<webpack.Compilation | webpack.Compiler, Span>()
 const moduleSpansByCompilation = new WeakMap<
   webpack.Compilation,
-  WeakMap<webpack.Module, LocalRecordingSpan>
+  WeakMap<webpack.Module, Span>
 >()
 const makeSpanByCompilation = new WeakMap<webpack.Compilation, Span>()
 const sealSpanByCompilation = new WeakMap<webpack.Compilation, Span>()
@@ -75,11 +68,9 @@ export class ProfilingPlugin {
       (...params: any[]) => {
         const name = typeof spanName === 'function' ? spanName() : spanName
         const attributes = attrs ? attrs(...params) : attrs
-        span = createLocalSpan({
-          name,
-          parent: parentSpan ? parentSpan(...params) : this.runWebpackSpan,
-          attributes,
-        })
+        span = parentSpan
+          ? parentSpan(...params).traceChild(name, attributes)
+          : this.runWebpackSpan.traceChild(name, attributes)
 
         if (onStart) onStart(span, ...params)
       }
@@ -93,59 +84,42 @@ export class ProfilingPlugin {
       }
 
       if (onStop) onStop(span, ...params)
-      span.end()
+      span.stop()
     })
   }
 
   traceTopLevelHooks(compiler: any) {
-    let compilationSpan: Span | undefined
-    compiler.hooks.compilation.tap(
-      { name: pluginName, stage: -Infinity },
-      (compilation: webpack.Compilation) => {
-        compilationSpan = getTracer().startSpan(
-          ToolingSpan.webpackCompilation,
-          {
-            parent: webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
-            attributes: normalizeToolingAttributes({ name: compiler.name }),
-          }
-        )
-        spans.set(compilation, compilationSpan)
-        spans.set(compiler, compilationSpan)
-        moduleSpansByCompilation.set(compilation, new WeakMap())
+    this.traceHookPair(
+      'webpack-compilation',
+      compiler.hooks.compilation,
+      compiler.hooks.afterCompile,
+      {
+        parentSpan: () =>
+          webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
+        attrs: () => ({ name: compiler.name }),
+        onStart: (span, compilation) => {
+          spans.set(compilation, span)
+          spans.set(compiler, span)
+          moduleSpansByCompilation.set(compilation, new WeakMap())
+        },
       }
-    )
-    compiler.hooks.afterCompile.tap({ name: pluginName, stage: Infinity }, () =>
-      compilationSpan?.end()
     )
 
     if (compiler.options.mode === 'development') {
-      let invalidationSpan: Span | undefined
-      compiler.hooks.invalid.tap(
-        { name: pluginName, stage: -Infinity },
-        (fileName: string | null) => {
-          invalidationSpan = getTracer().startSpan(
-            ToolingSpan.webpackInvalidated,
-            {
-              spanName: `webpack-invalidated-${compiler.name}`,
-              parent: this.runWebpackSpan,
-              attributes: {
-                trigger: fileName
-                  ? path
-                      .relative(this.rootDir, fileName)
-                      .replaceAll(path.sep, '/')
-                  : 'manual',
-              },
-            }
-          )
-          webpackInvalidSpans.set(compiler, invalidationSpan)
+      this.traceHookPair(
+        () => `webpack-invalidated-${compiler.name}`,
+        compiler.hooks.invalid,
+        compiler.hooks.done,
+        {
+          onStart: (span) => webpackInvalidSpans.set(compiler, span),
+          onStop: () => webpackInvalidSpans.delete(compiler),
+          attrs: (fileName: any) => ({
+            trigger: fileName
+              ? path.relative(this.rootDir, fileName).replaceAll(path.sep, '/')
+              : 'manual',
+          }),
         }
       )
-      compiler.hooks.done.tap({ name: pluginName, stage: Infinity }, () => {
-        if (invalidationSpan) {
-          webpackInvalidSpans.delete(compiler)
-          invalidationSpan.end()
-        }
-      })
     }
   }
 
@@ -189,17 +163,14 @@ export class ProfilingPlugin {
 
           const issuerModule = compilation?.moduleGraph?.getIssuer(module)
 
-          let span: LocalRecordingSpan
+          let span: Span
 
           const moduleSpans = moduleSpansByCompilation.get(compilation)
           const spanName = `build-module${moduleType ? `-${moduleType}` : ''}`
           const issuerSpan: Span | undefined =
             issuerModule && moduleSpans?.get(issuerModule)
           if (issuerSpan) {
-            span = createLocalSpan({
-              name: spanName,
-              parent: issuerSpan,
-            })
+            span = issuerSpan.traceChild(spanName)
           } else {
             let parentSpan: Span | undefined
             for (const incomingConnection of compilation.moduleGraph.getIncomingConnections(
@@ -220,14 +191,10 @@ export class ProfilingPlugin {
 
               parentSpan = compilationSpan
             }
-            span = createLocalSpan({ name: spanName, parent: parentSpan })
+            span = parentSpan.traceChild(spanName)
           }
-          span.setAttributes(
-            normalizeToolingAttributes({
-              name: module.userRequest,
-              layer: module.layer,
-            })
-          )
+          span.setAttribute('name', module.userRequest)
+          span.setAttribute('layer', module.layer)
           moduleSpans!.set(module, span)
         })
 
@@ -255,10 +222,10 @@ export class ProfilingPlugin {
         )
 
         compilation.hooks.succeedModule.tap(pluginName, (module: any) => {
-          moduleSpansByCompilation?.get(compilation)?.get(module)?.end()
+          moduleSpansByCompilation?.get(compilation)?.get(module)?.stop()
         })
         compilation.hooks.failedModule.tap(pluginName, (module: any) => {
-          moduleSpansByCompilation?.get(compilation)?.get(module)?.end()
+          moduleSpansByCompilation?.get(compilation)?.get(module)?.stop()
         })
 
         this.traceHookPair(
@@ -282,20 +249,17 @@ export class ProfilingPlugin {
           if (!parentSpan) {
             return
           }
-          const addEntrySpan = createLocalSpan({
-            name: 'add-entry',
-            parent: parentSpan,
-            attributes: { request: entry.request },
-          })
+          const addEntrySpan = parentSpan.traceChild('add-entry')
+          addEntrySpan.setAttribute('request', entry.request)
           spans.set(entry, addEntrySpan)
         })
 
         compilation.hooks.succeedEntry.tap(pluginName, (entry: any) => {
-          spans.get(entry)?.end()
+          spans.get(entry)?.stop()
           spans.delete(entry)
         })
         compilation.hooks.failedEntry.tap(pluginName, (entry: any) => {
-          spans.get(entry)?.end()
+          spans.get(entry)?.stop()
           spans.delete(entry)
         })
 
@@ -400,13 +364,7 @@ export class ProfilingPlugin {
           }
           const span = sealSpanByCompilation.get(compilation)
           if (span) {
-            logs.set(
-              label,
-              createLocalSpan({
-                name: label.replace(/ /g, '-'),
-                parent: span,
-              })
-            )
+            logs.set(label, span.traceChild(label.replace(/ /g, '-')))
           }
           return originalTime.call(compilation.logger, label)
         }
@@ -417,7 +375,7 @@ export class ProfilingPlugin {
 
           const span = logs.get(label)
           if (span) {
-            span.end()
+            span.stop()
             logs.delete(label)
           }
           return originalTimeEnd.call(compilation.logger, label)

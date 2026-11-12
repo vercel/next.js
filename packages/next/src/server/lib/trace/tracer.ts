@@ -1,14 +1,9 @@
 import type { FetchEventResult } from '../../web/types'
 import type { TextMapSetter } from '@opentelemetry/api'
-import type { SpanTypes, ToolingSpan } from './constants'
-import type { LocalSpanRecorder } from './request-span-recorder'
-import type { LocalSpanTiming } from '../../../trace/trace'
-import type { SpanId } from '../../../trace/types'
-import {
-  LogSpanAllowList,
-  NextVanillaSpanAllowlist,
-  ToolingSpanTypes,
-} from './constants'
+import { api, getTracerInstance } from './otel-api'
+import type { SpanTypes } from './constants'
+import type { LocalSpanRecorder } from './local-span-recorder'
+import { LogSpanAllowList, NextVanillaSpanAllowlist } from './constants'
 
 import type {
   Context,
@@ -39,36 +34,6 @@ function getLocalSpanRecorder() {
   } else {
     return undefined
   }
-}
-
-let toolingSpanRecorder: typeof import('./local-span-recorder') | undefined
-function getToolingSpanRecorder() {
-  if (process.env.NEXT_RUNTIME !== 'edge') {
-    return (toolingSpanRecorder ??=
-      require('./local-span-recorder') as typeof import('./local-span-recorder'))
-  } else {
-    return undefined
-  }
-}
-
-let api: typeof import('@opentelemetry/api')
-
-// Prefer the application's API version so its SDK and propagators remain in
-// control. Edge bundles provide that dependency; Node retains the bundled
-// fallback used by the Next tracer.
-if (process.env.NEXT_RUNTIME === 'edge') {
-  api = require('@opentelemetry/api') as typeof import('@opentelemetry/api')
-} else {
-  try {
-    api = require('@opentelemetry/api') as typeof import('@opentelemetry/api')
-  } catch {
-    api =
-      require('next/dist/compiled/@opentelemetry/api') as typeof import('next/dist/compiled/@opentelemetry/api') as unknown as typeof import('@opentelemetry/api')
-  }
-}
-
-function getTracerInstance() {
-  return api.trace.getTracer('next.js', process.env.__NEXT_VERSION)
 }
 
 const { context, propagation, trace, SpanStatusCode, SpanKind, ROOT_CONTEXT } =
@@ -107,10 +72,8 @@ export const recordSpanError = (span: Span, error?: Error) => {
 const closeSpanWithError = (
   span: Span,
   error?: Error,
-  endTime?: Parameters<Span['end']>[0],
-  type?: SpanTypes
+  endTime?: Parameters<Span['end']>[0]
 ) => {
-  if (type && ToolingSpanTypes.has(type)) span.setAttribute('failed', true)
   recordSpanError(span, error)
   span.end(endTime)
 }
@@ -122,23 +85,6 @@ type TracerSpanOptions = Omit<SpanOptions, 'attributes'> & {
   attributes?: Partial<Record<AttributeNames, AttributeValue | undefined>>
   hideSpan?: boolean
 }
-
-type ToolingTracerSpanOptions = Omit<
-  TracerSpanOptions,
-  'attributes' | 'parentSpan'
-> &
-  LocalSpanTiming & {
-    attributes?: Record<string, unknown>
-    parent?: Span | SpanId | null
-  }
-
-// The implementation serves both APIs; the overloads keep their parent inputs
-// distinct so a coarse operation cannot specify two competing parents.
-type InternalSpanOptions = TracerSpanOptions &
-  Pick<
-    ToolingTracerSpanOptions,
-    'parent' | 'monotonicStartTime' | 'wallStartTimeMs'
-  >
 
 interface NextTracer {
   getContext(): ContextAPI
@@ -167,16 +113,6 @@ interface NextTracer {
     fn: (span?: Span, done?: (error?: Error) => any) => T
   ): T
   trace<T>(
-    type: `${ToolingSpan}`,
-    options: ToolingTracerSpanOptions,
-    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
-  ): Promise<T>
-  trace<T>(
-    type: `${ToolingSpan}`,
-    options: ToolingTracerSpanOptions,
-    fn: (span?: Span, done?: (error?: Error) => any) => T
-  ): T
-  trace<T>(
     type: SpanTypes,
     options: TracerSpanOptions,
     fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
@@ -201,13 +137,6 @@ interface NextTracer {
    * * The function doesn't accept a callback and doesn't return a promise, in
    * which case the span will finish at the end of the function execution.
    */
-  wrap<T = (...args: Array<any>) => any>(
-    type: `${ToolingSpan}`,
-    options:
-      | ToolingTracerSpanOptions
-      | ((...args: any[]) => ToolingTracerSpanOptions),
-    fn: T
-  ): T
   wrap<T = (...args: Array<any>) => any>(type: SpanTypes, fn: T): T
   wrap<T = (...args: Array<any>) => any>(
     type: SpanTypes,
@@ -228,7 +157,6 @@ interface NextTracer {
    * context via `tracer.getContext().with`. `trace`, or `wrap` is generally recommended as it gracefully
    * handles context activation. (ref: https://github.com/open-telemetry/opentelemetry-js/issues/1923)
    */
-  startSpan(type: `${ToolingSpan}`, options: ToolingTracerSpanOptions): Span
   startSpan(type: SpanTypes): Span
   startSpan(type: SpanTypes, options: TracerSpanOptions): Span
 
@@ -367,17 +295,6 @@ class NextTracerImpl implements NextTracer {
   }
 
   public getActiveScopeSpan(): Span | undefined {
-    // A nearer SDK/request span wins over the outer tooling ALS scope.
-    const requestSpan = this.getRequestScopeSpan()
-    if (requestSpan) return requestSpan
-    const localSpan = toolingSpanRecorder?.getActiveLocalSpan()
-    return localSpan && toolingSpanRecorder?.getToolingSpanSource(localSpan)
-      ? localSpan
-      : undefined
-  }
-
-  private getRequestScopeSpan(): Span | undefined {
-    // Request implicit parenting deliberately excludes coarse tooling scope.
     return (
       getLocalSpanRecorder()?.getLocalParentSpan(
         trace.getSpanContext(context.active())
@@ -434,16 +351,6 @@ class NextTracerImpl implements NextTracer {
     fn: (span?: Span, done?: (error?: Error) => any) => T
   ): T
   public trace<T>(
-    type: `${ToolingSpan}`,
-    options: ToolingTracerSpanOptions,
-    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
-  ): Promise<T>
-  public trace<T>(
-    type: `${ToolingSpan}`,
-    options: ToolingTracerSpanOptions,
-    fn: (span?: Span, done?: (error?: Error) => any) => T
-  ): T
-  public trace<T>(
     type: SpanTypes,
     options: TracerSpanOptions,
     fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
@@ -455,13 +362,11 @@ class NextTracerImpl implements NextTracer {
   ): T
   public trace<T>(...args: Array<any>) {
     const [type, fnOrOptions, fnOrEmpty] = args
-    const tooling = ToolingSpanTypes.has(type)
     const tracingEnabled =
-      !tooling &&
-      (Boolean(NEXT_OTEL_PERFORMANCE_PREFIX) || this.isOpenTelemetryEnabled())
+      Boolean(NEXT_OTEL_PERFORMANCE_PREFIX) || this.isOpenTelemetryEnabled()
     const localSpanRecorder = getLocalSpanRecorder()
     const localSpanRecordingEnabled =
-      tooling || (localSpanRecorder?.isLocalSpanRecordingEnabled() ?? false)
+      localSpanRecorder?.isLocalSpanRecordingEnabled() ?? false
     const localSpanSinkActive =
       localSpanRecorder?.isLocalSpanSinkActive() ?? false
 
@@ -475,7 +380,7 @@ class NextTracerImpl implements NextTracer {
       options,
     }: {
       fn: (span?: Span, done?: (error?: Error) => any) => T | Promise<T>
-      options: InternalSpanOptions
+      options: TracerSpanOptions
     } =
       typeof fnOrOptions === 'function'
         ? {
@@ -489,25 +394,12 @@ class NextTracerImpl implements NextTracer {
 
     const spanName = options.spanName ?? type
 
-    const toolingRecorder = tooling ? getToolingSpanRecorder() : undefined
-    const candidateParent = tooling
-      ? options.parent === undefined
-        ? toolingRecorder?.getActiveLocalSpan()
-        : options.parent
-      : (options.parentSpan ?? this.getRequestScopeSpan())
-    const parentSpan = tooling
-      ? candidateParent &&
-        typeof candidateParent === 'object' &&
-        toolingRecorder?.getToolingSpanSource(candidateParent)
-        ? candidateParent
-        : undefined
-      : (candidateParent as Span | undefined)
+    const parentSpan = options.parentSpan ?? this.getActiveScopeSpan()
     const isolatedParentSpan =
       parentSpan && localSpanRecorder?.isOpenTelemetryIsolatedSpan(parentSpan)
         ? parentSpan
         : undefined
     const shouldDelegateSpan =
-      !tooling &&
       !localSpanSinkActive &&
       !isolatedParentSpan &&
       (NextVanillaSpanAllowlist.has(type) ||
@@ -519,11 +411,12 @@ class NextTracerImpl implements NextTracer {
     }
 
     // Local-only parentage must not change the public SDK context.
-    const spanContext = tooling
-      ? ROOT_CONTEXT
-      : !isolatedParentSpan && options.parentSpan
-        ? this.getSpanContext(options.parentSpan)
-        : context.active()
+    let spanContext: Context
+    if (!isolatedParentSpan && options.parentSpan) {
+      spanContext = this.getSpanContext(options.parentSpan)
+    } else {
+      spanContext = context.active()
+    }
 
     // Check if there's already a root span in the store for this trace
     // We are intentionally not checking whether there is an active context
@@ -536,18 +429,15 @@ class NextTracerImpl implements NextTracer {
 
     const spanId = getSpanId()
 
-    if (!tooling) {
-      options.attributes = {
-        'next.span_category': 'nextjs',
-        'next.span_name': spanName,
-        'next.span_type': type,
-        ...options.attributes,
-      }
+    options.attributes = {
+      'next.span_category': 'nextjs',
+      'next.span_name': spanName,
+      'next.span_type': type,
+      ...options.attributes,
     }
 
     return context.with(spanContext.setValue(rootSpanIdKey, spanId), () =>
       this.runWithActiveSpan(
-        type,
         spanName,
         options,
         spanContext,
@@ -589,7 +479,7 @@ class NextTracerImpl implements NextTracer {
             }
           }
 
-          if (isRootSpan && !tooling) {
+          if (isRootSpan) {
             rootSpanAttributesStore.set(
               spanId,
               new Map(
@@ -604,13 +494,13 @@ class NextTracerImpl implements NextTracer {
             try {
               return fn(span, (err) => {
                 if (err) {
-                  closeSpanWithError(span, err, options.endTime, type)
+                  closeSpanWithError(span, err, options.endTime)
                 } else {
                   span.end(options.endTime)
                 }
               })
             } catch (err: any) {
-              closeSpanWithError(span, err, options.endTime, type)
+              closeSpanWithError(span, err, options.endTime)
               throw err
             } finally {
               onCleanup()
@@ -629,7 +519,7 @@ class NextTracerImpl implements NextTracer {
                   return res
                 })
                 .catch((err) => {
-                  closeSpanWithError(span, err, options.endTime, type)
+                  closeSpanWithError(span, err, options.endTime)
                   throw err
                 })
                 .finally(onCleanup)
@@ -640,7 +530,7 @@ class NextTracerImpl implements NextTracer {
 
             return result
           } catch (err: any) {
-            closeSpanWithError(span, err, options.endTime, type)
+            closeSpanWithError(span, err, options.endTime)
             onCleanup()
             throw err
           }
@@ -650,7 +540,6 @@ class NextTracerImpl implements NextTracer {
   }
 
   private runWithActiveSpan<T>(
-    type: SpanTypes,
     spanName: string,
     options: TracerSpanOptions,
     parentContext: Context,
@@ -660,47 +549,33 @@ class NextTracerImpl implements NextTracer {
     isolateOpenTelemetry: boolean,
     fn: (span: Span) => T
   ): T {
-    if (ToolingSpanTypes.has(type)) {
-      const span = this.createLocalRecordingSpan(
-        type,
-        spanName,
-        options,
-        parentContext,
-        undefined,
-        parentSpan
-      )
-      return getToolingSpanRecorder()!.withLocalSpan(span, () => fn(span))
-    }
     if (tracingEnabled) {
-      return getTracerInstance().startActiveSpan(
+      if (!localSpanRecordingEnabled) {
+        return getTracerInstance().startActiveSpan(spanName, options, fn)
+      }
+      const localSpan = this.createLocalRecordingSpan(
         spanName,
         options,
-        (span: Span) => {
-          if (!localSpanRecordingEnabled) return fn(span)
-          const localSpan = this.createLocalRecordingSpan(
-            type,
-            spanName,
-            options,
-            parentContext,
-            span,
-            parentSpan,
-            isolateOpenTelemetry
-          )
-          return getLocalSpanRecorder()!.withLocalSpan(
-            localSpan,
-            () => fn(localSpan),
-            trace.getSpanContext(context.active())
-          )
-        }
+        context.active(),
+        parentSpan,
+        isolateOpenTelemetry,
+        true
+      )
+      const recorder = getLocalSpanRecorder()!
+      const publicSpan = recorder.getOpenTelemetrySpan(localSpan)!
+      return context.with(trace.setSpan(context.active(), publicSpan), () =>
+        recorder.withLocalSpan(
+          localSpan,
+          () => fn(localSpan),
+          publicSpan.spanContext()
+        )
       )
     }
 
     const span = this.createLocalRecordingSpan(
-      type,
       spanName,
       options,
       parentContext,
-      undefined,
       parentSpan,
       isolateOpenTelemetry
     )
@@ -713,59 +588,31 @@ class NextTracerImpl implements NextTracer {
   }
 
   private createLocalRecordingSpan(
-    type: SpanTypes,
     name: string,
-    options: InternalSpanOptions,
+    options: TracerSpanOptions,
     parentContext: Context,
-    delegateSpan?: Span,
     parentSpan?: Span,
-    isolateOpenTelemetry = false
+    isolateOpenTelemetry = false,
+    createDelegate = false
   ): Span {
-    if (ToolingSpanTypes.has(type)) {
-      if (process.env.NEXT_RUNTIME !== 'edge') {
-        const recorder = getToolingSpanRecorder()!
-        const span = recorder.createLocalSpan({
-          name,
-          attributes: options.attributes,
-          parent:
-            typeof options.parent === 'number' || options.parent === null
-              ? options.parent
-              : parentSpan,
-          startTime: options.startTime,
-          monotonicStartTime: options.monotonicStartTime,
-          wallStartTimeMs: options.wallStartTimeMs,
-        })
-
-        return span
-      } else {
-        throw new Error('Tooling spans are not available in the Edge runtime')
-      }
-    }
     const parentSpanContext =
       parentSpan?.spanContext() ?? trace.getSpanContext(parentContext)
-    const delegateSpanContext = delegateSpan?.spanContext()
 
     return getLocalSpanRecorder()!.createLocalSpan({
       name,
       attributes: options.attributes,
       links: options.links,
       startTime: options.startTime,
-      delegateSpan,
+      openTelemetry: createDelegate
+        ? { options, context: parentContext }
+        : undefined,
       publicParentSpan: trace.getSpan(parentContext),
-      traceId: delegateSpanContext?.traceId ?? parentSpanContext?.traceId,
-      spanId: delegateSpanContext?.spanId,
+      traceId: parentSpanContext?.traceId,
       parent: parentSpan ?? trace.getSpan(parentContext),
       isolateOpenTelemetry,
     })
   }
 
-  public wrap<T = (...args: Array<any>) => any>(
-    type: `${ToolingSpan}`,
-    options:
-      | ToolingTracerSpanOptions
-      | ((...args: any[]) => ToolingTracerSpanOptions),
-    fn: T
-  ): T
   public wrap<T = (...args: Array<any>) => any>(type: SpanTypes, fn: T): T
   public wrap<T = (...args: Array<any>) => any>(
     type: SpanTypes,
@@ -783,7 +630,6 @@ class NextTracerImpl implements NextTracer {
       args.length === 3 ? args : [args[0], {}, args[1]]
 
     if (
-      !ToolingSpanTypes.has(name) &&
       !NextVanillaSpanAllowlist.has(name) &&
       process.env.NEXT_OTEL_VERBOSE !== '1' &&
       !process.env.__NEXT_DEV_SERVER
@@ -816,16 +662,12 @@ class NextTracerImpl implements NextTracer {
     }
   }
 
-  public startSpan(
-    type: `${ToolingSpan}`,
-    options: ToolingTracerSpanOptions
-  ): Span
   public startSpan(type: SpanTypes): Span
   public startSpan(type: SpanTypes, options: TracerSpanOptions): Span
   public startSpan(...args: Array<any>): Span {
     const [type, passedOptions]: [SpanTypes, TracerSpanOptions | undefined] =
       args as any
-    const options: InternalSpanOptions = passedOptions
+    const options: TracerSpanOptions = passedOptions
       ? {
           ...passedOptions,
           attributes: {
@@ -835,29 +677,8 @@ class NextTracerImpl implements NextTracer {
         }
       : { attributes: { 'next.span_category': 'nextjs' } }
 
-    if (ToolingSpanTypes.has(type)) {
-      const recorder = getToolingSpanRecorder()!
-      const candidateParent =
-        options.parent === undefined
-          ? recorder.getActiveLocalSpan()
-          : options.parent
-      const parentSpan =
-        candidateParent &&
-        typeof candidateParent === 'object' &&
-        recorder.getToolingSpanSource(candidateParent)
-          ? candidateParent
-          : undefined
-      return this.createLocalRecordingSpan(
-        type,
-        options.spanName ?? type,
-        { ...passedOptions, attributes: passedOptions?.attributes },
-        ROOT_CONTEXT,
-        undefined,
-        parentSpan
-      )
-    }
     const localSpanRecorder = getLocalSpanRecorder()
-    const parentSpan = options.parentSpan ?? this.getRequestScopeSpan()
+    const parentSpan = options.parentSpan ?? this.getActiveScopeSpan()
     const isolatedParentSpan =
       parentSpan && localSpanRecorder?.isOpenTelemetryIsolatedSpan(parentSpan)
         ? parentSpan
@@ -875,21 +696,18 @@ class NextTracerImpl implements NextTracer {
       return getTracerInstance().startSpan(type, options, parentContext)
     }
 
-    const delegateSpan =
+    const createDelegate =
       !localSpanSinkActive &&
       !isolatedParentSpan &&
       this.isOpenTelemetryEnabled()
-        ? getTracerInstance().startSpan(type, options, parentContext)
-        : undefined
 
     return this.createLocalRecordingSpan(
       type,
-      type,
       options,
       parentContext,
-      delegateSpan,
       parentSpan,
-      isolatedParentSpan !== undefined || localSpanSinkActive
+      isolatedParentSpan !== undefined || localSpanSinkActive,
+      createDelegate
     )
   }
 
@@ -924,11 +742,6 @@ class NextTracerImpl implements NextTracer {
   }
 
   public withSpan<T>(span: Span, fn: () => T): T {
-    if (toolingSpanRecorder?.getToolingSpanSource(span)) {
-      return context.with(ROOT_CONTEXT, () =>
-        toolingSpanRecorder!.withLocalSpan(span, fn)
-      )
-    }
     const recorder = getLocalSpanRecorder()
     if (recorder?.isLocalRecordingSpan(span)) {
       const publicContext = recorder.isOpenTelemetryIsolatedSpan(span)

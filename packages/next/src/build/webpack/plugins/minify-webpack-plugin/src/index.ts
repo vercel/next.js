@@ -6,10 +6,6 @@ import {
   type CacheFacade,
   type Compilation,
 } from 'next/dist/compiled/webpack/webpack'
-import {
-  createLocalSpan,
-  traceLocalSpan,
-} from '../../../../../server/lib/trace/local-span-recorder'
 import pLimit from 'next/dist/compiled/p-limit'
 import { getCompilationSpan } from '../../../utils'
 
@@ -62,10 +58,9 @@ export class MinifyPlugin {
     const compilationSpan =
       getCompilationSpan(compilation)! || getCompilationSpan(compiler)
 
-    const MinifierSpan = createLocalSpan({
-      name: 'minify-webpack-plugin-optimize',
-      parent: compilationSpan,
-    })
+    const MinifierSpan = compilationSpan.traceChild(
+      'minify-webpack-plugin-optimize'
+    )
 
     if (compilation.name) {
       MinifierSpan.setAttribute('compilationName', compilation.name)
@@ -73,7 +68,7 @@ export class MinifyPlugin {
 
     MinifierSpan.setAttribute('mangle', String(mangle))
 
-    return traceLocalSpan({ span: MinifierSpan }, async () => {
+    return MinifierSpan.traceAsyncFn(async () => {
       const assetsList = Object.keys(assets)
 
       const assetsForMinify = await Promise.all(
@@ -172,17 +167,14 @@ export class MinifyPlugin {
             const { name, inputSource, eTag } = asset
             let { output } = asset
 
-            const minifySpan = createLocalSpan({
-              name: 'minify-js',
-              parent: MinifierSpan,
-            })
+            const minifySpan = MinifierSpan.traceChild('minify-js')
             minifySpan.setAttribute('name', name)
             minifySpan.setAttribute(
               'cache',
               typeof output === 'undefined' ? 'MISS' : 'HIT'
             )
 
-            return traceLocalSpan({ span: minifySpan }, async () => {
+            return minifySpan.traceAsyncFn(async () => {
               if (!output) {
                 const { source: sourceFromInputSource, map: inputSourceMap } =
                   inputSource.sourceAndMap()

@@ -1,4 +1,11 @@
+import { toHrTime } from '../server/lib/trace/utils'
 import { reporter } from './report'
+import {
+  createRecordingSpan,
+  type LocalRecordingSpan,
+  type LocalSpanOptions,
+  recordSpan as recordSpanCallback,
+} from '../server/lib/trace/local-span-recorder'
 import type { SpanId, TraceEvent, TraceState } from './types'
 import type {
   AttributeValue,
@@ -26,8 +33,89 @@ interface Attributes {
   [key: string]: unknown
 }
 
-/** Adapt tooling payloads to the existing local recorder's attribute types. */
-export function normalizeToolingAttributes(
+export enum SpanStatus {
+  Started = 'started',
+  Stopped = 'stopped',
+}
+
+export class Span {
+  readonly recorder: LocalRecordingSpan
+
+  constructor({
+    name,
+    parentId,
+    parent,
+    attrs,
+    startTime,
+    wallStartTimeMs,
+  }: {
+    name: string
+    parentId?: SpanId
+    parent?: Span
+    attrs?: Attributes
+    startTime?: bigint
+    wallStartTimeMs?: number
+  }) {
+    this.recorder = createTraceSpan({
+      name,
+      parent: parent?.recorder ?? parentId,
+      attributes: attrs,
+      monotonicStartTime: startTime,
+      wallStartTimeMs,
+    })
+  }
+
+  get name(): string {
+    return getTraceSpanSource(this.recorder)!.event?.name ?? this.recorder.name
+  }
+
+  stop(stopTime?: bigint): void {
+    this.recorder.end(stopTime === undefined ? undefined : toHrTime(stopTime))
+  }
+
+  traceChild(name: string, attrs?: Attributes): Span {
+    return new Span({ name, parent: this, attrs })
+  }
+
+  manualTraceChild(
+    name: string,
+    startTime?: bigint,
+    stopTime?: bigint,
+    attrs?: Attributes
+  ): void {
+    recordSpan(
+      { name, startTime, endTime: stopTime, attributes: attrs },
+      this.recorder
+    )
+  }
+
+  getId(): SpanId {
+    return getTraceSpanSource(this.recorder)!.id
+  }
+
+  setAttribute(key: string, value: unknown): this {
+    const attributes = normalizeTraceAttributes({ [key]: value })
+    const event = getTraceSpanSource(this.recorder)?.event
+    if (event) Object.assign((event.tags ??= {}), attributes)
+    else this.recorder.setAttributes(attributes)
+    return this
+  }
+
+  traceFn<T>(fn: (span: Span) => T): T {
+    return recordSpanCallback({ span: this.recorder, synchronous: true }, () =>
+      fn(this)
+    )
+  }
+
+  traceAsyncFn<T>(fn: (span: Span) => T | Promise<T>): Promise<T> {
+    return recordSpanCallback({ span: this.recorder }, () => fn(this))
+  }
+}
+
+export const trace = (name: string, parentId?: SpanId, attrs?: Attributes) =>
+  new Span({ name, parentId, attrs })
+
+export function normalizeTraceAttributes(
   attributes: Attributes | undefined
 ): Record<string, AttributeValue> {
   const entries: [string, AttributeValue][] = []
@@ -35,7 +123,7 @@ export function normalizeToolingAttributes(
     try {
       const value = attributes![key]
       if (value === null || value === undefined) continue
-      if (isToolingAttributeValue(value)) {
+      if (isAttributeValue(value)) {
         entries.push([key, value])
       } else {
         const encoded = JSON.stringify(value)
@@ -49,7 +137,7 @@ export function normalizeToolingAttributes(
   return Object.fromEntries(entries)
 }
 
-function isToolingAttributeValue(value: unknown): value is AttributeValue {
+function isAttributeValue(value: unknown): value is AttributeValue {
   const type = typeof value
   if (type === 'string' || type === 'number' || type === 'boolean') return true
   if (!Array.isArray(value)) return false
@@ -64,10 +152,39 @@ function isToolingAttributeValue(value: unknown): value is AttributeValue {
   )
 }
 
-// Direct local subscriber: the reporters consume the original tooling schema,
-// independently of request diagnostics and the optional application SDK adapter.
-export function reportToolingSpans(events: readonly TraceEvent[]): void {
-  for (const event of events) reporter.report(event)
+/** Completed observations use nanoseconds since Unix epoch. */
+type SpanObservation = {
+  name: string
+  startTime?: bigint
+  endTime?: bigint
+  attributes?: Record<string, unknown>
+}
+
+export function recordSpan(
+  observation: SpanObservation,
+  parent?: OpenTelemetrySpan
+): void {
+  const clock = { monotonic: process.hrtime.bigint(), wallTimeMs: Date.now() }
+  const nsPerMs = BigInt(1_000_000)
+  // Preserve completed timestamps when mapping wall time onto the local clock.
+  const correction = clock.monotonic - BigInt(clock.wallTimeMs) * nsPerMs
+  const monotonicEndTime =
+    observation.endTime !== undefined
+      ? observation.endTime + correction
+      : clock.monotonic
+  createTraceSpan({
+    name: observation.name,
+    attributes: observation.attributes,
+    parent,
+    monotonicStartTime:
+      observation.startTime !== undefined
+        ? observation.startTime + correction
+        : clock.monotonic,
+    wallStartTimeMs:
+      observation.startTime !== undefined
+        ? Number(observation.startTime / nsPerMs)
+        : clock.wallTimeMs,
+  }).end(toHrTime(monotonicEndTime))
 }
 
 export type LocalSpanTiming = {
@@ -76,18 +193,76 @@ export type LocalSpanTiming = {
   wallStartTimeMs?: number
 }
 
-// Source identity and clocks only; the local recorder owns payload and end state.
-export type ToolingSpanSource = {
+// Numeric file identity and legacy access after completion.
+export type TraceSpanSource = {
   id: SpanId
   parentId?: SpanId
   startTime: bigint
   wallStartTimeMs: number
+  event?: TraceEvent
 }
 
-export function captureToolingSpanSource(
+const traceSources = new WeakMap<OpenTelemetrySpan, TraceSpanSource>()
+
+export function getTraceSpanSource(
+  span: OpenTelemetrySpan
+): TraceSpanSource | undefined {
+  return traceSources.get(span)
+}
+
+export function createTraceSpan(
+  options: LocalSpanOptions & { scope?: boolean }
+): LocalRecordingSpan {
+  const parent = typeof options.parent === 'object' ? options.parent : undefined
+  const ancestor = parent ? getTraceSpanSource(parent) : undefined
+  const source = captureTraceSpanSource(
+    {
+      ...options,
+      parent:
+        typeof options.parent === 'number' || options.parent === null
+          ? options.parent
+          : undefined,
+    },
+    ancestor
+  )
+  const offset =
+    epochMillisecondsToNanoseconds(source.wallStartTimeMs) - source.startTime
+
+  const span = createRecordingSpan(
+    {
+      ...options,
+      startTime: source.wallStartTimeMs,
+      attributes: normalizeTraceAttributes(options.attributes),
+      clock: {
+        start: source.startTime + offset,
+        end: (time) => getTraceSpanEndTime(time) + offset,
+      },
+      onError: (recording, error) => {
+        recording.setAttribute('failed', true)
+        recording.recordException(error as Error)
+        recording.setStatus({ code: 2 })
+      },
+    },
+    (records, end) => {
+      for (const record of records) {
+        source.event = completeTraceSpan(
+          source,
+          record.name,
+          record.attributes ?? {},
+          undefined,
+          end! - offset
+        )
+      }
+    }
+  )
+  traceSources.set(span, source)
+  return span
+}
+
+export function captureTraceSpanSource(
   options: LocalSpanTiming & { parent?: SpanId | null },
-  parent?: ToolingSpanSource
-): ToolingSpanSource {
+  parent?: TraceSpanSource
+): TraceSpanSource {
   const time = options.startTime
   let epochMs: number | undefined
   if (time instanceof Date) {
@@ -119,14 +294,6 @@ export function captureToolingSpanSource(
   }
 }
 
-/** Existing end() accepts this lossless monotonic representation. */
-export function toolingSpanTime(time: bigint): [number, number] {
-  return [
-    Number(time / NUM_OF_SEC_IN_NANOSEC),
-    Number(time % NUM_OF_SEC_IN_NANOSEC),
-  ]
-}
-
 // Multiply integer milliseconds as bigint so epoch magnitudes cannot lose the
 // low nanoseconds before the clock correction is applied.
 function epochMillisecondsToNanoseconds(time: number): bigint {
@@ -137,17 +304,13 @@ function epochMillisecondsToNanoseconds(time: number): bigint {
   )
 }
 
-export function completeToolingSpan(
-  source: ToolingSpanSource,
-  name: string,
-  attributes: Record<string, AttributeValue>,
+function getTraceSpanEndTime(
   endTime?: Parameters<OpenTelemetrySpan['end']>[0]
-): TraceEvent {
-  let end: bigint
+): bigint {
   if (Array.isArray(endTime)) {
-    end = BigInt(endTime[0]) * NUM_OF_SEC_IN_NANOSEC + BigInt(endTime[1])
+    return BigInt(endTime[0]) * NUM_OF_SEC_IN_NANOSEC + BigInt(endTime[1])
   } else if (endTime === undefined) {
-    end = process.hrtime.bigint()
+    return process.hrtime.bigint()
   } else {
     const epochMs = endTime instanceof Date ? endTime.getTime() : endTime
     const correction =
@@ -156,8 +319,17 @@ export function completeToolingSpan(
       epochMs < performance.timeOrigin / 2
         ? performance.timeOrigin + epochMs
         : epochMs
-    end = epochMillisecondsToNanoseconds(timeMs) + correction
+    return epochMillisecondsToNanoseconds(timeMs) + correction
   }
+}
+
+export function completeTraceSpan(
+  source: TraceSpanSource,
+  name: string,
+  attributes: Record<string, AttributeValue>,
+  endTime?: Parameters<OpenTelemetrySpan['end']>[0],
+  end = getTraceSpanEndTime(endTime)
+): TraceEvent {
   const duration = (end - source.startTime) / NUM_OF_MICROSEC_IN_NANOSEC
   if (duration > Number.MAX_SAFE_INTEGER) {
     throw new Error(`Duration is too long to express as float64: ${duration}`)
@@ -172,7 +344,7 @@ export function completeToolingSpan(
     tags: attributes,
   }
   if (duration > RECORD_SPAN_THRESHOLD_MS * 1000) {
-    reportToolingSpans([event])
+    reporter.report(event)
     if (shouldSaveTraceEvents) savedTraceEvents.push(event)
   }
   return event
@@ -206,8 +378,8 @@ export function getTraceEvents(): TraceEvent[] {
 
 export function recordTraceEvents(events: TraceEvent[]) {
   for (const traceEvent of events) {
-    traceEvent.tags = normalizeToolingAttributes(traceEvent.tags)
-    reportToolingSpans([traceEvent])
+    traceEvent.tags = normalizeTraceAttributes(traceEvent.tags)
+    reporter.report(traceEvent)
     if (traceEvent.id > count) {
       count = traceEvent.id + 1
     }
@@ -228,7 +400,7 @@ export const clearTraceEvents = () => {
  * epoch-based times are nanoseconds since Unix epoch (Jan 1, 1970).
  *
  * This is useful when passing hrtime values to APIs that expect epoch-based times,
- * such as completed observations passed to recordSpans().
+ * such as completed observations passed to recordSpan().
  */
 export function hrtimeToEpochNanoseconds(hrtimeValue: bigint): bigint {
   const offset =

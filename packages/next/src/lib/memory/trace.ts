@@ -1,7 +1,6 @@
 import v8 from 'v8'
 import { info, warn } from '../../build/output/log'
-import type { Span } from '@opentelemetry/api'
-import { createLocalSpan } from '../../server/lib/trace/local-span-recorder'
+import { type Span, trace } from '../../trace'
 import { bold, italic } from '../picocolors'
 import { join } from 'path'
 import { traceGlobals } from '../../trace/shared'
@@ -46,9 +45,8 @@ export function getAllMemoryUsageSpans(): MemoryUsage[] {
 }
 
 /**
- * Captures a memory usage snapshot for the process summary/debug report.
- * The existing tracing observation remains unended (and is not written to the
- * trace file); changing that lifetime is separate from recorder migration.
+ * Records a snapshot of memory usage at this moment in time to the .next/trace
+ * file.
  */
 export function traceMemoryUsage(
   description: string,
@@ -71,11 +69,11 @@ export function traceMemoryUsage(
       String(value),
     ])
   )
-  createLocalSpan({
-    name: 'memory-usage',
-    parent: parentSpan,
-    attributes: tracedMemoryUsageAsStrings,
-  })
+  if (parentSpan) {
+    parentSpan.traceChild('memory-usage', tracedMemoryUsageAsStrings)
+  } else {
+    trace('memory-usage', undefined, tracedMemoryUsageAsStrings)
+  }
   if (process.env.EXPERIMENTAL_DEBUG_MEMORY_USAGE) {
     const percentageHeapUsed = (100 * heapUsed) / heapMax
 

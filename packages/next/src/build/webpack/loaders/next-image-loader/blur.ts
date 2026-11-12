@@ -1,5 +1,3 @@
-import type { Span } from '@opentelemetry/api'
-import { traceLocalSpan } from '../../../../server/lib/trace/local-span-recorder'
 import isAnimated from 'next/dist/compiled/is-animated'
 import { optimizeImage } from '../../../../server/image-optimizer/sharp'
 
@@ -15,12 +13,24 @@ export async function getBlurImage(
     basePath,
     outputPath,
     isDev,
-    parentSpan,
+    tracing = () => ({
+      traceFn:
+        (fn) =>
+        (...args: any) =>
+          fn(...args),
+      traceAsyncFn:
+        (fn) =>
+        (...args: any) =>
+          fn(...args),
+    }),
   }: {
     basePath: string
     outputPath: string
     isDev: boolean
-    parentSpan?: Span
+    tracing: (name?: string) => {
+      traceFn(fn: Function): any
+      traceAsyncFn(fn: Function): any
+    }
   }
 ) {
   let blurDataURL: string | undefined
@@ -54,23 +64,18 @@ export async function getBlurImage(
       url.searchParams.set('q', String(BLUR_QUALITY))
       blurDataURL = url.href.slice(prefix.length)
     } else {
-      const resizedImage = await traceLocalSpan(
-        { name: 'image-resize', parent: parentSpan },
-        () =>
-          optimizeImage({
-            buffer: content,
-            width: blurWidth,
-            height: blurHeight,
-            contentType: `image/${extension}`,
-            quality: BLUR_QUALITY,
-          })
+      const resizeImageSpan = tracing('image-resize')
+      const resizedImage = await resizeImageSpan.traceAsyncFn(() =>
+        optimizeImage({
+          buffer: content,
+          width: blurWidth,
+          height: blurHeight,
+          contentType: `image/${extension}`,
+          quality: BLUR_QUALITY,
+        })
       )
-      blurDataURL = traceLocalSpan(
-        {
-          name: 'image-base64-tostring',
-          parent: parentSpan,
-          synchronous: true,
-        },
+      const blurDataURLSpan = tracing('image-base64-tostring')
+      blurDataURL = blurDataURLSpan.traceFn(
         () =>
           `data:image/${extension};base64,${resizedImage.toString('base64')}`
       )

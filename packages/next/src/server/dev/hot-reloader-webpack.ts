@@ -62,14 +62,7 @@ import {
   isMiddlewareFilename,
 } from '../../build/utils'
 import { DecodeError } from '../../shared/lib/utils'
-import type { Span } from '@opentelemetry/api'
-import {
-  createLocalSpan,
-  traceLocalSpan,
-} from '../lib/trace/local-span-recorder'
-import { recordSpans } from '../lib/trace/span-store'
-import { getTracer } from '../lib/trace/tracer'
-import { ToolingSpan } from '../lib/trace/constants'
+import { type Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { existsSync, promises as fs } from 'fs'
@@ -343,12 +336,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.config = config
     this.previewProps = previewProps
     this.rewrites = rewrites
-    this.hotReloaderSpan = getTracer().startSpan(ToolingSpan.hotReloader, {
-      attributes: { version: process.env.__NEXT_VERSION as string },
+    this.hotReloaderSpan = trace('hot-reloader', undefined, {
+      version: process.env.__NEXT_VERSION as string,
     })
     // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
     // of the current `next dev` invocation.
-    this.hotReloaderSpan.end()
+    this.hotReloaderSpan.stop()
 
     // Initialize log monitor for file logging
     // Enable logging by default in development mode
@@ -664,17 +657,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           }
 
           if (traceChild) {
-            recordSpans(
-              [
-                {
-                  name: traceChild.name,
-                  startTime: traceChild.startTime,
-                  endTime: traceChild.endTime,
-                  attributes: { ...traceChild.attrs, clientId: payload.id },
-                },
-              ],
-              'tooling',
-              this.hotReloaderSpan
+            this.hotReloaderSpan.manualTraceChild(
+              traceChild.name,
+              traceChild.startTime,
+              traceChild.endTime,
+              { ...traceChild.attrs, clientId: payload.id }
             )
           }
         } catch (_) {
@@ -717,31 +704,27 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
 
   private async clean(span: Span): Promise<void> {
-    return traceLocalSpan({ name: 'clean', parent: span }, () =>
-      recursiveDeleteSyncWithAsyncRetries(
-        join(this.dir, this.config.distDir),
-        new Set(['cache', 'lock'])
+    return span
+      .traceChild('clean')
+      .traceAsyncFn(() =>
+        recursiveDeleteSyncWithAsyncRetries(
+          join(this.dir, this.config.distDir),
+          new Set(['cache', 'lock'])
+        )
       )
-    )
   }
 
   private async getWebpackConfig(span: Span) {
-    const webpackConfigSpan = createLocalSpan({
-      name: 'get-webpack-config',
-      parent: span,
-    })
+    const webpackConfigSpan = span.traceChild('get-webpack-config')
 
     const pageExtensions = this.config.pageExtensions
 
-    return traceLocalSpan({ span: webpackConfigSpan }, async () => {
+    return webpackConfigSpan.traceAsyncFn(async () => {
       const pagePaths = !this.pagesDir
         ? ([] as (string | null)[])
-        : await traceLocalSpan(
-            {
-              name: 'get-page-paths',
-              parent: webpackConfigSpan,
-            },
-            () =>
+        : await webpackConfigSpan
+            .traceChild('get-page-paths')
+            .traceAsyncFn(() =>
               Promise.all([
                 findPageFile(this.pagesDir!, '/_app', pageExtensions, false),
                 findPageFile(
@@ -751,14 +734,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   false
                 ),
               ])
-          )
+            )
 
-      this.pagesMapping = await traceLocalSpan(
-        {
-          name: 'create-pages-mapping',
-          parent: webpackConfigSpan,
-        },
-        () =>
+      this.pagesMapping = await webpackConfigSpan
+        .traceChild('create-pages-mapping')
+        .traceAsyncFn(() =>
           createPagesMapping({
             isDev: true,
             pageExtensions: this.config.pageExtensions,
@@ -770,14 +750,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             appDir: this.appDir,
             appDirOnly: Boolean(this.appDir && !this.pagesDir),
           })
-      )
+        )
 
-      const entrypoints = await traceLocalSpan(
-        {
-          name: 'create-entrypoints',
-          parent: webpackConfigSpan,
-        },
-        () =>
+      const entrypoints = await webpackConfigSpan
+        .traceChild('create-entrypoints')
+        .traceAsyncFn(() =>
           createEntrypoints({
             appDir: this.appDir,
             buildId: this.buildId,
@@ -790,7 +767,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             rootDir: this.dir,
             pageExtensions: this.config.pageExtensions,
           })
-      )
+        )
 
       const commonWebpackOptions = {
         dev: true,
@@ -804,12 +781,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         previewProps: this.previewProps,
       }
 
-      return traceLocalSpan(
-        {
-          name: 'generate-webpack-config',
-          parent: webpackConfigSpan,
-        },
-        async () => {
+      return webpackConfigSpan
+        .traceChild('generate-webpack-config')
+        .traceAsyncFn(async () => {
           const info = await loadProjectInfo({
             dir: this.dir,
             config: commonWebpackOptions.config,
@@ -836,8 +810,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               ...info,
             }),
           ])
-        }
-      )
+        })
     })
   }
 
@@ -908,18 +881,15 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
 
   private async tracedGetVersionInfo(span: Span) {
-    return traceLocalSpan(
-      { name: 'get-version-info', parent: span },
-      async () => getVersionInfo()
+    const versionInfoSpan = span.traceChild('get-version-info')
+    return versionInfoSpan.traceAsyncFn<VersionInfo>(async () =>
+      getVersionInfo()
     )
   }
 
   public async start(): Promise<void> {
-    const startSpan = createLocalSpan({
-      name: 'start',
-      parent: this.hotReloaderSpan,
-    })
-    startSpan.end() // Stop immediately to create an artificial parent span
+    const startSpan = this.hotReloaderSpan.traceChild('start')
+    startSpan.stop() // Stop immediately to create an artificial parent span
 
     // Not awaited, so a slow registry doesn't delay startup. The catch is
     // attached right away: nothing subscribes to this promise until the hot
@@ -1942,13 +1912,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // subscriptions per entry the way Turbopack does.
     subscribeToChanges?: boolean
   }): Promise<void> {
-    return traceLocalSpan(
-      {
-        name: 'ensure-page',
-        parent: this.hotReloaderSpan,
-        attributes: { inputPage: page },
-      },
-      async () => {
+    return this.hotReloaderSpan
+      .traceChild('ensure-page', {
+        inputPage: page,
+      })
+      .traceAsyncFn(async () => {
         // Make sure we don't re-build or dispose prebuilt pages
         if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
           return
@@ -1967,8 +1935,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           isApp,
           url,
         })
-      }
-    )
+      })
   }
 
   public close() {

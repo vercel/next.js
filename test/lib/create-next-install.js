@@ -279,7 +279,7 @@ async function lockfileResolvesLocalTarball(
  */
 async function packPackages(parentSpan) {
   const {
-    traceLocalSpan,
+    recordSpan,
   } = require('next/dist/server/lib/trace/local-span-recorder')
   const repositoryDirectory = await fs.realpath(path.join(__dirname, '../..'))
   const cacheDir = path.join(repositoryDirectory, '.turbo')
@@ -293,7 +293,7 @@ async function packPackages(parentSpan) {
     retries: { retries: 3600, factor: 1, minTimeout: 1000, maxTimeout: 1000 },
   })
   try {
-    await traceLocalSpan({ name: 'turbo-run-pack', parent: parentSpan }, () =>
+    await recordSpan({ name: 'turbo-run-pack', parent: parentSpan }, () =>
       execa(
         'pnpm',
         [
@@ -311,9 +311,8 @@ async function packPackages(parentSpan) {
         }
       )
     )
-    return await traceLocalSpan(
-      { name: 'linkPackages', parent: parentSpan },
-      () => linkPackages({ repoDir: repositoryDirectory })
+    return await recordSpan({ name: 'linkPackages', parent: parentSpan }, () =>
+      linkPackages({ repoDir: repositoryDirectory })
     )
   } finally {
     await release()
@@ -343,11 +342,11 @@ async function createNextInstall({
 }) {
   // The test runner imports this module to fetch timings before Next is built.
   const {
-    traceLocalSpan,
+    recordSpan,
   } = require('next/dist/server/lib/trace/local-span-recorder')
   const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
 
-  return await traceLocalSpan(
+  return await recordSpan(
     { name: 'createNextInstall', parent: parentSpan },
     async (rootSpan) => {
       const origRepoDir = path.join(__dirname, '../../')
@@ -488,7 +487,7 @@ async function createNextInstall({
       )
 
       if (beforeInstall !== undefined) {
-        await traceLocalSpan(
+        await recordSpan(
           { name: 'beforeInstall', parent: rootSpan },
           async (span) => {
             await beforeInstall(span, installDir)
@@ -513,12 +512,11 @@ async function createNextInstall({
 
       if (installString !== null) {
         console.log('running install command', installString)
-        await traceLocalSpan(
-          { name: 'run custom install', parent: rootSpan },
-          () => runCustomInstall(installString, installDir)
+        await recordSpan({ name: 'run custom install', parent: rootSpan }, () =>
+          runCustomInstall(installString, installDir)
         )
       } else {
-        await traceLocalSpan(
+        await recordSpan(
           {
             name: 'run generic install command',
             parent: rootSpan,

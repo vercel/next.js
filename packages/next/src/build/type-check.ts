@@ -1,8 +1,6 @@
 import type { NextConfigComplete } from '../server/config-shared'
 import type { Telemetry } from '../telemetry/storage'
-import type { Span } from '@opentelemetry/api'
-import { getTracer } from '../server/lib/trace/tracer'
-import { ToolingSpan } from '../server/lib/trace/constants'
+import type { Span } from '../trace'
 
 import * as Log from './output/log'
 import { Worker } from '../lib/worker'
@@ -135,10 +133,9 @@ export async function startTypeChecking({
   const typeCheckAndLintStart = process.hrtime()
 
   try {
-    const [verifyResult, typeCheckEnd] = await getTracer().trace(
-      ToolingSpan.runTypeScript,
-      { parent: nextBuildSpan },
-      () =>
+    const [verifyResult, typeCheckEnd] = await nextBuildSpan
+      .traceChild('run-typescript')
+      .traceAsyncFn(() =>
         verifyAndRunTypeScript(
           dir,
           getBuildDistDir(config),
@@ -163,7 +160,7 @@ export async function startTypeChecking({
           const checkEnd = process.hrtime(typeCheckAndLintStart)
           return [resolved, checkEnd] as const
         })
-    )
+      )
 
     if (typeCheckingSpinner) {
       typeCheckingSpinner.stop()

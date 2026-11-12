@@ -52,7 +52,7 @@ import { findPageFile } from '../server/lib/find-page-file'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import * as Log from './output/log'
 import type { LoadComponentsReturnType } from '../server/load-components'
-import { traceLocalSpan } from '../server/lib/trace/local-span-recorder'
+import { trace } from '../trace'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { RouteKind } from '../server/route-kind'
@@ -915,9 +915,9 @@ export async function isPageStatic({
     cacheMaxMemorySize,
   })
 
-  return traceLocalSpan(
-    { name: 'is-page-static-utils', parent: parentId },
-    async (): Promise<PageIsStaticResult> => {
+  const isPageStaticSpan = trace('is-page-static-utils', parentId)
+  return isPageStaticSpan
+    .traceAsyncFn(async (): Promise<PageIsStaticResult> => {
       const { setHttpClientAndAgentOptions } =
         require('../server/setup-http-agent-env') as typeof import('../server/setup-http-agent-env')
       setHttpClientAndAgentOptions({
@@ -1183,14 +1183,14 @@ export async function isPageStatic({
         isNextImageImported,
         appConfig,
       }
-    }
-  ).catch((err) => {
-    if (err.message === 'INVALID_DEFAULT_EXPORT') {
-      throw err
-    }
-    console.error(err)
-    throw new Error(`Failed to collect page data for ${page}`)
-  })
+    })
+    .catch((err) => {
+      if (err.message === 'INVALID_DEFAULT_EXPORT') {
+        throw err
+      }
+      console.error(err)
+      throw new Error(`Failed to collect page data for ${page}`)
+    })
 }
 
 type ReducedAppConfig = Pick<

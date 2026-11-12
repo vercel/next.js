@@ -40,9 +40,12 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { Telemetry } from '../../telemetry/storage'
-import { hrtimeToEpochNanoseconds, setGlobal } from '../../trace'
-import type { Span } from '@opentelemetry/api'
-import { recordSpans } from '../lib/trace/span-store'
+import {
+  type Span,
+  hrtimeToEpochNanoseconds,
+  setGlobal,
+  trace,
+} from '../../trace'
 import { traceGlobals } from '../../trace/shared'
 import { findPageFile } from '../lib/find-page-file'
 import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
@@ -79,11 +82,7 @@ import {
 import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
-import {
-  createLocalSpan,
-  traceLocalSpan,
-} from '../lib/trace/local-span-recorder'
-import { registerLocalSpanRecorder } from '../lib/trace/request-span-recorder'
+import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
 import {
   appendArchivedRequestInsightUpdateToJournal,
   appendRequestInsightToJournal,
@@ -212,8 +211,7 @@ export default class DevServer extends Server {
       unsubscribeNativeRoutes()
     })
     this.startServerSpan =
-      options.startServerSpan ??
-      createLocalSpan({ name: 'start-next-dev-server' })
+      options.startServerSpan ?? trace('start-next-dev-server')
     this.renderOpts.ErrorDebug = ReactDevOverlay
     this.staticPathsCache = new LRUCache(
       // 5MB
@@ -541,19 +539,11 @@ export default class DevServer extends Server {
               'devRequestTimingInternalsEnd'
             )
             if (devRequestTimingInternalsEnd) {
-              recordSpans(
-                [
-                  {
-                    name: 'render-path',
-                    startTime: hrtimeToEpochNanoseconds(
-                      devRequestTimingInternalsEnd
-                    ),
-                    endTime: hrtimeToEpochNanoseconds(requestEnd),
-                    attributes: { path: req.url || '' },
-                  },
-                ],
-                'tooling',
-                this.startServerSpan
+              this.startServerSpan.manualTraceChild(
+                'render-path',
+                hrtimeToEpochNanoseconds(devRequestTimingInternalsEnd),
+                hrtimeToEpochNanoseconds(requestEnd),
+                { path: req.url || '' }
               )
             }
           })
@@ -569,26 +559,21 @@ export default class DevServer extends Server {
     res: NodeNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
-    const span = createLocalSpan({
-      name: 'handle-request',
-      attributes: { url: req.url },
-    })
-    const result = await traceLocalSpan({ span }, async () => {
+    const span = trace('handle-request', undefined, { url: req.url })
+    const result = await span.traceAsyncFn(async () => {
       await this.ready?.promise
       addRequestMeta(req, 'PagesErrorDebug', this.renderOpts.ErrorDebug)
       return await super.handleRequest(req, res, parsedUrl)
     })
     const memoryUsage = process.memoryUsage()
-    createLocalSpan({
-      name: 'memory-usage',
-      parent: span,
-      attributes: {
+    span
+      .traceChild('memory-usage', {
         url: req.url,
         'memory.rss': String(memoryUsage.rss),
         'memory.heapUsed': String(memoryUsage.heapUsed),
         'memory.heapTotal': String(memoryUsage.heapTotal),
-      },
-    }).end()
+      })
+      .stop()
     return result
   }
 

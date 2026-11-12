@@ -1,10 +1,6 @@
 // Import cpu-profile to start profiling early if enabled
 import '../server/lib/cpu-profile'
-import type { Span } from '@opentelemetry/api'
-import {
-  createLocalSpan,
-  traceLocalSpan,
-} from '../server/lib/trace/local-span-recorder'
+import { Span } from '../trace'
 import type { NextConfigComplete } from '../server/config-shared'
 
 import {
@@ -101,7 +97,7 @@ export async function collectBuildTraces({
   distDir,
   edgeRuntimeRoutes,
   staticPages,
-  nextBuildSpan = createLocalSpan({ name: 'build' }),
+  nextBuildSpan = new Span({ name: 'build' }),
   buildTraceContext,
   outputFileTracingRoot,
 }: {
@@ -123,15 +119,11 @@ export async function collectBuildTraces({
   const excludeGlobKeys = Object.keys(outputFileTracingExcludes)
   const includeGlobKeys = Object.keys(outputFileTracingIncludes)
 
-  await traceLocalSpan(
-    {
-      name: 'node-file-trace-build',
-      parent: nextBuildSpan,
-      attributes: {
-        isTurbotrace: 'false', // TODO(arlyon): remove this
-      },
-    },
-    async () => {
+  await nextBuildSpan
+    .traceChild('node-file-trace-build', {
+      isTurbotrace: 'false', // TODO(arlyon): remove this
+    })
+    .traceAsyncFn(async () => {
       const nextServerTraceOutput = path.join(
         distDir,
         'next-server.js.nft.json'
@@ -570,15 +562,11 @@ export async function collectBuildTraces({
           })
         ),
       ])
-    }
-  )
+    })
 
   // apply outputFileTracingIncludes/outputFileTracingExcludes after runTurbotrace
-  const includeExcludeSpan = createLocalSpan({
-    name: 'apply-include-excludes',
-    parent: nextBuildSpan,
-  })
-  await traceLocalSpan({ span: includeExcludeSpan }, async () => {
+  const includeExcludeSpan = nextBuildSpan.traceChild('apply-include-excludes')
+  await includeExcludeSpan.traceAsyncFn(async () => {
     const globOrig =
       require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
     const glob = (pattern: string): Promise<string[]> => {

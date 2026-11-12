@@ -1,9 +1,5 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import type { Span } from '@opentelemetry/api'
-import {
-  createLocalSpan,
-  traceLocalSpan,
-} from '../server/lib/trace/local-span-recorder'
+import type { Span } from '../trace'
 import getWebpackBundler from '../shared/lib/get-webpack-bundler'
 
 export type CompilerResult = {
@@ -64,39 +60,34 @@ export function runCompiler(
     }
     compiler.fsStartTime = Date.now()
     compiler.run((err, stats) => {
-      const webpackCloseSpan = createLocalSpan({
-        name: 'webpack-close',
-        parent: runWebpackSpan,
-        attributes: { name: config.name || 'unknown' },
+      const webpackCloseSpan = runWebpackSpan.traceChild('webpack-close', {
+        name: config.name || 'unknown',
       })
-      traceLocalSpan({ span: webpackCloseSpan }, () =>
-        closeCompiler(compiler)
-      ).then(() => {
-        if (err) {
-          const reason = err.stack ?? err.toString()
-          if (reason) {
-            return resolve([
-              {
-                errors: [{ message: reason, details: (err as any).details }],
-                warnings: [],
-                stats,
-              },
-              compiler.inputFileSystem,
-            ])
-          }
-          return reject(err)
-        } else if (!stats) throw new Error('No Stats from webpack')
+      webpackCloseSpan
+        .traceAsyncFn(() => closeCompiler(compiler))
+        .then(() => {
+          if (err) {
+            const reason = err.stack ?? err.toString()
+            if (reason) {
+              return resolve([
+                {
+                  errors: [{ message: reason, details: (err as any).details }],
+                  warnings: [],
+                  stats,
+                },
+                compiler.inputFileSystem,
+              ])
+            }
+            return reject(err)
+          } else if (!stats) throw new Error('No Stats from webpack')
 
-        const result = traceLocalSpan(
-          {
-            name: 'webpack-generate-error-stats',
-            parent: webpackCloseSpan,
-            synchronous: true,
-          },
-          () => generateStats({ errors: [], warnings: [], stats }, stats)
-        )
-        return resolve([result, compiler.inputFileSystem])
-      })
+          const result = webpackCloseSpan
+            .traceChild('webpack-generate-error-stats')
+            .traceFn(() =>
+              generateStats({ errors: [], warnings: [], stats }, stats)
+            )
+          return resolve([result, compiler.inputFileSystem])
+        })
     })
   })
 }

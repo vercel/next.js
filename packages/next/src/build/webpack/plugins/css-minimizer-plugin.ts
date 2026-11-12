@@ -1,4 +1,3 @@
-import { traceLocalSpan } from '../../../server/lib/trace/local-span-recorder'
 import cssnanoSimple from 'next/dist/compiled/cssnano-simple'
 import postcssScss from 'next/dist/compiled/postcss-scss'
 import postcss from 'postcss'
@@ -67,49 +66,40 @@ export class CssMinimizerPlugin {
         async (assets: any) => {
           const compilationSpan =
             getCompilationSpan(compilation) || getCompilationSpan(compiler)
-          return traceLocalSpan(
-            {
-              name: 'css-minimizer-plugin',
-              parent: compilationSpan,
-            },
-            async (cssMinimizerSpan) => {
-              const files = Object.keys(assets)
-              await Promise.all(
-                files
-                  .filter((file) => CSS_REGEX.test(file))
-                  .map(async (file) => {
-                    return traceLocalSpan(
-                      {
-                        name: 'minify-css',
-                        parent: cssMinimizerSpan,
-                        attributes: { file },
-                      },
-                      async (assetSpan) => {
-                        const assetSource = compilation.getAsset(file).source
-                        const etag = cache.getLazyHashedEtag(assetSource)
-                        const cachedResult = await cache.getPromise(file, etag)
-
-                        assetSpan.setAttribute(
-                          'cache',
-                          cachedResult ? 'HIT' : 'MISS'
-                        )
-                        if (cachedResult) {
-                          compilation.updateAsset(file, cachedResult)
-                          return
-                        }
-
-                        const result = await this.optimizeAsset(
-                          file,
-                          assetSource
-                        )
-                        await cache.storePromise(file, etag, result)
-                        compilation.updateAsset(file, result)
-                      }
-                    )
-                  })
-              )
-            }
+          const cssMinimizerSpan = compilationSpan!.traceChild(
+            'css-minimizer-plugin'
           )
+
+          return cssMinimizerSpan.traceAsyncFn(async () => {
+            const files = Object.keys(assets)
+            await Promise.all(
+              files
+                .filter((file) => CSS_REGEX.test(file))
+                .map(async (file) => {
+                  const assetSpan = cssMinimizerSpan.traceChild('minify-css')
+                  assetSpan.setAttribute('file', file)
+
+                  return assetSpan.traceAsyncFn(async () => {
+                    const assetSource = compilation.getAsset(file).source
+                    const etag = cache.getLazyHashedEtag(assetSource)
+                    const cachedResult = await cache.getPromise(file, etag)
+
+                    assetSpan.setAttribute(
+                      'cache',
+                      cachedResult ? 'HIT' : 'MISS'
+                    )
+                    if (cachedResult) {
+                      compilation.updateAsset(file, cachedResult)
+                      return
+                    }
+
+                    const result = await this.optimizeAsset(file, assetSource)
+                    await cache.storePromise(file, etag, result)
+                    compilation.updateAsset(file, result)
+                  })
+                })
+            )
+          })
         }
       )
     })

@@ -51,11 +51,7 @@ import os from 'os'
 import fs from 'node:fs'
 import { once } from 'node:events'
 import { clearTimeout } from 'timers'
-import { initializeTraceState, exportTraceState } from '../trace'
-import {
-  createLocalSpan,
-  getToolingSpanSource,
-} from '../server/lib/trace/local-span-recorder'
+import { trace, initializeTraceState, exportTraceState } from '../trace'
 import { traceId } from '../trace/shared'
 import { Bundler, parseBundlerArgs } from '../lib/bundler'
 
@@ -105,7 +101,7 @@ let devSpanAttrs: { 'rage-restart': boolean; 'missing-next-dir': boolean } = {
   'missing-next-dir': false,
 }
 const sessionStarted = Date.now()
-const sessionSpan = createLocalSpan({ name: 'next-dev' })
+const sessionSpan = trace('next-dev')
 
 // If the user restarts the dev server within this window we count it as a "rage restart".
 const RAGE_RESTART_THRESHOLD_MS = 90_000
@@ -172,7 +168,7 @@ const handleSessionStop = async (
     await drainPromptOutput(child)
   }
 
-  sessionSpan.end()
+  sessionSpan.stop()
 
   try {
     const { eventCliSessionStopped } =
@@ -467,12 +463,12 @@ const nextDev = async (
   )
 
   for (const [key, value] of Object.entries(enabledFeatures)) {
-    sessionSpan.setAttributes({ [`feature.${key}`]: value })
+    sessionSpan.setAttribute(`feature.${key}`, value)
   }
 
   initializeTraceState({
     ...exportTraceState(),
-    defaultParentSpanId: getToolingSpanSource(sessionSpan)!.id,
+    defaultParentSpanId: sessionSpan.getId(),
   })
 
   const devServerOptions: StartServerOptions = {
