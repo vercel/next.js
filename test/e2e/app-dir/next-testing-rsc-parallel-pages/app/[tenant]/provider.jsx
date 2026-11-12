@@ -1,0 +1,10 @@
+'use client'
+import { createContext } from 'react'
+export const Scope = createContext('missing')
+export default function Provider({ label, children }) {
+  return (
+    <Scope.Provider value={label}>
+      <section data-provider={label}>{children}</section>
+    </Scope.Provider>
+  )
+}
