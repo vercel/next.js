@@ -45,6 +45,11 @@ import { createDevTurbopackProject } from 'next/dist/build/swc/dev-project'
 import { Lockfile } from 'next/dist/build/lockfile'
 import { createCompiledRouteRenderOpts } from 'next/dist/experimental/testing/compiler/route-render'
 import { serialize, deserialize } from 'v8'
+import { readFileSync } from 'node:fs'
+import {
+  runNodeHelperSync,
+  withOutputDirectorySync,
+} from '../../lib/next-testing-node-helpers'
 
 jest.mock('next/dist/build/swc', () => ({
   loadBindings: async () => ({ isWasm: false }),
@@ -6136,6 +6141,42 @@ it('keeps CommonJS Promise values out of namespace then adoption', () => {
   ).toEqual(['namespace', 'namespace', 'own then', 'inherited then'])
 })
 
+it('caches compiled original imports by resolved target with fresh outer promises', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'run-fixture.cjs'), 'cjs-actual-cache'],
+    { encoding: 'utf8', timeout: 135000 }
+  )
+  const actual = JSON.parse(result)
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(3)
+}, 140000)
+
+it('automatically mocks compiled CommonJS default and named exports', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'run-fixture.cjs'), 'cjs-import-mock'],
+    { encoding: 'utf8', timeout: 135000 }
+  )
+  const actual = JSON.parse(result)
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(4)
+}, 140000)
+
+it('applies explicit CommonJS object factories while retaining lazy original imports', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'run-fixture.cjs'), 'cjs-factory'],
+    { encoding: 'utf8', timeout: 135000 }
+  )
+  const actual = JSON.parse(result)
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(3)
+}, 140000)
+
 it('serializes an explicit fixture layout through the existing native host registration', async () => {
   const host = {
     routePrefix: '/__next_testing_layout',
@@ -6193,6 +6234,42 @@ it('serializes an explicit fixture layout through the existing native host regis
   expect(actual.development).toEqual(actual.production)
 })
 
+it('resets compiled leaf CommonJS object, callable and Promise modules', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'run-fixture.cjs'), 'cjs-reset'],
+    { encoding: 'utf8', timeout: 135000 }
+  )
+  const actual = JSON.parse(result)
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(3)
+}, 140000)
+
+it('supplies missing bare modules through actual shared factory namespaces', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'run-fixture.cjs'), 'virtual-bare'],
+    { encoding: 'utf8', timeout: 135000 }
+  )
+  const actual = JSON.parse(result)
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(4)
+}, 140000)
+
+it('shares missing bare factory values through importMock and import namespaces', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'run-fixture.cjs'), 'virtual-import'],
+    { encoding: 'utf8', timeout: 135000 }
+  )
+  const actual = JSON.parse(result)
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(3)
+}, 140000)
+
 it('validates production Browser client profiles without enabling route-aware or non-Node runtimes', () => {
   const {
     validateTestProfile,
@@ -6216,6 +6293,31 @@ it('validates production Browser client profiles without enabling route-aware or
   }
 })
 
+it.each(['development', 'production'])(
+  'retains the original relative factory body in actual %s Node compilation',
+  (mode) => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'production-factory-integration.cjs'), 'node', mode],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 0, signal: null })
+    expect(actual.cases).toEqual([
+      {
+        name: 'factory mocks production compiled entry',
+        status: 'passed',
+        failureMessages: [],
+      },
+    ])
+    expect(actual.authoredSourcesUnchanged).toBe(true)
+    expect(actual.fixtureRemoved).toBe(true)
+  },
+  140000
+)
+
 it('awaits actual Shared ESM setup dependencies while retaining lazy noninheriting Shared CJS harness imports', () => {
   const { execFileSync } = require('node:child_process')
   const output = execFileSync(
@@ -6233,6 +6335,33 @@ it('awaits actual Shared ESM setup dependencies while retaining lazy noninheriti
     harnessAsync: false,
   })
 }, 130000)
+
+it('supplies certified Node builtin factories through project ESM consumers', () => {
+  const { execFileSync } = require('node:child_process')
+  const result = execFileSync(
+    process.execPath,
+    [join(__dirname, 'run-fixture.cjs'), 'builtin-factory'],
+    { encoding: 'utf8', timeout: 135000 }
+  )
+  const actual = JSON.parse(result)
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.rows).toHaveLength(3)
+}, 140000)
+
+it('retains runtime window observations in actual development and production Node modules', async () => {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'runtime-window-integration.cjs')],
+    { timeout: 150000 }
+  )
+  expect(JSON.parse(stdout.trim())).toEqual({
+    profiles: 2,
+    cases: 4,
+    fullRows: 4,
+  })
+}, 160000)
 
 it.each(['development', 'production'])(
   'validates explicit %s Node RSC AppProject routes',
@@ -6321,6 +6450,241 @@ it.each(['development', 'production'] as const)(
     ).toBe('')
   }
 )
+
+for (const target of [
+  'commonjs',
+  'transitive',
+  'then',
+  'foreign',
+  'unresolved',
+  'query',
+  'fallthrough',
+] as const) {
+  it(`retains terminal-throw runtime target certification before bodies: ${target}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'runtime-throw-boundary-integration.cjs'), target],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 1, signal: null })
+    expect(actual.total).toBe(0)
+    expect(actual.bodyOutput).toBe(false)
+  }, 140000)
+}
+
+for (const target of [
+  'commonjs',
+  'then',
+  'unresolved',
+  'dynamic',
+  'computed',
+  'require',
+  'query',
+  'foreign',
+  'entry-cycle',
+  'helper',
+  'symlink',
+] as const) {
+  it(`certifies actual compiled runtime graph boundaries before bodies: ${target}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'runtime-graph-boundary-integration.cjs'), target],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 1, signal: null })
+    expect(actual.total).toBe(0)
+    expect(actual.bodyOutput).toBe(false)
+  }, 140000)
+}
+
+for (const target of [
+  'async-module',
+  'native-alias',
+  'framework-alias',
+  'bare-dependency',
+] as const) {
+  it(`retains actual async/framework/native runtime graph boundaries: ${target}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'runtime-graph-boundary-integration.cjs'), target],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 1, signal: null })
+    expect(actual.total).toBe(0)
+    expect(actual.bodyOutput).toBe(false)
+  }, 140000)
+}
+
+it('starts distinct declared runtime factories at actual original dependency demand', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'runtime-graph-boundary-integration.cjs'),
+        'cross-target',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 0, signal: null })
+  expect(actual.total).toBe(1)
+  expect(actual.passed).toBe(1)
+  expect(actual.bodyOutput).toBe(true)
+}, 140000)
+
+it('preserves the same-directory foreign importer boundary for marked runtime demand graphs', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'runtime-graph-boundary-integration.cjs'),
+        'cross-foreign-literal',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 1, signal: null })
+  expect(actual.total).toBe(0)
+  expect(actual.bodyOutput).toBe(false)
+}, 140000)
+
+for (const target of [
+  'cjs-reset-negative-unresolved',
+  'cjs-reset-negative-external',
+  'cjs-reset-negative-esm',
+  'cjs-reset-negative-multiple',
+  'cjs-reset-negative-foreign',
+  'cjs-reset-negative-client-directive',
+  'cjs-reset-negative-query',
+  'cjs-reset-negative-multiple-resolved',
+  'cjs-reset-export-promise',
+  'cjs-reset-export-array',
+  'cjs-reset-export-then',
+  'cjs-reset-export-computed',
+  'cjs-reset-export-spread',
+  'cjs-reset-export-getter',
+  'cjs-reset-export-prototype',
+  'cjs-reset-export-repeated',
+  'cjs-reset-export-escaped-callable',
+  'cjs-reset-export-reassigned-callable',
+  'cjs-reset-export-computed-callable',
+  'cjs-reset-export-mixed-promise-leaf',
+] as const) {
+  it(`refuses an uncertified nonleaf CommonJS reset boundary before bodies: ${target}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'runtime-graph-boundary-integration.cjs'), target],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 1, signal: null })
+    expect(actual.total).toBe(0)
+    expect(actual.bodyOutput).toBe(false)
+  }, 140000)
+}
+
+it('preserves foreign importer refusal for compiled demand graphs with certified native imports', () => {
+  const { execFileSync } = require('node:child_process')
+  const actual = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'runtime-graph-boundary-integration.cjs'),
+        'cross-native-foreign',
+      ],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+  )
+  expect(actual.close).toEqual({ code: 1, signal: null })
+  expect(actual.total).toBe(0)
+  expect(actual.bodyOutput).toBe(false)
+}, 140000)
+
+for (const target of [
+  'cjs-actual-reset-negative-query',
+  'cjs-actual-reset-negative-fragment',
+  'cjs-actual-reset-negative-unresolved',
+  'cjs-actual-reset-negative-esm',
+  'cjs-actual-reset-negative-leaf',
+  'cjs-actual-reset-negative-builtin',
+  'cjs-actual-reset-negative-self',
+  'cjs-actual-reset-negative-foreign',
+  'cjs-actual-reset-negative-mixed-promise',
+] as const) {
+  it(
+    target === 'cjs-actual-reset-negative-leaf'
+      ? 'executes the original leaf CommonJS actual/reset control'
+      : `refuses an uncertified CommonJS actual/reset graph before bodies: ${target}`,
+    () => {
+      const { execFileSync } = require('node:child_process')
+      const actual = JSON.parse(
+        execFileSync(
+          process.execPath,
+          [join(__dirname, 'runtime-graph-boundary-integration.cjs'), target],
+          { encoding: 'utf8', timeout: 135000 }
+        )
+      )
+      if (target === 'cjs-actual-reset-negative-leaf') {
+        expect(actual.close).toEqual({ code: 0, signal: null })
+        expect(actual.total).toBe(1)
+        expect(actual.passed).toBe(1)
+        expect(actual.bodyOutput).toBe(true)
+        expect(actual.diagnostics).toEqual([])
+      } else {
+        expect(actual.close).toEqual({ code: 1, signal: null })
+        expect(actual.total).toBe(0)
+        expect(actual.bodyOutput).toBe(false)
+      }
+    },
+    140000
+  )
+}
+
+for (const target of [
+  'compiled-cjs-runtime-negative-query',
+  'compiled-cjs-runtime-negative-fragment',
+  'compiled-cjs-runtime-negative-unresolved',
+  'compiled-cjs-runtime-negative-mixed-esm',
+  'compiled-cjs-runtime-negative-mixed-native',
+  'compiled-cjs-runtime-negative-self',
+  'compiled-cjs-runtime-negative-foreign',
+  'compiled-cjs-runtime-negative-promise',
+  'compiled-cjs-runtime-negative-then',
+  'compiled-cjs-runtime-negative-computed',
+  'compiled-cjs-runtime-negative-spread',
+  'compiled-cjs-runtime-negative-history',
+  'compiled-cjs-runtime-negative-unresolved-require',
+  'compiled-cjs-runtime-negative-multiple-require',
+  'compiled-cjs-runtime-negative-dynamic-require',
+  'compiled-cjs-runtime-negative-throw-only',
+] as const) {
+  it(`refuses an uncertified compiled CommonJS runtime entry before bodies: ${target}`, () => {
+    const { execFileSync } = require('node:child_process')
+    const actual = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(__dirname, 'runtime-graph-boundary-integration.cjs'), target],
+        { encoding: 'utf8', timeout: 135000 }
+      )
+    )
+    expect(actual.close).toEqual({ code: 1, signal: null })
+    expect(actual.total).toBe(0)
+    expect(actual.bodyOutput).toBe(false)
+  }, 140000)
+}
 
 it.each(
   (['development', 'production'] as const).flatMap((mode) =>
@@ -6441,3 +6805,563 @@ describe('private development Node V8 source-preservation native ABI', () => {
     }
   )
 })
+
+const asyncShorthandForms = [
+  'async-generator:anonymous',
+  'async-generator:binding',
+  'async-generator:named',
+  'async-generator:named-body-scope',
+  'async-generator:named-self',
+  'async:anonymous',
+  'async:binding',
+  'async:named',
+  'async:named-body-scope',
+  'async:named-self',
+  'generator:anonymous',
+  'generator:binding',
+  'generator:named',
+  'generator:named-body-scope',
+  'generator:named-self',
+] as const
+
+function runCompilerLauncherCheck(
+  prefix: string,
+  helper: string,
+  argv: string[],
+  check: (checks: unknown) => void,
+  options: {
+    nestedOutput?: boolean
+    resultFile?: string
+    maxBuffer?: number
+  } = {}
+) {
+  return withOutputDirectorySync(
+    prefix,
+    (directory) => {
+      const output = options.nestedOutput ? join(directory, 'run') : directory
+      runNodeHelperSync(
+        [join(__dirname, helper), join(__dirname, '../../..'), output, ...argv],
+        {
+          encoding: 'utf8',
+          timeout: 125000,
+          ...(options.maxBuffer === undefined
+            ? {}
+            : { maxBuffer: options.maxBuffer }),
+        }
+      )
+      check(
+        JSON.parse(
+          readFileSync(
+            join(output, options.resultFile ?? 'CHECKS.json'),
+            'utf8'
+          )
+        )
+      )
+    },
+    { cleanup: 'success' }
+  )
+}
+
+function registerCommonJSDefaultLauncher(
+  forms: readonly string[],
+  title: string,
+  prefix: string,
+  helper: string,
+  extraArgs: string[] = []
+) {
+  it.each(
+    forms.flatMap((form) =>
+      (['development', 'production'] as const).map((mode) => ({ form, mode }))
+    )
+  )(
+    title,
+    ({ form, mode }) =>
+      runCompilerLauncherCheck(
+        prefix,
+        helper,
+        [mode, form, 'source', ...extraArgs],
+        (checks) => {
+          expect(checks).toMatchObject({ form, mode, cases: 3, passed: true })
+        }
+      ),
+    130000
+  )
+}
+
+registerCommonJSDefaultLauncher(
+  asyncShorthandForms,
+  'preserves actual CommonJS async shorthand defaults: $form/$mode',
+  'next-cjs-async-defaults-',
+  'cjs-async-defaults.mjs'
+)
+
+const arrowShorthandForms = [
+  'async:body-scope',
+  'async:computed-default',
+  'async:literal',
+  'sync:body-scope',
+  'sync:computed-default',
+  'sync:literal',
+] as const
+
+registerCommonJSDefaultLauncher(
+  arrowShorthandForms,
+  'preserves actual CommonJS arrow shorthand defaults: $form/$mode',
+  'next-cjs-arrow-defaults-',
+  'cjs-arrow-defaults.mjs'
+)
+
+const bindingSelfForms = [
+  'async:binding-self',
+  'generator:binding-self',
+  'async-generator:binding-self',
+] as const
+
+registerCommonJSDefaultLauncher(
+  bindingSelfForms,
+  'preserves actual declared CommonJS binding self defaults: $form/$mode',
+  'next-cjs-binding-self-',
+  'cjs-binding-self-defaults.mjs'
+)
+
+const synchronousBindingSelfForms = ['sync:binding-self'] as const
+
+registerCommonJSDefaultLauncher(
+  synchronousBindingSelfForms,
+  'preserves actual synchronous CommonJS binding self defaults: $form/$mode',
+  'next-cjs-sync-binding-self-',
+  'cjs-binding-self-defaults.mjs'
+)
+
+const recursiveBindingForms = [
+  'sync:binding-recursive',
+  'async:binding-recursive',
+  'generator:binding-recursive',
+  'async-generator:binding-recursive',
+] as const
+
+registerCommonJSDefaultLauncher(
+  recursiveBindingForms,
+  'preserves actual recursive CommonJS binding defaults: $form/$mode',
+  'next-cjs-recursive-binding-',
+  'cjs-recursive-binding.mjs'
+)
+
+registerCommonJSDefaultLauncher(
+  Object.keys(require('./cjs-renamed-defaults-forms.cjs').forms),
+  'preserves actual renamed CommonJS object defaults: $form/$mode',
+  'next-cjs-renamed-defaults-',
+  'cjs-async-defaults.mjs',
+  ['renamed']
+)
+
+registerCommonJSDefaultLauncher(
+  Object.keys(require('./cjs-array-defaults-forms.cjs').forms),
+  'preserves actual flat CommonJS array defaults: $form/$mode',
+  'next-cjs-array-defaults-',
+  'cjs-async-defaults.mjs',
+  ['array']
+)
+
+registerCommonJSDefaultLauncher(
+  Object.keys(require('./cjs-whole-array-defaults-forms.cjs').forms),
+  'preserves actual whole CommonJS array defaults: $form/$mode',
+  'next-cjs-whole-array-defaults-',
+  'cjs-async-defaults.mjs',
+  ['whole-array']
+)
+
+it.each(['development', 'production'] as const)(
+  'preserves recursive CommonJS parameter behavior in %s',
+  (mode) => {
+    return runCompilerLauncherCheck(
+      'next-cjs-parameter-grammar-',
+      'cjs-parameter-grammar.mjs',
+      [mode, 'source'],
+      (checks) => {
+        expect(checks).toEqual({ mode, cases: 378, passed: true })
+      }
+    )
+  },
+  130000
+)
+
+it.each(['development', 'production'] as const)(
+  'combines native static runtime and actual helpers in %s',
+  (mode) => {
+    return runCompilerLauncherCheck(
+      'next-native-runtime-actual-',
+      'native-runtime-actual.mjs',
+      [mode, 'source'],
+      (checks) => {
+        expect(checks).toEqual({
+          mode,
+          cases: 2,
+          passed: true,
+        })
+      }
+    )
+  },
+  130000
+)
+
+it.each([
+  ['development', 'paired-two'],
+  ['production', 'paired-two'],
+  ['development', 'cycle-runtime'],
+  ['production', 'cycle-runtime'],
+] as const)(
+  'retains native paired targets and CommonJS cycle in %s %s',
+  (mode, group) => {
+    return runCompilerLauncherCheck(
+      'next-native-paired-cycle-',
+      'native-paired-cycles.mjs',
+      [mode, 'source', group],
+      (checks) => {
+        expect(checks).toEqual({
+          mode,
+          group,
+          cases: 1,
+          passed: true,
+        })
+      }
+    )
+  },
+  130000
+)
+
+it.each([
+  ['development', 'own-this-arrow'],
+  ['production', 'own-this-arrow'],
+  ['development', 'own-this-function'],
+  ['production', 'own-this-function'],
+] as const)(
+  'preserves nested factory callable this in %s %s',
+  (mode, group) => {
+    return runCompilerLauncherCheck(
+      'next-factory-own-this-',
+      'factory-own-this.mjs',
+      [mode, 'source', group],
+      (checks) => {
+        expect(checks).toEqual({
+          mode,
+          group,
+          cases: 1,
+          passed: true,
+        })
+      }
+    )
+  },
+  130000
+)
+
+it.each([
+  ['development', 'before-cut-arrow'],
+  ['production', 'before-cut-arrow'],
+  ['development', 'before-cut-function'],
+  ['production', 'before-cut-function'],
+] as const)(
+  'preserves retained before-cut native pair in %s %s',
+  (mode, group) => {
+    return runCompilerLauncherCheck(
+      'next-native-unmock-before-cut-',
+      'native-unmock-before-cut.mjs',
+      [mode, 'source', group],
+      (checks) => {
+        expect(checks).toEqual({
+          mode,
+          group,
+          cases: 1,
+          passed: true,
+        })
+      }
+    )
+  },
+  130000
+)
+
+it.each([
+  ['development', 'after-cut-arrow'],
+  ['production', 'after-cut-arrow'],
+  ['development', 'after-cut-function'],
+  ['production', 'after-cut-function'],
+] as const)(
+  'preserves cancelled after-cut native original in %s %s',
+  (mode, group) => {
+    return runCompilerLauncherCheck(
+      'next-native-unmock-after-cut-',
+      'native-unmock-after-cut.mjs',
+      [mode, 'source', group],
+      (checks) => {
+        expect(checks).toEqual({
+          mode,
+          group,
+          cases: 1,
+          passed: true,
+        })
+      }
+    )
+  },
+  130000
+)
+
+it.each([
+  ['development', 'bracketing-cuts'],
+  ['production', 'bracketing-cuts'],
+  ['development', 'two-earlier-cuts'],
+  ['production', 'two-earlier-cuts'],
+] as const)(
+  'preserves the last ordered native mock cut in %s %s',
+  (mode, group) => {
+    return runCompilerLauncherCheck(
+      'next-native-unmock-multiple-cuts-',
+      'native-unmock-multiple-cuts.mjs',
+      [mode, 'source', group],
+      (checks) => {
+        expect(checks).toEqual({
+          mode,
+          group,
+          cases: 1,
+          passed: true,
+        })
+      }
+    )
+  },
+  130000
+)
+
+it.each(
+  ['development', 'production'].flatMap((mode) =>
+    ['two-factories', 'cut-before-two', 'cut-between-two', 'cut-after-two'].map(
+      (group) => [mode, group] as const
+    )
+  )
+)(
+  'retains actual native factory registrations and cuts in %s %s',
+  (mode, group) => {
+    return runCompilerLauncherCheck(
+      'next-native-multiple-factories-',
+      'native-unmock-multiple-factories.mjs',
+      [mode, 'source', group],
+      (checks) => {
+        expect(checks).toEqual({ mode, group, cases: 1, passed: true })
+      }
+    )
+  },
+  130000
+)
+
+it.each(
+  ['development', 'production'].flatMap((mode) =>
+    [
+      'both-survive-interleaved',
+      'a-cancelled-b-survives',
+      'a-survives-b-cancelled',
+      'both-cancelled-interleaved',
+      'mirror-before-between',
+    ].map((group) => [mode, group] as const)
+  )
+)(
+  'retains independent native targets through ordered cuts in %s %s',
+  (mode, group) => {
+    return runCompilerLauncherCheck(
+      'next-native-multi-target-',
+      'native-multi-target.mjs',
+      [mode, 'source', group],
+      (checks) => {
+        expect(checks).toEqual({ mode, group, cases: 1, passed: true })
+      },
+      {
+        nestedOutput: true,
+        resultFile: 'RESULT.json',
+        maxBuffer: 4 * 1024 * 1024,
+      }
+    )
+  },
+  130000
+)
+
+it('renders independent RSC requests using one shared AppPage module graph', () => {
+  return runCompilerLauncherCheck(
+    'next-shared-rsc-public-',
+    'shared-rsc.mjs',
+    [],
+    (checks) => {
+      expect(checks).toEqual({
+        cases: 2,
+        files: 2,
+        sharedCounts: [1, 2],
+      })
+    },
+    {
+      nestedOutput: true,
+      resultFile: 'RESULT.json',
+      maxBuffer: 4 * 1024 * 1024,
+    }
+  )
+}, 130000)
+
+it('owns real AppPage handlers cache tags and after work independently for shared RSC files', () => {
+  return runCompilerLauncherCheck(
+    'next-shared-rsc-cache-public-',
+    'shared-rsc-cache.mjs',
+    [],
+    (checks) => {
+      expect(checks).toEqual({
+        cases: 2,
+        renderCounts: [1, 2, 3, 4, 5, 6],
+        cachedValues: [1, 1, 2, 3, 3, 4],
+        afterValues: [1, 2],
+      })
+    },
+    {
+      nestedOutput: true,
+      resultFile: 'RESULT.json',
+      maxBuffer: 4 * 1024 * 1024,
+    }
+  )
+}, 130000)
+it.each([
+  ['development', 'v1'],
+  ['production', 'v1'],
+  ['development', 'literal-forms'],
+  ['production', 'literal-forms'],
+] as const)(
+  'preserves real reset utility identity and module cache ownership in %s %s',
+  (mode, variant) => {
+    return withOutputDirectorySync(
+      'next-reset-utility-',
+      (temporary) => {
+        const output = join(temporary, 'run')
+        try {
+          runNodeHelperSync(
+            [
+              join(__dirname, 'module-reset-utility.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+              variant,
+              'source',
+            ],
+            { encoding: 'utf8', timeout: 125000, maxBuffer: 1024 * 1024 }
+          )
+          expect(
+            JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+          ).toEqual({
+            passed: true,
+            mode,
+            variant,
+            cases: variant === 'v1' ? 4 : 6,
+          })
+          expect(
+            JSON.parse(readFileSync(join(output, 'CLOSED.json'), 'utf8'))
+          ).toEqual({
+            allActualProcessesJoined: true,
+            fixtureRetired: true,
+          })
+        } catch (cause) {
+          throw new Error(`Reset utility evidence retained at ${temporary}`, {
+            cause,
+          })
+        }
+      },
+      { cleanup: 'success' }
+    )
+  },
+  130000
+)
+
+it.each([
+  ['development', 'v2', 5],
+  ['production', 'v2', 5],
+  ['development', 'old-control', 1],
+  ['production', 'old-control', 1],
+  ['development', 'property-only', 2],
+  ['production', 'property-only', 2],
+] as const)(
+  'preserves real reset property descriptors and module cache ownership in %s %s',
+  (mode, variant, cases) => {
+    return withOutputDirectorySync(
+      'next-reset-property-',
+      (temporary) => {
+        const output = join(temporary, 'run')
+        try {
+          runNodeHelperSync(
+            [
+              join(__dirname, 'module-reset-property.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+              variant,
+              'source',
+            ],
+            { encoding: 'utf8', timeout: 125000, maxBuffer: 1024 * 1024 }
+          )
+          expect(
+            JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+          ).toEqual({
+            passed: true,
+            mode,
+            variant,
+            cases,
+          })
+          expect(
+            JSON.parse(readFileSync(join(output, 'CLOSED.json'), 'utf8'))
+          ).toEqual({
+            allActualProcessesJoined: true,
+            fixtureRetired: true,
+          })
+        } catch (cause) {
+          throw new Error(`Reset property evidence retained at ${temporary}`, {
+            cause,
+          })
+        }
+      },
+      { cleanup: 'success' }
+    )
+  },
+  130000
+)
+
+it.each([
+  ['external', 'development', 3],
+  ['external-control', 'development', 2],
+  ['external-actual', 'development', 3],
+  ['external-conditions', 'development', 1],
+  ['external-graph', 'development', 1],
+  ['builtin-control', 'development', 2],
+  ['builtin-actual', 'development', 3],
+  ['builtin-unmock-after', 'development', 1],
+  ['unmock-after', 'development', 1],
+  ['compiled-runtime', 'development', 4],
+  ['compiled-esm-graph', 'development', 7],
+  ['compiled-esm-graph-alias', 'development', 1],
+  ['runtime-cjs', 'development', 6],
+  ['runtime-esm', 'development', 6],
+  ['runtime-builtin', 'development', 6],
+  ['static-runtime-cjs', 'development', 1],
+  ['static-runtime-cjs-unmock-first', 'development', 1],
+  ['static-runtime-cjs-unused', 'development', 1],
+  ['static-runtime-cjs-pending-resolve', 'development', 1],
+  ['static-runtime-cjs-pending-reject', 'development', 1],
+  ['cjs-reset-dependency', 'development', 1],
+  ['cjs-reset-cycle', 'development', 1],
+  ['cjs-reset-actual-dependency', 'development', 2],
+  ['cjs-import-mock-self-default-publication', 'development', 2],
+  ['cjs-import-mock-publication-mutation', 'development', 2],
+  ['compiled-cjs-runtime-leaf-object', 'development', 8],
+  ['compiled-cross-namespace-getter', 'development', 1],
+  ['factory-cause-cjs', 'development', 1],
+  ['external-control', 'production', 2],
+  ['builtin-control', 'production', 2],
+] as const)(
+  'checks focused module behavior for %s in %s',
+  (group, mode, cases) => {
+    const result = runNodeHelperSync(
+      [join(__dirname, 'external-package-integration.cjs'), group, mode],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+    expect(JSON.parse(result)).toEqual({ group, mode, cases, passed: true })
+  },
+  140000
+)
