@@ -1040,11 +1040,44 @@ function ReactRenderPass({
   const [expanded, setExpanded] = useState(false)
   const contentId = useId()
   const label = `${group.environment || 'React'} · ${index + 1}`
-  const incompleteMessage = group.incompleteReason
-    ? group.incompleteReason === 'budget'
-      ? 'Recording limit reached. Some React intervals are missing.'
-      : 'Some React intervals were dropped during recording or transport.'
-    : undefined
+  let incompleteMessage: string | undefined
+  if (group.incompleteReason === 'budget') {
+    incompleteMessage =
+      'Recording limit reached. Some React intervals are missing.'
+  } else if (group.incompleteReason) {
+    incompleteMessage =
+      'Some React intervals were dropped during recording or transport.'
+  }
+  let waitSummary = ''
+  if (group.awaits.length > 0) {
+    waitSummary = ` · ${group.awaits.length} wait${group.awaits.length === 1 ? '' : 's'}`
+  }
+  let expandedContent
+  if (expanded) {
+    expandedContent = (
+      <div id={contentId}>
+        {incompleteMessage ? (
+          <p className="request-insights-section-note">{incompleteMessage}</p>
+        ) : null}
+        {group.components.length > 0 ? (
+          <Trace
+            items={group.components}
+            request={request}
+            range={group.range}
+            title="Rendering"
+          />
+        ) : null}
+        {group.awaits.length > 0 ? (
+          <Trace
+            items={group.awaits}
+            request={request}
+            range={group.range}
+            title="Waiting"
+          />
+        ) : null}
+      </div>
+    )
+  }
 
   return (
     <div className="request-insights-react-pass">
@@ -1072,36 +1105,12 @@ function ReactRenderPass({
         <span className="request-insights-section-note">
           {group.components.length} render interval
           {group.components.length === 1 ? '' : 's'}
-          {group.awaits.length > 0
-            ? ` · ${group.awaits.length} wait${group.awaits.length === 1 ? '' : 's'}`
-            : ''}
+          {waitSummary}
           {' · '}
           {formatDuration(group.range.durationMs)} window
         </span>
       </button>
-      {expanded ? (
-        <div id={contentId}>
-          {incompleteMessage ? (
-            <p className="request-insights-section-note">{incompleteMessage}</p>
-          ) : null}
-          {group.components.length > 0 ? (
-            <Trace
-              items={group.components}
-              request={request}
-              range={group.range}
-              title="Rendering"
-            />
-          ) : null}
-          {group.awaits.length > 0 ? (
-            <Trace
-              items={group.awaits}
-              request={request}
-              range={group.range}
-              title="Waiting"
-            />
-          ) : null}
-        </div>
-      ) : null}
+      {expandedContent}
     </div>
   )
 }
@@ -1384,6 +1393,14 @@ function Trace({
               {items.map((item, index) => {
                 const position = getTracePosition(item, range)
                 const description = getTraceItemDescription(item, range)
+                let sourceTitle: string | undefined
+                let accessibleDescription = description
+                if (item.reactTiming?.source) {
+                  const locationKind =
+                    item.reactTiming.kind === 'await' ? 'await' : 'render'
+                  sourceTitle = `Open ${locationKind} location`
+                  accessibleDescription = `${description}. Press Enter to open ${locationKind} location.`
+                }
 
                 return (
                   <TraceSpanContextMenu
@@ -1403,11 +1420,7 @@ function Trace({
                     shadowRoot={shadowRoot}
                   >
                     <div
-                      aria-label={
-                        item.reactTiming?.source
-                          ? `${description}. Press Enter to open ${item.reactTiming.kind === 'await' ? 'await' : 'render'} location.`
-                          : description
-                      }
+                      aria-label={accessibleDescription}
                       aria-selected={
                         isTraceFocused && index === safeActiveItemIndex
                       }
@@ -1440,11 +1453,7 @@ function Trace({
                         data-react-source-link={
                           item.reactTiming?.source ? '' : undefined
                         }
-                        title={
-                          item.reactTiming?.source
-                            ? `Open ${item.reactTiming.kind === 'await' ? 'await' : 'render'} location`
-                            : undefined
-                        }
+                        title={sourceTitle}
                         style={{ paddingLeft: `${item.depth * 14 + 4}px` }}
                       >
                         <span className="request-insights-span-label">
@@ -1504,6 +1513,18 @@ function TraceSpanContextMenu({
   }
 
   const label = item.fullLabel ?? item.label
+  let openLocationItem
+  if (item.reactTiming?.source && onOpenReactLocation) {
+    const locationKind = item.reactTiming.kind === 'await' ? 'await' : 'render'
+    openLocationItem = (
+      <ContextMenu.Item
+        className="request-insights-context-item"
+        onClick={() => void onOpenReactLocation(item)}
+      >
+        Open {locationKind} location
+      </ContextMenu.Item>
+    )
+  }
 
   return (
     <ContextMenu.Root onOpenChange={onOpenChange} open={open}>
@@ -1538,15 +1559,7 @@ function TraceSpanContextMenu({
               getValue={() => spanId}
               label="Copy span ID"
             />
-            {item.reactTiming?.source && onOpenReactLocation ? (
-              <ContextMenu.Item
-                className="request-insights-context-item"
-                onClick={() => void onOpenReactLocation(item)}
-              >
-                Open {item.reactTiming.kind === 'await' ? 'await' : 'render'}{' '}
-                location
-              </ContextMenu.Item>
-            ) : null}
+            {openLocationItem}
             <RequestContextMenuItem
               getValue={() =>
                 getRequestInsightSpanAgentPrompt(request.requestId, {
@@ -1639,13 +1652,12 @@ function FetchTable({ fetches }: { fetches: RequestInsightFetch[] }) {
 }
 
 function getRequestOverview(request: RequestInsight) {
-  const isInstantInsights =
-    getRequestInsightKind(request) === 'instant-insights'
-  const method = isInstantInsights
-    ? undefined
-    : (getFirstStringAttribute(request, 'http.method') ??
-      getMethodFromName(request.spans[0]?.name) ??
-      'GET')
+  const method =
+    getRequestInsightKind(request) !== 'request'
+      ? undefined
+      : (getFirstStringAttribute(request, 'http.method') ??
+        getMethodFromName(request.spans[0]?.name) ??
+        'GET')
   const statusCode = getRequestInsightStatusCode(request)
   const erroredSpan = request.spans.find(
     (span) => span.status === 'error' || span.error

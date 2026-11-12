@@ -1,5 +1,8 @@
-// Import cpu-profile first to start profiling early if enabled
+import { getActiveLocalSpan } from '../../server/lib/trace/local-span-recorder'
 import { saveCpuProfile } from '../../server/lib/cpu-profile'
+// Compiler workers enter here without the CLI's Node environment initialization.
+// Install the baseline before any tracing module captures AsyncLocalStorage.
+import '../../server/node-environment-baseline'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { stringBufferUtils } from 'next/dist/compiled/webpack-sources3'
 import { red } from '../../lib/picocolors'
@@ -28,10 +31,10 @@ import {
 import { createEntrypoints } from '../entries'
 import loadConfig from '../../server/config'
 import {
+  Span,
   getTraceEvents,
   initializeTraceState,
   setGlobal,
-  trace,
   type TraceEvent,
   type TraceState,
 } from '../../trace'
@@ -89,141 +92,140 @@ export async function webpackBuildImpl(
   const config = NextBuildContext.config!
   process.env.NEXT_COMPILER_NAME = compilerName || 'server'
 
-  const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
+  const runWebpackCompiler = async (runWebpackSpan: Span) => {
+    const hasDeferredEntries =
+      config.experimental.deferredEntries &&
+      config.experimental.deferredEntries.length > 0
 
-  const hasDeferredEntries =
-    config.experimental.deferredEntries &&
-    config.experimental.deferredEntries.length > 0
+    // Create entrypoints - exclude deferred entries if configured
+    const entrypoints = await nextBuildSpan
+      .traceChild('create-entrypoints')
+      .traceAsyncFn(() =>
+        createEntrypoints({
+          buildId: NextBuildContext.buildId!,
+          config: config,
+          envFiles: NextBuildContext.loadedEnvFiles!,
+          isDev: false,
+          rootDir: dir,
+          pageExtensions: config.pageExtensions!,
+          pagesDir: NextBuildContext.pagesDir!,
+          appDir: NextBuildContext.appDir!,
+          pages: NextBuildContext.mappedPages!,
+          appPaths: NextBuildContext.mappedAppPages!,
+          appDefaultPaths: NextBuildContext.mappedAppDefaults,
+          previewMode: NextBuildContext.previewProps!,
+          rootPaths: NextBuildContext.mappedRootPaths!,
+          hasInstrumentationHook: NextBuildContext.hasInstrumentationHook!,
+          deferredEntriesFilter: hasDeferredEntries ? 'exclude' : undefined,
+        })
+      )
 
-  // Create entrypoints - exclude deferred entries if configured
-  const entrypoints = await nextBuildSpan
-    .traceChild('create-entrypoints')
-    .traceAsyncFn(() =>
-      createEntrypoints({
-        buildId: NextBuildContext.buildId!,
-        config: config,
-        envFiles: NextBuildContext.loadedEnvFiles!,
-        isDev: false,
-        rootDir: dir,
-        pageExtensions: config.pageExtensions!,
-        pagesDir: NextBuildContext.pagesDir!,
-        appDir: NextBuildContext.appDir!,
-        pages: NextBuildContext.mappedPages!,
-        appPaths: NextBuildContext.mappedAppPages!,
-        appDefaultPaths: NextBuildContext.mappedAppDefaults,
-        previewMode: NextBuildContext.previewProps!,
-        rootPaths: NextBuildContext.mappedRootPaths!,
-        hasInstrumentationHook: NextBuildContext.hasInstrumentationHook!,
-        deferredEntriesFilter: hasDeferredEntries ? 'exclude' : undefined,
+    // Create deferred entrypoints if configured
+    const deferredEntrypoints = hasDeferredEntries
+      ? await nextBuildSpan
+          .traceChild('create-deferred-entrypoints')
+          .traceAsyncFn(() =>
+            createEntrypoints({
+              buildId: NextBuildContext.buildId!,
+              config: config,
+              envFiles: NextBuildContext.loadedEnvFiles!,
+              isDev: false,
+              rootDir: dir,
+              pageExtensions: config.pageExtensions!,
+              pagesDir: NextBuildContext.pagesDir!,
+              appDir: NextBuildContext.appDir!,
+              pages: NextBuildContext.mappedPages!,
+              appPaths: NextBuildContext.mappedAppPages!,
+              appDefaultPaths: NextBuildContext.mappedAppDefaults,
+              previewMode: NextBuildContext.previewProps!,
+              rootPaths: NextBuildContext.mappedRootPaths!,
+              hasInstrumentationHook: NextBuildContext.hasInstrumentationHook!,
+              deferredEntriesFilter: 'only',
+            })
+          )
+      : null
+
+    const commonWebpackOptions = {
+      isServer: false,
+      isCompileMode: NextBuildContext.isCompileMode,
+      buildId: NextBuildContext.buildId!,
+      encryptionKey: NextBuildContext.encryptionKey!,
+      config: config,
+      appDir: NextBuildContext.appDir!,
+      pagesDir: NextBuildContext.pagesDir!,
+      rewrites: NextBuildContext.rewrites!,
+      noMangling: NextBuildContext.noMangling!,
+      clientRouterFilters: NextBuildContext.clientRouterFilters!,
+      previewProps: NextBuildContext.previewProps!,
+      allowedRevalidateHeaderKeys:
+        NextBuildContext.allowedRevalidateHeaderKeys!,
+      fetchCacheKeyPrefix: NextBuildContext.fetchCacheKeyPrefix!,
+    }
+
+    const configs = await runWebpackSpan
+      .traceChild('generate-webpack-config')
+      .traceAsyncFn(async () => {
+        const info = await loadProjectInfo({
+          dir,
+          config: commonWebpackOptions.config,
+          dev: false,
+        })
+        return Promise.all([
+          getBaseWebpackConfig(dir, {
+            ...commonWebpackOptions,
+            middlewareMatchers: entrypoints.middlewareMatchers,
+            runWebpackSpan: runWebpackSpan!,
+            compilerType: COMPILER_NAMES.client,
+            entrypoints: entrypoints.client,
+            deferredEntrypoints: deferredEntrypoints?.client,
+            deferredEntrySourceDirectories:
+              deferredEntrypoints?.entrySourceDirectories,
+            ...info,
+          }),
+          getBaseWebpackConfig(dir, {
+            ...commonWebpackOptions,
+            runWebpackSpan: runWebpackSpan!,
+            middlewareMatchers: entrypoints.middlewareMatchers,
+            compilerType: COMPILER_NAMES.server,
+            entrypoints: entrypoints.server,
+            deferredEntrypoints: deferredEntrypoints?.server,
+            deferredEntrySourceDirectories:
+              deferredEntrypoints?.entrySourceDirectories,
+            ...info,
+          }),
+          getBaseWebpackConfig(dir, {
+            ...commonWebpackOptions,
+            runWebpackSpan: runWebpackSpan!,
+            middlewareMatchers: entrypoints.middlewareMatchers,
+            compilerType: COMPILER_NAMES.edgeServer,
+            entrypoints: entrypoints.edgeServer,
+            deferredEntrypoints: deferredEntrypoints?.edgeServer,
+            deferredEntrySourceDirectories:
+              deferredEntrypoints?.entrySourceDirectories,
+            ...info,
+          }),
+        ])
       })
-    )
 
-  // Create deferred entrypoints if configured
-  const deferredEntrypoints = hasDeferredEntries
-    ? await nextBuildSpan
-        .traceChild('create-deferred-entrypoints')
-        .traceAsyncFn(() =>
-          createEntrypoints({
-            buildId: NextBuildContext.buildId!,
-            config: config,
-            envFiles: NextBuildContext.loadedEnvFiles!,
-            isDev: false,
-            rootDir: dir,
-            pageExtensions: config.pageExtensions!,
-            pagesDir: NextBuildContext.pagesDir!,
-            appDir: NextBuildContext.appDir!,
-            pages: NextBuildContext.mappedPages!,
-            appPaths: NextBuildContext.mappedAppPages!,
-            appDefaultPaths: NextBuildContext.mappedAppDefaults,
-            previewMode: NextBuildContext.previewProps!,
-            rootPaths: NextBuildContext.mappedRootPaths!,
-            hasInstrumentationHook: NextBuildContext.hasInstrumentationHook!,
-            deferredEntriesFilter: 'only',
-          })
-        )
-    : null
+    const clientConfig = configs[0]
+    const serverConfig = configs[1]
+    const edgeConfig = configs[2]
 
-  const commonWebpackOptions = {
-    isServer: false,
-    isCompileMode: NextBuildContext.isCompileMode,
-    buildId: NextBuildContext.buildId!,
-    encryptionKey: NextBuildContext.encryptionKey!,
-    config: config,
-    appDir: NextBuildContext.appDir!,
-    pagesDir: NextBuildContext.pagesDir!,
-    rewrites: NextBuildContext.rewrites!,
-    noMangling: NextBuildContext.noMangling!,
-    clientRouterFilters: NextBuildContext.clientRouterFilters!,
-    previewProps: NextBuildContext.previewProps!,
-    allowedRevalidateHeaderKeys: NextBuildContext.allowedRevalidateHeaderKeys!,
-    fetchCacheKeyPrefix: NextBuildContext.fetchCacheKeyPrefix!,
-  }
+    if (
+      clientConfig.optimization &&
+      (clientConfig.optimization.minimize !== true ||
+        (clientConfig.optimization.minimizer &&
+          clientConfig.optimization.minimizer.length === 0))
+    ) {
+      Log.warn(
+        `Production code optimization has been disabled in your project. Read more: https://nextjs.org/docs/messages/minification-disabled`
+      )
+    }
 
-  const configs = await runWebpackSpan
-    .traceChild('generate-webpack-config')
-    .traceAsyncFn(async () => {
-      const info = await loadProjectInfo({
-        dir,
-        config: commonWebpackOptions.config,
-        dev: false,
-      })
-      return Promise.all([
-        getBaseWebpackConfig(dir, {
-          ...commonWebpackOptions,
-          middlewareMatchers: entrypoints.middlewareMatchers,
-          runWebpackSpan,
-          compilerType: COMPILER_NAMES.client,
-          entrypoints: entrypoints.client,
-          deferredEntrypoints: deferredEntrypoints?.client,
-          deferredEntrySourceDirectories:
-            deferredEntrypoints?.entrySourceDirectories,
-          ...info,
-        }),
-        getBaseWebpackConfig(dir, {
-          ...commonWebpackOptions,
-          runWebpackSpan,
-          middlewareMatchers: entrypoints.middlewareMatchers,
-          compilerType: COMPILER_NAMES.server,
-          entrypoints: entrypoints.server,
-          deferredEntrypoints: deferredEntrypoints?.server,
-          deferredEntrySourceDirectories:
-            deferredEntrypoints?.entrySourceDirectories,
-          ...info,
-        }),
-        getBaseWebpackConfig(dir, {
-          ...commonWebpackOptions,
-          runWebpackSpan,
-          middlewareMatchers: entrypoints.middlewareMatchers,
-          compilerType: COMPILER_NAMES.edgeServer,
-          entrypoints: entrypoints.edgeServer,
-          deferredEntrypoints: deferredEntrypoints?.edgeServer,
-          deferredEntrySourceDirectories:
-            deferredEntrypoints?.entrySourceDirectories,
-          ...info,
-        }),
-      ])
-    })
+    webpackBuildStart = process.hrtime()
 
-  const clientConfig = configs[0]
-  const serverConfig = configs[1]
-  const edgeConfig = configs[2]
-
-  if (
-    clientConfig.optimization &&
-    (clientConfig.optimization.minimize !== true ||
-      (clientConfig.optimization.minimizer &&
-        clientConfig.optimization.minimizer.length === 0))
-  ) {
-    Log.warn(
-      `Production code optimization has been disabled in your project. Read more: https://nextjs.org/docs/messages/minification-disabled`
-    )
-  }
-
-  webpackBuildStart = process.hrtime()
-
-  debug(`starting compiler`, compilerName)
-  // We run client and server compilation separately to optimize for memory usage
-  await runWebpackSpan.traceAsyncFn(async () => {
+    debug(`starting compiler`, compilerName)
+    // We run client and server compilation separately to optimize for memory usage
     if (config.experimental.webpackMemoryOptimizations) {
       stringBufferUtils.disableDualStringBufferCaching()
       stringBufferUtils.enterStringInterningRange()
@@ -247,7 +249,7 @@ export async function webpackBuildImpl(
       debug('starting server compiler')
       const start = Date.now()
       ;[serverResult, inputFileSystem] = await runCompiler(serverConfig, {
-        runWebpackSpan,
+        runWebpackSpan: runWebpackSpan!,
         inputFileSystem,
       })
       debug(`server compiler finished ${Date.now() - start}ms`)
@@ -257,7 +259,10 @@ export async function webpackBuildImpl(
       debug('starting edge-server compiler')
       const start = Date.now()
       ;[edgeServerResult, inputFileSystem] = edgeConfig
-        ? await runCompiler(edgeConfig, { runWebpackSpan, inputFileSystem })
+        ? await runCompiler(edgeConfig, {
+            runWebpackSpan: runWebpackSpan!,
+            inputFileSystem,
+          })
         : [null]
       debug(`edge-server compiler finished ${Date.now() - start}ms`)
     }
@@ -291,7 +296,7 @@ export async function webpackBuildImpl(
         debug('starting client compiler')
         const start = Date.now()
         ;[clientResult, inputFileSystem] = await runCompiler(clientConfig, {
-          runWebpackSpan,
+          runWebpackSpan: runWebpackSpan!,
           inputFileSystem,
         })
         debug(`client compiler finished ${Date.now() - start}ms`)
@@ -320,17 +325,27 @@ export async function webpackBuildImpl(
         edgeServerResult?.stats,
       ],
     }
-  })
+    return { clientConfig, serverConfig }
+  }
+  const {
+    clientConfig: clientWebpackConfig,
+    serverConfig: serverWebpackConfig,
+  } = await new Span({
+    name: 'run-webpack-compiler',
+    parent: nextBuildSpan,
+    recordToInsights: true,
+    scope: true,
+  }).traceAsyncFn(runWebpackCompiler)
   result = nextBuildSpan
     .traceChild('format-webpack-messages')
     .traceFn(() => formatWebpackMessages(result, true)) as CompilerResult
 
-  const telemetryPlugin = (clientConfig as webpack.Configuration).plugins?.find(
-    isTelemetryPlugin
-  )
+  const telemetryPlugin = (
+    clientWebpackConfig as webpack.Configuration
+  ).plugins?.find(isTelemetryPlugin)
 
   const traceEntryPointsPlugin = (
-    serverConfig as webpack.Configuration
+    serverWebpackConfig as webpack.Configuration
   ).plugins?.find(isTraceEntryPointsPlugin)
 
   const webpackBuildEnd = process.hrtime(webpackBuildStart)
@@ -436,9 +451,11 @@ export async function workerMain(workerData: {
     }
   ))
   await installBindings(config.experimental?.useWasmBinary)
-  NextBuildContext.nextBuildSpan = trace(
-    `worker-main-${workerData.compilerName}`
-  )
+  NextBuildContext.nextBuildSpan = new Span({
+    name: `worker-main-${workerData.compilerName}`,
+    parent: getActiveLocalSpan(),
+    recordToInsights: true,
+  })
 
   const result = await webpackBuildImpl(workerData.compilerName)
   const { entriesTrace, chunksTrace } = result.buildTraceContext ?? {}
@@ -462,5 +479,8 @@ export async function workerMain(workerData: {
   // Save CPU profile before worker exits
   await saveCpuProfile()
 
-  return { ...result, debugTraceEvents: getTraceEvents() }
+  return {
+    ...result,
+    debugTraceEvents: getTraceEvents(),
+  }
 }

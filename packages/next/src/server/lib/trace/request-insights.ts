@@ -204,7 +204,9 @@ class InMemoryRequestInsightsStore {
     insight.route = insight.route ?? span.route
     insight.url = insight.url ?? sanitizeUrl(span.url)
     const spanType = span.attributes?.['next.span_type']
-    const isRequestSpan = spanType === REQUEST_INSIGHT_REQUEST_SPAN_TYPE
+    const isRequestSpan =
+      spanType === REQUEST_INSIGHT_REQUEST_SPAN_TYPE ||
+      span.requestInsightRoot === true
     if (insight.completedAt === undefined) {
       this.updateTiming(insight, spanStartTime, span.durationMs, isRequestSpan)
     }
@@ -226,7 +228,8 @@ class InMemoryRequestInsightsStore {
 
     if (
       span.durationMs !== undefined &&
-      spanType === AppRenderSpan.instantInsights
+      (spanType === AppRenderSpan.instantInsights ||
+        span.requestInsightRoot === true)
     ) {
       this.complete(insight, spanStartTime + span.durationMs)
     }

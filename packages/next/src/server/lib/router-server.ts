@@ -1,4 +1,4 @@
-// this must come first as it includes require hooks
+import { Span } from '../../trace'
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 import type { DevBundler, ServerFields } from './router-utils/setup-dev-bundler'
 import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
@@ -42,7 +42,6 @@ import {
 } from '../../shared/lib/constants'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { DevBundlerService } from './dev-bundler-service'
-import { type Span, trace } from '../../trace'
 import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-slash'
 import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-pathname-info'
 import { getHostname } from '../../shared/lib/get-hostname'
@@ -76,6 +75,7 @@ import {
   isRequestInsightsEnabled,
   readRequestInsightsHistory,
   recordRequestInsightSource,
+  registerRequestInsightsExporter,
 } from './trace/request-insights'
 import {
   NEXT_HTML_REQUEST_ID_HEADER,
@@ -83,7 +83,10 @@ import {
 } from '../../client/components/app-router-headers'
 import { nanoid } from 'next/dist/compiled/nanoid'
 import { filterInvalidDevRequestIdHeaders } from './dev-request-id'
-import { resolveRequestInsightsIdentity } from './trace/request-insights-identity'
+import {
+  resolveRequestInsightsIdentity,
+  runWithRequestInsightsIdentity,
+} from './trace/request-insights-identity'
 import { waitForResponseToFinish } from '../app-render/wait-for-response'
 import {
   REQUEST_INSIGHT_FILTERS,
@@ -189,6 +192,10 @@ export async function initialize(opts: {
   if (bundlerBeforeConfig !== undefined) {
     finalizeBundlerFromConfig(bundlerBeforeConfig)
   }
+  if (opts.dev && config.experimental.requestInsights) {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    registerRequestInsightsExporter()
+  }
 
   let compress: ReturnType<typeof setupCompression> | undefined
 
@@ -235,109 +242,111 @@ export async function initialize(opts: {
       ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = false
     }
 
-    const setupDevBundlerSpan = opts.startServerSpan
-      ? opts.startServerSpan.traceChild('setup-dev-bundler')
-      : trace('setup-dev-bundler')
+    const { developmentBundler, developmentConfig } = await new Span({
+      name: 'setup-dev-bundler',
+      parent: opts.startServerSpan,
+      recordToInsights: true,
+      scope: true,
+    }).traceAsyncFn(async () => {
+      // In development, it's always the complete config.
+      const resolvedDevelopmentConfig = config as NextConfigComplete
 
-    // In development, it's always the complete config.
-    let developmentConfig = config as NextConfigComplete
-
-    // Check only development; production startup does not query advisories.
-    if (
-      developmentConfig.experimental.agentUpgrade === 'security' ||
-      developmentConfig.experimental.agentUpgrade === 'latest' ||
-      developmentConfig.experimental.agentUpgrade === 'experimental-future' ||
-      process.env.__NEXT_AGENT_UPGRADE ||
-      process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
-    ) {
-      const { nudgeUpgrade, getUpgradeContext, assessUpgrade } =
-        require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
-      const upgradeContext = getUpgradeContext(developmentConfig)
-      const installedVersion = process.env.__NEXT_VERSION || 'unknown'
-      const policy = upgradeContext.experimental.agentUpgrade
-      const forced = process.env.__NEXT_AGENT_UPGRADE === policy
-      const forceDevToolsForTesting =
+      // Check only development; production startup does not query advisories.
+      if (
+        resolvedDevelopmentConfig.experimental.agentUpgrade === 'security' ||
+        resolvedDevelopmentConfig.experimental.agentUpgrade === 'latest' ||
+        resolvedDevelopmentConfig.experimental.agentUpgrade ===
+          'experimental-future' ||
+        process.env.__NEXT_AGENT_UPGRADE ||
         process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
-      const assessment: ReturnType<typeof assessUpgrade> =
-        isCI || forceDevToolsForTesting
-          ? Promise.resolve(null)
-          : assessUpgrade(
-              opts.dir,
-              upgradeContext,
-              installedVersion,
-              null,
-              forced
+      ) {
+        const { nudgeUpgrade, getUpgradeContext, assessUpgrade } =
+          require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
+        const upgradeContext = getUpgradeContext(resolvedDevelopmentConfig)
+        const installedVersion = process.env.__NEXT_VERSION || 'unknown'
+        const policy = upgradeContext.experimental.agentUpgrade
+        const forced = process.env.__NEXT_AGENT_UPGRADE === policy
+        const forceDevToolsForTesting =
+          process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
+        const assessment: ReturnType<typeof assessUpgrade> =
+          isCI || forceDevToolsForTesting
+            ? Promise.resolve(null)
+            : assessUpgrade(
+                opts.dir,
+                upgradeContext,
+                installedVersion,
+                null,
+                forced
+              )
+        hasVulnerabilityInsight = assessment.then(
+          (result) => result?.kind === 'security' || forceDevToolsForTesting,
+          (error) => {
+            Log.warn(`Could not check the DevTools security insight: ${error}`)
+            return false
+          }
+        )
+        if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1' && process.send) {
+          // The CLI shows the menu; keep serving instead of waiting for it.
+          void Promise.allSettled([assessment]).then(([promptAssessment]) => {
+            if (process.connected) {
+              process.send!({
+                nextUpgradeContext: upgradeContext,
+                telemetryDisabled: process.env.NEXT_TELEMETRY_DISABLED,
+                ...(promptAssessment.status === 'fulfilled'
+                  ? { nextUpgradeAssessment: promptAssessment.value }
+                  : {}),
+              })
+            }
+          })
+        } else {
+          // CI skips the DevTools assessment, but agents still need the nudge.
+          void nudgeUpgrade(
+            opts.dir,
+            upgradeContext,
+            'dev',
+            null,
+            isCI || forceDevToolsForTesting ? null : assessment,
+            {
+              telemetry,
+              onNudgeId: null,
+            }
+          ).catch((error) => {
+            const { printAndExit } =
+              require('./utils') as typeof import('./utils')
+            const exitCode =
+              error && typeof error === 'object'
+                ? Reflect.get(error, 'exitCode')
+                : undefined
+            printAndExit(
+              error instanceof Error ? error.message : String(error),
+              typeof exitCode === 'number' ? exitCode : 1
             )
-      hasVulnerabilityInsight = assessment.then(
-        (result) => result?.kind === 'security' || forceDevToolsForTesting,
-        (error) => {
-          Log.warn(`Could not check the DevTools security insight: ${error}`)
-          return false
+          })
         }
-      )
-      if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1' && process.send) {
-        // The CLI shows the menu; keep serving instead of waiting for it.
-        void Promise.allSettled([assessment]).then(([promptAssessment]) => {
-          if (process.connected) {
-            process.send!({
-              nextUpgradeContext: upgradeContext,
-              telemetryDisabled: process.env.NEXT_TELEMETRY_DISABLED,
-              ...(promptAssessment.status === 'fulfilled'
-                ? { nextUpgradeAssessment: promptAssessment.value }
-                : {}),
-            })
-          }
-        })
-      } else {
-        // CI skips the DevTools assessment, but agents still need the nudge.
-        void nudgeUpgrade(
-          opts.dir,
-          upgradeContext,
-          'dev',
-          null,
-          isCI || forceDevToolsForTesting ? null : assessment,
-          {
-            telemetry,
-            onNudgeId: null,
-          }
-        ).catch((error) => {
-          const { printAndExit } =
-            require('./utils') as typeof import('./utils')
-          const exitCode =
-            error && typeof error === 'object'
-              ? Reflect.get(error, 'exitCode')
-              : undefined
-          printAndExit(
-            error instanceof Error ? error.message : String(error),
-            typeof exitCode === 'number' ? exitCode : 1
-          )
-        })
       }
-    }
 
-    // Resolve the effective serverFastRefresh value.
-    // Both default to enabled (true). CLI takes precedence over config.
-    const cliServerFastRefresh = opts.serverFastRefresh
-    const configServerFastRefresh =
-      developmentConfig.experimental?.turbopackServerFastRefresh
-    let effectiveServerFastRefresh: boolean | undefined
-    if (
-      cliServerFastRefresh !== undefined &&
-      configServerFastRefresh !== undefined &&
-      cliServerFastRefresh !== configServerFastRefresh
-    ) {
-      Log.warn(
-        `The CLI flag "${cliServerFastRefresh === false ? '--no-server-fast-refresh' : '--server-fast-refresh'}" conflicts with "experimental.turbopackServerFastRefresh: ${configServerFastRefresh}" in your Next.js config. The CLI flag will take precedence.`
-      )
-      effectiveServerFastRefresh = cliServerFastRefresh
-    } else {
-      // Default to true when neither CLI nor config specifies a value.
-      effectiveServerFastRefresh =
-        cliServerFastRefresh ?? configServerFastRefresh ?? true
-    }
+      // Resolve the effective serverFastRefresh value.
+      // Both default to enabled (true). CLI takes precedence over config.
+      const cliServerFastRefresh = opts.serverFastRefresh
+      const configServerFastRefresh =
+        resolvedDevelopmentConfig.experimental?.turbopackServerFastRefresh
+      let effectiveServerFastRefresh: boolean | undefined
+      if (
+        cliServerFastRefresh !== undefined &&
+        configServerFastRefresh !== undefined &&
+        cliServerFastRefresh !== configServerFastRefresh
+      ) {
+        Log.warn(
+          `The CLI flag "${cliServerFastRefresh === false ? '--no-server-fast-refresh' : '--server-fast-refresh'}" conflicts with "experimental.turbopackServerFastRefresh: ${configServerFastRefresh}" in your Next.js config. The CLI flag will take precedence.`
+        )
+        effectiveServerFastRefresh = cliServerFastRefresh
+      } else {
+        // Default to true when neither CLI nor config specifies a value.
+        effectiveServerFastRefresh =
+          cliServerFastRefresh ?? configServerFastRefresh ?? true
+      }
 
-    let developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
-      setupDevBundler({
+      const initializedBundler = await setupDevBundler({
         // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
         renderServer,
         appDir,
@@ -345,7 +354,7 @@ export async function initialize(opts: {
         telemetry,
         fsChecker,
         dir: opts.dir,
-        nextConfig: developmentConfig,
+        nextConfig: resolvedDevelopmentConfig,
         isCustomServer: opts.customServer,
         turbo: !!process.env.TURBOPACK,
         port: opts.port,
@@ -354,7 +363,11 @@ export async function initialize(opts: {
         serverFastRefresh: effectiveServerFastRefresh,
         hasVulnerabilityInsight,
       })
-    )
+      return {
+        developmentBundler: initializedBundler,
+        developmentConfig: resolvedDevelopmentConfig,
+      }
+    })
 
     let devBundlerService = new DevBundlerService(
       developmentBundler,
@@ -382,25 +395,7 @@ export async function initialize(opts: {
     addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
     const assetPrefix = getAssetPrefix()
 
-    // internal headers should not be honored by the request handler
-    if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
-      filterInternalHeaders(req.headers)
-    }
-
     if (opts.dev && req.url) {
-      if (config.experimental.requestInsights) {
-        process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-        filterInvalidDevRequestIdHeaders(req.headers)
-        const identity = resolveRequestInsightsIdentity({
-          previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
-          requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
-          htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
-          url: req.url,
-          createRequestId: nanoid,
-        })
-        addRequestMeta(req, 'requestInsightsIdentity', identity)
-      }
-
       const urlParts = req.url.split('?', 1)
       const pathname = removePathPrefix(urlParts[0] || '', config.basePath)
 
@@ -502,14 +497,14 @@ export async function initialize(opts: {
             if (
               kindValue !== null &&
               kindValue !== 'request' &&
-              kindValue !== 'instant-insights'
+              kindValue !== 'instant-insights' &&
+              kindValue !== 'tooling'
             ) {
               res.statusCode = 400
               res.end(JSON.stringify({ error: 'Invalid request kind' }))
               return
             }
-            const kind =
-              kindValue === 'instant-insights' ? 'instant-insights' : 'request'
+            const kind = kindValue ?? 'request'
             if (!requestId || requestId.length > 256) {
               res.statusCode = 400
               res.end(
@@ -1107,7 +1102,28 @@ export async function initialize(opts: {
   }
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
+    // Filter before resolving the server-owned request identity.
+    if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
+      filterInternalHeaders(req.headers)
+    }
+    if (opts.dev && req.url && config.experimental.requestInsights) {
+      filterInvalidDevRequestIdHeaders(req.headers)
+      const identity = resolveRequestInsightsIdentity({
+        previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
+        requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
+        htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
+        url: req.url,
+        createRequestId: nanoid,
+      })
+      addRequestMeta(req, 'requestInsightsIdentity', identity)
+    }
     try {
+      const identity = getRequestMeta(req, 'requestInsightsIdentity')
+      if (opts.dev && config.experimental.requestInsights && identity) {
+        return await runWithRequestInsightsIdentity(identity, () =>
+          requestHandlerInner(req, res)
+        )
+      }
       return await requestHandlerInner(req, res)
     } finally {
       if (opts.dev && config.experimental.requestInsights) {

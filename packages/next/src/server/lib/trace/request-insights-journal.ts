@@ -373,14 +373,17 @@ class RequestInsightsJournal {
     const showInternal = filter.showInternal ?? false
     const visible = [...this.summaries.values()].filter(
       ({ request }) =>
-        showInternal || getRequestInsightKind(request) === 'request'
+        showInternal || getRequestInsightKind(request) !== 'instant-insights'
     )
     const optionCounts = Object.fromEntries(
       REQUEST_INSIGHT_FILTERS.map((requestFilter) => [requestFilter, 0])
     ) as Record<RequestInsightFilter, number>
     for (const { request } of this.summaries.values()) {
       const tags = getRequestInsightTags(request)
-      if (getRequestInsightKind(request) === 'request' || showInternal) {
+      if (
+        getRequestInsightKind(request) !== 'instant-insights' ||
+        showInternal
+      ) {
         for (const tag of tags) {
           optionCounts[tag]++
         }

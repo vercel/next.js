@@ -80,9 +80,16 @@ export async function nextRequestInsights(
     const route = request.route ?? request.url ?? request.requestId
     const kind = getRequestInsightKind(request)
     const duration = formatDuration(request.durationMs)
-    console.log(
-      `${kind === 'instant-insights' ? `Instant Insights · ${route}` : route} ${duration} ${request.status ?? 'pending'}`
-    )
+    let displayRoute = route
+    switch (kind) {
+      case 'instant-insights':
+        displayRoute = `Instant Insights · ${route}`
+        break
+      case 'tooling':
+        displayRoute = `Tooling · ${route}`
+        break
+    }
+    console.log(`${displayRoute} ${duration} ${request.status ?? 'pending'}`)
     console.log(
       `  kind ${kind} request ${shortId(request.requestId)} page ${shortId(request.htmlRequestId)}`
     )
