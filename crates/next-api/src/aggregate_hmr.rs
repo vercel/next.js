@@ -7,7 +7,8 @@ use anyhow::Result;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TransientInstance, TryJoinIterExt,
+    Vc,
     debug::ValueDebugFormat,
     message_queue::{CompilationEvent, Severity},
     turbo_tasks,
@@ -22,9 +23,7 @@ use turbopack_ecmascript::chunk_list::{
     update::{ChunkListUpdate, ChunkUpdate, EcmascriptUpdateInstruction},
     version::ChunkListVersion,
 };
-use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::{
-    EcmascriptBuildNodeChunkListContent, compute_update_from_version_operation,
-};
+use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::EcmascriptBuildNodeChunkListContent;
 
 #[derive(Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct ServerHmrChunkList {
@@ -136,7 +135,7 @@ impl ChunkListUpdateBuilder {
 }
 
 /// An update plus the baseline for the next pull.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub enum ServerHmrUpdate {
     /// No runtime update and the graph is equivalent. However, `to` may still advance the pull
     /// version.
@@ -150,6 +149,32 @@ pub enum ServerHmrUpdate {
         to: ReadRef<ServerHmrChunkListVersion>,
         instruction: UpdateInstruction,
     },
+}
+
+/// The baseline of one pull, split per chunk list.
+///
+/// It is created once per pull, outside of Turbo Tasks, and passed to the pull operation as a
+/// [`TransientInstance`]. The per-chunk-list [`TransientInstance`]s key the diff tasks, so they
+/// stay the same while the pull operation re-executes to settle, and they are never shared with
+/// another pull.
+#[derive(NonLocalValue)]
+pub struct ServerHmrPullBaseline {
+    version: ReadRef<ServerHmrChunkListVersion>,
+    chunk_list_versions: FxIndexMap<RcStr, TransientInstance<ReadRef<ChunkListVersion>>>,
+}
+
+impl ServerHmrPullBaseline {
+    pub fn new(version: ReadRef<ServerHmrChunkListVersion>) -> Self {
+        let chunk_list_versions = version
+            .versions_by_chunk_list_path
+            .iter()
+            .map(|(path, version)| (path.clone(), TransientInstance::new(version.clone())))
+            .collect();
+        Self {
+            version,
+            chunk_list_versions,
+        }
+    }
 }
 
 struct DiffResult {
@@ -199,15 +224,21 @@ impl CompilationEvent for ServerHmrChunkListDiffEvent {
     }
 }
 
+/// Diffs `chunk_lists` against the pull baseline `from`.
+///
+/// Must be called from the task that also produced `chunk_lists` (or that connected their
+/// producer): the diff only reads the chunk-list contents, so a strongly consistent read covers
+/// their producers only when they are part of the same call tree.
 async fn diff_chunks_against(
     chunk_lists: &[ServerHmrChunkList],
-    from: &ServerHmrChunkListVersion,
+    from: &ServerHmrPullBaseline,
 ) -> Result<DiffResult> {
     let current_chunk_list_paths = chunk_lists
         .iter()
         .map(|chunk_list| &chunk_list.relative_path)
         .collect::<FxIndexSet<_>>();
     let has_removed_chunk_lists = from
+        .version
         .versions_by_chunk_list_path
         .keys()
         .any(|path| !current_chunk_list_paths.contains(path));
@@ -224,22 +255,14 @@ async fn diff_chunks_against(
                         chunk_list_path: relative_path.clone(),
                     }));
                 }
-                let Some(prev) = from.versions_by_chunk_list_path.get(relative_path).cloned()
-                else {
+                let Some(prev) = from.chunk_list_versions.get(relative_path).cloned() else {
                     has_new_chunk_lists = true;
                     return None;
                 };
                 Some((*versioned_content, prev))
             },
         )
-        .map(|(content, prev)| async move {
-            compute_update_from_version_operation(
-                content,
-                turbo_tasks::TransientInstance::new(prev),
-            )
-            .read_strongly_consistent()
-            .await
-        })
+        .map(|(content, prev)| async move { content.compute_update_from_version(prev).await })
         .try_join()
         .await?;
     Ok(DiffResult {
@@ -302,10 +325,17 @@ fn classify_server_hmr_update<'a>(
     }
 }
 
-/// Kept outside Turbo Tasks so old pull baselines cannot reactivate.
+/// Computes the update of a pull from its chunk lists, the pull baseline `from` and the version
+/// `to` of `chunk_lists`.
+///
+/// Must be called from the pull operation that also produced `chunk_lists` and `to`, so that the
+/// update, `to` and the applied effects all come from the same settled state (see
+/// `diff_chunks_against`). That operation is keyed by the pull's [`TransientInstance`], so its
+/// diff tasks become inactive once the pull's top-level task has finished and can't be re-executed
+/// for an old baseline.
 pub async fn compute_server_hmr_update(
     chunk_lists: &[ServerHmrChunkList],
-    from: Option<&ServerHmrChunkListVersion>,
+    from: Option<&ServerHmrPullBaseline>,
     to: ReadRef<ServerHmrChunkListVersion>,
 ) -> Result<ServerHmrUpdate> {
     if chunk_lists.is_empty() {
