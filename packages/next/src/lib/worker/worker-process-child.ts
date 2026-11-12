@@ -1,17 +1,30 @@
 /**
  * Child-process entry point for the worker pool.
  *
- * This file is loaded by `child_process.fork()`. It creates a transport
- * that uses `process.send()` / `process.on('message')` and delegates all
- * protocol handling to `createMessageHandler` from the shared module.
+ * This file is loaded by `child_process.fork()`, or spawned by the fork server
+ * (see `fork-server.ts`), which sets up the same Node IPC channel. It creates a
+ * transport that uses `process.send()` / `process.on('message')` and delegates
+ * all protocol handling to `createMessageHandler` from the shared module.
  */
-import type { ChildMessage } from './types'
+import { FORK_SERVER_WORKER_ENV, type ChildMessage } from './types'
 import {
   createMessageHandler,
   type ChildTransport,
 } from './worker-child-common'
 
 let disconnected = false
+
+// A forked worker is a child of the main process. A worker spawned by the fork
+// server isn't (its parent is the fork server's helper), so make sure it can't
+// outlive the main process: exit when the main process goes away and closes
+// the IPC channel, even if leftover handles would keep it alive.
+if (process.env[FORK_SERVER_WORKER_ENV]) {
+  // Don't pass this on to processes spawned by user code.
+  delete process.env[FORK_SERVER_WORKER_ENV]
+  process.on('disconnect', () => {
+    if (!disconnected) process.exit(0)
+  })
+}
 
 const transport: ChildTransport = {
   send(message: unknown[]): void {

@@ -10,6 +10,7 @@ Custom worker pool implementation for Next.js, replacing `jest-worker`.
 - **Boot throttling**: `maxBootingWorkers` limits how many workers start concurrently, preventing resource contention when many tasks arrive at once
 - **Fault recovery**: Workers that exit unexpectedly are removed from the pool; queued tasks are drained to remaining workers or trigger new worker spawns. The high-level `Worker` class supports `maxRetries` to automatically re-dispatch failed calls.
 - **Individual worker restart**: Hung or failed workers are restarted without affecting others
+- **Fork server**: Child processes can optionally be spawned through a small helper process instead of forking the (potentially very large) current process
 
 ## Architecture
 
@@ -18,14 +19,17 @@ Worker (high-level wrapper, index.ts)
   ├── Handles: timeout/restart, activity tracking, NODE_OPTIONS, color propagation
   ├── Exposes: named methods from worker modules (e.g. isPageStatic, exportPages)
   └── WorkerPool (low-level pool, worker-pool.ts)
-        ├── WorkerHandle — uniform abstraction over ChildProcess / NodeWorker
+        ├── WorkerHandle — uniform abstraction over ChildProcess / ForkServerWorkerProcess / NodeWorker
         ├── Handles: process lifecycle, lazy spawning, task queue, message routing
-        ├── ChildProcess mode: fork(worker-process-child.js)
+        ├── ChildProcess mode: fork(worker-process-child.js), or spawned by a ForkServer
         └── WorkerThread mode: new Worker(worker-thread-child.js)
 
 worker-child-common.ts   — shared protocol logic (ChildTransport + createMessageHandler)
-worker-process-child.ts  — child_process entry: thin wrapper using process.send/on('message')
+worker-process-child.ts  — child_process entry: thin wrapper using process.send/on('message') (forked, or spawned by the fork server)
 worker-thread-child.ts   — worker_threads entry: thin wrapper using parentPort
+fork-server.ts           — ForkServer (main process side) and ForkServerWorkerProcess
+fork-server-child.ts     — fork server helper process entry
+json-line-channel.ts     — main-process side of Node's IPC wire format (newline-delimited JSON) for fork server workers
 types.ts                 — shared message type constants and TypeScript types
 ```
 
@@ -55,6 +59,22 @@ Communication between parent and child uses arrays sent over IPC (child_process)
 Each CALL gets a unique `requestId` so responses can be correlated, enabling multiple concurrent calls per worker. The READY message is sent once per worker after the module is loaded and optional `setup()` completes, signaling the worker is fully initialized. If `setup()` fails, READY is not sent; the SETUP_ERROR handler frees the booting slot instead and the worker keeps serving calls, since its module is loaded.
 
 If loading the module itself fails (`require()` throws), the child sends LOAD_ERROR instead. That worker can't serve any call, and every worker loads the same module, so the pool fails the worker's in-flight calls and all queued calls with `Error when loading worker module: <message>`, then removes the worker from the pool and terminates it. This exit is expected: it isn't reported via `onWorkerExit` and doesn't count as a respawn. The next `dispatch()` spawns a fresh worker.
+
+## Fork Server
+
+`child_process.fork()` forks the calling process. When the caller holds a large heap (e.g. `next build` after Turbopack compiled in-process), every fork copies and later tears down its page tables, and the copy-on-write faults and TLB shootdowns it causes slow down the caller's other threads (e.g. Turbopack persisting its cache).
+
+A `ForkServer` (`ForkServer.start()`) is a small helper process, started while the caller is still small. A pool created with `forkServer` asks it to spawn the child-process workers:
+
+- The helper spawns `worker-process-child.js` with stdout, stderr and a message pipe (fd 3), and hands the parent ends of those pipes to the main process (IPC handle passing). The main process then talks to the worker directly; nothing is relayed. The helper only reports when workers exit.
+- In the worker, Node sets up its regular IPC channel on the message pipe (`NODE_CHANNEL_FD`, as `fork()` does), so `process.send()`, `process.on('message')`, `process.disconnect()` etc. work as in a forked worker (e.g. per-page activity in `export/worker.ts`). The main process speaks the same wire format on its end: newline-delimited JSON, Node's default `'json'` serialization. Only messages are supported on that channel; sending handles (sockets, servers) to the main process isn't (the pool never does).
+- A worker's exit is reported after its message pipe closed (bounded by a timeout), so messages written right before exiting are not lost.
+- Its stdout/stderr behave like a forked worker's for the shutdown output wait: they end once everything from the worker's pipes was read (or a pipe errored or closed), and right away if the pipes never arrived (the worker failed to spawn or was lost before). `unref()` on them unrefs the underlying pipe.
+- The helper never keeps the main process alive while no workers are running, and exits when the main process disconnects. Workers it spawned exit when the main process goes away (their IPC channel closes), since they aren't its children.
+- If the helper is lost, workers it hadn't started yet are forked from the main process instead, and workers it started are terminated and reported as crashed (the pool replaces them by forking). `shutdown()` stops the helper; shut down the pools using it first.
+- Not available on Windows (`ForkServer.start()` returns `undefined`, and callers fork as usual).
+
+`next build` uses it for the static workers with Turbopack (see `build/index.ts`).
 
 ## Usage
 
@@ -116,21 +136,22 @@ A worker's `'exit'` event can fire before its last stdout/stderr chunks are read
 
 ### WorkerPool Options
 
-| Option                 | Type      | Default            | Description                                                                                                                                                                             |
-| ---------------------- | --------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `workerPath`           | string    | required           | Absolute path to worker module                                                                                                                                                          |
-| `maxWorkers`           | number    | required           | Maximum worker processes/threads                                                                                                                                                        |
-| `concurrencyPerWorker` | number    | 1                  | Max concurrent calls per worker                                                                                                                                                         |
-| `enableWorkerThreads`  | boolean   | false              | Use worker_threads instead of child_process                                                                                                                                             |
-| `sanitizeArgs`         | boolean   | true               | worker_threads only: JSON round-trip call args (strips functions like child_process does). Set `false` to keep structured clone semantics, e.g. for `SharedArrayBuffer` or typed arrays |
-| `forkOptions.env`      | object    | {}                 | Environment variables for child processes                                                                                                                                               |
-| `forkOptions.execArgv` | string[]  | []                 | Node.js CLI flags for child processes                                                                                                                                                   |
-| `setupArgs`            | unknown[] | []                 | Arguments for worker `setup()` function                                                                                                                                                 |
-| `maxBootingWorkers`    | number    | ceil(maxWorkers/4) | Max workers starting up concurrently (must be >= 1). A worker is "booting" from spawn until it sends READY after module load + setup().                                                 |
-| `timeout`              | number    | undefined          | Per-worker inactivity timeout in ms. Workers with in-flight requests that don't report activity within this window are killed and replaced individually.                                |
-| `onActivity`           | function  | undefined          | `() => void` — called when any worker reports activity (message completion, custom message, ready)                                                                                      |
-| `onWorkerExit`         | function  | undefined          | `(code, signal) => void` — called when a worker exits unexpectedly (not during graceful shutdown)                                                                                       |
-| `onCustomMessage`      | function  | undefined          | `(message) => void` — called when a worker sends a CUSTOM message                                                                                                                       |
+| Option                 | Type       | Default            | Description                                                                                                                                                                             |
+| ---------------------- | ---------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `workerPath`           | string     | required           | Absolute path to worker module                                                                                                                                                          |
+| `maxWorkers`           | number     | required           | Maximum worker processes/threads                                                                                                                                                        |
+| `concurrencyPerWorker` | number     | 1                  | Max concurrent calls per worker                                                                                                                                                         |
+| `enableWorkerThreads`  | boolean    | false              | Use worker_threads instead of child_process                                                                                                                                             |
+| `sanitizeArgs`         | boolean    | true               | worker_threads only: JSON round-trip call args (strips functions like child_process does). Set `false` to keep structured clone semantics, e.g. for `SharedArrayBuffer` or typed arrays |
+| `forkOptions.env`      | object     | {}                 | Environment variables for child processes                                                                                                                                               |
+| `forkOptions.execArgv` | string[]   | []                 | Node.js CLI flags for child processes                                                                                                                                                   |
+| `forkServer`           | ForkServer | undefined          | child_process only: spawn workers through this fork server while it is available, instead of forking the current process (see [Fork Server](#fork-server))                              |
+| `setupArgs`            | unknown[]  | []                 | Arguments for worker `setup()` function                                                                                                                                                 |
+| `maxBootingWorkers`    | number     | ceil(maxWorkers/4) | Max workers starting up concurrently (must be >= 1). A worker is "booting" from spawn until it sends READY after module load + setup().                                                 |
+| `timeout`              | number     | undefined          | Per-worker inactivity timeout in ms. Workers with in-flight requests that don't report activity within this window are killed and replaced individually.                                |
+| `onActivity`           | function   | undefined          | `() => void` — called when any worker reports activity (message completion, custom message, ready)                                                                                      |
+| `onWorkerExit`         | function   | undefined          | `(code, signal) => void` — called when a worker exits unexpectedly (not during graceful shutdown)                                                                                       |
+| `onCustomMessage`      | function   | undefined          | `(message) => void` — called when a worker sends a CUSTOM message                                                                                                                       |
 
 ### WorkerPool Methods
 
@@ -163,6 +184,7 @@ The `Worker` class wraps `WorkerPool` and adds retry logic, NODE_OPTIONS managem
 | `enableSourceMaps`     | boolean             | false              | Adds `--enable-source-maps` to NODE_OPTIONS                                                                                                                                          |
 | `timeout`              | number              | undefined          | Per-worker inactivity timeout in ms. Passed through to WorkerPool.                                                                                                                   |
 | `forkOptions.env`      | object              | {}                 | Merged into worker environment                                                                                                                                                       |
+| `forkServer`           | ForkServer          | undefined          | Passed through to WorkerPool                                                                                                                                                         |
 | `onActivity`           | function            | undefined          | Called when any worker reports activity (used for activity spinners)                                                                                                                 |
 | `onActivityAbort`      | function            | undefined          | Called when a worker produces stdout/stderr output                                                                                                                                   |
 
