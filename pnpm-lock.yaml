@@ -935,6 +935,31 @@ importers:
         specifier: 3.2.7
         version: 3.2.7(postcss@8.5.23)
 
+  bench/large-app-router:
+    dependencies:
+      clsx:
+        specifier: 2.1.1
+        version: 2.1.1
+      dayjs:
+        specifier: 1.11.11
+        version: 1.11.11
+      lodash-es:
+        specifier: 4.17.21
+        version: 4.17.21
+      lucide-react:
+        specifier: 0.554.0
+        version: 0.554.0(react@19.3.0-canary-e84e1492-20261031)
+      next:
+        specifier: workspace:*
+        version: link:../../packages/next
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+    devDependencies:
+      rimraf:
+        specifier: 6.0.1
+        version: 6.0.1
+
   bench/module-cost:
     devDependencies:
       next:
