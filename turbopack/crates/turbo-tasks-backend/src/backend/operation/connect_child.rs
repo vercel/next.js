@@ -5,9 +5,7 @@ use crate::{
         TaskDataCategory,
         operation::{
             ExecuteContext,
-            aggregation_update::{
-                AggregationUpdateJob, AggregationUpdateQueue, get_aggregation_number, is_root_node,
-            },
+            aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue},
         },
         storage_schema::TaskStorageAccessors,
     },
@@ -74,14 +72,15 @@ pub fn connect_child(
     // to that root instead of upper edges into the whole persistent graph.
     //
     // Parentless connects (e.g. calls from a `turbo_tasks::run` closure) have no upper at all, so
-    // there is nothing to shield the persistent graph from. Persistent tasks that need to be roots
-    // (strongly consistent reads and reading collectibles are only allowed on `root` functions)
-    // are already made roots when they are created. Making every parentless persistent callee a
-    // root would make each of them aggregate its whole (possibly large and existing) subgraph.
-    let should_make_root = match parent_task_id {
-        None => child_task_id.is_transient(),
-        Some(parent_task_id) => parent_task_id.is_transient() && !child_task_id.is_transient(),
-    };
+    // there is nothing to shield the graph from, for persistent and transient children alike.
+    // Tasks that need to be roots are already roots: strongly consistent reads and reading
+    // collectibles are only allowed on `root` functions, which are made roots when they are
+    // created, and top-level transient tasks (root and once tasks) are created as roots. Making
+    // every parentless callee a root would make each of them aggregate its whole (possibly large
+    // and existing) subgraph.
+    let should_make_root = parent_task_id.is_some_and(|parent_task_id| {
+        parent_task_id.is_transient() && !child_task_id.is_transient()
+    });
 
     if ctx.should_track_activeness() && parent_task_id.is_some() {
         if should_make_root {
@@ -101,14 +100,8 @@ pub fn connect_child(
         let mut child_task = ctx.task_or_create(child_task_id, TaskDataCategory::Meta);
 
         let has_output = child_task.has_output();
-        // An already constructed top-level task that should be a root (a transient task, see
-        // above) was made a root when it was first connected. It may still be dirty and need to
-        // run; this only avoids repeating the idempotent aggregation update.
-        let is_already_constructed_root = parent_task_id.is_none()
-            && has_output
-            && is_root_node(get_aggregation_number(&child_task));
 
-        if should_make_root && !is_already_constructed_root {
+        if should_make_root {
             queue.push(AggregationUpdateJob::UpdateAggregationNumber {
                 task_id: child_task_id,
                 base_aggregation_number: u32::MAX,
@@ -241,7 +234,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn parentless_transient_child_is_made_a_root() {
+    async fn parentless_transient_child_is_not_made_a_root() {
         let tt = setup();
         connect_child(
             None,
@@ -249,7 +242,7 @@ mod tests {
             false,
             ExecuteContext::new(tt.backend(), &tt),
         );
-        assert_eq!(aggregation_number(&tt, TRANSIENT_CHILD), u32::MAX);
+        assert_ne!(aggregation_number(&tt, TRANSIENT_CHILD), u32::MAX);
         assert_eq!(transient_ref_count(&tt, TRANSIENT_CHILD), 1);
     }
 
