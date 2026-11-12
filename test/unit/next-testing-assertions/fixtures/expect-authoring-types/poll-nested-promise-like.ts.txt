@@ -1,0 +1,3 @@
+import {expect,type ExpectStatic,type ExpectPollOptions,type Assertion,type Matchers}from'vitest'
+declare const value:PromiseLike<PromiseLike<number>>
+const result:Assertion<Promise<void>,number>=expect.poll(()=>value)

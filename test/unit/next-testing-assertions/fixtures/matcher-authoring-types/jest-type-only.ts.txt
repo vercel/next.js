@@ -1,0 +1,2 @@
+import {JestAssertion} from 'vitest'
+const runtime=JestAssertion

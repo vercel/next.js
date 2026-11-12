@@ -1,0 +1,136 @@
+import { chai, expect, test, afterAll } from 'vitest'
+import assert from 'node:assert/strict'
+const marker = {},
+  callerError = new Error('actual caller data function error'),
+  foreign = {},
+  retained = {},
+  aliasRetained = {},
+  trace = []
+const flags = [
+  ['fixed', false, false],
+  ['configurable', false, true],
+  ['writable', true, false],
+  ['mutable', true, true],
+]
+let host,
+  directAlias,
+  originalInput,
+  originalExpect,
+  neverReads = 0,
+  payloadReads = 0,
+  replacement,
+  boundAlias
+const neverGetter = function () {
+  neverReads++
+  throw new Error('never-called metadata getter')
+}
+function payload(value) {
+  trace.push({ receiver: this, value })
+  if (value === 'throw') throw callerError
+  return marker
+}
+Object.defineProperty(payload, 'neverMetadata', {
+  configurable: true,
+  get() {
+    payloadReads++
+    throw new Error('never-called payload metadata getter')
+  },
+})
+chai.use((c, u) => {
+  u.addMethod(c.Assertion.prototype, 'dataHost', function () {
+    return this
+  })
+  u.addMethod(c.Assertion.prototype, 'dataAlias', function () {
+    trace.push({ subject: u.flag(this, 'object') })
+    return this
+  })
+})
+function callPayload(fn, receiver) {
+  assert.equal(Reflect.apply(fn, receiver, ['value']), marker)
+  assert.equal(trace.at(-1).receiver, receiver)
+  assert.throws(
+    () => Reflect.apply(fn, receiver, ['throw']),
+    (error) => error === callerError
+  )
+  assert.equal(trace.at(-1).receiver, receiver)
+}
+function callAlias(fn, receiver, subject) {
+  assert.equal(Reflect.apply(fn, receiver, ['value']), receiver)
+  assert.equal(trace.at(-1).subject, subject)
+}
+test('own function data preserves descriptor identity, receivers and original errors', ({
+  expect: taskExpect,
+}) => {
+  originalExpect = taskExpect
+  originalInput = taskExpect(17)
+  host = chai.Assertion.prototype.dataHost
+  directAlias = chai.Assertion.prototype.dataAlias
+  Object.defineProperty(host, 'neverField', {
+    get: neverGetter,
+    configurable: true,
+    enumerable: true,
+  })
+  for (const [key, writable, configurable] of flags) {
+    Object.defineProperty(host, key, {
+      value: payload,
+      writable,
+      configurable,
+      enumerable: true,
+    })
+    Object.defineProperty(host, key + 'Alias', {
+      value: directAlias,
+      writable,
+      configurable,
+      enumerable: true,
+    })
+    assert.deepEqual(Object.getOwnPropertyDescriptor(host, key), {
+      value: payload,
+      writable,
+      configurable,
+      enumerable: true,
+    })
+    assert.equal(host[key], payload)
+    assert.equal(host[key + 'Alias'], directAlias)
+    retained[key] = host[key]
+    aliasRetained[key] = host[key + 'Alias']
+    assert.equal(host[key]('method'), marker)
+    assert.equal(trace.at(-1).receiver, host)
+    callPayload(retained[key], foreign)
+    callPayload(retained[key], undefined)
+    callAlias(aliasRetained[key], originalInput, 17)
+  }
+  assert.equal(originalExpect.getState().assertionCalls, 1)
+})
+test('retained data callbacks and public aliases preserve current and original receivers', ({
+  expect: taskExpect,
+}) => {
+  const currentInput = taskExpect(33)
+  for (const [key] of flags) {
+    assert.equal(retained[key], payload)
+    callPayload(retained[key], foreign)
+    assert.equal(aliasRetained[key], directAlias)
+    callAlias(aliasRetained[key], originalInput, 17)
+    callAlias(aliasRetained[key], currentInput, 33)
+  }
+  assert.equal(originalExpect.getState().assertionCalls, 1)
+  assert.equal(taskExpect.getState().assertionCalls, 1)
+})
+afterAll(() => {
+  assert.equal(
+    Object.getOwnPropertyDescriptor(host, 'neverField').get,
+    neverGetter
+  )
+  for (const [key] of flags) {
+    assert.equal(
+      Object.getOwnPropertyDescriptor(host, key).value,
+      key === 'fixed' || !replacement ? payload : replacement
+    )
+    assert.equal(
+      Object.getOwnPropertyDescriptor(host, key + 'Alias').value,
+      key === 'fixed' || !boundAlias ? directAlias : boundAlias
+    )
+  }
+  assert.equal(originalExpect.getState().assertionCalls, 1)
+  assert.equal(neverReads, 0)
+  assert.equal(payloadReads, 0)
+})

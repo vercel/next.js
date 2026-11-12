@@ -1,0 +1,41 @@
+import { expect, test, chai, afterAll } from 'vitest'
+const TAG = '__vitest_poll_takeover__'
+const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
+const view = method => {
+  const value = Object.getOwnPropertyDescriptor(method, TAG)
+  return value ? { own: true, data: Object.hasOwn(value, 'value'), value: value.value, configurable: value.configurable, enumerable: value.enumerable, writable: value.writable } : { own: false }
+}
+let retained, absent
+const counts = {}
+test('actual primitive tag producer descriptors', () => {
+  const records = []
+  for (const kind of ['absent', 'false', 'true', 'getter-false', 'getter-true']) {
+    function matcher() { return { pass: true, message: () => 'owned descriptor' } }
+    counts[kind] = 0
+    if (kind === 'true' || kind === 'false') Object.defineProperty(matcher, TAG, { value: kind === 'true' })
+    else if (kind.startsWith('getter-')) Object.defineProperty(matcher, TAG, { get() { counts[kind]++; return kind === 'getter-true' } })
+    const name = 'toEffects_' + kind.replaceAll('-', '_')
+    expect.extend({ [name]: matcher })
+    const method = chai.Assertion.prototype[name]
+    const keysBefore = Reflect.ownKeys(method).includes(TAG)
+    const own = view(method)
+    records.push({ kind, own, keysBefore, keysAfter: Reflect.ownKeys(method).includes(TAG), getterReads: counts[kind], sameMethod: method === Object.getOwnPropertyDescriptor(chai.Assertion.prototype, name).value })
+    if (kind === 'true') retained = method
+    if (kind === 'absent') absent = method
+  }
+  let rejected = false, message
+  try { Object.defineProperty(retained, TAG, { value: false }) } catch (error) { rejected = true; message = error.message }
+  emit({ kind: 'producer', records, readonly: { rejected, message }, current: view(retained) })
+})
+test('authored tag accessor keeps real descriptor identity', () => {
+  expect.extend({ toEffectsAccessor() { return { pass: true, message: () => 'owned accessor' } } })
+  const method = chai.Assertion.prototype.toEffectsAccessor
+  let reads = 0, writes = 0
+  const get = function () { reads++; return 'authored getter value' }
+  const set = function () { writes++ }
+  Object.defineProperty(method, TAG, { get, set, configurable: true, enumerable: true })
+  const actual = Object.getOwnPropertyDescriptor(method, TAG)
+  emit({ kind: 'accessor', reads, writes, sameGetter: actual.get === get, sameSetter: actual.set === set, hasValue: Object.hasOwn(actual, 'value'), hasWritable: Object.hasOwn(actual, 'writable'), configurable: actual.configurable, enumerable: actual.enumerable })
+})
+test('retained tag metadata is readonly data after task completion', () => emit({ kind: 'retained', tagged: view(retained), absent: view(absent), inputGetterReads: counts }))
+afterAll(() => emit({ kind: 'afterAll', tagged: view(retained), absent: view(absent), inputGetterReads: counts }))

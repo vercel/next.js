@@ -1,0 +1,2 @@
+import type {DiffOptions} from 'vitest'
+const options:DiffOptions={unknown:true}

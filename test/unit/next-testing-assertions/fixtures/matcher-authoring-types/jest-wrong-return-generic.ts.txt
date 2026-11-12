@@ -1,0 +1,3 @@
+import{expect}from'vitest'
+import type{JestAssertion}from'vitest'
+type Bad=JestAssertion<number>

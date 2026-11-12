@@ -1,0 +1,5 @@
+import {expect,type ExpectStatic,type ExpectPollOptions,type Assertion,type Matchers}from'vitest'
+declare module 'vitest'{interface ExpectStatic{readonly userMarker?:true}}
+const value:true|undefined=expect.userMarker
+const view:ExpectStatic=expect
+const result:void=view(1).toBe(1)

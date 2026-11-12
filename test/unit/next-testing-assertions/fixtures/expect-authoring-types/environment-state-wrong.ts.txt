@@ -1,0 +1,2 @@
+import{expect}from'vitest'
+expect.setState({environment:1})

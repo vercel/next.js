@@ -1,0 +1,5 @@
+import{expect}from'vitest'
+import type{JestAssertion}from'vitest'
+interface CustomAssertion<R extends void|Promise<void>,T>extends JestAssertion<R,T>{custom(value:T):R}
+declare const assertion:CustomAssertion<void,string>
+const result:void=assertion.custom('text')

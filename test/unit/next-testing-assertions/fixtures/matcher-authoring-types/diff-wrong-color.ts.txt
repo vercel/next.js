@@ -1,0 +1,2 @@
+import type {DiffOptions} from 'vitest'
+const options:DiffOptions={aColor:value=>value.length}

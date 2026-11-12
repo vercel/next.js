@@ -1,0 +1,3 @@
+import {expect,type ExpectStatic,type ExpectPollOptions,type Assertion,type Matchers}from'vitest'
+const result:Assertion<Promise<void>,number>=expect.poll(async()=>1)
+const completed:Promise<void>=result.toBe(1)

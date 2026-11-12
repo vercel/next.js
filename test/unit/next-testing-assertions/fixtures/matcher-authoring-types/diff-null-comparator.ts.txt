@@ -1,0 +1,4 @@
+import type {DiffOptions} from 'vitest'
+const options:DiffOptions={compareKeys:null}
+options.compareKeys=undefined
+const empty:DiffOptions={}

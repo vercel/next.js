@@ -1,0 +1,3 @@
+import {expect,type ExpectStatic,type ExpectPollOptions,type Assertion,type Matchers}from'vitest'
+declare module 'vitest'{interface ExpectPollOptions{userOption?:{flag:true}}}
+expect.poll(()=>1,{userOption:{flag:false}}).toBe(1)

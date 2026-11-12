@@ -1,0 +1,2 @@
+import {DeeplyAllowMatchers} from 'vitest'
+const runtime=DeeplyAllowMatchers

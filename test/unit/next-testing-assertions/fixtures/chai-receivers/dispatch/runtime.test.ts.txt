@@ -1,0 +1,92 @@
+import { test, chai, expect } from 'vitest'
+import assert from 'node:assert/strict'
+const proxify = (value, ...name) =>
+  Reflect.apply(chai.util.proxify, chai.util, [value, ...name])
+const operations = [
+  ['direct', (a) => a.equal(3)],
+  [
+    'detached',
+    (a) => {
+      const m = a.equal
+      return m(3)
+    },
+  ],
+  ['detached-reflect-undefined', (a) => Reflect.apply(a.equal, undefined, [3])],
+  ['detached-call-undefined', (a) => a.equal.call(undefined, 3)],
+  ['method-reflect-explicit', (a) => Reflect.apply(a.equal, a, [3])],
+  ['method-call-explicit', (a) => a.equal.call(a, 3)],
+  [
+    'proxify-detached',
+    (a) => {
+      const m = proxify(a.equal, 'equal')
+      return m(3)
+    },
+  ],
+  [
+    'proxify-reflect-undefined',
+    (a) => Reflect.apply(proxify(a.equal, 'equal'), undefined, [3]),
+  ],
+  [
+    'proxify-reflect-explicit',
+    (a) => Reflect.apply(proxify(a.equal, 'equal'), a, [3]),
+  ],
+  ['proxify-call-explicit', (a) => proxify(a.equal, 'equal').call(a, 3)],
+  [
+    'prototype-reflect-explicit',
+    (a) =>
+      Reflect.apply(Reflect.get(chai.Assertion.prototype, 'equal'), a, [3]),
+  ],
+  [
+    'prototype-call-explicit',
+    (a) => Reflect.get(chai.Assertion.prototype, 'equal').call(a, 3),
+  ],
+  [
+    'proxify-prototype-reflect-explicit',
+    (a) =>
+      Reflect.apply(
+        proxify(Reflect.get(chai.Assertion.prototype, 'equal'), 'equal'),
+        a,
+        [3]
+      ),
+  ],
+  [
+    'proxify-prototype-call-explicit',
+    (a) =>
+      proxify(Reflect.get(chai.Assertion.prototype, 'equal'), 'equal').call(
+        a,
+        3
+      ),
+  ],
+]
+for (const useProxy of [true, false])
+  for (const [name, run] of operations)
+    test((useProxy ? 'enabled ' : 'disabled ') + name, () => {
+      const previous = chai.config.useProxy
+      chai.config.useProxy = useProxy
+      try {
+        const assertion = chai.expect(3)
+        if (
+          [
+            'detached',
+            'detached-reflect-undefined',
+            'detached-call-undefined',
+            'proxify-detached',
+            'proxify-reflect-undefined',
+          ].includes(name)
+        )
+          assert.throws(
+            () => run(assertion),
+            (error) =>
+              error?.name === 'TypeError' && /undefined/.test(error.message)
+          )
+        else {
+          const result = run(assertion)
+          assert.notEqual(result, assertion)
+          assert.equal(chai.util.flag(result, 'object'), 3)
+        }
+        assert.equal(chai.util.flag(assertion, 'object'), 3)
+        assert.equal(expect.getState().assertionCalls, 0)
+      } finally {
+        chai.config.useProxy = previous
+      }
+    })

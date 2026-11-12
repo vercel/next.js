@@ -1,0 +1,2 @@
+import {Matcher} from 'vitest'
+const runtime=Matcher

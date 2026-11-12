@@ -1,0 +1,59 @@
+import { chai, test } from 'vitest'
+import assert from 'node:assert/strict'
+const trace = []
+function emit(row) {
+  assert.deepEqual(row.result, {
+    passed: true,
+    subject: 1,
+    sameReceiver: false,
+  })
+  assert.deepEqual(row.trace, [
+    { phase: 'outer-alias', sameReceiver: false, subject: 1 },
+    { phase: 'inner', subject: 1, negate: true },
+  ])
+}
+chai.use((c, utils) => {
+  utils.addMethod(c.Assertion.prototype, 'reviewFInner', function (expected) {
+    trace.push({
+      phase: 'inner',
+      subject: this._obj,
+      negate: utils.flag(this, 'negate'),
+    })
+    this.assert(
+      this._obj === expected,
+      'wrong native value',
+      'unexpected native value',
+      expected,
+      this._obj
+    )
+    return this
+  })
+  utils.addMethod(c.Assertion.prototype, 'reviewFOuter', function (expected) {
+    const alias = this.not
+    trace.push({
+      phase: 'outer-alias',
+      sameReceiver: alias === this,
+      subject: alias._obj,
+    })
+    return alias.reviewFInner(expected)
+  })
+})
+test('unbound prototype invocation composes through real fluent alias', () => {
+  const method = chai.Assertion.prototype.reviewFOuter
+  let result
+  try {
+    const input = chai.expect(1)
+    const output = method.call(input, 2)
+    result = {
+      passed: true,
+      subject: output._obj,
+      sameReceiver: output === input,
+    }
+  } catch (error) {
+    result = {
+      passed: false,
+      error: { name: error.name, message: error.message },
+    }
+  }
+  emit({ kind: 'fluent-alias', result, trace })
+})

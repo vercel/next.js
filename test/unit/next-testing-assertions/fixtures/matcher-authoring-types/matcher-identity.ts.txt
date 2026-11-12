@@ -1,0 +1,5 @@
+import type {Matcher,MatcherState,MatchersObject} from 'vitest'
+import type {RawMatcherFn as Actual} from 'actual-origin'
+type Equal<A,B>=(<T>()=>T extends A?1:2)extends(<T>()=>T extends B?1:2)?true:false
+const identity:Equal<Matcher,Actual>=true
+const tuple:Equal<Matcher<MatcherState,[number]>,Actual<MatcherState,[number]>>=true

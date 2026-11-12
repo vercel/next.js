@@ -1,0 +1,163 @@
+{
+  "reference": "Actual Vitest5.0.4 identity callable tag contract; identity whole-model remains required/open",
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "28c112b6eaa87118a6cf2b36d49f80865debedf8737e530275e71e6d44aa11d0",
+  "rows": [
+    {
+      "kind": "absent",
+      "readsAfterRegistration": 0,
+      "methodIdentity": true,
+      "beforeKeysHasTag": false,
+      "descriptor": {
+        "own": false
+      },
+      "afterKeysHasTag": false,
+      "readsAfterDescriptor": 0
+    },
+    {
+      "kind": "false",
+      "readsAfterRegistration": 0,
+      "methodIdentity": true,
+      "beforeKeysHasTag": false,
+      "descriptor": {
+        "own": false
+      },
+      "afterKeysHasTag": false,
+      "readsAfterDescriptor": 0
+    },
+    {
+      "kind": "true",
+      "readsAfterRegistration": 0,
+      "methodIdentity": true,
+      "beforeKeysHasTag": true,
+      "descriptor": {
+        "own": true,
+        "configurable": false,
+        "enumerable": false,
+        "writable": false,
+        "data": true,
+        "value": true,
+        "get": "undefined",
+        "set": "undefined"
+      },
+      "afterKeysHasTag": true,
+      "readsAfterDescriptor": 0
+    },
+    {
+      "kind": "getter-false",
+      "readsAfterRegistration": 1,
+      "methodIdentity": true,
+      "beforeKeysHasTag": false,
+      "descriptor": {
+        "own": false
+      },
+      "afterKeysHasTag": false,
+      "readsAfterDescriptor": 1
+    },
+    {
+      "kind": "getter-true",
+      "readsAfterRegistration": 1,
+      "methodIdentity": true,
+      "beforeKeysHasTag": true,
+      "descriptor": {
+        "own": true,
+        "configurable": false,
+        "enumerable": false,
+        "writable": false,
+        "data": true,
+        "value": true,
+        "get": "undefined",
+        "set": "undefined"
+      },
+      "afterKeysHasTag": true,
+      "readsAfterDescriptor": 1
+    },
+    {
+      "kind": "retained-next-test",
+      "samePrototypeMethod": true,
+      "descriptor": {
+        "own": true,
+        "configurable": false,
+        "enumerable": false,
+        "writable": false,
+        "data": true,
+        "value": true,
+        "get": "undefined",
+        "set": "undefined"
+      },
+      "missing": {
+        "own": false
+      }
+    },
+    {
+      "kind": "accessor",
+      "reads": 0,
+      "observed": {
+        "sameGetter": true,
+        "data": false,
+        "configurable": true,
+        "enumerable": true,
+        "set": "undefined"
+      }
+    },
+    {
+      "kind": "retained-afterAll",
+      "descriptor": {
+        "own": true,
+        "configurable": false,
+        "enumerable": false,
+        "writable": false,
+        "data": true,
+        "value": true,
+        "get": "undefined",
+        "set": "undefined"
+      },
+      "missing": {
+        "own": false
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "actual producer tag absent",
+      "state": "passed"
+    },
+    {
+      "name": "actual producer tag false",
+      "state": "passed"
+    },
+    {
+      "name": "actual producer tag true",
+      "state": "passed"
+    },
+    {
+      "name": "actual producer tag getter-false",
+      "state": "passed"
+    },
+    {
+      "name": "actual producer tag getter-true",
+      "state": "passed"
+    },
+    {
+      "name": "retained immutable and absent callable tag descriptors",
+      "state": "passed"
+    },
+    {
+      "name": "authored accessor-shaped tag is inspected without executing its getter",
+      "state": "passed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 7,
+    "numPassedTests": 7,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "rawErrorCount": 0
+}

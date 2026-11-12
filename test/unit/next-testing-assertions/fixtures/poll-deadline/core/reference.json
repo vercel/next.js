@@ -1,0 +1,192 @@
+{
+  "reference": "Vitest5.0.4 independently authored core effects; original9reflection model remains unchanged/open",
+  "source": "runtime.test.mjs.txt",
+  "bodySHA256": "1dfb8e49e9c7328df74f63180b5f6b72f9efb257f055945f804453a58159bb13",
+  "rows": [
+    {
+      "kind": "predicate-start",
+      "ownSignal": true,
+      "aborted": false
+    },
+    {
+      "kind": "predicate-aborted",
+      "name": "AbortError"
+    },
+    {
+      "kind": "predicate-settled",
+      "status": "fail"
+    },
+    {
+      "kind": "predicate-caught",
+      "error": {
+        "name": "Error",
+        "message": "expect.poll() function didn't resolve in time.",
+        "cause": {
+          "name": "Error",
+          "message": "Matcher did not succeed in time."
+        },
+        "ownCause": true
+      },
+      "aborted": true,
+      "calls": 1
+    },
+    {
+      "kind": "predicate-late-joined",
+      "object": null
+    },
+    {
+      "kind": "matcher-start",
+      "received": 9
+    },
+    {
+      "kind": "matcher-settled",
+      "status": "fail"
+    },
+    {
+      "kind": "matcher-caught",
+      "error": {
+        "name": "Error",
+        "message": "expect.poll() assertion didn't resolve in time.",
+        "cause": {
+          "name": "Error",
+          "message": "Matcher did not succeed in time."
+        },
+        "ownCause": true
+      },
+      "aborted": true,
+      "calls": 1,
+      "matches": 1
+    },
+    {
+      "kind": "matcher-late-joined"
+    },
+    {
+      "kind": "retry-settled",
+      "status": "pass",
+      "settlement": 1
+    },
+    {
+      "kind": "retry-settled",
+      "status": "pass",
+      "settlement": 2
+    },
+    {
+      "kind": "retry-result",
+      "calls": 2,
+      "settlements": 2,
+      "returnedAssertion": false,
+      "returnedType": "object",
+      "causeOnRecoveredFailure": false
+    },
+    {
+      "kind": "before-consumption",
+      "calls": 0,
+      "events": []
+    },
+    {
+      "kind": "start-flags",
+      "name": "toBe",
+      "errorMessage": "STACK_TRACE_ERROR"
+    },
+    {
+      "kind": "wrap-callsite",
+      "message": "STACK_TRACE_ERROR",
+      "workPromise": true
+    },
+    {
+      "kind": "wrapped-result",
+      "first": "owned-wrapped-output",
+      "second": "owned-wrapped-output",
+      "calls": 1,
+      "events": [
+        "start",
+        "captured-wrap",
+        "predicate",
+        "captured-settled-pass",
+        "wrapped-resolved"
+      ]
+    },
+    {
+      "kind": "fake-clock-result",
+      "values": [0, 1],
+      "value": 1
+    },
+    {
+      "kind": "prior-failure-settled",
+      "status": "fail"
+    },
+    {
+      "kind": "prior-failure-caught",
+      "error": {
+        "name": "RangeError",
+        "message": "owned first predicate failure",
+        "cause": {
+          "name": "Error",
+          "message": "Matcher did not succeed in time."
+        },
+        "ownCause": true
+      },
+      "exactError": true,
+      "calls": 2,
+      "aborted": true
+    },
+    {
+      "kind": "final-settled",
+      "status": "fail"
+    },
+    {
+      "kind": "final-settlement-caught",
+      "exactError": true,
+      "error": {
+        "name": "TypeError",
+        "message": "owned failed settlement rejection",
+        "cause": null,
+        "ownCause": false
+      },
+      "aborted": true
+    }
+  ],
+  "cases": [
+    {
+      "name": "pending predicate owns its timeout signal and late result",
+      "state": "passed"
+    },
+    {
+      "name": "pending matcher owns the same deadline",
+      "state": "passed"
+    },
+    {
+      "name": "settlement rejection participates in the real retry loop",
+      "state": "passed"
+    },
+    {
+      "name": "start settlement and eager wrap retain their actual phase",
+      "state": "passed"
+    },
+    {
+      "name": "real retry delay advances the active fake clock",
+      "state": "passed"
+    },
+    {
+      "name": "a later pending predicate retains the actual earlier failure",
+      "state": "passed"
+    },
+    {
+      "name": "a final settlement rejection stays the actual thrown object",
+      "state": "passed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 7,
+    "numPassedTests": 7,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "rawErrorCount": 4
+}

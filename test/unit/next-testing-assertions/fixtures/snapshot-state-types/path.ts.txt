@@ -1,0 +1,1 @@
+import {expect} from 'vitest'; const value:string=expect.getState().snapshotState.snapshotPath; void value;

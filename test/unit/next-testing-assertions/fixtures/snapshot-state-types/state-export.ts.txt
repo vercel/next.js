@@ -1,0 +1,1 @@
+import {expect,type MatcherState} from 'vitest'; const state:MatcherState=expect.getState(); const path:string=state.snapshotState.snapshotPath; void path;

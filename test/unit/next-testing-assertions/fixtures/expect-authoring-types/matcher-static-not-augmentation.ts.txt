@@ -1,0 +1,4 @@
+import {expect,type ExpectStatic,type ExpectPollOptions,type Assertion,type Matchers}from'vitest'
+declare module 'vitest'{interface Matchers<R,T>{toBePayload(value:T,count:number):R}}
+expect(1).toEqual(expect.toBePayload(1,2))
+expect(1).toEqual(expect.not.toBePayload(1,2))
