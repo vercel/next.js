@@ -830,13 +830,10 @@ export default class NextNodeServer extends BaseServer<
       // candidate. With i18n the first candidate is the page under the
       // request's locale, which is in no manifest for most pages, so that
       // error was created, with its stack, for every request. Once the miss
-      // is stored the attempt can only fail the same way, and it is skipped
-      // unless a span would record it: `loadComponents` and its `load route
-      // module` step are traced, and their spans end with this error.
-      if (
-        isPagePathStoredMiss(pagePath, this.distDir, undefined, isAppPath) &&
-        !getTracer().isTracing()
-      ) {
+      // is stored (never in a dev server, and not before the first attempt
+      // for this candidate) the attempt can only fail the same way, and it is
+      // skipped.
+      if (isPagePathStoredMiss(pagePath, this.distDir, undefined, isAppPath)) {
         continue
       }
 
