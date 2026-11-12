@@ -31,9 +31,8 @@ impl SingleFileEcmascriptOutput {
         let this = self.await?;
         Ok(SourceMapAsset::new(
             *this.chunking_context,
-            this.source.ident(),
             Vc::upcast(self),
-            rcstr!(".js"),
+            Vc::upcast(self),
         ))
     }
 }

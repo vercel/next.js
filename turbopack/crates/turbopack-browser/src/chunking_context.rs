@@ -746,8 +746,9 @@ impl ChunkingContext for BrowserChunkingContext {
                 let Some(asset) = asset else {
                     bail!("chunk_path requires an asset when content hashing is enabled");
                 };
+                // Not `asset.content()`: chunks hash their content without the
+                // `sourceMappingURL` comment, which depends on this path.
                 let hash = asset
-                    .content()
                     .content_hash(self.hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
                     .await?;
                 let hash = hash.as_ref().context(

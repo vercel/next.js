@@ -9,7 +9,6 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use crate::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
-    ident::AssetIdent,
     introspect::{Introspectable, IntrospectableChildren},
     output::{OutputAsset, OutputAssetsReference},
     source_map::{GenerateSourceMap, SourceMap, SourceMapType},
@@ -20,10 +19,9 @@ enum PathType {
     Fixed {
         path: FileSystemPath,
     },
-    FromIdent {
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-        ident_for_path: ResolvedVc<AssetIdent>,
-        extension: RcStr,
+    /// Named after the asset it maps, e.g. `<chunk>.js.map`.
+    FromAsset {
+        asset: ResolvedVc<Box<dyn OutputAsset>>,
     },
 }
 
@@ -37,19 +35,19 @@ pub struct SourceMapAsset {
 
 #[turbo_tasks::value_impl]
 impl SourceMapAsset {
+    /// Creates the source map of `asset`, named `<asset path>.map`.
+    ///
+    /// When `asset` embeds a `sourceMappingURL` comment and is content hashed, its
+    /// [`Asset::content_hash`] must not depend on that comment, as the comment depends on the
+    /// asset's path.
     #[turbo_tasks::function]
     pub async fn new(
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-        ident_for_path: ResolvedVc<AssetIdent>,
+        asset: ResolvedVc<Box<dyn OutputAsset>>,
         generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
-        extension: RcStr,
     ) -> Result<Vc<Self>> {
         Ok(SourceMapAsset {
-            path_ty: PathType::FromIdent {
-                chunking_context,
-                ident_for_path,
-                extension,
-            },
+            path_ty: PathType::FromAsset { asset },
             source_map_ty: *chunking_context.emitted_source_map_type().await?,
             generate_source_map,
         }
@@ -77,25 +75,11 @@ impl OutputAssetsReference for SourceMapAsset {}
 #[turbo_tasks::value_impl]
 impl OutputAsset for SourceMapAsset {
     #[turbo_tasks::function]
-    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+    async fn path(&self) -> Result<Vc<FileSystemPath>> {
         // NOTE(alexkirsz) We used to include the asset's version id in the path,
         // but this caused `all_assets_map` to be recomputed on every change.
-        let this = self.await?;
-        Ok(match &this.path_ty {
-            PathType::FromIdent {
-                chunking_context,
-                ident_for_path,
-                extension,
-            } => chunking_context
-                .chunk_path(
-                    Some(Vc::upcast(self)),
-                    **ident_for_path,
-                    None,
-                    extension.clone(),
-                )
-                .await?
-                .append(".map")?
-                .cell(),
+        Ok(match &self.path_ty {
+            PathType::FromAsset { asset } => asset.path().await?.append(".map")?.cell(),
             PathType::Fixed { path } => path.append(".map")?.cell(),
         })
     }

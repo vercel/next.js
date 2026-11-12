@@ -9,6 +9,7 @@ use turbo_tasks_fs::{
     File, FileContent, FileSystem, FileSystemPath,
     rope::{Rope, RopeBuilder},
 };
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -67,9 +68,8 @@ impl CssChunk {
     async fn source_map(self: Vc<Self>) -> Result<Vc<SourceMapAsset>> {
         Ok(SourceMapAsset::new(
             *self.await?.chunking_context,
-            self.ident_for_path(),
             Vc::upcast(self),
-            rcstr!(".css"),
+            Vc::upcast(self),
         ))
     }
 
@@ -435,6 +435,22 @@ impl Asset for CssChunk {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<AssetContent> {
         self.content()
+    }
+
+    #[turbo_tasks::function]
+    async fn content_hash(
+        self: Vc<Self>,
+        salt: Vc<RcStr>,
+        algorithm: HashAlgorithm,
+    ) -> Result<Vc<Option<RcStr>>> {
+        let emitted_source_map_ty = *self
+            .await?
+            .chunking_context
+            .emitted_source_map_type()
+            .await?;
+        Ok(self
+            .code()
+            .chunk_content_hash(emitted_source_map_ty, salt, algorithm))
     }
 }
 
