@@ -1,7 +1,7 @@
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { seedTurbopackCacheIfNeeded } from '../../lib/turbopack-cache-seed'
-import { NextBuildContext } from '../build-context'
+import { NextBuildContext, RETAINED_DIST_DIR_ENTRIES } from '../build-context'
 import { createDefineEnv, getBindingsSync } from '../swc'
 import {
   handleRouteType,
@@ -173,20 +173,36 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
     // The `turbopack` marker file and the `package.json` of the distDir are
     // written by Turbopack when creating the project.
 
-    await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
-    await fs.mkdir(path.join(distDir, 'static', buildId), {
-      recursive: true,
-    })
-
     let appDirOnly = NextBuildContext.appDirOnly!
 
-    const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
+    const distDirWritesBeforeTurbopack =
+      NextBuildContext.distDirWritesBeforeTurbopack
+    const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly, {
+      // The distDir wasn't cleaned before the build. Remove everything
+      // Turbopack doesn't write (output of previous builds), except for what
+      // JS wrote so far. Everything written after this point needs no
+      // tracking. This finishes before any later build step reads the distDir,
+      // so they observe the same files as after a clean build.
+      removeStaleOutput: distDirWritesBeforeTurbopack
+        ? {
+            skip: [...RETAINED_DIST_DIR_ENTRIES],
+            keep: [...distDirWritesBeforeTurbopack].map((p) =>
+              normalizePath(path.relative(distDir, p))
+            ),
+          }
+        : undefined,
+    })
     // Defer warnings so the caller can print them after static generation,
     // keeping SSG errors more prominent than compile warnings.
     const { warnings } = printBuildErrors(entrypoints, dev, {
       deferWarnings: true,
       strictRouteMatchingDefaultWarning:
         getStrictRouteMatchingDefaultWarning(config),
+    })
+
+    await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
+    await fs.mkdir(path.join(distDir, 'static', buildId), {
+      recursive: true,
     })
 
     // Skip when telemetry is fully off — featureUsage() isn't free.

@@ -68,6 +68,14 @@ pub trait CapturedEffect: NonLocalValue + Send + Sync + 'static {
     ///
     /// Implementations typically dispatch into [`EffectStateStorage::run_apply`].
     async fn apply(&self) -> Result<(), ApplyError>;
+
+    /// Registers this effect's key and value hash as pending in its [`EffectStateStorage`] (see
+    /// [`EffectStateStorage::register`]), before it is applied.
+    ///
+    /// Called by [`read_strongly_consistent_and_apply_effects_concurrently_with`] for all effects
+    /// before they are applied, so that concurrent work can observe which keys are about to be
+    /// written. Implementations that don't use an [`EffectStateStorage`] don't need to do anything.
+    fn register(&self) {}
 }
 
 /// Outcome of [`CapturedEffect::apply`]. Distinguishes a side-effect failure (terminal) from a
@@ -113,6 +121,18 @@ enum EffectLastApplied {
 
 /// Per-key entry in the effect state storage.
 type EffectStateEntry = Arc<Mutex<EffectLastApplied>>;
+
+/// The state of the effect for a key, see [`EffectStateStorage::state`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EffectState {
+    /// An effect has been registered (see [`EffectStateStorage::register`]) but not applied
+    /// (yet), is currently being applied, or its application was interrupted.
+    Pending,
+    /// The effect with this `value_hash` has been applied successfully.
+    Applied { value_hash: u128 },
+    /// Applying the effect failed.
+    Failed,
+}
 /// Shared state storage for tracking applied effects. Stored on the filesystem implementation
 /// (e.g. DiskFileSystemInner).
 #[derive(Default)]
@@ -137,6 +157,48 @@ impl EffectStateStorage {
                 result: Ok(()),
             } if *value_hash == target,
         )
+    }
+
+    /// Returns the state of the effect for `key`, or `None` if no effect has been registered or
+    /// applied for `key`.
+    ///
+    /// This doesn't allocate and doesn't create an entry for `key`.
+    pub fn state(&self, key: &[u8]) -> Option<EffectState> {
+        let entry = self.effect_state.lock().get(key).cloned()?;
+        Some(match &*entry.lock() {
+            EffectLastApplied::Unapplied | EffectLastApplied::InProgress { .. } => {
+                EffectState::Pending
+            }
+            EffectLastApplied::Applied {
+                value_hash,
+                result: Ok(()),
+            } => EffectState::Applied {
+                value_hash: *value_hash,
+            },
+            EffectLastApplied::Applied { result: Err(_), .. } => EffectState::Failed,
+        })
+    }
+
+    /// Registers that an effect with `value_hash` is about to be applied for `key`, so that
+    /// [`Self::state`] reports it as [`EffectState::Pending`] until it is applied, unless an
+    /// effect with the same `value_hash` has been applied already (in which case applying it is a
+    /// no-op).
+    ///
+    /// This creates the entry that applying an effect for `key` creates anyway, so it doesn't
+    /// increase the memory usage when the effect is applied afterwards.
+    pub fn register(&self, key: Box<[u8]>, value_hash: u128) {
+        let entry = self.entry_for(key);
+        let mut state = entry.lock();
+        if let EffectLastApplied::Applied {
+            value_hash: applied_value_hash,
+            ..
+        } = &*state
+            && *applied_value_hash != value_hash
+        {
+            // The effect will be applied, so the previously applied state no longer applies.
+            // `run_apply` handles `Unapplied` the same way as a mismatching `Applied` state.
+            *state = EffectLastApplied::Unapplied;
+        }
     }
 
     /// Look up or create the per-key state entry.
@@ -457,7 +519,8 @@ impl Effects {
     /// See [`take_effects`] for example usage.
     ///
     /// **Do not call this directly.** External callers must go through
-    /// [`read_strongly_consistent_and_apply_effects`] or
+    /// [`read_strongly_consistent_and_apply_effects`],
+    /// [`read_strongly_consistent_and_apply_effects_concurrently_with`] or
     /// [`resolve_strongly_consistent_and_take_and_apply_effects`], which own the read+apply+retry
     /// loop required to recover from [`EffectsError::Retry`]. Exposed publicly only as
     /// [`Effects::apply_for_testing`] (`#[doc(hidden)]`) so integration tests can drive the apply
@@ -520,6 +583,17 @@ impl Effects {
         .await
     }
 
+    /// Registers the keys of all effects as pending (see [`CapturedEffect::register`]).
+    fn register_keys(&self) {
+        let Ok(unique) = self.unique_keys.as_ref() else {
+            // `apply` fails with a conflict error without applying anything.
+            return;
+        };
+        for idx in unique {
+            self.captured[*idx].register();
+        }
+    }
+
     /// Test-only public alias for [`Effects::apply`]. Lets integration tests in other crates drive
     /// the per-key apply state machine directly (e.g. asserting dedup counts or the raw
     /// [`EffectsError::Retry`] signal). Production code must use
@@ -554,7 +628,8 @@ impl Effects {
 /// warning is logged on each subsequent attempt, and on exhaustion the last `Retry` surfaces as an
 /// error.
 ///
-/// This is one of two public entry points for applying effects (see also
+/// This is one of the public entry points for applying effects (see also
+/// [`read_strongly_consistent_and_apply_effects_concurrently_with`] and
 /// [`resolve_strongly_consistent_and_take_and_apply_effects`]) — `Effects::apply` is private so the
 /// retry contract cannot be bypassed.
 pub async fn read_strongly_consistent_and_apply_effects<T, F>(
@@ -575,6 +650,42 @@ where
             Err(e) => handle_apply_retry(e, &mut attempts)?,
         }
     }
+}
+
+/// Like [`read_strongly_consistent_and_apply_effects`], but runs `concurrently` in parallel to
+/// applying the effects, and returns its result along with the read value.
+///
+/// Before the effects are applied and `concurrently` is started, the keys of all effects are
+/// registered as pending in their [`EffectStateStorage`] (see [`CapturedEffect::register`]), so
+/// `concurrently` can observe which keys are written by the effects (e.g. via
+/// [`EffectStateStorage::state`]), even before they are applied.
+///
+/// `concurrently` only runs in parallel to the first attempt of applying the effects, and is
+/// awaited before any retry: effects of a retry may have different keys, which are not registered
+/// before `concurrently` started.
+pub async fn read_strongly_consistent_and_apply_effects_concurrently_with<T, F, C, Fut, R>(
+    op: OperationVc<T>,
+    get_effects: F,
+    concurrently: C,
+) -> Result<(ReadRef<T>, R)>
+where
+    T: VcValueType,
+    F: Fn(&<<T as VcValueType>::Read as VcRead<T>>::Target) -> &Effects,
+    C: FnOnce() -> Fut,
+    Fut: Future<Output = Result<R>>,
+{
+    let mut value = op.read_strongly_consistent().await?;
+    let effects = get_effects(&*value);
+    effects.register_keys();
+    let (mut apply_result, concurrent_result) = futures::join!(effects.apply(), concurrently());
+    let mut attempts = 0usize;
+    // Errors of applying the effects take precedence over errors of the concurrent work.
+    while let Err(e) = apply_result {
+        handle_apply_retry(e, &mut attempts)?;
+        value = op.read_strongly_consistent().await?;
+        apply_result = get_effects(&*value).apply().await;
+    }
+    Ok((value, concurrent_result?))
 }
 
 /// AVOID CALLING THIS UNLESS DEEPLY REQUIRED
@@ -670,6 +781,19 @@ fn build_unique_keys(captured: &[Box<dyn CapturedEffect>]) -> UniqueKeys {
 #[cfg(test)]
 mod tests {
     use crate::{CollectiblesSource, Effects, take_effects};
+
+    /// The per-key effect state is kept for every output file, so it must not grow. E.g. whether an
+    /// effect removed its target is encoded in its value hash (by the effect implementation), not
+    /// stored separately.
+    #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn effect_state_size() {
+        assert_eq!(std::mem::size_of::<super::EffectLastApplied>(), 48);
+        assert_eq!(
+            std::mem::size_of::<parking_lot::Mutex<super::EffectLastApplied>>(),
+            64
+        );
+    }
 
     #[test]
     #[allow(dead_code)]

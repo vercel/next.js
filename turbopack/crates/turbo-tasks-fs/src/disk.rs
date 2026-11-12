@@ -25,9 +25,9 @@ use tokio::{
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CapturedEffect, Completion, Effect, EffectExt, EffectStateStorage, InvalidationReason,
-    Invalidator, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TurboTasksApi, ValueToString, Vc,
-    debug::ValueDebugFormat, turbo_tasks_weak, turbobail,
+    CapturedEffect, Completion, Effect, EffectExt, EffectState, EffectStateStorage,
+    InvalidationReason, Invalidator, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
+    TurboTasksApi, ValueToString, Vc, debug::ValueDebugFormat, turbo_tasks_weak, turbobail,
 };
 use turbo_tasks_hash::{hash_xxh3_hash64, hash_xxh3_hash128};
 use turbo_unix_path::{normalize_path, sys_to_unix, unix_to_sys};
@@ -44,6 +44,9 @@ use crate::{
     invalidator_map::InvalidatorMap,
     mutex_map::MutexMap,
     path_map::OrderedPathMapExt,
+    remove_unwritten::{
+        RemoveUnwrittenOptions, UnwrittenDirectories, remove_files_not_written_in_session,
+    },
     retry::{can_retry, retry_blocking, retry_blocking_custom},
     watcher::{DiskWatcher, DiskWatcherConfig},
 };
@@ -169,6 +172,53 @@ where
     async fn concurrency_limited(self, semaphore: &tokio::sync::Semaphore) -> Self::Output {
         let _permit = semaphore.acquire().await;
         self.await
+    }
+}
+
+/// The value hash of write effects that remove their target (writes of `NotFound` content).
+///
+/// Value hashes of effects that create or update their target are never `0` (see
+/// [`existing_effect_value_hash`]), so this unambiguously identifies removals, e.g. for
+/// [`DiskFileSystem::is_written_in_session`], and a removal never dedups against a write.
+const REMOVED_EFFECT_VALUE_HASH: u128 = 0;
+
+/// Maps the content hash of an effect that creates or updates its target to its value hash, which
+/// is never [`REMOVED_EFFECT_VALUE_HASH`].
+fn existing_effect_value_hash(content_hash: u128) -> u128 {
+    content_hash.max(1)
+}
+
+/// The value hash of a write effect for a file with `content`.
+fn file_effect_value_hash(content: &PersistedFileContent) -> u128 {
+    match content {
+        PersistedFileContent::NotFound => REMOVED_EFFECT_VALUE_HASH,
+        PersistedFileContent::Content(_) => existing_effect_value_hash(hash_xxh3_hash128(content)),
+    }
+}
+
+#[cfg(test)]
+mod effect_value_hash_tests {
+    use super::{REMOVED_EFFECT_VALUE_HASH, existing_effect_value_hash, file_effect_value_hash};
+    use crate::{File, PersistedFileContent};
+
+    #[test]
+    fn removals_and_writes_have_distinct_value_hashes() {
+        assert_eq!(
+            file_effect_value_hash(&PersistedFileContent::NotFound),
+            REMOVED_EFFECT_VALUE_HASH
+        );
+        // A content hash that happens to be 0 is mapped to 1.
+        assert_eq!(existing_effect_value_hash(0), 1);
+        assert_eq!(existing_effect_value_hash(1), 1);
+        assert_eq!(existing_effect_value_hash(u128::MAX), u128::MAX);
+        for content in ["", "content"] {
+            assert_ne!(
+                file_effect_value_hash(&PersistedFileContent::Content(File::from_bytes(
+                    content.as_bytes().to_vec()
+                ))),
+                REMOVED_EFFECT_VALUE_HASH
+            );
+        }
     }
 }
 
@@ -566,6 +616,65 @@ impl DiskFileSystem {
 
     pub fn invalidate(&self) {
         self.inner.invalidate();
+    }
+
+    /// Returns whether a file or link at `sys_path` is written by this filesystem in the current
+    /// session, i.e. a write effect for it has been applied, or has been registered and is about
+    /// to be applied (see [`turbo_tasks::CapturedEffect::register`]). This includes writes that
+    /// were skipped because the file on disk already had the same content. Writes that remove the
+    /// file don't count.
+    ///
+    /// `sys_path` must be in the same format as returned by [`Self::to_sys_path_raw`].
+    ///
+    /// This reuses the per-path state the filesystem keeps for applied effects anyways, so it
+    /// doesn't require any additional memory.
+    pub fn is_written_in_session(&self, sys_path: &Path) -> bool {
+        match self
+            .inner
+            .effect_state_storage
+            .state(sys_path.as_os_str().as_encoded_bytes())
+        {
+            None => false,
+            Some(EffectState::Applied { value_hash }) => value_hash != REMOVED_EFFECT_VALUE_HASH,
+            // A pending effect may be a removal too, but the file is removed by the effect then.
+            // A failed effect fails the operation applying it anyways.
+            Some(EffectState::Pending | EffectState::Failed) => true,
+        }
+    }
+
+    /// Registers a pending write of `sys_path` with `content` (`None` for a removal), like
+    /// applying effects concurrently does before they are applied.
+    #[cfg(test)]
+    pub(crate) fn register_write_for_testing(&self, sys_path: &Path, content: Option<&[u8]>) {
+        let value_hash = match content {
+            None => file_effect_value_hash(&PersistedFileContent::NotFound),
+            Some(content) => file_effect_value_hash(&PersistedFileContent::Content(
+                File::from_bytes(content.to_vec()),
+            )),
+        };
+        self.inner
+            .effect_state_storage
+            .register(sys_path.as_os_str().as_encoded_bytes().into(), value_hash);
+    }
+
+    /// Removes all files and symlinks inside of `dir` that are not written by this filesystem in
+    /// the current session (see [`Self::is_written_in_session`]), except for the entries skipped
+    /// or kept by `options`. Returns the directories that might be empty now, which can be
+    /// removed with [`UnwrittenDirectories::remove_empty`] once all writes are finished.
+    ///
+    /// This can be used to remove stale files of a previous session from an output directory
+    /// without deleting (and rewriting) the files that are unchanged. It can run concurrently with
+    /// writes, as long as the effects of all writes that are not finished yet have been registered
+    /// before (see [`turbo_tasks::read_strongly_consistent_and_apply_effects_concurrently_with`]).
+    pub async fn remove_files_not_written_in_session(
+        &self,
+        dir: &FileSystemPath,
+        options: RemoveUnwrittenOptions,
+    ) -> Result<UnwrittenDirectories> {
+        let dir = self.to_sys_path_raw(dir);
+        remove_files_not_written_in_session(self.clone(), dir, options)
+            .instrument(tracing::info_span!("remove files not written in session"))
+            .await
     }
 
     pub fn invalidate_with_reason<R: InvalidationReason + Clone>(
@@ -1311,7 +1420,7 @@ impl FileSystem for DiskFileSystem {
         // require recomputing the content on cache restore — avoiding unnecessary downstream
         // recomputation.
         let content = content.persist().to_resolved().await?;
-        let content_hash = hash_xxh3_hash128(&*content.await?);
+        let content_hash = file_effect_value_hash(&*content.await?);
 
         #[turbo_tasks::value(eq = "manual", cell = "new")]
         struct WriteEffect {
@@ -1383,6 +1492,12 @@ impl FileSystem for DiskFileSystem {
                     .effect_state_storage
                     .run_apply::<AnyhowWrapper, _, _>(self.key(), self.content_hash, body)
                     .await
+            }
+
+            fn register(&self) {
+                self.inner
+                    .effect_state_storage
+                    .register(self.key(), self.content_hash);
             }
         }
 
@@ -1564,8 +1679,10 @@ impl FileSystem for DiskFileSystem {
             None => target_abs_sys_path,
         };
         let target_sys_path = Arc::new(target_sys_path);
-        let content_hash =
-            hash_xxh3_hash128((target_sys_path.as_os_str().as_encoded_bytes(), &target_type));
+        let content_hash = existing_effect_value_hash(hash_xxh3_hash128((
+            target_sys_path.as_os_str().as_encoded_bytes(),
+            &target_type,
+        )));
 
         #[turbo_tasks::value(eq = "manual", cell = "new")]
         struct WriteLinkEffect {
@@ -1632,6 +1749,12 @@ impl FileSystem for DiskFileSystem {
                     .effect_state_storage
                     .run_apply::<AnyhowWrapper, _, _>(self.key(), self.content_hash, body)
                     .await
+            }
+
+            fn register(&self) {
+                self.inner
+                    .effect_state_storage
+                    .register(self.key(), self.content_hash);
             }
         }
 

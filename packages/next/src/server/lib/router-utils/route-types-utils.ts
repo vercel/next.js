@@ -420,11 +420,15 @@ export async function createRouteTypesManifest({
   return manifest
 }
 
+/**
+ * Writes the route types (and the link types if `typedRoutes` is enabled).
+ * @returns the paths of the written files
+ */
 export async function writeRouteTypesManifest(
   manifest: RouteTypesManifest,
   filePath: string,
   config: NextConfigComplete
-) {
+): Promise<string[]> {
   const dirname = path.dirname(filePath)
 
   if (!fs.existsSync(dirname)) {
@@ -443,7 +447,9 @@ export async function writeRouteTypesManifest(
   if (config.typedRoutes === true) {
     const linkTypesPath = path.join(dirname, 'link.d.ts')
     await fs.promises.writeFile(linkTypesPath, generateLinkTypesFile(manifest))
+    return [filePath, linkTypesPath]
   }
+  return [filePath]
 }
 
 export async function writeValidatorFile(
