@@ -52,7 +52,8 @@ export async function runTypeCheck(
   // tsconfig includes both .next/types and .next/dev/types to avoid config churn
   // between dev/build modes. During build, we filter out .next/dev/types files to
   // prevent stale dev types from causing errors when routes have been deleted since
-  // the last dev session.
+  // the last dev session. Build also removes the types of a stopped dev server
+  // (see `removeStaleDevTypes`), but keeps those of a running one.
   let fileNames = effectiveConfiguration.fileNames
 
   // Get the dev types path to filter (null if not applicable)
