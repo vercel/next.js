@@ -44,13 +44,12 @@ export function getStaticGenerationSummaryPath(distDir: string): string {
 }
 
 /**
- * A stable identifier for the current export worker. `JEST_WORKER_ID` is set
- * by jest-worker in both child process and worker thread mode.
+ * An identifier for the current export worker: the process id, plus the
+ * thread id when running in worker thread mode. A worker that is restarted
+ * gets a new identifier.
  */
 export function getStaticWorkerId(): string {
-  const jestWorkerId = process.env.JEST_WORKER_ID
-  const base = jestWorkerId ? `w${jestWorkerId}` : 'main'
-  return `${base}:${process.pid}${threadId ? `.${threadId}` : ''}`
+  return `pid-${process.pid}${threadId ? `.${threadId}` : ''}`
 }
 
 export type PageRecord = {
