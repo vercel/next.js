@@ -11,6 +11,15 @@ const execFileAsync = promisify(execFile)
  * @default https://registry.npmjs.org/
  */
 export async function getRegistry(baseDir: string = process.cwd()) {
+  // Package managers export their resolved registry to the scripts they run
+  // (e.g. `pnpm dev`, `npm run dev`). Prefer it over spawning the package
+  // manager, which costs hundreds of milliseconds of CPU and, in `next dev`,
+  // competes with the first compiles while the HMR SYNC message waits on it.
+  const envRegistry = process.env.npm_config_registry
+  if (envRegistry?.startsWith('http')) {
+    return envRegistry.endsWith('/') ? envRegistry : `${envRegistry}/`
+  }
+
   const pkgManager = getPkgManager(baseDir)
   // Since `npm config` command fails in npm workspace to prevent workspace config conflicts,
   // add `--no-workspaces` flag to run under the context of the root project only.
