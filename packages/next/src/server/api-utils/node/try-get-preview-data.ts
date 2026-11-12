@@ -33,10 +33,13 @@ function hasNoPreviewCookies(
 
   const nodeHeaders = headers as IncomingMessage['headers']
   let cookie: unknown
-  for (const key in nodeHeaders) {
-    // `for...in` also visits inherited properties, which `HeadersAdapter`
-    // (`Object.keys`) does not see.
-    if (key.toLowerCase() === 'cookie' && Object.hasOwn(nodeHeaders, key)) {
+  // An indexed loop over the keys: `for...in` would also visit inherited
+  // properties, and is slower on headers objects of 20 or more headers, which
+  // V8 keeps in dictionary mode.
+  const keys = Object.keys(nodeHeaders)
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i]
+    if (key.toLowerCase() === 'cookie') {
       cookie = nodeHeaders[key]
       break
     }
