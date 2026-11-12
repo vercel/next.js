@@ -205,13 +205,14 @@ class StaticGenerationProfiler {
   private sample() {
     const elu = performance.eventLoopUtilization(this.lastElu)
     this.lastElu = performance.eventLoopUtilization()
-    // `process.memoryUsage()` walks every heap page; these are cheap.
     this.records.push({
       type: 'sample',
       workerId: this.workerId,
       t: Date.now(),
       activeMs: elu.active,
       idleMs: elu.idle,
+      // `process.memoryUsage()` walks every heap page, which gets expensive
+      // with a large heap at 10 samples a second. These two calls are cheap.
       rss: process.memoryUsage.rss(),
       heapUsed: v8.getHeapStatistics().used_heap_size,
       inFlight: this.inFlight,
@@ -245,6 +246,10 @@ class StaticGenerationProfiler {
     const missesAtStart = this.fetchMisses
     return {
       end: (phase, pages) => {
+        // Close the sampling interval now: a call that finishes before the
+        // next tick would otherwise lose its last stretch of CPU and memory
+        // data (and a short call would have none at all).
+        this.sample()
         this.records.push({
           type: 'call',
           workerId: this.workerId,
@@ -425,6 +430,20 @@ function unionLength(
   return total
 }
 
+// Spreading large arrays into `Math.min`/`Math.max` can throw a RangeError
+// (too many arguments), so reduce instead.
+function minOf(values: readonly number[], fallback: number): number {
+  let result = Infinity
+  for (const value of values) if (value < result) result = value
+  return result === Infinity ? fallback : result
+}
+
+function maxOf(values: readonly number[], fallback: number): number {
+  let result = -Infinity
+  for (const value of values) if (value > result) result = value
+  return result === -Infinity ? fallback : result
+}
+
 function round(value: number, digits = 1): number {
   const factor = 10 ** digits
   return Math.round(value * factor) / factor
@@ -439,7 +458,7 @@ function tailSpread(pages: PageRecord[]): number {
     )
   }
   const ends = [...lastEndByWorker.values()]
-  return ends.length > 1 ? Math.max(...ends) - Math.min(...ends) : 0
+  return ends.length > 1 ? maxOf(ends, 0) - minOf(ends, 0) : 0
 }
 
 export function summarizeStaticGenerationProfile(
@@ -448,8 +467,14 @@ export function summarizeStaticGenerationProfile(
   const pages = records.filter((r): r is PageRecord => r.type === 'page')
   if (pages.length === 0) return null
 
-  const windowStart = Math.min(...pages.map((p) => p.start))
-  const windowEnd = Math.max(...pages.map((p) => p.end))
+  const windowStart = minOf(
+    pages.map((p) => p.start),
+    0
+  )
+  const windowEnd = maxOf(
+    pages.map((p) => p.end),
+    0
+  )
   const windowMs = Math.max(1, windowEnd - windowStart)
 
   const workerIds = [...new Set(pages.map((p) => p.workerId))].sort()
@@ -487,25 +512,40 @@ export function summarizeStaticGenerationProfile(
     )
     const cpuActivePct = Math.min(100, (activeMs / windowMs) * 100)
     const noWorkPct = Math.max(0, 100 - (busyMs / windowMs) * 100)
-    const lastEnd = Math.max(...workerPages.map((p) => p.end))
+    const lastEnd = maxOf(
+      workerPages.map((p) => p.end),
+      0
+    )
 
     perWorker.push({
       workerId,
       pages: workerPages.length,
-      firstStart: Math.min(...workerPages.map((p) => p.start)),
+      firstStart: minOf(
+        workerPages.map((p) => p.start),
+        0
+      ),
       lastEnd,
       finishOffsetMs: lastEnd - windowStart,
       cpuActivePct: round(cpuActivePct),
       noWorkPct: round(noWorkPct),
       ioWaitPct: round(Math.max(0, 100 - cpuActivePct - noWorkPct)),
       idlePct: round(100 - cpuActivePct),
-      peakRss: Math.max(0, ...samples.map((s) => s.rss)),
-      peakHeapUsed: Math.max(0, ...samples.map((s) => s.heapUsed)),
-      peakPostGcHeap: Math.max(0, ...gcs.map((g) => g.postGcHeap)),
+      peakRss: maxOf(
+        samples.map((s) => s.rss),
+        0
+      ),
+      peakHeapUsed: maxOf(
+        samples.map((s) => s.heapUsed),
+        0
+      ),
+      peakPostGcHeap: maxOf(
+        gcs.map((g) => g.postGcHeap),
+        0
+      ),
       heapSizeLimit: info?.heapSizeLimit ?? null,
-      maxInFlight: Math.max(
-        0,
-        ...workerPages.map((p) => p.inFlightAtStart + 1)
+      maxInFlight: maxOf(
+        workerPages.map((p) => p.inFlightAtStart + 1),
+        0
       ),
     })
   }
@@ -518,8 +558,14 @@ export function summarizeStaticGenerationProfile(
       phase,
       pages: phasePages.length,
       windowMs:
-        Math.max(...phasePages.map((p) => p.end)) -
-        Math.min(...phasePages.map((p) => p.start)),
+        maxOf(
+          phasePages.map((p) => p.end),
+          0
+        ) -
+        minOf(
+          phasePages.map((p) => p.start),
+          0
+        ),
       tailSpreadMs: tailSpread(phasePages),
     })
   }
@@ -540,8 +586,14 @@ export function summarizeStaticGenerationProfile(
     tailSpreadPct: round((spread / windowMs) * 100),
     meanIdlePct: round(mean(perWorker.map((w) => w.idlePct))),
     meanNoWorkPct: round(mean(perWorker.map((w) => w.noWorkPct))),
-    peakRss: Math.max(...perWorker.map((w) => w.peakRss)),
-    peakPostGcHeap: Math.max(...perWorker.map((w) => w.peakPostGcHeap)),
+    peakRss: maxOf(
+      perWorker.map((w) => w.peakRss),
+      0
+    ),
+    peakPostGcHeap: maxOf(
+      perWorker.map((w) => w.peakPostGcHeap),
+      0
+    ),
     fetchHits,
     fetchMisses,
     fetchHitRate:
