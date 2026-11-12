@@ -1,0 +1,5 @@
+import type { RunnerTaskBase, TestContext } from 'vitest'
+declare const context: TestContext
+const value: RunnerTaskBase = context.task
+const meta: typeof context.task.meta = value.meta
+void meta

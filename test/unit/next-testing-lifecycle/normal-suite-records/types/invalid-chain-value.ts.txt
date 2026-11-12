@@ -1,0 +1,3 @@
+import type {SuiteAPI} from 'vitest'
+declare let api: SuiteAPI
+api.skip = 'future'

@@ -1,0 +1,4 @@
+import type {SuiteCollector} from 'vitest'
+declare const collector: SuiteCollector
+collector.name = 'changed'
+collector.mode = 'run'

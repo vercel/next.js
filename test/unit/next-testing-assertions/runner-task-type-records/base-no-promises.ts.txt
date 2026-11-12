@@ -1,0 +1,3 @@
+import type { RunnerTaskBase } from 'vitest'
+declare const value: RunnerTaskBase
+value.promises

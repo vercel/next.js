@@ -1,0 +1,2 @@
+import {describe,type SuiteAPI,type SuiteCollector} from 'vitest'
+declare const api:SuiteAPI<{ticket:string}>;api('suite',test=>{test('case',context=>{const ticket:string=context.ticket;const id:string=context.task.id;void ticket;void id})})

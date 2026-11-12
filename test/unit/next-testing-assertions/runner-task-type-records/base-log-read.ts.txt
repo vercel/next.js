@@ -1,0 +1,8 @@
+import type { RunnerTaskBase } from 'vitest'
+declare const value: RunnerTaskBase
+const log = value.logs![0]
+const text: string = log.content
+const stream: 'stdout' | 'stderr' = log.type
+const optional: string | undefined = log.origin
+const dimensions: number[] = [log.size, log.time]
+void [text, stream, optional, dimensions]

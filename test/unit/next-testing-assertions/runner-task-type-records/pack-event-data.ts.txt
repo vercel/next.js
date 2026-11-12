@@ -1,0 +1,5 @@
+import type { RunnerTaskEventPack } from 'vitest'
+const value: RunnerTaskEventPack = ['id', 'test-annotation', { annotation: { message: 'message', type: 'info', location: { file: '/file.ts', line: 1, column: 2 } } }]
+const artifact: RunnerTaskEventPack = ['id', 'test-artifact', { artifact: { type: 'internal:annotation', annotation: { message: 'message', type: 'info' } } }]
+const unset: RunnerTaskEventPack = ['id', 'test-artifact', { artifact: undefined, annotation: undefined }]
+void [value, artifact, unset]

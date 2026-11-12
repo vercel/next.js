@@ -1,0 +1,10 @@
+import {describe,type SuiteCollector} from 'vitest'
+declare const value:SuiteCollector<{value:number}>
+describe.fn.call({},'bad',{},()=>{})
+value.on('afterNever',()=>{})
+value.task('bad',{handler:()=>1})
+describe.fn.extend({value:1})
+value.collect(undefined)
+value.test('missing',context=>{context.absent})
+value.task('base-handler',{handler(context){context.value}})
+describe.fn.call({concurrent:false,only:false,skip:false,todo:false,shuffle:false},'bad',{},()=>1)

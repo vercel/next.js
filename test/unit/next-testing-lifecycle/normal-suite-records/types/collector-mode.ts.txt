@@ -1,0 +1,6 @@
+import {describe,type SuiteAPI,type SuiteCollector} from 'vitest'
+type Equal<A,B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false
+const queued: SuiteCollector['mode'] = 'queued'
+const exact: true = true as Equal<SuiteCollector['mode'], 'run' | 'skip' | 'only' | 'todo' | 'queued'>
+const derived: ReturnType<SuiteAPI['fn']>['mode'] = queued
+void describe; void exact; void derived

@@ -1,0 +1,4 @@
+import type { RunnerTaskResultPack } from 'vitest'
+declare const tuple: readonly [string, undefined, {}]
+const value: RunnerTaskResultPack = tuple
+void value

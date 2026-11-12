@@ -1,0 +1,4 @@
+import type { RunnerTaskEventPack, RunnerTaskResultPack } from 'vitest'
+const eventArity: RunnerTaskEventPack['length'] = 3
+const resultArity: RunnerTaskResultPack['length'] = 3
+void [eventArity, resultArity]

@@ -1,0 +1,10 @@
+import type {SuiteAPI} from 'vitest'
+declare let api: SuiteAPI
+api.skip = api.only
+api.only = api.todo
+api.todo = api.concurrent
+api.concurrent = api.shuffle
+api.shuffle = api.skip
+api.fn = api.fn
+api.skipIf = api.runIf
+api.runIf = api.skipIf
