@@ -1,4 +1,4 @@
-import { Span } from '../trace'
+import type { Span } from '../trace'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { Telemetry } from '../telemetry/storage'
 
@@ -133,37 +133,37 @@ export async function startTypeChecking({
   const typeCheckAndLintStart = process.hrtime()
 
   try {
-    const [verifyResult, typeCheckEnd] = await new Span({
-      name: 'run-typescript',
-      parent: nextBuildSpan,
-      recordToInsights: true,
-      scope: true,
-    }).traceAsyncFn(() =>
-      verifyAndRunTypeScript(
-        dir,
-        getBuildDistDir(config),
-        Boolean(config.experimental.strictRouteTypes),
-        !ignoreTypeScriptErrors,
-        config.typescript.tsconfigPath,
-        Boolean(config.typedRoutes),
-        config.images.disableStaticImages,
-        cacheDir,
-        config.experimental.workerThreads,
-        !!appDir,
-        !!pagesDir,
-        appDir,
-        pagesDir,
-        debugBuildPaths,
-        useTypeScriptCli,
-        // Stop the spinner before as soon as the subprocess reports output.
-        useTypeScriptCli && typeCheckingSpinner
-          ? () => typeCheckingSpinner.stop()
-          : undefined
-      ).then((resolved) => {
-        const checkEnd = process.hrtime(typeCheckAndLintStart)
-        return [resolved, checkEnd] as const
+    const [verifyResult, typeCheckEnd] = await nextBuildSpan
+      .traceChild('run-typescript', undefined, {
+        recordToInsights: true,
+        scope: true,
       })
-    )
+      .traceAsyncFn(() =>
+        verifyAndRunTypeScript(
+          dir,
+          getBuildDistDir(config),
+          Boolean(config.experimental.strictRouteTypes),
+          !ignoreTypeScriptErrors,
+          config.typescript.tsconfigPath,
+          Boolean(config.typedRoutes),
+          config.images.disableStaticImages,
+          cacheDir,
+          config.experimental.workerThreads,
+          !!appDir,
+          !!pagesDir,
+          appDir,
+          pagesDir,
+          debugBuildPaths,
+          useTypeScriptCli,
+          // Stop the spinner before as soon as the subprocess reports output.
+          useTypeScriptCli && typeCheckingSpinner
+            ? () => typeCheckingSpinner.stop()
+            : undefined
+        ).then((resolved) => {
+          const checkEnd = process.hrtime(typeCheckAndLintStart)
+          return [resolved, checkEnd] as const
+        })
+      )
 
     if (typeCheckingSpinner) {
       typeCheckingSpinner.stop()
