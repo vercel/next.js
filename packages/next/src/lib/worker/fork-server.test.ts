@@ -91,6 +91,7 @@ const describeUnix = process.platform === 'win32' ? describe.skip : describe
 
 let tmpDir: string
 let echoWorkerPath: string
+let startupWorkerPath: string
 let poolWorkerPath: string
 
 /**
@@ -130,6 +131,15 @@ function handle(message) {
 }
 `
 
+const STARTUP_WORKER = `
+// Writes and messages the parent right away, before its pipes may have
+// reached the main process.
+process.stdout.write('startup stdout\\n')
+process.stderr.write('startup stderr\\n')
+process.send({ started: true })
+process.on('message', () => process.exit(0))
+`
+
 const POOL_WORKER = `
 exports.add = (a, b) => a + b
 exports.ppid = () => process.ppid
@@ -155,8 +165,10 @@ exports.activity = () => {
 beforeAll(() => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'next-fork-server-test-'))
   echoWorkerPath = path.join(tmpDir, 'echo-worker.js')
+  startupWorkerPath = path.join(tmpDir, 'startup-worker.js')
   poolWorkerPath = path.join(tmpDir, 'pool-worker.js')
   fs.writeFileSync(echoWorkerPath, ECHO_WORKER)
+  fs.writeFileSync(startupWorkerPath, STARTUP_WORKER)
   fs.writeFileSync(poolWorkerPath, POOL_WORKER)
 })
 
@@ -334,6 +346,34 @@ describeUnix('ForkServer', () => {
     worker.send({ cmd: 'internal' })
     await nextMessage(worker, 'afterInternal')
     expect(messages).toEqual([{ env: null }, { afterInternal: true }])
+  })
+
+  it('forwards output and messages written at startup by many concurrent workers', async () => {
+    // The handles of many workers queue up in the helper; nothing a worker
+    // writes before its pipes arrive in this process may be lost.
+    const started = Array.from({ length: 40 }, () => {
+      const worker = server.spawn(startupWorkerPath, spawnOptions())
+      workers.push(worker)
+      return worker
+    })
+    const results = await Promise.all(
+      started.map(async (worker) => {
+        const stdout = readAll(worker.stdout)
+        const stderr = readAll(worker.stderr)
+        const message = await nextMessage(worker, 'started')
+        const exit = nextEvent(worker, 'exit')
+        worker.send({ cmd: 'exit' })
+        await exit
+        return { message, stdout: stdout(), stderr: stderr() }
+      })
+    )
+    for (const result of results) {
+      expect(result).toEqual({
+        message: { started: true },
+        stdout: 'startup stdout\n',
+        stderr: 'startup stderr\n',
+      })
+    }
   })
 
   it('forwards stdout and stderr', async () => {

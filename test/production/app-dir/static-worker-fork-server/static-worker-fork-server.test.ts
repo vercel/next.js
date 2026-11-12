@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 const brokenPage = `
-export default function Page() {
+export default function Page(): never {
   throw new Error('static-worker-fork-server: broken page')
 }
 `
