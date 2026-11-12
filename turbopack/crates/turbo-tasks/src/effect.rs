@@ -10,7 +10,7 @@ use std::{
     },
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::Result;
 use async_trait::async_trait;
 use crossbeam_utils::CachePadded;
 use futures::{StreamExt, TryStreamExt};
@@ -392,18 +392,17 @@ async fn capture_effects(
         // this task when we return.
         let results = futures::future::join_all(handles).await;
         results.into_iter().collect::<Result<()>>()?;
-        let Some(state) = Arc::into_inner(state) else {
-            bail!("capture workers finished while still holding the shared state");
-        };
-        state
+        let state = Arc::into_inner(state)
+            .expect("capture workers finished while still holding the shared state");
+        Ok(state
             .captured
             .into_iter()
             .map(|effect| {
                 effect
                     .into_inner()
-                    .context("capture workers finished without capturing every effect")
+                    .expect("capture workers finished without capturing every effect")
             })
-            .collect()
+            .collect())
     }
     .instrument(span)
     .await
@@ -441,7 +440,7 @@ impl CaptureEffectsState {
             // `fetch_add` hands out every index below `len` at most once (`store` above only sets
             // the counter to `len`), so the slot is still empty.
             if self.captured[idx].set(captured).is_err() {
-                bail!("effect {idx} was captured twice");
+                panic!("effect {idx} was captured twice");
             }
         }
     }
