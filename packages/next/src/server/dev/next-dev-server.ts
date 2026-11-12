@@ -40,12 +40,8 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { Telemetry } from '../../telemetry/storage'
-import {
-  type Span,
-  hrtimeToEpochNanoseconds,
-  setGlobal,
-  trace,
-} from '../../trace'
+import { Span, hrtimeToEpochNanoseconds, setGlobal } from '../../trace'
+import { recordSpan } from '../../trace/trace'
 import { traceGlobals } from '../../trace/shared'
 import { findPageFile } from '../lib/find-page-file'
 import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
@@ -211,7 +207,7 @@ export default class DevServer extends Server {
       unsubscribeNativeRoutes()
     })
     this.startServerSpan =
-      options.startServerSpan ?? trace('start-next-dev-server')
+      options.startServerSpan ?? new Span({ name: 'start-next-dev-server' })
     this.renderOpts.ErrorDebug = ReactDevOverlay
     this.staticPathsCache = new LRUCache(
       // 5MB
@@ -539,11 +535,17 @@ export default class DevServer extends Server {
               'devRequestTimingInternalsEnd'
             )
             if (devRequestTimingInternalsEnd) {
-              this.startServerSpan.manualTraceChild(
-                'render-path',
-                hrtimeToEpochNanoseconds(devRequestTimingInternalsEnd),
-                hrtimeToEpochNanoseconds(requestEnd),
-                { path: req.url || '' }
+              recordSpan(
+                {
+                  name: 'render-path',
+                  reportToOtel: true,
+                  startTime: hrtimeToEpochNanoseconds(
+                    devRequestTimingInternalsEnd
+                  ),
+                  endTime: hrtimeToEpochNanoseconds(requestEnd),
+                  attributes: { path: req.url || '' },
+                },
+                this.startServerSpan?.recorder
               )
             }
           })
@@ -559,7 +561,7 @@ export default class DevServer extends Server {
     res: NodeNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
-    const span = trace('handle-request', undefined, { url: req.url })
+    const span = new Span({ name: 'handle-request', attrs: { url: req.url } })
     const result = await span.traceAsyncFn(async () => {
       await this.ready?.promise
       addRequestMeta(req, 'PagesErrorDebug', this.renderOpts.ErrorDebug)
@@ -567,12 +569,16 @@ export default class DevServer extends Server {
     })
     const memoryUsage = process.memoryUsage()
     span
-      .traceChild('memory-usage', {
-        url: req.url,
-        'memory.rss': String(memoryUsage.rss),
-        'memory.heapUsed': String(memoryUsage.heapUsed),
-        'memory.heapTotal': String(memoryUsage.heapTotal),
-      })
+      .traceChild(
+        'memory-usage',
+        {
+          url: req.url,
+          'memory.rss': String(memoryUsage.rss),
+          'memory.heapUsed': String(memoryUsage.heapUsed),
+          'memory.heapTotal': String(memoryUsage.heapTotal),
+        },
+        { reportToOtel: true }
+      )
       .stop()
     return result
   }

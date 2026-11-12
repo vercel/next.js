@@ -1,5 +1,6 @@
 import type {
   AttributeValue,
+  Attributes,
   Context,
   SpanStatus,
   Span,
@@ -10,15 +11,18 @@ import type {
 import {
   isLocalSpanRecordingEnabled,
   isLocalSpanSinkActive,
+  captureLocalSpanRecorder,
+  isRequestInsightsEnabled,
   type SpanStoreAttributes,
   type SpanStoreEvent,
   type SpanStoreLink,
   type SpanStoreRecord,
   type LocalSpanParent,
 } from './span-store'
-import { captureRequestSpanRecorder } from './request-insights-span-recorder'
-import { normalizeTraceAttributes } from './span-attributes'
+import type { SpanId } from '../../../trace/types'
 import { getTimestamp, toHrTime } from './utils'
+import type { ReportingToken, ReportingStart } from './local-span-replay.node'
+
 export { isLocalSpanRecordingEnabled } from './span-store'
 
 function epochNanoseconds(time?: Parameters<Span['end']>[0]): bigint {
@@ -37,13 +41,19 @@ const SPAN_ID_HEX_LENGTH = 16
 // loading the runtime API.
 const SPAN_STATUS_ERROR: SpanStatusCode = 2
 
+type LocalSpanAttributes = Partial<Record<string, AttributeValue | undefined>>
+
 export type LocalSpanOptions = {
   name: string
   attributes?: Record<string, unknown>
-  parent?: Span | null
+  parent?: Span | SpanId | null
   links?: SpanOptions['links']
   /** Public OTel timestamp (epoch/relative milliseconds, Date or HrTime). */
   startTime?: SpanOptions['startTime']
+  endTime?: Parameters<Span['end']>[0]
+  /** Lossless process.hrtime.bigint() timestamp, independent of wall time. */
+  monotonicStartTime?: bigint
+  wallStartTimeMs?: number
   traceId?: string
   spanId?: string
   parentSpanId?: string
@@ -53,17 +63,39 @@ export type LocalSpanOptions = {
   isolateOpenTelemetry?: boolean
   clock?: { start: bigint; end(time?: Parameters<Span['end']>[0]): bigint }
   onError?: (span: LocalRecordingSpan, error: unknown) => void
+  reportToOtel?: boolean
+  reporting?: { id: number; parentId?: number; attributes?: Attributes }
+  recordToInsights?: boolean
+  reportingRoot?: boolean
 }
 
-// Delivery consumes the capture synchronously, before payloads are released.
-export type LocalSpanDelivery = (span: LocalRecordingSpan, end: bigint) => void
+export type LocalSpanDelivery = (
+  spans: readonly SpanStoreRecord[],
+  end?: bigint
+) => void
 
 type TraceExistingLocalSpanOptions = {
   span: LocalRecordingSpan
 }
 
+let spanReplay: typeof import('./local-span-replay.node') | undefined
+function getReplay() {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    return undefined
+  } else {
+    return (spanReplay ??=
+      require('./local-span-replay.node') as typeof import('./local-span-replay.node'))
+  }
+}
+
+let nextReportingId = 0
+
 let lastLocalTraceId = 0
 let lastLocalSpanId = 0
+
+function getLocalTraceId(): string {
+  return (++lastLocalTraceId).toString(16).padStart(TRACE_ID_HEX_LENGTH, '0')
+}
 
 export function createLocalSpanId(excludedId?: string): string {
   let spanId: string
@@ -78,6 +110,8 @@ export function createRecordingSpan(
   options: LocalSpanOptions,
   recordSpans: LocalSpanDelivery
 ): LocalRecordingSpan {
+  const parent = typeof options.parent === 'object' ? options.parent : undefined
+  const parentContext = parent?.spanContext()
   let delegateSpan = options.delegateSpan
   if (!delegateSpan && options.openTelemetry) {
     const { getTracerInstance } =
@@ -88,13 +122,142 @@ export function createRecordingSpan(
       options.openTelemetry.context
     )
   }
-  const span = new LocalRecordingSpan({ ...options, delegateSpan }, recordSpans)
+  const delegateContext = delegateSpan?.spanContext()
+  const span = new LocalRecordingSpan({
+    name: options.name,
+    attributes: options.attributes as LocalSpanAttributes,
+    links: options.links,
+    startTime: options.startTime,
+    clock: options.clock,
+    onError: options.onError,
+    delegateSpan,
+    parentReporting:
+      parent instanceof LocalRecordingSpan
+        ? parent.getReportingToken()
+        : undefined,
+    publicParentSpan: options.publicParentSpan,
+    traceId:
+      delegateContext?.traceId ??
+      options.traceId ??
+      parentContext?.traceId ??
+      getLocalTraceId(),
+    spanId: delegateContext?.spanId ?? options.spanId ?? createLocalSpanId(),
+    parentSpanId: options.parentSpanId ?? parentContext?.spanId,
+    recordSpans,
+    isolateOpenTelemetry: options.isolateOpenTelemetry ?? true,
+  })
+  if (
+    options.recordToInsights &&
+    process.env.__NEXT_DEV_SERVER &&
+    process.env.NEXT_RUNTIME !== 'edge'
+  ) {
+    const type = options.attributes?.['next.span_type']
+    span.addDelivery(
+      captureInsightSpanRecorder(
+        span,
+        parent ?? undefined,
+        options.name,
+        typeof type === 'string' ? type : options.name
+      )
+    )
+  }
+  if (options.reportToOtel && process.env.NEXT_RUNTIME !== 'edge') {
+    span.startReporting(
+      options.reporting,
+      options.reportingRoot,
+      options.endTime !== undefined
+    )
+  }
+  if (options.endTime !== undefined) span.end(options.endTime)
   return span
+}
+
+type RequestSpanIdentity = ReturnType<typeof getCurrentRequestIdentity>
+type ActivityInsight = {
+  identity: RequestSpanIdentity
+  rootSpanId: string | undefined
+  started: boolean
+}
+const activityInsights = new WeakMap<Span, ActivityInsight>()
+
+function captureRequestSpanRecorder(
+  identity: RequestSpanIdentity
+): LocalSpanDelivery {
+  const deliver = captureLocalSpanRecorder()
+  return (spans) => {
+    for (const span of spans) {
+      span.requestId = identity.requestId
+      span.requestInsightKind = identity.requestInsightKind
+      span.requestInsightSource = identity.requestInsightSource
+      span.requestInsightProxyStatus = identity.requestInsightProxyStatus
+      span.htmlRequestId = identity.htmlRequestId
+      span.route ??= identity.route
+      span.url ??= identity.url
+    }
+    deliver(spans)
+  }
+}
+
+function captureInsightSpanRecorder(
+  span: Span,
+  parent: Span | undefined,
+  name: string,
+  type: string
+): LocalSpanDelivery {
+  const identity = getCurrentRequestIdentity()
+  let insight = parent?.isRecording() ? activityInsights.get(parent) : undefined
+  if (identity.requestId) {
+    insight = { identity, rootSpanId: undefined, started: true }
+  } else if (!insight) {
+    const requestId = span.spanContext().spanId
+    insight = {
+      identity: {
+        requestId,
+        requestInsightKind: 'tooling',
+        requestInsightSource: 'tooling',
+        htmlRequestId: requestId,
+        route: name,
+      },
+      rootSpanId: span.spanContext().spanId,
+      started: false,
+    }
+  }
+  activityInsights.set(span, insight)
+  const scoped = isLocalSpanSinkActive()
+  const deliver = captureRequestSpanRecorder(insight.identity)
+  return (spans) => {
+    if (!scoped && !insight.started && isRequestInsightsEnabled()) {
+      const { startRequestInsight } =
+        require('./request-insights') as typeof import('./request-insights')
+      startRequestInsight({
+        requestId: insight.identity.requestId,
+        kind: 'tooling',
+        source: 'tooling',
+        route: insight.identity.route,
+      })
+      insight.started = true
+    }
+    for (const record of spans) {
+      record.requestInsightRoot = record.spanId === insight.rootSpanId
+      record.attributes = {
+        ...record.attributes,
+        'next.span_category': 'tooling',
+        'next.span_type': type,
+        'next.span_name': name,
+      }
+    }
+    deliver(spans)
+  }
 }
 
 type RequestSpanOptions = Omit<
   LocalSpanOptions,
-  'attributes' | 'clock' | 'onError'
+  | 'attributes'
+  | 'monotonicStartTime'
+  | 'wallStartTimeMs'
+  | 'reportToOtel'
+  | 'recordToInsights'
+  | 'reportingRoot'
 > & {
   attributes?: Partial<Record<string, AttributeValue | undefined>>
 }
@@ -104,7 +267,7 @@ export function createLocalSpan(
 ): LocalRecordingSpan {
   return createRecordingSpan(
     { ...options, isolateOpenTelemetry: options.isolateOpenTelemetry ?? false },
-    captureRequestSpanRecorder()
+    captureRequestSpanRecorder(getCurrentRequestIdentity())
   )
 }
 
@@ -334,20 +497,20 @@ function getLocalSpanAsyncStorage() {
 
 export class LocalRecordingSpan implements Span {
   public name: string
+  private nameUpdated = false
+  private reportingStart?: ReportingStart
+  private reportingToken?: ReportingToken
+  private readonly parentReporting?: ReportingToken
 
-  public attributes: Record<string, unknown>
+  private attributes: SpanStoreAttributes
   private events: SpanStoreEvent[]
-  private spanContextValue?: SpanContext
-  private readonly identity: {
-    traceId: string | number
-    spanId: string | number
-  }
+  private readonly spanContextValue: ReturnType<Span['spanContext']>
   private readonly openTelemetryIsolated: boolean
   private delegateSpan?: Span
   private openTelemetrySpan: Span | undefined
   private readonly openTelemetrySpanContext: SpanContext | undefined
   private links?: SpanStoreLink[]
-  private readonly parentSpanId?: string | number
+  private readonly parentSpanId?: string
   private recordSpans: LocalSpanDelivery | undefined
   private readonly startTime: number
   private clock?: LocalSpanOptions['clock']
@@ -356,49 +519,47 @@ export class LocalRecordingSpan implements Span {
   private exception: SpanStoreRecord['error']
   private ended: boolean
 
-  constructor(
-    {
-      name,
-      attributes,
-      parent,
-      links,
-      startTime,
-      clock,
-      onError,
-      delegateSpan,
-      publicParentSpan,
-      traceId,
-      spanId,
-      parentSpanId,
-      isolateOpenTelemetry = true,
-    }: LocalSpanOptions,
-    recordSpans: LocalSpanDelivery
-  ) {
-    const parentIdentity =
-      parent instanceof LocalRecordingSpan
-        ? parent.identity
-        : parent?.spanContext()
-    const delegateContext = delegateSpan?.spanContext()
-    this.identity = {
-      traceId:
-        delegateContext?.traceId ??
-        traceId ??
-        parentIdentity?.traceId ??
-        ++lastLocalTraceId,
-      spanId: delegateContext?.spanId ?? spanId ?? ++lastLocalSpanId,
-    }
+  constructor({
+    name,
+    attributes,
+    links,
+    startTime,
+    clock,
+    onError,
+    parentReporting,
+    delegateSpan,
+    publicParentSpan,
+    traceId,
+    spanId,
+    parentSpanId,
+    recordSpans,
+    isolateOpenTelemetry,
+  }: LocalSpanOptions & {
+    attributes?: LocalSpanAttributes
+    parentReporting?: ReportingToken
+    traceId: string
+    spanId: string
+    parentSpanId?: string
+    recordSpans?: LocalSpanDelivery
+    isolateOpenTelemetry: boolean
+  }) {
     this.name = name
     this.clock = clock
     this.onError = onError
-    this.attributes = { ...attributes }
+    this.parentReporting = parentReporting
+    this.attributes = cleanSpanStoreAttributes(attributes)
     this.events = []
     this.delegateSpan = delegateSpan
     this.openTelemetrySpan = delegateSpan ?? publicParentSpan
     this.openTelemetrySpanContext = this.openTelemetrySpan?.spanContext()
     this.openTelemetryIsolated = isolateOpenTelemetry
-    this.spanContextValue = delegateContext
+    this.spanContextValue = delegateSpan?.spanContext() ?? {
+      traceId,
+      spanId,
+      traceFlags: 0,
+    }
     this.links = getSpanStoreLinks(links)
-    this.parentSpanId = parentSpanId ?? parentIdentity?.spanId
+    this.parentSpanId = parentSpanId
     // Delivery is bound by the caller before entering the recorder.
     this.recordSpans = recordSpans
     this.startTime = getTimestamp(startTime)
@@ -406,31 +567,71 @@ export class LocalRecordingSpan implements Span {
     this.ended = false
   }
 
+  getReportingToken(): ReportingToken | undefined {
+    return this.reportingToken ?? this.parentReporting
+  }
+
+  startReporting(
+    identity?: LocalSpanOptions['reporting'],
+    root = false,
+    completed = false
+  ): void {
+    const replay = getReplay()!
+    this.reportingStart = {
+      name: this.name,
+      start: this.clock?.start ?? epochNanoseconds(this.startTime),
+      parentId: identity?.parentId,
+      attributes: identity?.attributes,
+      links: this.links?.map(({ traceId, spanId, attributes }) => ({
+        context: { traceId, spanId, traceFlags: 0 },
+        attributes,
+      })),
+    }
+    const token = (this.reportingToken = replay.prepare(
+      {},
+      identity?.id ?? --nextReportingId,
+      identity?.parentId,
+      this.parentReporting,
+      root
+    ))
+    if (token && !completed)
+      replay.deliverReportingSpan(token, this.reportingStart)
+  }
+
+  private updateDelegate(
+    update: (span: Span) => void,
+    events?: SpanStoreEvent[]
+  ): void {
+    const token = this.reportingToken
+    const span = token ? token.span : this.delegateSpan
+    if (!span || (token && !spanReplay!.isReady(token))) return
+    try {
+      if (token && events) {
+        spanReplay!.deliverEvents(token, events, () =>
+          spanReplay!.isReady(token)
+        )
+      } else {
+        update(span)
+      }
+    } catch (error) {
+      if (!token) throw error
+      spanReplay!.finish(token, true)
+    }
+  }
+
   addDelivery(deliver: LocalSpanDelivery): void {
     const previous = this.recordSpans
-    this.recordSpans = (span, end) => {
+    this.recordSpans = (spans, end) => {
       try {
-        previous?.(span, end)
+        previous?.(spans, end)
       } finally {
-        deliver(span, end)
+        deliver(spans, end)
       }
     }
   }
 
   spanContext(): ReturnType<Span['spanContext']> {
-    return (this.spanContextValue ??= {
-      traceId:
-        typeof this.identity.traceId === 'number'
-          ? this.identity.traceId
-              .toString(16)
-              .padStart(TRACE_ID_HEX_LENGTH, '0')
-          : this.identity.traceId,
-      spanId:
-        typeof this.identity.spanId === 'number'
-          ? this.identity.spanId.toString(16).padStart(SPAN_ID_HEX_LENGTH, '0')
-          : this.identity.spanId,
-      traceFlags: 0,
-    })
+    return this.spanContextValue
   }
 
   isOpenTelemetryIsolated(): boolean {
@@ -438,12 +639,15 @@ export class LocalRecordingSpan implements Span {
   }
 
   getOpenTelemetrySpan(): Span | undefined {
+    const context =
+      this.reportingToken?.context ?? this.openTelemetrySpanContext
     return (
+      this.reportingToken?.span ??
       this.openTelemetrySpan ??
-      (this.openTelemetrySpanContext
+      (context
         ? (
             require('./otel-api') as typeof import('./otel-api')
-          ).api.trace.wrapSpanContext(this.openTelemetrySpanContext)
+          ).api.trace.wrapSpanContext(context)
         : undefined)
     )
   }
@@ -454,7 +658,7 @@ export class LocalRecordingSpan implements Span {
     }
 
     this.attributes[key] = value
-    this.delegateSpan?.setAttribute(key, value)
+    this.updateDelegate((span) => span.setAttribute(key, value))
     return this
   }
 
@@ -463,10 +667,8 @@ export class LocalRecordingSpan implements Span {
       return this
     }
 
-    for (const key of Object.keys(attributes)) {
-      if (attributes[key] !== undefined) this.attributes[key] = attributes[key]
-    }
-    this.delegateSpan?.setAttributes(attributes)
+    cleanSpanStoreAttributes(attributes, this.attributes)
+    this.updateDelegate((span) => span.setAttributes(attributes))
     return this
   }
 
@@ -490,7 +692,10 @@ export class LocalRecordingSpan implements Span {
         ? cleanSpanStoreAttributes(attributesOrStartTime)
         : undefined,
     })
-    this.delegateSpan?.addEvent(name, attributesOrStartTime, startTime)
+    this.updateDelegate(
+      (span) => span.addEvent(name, attributesOrStartTime, startTime),
+      this.events
+    )
     return this
   }
 
@@ -500,7 +705,7 @@ export class LocalRecordingSpan implements Span {
     }
 
     this.status = { code: status.code, message: status.message }
-    this.delegateSpan?.setStatus(status)
+    this.updateDelegate((span) => span.setStatus(status))
     return this
   }
 
@@ -510,7 +715,8 @@ export class LocalRecordingSpan implements Span {
     }
 
     this.name = name
-    this.delegateSpan?.updateName(name)
+    this.nameUpdated = true
+    this.updateDelegate((span) => span.updateName(name))
     return this
   }
 
@@ -518,11 +724,14 @@ export class LocalRecordingSpan implements Span {
     if (this.ended) return
     this.ended = true
     try {
-      const end = this.clock?.end(endTime) ?? epochNanoseconds(endTime)
+      const end =
+        this.clock?.end(endTime) ??
+        (this.reportingToken ? epochNanoseconds(endTime) : undefined)
       try {
-        this.delegateSpan?.end(this.clock ? toHrTime(end) : endTime)
+        if (!this.reportingToken)
+          this.delegateSpan?.end(this.clock ? toHrTime(end!) : endTime)
       } finally {
-        this.record(end)
+        this.record(endTime, end)
       }
     } finally {
       this.releaseReferences()
@@ -559,53 +768,62 @@ export class LocalRecordingSpan implements Span {
       timestamp: getTimestamp(time),
       attributes: Object.keys(attributes).length ? attributes : undefined,
     })
-    this.delegateSpan?.recordException(exception, time)
-  }
-
-  toSpanStoreRecord(
-    end: bigint,
-    attributes: SpanStoreAttributes = normalizeTraceAttributes(
-      this.attributes,
-      true
+    this.updateDelegate(
+      (span) => span.recordException(exception, time),
+      this.events
     )
-  ): SpanStoreRecord {
-    const startTime = this.startTime
-    const start = this.clock?.start ?? epochNanoseconds(startTime)
-    const recordAttributes = Object.keys(attributes).length
-      ? attributes
-      : undefined
-    const context = this.spanContext()
-    return {
-      timestamp: getTimestamp(),
-      name: this.name,
-      startTime,
-      durationMs: Math.max(0, Number(end - start) / 1_000_000),
-      status: this.status?.code === SPAN_STATUS_ERROR ? 'error' : 'ok',
-      traceId: context.traceId,
-      spanId: context.spanId,
-      parentSpanId:
-        typeof this.parentSpanId === 'number'
-          ? this.parentSpanId.toString(16).padStart(SPAN_ID_HEX_LENGTH, '0')
-          : this.parentSpanId,
-      route:
-        getStringAttribute(recordAttributes, 'next.route') ??
-        getStringAttribute(recordAttributes, 'http.route'),
-      url: getStringAttribute(recordAttributes, 'http.url'),
-      attributes: recordAttributes,
-      links: this.links,
-      events: this.events.length ? this.events : undefined,
-      error: this.getRecordError(),
-    }
   }
 
-  private record(end: bigint): void {
-    this.recordSpans?.(this, end)
+  private record(endTime: Parameters<Span['end']>[0], end?: bigint): void {
+    const startTime = this.startTime
+    const completedAt = this.clock
+      ? startTime + Number(end! - this.clock.start) / 1_000_000
+      : getTimestamp(endTime)
+    const recordAttributes =
+      Object.keys(this.attributes).length > 0 ? this.attributes : undefined
+
+    try {
+      this.recordSpans?.(
+        [
+          {
+            timestamp: getTimestamp(),
+            name: this.name,
+            startTime,
+            durationMs: Math.max(0, completedAt - startTime),
+            status: this.status?.code === SPAN_STATUS_ERROR ? 'error' : 'ok',
+            traceId: this.spanContextValue.traceId,
+            spanId: this.spanContextValue.spanId,
+            parentSpanId: this.parentSpanId,
+            route:
+              getStringAttribute(recordAttributes, 'next.route') ??
+              getStringAttribute(recordAttributes, 'http.route'),
+            url: getStringAttribute(recordAttributes, 'http.url'),
+            attributes: recordAttributes,
+            links: this.links,
+            events: this.events.length > 0 ? this.events : undefined,
+            error: this.getRecordError(),
+          },
+        ],
+        end
+      )
+    } finally {
+      const token = this.reportingToken
+      if (token && this.reportingStart)
+        spanReplay!.deliverReportingSpan(token, this.reportingStart, {
+          end: end!,
+          attributes: this.attributes,
+          name: this.nameUpdated ? this.name : undefined,
+          events: this.events.length ? this.events : undefined,
+          status: this.status,
+        })
+    }
   }
 
   private releaseReferences(): void {
     this.name = ''
     this.attributes = {}
     this.delegateSpan = undefined
+    this.reportingStart = undefined
     this.clock = undefined
     this.onError = undefined
     this.events = []
@@ -707,4 +925,41 @@ function getSpanStoreException(
   }
 
   return undefined
+}
+
+function getCurrentRequestIdentity(): Pick<
+  SpanStoreRecord,
+  | 'requestId'
+  | 'requestInsightKind'
+  | 'requestInsightSource'
+  | 'requestInsightProxyStatus'
+  | 'htmlRequestId'
+  | 'route'
+  | 'url'
+> {
+  try {
+    const { getRequestInsightsIdentity } =
+      require('./request-insights-identity') as typeof import('./request-insights-identity')
+    const { workAsyncStorage } =
+      require('../../app-render/work-async-storage.external') as typeof import('../../app-render/work-async-storage.external')
+    const { workUnitAsyncStorage } =
+      require('../../app-render/work-unit-async-storage.external') as typeof import('../../app-render/work-unit-async-storage.external')
+    const workStore = workAsyncStorage.getStore()
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    const requestInsightsIdentity = getRequestInsightsIdentity()
+    const url =
+      workUnitStore && 'url' in workUnitStore ? workUnitStore.url : undefined
+    return {
+      requestId: requestInsightsIdentity?.requestId ?? workStore?.requestId,
+      requestInsightKind: requestInsightsIdentity?.kind,
+      requestInsightSource: requestInsightsIdentity?.source,
+      requestInsightProxyStatus: requestInsightsIdentity?.proxyStatus,
+      htmlRequestId:
+        requestInsightsIdentity?.htmlRequestId ?? workStore?.htmlRequestId,
+      route: workStore?.route,
+      url: url ? `${url.pathname}${url.search}` : requestInsightsIdentity?.url,
+    }
+  } catch {
+    return {}
+  }
 }

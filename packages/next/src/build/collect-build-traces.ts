@@ -1,7 +1,14 @@
 // Import cpu-profile to start profiling early if enabled
 import '../server/lib/cpu-profile'
-import { Span } from '../trace'
+import * as tracing from '../trace'
 import type { NextConfigComplete } from '../server/config-shared'
+import {
+  clearTraceEvents,
+  exportTraceState,
+  getTraceEvents,
+  initializeTraceState,
+} from '../trace/trace'
+import type { TraceState } from '../trace/types'
 
 import {
   TRACE_IGNORES,
@@ -97,7 +104,7 @@ export async function collectBuildTraces({
   distDir,
   edgeRuntimeRoutes,
   staticPages,
-  nextBuildSpan = new Span({ name: 'build' }),
+  nextBuildSpan,
   buildTraceContext,
   outputFileTracingRoot,
 }: {
@@ -107,7 +114,7 @@ export async function collectBuildTraces({
   outputFileTracingRoot: string
   // pageInfos is serialized when this function runs in a worker.
   edgeRuntimeRoutes: RoutesUsingEdgeRuntime
-  nextBuildSpan?: Span
+  nextBuildSpan?: tracing.Span
   config: NextConfigComplete
   buildTraceContext?: BuildTraceContext
 }) {
@@ -119,10 +126,13 @@ export async function collectBuildTraces({
   const excludeGlobKeys = Object.keys(outputFileTracingExcludes)
   const includeGlobKeys = Object.keys(outputFileTracingIncludes)
 
-  await nextBuildSpan
-    .traceChild('node-file-trace-build', {
-      isTurbotrace: 'false', // TODO(arlyon): remove this
-    })
+  await tracing
+    .trace(
+      'node-file-trace-build',
+      undefined,
+      { isTurbotrace: 'false' }, // TODO(arlyon): remove this
+      { parent: nextBuildSpan, reportToOtel: true }
+    )
     .traceAsyncFn(async () => {
       const nextServerTraceOutput = path.join(
         distDir,
@@ -565,7 +575,10 @@ export async function collectBuildTraces({
     })
 
   // apply outputFileTracingIncludes/outputFileTracingExcludes after runTurbotrace
-  const includeExcludeSpan = nextBuildSpan.traceChild('apply-include-excludes')
+  const includeExcludeSpan = new tracing.Span({
+    name: 'apply-include-excludes',
+    parent: nextBuildSpan,
+  })
   await includeExcludeSpan.traceAsyncFn(async () => {
     const globOrig =
       require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
@@ -692,4 +705,17 @@ export async function collectBuildTraces({
   })
 
   debug(`finished build tracing ${Date.now() - startTime}ms`)
+}
+
+export async function workerCollectBuildTraces(
+  options: Parameters<typeof collectBuildTraces>[0] & { traceState: TraceState }
+) {
+  initializeTraceState({ ...options.traceState, shouldSaveTraceEvents: true })
+  clearTraceEvents()
+  try {
+    await collectBuildTraces(options)
+    return { events: getTraceEvents(), traceState: exportTraceState() }
+  } finally {
+    clearTraceEvents()
+  }
 }

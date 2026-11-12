@@ -66,7 +66,14 @@ export function expectTraceEventContract(events: TraceEvent[]): void {
       // catches accidentally reporting a timestamp in ms instead of µs.
       const wallDeltaUs = (event.startTime! - reference.startTime!) * 1000
       const monotonicDeltaUs = event.timestamp - reference.timestamp
-      expect(Math.abs(wallDeltaUs - monotonicDeltaUs)).toBeLessThan(10_000)
+      try {
+        expect(Math.abs(wallDeltaUs - monotonicDeltaUs)).toBeLessThan(10_000)
+      } catch (cause) {
+        throw new Error(
+          `Inconsistent clocks for ${event.name} (${event.id}) relative to ${reference.name} (${reference.id})`,
+          { cause }
+        )
+      }
     }
   }
 }

@@ -110,7 +110,11 @@ store.subscribe((state) => {
           'compile-path',
           undefined,
           { trigger: trigger },
-          { parent: getActiveLocalSpan(), recordToInsights: true }
+          {
+            parent: getActiveLocalSpan(),
+            reportToOtel: true,
+            recordToInsights: true,
+          }
         )
         if (!loadingLogTimer) {
           // Only log compiling if compiled is not finished quickly

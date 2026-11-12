@@ -7,6 +7,9 @@ import { getSocketUrl } from '../get-socket-url'
 import { WEB_SOCKET_MAX_RECONNECTIONS } from '../../../../lib/constants'
 
 let source: WebSocket
+let hasConnected = false
+const pendingTraceMessages: string[] = []
+let pendingTraceCharacters = 0
 
 type MessageCallback = (message: HmrMessageSentToBrowser) => void
 
@@ -21,6 +24,20 @@ export function sendMessage(data: string) {
   return source.send(data)
 }
 
+export function sendTraceMessage(data: string) {
+  if (source && source.readyState === source.OPEN) {
+    sendMessage(data)
+  } else if (
+    !hasConnected &&
+    pendingTraceMessages.length < 32 &&
+    pendingTraceCharacters + data.length <= 64 * 1024
+  ) {
+    // Hydration can finish before the initial HMR handshake.
+    pendingTraceMessages.push(data)
+    pendingTraceCharacters += data.length
+  }
+}
+
 let reconnections = 0
 let reloading = false
 let serverSessionId: number | null = null
@@ -32,6 +49,9 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
     if (source) source.close()
 
     function handleOnline() {
+      hasConnected = true
+      for (const data of pendingTraceMessages.splice(0)) sendMessage(data)
+      pendingTraceCharacters = 0
       logQueue.onSocketReady(source)
       reconnections = 0
       window.console.log('[HMR] connected')

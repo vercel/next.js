@@ -196,6 +196,7 @@ fn do_compact(
         }
         turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new_with_duration(
             "turbopack-compaction",
+            true,
             wall_start,
             elapsed,
             serde_json::json!([

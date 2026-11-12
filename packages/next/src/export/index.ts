@@ -1,3 +1,4 @@
+import type { Span } from '../trace'
 import type {
   ExportAppResult,
   ExportAppOptions,
@@ -57,7 +58,6 @@ import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-pa
 import { loadEnvConfig } from '@next/env'
 import { isAPIRoute } from '../lib/is-api-route'
 import { getPagePath } from '../server/require'
-import type { Span } from '../trace'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { isAppPageRoute } from '../lib/is-app-page-route'
@@ -1141,7 +1141,9 @@ export default async function exportApp(
   span: Span,
   staticWorker?: StaticWorker
 ): Promise<ExportAppResult | null> {
-  const nextExportSpan = span.traceChild('next-export')
+  const nextExportSpan = span.traceChild('next-export', undefined, {
+    reportToOtel: true,
+  })
 
   return nextExportSpan.traceAsyncFn(async () => {
     return await exportAppImpl(dir, options, nextExportSpan, staticWorker)

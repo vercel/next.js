@@ -75,7 +75,10 @@ async function webpackBuildWithWorker(
       },
     })
     if (nextBuildSpan && curResult.debugTraceEvents) {
-      recordTraceEvents(curResult.debugTraceEvents)
+      recordTraceEvents(
+        curResult.debugTraceEvents,
+        curResult.debugTraceSelections
+      )
     }
     // destroy worker so it's not sticking around using memory
     await worker.end()
@@ -138,6 +141,7 @@ export async function webpackBuild(
   const nextBuildSpan = NextBuildContext.nextBuildSpan!
   return nextBuildSpan
     .traceChild('run-webpack', undefined, {
+      reportToOtel: true,
       recordToInsights: true,
       scope: true,
     })

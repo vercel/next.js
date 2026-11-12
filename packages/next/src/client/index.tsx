@@ -494,6 +494,7 @@ function markHydrateComplete(): void {
     ) {
       tracer
         .startSpan('navigation-to-hydration', {
+          reportToOtel: true,
           startTime: performance.timeOrigin + beforeHydrationMeasure.startTime,
           attributes: {
             pathname: location.pathname,

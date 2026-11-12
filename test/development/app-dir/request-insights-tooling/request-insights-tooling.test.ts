@@ -12,7 +12,6 @@ describe.each(['.next', 'tooling-output'])(
       files: __dirname,
       startCommand: `node node_modules/next/dist/bin/next ${bundlerFlag}`,
       env: {
-        NEXT_EXPERIMENTAL_OTEL_TOOLING: '0',
         NEXT_EXIT_TIMEOUT_MS: '30000',
         TOOLING_DIST_DIR: distDir,
       },

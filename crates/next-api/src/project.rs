@@ -3301,6 +3301,7 @@ async fn whole_app_module_graph_operation(
     .await;
     turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
         "turbopack-module-graph",
+        true,
         wall_start,
         start.elapsed(),
         serde_json::json!([]),

@@ -135,6 +135,7 @@ export async function startTypeChecking({
   try {
     const [verifyResult, typeCheckEnd] = await nextBuildSpan
       .traceChild('run-typescript', undefined, {
+        reportToOtel: true,
         recordToInsights: true,
         scope: true,
       })
