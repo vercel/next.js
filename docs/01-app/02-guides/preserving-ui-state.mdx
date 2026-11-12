@@ -73,7 +73,7 @@ You can also use `Link`'s [`onNavigate`](/docs/app/api-reference/components/link
 
 #### Native popovers
 
-Native popovers keep their open state in the DOM. In this example, a `useLayoutEffect` cleanup calls [`hidePopover()`](https://developer.mozilla.org/docs/Web/API/HTMLElement/hidePopover) to close the popover when Activity hides the component:
+Native popovers keep their open state in the DOM. In this example, a `useLayoutEffect` cleanup calls [`hidePopover()`](https://developer.mozilla.org/docs/Web/API/HTMLElement/hidePopover) to close the popover when Activity hides the component.
 
 ```tsx highlight={9-12}
 'use client'
@@ -113,7 +113,16 @@ Activity preserves a dialog's open/closed state. When Activity shows the compone
 
 To reset the open/closed state on hide, use a `useLayoutEffect` cleanup as in the [dropdown example](#expandable-ui-dropdowns-accordions-panels).
 
-The same pattern applies to controlled dialogs rendered through a portal: reset the open state in the component that owns it. For native dialogs opened with `showModal()`, call [`dialog.close()`](https://developer.mozilla.org/docs/Web/API/HTMLDialogElement/close) in the cleanup.
+For controlled dialogs rendered through a portal, reset the open state in the component that owns it, as in the dropdown example.
+
+For native dialogs opened with `showModal()`, use a ref to the `<dialog>` element and call [`close()`](https://developer.mozilla.org/docs/Web/API/HTMLDialogElement/close) during cleanup. This closes the dialog when Activity hides the component.
+
+```tsx highlight={3}
+useLayoutEffect(() => {
+  const dialog = dialogRef.current
+  return () => dialog?.close()
+}, [])
+```
 
 #### Controlling a dialog with the URL
 
@@ -551,7 +560,22 @@ function VideoPlayer({ src }: { src: string }) {
 
 When the component becomes visible again, Effects re-run and playback position is preserved since the DOM node was never removed.
 
-If cleanup removes or changes a DOM property, restore it in the Effect's setup. For example, removing a video's `src` during cleanup requires setting it again when the Effect runs. If you only need to stop playback, `pause()` preserves the source and position.
+If cleanup removes or changes a DOM property, restore it in the Effect's setup. For example, the following Effect releases the video's media resource while hidden and restores its source when shown. It replaces the Effect in `VideoPlayer` above.
+
+```tsx highlight={4,7-8}
+useLayoutEffect(() => {
+  const video = videoRef.current
+  if (!video) return
+  video.src = src
+  return () => {
+    video.pause()
+    video.removeAttribute('src')
+    video.load()
+  }
+}, [src])
+```
+
+Releasing the source also resets playback position. If you only need to stop playback, use the earlier `pause()` example to preserve it.
 
 ### Tracking whether an Effect has run before
 
