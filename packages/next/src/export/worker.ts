@@ -70,6 +70,53 @@ import { mapWithConcurrency } from './helpers/map-with-concurrency'
   nextExport: true,
 }
 
+type IncrementalCacheOptions = Parameters<typeof createIncrementalCache>[0]
+
+/**
+ * With `staticGenerationAdaptive`, pages arrive in many small `exportPages`
+ * calls. Keep one incremental cache per worker for the whole session and
+ * phase, so the in-memory fetch cache is shared by every page this worker
+ * renders in that phase, as it was when each worker got one big batch.
+ *
+ * The cache is rebuilt when the session, the phase, or any cache option
+ * changes, so nothing leaks between `exportApp` runs or between the initial
+ * and final (fallback shell) phases.
+ */
+let sharedIncrementalCache:
+  | {
+      key: string
+      cache: ReturnType<typeof createIncrementalCache>
+    }
+  | undefined
+
+function getSharedIncrementalCache(
+  scope: { sessionId: string | undefined; phase: string },
+  options: IncrementalCacheOptions
+): ReturnType<typeof createIncrementalCache> {
+  const key = JSON.stringify([
+    scope.sessionId,
+    scope.phase,
+    options.cacheHandler,
+    options.cacheMaxMemorySize,
+    options.fetchCacheKeyPrefix,
+    options.distDir,
+    options.dir,
+    options.flushToDisk,
+    options.cacheHandlers,
+  ])
+  if (sharedIncrementalCache?.key !== key) {
+    const cache = createIncrementalCache(options)
+    sharedIncrementalCache = { key, cache }
+    // Don't keep a failed creation around; the next call retries.
+    cache.catch(() => {
+      if (sharedIncrementalCache?.cache === cache) {
+        sharedIncrementalCache = undefined
+      }
+    })
+  }
+  return sharedIncrementalCache.cache
+}
+
 class TimeoutError extends Error {
   code = 'NEXT_EXPORT_TIMEOUT_ERROR'
 }
@@ -422,6 +469,8 @@ export async function exportPages(
     options,
     renderResumeDataCachesByPage = {},
     phase = 'initial',
+    sessionId,
+    placement,
   } = input
 
   const profiler = getStaticGenerationProfiler()
@@ -438,9 +487,7 @@ export async function exportPages(
     } catch {}
   }
 
-  // If the fetch cache was enabled, we need to create an incremental
-  // cache instance for this page.
-  const incrementalCache = await createIncrementalCache({
+  const incrementalCacheOptions: IncrementalCacheOptions = {
     cacheHandler,
     cacheMaxMemorySize,
     fetchCacheKeyPrefix,
@@ -450,7 +497,14 @@ export async function exportPages(
     // changes to better support it
     flushToDisk: !hasNextSupport,
     cacheHandlers: nextConfig.cacheHandlers,
-  })
+  }
+
+  // If the fetch cache was enabled, we need to create an incremental
+  // cache instance for this page.
+  const incrementalCache = await (nextConfig.experimental
+    .staticGenerationAdaptive
+    ? getSharedIncrementalCache({ sessionId, phase }, incrementalCacheOptions)
+    : createIncrementalCache(incrementalCacheOptions))
 
   renderOpts.incrementalCache = incrementalCache
   profiler?.instrumentIncrementalCache(incrementalCache)
@@ -586,7 +640,7 @@ export async function exportPages(
     }
 
     if (profiler && profiledPage) {
-      profiler.endPage(profiledPage, { phase, page, path, result })
+      profiler.endPage(profiledPage, { phase, page, path, result, placement })
     }
 
     return { result, path, page, pageKey }
