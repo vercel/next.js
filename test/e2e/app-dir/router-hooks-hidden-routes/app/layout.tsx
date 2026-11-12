@@ -8,6 +8,7 @@ export default function Root({ children }: { children: ReactNode }) {
         <nav>
           <Link href="/acme/a">/acme/a</Link>
           <Link href="/acme/b">/acme/b</Link>
+          <Link href="/acme/a?x=1">/acme/a?x=1</Link>
           <Link href="/account">/account</Link>
         </nav>
         {children}
