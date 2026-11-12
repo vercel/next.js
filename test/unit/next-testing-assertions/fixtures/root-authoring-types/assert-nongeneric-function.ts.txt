@@ -1,0 +1,3 @@
+import {assertType} from 'vitest'
+import type {AssertType,SnapshotResult,SnapshotStateOptions} from 'vitest'
+const check:AssertType=(value:string)=>{}

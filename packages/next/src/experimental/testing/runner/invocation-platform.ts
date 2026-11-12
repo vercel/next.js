@@ -22,3 +22,7 @@ export function invokeTestCallback(
 export function settleSuiteHookResult(value: unknown, _beforeAll: boolean) {
   return value
 }
+
+export function loadGlobalTestApi() {
+  return import('../vitest')
+}

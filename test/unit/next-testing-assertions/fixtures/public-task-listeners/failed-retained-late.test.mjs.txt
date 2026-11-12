@@ -1,0 +1,13 @@
+import { test, afterEach, afterAll, onTestFailed as globalFailed } from 'vitest'
+const rows = []
+const row = (stage, value = {}) => rows.push({ stage, ...value })
+afterEach(({ task }) => row('afterEach', { errors: (task.result?.errors ?? []).map(error => error?.message ?? String(error)) }))
+afterAll(() => console.log('TASK_QUEUE_CONSUMER:' + JSON.stringify(rows)))
+const fail = () => { const error = new Error('actual controlled body failure'); error.stack = ''; throw error }
+let held, retained
+test('first successful task retains failed registrar', context => { held=context.task;retained=context.onTestFailed;row('first-body',{absent:held.onFailed===undefined}) })
+test('foreign origin appends failed registrar after first logical end', context => {
+ row('before-retained',{absent:held.onFailed===undefined});retained(() => row('unexpected-late-failed'))
+ row('after-retained',{firstArray:Array.isArray(held.onFailed),firstLength:held.onFailed.length,currentAbsent:context.task.onFailed===undefined})
+})
+afterAll(() => row('final-first',{length:held.onFailed.length}))

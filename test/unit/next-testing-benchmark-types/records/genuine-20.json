@@ -1,0 +1,312 @@
+{
+  "node": "v20.20.0",
+  "mode": "genuine",
+  "reference": "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-v8@5.0.4_@vitest+ui@5.0.4_vite@8.3.4/node_modules/vitest/dist/index.d.ts",
+  "typescript": "6.0.2",
+  "foreign": [],
+  "programs": [
+    {
+      "name": "baseline-fields.ts",
+      "source": "baseline-fields.ts.txt",
+      "sourceSHA256": "c70968c111eccc7ecbb7347e09430244cc592337643fa9f11898fc7b4a7baa27",
+      "fullDiagnostics": [],
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "baseline-statistics.ts",
+      "source": "baseline-statistics.ts.txt",
+      "sourceSHA256": "54251ca515695968721a90f51fee5aa3b6d1cdfa1b5c8300d38db98bbd81b9fb",
+      "fullDiagnostics": [],
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "baseline-no-samples.ts",
+      "source": "baseline-no-samples.ts.txt",
+      "sourceSHA256": "46a089931b9aaf84913f4a1738746020455c9121d3efcbabbf1739e5719499f8",
+      "fullDiagnostics": [],
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "baseline-keys.ts",
+      "source": "baseline-keys.ts.txt",
+      "sourceSHA256": "f6c93246c765b8187f1bf4a6d73db1c3cdd83eb8b3c3b5f46c5216f12c3060de",
+      "fullDiagnostics": [],
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "source-sync.ts",
+      "source": "source-sync.ts.txt",
+      "sourceSHA256": "6cf3269fd112c63197732e6d0fe410955988de46fa0f1da7f0c3082d6f88b8ea",
+      "fullDiagnostics": [],
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "source-async.ts",
+      "source": "source-async.ts.txt",
+      "sourceSHA256": "128a48fb1abefc9769f13f002a24aefeeb5cb70b975e8ef93964f53b127393f7",
+      "fullDiagnostics": [],
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "source-optional-arg.ts",
+      "source": "source-optional-arg.ts.txt",
+      "sourceSHA256": "24daf28e9a17a3e8589ce0911305ba1078503b8939fcc6fd5aebff8307b4bb8c",
+      "fullDiagnostics": [],
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "task-fields.ts",
+      "source": "task-fields.ts.txt",
+      "sourceSHA256": "8f3583138e13c242be6251512ab3436df11ad77eda0bc030b253fe2db331f867",
+      "fullDiagnostics": [],
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "statistics-fields-exact.ts",
+      "source": "statistics-fields-exact.ts.txt",
+      "sourceSHA256": "598117814a70ba3be5f7ed6464c8b7b53ea4299310408f2a551b8750d23b7e96",
+      "fullDiagnostics": [],
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "task-keys-exact.ts",
+      "source": "task-keys-exact.ts.txt",
+      "sourceSHA256": "f12bee588b7d2b0dde6f2b397bd4fdc6ab5f9863728fe74f0f760a7837fd1eee",
+      "fullDiagnostics": [],
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "source-signature-exact.ts",
+      "source": "source-signature-exact.ts.txt",
+      "sourceSHA256": "e5973d1de1adce4778ab7671d2e6af07adbbc9fa4c3b6dfb4358426c715c3d3c",
+      "fullDiagnostics": [],
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "sample-brand-readonly.ts",
+      "source": "sample-brand-readonly.ts.txt",
+      "sourceSHA256": "bf9b58cc99b15ffa09e2af2d67b3ee66ab2c0fa27829531c34b8e12214e94e59",
+      "fullDiagnostics": [
+        "Cannot assign to '__sorted__' because it is a read-only property."
+      ],
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2540,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "source-construct.ts",
+      "source": "source-construct.ts.txt",
+      "sourceSHA256": "90c8ae7accb8e365601c11cf8836de2c47786b34340ef3ea4e738f738d58223f",
+      "fullDiagnostics": [
+        "'new' expression, whose target lacks a construct signature, implicitly has an 'any' type."
+      ],
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 7009,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "source-invalid-result.ts",
+      "source": "source-invalid-result.ts.txt",
+      "sourceSHA256": "337d37d1aac5ce60c752ffa422dab9a5a1a3eb130e2d7c52d01f37ef4402f119",
+      "fullDiagnostics": [
+        "Type '{ period: number; totalTime: number; }' is not assignable to type 'BaselineData | Promise<BaselineData>'.   Type '{ period: number; totalTime: number; }' is missing the following properties from type 'BaselineData': latency, throughput"
+      ],
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "baseline-missing.ts",
+      "source": "baseline-missing.ts.txt",
+      "sourceSHA256": "207adfc3a8aeeb167429f726158fd260adf15306b424211b220c8b34b339bbc8",
+      "fullDiagnostics": [
+        "Property 'period' is missing in type '{ latency: Statistics; throughput: Statistics; totalTime: number; }' but required in type 'BaselineData'."
+      ],
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2741,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "stats-missing.ts",
+      "source": "stats-missing.ts.txt",
+      "sourceSHA256": "a887499bd0e8593fe8f5f5896e42e50f9c39b40be08bba7ceced8794414b750d",
+      "fullDiagnostics": [
+        "Type '{ mean: number; }' is missing the following properties from type 'Statistics': aad, critical, df, mad, and 14 more."
+      ],
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2740,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "stats-sample-unbranded.ts",
+      "source": "stats-sample-unbranded.ts.txt",
+      "sourceSHA256": "a83e5577753b53656f92dc4de361f2fbf658cae2271145980b14370f1a757651",
+      "fullDiagnostics": [
+        "Type '[number, number]' is not assignable to type 'SortedSamples'.   Property '__sorted__' is missing in type '[number, number]' but required in type '{ readonly __sorted__: unique symbol; }'."
+      ],
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "stats-sample-empty.ts",
+      "source": "stats-sample-empty.ts.txt",
+      "sourceSHA256": "fa7dd84056b96fc590a29cb1c9d041f053a3211842e0e9e3080ae49435d4ab20",
+      "fullDiagnostics": [
+        "Type '[]' is not assignable to type 'SortedSamples'.   Type '[]' is not assignable to type 'Samples'.     Source has 0 element(s) but target requires 1."
+      ],
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "source-required-arg.ts",
+      "source": "source-required-arg.ts.txt",
+      "sourceSHA256": "f93c9bc38176c58b41859e7c1a187673f9f3e4b40f7e4571a1f4aa494404bbb9",
+      "fullDiagnostics": [
+        "Type '(required: string) => BaselineData' is not assignable to type 'BenchFromSource'.   Target signature provides too few arguments. Expected 1 or more, but got 0."
+      ],
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "source-promise-like.ts",
+      "source": "source-promise-like.ts.txt",
+      "sourceSHA256": "b7e9ed561594d8308b71f2ea5f4c0abcebf46636b947796545a2d7ce28b1e9e0",
+      "fullDiagnostics": [
+        "Type 'PromiseLike<BaselineData>' is not assignable to type 'BaselineData | Promise<BaselineData>'.   Type 'PromiseLike<BaselineData>' is missing the following properties from type 'Promise<BaselineData>': catch, finally, [Symbol.toStringTag]"
+      ],
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "source-call-arg.ts",
+      "source": "source-call-arg.ts.txt",
+      "sourceSHA256": "d5f9eb0f8093c10e302195815d580845f34f98f55f0f821308df24571cd2ade7",
+      "fullDiagnostics": [
+        "Expected 0 arguments, but got 1."
+      ],
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2554,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "task-missing-rank.ts",
+      "source": "task-missing-rank.ts.txt",
+      "sourceSHA256": "74cf1a9c4e07efa6d601724bf2a51b4d3a336c3df6e7415328ddda3f9e32f37e",
+      "fullDiagnostics": [
+        "Property 'rank' is missing in type '{ name: string; latency: Statistics; throughput: Statistics; period: number; totalTime: number; }' but required in type 'TestBenchmarkTask'."
+      ],
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2741,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "task-wrong-store.ts",
+      "source": "task-wrong-store.ts.txt",
+      "sourceSHA256": "1e9ad1e69b907bd03f2d6a8f82cbe260a69b86bbdfb4421c8d3c587a69ee11d1",
+      "fullDiagnostics": [
+        "Type '\"yes\"' is not assignable to type 'boolean | undefined'."
+      ],
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 3
+        }
+      ]
+    },
+    {
+      "name": "group-wrong-tasks.ts",
+      "source": "group-wrong-tasks.ts.txt",
+      "sourceSHA256": "b8a87ae8302491c0d4beb02566066b4e254045da50a60e664375729d0928b95a",
+      "fullDiagnostics": [
+        "Type 'string' is not assignable to type 'TestBenchmarkTask'."
+      ],
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    }
+  ],
+  "foreignRuntimeDependencies": [
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-v8@5.0.4_@vitest+ui@5.0.4_vite@8.3.4/node_modules/vitest/optional-runtime-types.d.ts",
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/tinybench@6.2.2/node_modules/tinybench/dist/index.d.ts",
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-v8@5.0.4_@vitest+ui@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/config.d.QBNYCgFU.d.ts",
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/types/hmrPayload.d.ts",
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/chunks/moduleRunnerTransport.d.ts",
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/types/customEvent.d.ts",
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/types/hot.d.ts",
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.d.ts",
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-v8@5.0.4_@vitest+ui@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/rpc.d.Cft1biqy.d.ts",
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-v8@5.0.4_@vitest+ui@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/environment.d.BY56MoGs.d.ts",
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-v8@5.0.4_@vitest+ui@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/worker.d.BH-r1bPu.d.ts",
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-v8@5.0.4_@vitest+ui@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/browser.d.FGQ9_rK6.d.ts",
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-v8@5.0.4_@vitest+ui@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/task-utils.d.PFh2BV6Q.d.ts",
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/@vitest+mocker@5.0.4_vite@8.3.4/node_modules/@vitest/mocker/dist/registry.d-xLx_FoyF.d.ts",
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/@vitest+mocker@5.0.4_vite@8.3.4/node_modules/@vitest/mocker/dist/index.d-D4wtotQw.d.ts",
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/@vitest+mocker@5.0.4_vite@8.3.4/node_modules/@vitest/mocker/dist/index.d.ts",
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-v8@5.0.4_@vitest+ui@5.0.4_vite@8.3.4/node_modules/vitest/dist/chunks/evaluatedModules.d.BxJ5omdx.d.ts",
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-v8@5.0.4_@vitest+ui@5.0.4_vite@8.3.4/node_modules/vitest/dist/index.d.ts"
+  ]
+}

@@ -1,0 +1,34 @@
+import { afterAll, expect, test } from 'vitest'
+const trace = []
+let local, caller, owner, phase, receiver
+const operations = [
+  ['equal', 2, assertion => assertion.to.equal(2)],
+  ['deep-equal', { n: [1] }, assertion => assertion.to.deep.equal({ n: [1] })],
+  ['property', { n: 1 }, assertion => assertion.to.have.property('n', 1)],
+  ['lengthOf', [1, 2], assertion => assertion.to.have.lengthOf(2)],
+  ['instanceOf', new Map(), assertion => assertion.to.be.instanceOf(Map)],
+  ['include', [1, 2], assertion => assertion.to.include(2)],
+  ['match', 'owned fluent chain', assertion => assertion.to.match(/fluent/)],
+  ['ok', 1, assertion => assertion.to.be.ok],
+  ['true', true, assertion => assertion.to.be.true],
+  ['a', 2, assertion => assertion.to.be.a('number')],
+]
+expect.extend({ toInspectFluentOwner() {
+  trace.push({ phase, kind: 'matcher-state', taskIsOwner: this.task === owner, sameReceiver: this.assertion === receiver, isNot: this.isNot, promise: this.promise })
+  return { pass: true, message: () => 'real fluent receiver mismatch' }
+} })
+function run(label) {
+  phase = label
+  for (const [name, value, invoke] of operations) {
+    const assertion = local(value)
+    try {
+      const result = invoke(assertion)
+      trace.push({ phase, name, returnedType: typeof result, sameAssertion: result === assertion, ownerCount: local.getState().assertionCalls, callerCount: caller?.getState().assertionCalls ?? null })
+      receiver = result
+      result.toInspectFluentOwner()
+    } catch (error) { trace.push({ phase, name, error: { name: error.name, message: error.message } }) }
+  }
+}
+test('creator fluent Chai owner', context => { local = context.expect; owner = context.task })
+test('foreign fluent Chai caller', context => { caller = context.expect; run('foreign') })
+afterAll(() => { run('afterAll'); console.log('DECLARATION_FN:' + JSON.stringify({ kind: 'fluent-chai-hard', trace })) })

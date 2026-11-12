@@ -1,0 +1,13 @@
+import { test, expect, beforeEach, afterEach, afterAll } from 'vitest'
+const rows = []
+let release = () => {}
+const row = (stage, value = {}) => rows.push({ stage, ...value })
+afterEach(({ task }) => { row('afterEach', { errors: (task.result?.errors ?? []).map(error => error?.message ?? String(error)) }); release() })
+afterAll(() => console.log('TASK_QUEUE_CONSUMER:' + JSON.stringify(rows)))
+test('manual thenable native creation follows the actual iteration boundary', ({ task, expect: local }) => {
+  let yes
+  release = () => { row('release-native'); yes(17) }
+  const native = new Promise(resolve => { yes = resolve })
+  task.promises = [{ then(resolve) { row('manual-then'); local(native).resolves.toBe(17).then(() => row('native-settled')); resolve(29) } }]
+  row('body-return')
+})

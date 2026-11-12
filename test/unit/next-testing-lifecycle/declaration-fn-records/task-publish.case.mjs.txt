@@ -1,0 +1,8 @@
+import {test,describe,expect,afterAll,beforeEach,afterEach} from 'vitest';
+const flags=()=>({concurrent:false,only:false,skip:false,todo:false,shuffle:false});const trace=[];let late,lateRan=false;
+beforeEach(context=>trace.push({kind:'root-before',name:context.task.name,parent:context.task.suite?.name??null}));afterEach(context=>trace.push({kind:'root-after',name:context.task.name,parent:context.task.suite?.name??null}));
+const first=describe.fn.call(flags(),'first',{},provided=>{trace.push({kind:'factory',name:'first'});provided('inside',()=>{trace.push({kind:'body',name:'inside'});expect(true).toBe(true)});});
+first.on('beforeEach',context=>trace.push({kind:'first-before',name:context.task.name}));first.on('afterEach',context=>trace.push({kind:'first-after',name:context.task.name}));
+const second=describe.fn.call(flags(),'second',{},provided=>{trace.push({kind:'factory',name:'second'});late=first.task('late',{handler(context){lateRan=true;trace.push({kind:'body',name:'late',parent:context.task.suite?.name??null,same:context.task===late});expect(context.task).toBe(late)}});provided('second child',()=>expect(true).toBe(true));});
+second.on('beforeEach',context=>trace.push({kind:'second-before',name:context.task.name}));second.on('afterEach',context=>trace.push({kind:'second-after',name:context.task.name}));
+test('control',()=>expect(true).toBe(true));afterAll(()=>console.log('DECLARATION_FN:'+JSON.stringify({kind:'suite-task-publish',trace,lateRan,lateState:late?.result?.state??null,lateParent:late?.suite?.name??null,staged:first.tasks.map(task=>task.name),published:first.suite.tasks.map(task=>task.name)})));

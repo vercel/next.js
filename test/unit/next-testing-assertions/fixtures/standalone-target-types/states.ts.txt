@@ -1,0 +1,2 @@
+import type {TaskState} from 'vitest'
+const states:TaskState[]=['run','skip','only','todo','queued','pass','fail'];void states

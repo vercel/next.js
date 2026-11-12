@@ -1,0 +1,2 @@
+import type {SnapshotUpdateState} from 'vitest'
+const mode:SnapshotUpdateState='partial';void mode

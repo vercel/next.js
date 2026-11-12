@@ -1,0 +1,5 @@
+import type { BaselineData, BenchFromSource } from 'vitest';
+declare const data: BaselineData;
+const source: BenchFromSource = () => data;
+const result: BaselineData | Promise<BaselineData> = source();
+void result;

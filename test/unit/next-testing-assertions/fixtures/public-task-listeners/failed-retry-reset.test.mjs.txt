@@ -1,0 +1,14 @@
+import { test, afterEach, afterAll, onTestFailed as globalFailed } from 'vitest'
+const rows = []
+const row = (stage, value = {}) => rows.push({ stage, ...value })
+afterEach(({ task }) => row('afterEach', { errors: (task.result?.errors ?? []).map(error => error?.message ?? String(error)) }))
+afterAll(() => console.log('TASK_QUEUE_CONSUMER:' + JSON.stringify(rows)))
+const fail = () => { const error = new Error('actual controlled body failure'); error.stack = ''; throw error }
+let attempt=0,held,retained
+test('failed callbacks reset and retained registrar rebinds across retries',{retry:1},context=>{
+ attempt++;if(attempt===1){held=context.task;retained=context.onTestFailed}
+ row('body-start',{attempt,same:held===context.task,absent:context.task.onFailed===undefined})
+ retained(payload=>row('failed-callback',{attempt,same:payload.task===held,length:held.onFailed.length}))
+ row('body-return',{attempt,length:held.onFailed.length});if(attempt===1)fail()
+})
+afterAll(()=>row('final-task',{absent:held.onFailed===undefined}))

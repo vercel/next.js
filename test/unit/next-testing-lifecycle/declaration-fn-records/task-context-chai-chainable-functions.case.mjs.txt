@@ -1,0 +1,14 @@
+import { afterAll, expect, test } from 'vitest'
+const trace = []
+let local, caller, owner, phase, receiver
+const operations = [
+  ['include-keys', () => local({ x: 1, y: 2 }).include.keys('x')],
+  ['length-above', () => local([1, 2]).lengthOf.above(1)],
+  ['a-not-equal', () => local(2).a.not.equal(3)],
+  ['include-not-keys', () => local({ x: 1 }).include.not.keys('y')],
+]
+expect.extend({ toInspectChainableFunction() { trace.push({ phase, kind: 'state', sameTask: this.task === owner, sameReceiver: this.assertion === receiver }); return { pass: true, message: () => 'chainable native receiver changed' } } })
+function run(label) { phase = label; for (const [name, invoke] of operations) { try { receiver = invoke(); trace.push({ phase, name, returnedType: typeof receiver }); receiver.toInspectChainableFunction() } catch (error) { trace.push({ phase, name, error: { name: error.name, message: error.message } }) } } trace.push({ phase, kind: 'counts', owner: local.getState().assertionCalls, caller: caller?.getState().assertionCalls ?? null }) }
+test('creator native uncalled chainable functions', context => { local = context.expect; owner = context.task })
+test('foreign native uncalled chainable functions', context => { caller = context.expect; run('foreign') })
+afterAll(() => { run('afterAll'); console.log('DECLARATION_FN:' + JSON.stringify({ kind: 'chai-chainable-functions', trace })) })

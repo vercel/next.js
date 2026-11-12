@@ -1,0 +1,6 @@
+import type {BenchFn} from 'vitest'
+type Equal<A,B>=(<T>()=>T extends A?1:2) extends (<T>()=>T extends B?1:2)?true:false
+const exact:true=null as unknown as Equal<BenchFn,()=>unknown>
+const parameters:true=null as unknown as Equal<Parameters<BenchFn>,[]>
+const result:true=null as unknown as Equal<ReturnType<BenchFn>,unknown>
+void exact;void parameters;void result

@@ -1,0 +1,9 @@
+import type {SnapshotData,SnapshotMatchOptions,SnapshotSerializer,SnapshotSummary,SnapshotUpdateState,UncheckedSnapshot,MatcherState} from 'vitest'
+type Equal<X,Y>=(<T>()=>T extends X?1:2) extends (<T>()=>T extends Y?1:2)?true:false
+type Require<T extends true>=T
+type Data=Require<Equal<SnapshotData,Record<string,string>>>
+type Updates=Require<Equal<SnapshotUpdateState,'all'|'new'|'none'>>
+type Match=Require<Equal<SnapshotMatchOptions,Parameters<NonNullable<MatcherState['snapshotState']>['match']>[0]>>
+type Unchecked=Require<Equal<SnapshotSummary['uncheckedKeysByFile'][number],UncheckedSnapshot>>
+type Printer=Require<Equal<ReturnType<Extract<SnapshotSerializer,{serialize:unknown}>['serialize']>,string>>
+export type {Data,Updates,Match,Unchecked,Printer}

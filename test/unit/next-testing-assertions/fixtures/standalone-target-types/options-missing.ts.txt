@@ -1,0 +1,2 @@
+import type {TestTryOptions} from 'vitest'
+const options:TestTryOptions={retry:2};void options

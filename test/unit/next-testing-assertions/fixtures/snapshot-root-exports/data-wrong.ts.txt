@@ -1,0 +1,2 @@
+import type {SnapshotData} from 'vitest'
+const data:SnapshotData={named:42};void data

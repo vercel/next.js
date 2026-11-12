@@ -1,0 +1,15 @@
+import { test, afterEach, afterAll, onTestFailed as globalFailed } from 'vitest'
+const rows = []
+const row = (stage, value = {}) => rows.push({ stage, ...value })
+afterEach(({ task }) => row('afterEach', { errors: (task.result?.errors ?? []).map(error => error?.message ?? String(error)) }))
+afterAll(() => console.log('TASK_QUEUE_CONSUMER:' + JSON.stringify(rows)))
+const fail = () => { const error = new Error('actual controlled body failure'); error.stack = ''; throw error }
+let failed = [], finished, gets = 0
+test('actual failed field getter order and dual reset', context => {
+ const task = context.task
+ Object.defineProperty(task,'onFailed',{configurable:true,get(){row('failed-get',{count:++gets});return failed},set(value){row('failed-set',{absent:value===undefined});failed=value}})
+ Object.defineProperty(task,'onFinished',{configurable:true,get(){row('finished-get');return finished},set(value){row('finished-set',{absent:value===undefined});finished=value}})
+ context.onTestFailed(() => row('context-failed')); globalFailed(() => row('global-failed'))
+ row('body-return',{length:failed.length}); fail()
+})
+afterAll(() => row('final-task',{failedAbsent:failed===undefined,finishedAbsent:finished===undefined}))

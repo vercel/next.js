@@ -1,0 +1,20 @@
+import { test, afterEach, afterAll, onTestFailed as globalFailed } from 'vitest'
+const rows = []
+const row = (stage, value = {}) => rows.push({ stage, ...value })
+afterEach(({ task }) => row('afterEach', { errors: (task.result?.errors ?? []).map(error => error?.message ?? String(error)) }))
+afterAll(() => console.log('TASK_QUEUE_CONSUMER:' + JSON.stringify(rows)))
+const fail = () => { const error = new Error('actual controlled body failure'); error.stack = ''; throw error }
+let held, retained
+test('failed registration snapshot list',context=>{
+ held=context.task;retained=context.onTestFailed
+ context.onTestFailed(function firstFailed(payload){
+  row('first-failed',{length:held.onFailed.length,receiverUndefined:this===undefined})
+  for(const name of ['onTestFinished','onTestFailed']){try{payload[name](()=>row('unexpected-live'));row('unexpected-live-accepted')}catch(error){row('live-refused',{name,message:error.message})}}
+  globalFailed(()=>row('appended-global'));retained(()=>row('appended-retained'));held.onFailed.push(()=>row('appended-manual'));row('appended',{length:held.onFailed.length})
+ })
+ const actual=held.onFailed,slice=actual.slice,map=actual.map
+ actual.slice=function(...args){row('slice',{same:this===actual});const copy=slice.apply(this,args),reverse=copy.reverse;copy.reverse=function(...args){row('reverse',{same:this===copy});return reverse.apply(this,args)};return copy}
+ actual.map=function(...args){row('map',{same:this===actual});return map.apply(this,args)}
+ row('body-return',{length:actual.length});fail()
+})
+afterAll(()=>row('final-task',{absent:held.onFailed===undefined}))

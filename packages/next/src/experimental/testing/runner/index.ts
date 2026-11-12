@@ -1,8 +1,121 @@
-import type { createAssertionRuntime } from '../assertions'
-import { assertScopeActive } from './async-context'
-import { assertAssertionRuntimeAccess } from '../assertions/assertion-platform'
+import { validateSynchronousClient } from '../client/validate'
+import { loadGlobalTestApi } from './invocation-platform'
+export { createModuleImportTracker } from './imports'
+import {
+  getPublishedTaskLocation,
+  getTaskContext,
+  type TestTagDefinition,
+  type Test,
+  type Task,
+  type File,
+  getCollectionTaskView,
+  serializeTaskError,
+} from './tasks'
+import type { RuntimeOptions } from '../assertions/utilities'
+import {
+  createAsyncScope,
+  getConsoleTask as getOriginatingConsoleTask,
+  assertScopeActive,
+  getOriginatingAttempt,
+  peekOriginatingScope,
+  getOriginatingCasePhase,
+  runWithCasePhase,
+  getOriginatingHook,
+  getOriginatingCollection,
+  getOriginatingFileFixtures,
+  getOriginatingWorkerFixtures,
+  getOriginatingScopeAncestors,
+  getOriginatingUnhandledFailureSink,
+} from './async-context'
+import {
+  createCollector,
+  hasFocusedTests,
+  collectTestCases,
+  type CollectorDispatch,
+  type SuiteDeclaration,
+  type TestBody,
+  type TestContext,
+} from './collector'
+import { createAssertionRuntime } from '../assertions'
+import { VitestSnapshotEnvironment } from '../assertions/snapshot-environment'
+import type { SnapshotFormat } from '../snapshot-format'
+import {
+  assertAssertionRuntimeAccess,
+  fileAssertionLifetime,
+} from '../assertions/assertion-platform'
+import { createFixtureWorker, type FixtureWorker } from './fixtures'
+import { getFinalCaseResults } from '../reporting/final-cases'
+import {
+  resolveSnapshotUpdateMode,
+  type SnapshotUpdateMode,
+} from '../assertions/snapshot-common'
+import {
+  runCollected,
+  isSettledCoverageFailure,
+  isSettledAuthoredAfterAllFailure,
+  isSettledBeforeEachCoverageFailure,
+  type AttemptContext,
+  type RunnerFailure,
+  type RunnerOptions,
+  type CompletedModuleResult,
+  type RunnerOperationObservation,
+  type RunnerModuleResultObservation,
+  type OperationSettlement,
+  type SuiteHookContext,
+} from './lifecycle'
 
+let providedContext: Record<string, unknown> = {}
+export function getProvidedValue(key: string): unknown {
+  getTestApi()
+  return providedContext[key]
+}
+
+let activeFile: ReturnType<typeof createCollector> | undefined
+let publicSuiteAlias: SuiteDeclaration | undefined
 let assertions: Awaited<ReturnType<typeof createAssertionRuntime>> | undefined
+
+let publicSelectionEnabled = false
+let currentTest: Test | undefined
+let consoleTask: { taskId: string; caseId?: string; task?: Task } | undefined
+
+/** Public task selection is separate from the origin that owns private resources. */
+export function isPublicTaskSelectionEnabled(): boolean {
+  return publicSelectionEnabled
+}
+
+export function getCurrentTest(): Test | undefined {
+  return publicSelectionEnabled ? currentTest : getOriginatingAttempt()?.task
+}
+
+export function getConsoleTask() {
+  if (!publicSelectionEnabled) return getOriginatingConsoleTask()
+  if (!consoleTask) return undefined
+  const origin = getOriginatingConsoleTask()
+  const { task: _task, ...metadata } = consoleTask
+  return {
+    ...metadata,
+    ...(origin?.caseId === consoleTask.caseId && origin?.attempt
+      ? { attempt: origin.attempt }
+      : {}),
+  }
+}
+
+/** The Browser SDK uses this real public queue without selecting a resource owner. */
+export function getCurrentConsoleTask(): Task | undefined {
+  return publicSelectionEnabled ? consoleTask?.task : undefined
+}
+
+function selectConsoleTask(task: Task) {
+  consoleTask = {
+    taskId: task.id,
+    ...(task.type === 'test' ? { caseId: task.id } : {}),
+    task,
+  }
+}
+
+export function registerTestSuiteAlias(alias: SuiteDeclaration): void {
+  publicSuiteAlias = alias
+}
 
 export function getAssertionRuntime() {
   assertScopeActive()
@@ -16,4 +129,1713 @@ export function getAssertionRuntimeForAssertions() {
   if (!assertions)
     throw new Error('Assertion APIs require an initialized Next test file.')
   return assertions
+}
+
+export function getTestApi() {
+  assertScopeActive()
+  if (!activeFile)
+    throw new Error('Vitest-compatible APIs require explicit Next test mode.')
+  return activeFile.api
+}
+
+export function getActiveAttempt(): AttemptContext | undefined {
+  return getOriginatingAttempt()
+}
+
+export function getActiveHook(): SuiteHookContext | undefined {
+  return getOriginatingHook()
+}
+
+export interface TestFileOptions {
+  /** Actual isolated Node collected-Task consumer owns retry publication. */
+  carriedRetryOptions?: true
+  /** Actual collection catch only; observation does not certify later cleanup. */
+  onCollectionFailure?(file: File, error: unknown): void | Promise<void>
+  /** Enabled only by actual compiled execution hosts; private callers retain their scopes. */
+  publicTaskSelection?: true
+  /** Actual public file preparation; private standalone callers retain their semantics. */
+  prepareEmptyPublicFile?: true
+  /** Real public snapshot setup is owned by the file's run preparation. */
+  preparePublicSnapshots?: true
+  /** Actual finalized public task modes, independent of private declaration data. */
+  finalizePublicTaskModes?: true
+  /** Explicit Istanbul host capture of one settled actual module-load failure. */
+  captureCollectionCoverage?: true
+  /** Actual V8 collection capture also observes settled declaration failures. */
+  captureSettledCollectionDeclarations?: true
+  /** Actual isolated V8 completed collection/restoration observation only. */
+  captureCollectionRestoration?: true
+  /** Actual isolated readonly Node run; never enables Istanbul rejection capture. */
+  finishReadOnlySnapshots?: true
+  /** Actual Node execution omits statistics for a file that never ran. */
+  omitFailedCollectionSnapshotSummary?: true
+  fileId: string
+  filePath: string
+  /** Actual resolved local environment; presence retains an undefined name. */
+  assertionEnvironment?: Readonly<{ name: unknown }>
+  tags?: readonly TestTagDefinition[]
+  strictTags?: boolean
+  globals?: boolean
+  getTaskLocation?(error: Error): import('./tasks').TaskLocation | undefined
+  onUnhandledRejection?(
+    reason: unknown,
+    promise?: Promise<unknown>,
+    recordedBody?: boolean,
+    recordedCoverageAfterAll?: boolean
+  ): void
+  resourceLifetime?: 'attempt' | 'file'
+  fakeTimers?: import('../assertions/utilities').FakeTimerOptions
+  waitForImports?: () => Promise<void>
+  clearMocks?: boolean
+  mockReset?: boolean
+  restoreMocks?: boolean
+  unstubGlobals?: boolean
+  unstubEnvs?: boolean
+  retry?: import('./collector').TestOptions['retry']
+  testTimeout?: number
+  hookTimeout?: number
+  sequence?: RunnerOptions['sequence']
+  provide?: Record<string, unknown>
+  updateSnapshots?: boolean
+  /** Actual isolated Node execution host admission; never a project setting. */
+  snapshotBodyFailures?: boolean
+  /** Actual isolated Node authored-beforeEach observation; disabled elsewhere. */
+  nativeBeforeEachAssertions?: boolean
+  /** Actual isolated Node authored-afterEach observation; disabled elsewhere. */
+  nativeAfterEachAssertions?: boolean
+  /** Actual isolated Node returned-beforeEach cleanup observation only. */
+  nativeBeforeEachCleanupAssertions?: boolean
+  collectOnly?: boolean
+  snapshotUpdateMode?: SnapshotUpdateMode
+  snapshotFormat?: SnapshotFormat
+  mapSnapshotLocation?: Parameters<
+    typeof createAssertionRuntime
+  >[0]['mapSnapshotLocation']
+}
+
+export interface WorkerRuntimeFailure {
+  fileId?: string
+  error: unknown
+}
+interface WorkerRuntime {
+  id: string
+  fixtures: FixtureWorker
+  collector?: CollectorDispatch
+  failures: WorkerRuntimeFailure[]
+  disposed: boolean
+  disposalSucceeded: boolean
+  fail(error: unknown, fileId?: string): void
+}
+let activeWorker: WorkerRuntime | undefined
+
+/** Private runtime host for one actual shared compiler/module cohort. */
+export function initializeTestWorker({
+  workerId,
+  onFailure,
+}: {
+  workerId: string
+  onFailure?(failure: WorkerRuntimeFailure): void
+}) {
+  assertScopeActive()
+  if (activeWorker || activeFile)
+    throw new Error('A test worker or file is already active in this realm.')
+  const failures: WorkerRuntimeFailure[] = []
+  const fail = (error: unknown, fileId?: string) => {
+    if (
+      failures.some(
+        (failure) => failure.error === error && failure.fileId === fileId
+      )
+    )
+      return
+    const failure = { error, ...(fileId ? { fileId } : {}) }
+    failures.push(failure)
+    onFailure?.(failure)
+  }
+  const scope = createAsyncScope(
+    {
+      kind: 'worker-fixtures',
+      context: { id: `${workerId}/fixtures`, name: workerId },
+    },
+    (error) => fail(error),
+    (reason) => fail(reason)
+  )
+  const context: WorkerRuntime = {
+    id: workerId,
+    fixtures: createFixtureWorker((fn) => scope.run(fn)),
+    failures,
+    disposed: false,
+    disposalSucceeded: false,
+    fail,
+  }
+  activeWorker = context
+  let disposal: Promise<void> | undefined
+  return {
+    createFile(options: TestFileOptions) {
+      if (context.disposed || context.failures.length)
+        throw new Error(
+          'Test worker cannot accept files after closing or failure.'
+        )
+      return initializeFile(options, context)
+    },
+    getFailures(): readonly WorkerRuntimeFailure[] {
+      return [...failures]
+    },
+    dispose(): Promise<void> {
+      if (disposal) return disposal
+      if (context.collector)
+        return Promise.reject(
+          new Error('Abort and await the active file before worker disposal.')
+        )
+      context.disposed = true
+      disposal = (async () => {
+        try {
+          await context.fixtures.dispose()
+        } catch (error) {
+          fail(error)
+        } finally {
+          scope.close()
+          if (activeWorker === context) activeWorker = undefined
+        }
+        if (failures.length === 1) throw failures[0].error
+        if (failures.length)
+          throw new AggregateError(
+            failures.map(({ error }) => error),
+            'Test worker disposal failed.'
+          )
+        context.disposalSucceeded = true
+      })()
+      return disposal
+    },
+  }
+}
+
+/** Route arbitrary rejections through their actual async origin, including closed files. */
+export function routeUnhandledRejection(
+  reason: unknown,
+  promise?: Promise<unknown>
+): boolean {
+  const sink = getOriginatingUnhandledFailureSink()
+  if (sink) {
+    sink(reason, promise)
+    return true
+  }
+  if (activeWorker) {
+    activeWorker.fail(reason)
+    return true
+  }
+  return false
+}
+
+/** Called through the emitted entry, never through a host copy of this module. */
+export function initializeTestFile(options: TestFileOptions) {
+  return initializeFile(options)
+}
+
+function initializeFile(
+  {
+    publicTaskSelection,
+    carriedRetryOptions,
+    prepareEmptyPublicFile,
+    preparePublicSnapshots,
+    finalizePublicTaskModes,
+    onCollectionFailure,
+    captureCollectionCoverage,
+    captureSettledCollectionDeclarations,
+    captureCollectionRestoration,
+    finishReadOnlySnapshots,
+    omitFailedCollectionSnapshotSummary,
+    fileId,
+    filePath,
+    assertionEnvironment,
+    updateSnapshots = false,
+    snapshotBodyFailures = false,
+    nativeBeforeEachAssertions = false,
+    nativeAfterEachAssertions = false,
+    nativeBeforeEachCleanupAssertions = false,
+    snapshotUpdateMode,
+    snapshotFormat,
+    collectOnly = false,
+    mapSnapshotLocation,
+    tags,
+    strictTags,
+    globals = false,
+    getTaskLocation,
+    onUnhandledRejection,
+    provide = {},
+    resourceLifetime = 'file',
+    fakeTimers,
+    waitForImports,
+    clearMocks,
+    mockReset,
+    restoreMocks,
+    unstubGlobals,
+    unstubEnvs,
+    retry: defaultRetry,
+    testTimeout,
+    hookTimeout,
+    sequence: collectionSequence,
+  }: TestFileOptions,
+  worker?: WorkerRuntime
+) {
+  if (activeWorker && activeWorker !== worker)
+    throw new Error('An active shared worker owns this realm.')
+  if (activeFile)
+    throw new Error('A test file is already active in this realm.')
+  if (preparePublicSnapshots === true && (collectOnly || worker))
+    throw new Error(
+      'Public snapshot preparation requires an isolated executable file.'
+    )
+  if (typeof updateSnapshots !== 'boolean')
+    throw new TypeError('updateSnapshots must be a boolean.')
+  const updateMode = resolveSnapshotUpdateMode({
+    updateSnapshots,
+    snapshotUpdateMode,
+  })
+  const runtimeConfig: RuntimeOptions = {
+    fakeTimers: {
+      loopLimit: 10000,
+      shouldClearNativeTimers: true,
+      ...fakeTimers,
+    },
+    clearMocks,
+    restoreMocks,
+    mockReset,
+    testTimeout,
+    hookTimeout,
+    allowOnly: undefined,
+    expect: undefined,
+    sequence: undefined,
+    maxConcurrency: undefined,
+    printConsoleTrace: undefined,
+  }
+  const collector = createCollector(fileId, {
+    ...(carriedRetryOptions === true
+      ? { carriedRetryOptions: true as const }
+      : {}),
+    ...(captureCollectionCoverage === true &&
+    captureSettledCollectionDeclarations === true
+      ? { observeSettledDeclarationCoverage: true as const }
+      : {}),
+    filePath,
+    getTaskLocation,
+    tags,
+    strictTags,
+    sequence: collectionSequence,
+    getRuntimeConfig: () => runtimeConfig,
+    injectValue: (name) => provide[name],
+    getSuiteAlias: () => publicSuiteAlias,
+    getActiveCollector: worker ? () => worker.collector : undefined,
+    isCollectingScope: () => getOriginatingCollection()?.id === fileId,
+    createTaskRegistration() {
+      return fileAssertions?.createTaskRegistration?.()
+    },
+    getTaskExpect(task) {
+      if (!fileAssertions)
+        throw new Error(
+          'Task expectations require their file assertion runtime.'
+        )
+      return fileAssertions.prepareTaskExpect(task)
+    },
+  })
+  // The actual File owns the pinned label slot before authored setup runs.
+  collector.root.meta.__vitest_label__ = undefined
+  if (defaultRetry !== undefined) collector.root.options.retry = defaultRetry
+  activeFile = collector
+  publicSelectionEnabled = publicTaskSelection === true
+  if (worker) worker.collector = collector
+  providedContext = provide
+  const globalDescriptors = new Map<string, PropertyDescriptor | undefined>()
+  const lateErrors: unknown[] = []
+  const coverageAfterAllLateErrors = new Set<number>()
+  const coverageAfterAllCarriers = new WeakSet<RunnerFailure>()
+  let reportedLateErrors = 0
+  let completedModuleResult: CompletedModuleResult | undefined
+  let operationObservation: RunnerOperationObservation | undefined
+  function canFinishEmptyReadOnlyPublicFile(options: RunnerOptions): boolean {
+    return (
+      prepareEmptyPublicFile === true &&
+      collector.root.children.length === 0 &&
+      options.passWithNoTests === true &&
+      collector.root.hooks.beforeAll.length === 0 &&
+      collector.root.hooks.afterAll.length === 0 &&
+      collector.root.hooks.beforeEach.length === 0 &&
+      collector.root.hooks.afterEach.length === 0 &&
+      collector.root.around.aroundAll.length === 0 &&
+      collector.root.around.aroundEach.length === 0
+    )
+  }
+  let nativeBodyObservation:
+    | {
+        source: 'node-await-body'
+        invocations: Set<{ attemptId: string; settled: boolean }>
+      }
+    | undefined
+  let lateFailureSink: RunnerOptions['onLateFailure']
+  const onLateFailure = (error: Error) => {
+    lateErrors.push(error)
+    worker?.fail(error, fileId)
+    lateFailureSink?.(error)
+  }
+  // Each current execution process owns one isolated file. Keeping this owner
+  // outside runCollected makes worker cleanup a separate host disposal phase;
+  // file fixtures finish first, and snapshot publication waits for both.
+  const workerFixtureContext = worker
+    ? undefined
+    : { id: `${fileId}/worker/fixtures`, name: filePath }
+  let workerAssertions:
+    | ReturnType<NonNullable<typeof assertions>['beginWorkerFixtures']>
+    | undefined
+  const workerScope = worker
+    ? undefined
+    : createAsyncScope(
+        {
+          kind: 'worker-fixtures',
+          context: workerFixtureContext!,
+        },
+        onLateFailure,
+        (reason, promise) => onUnhandledFailure(reason, promise)
+      )
+  const workerFixtures =
+    worker?.fixtures ??
+    createFixtureWorker((fn) =>
+      workerScope!.run(() => {
+        // Factories run during execution; disposal cannot create a new view.
+        if (!workerAssertions && !fileAssertionLifetime && state === 'running')
+          workerAssertions = fileAssertions!.beginWorkerFixtures(
+            workerFixtureContext!
+          )
+        return fn()
+      })
+    )
+  const onUnhandledFailure = (reason: unknown, promise?: Promise<unknown>) => {
+    const recordedBody =
+      snapshotBodyFailures &&
+      onUnhandledRejection !== undefined &&
+      promise !== undefined &&
+      fileAssertions?.observeNativeBodyRejection(reason, promise) === true
+    const recordedHook =
+      !recordedBody &&
+      (nativeBeforeEachAssertions ||
+        nativeAfterEachAssertions ||
+        nativeBeforeEachCleanupAssertions) &&
+      snapshotBodyFailures &&
+      onUnhandledRejection !== undefined &&
+      promise !== undefined &&
+      fileAssertions?.observeNativeHookRejection(reason, promise) === true
+    const recordedCoverageAfterAll =
+      captureCoverageCompletion &&
+      !recordedBody &&
+      !recordedHook &&
+      promise !== undefined &&
+      fileAssertions?.observeNativeAfterAllCoverageRejection(
+        reason,
+        promise
+      ) === true
+    onUnhandledRejection?.(
+      reason,
+      promise,
+      recordedBody,
+      recordedCoverageAfterAll
+    )
+    if (recordedBody || recordedHook) return
+    if (recordedCoverageAfterAll)
+      coverageAfterAllLateErrors.add(lateErrors.length)
+    lateErrors.push(reason)
+    worker?.fail(reason, fileId)
+    if (reason instanceof Error) lateFailureSink?.(reason)
+  }
+  let fileAssertions: typeof assertions
+  let browserPublicTaskQueues = false
+  let collectionFailed = false
+  let runStarted = false
+  let snapshotExecutionComplete = false
+  let snapshotCollectionFailed = false
+  let snapshotPreparation: Promise<void> | undefined
+  const snapshotPromiseConstructor =
+    preparePublicSnapshots === true ? Promise : undefined
+  let snapshotPreparationSettled = false
+  let snapshotPreparationSource: 'run' | 'failed-collection' | undefined
+  let snapshotPreparationFailure:
+    | { error: unknown; carrier: object; propagatedThroughRun: boolean }
+    | undefined
+  let completedCoverageFailures: readonly RunnerFailure[] | undefined
+  let completedReadOnlySnapshotFailure: RunnerFailure | undefined
+  let settledCollectionFailure: Readonly<{ error: unknown }> | undefined
+  let settledCollectionLoadOnly = false
+  let completedCollectionRestoration:
+    | Readonly<{ collectionError: unknown; disposalError: unknown }>
+    | undefined
+  const captureRestoration =
+    captureCollectionCoverage === true && captureCollectionRestoration === true
+  const restorationDescriptor = Object.getOwnPropertyDescriptor
+  const restorationKeys = Reflect.ownKeys
+  const restorationFrozen = Object.isFrozen
+  const restorationFreeze = Object.freeze
+  const restorationApply = Reflect.apply
+  let disposalSucceeded = false
+  let collectionObservationFailed = false
+  let ownedWorkerDisposalFailure: { readonly error: unknown } | undefined
+  let ownedBeforeWorkerInvocation:
+    | Readonly<{ assertActive(): void }>
+    | undefined
+  let runSignal: AbortSignal | undefined
+  let captureCoverageCompletion = false
+  let state:
+    | 'initialized'
+    | 'collecting'
+    | 'collected'
+    | 'running'
+    | 'finished'
+    | 'disposed' = 'initialized'
+  const hasCompletedBodyExecution = () =>
+    state === 'disposed' &&
+    disposalSucceeded &&
+    (!worker || (worker.disposalSucceeded && !worker.failures.length)) &&
+    snapshotExecutionComplete &&
+    fileAssertions?.hasCompleteNativeBodyRejections() === true &&
+    !runSignal?.aborted &&
+    !lateErrors.length
+  const canPublishSnapshots = () =>
+    updateMode !== 'none' && hasCompletedBodyExecution()
+  function prepareOwnedSnapshots(source: 'run' | 'failed-collection') {
+    if (snapshotPreparation) {
+      if (snapshotPreparationSource !== source)
+        throw new Error('Snapshot preparation belongs to another file phase.')
+      return snapshotPreparation
+    }
+    const prepare = fileAssertions?.prepareSnapshots
+    if (typeof prepare !== 'function')
+      throw new Error('The actual deferred snapshot runtime is unavailable.')
+    const Constructor = snapshotPromiseConstructor!
+    let resolvePreparation!: (value: void | PromiseLike<void>) => void
+    let rejectPreparation!: (reason: unknown) => void
+    const preparation = new Constructor<void>((resolve, reject) => {
+      resolvePreparation = resolve
+      rejectPreparation = reject
+    })
+    snapshotPreparationSource = source
+    snapshotPreparation = preparation
+    let operation: Promise<void>
+    try {
+      operation = prepare()
+    } catch (error) {
+      // A synchronous owner guard is not an actual setup failure.
+      snapshotPreparation = undefined
+      snapshotPreparationSource = undefined
+      rejectPreparation(error)
+      void preparation.catch(() => {})
+      throw error
+    }
+    void (async () => {
+      try {
+        await operation
+        resolvePreparation()
+      } catch (error) {
+        const carrier = {}
+        snapshotPreparationFailure = {
+          error,
+          carrier,
+          propagatedThroughRun: false,
+        }
+        rejectPreparation(source === 'run' ? carrier : error)
+      } finally {
+        snapshotPreparationSettled = true
+      }
+    })()
+    return preparation
+  }
+  const initializedFile = {
+    enableBrowserPublicTaskQueues() {
+      if (state !== 'initialized')
+        throw new Error(
+          'Browser public task queues must be enabled before collection.'
+        )
+      browserPublicTaskQueues = true
+    },
+    ...(preparePublicSnapshots === true
+      ? {
+          prepareSnapshotsAfterFailedCollection() {
+            if (
+              state !== 'finished' ||
+              !snapshotCollectionFailed ||
+              collectionObservationFailed
+            )
+              throw new Error(
+                'Snapshot preparation requires the actual completed failed collection.'
+              )
+            return prepareOwnedSnapshots('failed-collection')
+          },
+          getSnapshotPreparationFailure() {
+            if (
+              !snapshotPreparationFailure ||
+              !snapshotPreparationSettled ||
+              state === 'running' ||
+              state === 'collecting'
+            )
+              return undefined
+            return Object.freeze({
+              version: 1 as const,
+              phase: 'snapshot-preparation' as const,
+              invocation: 0 as const,
+              source: snapshotPreparationSource!,
+              error: snapshotPreparationFailure.error,
+              propagatedThroughRun:
+                snapshotPreparationFailure.propagatedThroughRun,
+            })
+          },
+        }
+      : {}),
+    api: collector.api,
+    filePath,
+    getPublishedTaskLocation,
+    async collect(load: () => Promise<unknown>) {
+      if (state !== 'initialized')
+        throw new Error(`Cannot collect test file in ${state} state.`)
+      state = 'collecting'
+      currentTest = undefined
+      consoleTask = { taskId: fileId }
+      const scope = createAsyncScope(
+        { kind: 'collection', context: { id: fileId, name: filePath } },
+        onLateFailure,
+        (reason, promise) => onUnhandledFailure(reason, promise)
+      )
+      try {
+        assertions = await createAssertionRuntime({
+          testPath: filePath,
+          ...(assertionEnvironment !== undefined
+            ? { assertionEnvironment }
+            : {}),
+          ...(preparePublicSnapshots === true
+            ? { deferSnapshotPreparation: true as const }
+            : {}),
+          observeNativeUnhandledAssertions:
+            snapshotBodyFailures && onUnhandledRejection !== undefined,
+          observePublicTaskQueues: browserPublicTaskQueues,
+          observeNativeBeforeEachAssertions:
+            nativeBeforeEachAssertions &&
+            snapshotBodyFailures &&
+            onUnhandledRejection !== undefined,
+          observeNativeAfterEachAssertions:
+            nativeAfterEachAssertions &&
+            snapshotBodyFailures &&
+            onUnhandledRejection !== undefined,
+          observeNativeBeforeEachCleanupAssertions:
+            nativeBeforeEachCleanupAssertions &&
+            snapshotBodyFailures &&
+            onUnhandledRejection !== undefined,
+          captureCoverageCompletion: () => captureCoverageCompletion,
+          ...(finishReadOnlySnapshots === true
+            ? {
+                finishReadOnlySnapshots: () =>
+                  runStarted && state === 'running',
+              }
+            : {}),
+          ...(captureRestoration
+            ? {
+                captureCollectionRestoration: true,
+                shouldCaptureCollectionRestoration: () =>
+                  settledCollectionLoadOnly &&
+                  settledCollectionFailure !== undefined &&
+                  collectionFailed &&
+                  !collectionObservationFailed &&
+                  !runStarted &&
+                  operationObservation === undefined,
+              }
+            : {}),
+          collectOnly,
+          resourceLifetime,
+          fakeTimers,
+          runtimeConfig,
+          waitForImports,
+          clearMocks,
+          mockReset,
+          restoreMocks,
+          unstubGlobals,
+          unstubEnvs,
+          updateSnapshots,
+          snapshotUpdateMode: updateMode,
+          ...(snapshotFormat === undefined
+            ? {}
+            : {
+                snapshotOptions: {
+                  updateSnapshot: updateMode,
+                  snapshotEnvironment: new VitestSnapshotEnvironment(),
+                  snapshotFormat,
+                },
+              }),
+          mapSnapshotLocation,
+          getCurrentAttempt: getActiveAttempt,
+          ...(publicTaskSelection ? { getCurrentTest } : {}),
+          peekCurrentScope: peekOriginatingScope,
+          getCurrentCasePhase: getOriginatingCasePhase,
+          getCurrentHook: getActiveHook,
+          getCurrentCollection: getOriginatingCollection,
+          getCurrentFileFixtures: getOriginatingFileFixtures,
+          getCurrentWorkerFixtures: getOriginatingWorkerFixtures,
+          getCurrentScopeAncestors: getOriginatingScopeAncestors,
+        })
+        fileAssertions = assertions
+        await scope.run(async () => {
+          if (globals) {
+            const facade = await loadGlobalTestApi()
+            for (const name of [
+              'suite',
+              'test',
+              'describe',
+              'it',
+              'chai',
+              'expect',
+              'assert',
+              'expectTypeOf',
+              'assertType',
+              'vi',
+              'vitest',
+              'beforeAll',
+              'afterAll',
+              'beforeEach',
+              'afterEach',
+              'onTestFailed',
+              'onTestFinished',
+              'aroundEach',
+              'aroundAll',
+            ] as const) {
+              globalDescriptors.set(
+                name,
+                Object.getOwnPropertyDescriptor(globalThis, name)
+              )
+              Object.defineProperty(globalThis, name, {
+                value: facade[name],
+                configurable: true,
+                writable: true,
+                enumerable: true,
+              })
+            }
+          }
+          const errors: unknown[] = []
+          let loadFailed = false
+          let loadFailure: { error: unknown } | undefined
+          let declarationFailure: { error: unknown } | undefined
+          const collectionAssertions = fileAssertions!.beginCollection({
+            id: fileId,
+            name: filePath,
+          })
+          try {
+            await load()
+          } catch (error) {
+            loadFailed = true
+            if (captureCollectionCoverage) loadFailure = { error }
+            errors.push(error)
+          }
+          try {
+            await collector.settle({ startFactories: !loadFailed })
+          } catch (error) {
+            const observed =
+              collector.getCompletedDeclarationCoverageFailure?.()
+            const errorDescriptor =
+              observed && Object.getOwnPropertyDescriptor(observed, 'error')
+            if (
+              captureCollectionCoverage === true &&
+              captureSettledCollectionDeclarations === true &&
+              errorDescriptor &&
+              'value' in errorDescriptor &&
+              errorDescriptor.value === error &&
+              Array.isArray(observed?.occurrences) &&
+              observed.occurrences.length > 0
+            )
+              declarationFailure = { error }
+            errors.push(error)
+          }
+          try {
+            await collectionAssertions.finalize()
+          } catch (error) {
+            errors.push(error)
+          }
+          try {
+            await collectionAssertions.dispose()
+          } catch (error) {
+            errors.push(error)
+          }
+          if (errors.length) {
+            const error =
+              errors.length === 1
+                ? errors[0]
+                : new AggregateError(errors, 'Test file collection failed.')
+            if (
+              loadFailure &&
+              errors[0] === loadFailure.error &&
+              (errors.length === 1 ||
+                (errors.length === 2 &&
+                  declarationFailure &&
+                  errors[1] === declarationFailure.error))
+            ) {
+              settledCollectionFailure = Object.freeze({ error })
+              settledCollectionLoadOnly = errors.length === 1
+            }
+            throw error
+          }
+        })
+        // Published Vitest 5.0.4 strips function conditions from the collected
+        // task tree before its RPC notification, also changing worker execution.
+        // Keep the public file runner aligned with that exact target; the
+        // standalone lifecycle still implements the underlying predicate API.
+        const sanitizeRetryConditions = (suite: typeof collector.root) => {
+          for (const task of [suite, ...suite.children]) {
+            const retry = task.options.retry
+            if (
+              typeof retry === 'object' &&
+              typeof retry.condition === 'function'
+            )
+              task.options.retry = { ...retry, condition: undefined }
+            if (task !== suite && task.type === 'suite')
+              sanitizeRetryConditions(task)
+          }
+        }
+        sanitizeRetryConditions(collector.root)
+        state = 'collected'
+      } catch (error) {
+        collectionFailed = true
+        if (preparePublicSnapshots === true) snapshotCollectionFailed = true
+        if (!onCollectionFailure) {
+          state = 'finished'
+          worker?.fail(error, fileId)
+          throw error
+        }
+        worker?.fail(error, fileId)
+        try {
+          // Finalized children are published only after successful collection.
+          // This is the actual cached File, not the private declaration tree.
+          const failedFile = getCollectionTaskView(
+            collector.root,
+            collector.root,
+            {
+              filePath,
+              testTimeout: runtimeConfig.testTimeout ?? testTimeout ?? 5000,
+            }
+          ) as File
+          const errors =
+            error instanceof AggregateError ? error.errors : [error]
+          failedFile.result = {
+            state: 'fail',
+            errors: errors.map(serializeTaskError),
+          }
+          await onCollectionFailure(failedFile, error)
+        } catch (observationError) {
+          collectionObservationFailed = true
+          throw new AggregateError(
+            [error, observationError],
+            'Test file collection and observation failed.'
+          )
+        } finally {
+          state = 'finished'
+        }
+        throw error
+      } finally {
+        scope.close()
+        collector.close()
+      }
+    },
+    getCollectedCases(
+      options: {
+        testNamePattern?: string | RegExp
+        allowOnly?: boolean
+      } = {}
+    ) {
+      if (state !== 'collected')
+        throw new Error(`Cannot list test file in ${state} state.`)
+      return collectTestCases(collector.root, options)
+    },
+    validateBrowserClient(
+      options: Pick<
+        RunnerOptions,
+        'testNamePattern' | 'allowOnly' | 'retry'
+      > & {
+        caseScheduling?: 'concurrent-v1'
+        fixtureResources?: 'file-v1'
+      } = {}
+    ) {
+      if (state !== 'collected')
+        throw new Error(`Cannot validate browser file in ${state} state.`)
+      return validateSynchronousClient(collector.root, options)
+    },
+    async run(options: RunnerOptions) {
+      if (collectOnly)
+        throw new Error('A collection-only file cannot execute tests.')
+      if (state !== 'collected')
+        throw new Error(`Cannot run test file in ${state} state.`)
+      state = 'running'
+      runStarted = true
+      runSignal = options.signal
+      captureCoverageCompletion = options.captureCoverageCompletion === true
+      lateFailureSink = options.onLateFailure
+      let rootDuration: number | undefined
+      let settledReadOnlySnapshotFailure: RunnerFailure | undefined
+      try {
+        const captureCompletedModuleResult =
+          options.captureCompletedModuleResult === true
+        if (
+          captureCompletedModuleResult ||
+          options.captureCoverageCompletion ||
+          finishReadOnlySnapshots === true
+        )
+          operationObservation = { bounded: new Set(), around: new Set() }
+        const moduleObservation: RunnerModuleResultObservation | undefined =
+          captureCompletedModuleResult ? {} : undefined
+        const executionOptions = captureCompletedModuleResult
+          ? { ...options }
+          : options
+        const onSuiteEnd = captureCompletedModuleResult
+          ? executionOptions.onSuiteEnd
+          : undefined
+        const runtime = getAssertionRuntime()
+        const result = await runCollected(
+          collector.root,
+          {
+            ...executionOptions,
+            resourceLifetime,
+            // Only the actual public File can request the root preparation pack.
+            captureModuleStart:
+              preparePublicSnapshots === true &&
+              executionOptions.captureModuleStart === true
+                ? true
+                : undefined,
+            onFilePrepared:
+              preparePublicSnapshots === true &&
+              executionOptions.captureModuleStart === true
+                ? executionOptions.onFilePrepared
+                : undefined,
+            finalizeFocusedPublicTaskModes:
+              publicTaskSelection === true &&
+              preparePublicSnapshots === true &&
+              finalizePublicTaskModes === true &&
+              updateMode === 'none'
+                ? true
+                : undefined,
+            ...(preparePublicSnapshots === true
+              ? {
+                  prepareSnapshots(actualFile: File) {
+                    if (
+                      actualFile.mode === 'skip' ||
+                      options.signal.aborted ||
+                      options.userCancelSignal?.aborted
+                    )
+                      return undefined
+                    return prepareOwnedSnapshots('run')
+                  },
+                }
+              : {}),
+            ...(prepareEmptyPublicFile === true
+              ? { prepareEmptyPublicFile: true as const }
+              : {}),
+            ...(finalizePublicTaskModes === true
+              ? { finalizePublicTaskModes: true as const }
+              : {}),
+            ...(publicTaskSelection
+              ? {
+                  setCurrentTest(task: Test | undefined) {
+                    currentTest = task
+                    executionOptions.setCurrentTest?.(task)
+                  },
+                  setCurrentTask(task: Task) {
+                    selectConsoleTask(task)
+                    executionOptions.setCurrentTask?.(task)
+                  },
+                }
+              : {}),
+            ...(captureCompletedModuleResult
+              ? {
+                  onSuiteEnd(suite, task, origins) {
+                    if (suite.suiteId === collector.root.id)
+                      rootDuration = suite.durationMs
+                    return options.captureSuiteErrorOrigins === true
+                      ? onSuiteEnd?.(suite, task, origins)
+                      : onSuiteEnd?.(suite, task)
+                  },
+                }
+              : {}),
+            get allowOnly() {
+              return runtimeConfig.allowOnly ?? options.allowOnly
+            },
+            get maxConcurrency() {
+              return runtimeConfig.maxConcurrency ?? options.maxConcurrency
+            },
+            get sequence() {
+              const sequence =
+                options.sequence || runtimeConfig.sequence
+                  ? { ...options.sequence, ...runtimeConfig.sequence }
+                  : undefined
+              const hooks = sequence?.hooks
+              return sequence ? { ...sequence, hooks } : undefined
+            },
+            inject:
+              getProvidedValue as import('./collector').TestContext['inject'],
+            filePath,
+            onLateFailure,
+            onUnhandledFailure,
+            runWithCasePhase,
+            async beginAttempt(context) {
+              const assertionScope = runtime.beginAttempt(context)
+              if (
+                (captureCompletedModuleResult ||
+                  (publicTaskSelection && snapshotBodyFailures)) &&
+                assertionScope.observeBodySettlement
+              ) {
+                nativeBodyObservation ??= {
+                  source: 'node-await-body',
+                  invocations: new Set(),
+                }
+                assertionScope.observeBodySettlement(
+                  nativeBodyObservation.invocations
+                )
+              }
+              if (assertionScope.invokeFinishedCallback)
+                getTaskContext(context.task).bindListeners({
+                  onTestFinished: context.onTestFinished,
+                  onTestFailed: context.onTestFailed,
+                })
+              let integration:
+                | Awaited<
+                    ReturnType<NonNullable<RunnerOptions['beginAttempt']>>
+                  >
+                | undefined
+              try {
+                integration = await options.beginAttempt?.(context)
+              } catch (error) {
+                try {
+                  await assertionScope.dispose()
+                } catch (cleanupError) {
+                  throw new AggregateError(
+                    [error, cleanupError],
+                    'Attempt setup and cleanup failed'
+                  )
+                }
+                throw error
+              }
+              let bodyAssertionFailure: unknown
+              return {
+                ...(assertionScope.resetPublicTestState
+                  ? { beforeTry: assertionScope.resetPublicTestState }
+                  : {}),
+                ...(assertionScope.awaitBodyAssertions
+                  ? { awaitBodyAssertions: assertionScope.awaitBodyAssertions }
+                  : {}),
+                ...(assertionScope.consumePublicTaskPromises
+                  ? {
+                      consumePublicTaskPromises:
+                        assertionScope.consumePublicTaskPromises,
+                    }
+                  : {}),
+                ...(assertionScope.invokeFinishedCallback
+                  ? {
+                      async invokeFinishedCallback(
+                        fn: TestBody,
+                        payload: TestContext
+                      ) {
+                        bodyAssertionFailure = undefined
+                        try {
+                          return await assertionScope.invokeFinishedCallback!(
+                            fn,
+                            payload
+                          )
+                        } catch (error) {
+                          if (assertionScope.consumeBodyFailure(error))
+                            bodyAssertionFailure = error
+                          throw error
+                        }
+                      },
+                    }
+                  : {}),
+                get expect() {
+                  return assertionScope.expect
+                },
+                markSkipped: () => assertionScope.markSkipped(),
+                consumeBodyAssertionFailure(error: unknown) {
+                  if (
+                    bodyAssertionFailure === undefined ||
+                    bodyAssertionFailure !== error
+                  )
+                    return false
+                  bodyAssertionFailure = undefined
+                  return true
+                },
+                async finishTest(failed: boolean) {
+                  bodyAssertionFailure = undefined
+                  let nativeBodyFailure: unknown
+                  const errors: unknown[] = []
+                  for (const scope of [assertionScope, integration]) {
+                    try {
+                      await scope?.finishTest?.(failed || errors.length > 0)
+                    } catch (error) {
+                      if (
+                        scope === assertionScope &&
+                        assertionScope.consumeBodyFailure(error)
+                      )
+                        nativeBodyFailure = error
+                      errors.push(error)
+                    }
+                  }
+                  if (errors.length === 1) {
+                    if (nativeBodyFailure === errors[0])
+                      bodyAssertionFailure = nativeBodyFailure
+                    throw errors[0]
+                  }
+                  if (errors.length > 1)
+                    throw new AggregateError(
+                      errors,
+                      'Attempt test finalization failed'
+                    )
+                },
+                async checkpoint() {
+                  const errors: unknown[] = []
+                  let nativeHookFailure: { error: unknown } | undefined
+                  for (const scope of [assertionScope, integration]) {
+                    try {
+                      await scope?.checkpoint?.()
+                    } catch (error) {
+                      if (
+                        scope === assertionScope &&
+                        assertionScope.consumeNativeHookCheckpointFailure(error)
+                      )
+                        nativeHookFailure = { error }
+                      errors.push(error)
+                    }
+                  }
+                  if (
+                    errors.length === 1 &&
+                    nativeHookFailure !== undefined &&
+                    nativeHookFailure.error === errors[0]
+                  )
+                    throw nativeHookFailure.error
+                  if (errors.length)
+                    throw new AggregateError(
+                      errors,
+                      'Attempt assertion checkpoint failed'
+                    )
+                },
+                async finalize() {
+                  const errors: unknown[] = []
+                  for (const scope of [assertionScope, integration]) {
+                    try {
+                      await scope?.finalize()
+                    } catch (error) {
+                      errors.push(error)
+                    }
+                  }
+                  if (errors.length === 1) throw errors[0]
+                  if (errors.length)
+                    throw new AggregateError(
+                      errors,
+                      'Attempt finalization failed'
+                    )
+                },
+                async dispose() {
+                  const errors: unknown[] = []
+                  for (const scope of [integration, assertionScope]) {
+                    try {
+                      await scope?.dispose()
+                    } catch (error) {
+                      errors.push(error)
+                    }
+                  }
+                  if (errors.length === 1) throw errors[0]
+                  if (errors.length)
+                    throw new AggregateError(errors, 'Attempt disposal failed')
+                },
+              }
+            },
+          },
+          () => {},
+          {
+            beginHook: (context) => runtime.beginHook(context),
+            beginFileFixtures: (context) => runtime.beginFileFixtures(context),
+            setActiveHook: () => {},
+          },
+          workerFixtures,
+          operationObservation,
+          moduleObservation,
+          (options.captureCoverageCompletion === true ||
+            finishReadOnlySnapshots === true) &&
+            updateMode === 'none' &&
+            !worker
+            ? (actual) => {
+                const eligible = () => {
+                  if (actual.interrupted || options.signal.aborted) return false
+                  if (
+                    actual.errors.length &&
+                    (captureCoverageCompletion !== true ||
+                      !actual.errors.every(
+                        (failure) =>
+                          failure.phase === 'afterAll' &&
+                          isSettledAuthoredAfterAllFailure(failure)
+                      ))
+                  )
+                    return false
+                  if (
+                    !operationObservation ||
+                    operationObservation.pendingHooks?.size ||
+                    [
+                      ...operationObservation.bounded,
+                      ...operationObservation.around,
+                    ].some((operation) => !operation.settled)
+                  )
+                    return false
+                  if (actual.errors.length)
+                    return (
+                      actual.cases.length > 0 &&
+                      actual.cases.every(
+                        (test) =>
+                          (test.status === 'passed' ||
+                            test.status === 'skipped') &&
+                          test.errors.length === 0
+                      )
+                    )
+                  if (actual.cases.some((test) => test.errors.length))
+                    return (
+                      captureCoverageCompletion === true &&
+                      !actual.cases.some(
+                        (test) =>
+                          test.status === 'cancelled' ||
+                          test.errors.some(
+                            (failure) =>
+                              !isSettledBeforeEachCoverageFailure(
+                                failure,
+                                test.attempt.id
+                              )
+                          )
+                      )
+                    )
+                  return (
+                    (actual.cases.some((test) => test.status === 'passed') ||
+                      (actual.cases.length === 0 &&
+                        canFinishEmptyReadOnlyPublicFile(options))) &&
+                    actual.cases.every(
+                      (test) =>
+                        (test.status === 'passed' ||
+                          test.status === 'skipped') &&
+                        test.errors.length === 0
+                    )
+                  )
+                }
+                if (!eligible()) return undefined
+                return async () => {
+                  if (!eligible()) return undefined
+                  const finalCases = getFinalCaseResults(actual.cases)
+                  const finished =
+                    await runtime.finishReadOnlySnapshotSelection(
+                      [...finalCases.values()],
+                      {
+                        partial:
+                          options.testNamePattern !== undefined ||
+                          hasFocusedTests(collector.root),
+                        // The final runner state still owns snapshot completeness.
+                        complete: false,
+                      }
+                    )
+                  if (!finished?.obsolete) return undefined
+                  const failure: RunnerFailure = {
+                    phase: 'runtime',
+                    error: finished.obsolete,
+                  }
+                  settledReadOnlySnapshotFailure = failure
+                  return failure
+                }
+              }
+            : undefined
+        )
+        if (worker && (result.interrupted || options.signal.aborted))
+          worker.fail(
+            new Error('Shared worker file execution was interrupted.'),
+            fileId
+          )
+        if (worker)
+          for (const failure of result.errors)
+            if (
+              failure.phase === 'cleanup' ||
+              failure.phase === 'runtime' ||
+              failure.phase === 'afterAll'
+            )
+              worker.fail(failure.error, fileId)
+        result.errors.push(
+          ...lateErrors.map((error, index) => {
+            const failure: RunnerFailure = { phase: 'runtime', error }
+            if (
+              captureCoverageCompletion &&
+              coverageAfterAllLateErrors.has(index)
+            )
+              coverageAfterAllCarriers.add(failure)
+            return failure
+          })
+        )
+        reportedLateErrors = lateErrors.length
+        const finalCases = getFinalCaseResults(result.cases)
+        if (
+          options.captureCoverageCompletion &&
+          !result.interrupted &&
+          !options.signal.aborted &&
+          result.errors.every(
+            (failure) =>
+              isSettledCoverageFailure(failure) ||
+              coverageAfterAllCarriers.has(failure) ||
+              (settledReadOnlySnapshotFailure !== undefined &&
+                failure === settledReadOnlySnapshotFailure)
+          ) &&
+          result.cases.every(
+            (test) =>
+              test.status !== 'cancelled' &&
+              test.errors.every(
+                (failure) =>
+                  failure.phase === 'test' ||
+                  failure.phase === 'assertion' ||
+                  isSettledBeforeEachCoverageFailure(failure, test.attempt.id)
+              )
+          )
+        )
+          completedCoverageFailures = Object.freeze([...result.errors])
+        if (
+          finishReadOnlySnapshots === true &&
+          !result.interrupted &&
+          !options.signal.aborted &&
+          settledReadOnlySnapshotFailure !== undefined &&
+          result.errors.length === 1 &&
+          result.errors[0] === settledReadOnlySnapshotFailure &&
+          (result.cases.some((test) => test.status === 'passed') ||
+            (result.cases.length === 0 &&
+              canFinishEmptyReadOnlyPublicFile(options))) &&
+          result.cases.every(
+            (test) =>
+              (test.status === 'passed' || test.status === 'skipped') &&
+              test.errors.length === 0
+          )
+        )
+          completedReadOnlySnapshotFailure = settledReadOnlySnapshotFailure
+        // A completed body failure changes the logical result, not whether the
+        // snapshot owner finished. Hook/resource failures and interruptions still
+        // withhold every staged byte.
+        snapshotExecutionComplete =
+          !result.interrupted &&
+          !options.signal.aborted &&
+          !result.errors.length &&
+          ([...finalCases.values()].every(
+            (test) => test.status === 'passed' || test.status === 'skipped'
+          ) ||
+            (snapshotBodyFailures === true &&
+              result.cases.every((test) =>
+                test.errors.every(
+                  (failure) =>
+                    failure.phase === 'test' ||
+                    (failure.phase === 'assertion' &&
+                      failure.snapshotBodyAssertion === test.attempt.id)
+                )
+              ) &&
+              [...finalCases.values()].every(
+                (test) => test.status !== 'cancelled'
+              )))
+        for (const test of result.cases)
+          for (const failure of test.errors)
+            delete (failure as { snapshotBodyAssertion?: string })
+              .snapshotBodyAssertion
+        runtime.finishSnapshotSelection([...finalCases.values()], {
+          partial:
+            options.testNamePattern !== undefined ||
+            hasFocusedTests(collector.root),
+          complete: snapshotExecutionComplete,
+        })
+        if (captureCompletedModuleResult) {
+          if (rootDuration === undefined || !Number.isFinite(rootDuration))
+            throw new Error(
+              'Completed module has no actual root suite duration.'
+            )
+          completedModuleResult = Object.freeze({
+            version: 2,
+            durationMs: Math.max(rootDuration, 0),
+            containsOnly: hasFocusedTests(collector.root),
+            interrupted: result.interrupted,
+            finalState: moduleObservation!.finalState ?? null,
+          })
+        }
+        return result
+      } catch (error) {
+        if (
+          snapshotPreparationFailure &&
+          snapshotPreparationFailure.carrier === error
+        ) {
+          snapshotPreparationFailure.propagatedThroughRun = true
+          worker?.fail(snapshotPreparationFailure.error, fileId)
+          throw snapshotPreparationFailure.error
+        }
+        worker?.fail(error, fileId)
+        throw error
+      } finally {
+        currentTest = undefined
+        consoleTask = undefined
+        state = 'finished'
+      }
+    },
+    getCompletedModuleResult(): CompletedModuleResult | undefined {
+      return completedModuleResult
+    },
+    getNativeBodySettlement() {
+      if (!nativeBodyObservation) return undefined
+      return Object.freeze({
+        version: 1 as const,
+        source: nativeBodyObservation.source,
+        invocations: Object.freeze(
+          [...nativeBodyObservation.invocations].map((operation) =>
+            Object.freeze({
+              attemptId: operation.attemptId,
+              settled: operation.settled,
+            })
+          )
+        ),
+      })
+    },
+    getOperationSettlement(): OperationSettlement | undefined {
+      if (!operationObservation) return undefined
+      const read = (operations: RunnerOperationObservation['bounded']) =>
+        Object.freeze({
+          observed: operations.size,
+          pending: [...operations].filter((operation) => !operation.settled)
+            .length,
+        })
+      return Object.freeze({
+        version: 1,
+        bounded: read(operationObservation.bounded),
+        around: read(operationObservation.around),
+        pendingHooks: operationObservation.pendingHooks?.size ?? 0,
+      })
+    },
+    getCompletedCoverageFailures(): readonly RunnerFailure[] | undefined {
+      if (
+        state !== 'disposed' ||
+        !disposalSucceeded ||
+        !completedCoverageFailures ||
+        !operationObservation ||
+        operationObservation.beforeAllCaptureIncomplete === true ||
+        (worker && (!worker.disposalSucceeded || worker.failures.length)) ||
+        runSignal?.aborted ||
+        lateErrors.some(
+          (_error, index) => !coverageAfterAllLateErrors.has(index)
+        ) ||
+        completedCoverageFailures.some(
+          (failure) =>
+            !coverageAfterAllCarriers.has(failure) &&
+            lateErrors.some((error) => error === failure.error)
+        ) ||
+        fileAssertions?.hasCompleteNativeAfterAllCoverageRejections() !==
+          true ||
+        fileAssertions?.hasCompleteNativeBodyRejections() !== true ||
+        operationObservation.pendingHooks?.size ||
+        [...operationObservation.bounded, ...operationObservation.around].some(
+          (operation) => !operation.settled
+        )
+      )
+        return undefined
+      return completedCoverageFailures
+    },
+    ...(finishReadOnlySnapshots === true
+      ? {
+          getCompletedReadOnlySnapshotCoverageFailure():
+            | RunnerFailure
+            | undefined {
+            if (
+              state !== 'disposed' ||
+              !disposalSucceeded ||
+              completedReadOnlySnapshotFailure === undefined ||
+              !operationObservation ||
+              (worker &&
+                (!worker.disposalSucceeded || worker.failures.length)) ||
+              runSignal?.aborted ||
+              lateErrors.length ||
+              fileAssertions?.hasCompleteNativeBodyRejections() !== true ||
+              operationObservation.pendingHooks?.size ||
+              [
+                ...operationObservation.bounded,
+                ...operationObservation.around,
+              ].some((operation) => !operation.settled)
+            )
+              return undefined
+            return completedReadOnlySnapshotFailure
+          },
+        }
+      : {}),
+    getCompletedCollectionCoverageFailure() {
+      if (
+        captureCollectionCoverage !== true ||
+        collectionObservationFailed ||
+        state !== 'disposed' ||
+        !disposalSucceeded ||
+        !settledCollectionFailure ||
+        (worker && (!worker.disposalSucceeded || worker.failures.length)) ||
+        runSignal?.aborted ||
+        lateErrors.length ||
+        fileAssertions?.hasCompleteNativeBodyRejections() !== true
+      )
+        return undefined
+      return settledCollectionFailure
+    },
+    captureOwnedBeforeWorkerInvocation() {
+      return ownedBeforeWorkerInvocation
+    },
+    ...(captureRestoration
+      ? {
+          getCompletedCollectionRestorationFailure() {
+            if (
+              state !== 'disposed' ||
+              disposalSucceeded ||
+              !completedCollectionRestoration ||
+              !collectionFailed ||
+              operationObservation !== undefined ||
+              (worker &&
+                (!worker.disposalSucceeded || worker.failures.length)) ||
+              runSignal?.aborted ||
+              lateErrors.length ||
+              fileAssertions?.hasCompleteNativeBodyRejections() !== true
+            )
+              return undefined
+            return completedCollectionRestoration
+          },
+        }
+      : {}),
+    async dispose(disposal?: {
+      beforeOwnedWorkerDispose?: () => unknown | Promise<unknown>
+    }) {
+      if (state === 'running' || state === 'collecting')
+        throw new Error('Abort and await the active test file before disposal.')
+      if (state === 'disposed') return
+      collector.close()
+      state = 'disposed'
+      currentTest = undefined
+      consoleTask = undefined
+      const errors: unknown[] = []
+      let result
+      let workerDisposalFailure: { readonly error: unknown } | undefined
+      let restorationFinishFailure: { readonly error: unknown } | undefined
+      const beforeWorkerDispose = !worker
+        ? disposal?.beforeOwnedWorkerDispose
+        : undefined
+      try {
+        if (beforeWorkerDispose) {
+          const invocation = Object.freeze({
+            assertActive() {
+              if (ownedBeforeWorkerInvocation !== invocation)
+                throw new Error(
+                  'Browser cleanup requires its active file disposal invocation.'
+                )
+            },
+          })
+          ownedBeforeWorkerInvocation = invocation
+          await beforeWorkerDispose()
+        }
+      } catch (error) {
+        errors.push(error)
+      } finally {
+        ownedBeforeWorkerInvocation = undefined
+      }
+      try {
+        if (!worker) await workerFixtures.dispose()
+      } catch (error) {
+        workerDisposalFailure = Object.freeze({ error })
+        errors.push(error)
+      } finally {
+        const scope = workerAssertions
+        if (scope) {
+          for (const method of ['finalize', 'dispose'] as const) {
+            try {
+              await workerScope!.run(() => scope[method]())
+            } catch (error) {
+              errors.push(error)
+            }
+          }
+        }
+        workerScope?.close()
+      }
+      try {
+        result = await assertions?.finishFile()
+      } catch (error) {
+        errors.push(error)
+        if (captureRestoration && settledCollectionLoadOnly && fileAssertions) {
+          try {
+            const method = restorationDescriptor(
+              fileAssertions,
+              'getCompletedMockRestorationFailure'
+            )
+            const observed =
+              method && 'value' in method && typeof method.value === 'function'
+                ? restorationApply(method.value, fileAssertions, [])
+                : undefined
+            if (
+              observed &&
+              typeof observed === 'object' &&
+              !Array.isArray(observed) &&
+              restorationFrozen(observed) &&
+              restorationKeys(observed).length === 2
+            ) {
+              const cause = restorationDescriptor(observed, 'error')
+              const occurrences = restorationDescriptor(observed, 'occurrences')
+              if (
+                cause &&
+                'value' in cause &&
+                cause.value === error &&
+                occurrences &&
+                'value' in occurrences &&
+                Array.isArray(occurrences.value) &&
+                restorationFrozen(occurrences.value) &&
+                (() => {
+                  const length = restorationDescriptor(
+                    occurrences.value,
+                    'length'
+                  )
+                  if (
+                    !length ||
+                    !('value' in length) ||
+                    !Number.isSafeInteger(length.value) ||
+                    length.value < 1
+                  )
+                    return false
+                  for (let index = 0; index < length.value; index++) {
+                    const item = restorationDescriptor(
+                      occurrences.value,
+                      String(index)
+                    )
+                    if (
+                      !item ||
+                      !('value' in item) ||
+                      !item.value ||
+                      typeof item.value !== 'object' ||
+                      !restorationFrozen(item.value) ||
+                      restorationKeys(item.value).length !== 2
+                    )
+                      return false
+                    const slot = restorationDescriptor(item.value, 'index')
+                    const calls = restorationDescriptor(item.value, 'calls')
+                    if (
+                      !slot ||
+                      !('value' in slot) ||
+                      slot.value !== index ||
+                      !calls ||
+                      !('value' in calls) ||
+                      !Array.isArray(calls.value) ||
+                      !restorationFrozen(calls.value)
+                    )
+                      return false
+                    const count = restorationDescriptor(calls.value, 'length')
+                    if (
+                      !count ||
+                      !('value' in count) ||
+                      !Number.isSafeInteger(count.value) ||
+                      count.value < 1
+                    )
+                      return false
+                  }
+                  return true
+                })()
+              )
+                restorationFinishFailure = { error }
+            }
+          } catch {
+            // Missing private completion never replaces the actual cleanup error.
+          }
+        }
+      } finally {
+        assertions = undefined
+        activeFile = undefined
+        publicSelectionEnabled = false
+        if (worker?.collector === collector) worker.collector = undefined
+        providedContext = {}
+        for (const [name, descriptor] of globalDescriptors) {
+          if (descriptor) Object.defineProperty(globalThis, name, descriptor)
+          else Reflect.deleteProperty(globalThis, name)
+        }
+        globalDescriptors.clear()
+      }
+      errors.push(
+        ...lateErrors.filter(
+          (_error, index) =>
+            index >= reportedLateErrors &&
+            !(
+              captureCoverageCompletion && coverageAfterAllLateErrors.has(index)
+            )
+        )
+      )
+      if (worker) for (const error of errors) worker.fail(error, fileId)
+      if (errors.length === 1) {
+        if (
+          captureRestoration &&
+          settledCollectionLoadOnly &&
+          settledCollectionFailure &&
+          restorationFinishFailure !== undefined &&
+          restorationFinishFailure.error === errors[0] &&
+          collectionFailed &&
+          operationObservation === undefined &&
+          !runSignal?.aborted &&
+          !lateErrors.length &&
+          fileAssertions?.hasCompleteNativeBodyRejections() === true
+        ) {
+          try {
+            completedCollectionRestoration = restorationFreeze({
+              collectionError: settledCollectionFailure.error,
+              disposalError: errors[0],
+            })
+          } catch {
+            // Incomplete private bookkeeping retains the actual disposal throw.
+          }
+        }
+        if (workerDisposalFailure?.error === errors[0])
+          ownedWorkerDisposalFailure = workerDisposalFailure
+        throw errors[0]
+      }
+      if (errors.length)
+        throw new AggregateError(errors, 'File disposal failed')
+      disposalSucceeded = true
+      return result
+    },
+    takeOwnedWorkerDisposalFailure(error: unknown) {
+      const occurrence = ownedWorkerDisposalFailure
+      if (!occurrence || occurrence.error !== error) return undefined
+      ownedWorkerDisposalFailure = undefined
+      return occurrence
+    },
+    getSnapshotSummary() {
+      if (
+        omitFailedCollectionSnapshotSummary === true &&
+        collectionFailed &&
+        !runStarted
+      )
+        return undefined
+      return fileAssertions?.getSnapshotSummary()
+    },
+    canPublishSnapshots,
+    hasCompletedBodyExecution,
+    releaseNativeBodyRejectionRecords() {
+      fileAssertions?.releaseNativeBodyRejectionRecords()
+    },
+    takeSnapshotUpdates() {
+      if (updateMode === 'none') return []
+      if (!canPublishSnapshots()) {
+        throw new Error(
+          'Snapshot updates require successful execution and disposal without cancellation or late failures.'
+        )
+      }
+      return fileAssertions?.takeSnapshotUpdates() ?? []
+    },
+  }
+  if (preparePublicSnapshots === true) {
+    const dispose = initializedFile.dispose
+    let disposing: ReturnType<typeof dispose> | undefined
+    initializedFile.dispose = (options) => {
+      if (state === 'running' || state === 'collecting') return dispose(options)
+      if (disposing) return disposing
+      disposing = (async () => {
+        if (snapshotPreparation && !snapshotPreparationSettled) {
+          try {
+            await snapshotPreparation
+          } catch {
+            // The actual phase caller retains the failure; disposal owns its join.
+          }
+        }
+        return dispose(options)
+      })()
+      return disposing
+    }
+  }
+  return initializedFile
 }

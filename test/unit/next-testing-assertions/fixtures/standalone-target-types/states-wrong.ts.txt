@@ -1,0 +1,2 @@
+import type {TaskState} from 'vitest'
+const state:TaskState='passed';void state

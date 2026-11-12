@@ -1,0 +1,2 @@
+import type {SnapshotSerializer} from 'vitest'
+const serializer:SnapshotSerializer={test(value){return value!==undefined},print(value,serialize,indent,options,colors){const rendered:string=serialize(value);void indent;void options;void colors;return rendered}};void serializer

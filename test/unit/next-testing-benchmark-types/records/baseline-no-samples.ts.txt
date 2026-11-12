@@ -1,0 +1,4 @@
+import type { BaselineData } from 'vitest';
+declare const base: BaselineData;
+base.latency.samples = undefined;
+base.throughput.samples = undefined;
