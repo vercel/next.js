@@ -43,6 +43,13 @@ export interface ExportPagesInput {
   renderResumeDataCachesByPage: Record<string, string> | undefined
   /** Which static generation phase these pages belong to. */
   phase?: StaticGenerationPhase
+  /**
+   * Identifies one `exportApp` run. With `staticGenerationAdaptive`, workers
+   * keep their incremental cache across calls that share a session and phase.
+   */
+  sessionId?: string
+  /** Why these pages were sent to this worker (for profiling). */
+  placement?: string
 }
 
 export interface ExportPageInput {

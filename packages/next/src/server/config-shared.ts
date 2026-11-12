@@ -1526,6 +1526,13 @@ export interface ExperimentalConfig {
   staticGenerationAdaptive?: boolean
 
   /**
+   * With `staticGenerationAdaptive`, the number of pages sent to a worker at a
+   * time. Idle workers pull the next chunk, so smaller chunks balance better
+   * and larger chunks cost less IPC.
+   */
+  staticGenerationChunkSize?: number
+
+  /**
    * Allows previously fetched data to be re-used when editing server components.
    */
   serverComponentsHmrCache?: boolean
