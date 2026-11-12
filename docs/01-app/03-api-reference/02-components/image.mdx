@@ -196,6 +196,8 @@ export default function Page() {
 
 Alternatively, you can use the [loaderFile](#loaderfile) configuration in `next.config.js` to configure every instance of `next/image` in your application, without passing a prop.
 
+Most `images` options in `next.config.js` configure the built-in Image Optimization API, and do not apply to images served by a custom loader. This includes the security-related options [`images.remotePatterns`](#remotepatterns), [`images.localPatterns`](#localpatterns), [`images.dangerouslyAllowLocalIP`](#dangerouslyallowlocalip), [`images.dangerouslyAllowSVG`](#dangerouslyallowsvg), [`images.contentDispositionType`](#contentdispositiontype), and [`images.contentSecurityPolicy`](#contentsecuritypolicy). It is up to the loader to implement similar protections.
+
 #### `sizes`
 
 Define the sizes of the image at different breakpoints. Used by the browser to choose the most appropriate size from the generated `srcset`.
@@ -928,9 +930,9 @@ This might be necessary when hosting Next.js in a VPC with split-horizon DNS and
 
 Next.js never resizes or compresses SVG images. SVG is a vector format, meaning browsers can resize the image without losing quality. No server-side rasterization is needed.
 
-SVG has many of the same features as HTML/CSS, including support for inline `<script>` tags. The Image Optimization API serves images through the same domain as your application. When an untrusted SVG is served with your application's origin, it can introduce vulnerabilities without proper [`contentDispositionType`](#contentdispositiontype) and [Content Security Policy (CSP)](#contentsecuritypolicy) headers.
+SVG has many of the same features as HTML/CSS, including support for inline `<script>` tags. The Image Optimization API using the default [`loader`](#loader) serves images through the same domain as your application. When an untrusted SVG is served with your application's origin, it can introduce vulnerabilities without proper [`contentDispositionType`](#contentdispositiontype) and [Content Security Policy (CSP)](#contentsecuritypolicy) headers.
 
-Instead of using `dangerouslyAllowSVG`, we recommend using the [`unoptimized`](#unoptimized) prop when the [`src`](#src) prop is an SVG. If `dangerouslyAllowSVG` is not enabled, this happens automatically when `src` ends with `".svg"`.
+Instead of using `dangerouslyAllowSVG`, we recommend using the [`unoptimized`](#unoptimized) prop when the [`src`](#src) prop is an SVG. This happens automatically when `src` ends with `".svg"`.
 
 ```jsx
 <Image src="/my-image.svg" unoptimized />
@@ -970,11 +972,21 @@ module.exports = {
 }
 ```
 
+This option only applies to the Image Optimization API, and does not apply to [`unoptimized`](#unoptimized) images or images using a custom [`loader`](#loader).
+
 #### `contentSecurityPolicy`
 
 `contentSecurityPolicy` allows you to configure the [`Content-Security-Policy`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP) header for images.
 
-The default value is `script-src 'none'; frame-src 'none'; sandbox;`, which prevents SVG files served with [`dangerouslyAllowSVG`](#dangerouslyallowsvg) from executing scripts or including iframes if visited directly without [`contentDispositionType: 'attachment'`](#contentdispositiontype).
+The default value prevents SVG files served with [`dangerouslyAllowSVG`](#dangerouslyallowsvg) from executing scripts or including iframes if visited directly without [`contentDispositionType: 'attachment'`](#contentdispositiontype).
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    contentSecurityPolicy: "script-src 'none'; frame-src 'none'; sandbox;", // default value
+  },
+}
+```
 
 You can configure a stricter policy, for example one that also restricts other resources, such as images, styles, and fonts, to your application's origin:
 
@@ -986,6 +998,8 @@ module.exports = {
   },
 }
 ```
+
+This option only applies to the Image Optimization API, and does not apply to [`unoptimized`](#unoptimized) images or images using a custom [`loader`](#loader).
 
 ### Deprecated configuration options
 
