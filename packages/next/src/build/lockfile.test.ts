@@ -7,6 +7,31 @@ jest.mock('./output/log', () => ({ info: jest.fn(), warn: jest.fn() }))
 
 const WAITING_MESSAGE = 'Waiting for the lock...'
 
+const nativeLockfile = { __napiType: 'Lockfile' }
+const ACQUIRED = { type: 'acquired', lockfile: nativeLockfile }
+const WOULD_BLOCK = { type: 'wouldBlock' }
+function lockfileError({
+  transient = false,
+  unsupported = false,
+}: {
+  transient?: boolean
+  unsupported?: boolean
+}) {
+  return {
+    type: 'error',
+    error: { message: 'An IO error occurred', transient, unsupported },
+  }
+}
+
+function mockBindings(lockfileTryAcquireSync: jest.Mock) {
+  ;(getBindingsSync as jest.Mock).mockReturnValue({
+    isWasm: false,
+    lockfileTryAcquireSync,
+    lockfileUnlock: jest.fn().mockResolvedValue(undefined),
+    lockfileUnlockSync: jest.fn(),
+  })
+}
+
 describe('Lockfile.unlock', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -18,7 +43,7 @@ describe('Lockfile.unlock', () => {
       .mockRejectedValue(new Error('An IO error occurred'))
     ;(getBindingsSync as jest.Mock).mockReturnValue({
       isWasm: false,
-      lockfileTryAcquireSync: () => ({ type: 'acquired', lockfile: {} }),
+      lockfileTryAcquireSync: () => ACQUIRED,
       lockfileUnlock,
     })
 
@@ -30,49 +55,55 @@ describe('Lockfile.unlock', () => {
 })
 
 describe('Lockfile.acquireWithWait', () => {
-  const lockfile = {} as Lockfile
-  let tryAcquire: jest.SpyInstance
+  const acquiredLocks: Lockfile[] = []
+
+  async function acquireWithWait(
+    options: Partial<Parameters<typeof Lockfile.acquireWithWait>[1]> = {}
+  ) {
+    const lockfile = await Lockfile.acquireWithWait('/lock', {
+      waitingMessage: WAITING_MESSAGE,
+      ...options,
+    })
+    if (lockfile) acquiredLocks.push(lockfile)
+    return lockfile
+  }
 
   beforeEach(() => {
     jest.useFakeTimers()
     jest.clearAllMocks()
-    ;(getBindingsSync as jest.Mock).mockReturnValue({ isWasm: false })
-    tryAcquire = jest.spyOn(Lockfile, 'tryAcquire')
   })
 
-  afterEach(() => {
-    tryAcquire.mockRestore()
+  afterEach(async () => {
+    // Remove the exit listeners registered by `tryAcquire`.
+    await Promise.all(acquiredLocks.splice(0).map((lock) => lock.unlock()))
     jest.useRealTimers()
   })
 
   it('waits silently for a lock that is released quickly', async () => {
-    tryAcquire
-      .mockReturnValueOnce(undefined)
-      .mockReturnValueOnce(undefined)
-      .mockReturnValue(lockfile)
+    const tryAcquireSync = jest
+      .fn()
+      .mockReturnValueOnce(WOULD_BLOCK)
+      .mockReturnValueOnce(WOULD_BLOCK)
+      .mockReturnValue(ACQUIRED)
+    mockBindings(tryAcquireSync)
 
-    const acquired = Lockfile.acquireWithWait('/lock', {
-      pollMs: 1,
-      warnAfterMs: 10_000,
-      waitingMessage: WAITING_MESSAGE,
-    })
+    const acquired = acquireWithWait({ pollMs: 1, warnAfterMs: 10_000 })
     await jest.advanceTimersByTimeAsync(2)
 
-    await expect(acquired).resolves.toBe(lockfile)
-    expect(tryAcquire).toHaveBeenCalledTimes(3)
+    await expect(acquired).resolves.toBeInstanceOf(Lockfile)
+    expect(tryAcquireSync).toHaveBeenCalledTimes(3)
     expect(Log.info).not.toHaveBeenCalled()
     expect(Log.warn).not.toHaveBeenCalled()
   })
 
   it('logs the waiting message once after the threshold', async () => {
     let released = false
-    tryAcquire.mockImplementation(() => (released ? lockfile : undefined))
+    mockBindings(jest.fn(() => (released ? ACQUIRED : WOULD_BLOCK)))
 
-    const acquired = Lockfile.acquireWithWait('/lock', {
+    const acquired = acquireWithWait({
       pollMs: 1,
       warnAfterMs: 10,
       timeoutMs: 10_000,
-      waitingMessage: WAITING_MESSAGE,
     })
     await jest.advanceTimersByTimeAsync(9)
     expect(Log.info).not.toHaveBeenCalled()
@@ -80,20 +111,19 @@ describe('Lockfile.acquireWithWait', () => {
     released = true
     await jest.advanceTimersByTimeAsync(1)
 
-    await expect(acquired).resolves.toBe(lockfile)
+    await expect(acquired).resolves.toBeInstanceOf(Lockfile)
     expect(Log.info).toHaveBeenCalledTimes(1)
     expect(Log.info).toHaveBeenCalledWith(WAITING_MESSAGE)
     expect(Log.warn).not.toHaveBeenCalled()
   })
 
   it('proceeds without the lock after the timeout', async () => {
-    tryAcquire.mockReturnValue(undefined)
+    mockBindings(jest.fn(() => WOULD_BLOCK))
 
-    const acquired = Lockfile.acquireWithWait('/lock', {
+    const acquired = acquireWithWait({
       pollMs: 1,
       warnAfterMs: 5,
       timeoutMs: 20,
-      waitingMessage: WAITING_MESSAGE,
     })
     await jest.advanceTimersByTimeAsync(20)
 
@@ -102,24 +132,46 @@ describe('Lockfile.acquireWithWait', () => {
     expect(Log.warn).toHaveBeenCalledTimes(1)
   })
 
-  it('proceeds without the lock if it cannot be created', async () => {
-    tryAcquire.mockImplementation(() => {
-      throw new Error('An IO error occurred')
-    })
+  it('keeps waiting through transient errors', async () => {
+    const tryAcquireSync = jest
+      .fn()
+      .mockReturnValueOnce(lockfileError({ transient: true }))
+      .mockReturnValue(ACQUIRED)
+    mockBindings(tryAcquireSync)
 
-    await expect(
-      Lockfile.acquireWithWait('/lock', { waitingMessage: WAITING_MESSAGE })
-    ).resolves.toBeUndefined()
-    expect(tryAcquire).toHaveBeenCalledTimes(1)
+    const acquired = acquireWithWait({ pollMs: 1 })
+    await jest.advanceTimersByTimeAsync(1)
+
+    await expect(acquired).resolves.toBeInstanceOf(Lockfile)
+    expect(tryAcquireSync).toHaveBeenCalledTimes(2)
     expect(Log.warn).not.toHaveBeenCalled()
   })
 
-  it('proceeds without the lock with WASM bindings', async () => {
-    ;(getBindingsSync as jest.Mock).mockReturnValue({ isWasm: true })
+  it('proceeds without the lock on other I/O errors', async () => {
+    const tryAcquireSync = jest.fn(() => lockfileError({}))
+    mockBindings(tryAcquireSync)
 
-    await expect(
-      Lockfile.acquireWithWait('/lock', { waitingMessage: WAITING_MESSAGE })
-    ).resolves.toBeUndefined()
-    expect(tryAcquire).not.toHaveBeenCalled()
+    await expect(acquireWithWait()).resolves.toBeUndefined()
+    expect(tryAcquireSync).toHaveBeenCalledTimes(1)
+    expect(Log.warn).not.toHaveBeenCalled()
+  })
+
+  it('proceeds without locking if it is unsupported', async () => {
+    const tryAcquireSync = jest.fn(() => lockfileError({ unsupported: true }))
+    mockBindings(tryAcquireSync)
+
+    await expect(acquireWithWait()).resolves.toBeInstanceOf(Lockfile)
+    expect(tryAcquireSync).toHaveBeenCalledTimes(1)
+  })
+
+  it('proceeds without the lock with WASM bindings', async () => {
+    const tryAcquireSync = jest.fn()
+    ;(getBindingsSync as jest.Mock).mockReturnValue({
+      isWasm: true,
+      lockfileTryAcquireSync: tryAcquireSync,
+    })
+
+    await expect(acquireWithWait()).resolves.toBeUndefined()
+    expect(tryAcquireSync).not.toHaveBeenCalled()
   })
 })
