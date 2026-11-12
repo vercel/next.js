@@ -36,7 +36,11 @@ import {
 } from '../../shared/lib/i18n/normalize-locale-path'
 import { isDynamicRoute } from '../../shared/lib/router/utils'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
-import { getServerUtils } from '../server-utils'
+import {
+  getDynamicRouteUtils,
+  getServerUtils,
+  type DynamicRouteUtils,
+} from '../server-utils'
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { getHostname } from '../../shared/lib/get-hostname'
 import { checkIsOnDemandRevalidate, type __ApiPreviewProps } from '../api-utils'
@@ -183,12 +187,11 @@ export abstract class RouteModule<
       }
     | undefined = undefined
 
-  /** The server utils of the previous request, with the inputs they were created from. */
-  private previousServerUtils:
-    | (Parameters<typeof getServerUtils>[0] & {
-        serverUtils: ReturnType<typeof getServerUtils>
-      })
-    | undefined = undefined
+  /**
+   * The compiled route regex and matcher of this route module's page, if it
+   * is dynamic. They only depend on the page.
+   */
+  private dynamicRouteUtils: DynamicRouteUtils | undefined = undefined
 
   constructor({
     userland,
@@ -996,47 +999,26 @@ export abstract class RouteModule<
     // the pathname format (e.g., /app/[slug]).
     const normalizedSrcPage = normalizeAppPath(srcPage)
 
-    // The server utils only depend on the page and on values from the routes
-    // manifest. Creating them compiles the route regex of a dynamic route, so
-    // reuse those of the previous request while the inputs are the same.
-    // Outside of development the manifest is loaded once, so they always are.
-    const serverUtilsI18n = isPagesRoute ? i18n : undefined
-    const trailingSlash = process.env.__NEXT_TRAILING_SLASH as any as boolean
-    const caseSensitive = Boolean(routesManifest.caseSensitive)
-    const previousServerUtils = this.previousServerUtils
-    let serverUtils: ReturnType<typeof getServerUtils>
-    if (
-      previousServerUtils !== undefined &&
-      previousServerUtils.page === normalizedSrcPage &&
-      previousServerUtils.i18n === serverUtilsI18n &&
-      previousServerUtils.basePath === basePath &&
-      previousServerUtils.rewrites === rewrites &&
-      previousServerUtils.pageIsDynamic === pageIsDynamic &&
-      previousServerUtils.trailingSlash === trailingSlash &&
-      previousServerUtils.caseSensitive === caseSensitive
-    ) {
-      serverUtils = previousServerUtils.serverUtils
-    } else {
-      serverUtils = getServerUtils({
-        page: normalizedSrcPage,
-        i18n: serverUtilsI18n,
-        basePath,
-        rewrites,
-        pageIsDynamic,
-        trailingSlash,
-        caseSensitive,
-      })
-      this.previousServerUtils = {
-        page: normalizedSrcPage,
-        i18n: serverUtilsI18n,
-        basePath,
-        rewrites,
-        pageIsDynamic,
-        trailingSlash,
-        caseSensitive,
-        serverUtils,
-      }
+    // Compiling the route regex of a dynamic page is the expensive part of
+    // the server utils, and it only depends on the page. Keep it on the route
+    // module and pass it in, so everything else is still created from this
+    // request's routes manifest.
+    let dynamicRouteUtils = this.dynamicRouteUtils
+    if (pageIsDynamic && dynamicRouteUtils?.page !== normalizedSrcPage) {
+      dynamicRouteUtils = getDynamicRouteUtils(normalizedSrcPage)
+      this.dynamicRouteUtils = dynamicRouteUtils
     }
+
+    const serverUtils = getServerUtils({
+      page: normalizedSrcPage,
+      i18n: isPagesRoute ? i18n : undefined,
+      basePath,
+      rewrites,
+      pageIsDynamic,
+      trailingSlash: process.env.__NEXT_TRAILING_SLASH as any as boolean,
+      caseSensitive: Boolean(routesManifest.caseSensitive),
+      dynamicRouteUtils,
+    })
 
     const domainLocale = detectDomainLocale(
       i18n?.domains,
