@@ -66,15 +66,22 @@ export interface ForkServerSpawnOptions {
  * forked worker: `send()`, `kill()`, `pid`, `stdout`/`stderr` and the
  * `message`, `exit` and `error` events.
  *
+ * Like a forked worker's, `stdout`/`stderr` end once all of the worker's
+ * output has been read, so the pool can wait for them on shutdown; they also
+ * end if the worker's pipes never arrived (e.g. it failed to spawn).
+ *
  * Spawning is asynchronous: messages sent before the worker's message pipe
  * arrives are queued, and a kill before its pid is known is applied once it
  * is. If the fork server is lost before it spawned the worker, the worker is
  * forked from the current process instead.
  */
 export class ForkServerWorkerProcess extends EventEmitter {
-  readonly stdout = new PassThrough()
-  readonly stderr = new PassThrough()
+  readonly stdout = this._createOutput('stdout')
+  readonly stderr = this._createOutput('stderr')
   pid: number | undefined
+
+  /** The pipes `stdout`/`stderr` are read from, once they arrived */
+  private _outputSources: Partial<Record<OutputName, Socket>> = {}
 
   private _channel: Socket | undefined
   private _forked: ChildProcess | undefined
@@ -89,6 +96,36 @@ export class ForkServerWorkerProcess extends EventEmitter {
     private readonly _onSettled: () => void
   ) {
     super()
+  }
+
+  /**
+   * Output streams expose `unref()` like a child's stdio sockets, so the
+   * pool can keep a pipe that stays open (e.g. held by a grandchild) from
+   * keeping the process alive.
+   */
+  private _createOutput(name: OutputName): PassThrough & { unref(): void } {
+    return Object.assign(new PassThrough(), {
+      unref: () => {
+        this._outputSources[name]?.unref()
+      },
+    })
+  }
+
+  private _attachOutput(name: OutputName, source: Socket): void {
+    this._outputSources[name] = source
+    const output = this[name]
+    source.pipe(output)
+    // `pipe()` only ends the output on 'end', not when the pipe errors or is
+    // destroyed.
+    source.on('error', () => {})
+    source.once('close', () => endStream(output))
+  }
+
+  /** End the output streams whose pipes never arrived. */
+  private _endUnattachedOutputs(): void {
+    for (const name of OUTPUT_NAMES) {
+      if (!this._outputSources[name]) endStream(this[name])
+    }
   }
 
   /** Same signature as `ChildProcess.send()`; the callback is never called with an error. */
@@ -142,7 +179,7 @@ export class ForkServerWorkerProcess extends EventEmitter {
       return
     }
     if (channel === 'stdout' || channel === 'stderr') {
-      socket.pipe(this[channel])
+      this._attachOutput(channel, socket)
       return
     }
     this._channel = socket
@@ -170,6 +207,7 @@ export class ForkServerWorkerProcess extends EventEmitter {
     if (this._settled) return
     this._settled = true
     this._onSettled()
+    this._endUnattachedOutputs()
     const channel = this._channel
     if (!channel || channel.closed) {
       this.emit('exit', code, signal)
@@ -192,6 +230,7 @@ export class ForkServerWorkerProcess extends EventEmitter {
     this._settled = true
     this._channel?.destroy()
     this._onSettled()
+    this._endUnattachedOutputs()
     this.emit('error', error)
   }
 
@@ -211,8 +250,11 @@ export class ForkServerWorkerProcess extends EventEmitter {
     }
     this._forked = child
     this.pid = child.pid
-    child.stdout?.pipe(this.stdout)
-    child.stderr?.pipe(this.stderr)
+    for (const name of OUTPUT_NAMES) {
+      const source = child[name] as Socket | null
+      if (source) this._attachOutput(name, source)
+      else endStream(this[name])
+    }
     child.on('message', (message) => this.emit('message', message))
     child.on('exit', (code, signal) => {
       this._settled = true
@@ -231,6 +273,13 @@ export class ForkServerWorkerProcess extends EventEmitter {
       child.kill(this._pendingKillSignal)
     }
   }
+}
+
+type OutputName = 'stdout' | 'stderr'
+const OUTPUT_NAMES: readonly OutputName[] = ['stdout', 'stderr']
+
+function endStream(stream: PassThrough): void {
+  if (!stream.writableEnded) stream.end()
 }
 
 /** Same check as Node's IPC channel for its internal messages. */
