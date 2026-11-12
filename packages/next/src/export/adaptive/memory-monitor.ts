@@ -40,20 +40,24 @@ export class MemoryMonitor {
   read(): MemorySnapshot {
     const elu = performance.eventLoopUtilization(this.lastElu)
     this.lastElu = performance.eventLoopUtilization()
+    // Avoid `process.memoryUsage()` here: it walks every heap page, which
+    // is expensive with a large heap and adds up when sampled 10 times a
+    // second. `v8.getHeapStatistics()` and `process.memoryUsage.rss()` are
+    // cheap.
     const heap = v8.getHeapStatistics()
-    const memory = process.memoryUsage()
+    const rss = process.memoryUsage.rss()
     return {
       elu: elu.utilization,
       heapUsed: heap.used_heap_size,
       heapLimit: heap.heap_size_limit,
       // In worker thread mode RSS belongs to the whole build process, not
       // this worker, so it can't be compared to a per-worker budget.
-      rss: isMainThread ? memory.rss : 0,
+      rss: isMainThread ? rss : 0,
       // RSS rarely shrinks after a burst: freed memory stays mapped and is
       // reused before the process grows again. Track what is actually
       // allocated (JS heap plus memory held by buffers) instead, so a worker
       // that freed memory can take pages again.
-      liveRss: heap.used_heap_size + memory.external,
+      liveRss: heap.used_heap_size + (heap.external_memory ?? 0),
       postGcHeap: this.postGcHeap,
       postGcFloor: this.recentPostGc.length
         ? Math.min(...this.recentPostGc)

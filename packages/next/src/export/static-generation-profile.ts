@@ -205,15 +205,15 @@ class StaticGenerationProfiler {
   private sample() {
     const elu = performance.eventLoopUtilization(this.lastElu)
     this.lastElu = performance.eventLoopUtilization()
-    const memory = process.memoryUsage()
+    // `process.memoryUsage()` walks every heap page; these are cheap.
     this.records.push({
       type: 'sample',
       workerId: this.workerId,
       t: Date.now(),
       activeMs: elu.active,
       idleMs: elu.idle,
-      rss: memory.rss,
-      heapUsed: memory.heapUsed,
+      rss: process.memoryUsage.rss(),
+      heapUsed: v8.getHeapStatistics().used_heap_size,
       inFlight: this.inFlight,
     })
   }
