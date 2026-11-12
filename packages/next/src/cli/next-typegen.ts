@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
 import { existsSync } from 'fs'
-import path, { join } from 'path'
-import { mkdir } from 'fs/promises'
+import { join } from 'path'
 
 import loadConfig from '../server/config'
 import { printAndExit } from '../server/lib/utils'
@@ -11,16 +10,9 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyAndRunTypeScript } from '../lib/verify-typescript-setup'
-import { discoverRoutes } from '../build/route-discovery'
 import { parseBundlerArgs } from '../lib/bundler'
-
-import {
-  createRouteTypesManifest,
-  writeRouteTypesManifest,
-  writeValidatorFile,
-} from '../server/lib/router-utils/route-types-utils'
-import { writeCacheLifeTypes } from '../server/lib/router-utils/cache-life-type-utils'
-import { writeRootParamsTypes } from '../server/lib/router-utils/root-params-type-utils'
+import { generateSharedTypes } from '../lib/typescript/shared-types'
+import { getSharedTypesDistDir } from '../lib/typescript/shared-types-dir'
 import { installBindings } from '../build/swc/install-bindings'
 import { removeStaleDevTypes } from '../lib/typescript/remove-stale-dev-types'
 
@@ -50,6 +42,7 @@ const nextTypegen = async (options: NextTypegenOptions, directory?: string) => {
   await verifyAndRunTypeScript({
     dir: baseDir,
     distDir: nextConfig.distDir,
+    typesDistDir: getSharedTypesDistDir(nextConfig),
     strictRouteTypes,
     shouldRunTypeCheck: false,
     tsconfigPath: nextConfig.typescript.tsconfigPath,
@@ -64,64 +57,12 @@ const nextTypegen = async (options: NextTypegenOptions, directory?: string) => {
 
   console.log('Generating route types...')
 
-  const routeTypesFilePath = join(distDir, 'types', 'routes.d.ts')
-  const validatorFilePath = join(distDir, 'types', 'validator.ts')
-  await mkdir(join(distDir, 'types'), { recursive: true })
-
-  const isSrcDir = path
-    .relative(baseDir, pagesDir || appDir || '')
-    .startsWith('src')
-
-  // Build all routes (pages + app + slots)
-  const {
-    pageRoutes,
-    pageApiRoutes,
-    appRoutes,
-    appRouteHandlers,
-    layoutRoutes,
-    slots,
-  } = await discoverRoutes({
+  await generateSharedTypes({
+    dir: baseDir,
+    config: nextConfig,
     appDir: appDir || undefined,
     pagesDir: pagesDir || undefined,
-    pageExtensions: nextConfig.pageExtensions,
-    isDev: false,
-    baseDir,
-    isSrcDir,
   })
-
-  const routeTypesManifest = await createRouteTypesManifest({
-    dir: baseDir,
-    pageRoutes,
-    appRoutes,
-    appRouteHandlers,
-    pageApiRoutes,
-    layoutRoutes,
-    slots,
-    redirects: nextConfig.redirects,
-    rewrites: nextConfig.rewrites,
-    validatorFilePath,
-  })
-
-  await writeRouteTypesManifest(
-    routeTypesManifest,
-    routeTypesFilePath,
-    nextConfig
-  )
-
-  await writeValidatorFile(
-    routeTypesManifest,
-    validatorFilePath,
-    strictRouteTypes
-  )
-
-  // Generate cache-life types if cacheLife config exists
-  const cacheLifeFilePath = join(distDir, 'types', 'cache-life.d.ts')
-  writeCacheLifeTypes(nextConfig.cacheLife, cacheLifeFilePath)
-
-  await writeRootParamsTypes(
-    routeTypesManifest,
-    join(distDir, 'types', 'root-params.d.ts')
-  )
 
   // Types left behind by a stopped `next dev` would otherwise fail type checking
   // after routes are moved or deleted.

@@ -13,6 +13,7 @@ import type { NextConfigComplete } from '../server/config-shared'
 import findUp from 'next/dist/compiled/find-up'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyAndRunTypeScript } from '../lib/verify-typescript-setup'
+import { getSharedTypesDistDir } from '../lib/typescript/shared-types-dir'
 import path from 'path'
 import spawn from 'next/dist/compiled/cross-spawn'
 
@@ -145,6 +146,7 @@ async function runPlaywright(
     const { version: typeScriptVersion } = await verifyAndRunTypeScript({
       dir: baseDir,
       distDir: nextConfig.distDir,
+      typesDistDir: getSharedTypesDistDir(nextConfig),
       strictRouteTypes: Boolean(nextConfig.experimental.strictRouteTypes),
       shouldRunTypeCheck: false,
       tsconfigPath: nextConfig.typescript.tsconfigPath,
