@@ -121,7 +121,7 @@ use crate::{
         AdditionalDiskFileSystem, BuiltinRootsConfig, create_additional_root_file_systems,
     },
     aggregate_hmr::ServerHmrChunkLists,
-    app::{AppProject, OptionAppProject},
+    app::{AppProject, CLIENT_TRANSITION_NAME, OptionAppProject},
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
@@ -573,7 +573,7 @@ async fn prepare_project_container_state(
     let root_path_op = project_root_path_operation(container_vc);
 
     let project_fs_op = disk_file_system_operation(
-        PROJECT_FILESYSTEM_NAME,
+        PROJECT_FILESYSTEM_NAME.clone(),
         root_path_op,
         denied_paths,
         watcher_config,
@@ -2402,11 +2402,11 @@ impl Project {
         let app_project = *self.app_project().await?;
 
         let ecmascript_client_reference_transition_name =
-            app_project.map(|_| AppProject::client_transition_name());
+            app_project.map(|_| CLIENT_TRANSITION_NAME.clone());
 
         if let Some(app_project) = app_project {
             transitions.push((
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 app_project
                     .edge_ecmascript_client_reference_transition()
                     .to_resolved()
@@ -2468,11 +2468,11 @@ impl Project {
         let app_project = *self.app_project().await?;
 
         let ecmascript_client_reference_transition_name =
-            app_project.map(|_| AppProject::client_transition_name());
+            app_project.map(|_| CLIENT_TRANSITION_NAME.clone());
 
         if let Some(app_project) = app_project {
             transitions.push((
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 app_project
                     .edge_ecmascript_client_reference_transition()
                     .to_resolved()
@@ -2541,7 +2541,7 @@ impl Project {
             .await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
-            .map(|_| AppProject::client_transition_name());
+            .map(|_| CLIENT_TRANSITION_NAME.clone());
 
         let is_proxy = convention_file_base_name(fs_path.file_name()) == "proxy";
         let config = parse_segment_config_from_source(
@@ -2583,13 +2583,12 @@ impl Project {
             .await?;
         let app_project = &*self.app_project().await?;
 
-        let ecmascript_client_reference_transition_name = app_project
-            .as_ref()
-            .map(|_| AppProject::client_transition_name());
+        let ecmascript_client_reference_transition_name =
+            app_project.as_ref().map(|_| CLIENT_TRANSITION_NAME.clone());
 
         if let Some(app_project) = app_project {
             transitions.push((
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 app_project
                     .ecmascript_client_reference_transition()
                     .to_resolved()
@@ -2648,13 +2647,12 @@ impl Project {
             .await?;
         let app_project = &*self.app_project().await?;
 
-        let ecmascript_client_reference_transition_name = app_project
-            .as_ref()
-            .map(|_| AppProject::client_transition_name());
+        let ecmascript_client_reference_transition_name =
+            app_project.as_ref().map(|_| CLIENT_TRANSITION_NAME.clone());
 
         if let Some(app_project) = app_project {
             transitions.push((
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 app_project
                     .edge_ecmascript_client_reference_transition()
                     .to_resolved()
@@ -2782,7 +2780,7 @@ impl Project {
             .await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
-            .map(|_| AppProject::client_transition_name());
+            .map(|_| CLIENT_TRANSITION_NAME.clone());
 
         let instrumentation_asset_context = if is_edge {
             self.edge_instrumentation_context()

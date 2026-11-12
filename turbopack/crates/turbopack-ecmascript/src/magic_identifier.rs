@@ -6,10 +6,20 @@ use std::{
 
 use regex::{Captures, Regex, Replacer};
 use swc_core::atoms::Atom;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 
-pub static MAGIC_IDENTIFIER_DEFAULT_EXPORT: LazyLock<RcStr> =
-    LazyLock::new(|| RcStr::from(mangle("default export")));
+// `mangle` is not `const`, so these are precomputed `mangle(..)` outputs. The
+// `hardcoded_identifiers_match_mangle` test keeps them in sync.
+
+/// `mangle("default export")`
+pub const MAGIC_IDENTIFIER_DEFAULT_EXPORT_STR: &str = "__TURBOPACK__default__export__";
+/// `mangle("import.meta")`
+pub const MAGIC_IDENTIFIER_IMPORT_META_STR: &str = "__TURBOPACK__import$2e$meta__";
+/// `mangle("__webpack_exports_info__")`
+pub const MAGIC_IDENTIFIER_WEBPACK_EXPORTS_INFO_STR: &str =
+    "__TURBOPACK__$5f$_webpack_exports_info_$5f$__";
+
+pub static MAGIC_IDENTIFIER_DEFAULT_EXPORT: RcStr = rcstr!(MAGIC_IDENTIFIER_DEFAULT_EXPORT_STR);
 
 pub static MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM: LazyLock<Atom> =
     LazyLock::new(|| Atom::from(mangle("default export")));
@@ -170,6 +180,23 @@ pub fn unmangle_identifiers<T: Display>(text: &str, magic: impl Fn(String) -> T)
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hardcoded_identifiers_match_mangle() {
+        assert_eq!(
+            MAGIC_IDENTIFIER_DEFAULT_EXPORT_STR,
+            mangle("default export")
+        );
+        assert_eq!(
+            MAGIC_IDENTIFIER_DEFAULT_EXPORT.as_str(),
+            mangle("default export")
+        );
+        assert_eq!(MAGIC_IDENTIFIER_IMPORT_META_STR, mangle("import.meta"));
+        assert_eq!(
+            MAGIC_IDENTIFIER_WEBPACK_EXPORTS_INFO_STR,
+            mangle("__webpack_exports_info__")
+        );
+    }
 
     #[test]
     fn test_encode() {

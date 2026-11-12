@@ -942,9 +942,7 @@ async fn analyze_ecmascript_module_internal(
             inner_assets,
         };
 
-        fn unreachable_comment() -> RcStr {
-            rcstr!("TURBOPACK unreachable")
-        }
+        static UNREACHABLE_COMMENT: RcStr = rcstr!("TURBOPACK unreachable");
 
         // This is a stack of effects to process. We use a stack since during processing
         // of an effect we might want to add more effects into the middle of the
@@ -970,7 +968,7 @@ async fn analyze_ecmascript_module_internal(
                     );
 
                     analysis.add_code_gen(RemovalCodeGen::new(
-                        unreachable_comment(),
+                        UNREACHABLE_COMMENT.clone(),
                         AstPathRange::StartAfter(analysis.intern_path(&start_ast_path)),
                     ));
                 }
@@ -992,7 +990,7 @@ async fn analyze_ecmascript_module_internal(
                         ($block:ident) => {
                             if analyze_mode.is_codegen {
                                 analysis.add_code_gen(RemovalCodeGen::new(
-                                    unreachable_comment(),
+                                    UNREACHABLE_COMMENT.clone(),
                                     $block.range.clone(),
                                 ));
                             }

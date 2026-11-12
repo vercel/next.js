@@ -1540,11 +1540,9 @@ pub struct OptionJsonValue(
     #[bincode(with = "turbo_bincode::serde_self_describing")] pub Option<serde_json::Value>,
 );
 
-fn turbopack_config_documentation_link() -> RcStr {
-    rcstr!(
-        "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders"
-    )
-}
+static TURBOPACK_CONFIG_DOCUMENTATION_LINK: RcStr = rcstr!(
+    "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders"
+);
 
 #[turbo_tasks::value(shared)]
 struct InvalidLoaderRuleRenameAsIssue {
@@ -1578,7 +1576,7 @@ impl Issue for InvalidLoaderRuleRenameAsIssue {
     }
 
     fn documentation_link(&self) -> RcStr {
-        turbopack_config_documentation_link()
+        TURBOPACK_CONFIG_DOCUMENTATION_LINK.clone()
     }
 }
 
@@ -1618,7 +1616,7 @@ impl Issue for InvalidLoaderRuleConditionIssue {
     }
 
     fn documentation_link(&self) -> RcStr {
-        turbopack_config_documentation_link()
+        TURBOPACK_CONFIG_DOCUMENTATION_LINK.clone()
     }
 }
 
