@@ -49,7 +49,7 @@ import os from 'os'
 import fs from 'node:fs'
 import { once } from 'node:events'
 import { clearTimeout } from 'timers'
-import { Span, initializeTraceState, exportTraceState } from '../trace'
+import { initializeTraceState, exportTraceState, trace } from '../trace'
 import { traceId } from '../trace/shared'
 import { Bundler, parseBundlerArgs } from '../lib/bundler'
 
@@ -99,7 +99,7 @@ let devSpanAttrs: { 'rage-restart': boolean; 'missing-next-dir': boolean } = {
   'missing-next-dir': false,
 }
 const sessionStarted = Date.now()
-const sessionSpan = new Span({ name: 'next-dev' })
+const sessionSpan = trace('next-dev')
 
 // If the user restarts the dev server within this window we count it as a "rage restart".
 const RAGE_RESTART_THRESHOLD_MS = 90_000

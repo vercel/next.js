@@ -1,7 +1,7 @@
 import type { FunctionsConfigManifest } from './index'
 // Import cpu-profile to start profiling early if enabled
 import '../server/lib/cpu-profile'
-import * as tracing from '../trace'
+import { Span } from '../trace'
 import type { NextConfigComplete } from '../server/config-shared'
 import {
   clearTraceEvents,
@@ -105,7 +105,7 @@ export async function collectBuildTraces({
   distDir,
   edgeRuntimeRoutes,
   staticPages,
-  nextBuildSpan,
+  nextBuildSpan = new Span({ name: 'build' }),
   buildTraceContext,
   outputFileTracingRoot,
 }: {
@@ -115,7 +115,7 @@ export async function collectBuildTraces({
   outputFileTracingRoot: string
   // pageInfos is serialized when this function runs in a worker.
   edgeRuntimeRoutes: RoutesUsingEdgeRuntime
-  nextBuildSpan?: tracing.Span
+  nextBuildSpan?: Span
   config: NextConfigComplete
   buildTraceContext?: BuildTraceContext
 }) {
@@ -127,12 +127,11 @@ export async function collectBuildTraces({
   const excludeGlobKeys = Object.keys(outputFileTracingExcludes)
   const includeGlobKeys = Object.keys(outputFileTracingIncludes)
 
-  await tracing
-    .trace(
+  await nextBuildSpan
+    .traceChild(
       'node-file-trace-build',
-      undefined,
       { isTurbotrace: 'false' }, // TODO(arlyon): remove this
-      { parent: nextBuildSpan, reportToOtel: true }
+      { reportToOtel: true }
     )
     .traceAsyncFn(async () => {
       const nextServerTraceOutput = path.join(
@@ -590,10 +589,7 @@ export async function collectBuildTraces({
     })
 
   // apply outputFileTracingIncludes/outputFileTracingExcludes after runTurbotrace
-  const includeExcludeSpan = new tracing.Span({
-    name: 'apply-include-excludes',
-    parent: nextBuildSpan,
-  })
+  const includeExcludeSpan = nextBuildSpan.traceChild('apply-include-excludes')
   await includeExcludeSpan.traceAsyncFn(async () => {
     const globOrig =
       require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
