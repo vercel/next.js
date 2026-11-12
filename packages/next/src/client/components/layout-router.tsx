@@ -587,17 +587,15 @@ export default function OuterLayoutRouter({
   const activeSegment = activeTree[0]
   const activeStateKey = createSegmentKey(activeSegment)
 
-  // At each level of the route tree, not only do we render the currently
-  // active segment — we also render the last N segments that were active at
-  // this level inside a hidden <Activity> boundary, to preserve their state
-  // if or when the user navigates to them again.
-  //
   // The values useParams(), usePathname() and useSearchParams() currently
   // read at this level. Each entry stores them while active, so inactive
   // entries can keep providing the values they were hidden with. See
   // RouterNavigationState.
+  //
+  // This is only needed in the browser. A server render has a single, active
+  // entry, which reads the values the root providers in AppRouter supply.
   let activeNavigationState: RouterNavigationState | null = null
-  if (process.env.__NEXT_CACHE_COMPONENTS) {
+  if (process.env.__NEXT_CACHE_COMPONENTS && typeof window !== 'undefined') {
     activeNavigationState = {
       params: use(PathParamsContext),
       pathname: use(PathnameContext),
@@ -609,6 +607,11 @@ export default function OuterLayoutRouter({
     }
   }
 
+  // At each level of the route tree, not only do we render the currently
+  // active segment — we also render the last N segments that were active at
+  // this level inside a hidden <Activity> boundary, to preserve their state
+  // if or when the user navigates to them again.
+  //
   // bfcacheEntry is a linked list of FlightRouterStates.
   let bfcacheEntry: RouterBFCacheEntry | null = useRouterBFCache(
     activeTree,
@@ -769,13 +772,11 @@ export default function OuterLayoutRouter({
     }
 
     if (process.env.__NEXT_CACHE_COMPONENTS) {
-      // Provide the entry's navigation state to its subtree. This is only
-      // needed in the browser. A server render has a single, active entry,
-      // whose values are the ones the root providers in AppRouter already
-      // supply, and the server renderer is recursive, so the extra providers
-      // at every segment level would only use up stack there.
-      if (typeof window !== 'undefined') {
-        const navigationState = bfcacheEntry.navigationState!
+      // Provide the entry's navigation state to its subtree. There is none on
+      // the server, where the root providers in AppRouter already supply the
+      // values of the single, active entry.
+      const navigationState = bfcacheEntry.navigationState
+      if (navigationState !== null) {
         if (process.env.NODE_ENV !== 'production') {
           child = (
             <NavigationPromisesContext.Provider
