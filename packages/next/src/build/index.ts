@@ -152,6 +152,7 @@ import type {
   FallbackRouteParam,
   PrerenderRouteMatcher,
   PrerenderedRoute,
+  RouteHandlerParamMatching,
 } from './static-paths/types'
 import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import type { ParamMatching } from './segment-config/app/app-segments'
@@ -463,6 +464,8 @@ export type PrerenderManifest = {
   __private_unstable_hasParamMatching?: true
   routes: { [route: string]: PrerenderManifestRoute }
   dynamicRoutes: { [route: string]: DynamicPrerenderManifestRoute }
+  /** Handler URL admission, including routes without any prerendered response. */
+  routeHandlerParamMatching?: Record<string, RouteHandlerParamMatching>
   notFoundRoutes: string[]
   /** @deprecated only kept for the builder, use PreviewPropsManifest within Next.js itself */
   preview: __ApiPreviewProps
@@ -2289,6 +2292,10 @@ export default async function build(
       const staticPaths = new Map<string, PrerenderedRoute[]>()
       const prerenderRouteMatchers = new Map<string, PrerenderRouteMatcher[]>()
       const paramMatchingByRoute = new Map<string, ParamMatching | undefined>()
+      const routeHandlerParamMatchingByRoute = new Map<
+        string,
+        RouteHandlerParamMatching
+      >()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
       const appDefaultConfigs = new Map<string, AppSegmentConfig>()
@@ -2684,6 +2691,12 @@ export default async function build(
                       )
 
                       if (pageType === 'app' && originalAppPath) {
+                        if (workerResult.routeHandlerParamMatching) {
+                          routeHandlerParamMatchingByRoute.set(
+                            normalizeAppPath(originalAppPath),
+                            workerResult.routeHandlerParamMatching
+                          )
+                        }
                         if (
                           isAppCacheComponentsEnabled &&
                           !isAppRouteRoute(originalAppPath)
@@ -3169,9 +3182,15 @@ export default async function build(
         // Record evaluated exports, including empty fragments, rather than
         // inferring API usage from the resulting fallback modes.
         __private_unstable_hasParamMatching:
+          routeHandlerParamMatchingByRoute.size > 0 ||
           [...paramMatchingByRoute.values()].some(
             (paramMatching) => paramMatching !== undefined
-          ) || undefined,
+          ) ||
+          undefined,
+        routeHandlerParamMatching:
+          routeHandlerParamMatchingByRoute.size > 0
+            ? Object.fromEntries(routeHandlerParamMatchingByRoute)
+            : undefined,
         routes: {},
         dynamicRoutes: {},
         notFoundRoutes: [],

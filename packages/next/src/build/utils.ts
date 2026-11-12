@@ -69,6 +69,7 @@ import { collectRootParamKeys } from './segment-config/app/collect-root-param-ke
 import type {
   PrerenderRouteMatcher,
   PrerenderedRoute,
+  RouteHandlerParamMatching,
 } from './static-paths/types'
 import type { CacheControl } from '../server/lib/cache-control'
 import { formatExpire, formatRevalidate } from './output/format'
@@ -818,6 +819,7 @@ type PageIsStaticResult = {
   prerenderedRoutes: PrerenderedRoute[] | undefined
   prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
   paramMatching: ParamMatching | undefined
+  routeHandlerParamMatching?: RouteHandlerParamMatching
   prerenderFallbackMode: FallbackMode | undefined
   rootParamKeys: readonly string[] | undefined
   isNextImageImported?: boolean
@@ -940,6 +942,7 @@ export async function isPageStatic({
       let prerenderedRoutes: PrerenderedRoute[] | undefined
       let prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
       let paramMatching: ParamMatching | undefined
+      let routeHandlerParamMatching: RouteHandlerParamMatching | undefined
       let prerenderFallbackMode: FallbackMode | undefined
       let appConfig: AppSegmentConfig = {}
       let rootParamKeys: readonly string[] | undefined
@@ -1074,6 +1077,7 @@ export async function isPageStatic({
               prerenderedRoutes,
               prerenderRouteMatchers,
               paramMatching,
+              routeHandlerParamMatching,
               fallbackMode: prerenderFallbackMode,
             } = await (
               require('./static-paths/app') as typeof import('./static-paths/app')
@@ -1177,6 +1181,7 @@ export async function isPageStatic({
         prerenderedRoutes,
         prerenderRouteMatchers,
         paramMatching,
+        routeHandlerParamMatching,
         rootParamKeys,
         hasStaticProps,
         hasServerProps,

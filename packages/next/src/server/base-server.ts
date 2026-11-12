@@ -2851,7 +2851,13 @@ export default abstract class Server<
         )
       }
 
-      if (isAppPath && this.nextConfig.cacheComponents) {
+      if (isAppRouteRouteModule(routeModule)) {
+        addRequestMeta(
+          req,
+          'devRouteHandlerParamMatching',
+          pathsResults.routeHandlerParamMatching
+        )
+      } else if (isAppPath && this.nextConfig.cacheComponents) {
         const paramMatching = pathsResults.paramMatching
         if (paramMatching !== undefined) {
           // Explicit fallback and blocking policies describe how production
