@@ -8,7 +8,12 @@
 import { expect, test } from 'vitest'
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
-import { environment } from '@vercel/agent-eval/eval'
+import { chromium, expect as browserExpect } from '@playwright/test'
+import { instant } from '@next/playwright'
+import {
+  buildNextApp,
+  startNextServer,
+} from './__agent_eval__/next-test-utils.mjs'
 
 const IGNORE_DIRS = new Set([
   '.git',
@@ -17,6 +22,8 @@ const IGNORE_DIRS = new Set([
   'dist',
   'build',
   'coverage',
+  '__agent_eval__',
+  '__eval__',
 ])
 
 const IGNORE_FILES = new Set(['EVAL.ts', 'PROMPT.md'])
@@ -50,6 +57,7 @@ const config = stripComments(
 )
 
 test('enables Partial Prefetching globally or for the catalog route', () => {
+  expect(config).toMatch(/cacheComponents\s*:\s*true/)
   expect(
     /partialPrefetching\s*:\s*true/.test(config) ||
       /export\s+const\s+prefetch\s*=\s*['"]partial['"]/.test(source)
@@ -75,12 +83,62 @@ test('does not use a navigation-stage boundary', () => {
   )
 })
 
-test('prefetches the selected category and cached products', async () => {
-  await expect(environment).toSatisfyCriterion(
-    `The implementation must make the selected category heading and its cached products available from the completed per-link prefetch before navigation.
-
-A correct solution preserves the existing /catalog?category=... URLs, enables Partial Prefetching globally or on the catalog route, and opts the category Links into per-link prefetching with prefetch={true} or the equivalent bare prefetch prop. The catalog route reads the category from searchParams beneath Suspense and renders both the matching heading and getProducts(category) result in the prefetched result. The category data must use a use cache scope, with either the default cache profile or an explicit cacheLife(); searchParams must remain outside that cache scope. Keep the Suspense boundary: the shared App Shell uses its fallback, while a completed per-link prefetch can resolve the cached content inside it before navigation.
-
-This is the basic URL-data inclusion case. Do not use navigation(), prefetch(), connection(), or an uncached request boundary to defer the category content. Reject solutions that only prefetch the reusable Catalog shell while leaving the selected heading or product list behind the loading fallback.`
-  )
-})
+test('prefetches each category heading and products before navigation', async () => {
+  await buildNextApp()
+  const app = await startNextServer()
+  let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
+  try {
+    browser = await chromium.launch({ headless: true })
+    const categories = [
+      {
+        slug: 'featured',
+        heading: 'Featured products',
+        products: ['Desk Lamp', 'Wool Blanket'],
+      },
+      {
+        slug: 'sale',
+        heading: 'Products on sale',
+        products: ['Canvas Tote', 'Travel Mug'],
+      },
+    ]
+    for (const category of categories) {
+      // Each category starts without a prior navigation warming its router cache.
+      const context = await browser.newContext()
+      try {
+        const page = await context.newPage()
+        await page.goto(app.url)
+        await instant(page, async () => {
+          await page
+            .getByRole('link', { name: category.heading, exact: true })
+            .click()
+          await page.waitForURL(`${app.url}/catalog?category=${category.slug}`)
+          await browserExpect(
+            page.getByRole('heading', { name: category.heading, exact: true })
+          ).toBeVisible()
+          for (const product of category.products) {
+            await browserExpect(
+              page.getByRole('listitem').filter({ hasText: product })
+            ).toBeVisible()
+          }
+          for (const other of categories.filter(
+            (item) => item.slug !== category.slug
+          )) {
+            for (const product of other.products) {
+              await browserExpect(
+                page.getByRole('listitem').filter({ hasText: product })
+              ).not.toBeVisible()
+            }
+          }
+          await browserExpect(
+            page.getByText('Loading category...', { exact: true })
+          ).not.toBeVisible()
+        })
+      } finally {
+        await context.close()
+      }
+    }
+  } finally {
+    await browser?.close()
+    await app.stop()
+  }
+}, 240_000)

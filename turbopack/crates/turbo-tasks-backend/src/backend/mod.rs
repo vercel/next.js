@@ -55,6 +55,8 @@ use turbo_tasks::{FunctionId, TaskDirtyCause};
 use turbo_tasks_malloc::TurboMalloc;
 
 use self::eviction::EvictionControl;
+#[cfg(not(target_family = "wasm"))]
+pub use self::operation::aggregation_queue;
 #[cfg(test)]
 pub(crate) use self::storage::TrackOutcome;
 pub use self::{
@@ -541,6 +543,11 @@ impl TurboTasksBackend {
     fn track_cache_miss_by_fn(&self, native_fn: &'static NativeFunction) {
         self.task_statistics
             .map(|stats| stats.increment_cache_miss(native_fn));
+    }
+
+    fn track_execution_by_fn(&self, native_fn: &'static NativeFunction) {
+        self.task_statistics
+            .map(|stats| stats.increment_execution(native_fn));
     }
 
     /// Reconstructs a full [`TurboTasksExecutionError`] from the compact [`TaskError`] storage
@@ -1820,7 +1827,11 @@ impl TurboTasksBackend {
         // `stopping` has already published `Stopping`, which makes a concurrent idle verification
         // pass bail out.
         #[cfg(feature = "verify_aggregation_graph")]
-        self.verify_aggregation_graph(turbo_tasks, false);
+        {
+            self.verify_aggregation_graph(turbo_tasks, false);
+            // Storage is still alive here and no new aggregation updates can start.
+            self.verify_aggregation_edges();
+        }
         // eagerly drop the task cache before persisting
         self.storage.drop_task_cache();
         if self.should_persist()
@@ -2299,6 +2310,7 @@ impl TurboTasksBackend {
                     this,
                     arg,
                 } = &*task_type;
+                self.track_execution_by_fn(native_fn);
                 (
                     native_fn.span(
                         task_id.persistence(),
@@ -3745,6 +3757,30 @@ impl TurboTasksBackend {
             if !old_edges.is_empty() {
                 cleanup_old_edges(task_id, old_edges, AggregationUpdateQueue::new(), &mut ctx);
             }
+        }
+    }
+
+    /// Verifies the aggregation edges of all resident tasks (see
+    /// [`operation::verify_aggregation_edges`]). Must only be called when no aggregation updates
+    /// run.
+    #[cfg(any(test, feature = "verify_aggregation_graph"))]
+    pub(crate) fn verify_aggregation_edges(&self) {
+        if std::env::var("TURBO_ENGINE_VERIFY_GRAPH").ok().as_deref() == Some("0") {
+            return;
+        }
+        let violations =
+            operation::verify_aggregation_edges(&self.storage.aggregation_edges_for_verification());
+        if !violations.is_empty() {
+            panic!(
+                "The aggregation edges are inconsistent ({} violations):\n{}",
+                violations.len(),
+                violations
+                    .iter()
+                    .take(20)
+                    .map(String::as_str)
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            );
         }
     }
 

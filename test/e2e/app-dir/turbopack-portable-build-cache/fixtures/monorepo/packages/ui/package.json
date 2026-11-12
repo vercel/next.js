@@ -1,0 +1,9 @@
+{
+  "name": "@portable/ui",
+  "version": "1.0.0",
+  "private": true,
+  "exports": {
+    ".": "./index.js",
+    "./button": "./button.jsx"
+  }
+}

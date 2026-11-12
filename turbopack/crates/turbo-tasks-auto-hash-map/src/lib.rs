@@ -10,7 +10,9 @@ use indexmap::IndexMap;
 pub use map::RawAutoMap;
 use rustc_hash::FxHasher;
 pub use set::RawAutoSet;
-pub use storage::{BackingListStorage, BackingMapIter, BackingMapStorage};
+pub use storage::{
+    BackingListStorage, BackingMapIter, BackingMapStorage, Equivalent, IndexedBackingMapStorage,
+};
 pub use tiny_vec::TinyVec;
 
 /// Unordered [`RawAutoMap`] backed by a [`HashMap`] and an `I`-inline [`TinyVec`].

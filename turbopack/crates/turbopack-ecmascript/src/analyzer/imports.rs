@@ -158,7 +158,7 @@ impl ImportAnnotations {
 
         let turbopack_loader = turbopack_loader_name.map(|name| WebpackLoaderItem {
             loader: name,
-            options: turbopack_loader_options,
+            options: turbopack_loader_options.into(),
         });
 
         if !map.is_empty()

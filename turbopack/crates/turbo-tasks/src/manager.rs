@@ -3004,10 +3004,9 @@ impl CurrentCellRef {
             };
             let old_value = <T as VcValueType>::Read::value_to_target_ref(old_value);
             let new_value_ref = <T as VcValueType>::Read::value_to_target_ref(&new_value);
-            let updated_keys = old_value.different_keys(new_value_ref);
-            if updated_keys.is_empty() {
-                return None;
-            }
+            // An empty set of keys still updates the value, but only invalidates readers of the
+            // whole value (see `KeyedEq::different_keys`).
+            let updated_keys = old_value.different_keys(new_value_ref)?;
             // Duplicates are very unlikely, but ok since the backend is deduplicating them
             let updated_key_hashes = updated_keys
                 .into_iter()
@@ -3039,10 +3038,9 @@ impl CurrentCellRef {
             let old_value = <T as VcValueType>::Read::value_to_target_ref(old_value);
             let new_value = extract_sr_value::<T>(&new_shared_reference);
             let new_value = <T as VcValueType>::Read::value_to_target_ref(new_value);
-            let updated_keys = old_value.different_keys(new_value);
-            if updated_keys.is_empty() {
-                return None;
-            }
+            // An empty set of keys still updates the value, but only invalidates readers of the
+            // whole value (see `KeyedEq::different_keys`).
+            let updated_keys = old_value.different_keys(new_value)?;
             // Duplicates are very unlikely, but ok since the backend is deduplicating them
             let updated_key_hashes = updated_keys
                 .into_iter()

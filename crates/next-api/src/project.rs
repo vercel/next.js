@@ -16,7 +16,12 @@ use next_core::{
     instrumentation::instrumentation_files,
     middleware::middleware_files,
     mode::NextMode,
-    next_app::{AppPage, AppPath},
+    next_app::{
+        AppPage, AppPath,
+        metadata::{
+            match_global_metadata_file, match_local_metadata_file, normalize_metadata_route,
+        },
+    },
     next_client::{
         ClientChunkingContextOptions, ClientContextType, ServiceWorkerChunkingContextOptions,
         get_client_chunking_context, get_client_compile_time_info,
@@ -45,8 +50,9 @@ use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue,
-    OperationVc, ReadRef, ResolvedVc, State, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt,
-    Vc, debug::ValueDebugFormat, fxindexmap, message_queue::TraceEvent, turbo_tasks,
+    OperationVc, OrderedAutoMap, ReadRef, ResolvedVc, State, TransientInstance, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc, debug::ValueDebugFormat, fxindexmap, message_queue::TraceEvent,
+    turbo_tasks,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
@@ -195,12 +201,32 @@ struct DebugBuildPathsRouteKeys {
 }
 
 impl DebugBuildPathsRouteKeys {
-    fn app_route_key_from_debug_path(path: &str) -> Result<RcStr> {
+    fn app_route_key_from_debug_path(path: &str, page_extensions: &[RcStr]) -> Result<RcStr> {
         let mut segments = path
             .trim_start_matches('/')
             .split('/')
             .filter(|segment| !segment.is_empty())
             .collect::<Vec<_>>();
+
+        if let Some(filename) = segments.last().copied()
+            && let Some(dynamic) = match_local_metadata_file(filename, page_extensions)
+                .map(|metadata| metadata.dynamic)
+                .or_else(|| {
+                    match_global_metadata_file(filename, page_extensions)
+                        .map(|metadata| metadata.dynamic)
+                })
+        {
+            if dynamic {
+                let (stem, _) = filename
+                    .rsplit_once('.')
+                    .context("metadata file must have an extension")?;
+                segments.pop();
+                segments.push(stem);
+            }
+
+            let page = normalize_metadata_route(AppPage::parse(&segments.join("/"))?)?;
+            return Ok(AppPath::from(page).to_string().into());
+        }
 
         if let Some(last_segment) = segments.last()
             && (*last_segment == "page"
@@ -246,12 +272,12 @@ impl DebugBuildPathsRouteKeys {
         })
     }
 
-    fn from_debug_build_paths(paths: &DebugBuildPaths) -> Result<Self> {
+    fn from_debug_build_paths(paths: &DebugBuildPaths, page_extensions: &[RcStr]) -> Result<Self> {
         Ok(Self {
             app: paths
                 .app
                 .iter()
-                .map(|path| Self::app_route_key_from_debug_path(path))
+                .map(|path| Self::app_route_key_from_debug_path(path, page_extensions))
                 .collect::<Result<_>>()?,
             pages: paths
                 .pages
@@ -1157,8 +1183,7 @@ pub struct Project {
 
     project_file_system: OperationVc<DiskFileSystem>,
     output_file_system: OperationVc<DiskFileSystem>,
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub(crate) additional_roots: FxIndexMap<RcStr, AdditionalDiskFileSystem>,
+    pub(crate) additional_roots: OrderedAutoMap<RcStr, AdditionalDiskFileSystem>,
 }
 
 #[turbo_tasks::value]
@@ -1828,7 +1853,7 @@ impl Project {
             rcstr!("__NEXT_PREVIEW_MODE_ENCRYPTION_KEY") => preview_props.preview_mode_encryption_key.clone(),
             rcstr!("__NEXT_PREVIEW_MODE_SIGNING_KEY") => preview_props.preview_mode_signing_key.clone(),
         };
-        Ok(Vc::cell(edge_env))
+        Ok(Vc::cell(edge_env.into()))
     }
 
     #[turbo_tasks::function]
@@ -2266,11 +2291,14 @@ impl Project {
         let pages_project = self.pages_project();
 
         // Convert debug build paths to route keys once for O(1) lookups
-        let debug_build_paths_route_keys = this
-            .debug_build_paths
-            .as_ref()
-            .map(DebugBuildPathsRouteKeys::from_debug_build_paths)
-            .transpose()?;
+        let debug_build_paths_route_keys = if let Some(paths) = &this.debug_build_paths {
+            Some(DebugBuildPathsRouteKeys::from_debug_build_paths(
+                paths,
+                &self.next_config().page_extensions().await?,
+            )?)
+        } else {
+            None
+        };
 
         if let Some(app_project) = &*app_project.await? {
             let app_routes = app_project.routes_with_filter(app_route_filter);

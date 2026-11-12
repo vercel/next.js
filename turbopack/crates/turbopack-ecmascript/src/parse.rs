@@ -6,7 +6,6 @@ use bytes_str::BytesStr;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
-    base::SwcComments,
     common::{
         BytePos, FileName, GLOBALS, Globals, LineCol, Mark, SyntaxContext,
         errors::{HANDLER, Handler},
@@ -49,7 +48,7 @@ use crate::{
     EcmascriptInputTransform,
     analyzer::graph::EvalContext,
     magic_identifier,
-    swc_comments::ImmutableComments,
+    swc_comments::{ImmutableComments, MutableComments},
     transform::{EcmascriptInputTransforms, TransformContext},
 };
 
@@ -440,7 +439,7 @@ async fn parse_file_content(
             let file_name = FileName::Custom(ident.to_string());
             let fm = source_map.new_source_file(file_name.clone().into(), string);
 
-            let comments = SwcComments::default();
+            let comments = MutableComments::new();
 
             let mut parsed_program = {
                 let lexer = Lexer::new(
