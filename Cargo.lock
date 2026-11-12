@@ -9063,10 +9063,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "turbo-concurrent-slice"
-version = "0.1.0"
-
-[[package]]
 name = "turbo-dyn-eq-hash"
 version = "0.0.1"
 
@@ -9198,7 +9194,6 @@ dependencies = [
  "triomphe 0.1.12",
  "turbo-bincode",
  "turbo-bitset",
- "turbo-concurrent-slice",
  "turbo-dyn-eq-hash",
  "turbo-frozenmap",
  "turbo-rcstr",

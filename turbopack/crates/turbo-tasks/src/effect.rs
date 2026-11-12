@@ -5,19 +5,18 @@ use std::{
     mem::{forget, replace},
     num::NonZeroUsize,
     sync::{
-        Arc,
+        Arc, OnceLock,
         atomic::{AtomicUsize, Ordering},
     },
 };
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use crossbeam_utils::CachePadded;
 use futures::{StreamExt, TryStreamExt};
 use parking_lot::{Mutex, MutexGuard};
 use rustc_hash::FxHashMap;
 use tracing::Instrument;
-use turbo_concurrent_slice::ConcurrentSlice;
 
 use crate::{
     self as turbo_tasks, CollectiblesSource, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
@@ -375,7 +374,7 @@ async fn capture_effects(
         let state = Arc::new(CaptureEffectsState {
             effects,
             next: CachePadded::new(AtomicUsize::new(0)),
-            captured: ConcurrentSlice::new((0..len).map(|_| None).collect()),
+            captured: (0..len).map(|_| OnceLock::new()).collect(),
         });
         let handles = (0..workers)
             .map(|_| {
@@ -396,12 +395,15 @@ async fn capture_effects(
         let Some(state) = Arc::into_inner(state) else {
             bail!("capture workers finished while still holding the shared state");
         };
-        Ok(state
+        state
             .captured
-            .into_inner()
             .into_iter()
-            .map(|effect| effect.expect("every effect is captured exactly once"))
-            .collect())
+            .map(|effect| {
+                effect
+                    .into_inner()
+                    .context("capture workers finished without capturing every effect")
+            })
+            .collect()
     }
     .instrument(span)
     .await
@@ -413,12 +415,10 @@ struct CaptureEffectsState {
     /// Index of the next effect to capture. Every worker increments it for every effect, so it is
     /// kept on its own cache line to avoid false sharing with the fields around it.
     next: CachePadded<AtomicUsize>,
-    /// `captured[i]` is the captured `effects[i]`, written by the worker that took index `i`.
-    captured: ConcurrentSlice<CapturedSlots>,
+    /// `captured[i]` is the captured `effects[i]`, set by the worker that took index `i`. It stays
+    /// empty until then.
+    captured: Box<[OnceLock<Box<dyn CapturedEffect>>]>,
 }
-
-/// One slot per effect, `None` until the effect is captured.
-type CapturedSlots = Box<[Option<Box<dyn CapturedEffect>>]>;
 
 impl CaptureEffectsState {
     /// Captures effects until there are none left or a capture fails.
@@ -438,9 +438,11 @@ impl CaptureEffectsState {
                     return Err(err);
                 }
             };
-            // SAFETY: `fetch_add` hands out every index below `len` at most once (`store` above
-            // only sets the counter to `len`), so this is the only write of `idx`.
-            unsafe { self.captured.write(idx, Some(captured)) };
+            // `fetch_add` hands out every index below `len` at most once (`store` above only sets
+            // the counter to `len`), so the slot is still empty.
+            if self.captured[idx].set(captured).is_err() {
+                bail!("effect {idx} was captured twice");
+            }
         }
     }
 }
