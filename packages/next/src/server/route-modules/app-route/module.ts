@@ -234,6 +234,8 @@ export interface AppRouteRouteModuleOptions
     | AppRouteUserlandModule
     | Promise<AppRouteUserlandModule>
   readonly resolvedPagePath: string
+  /** Whether the compiler generated this handler from a metadata file. */
+  readonly isMetadataRoute: boolean
   readonly nextConfigOutput: NextConfig['output']
   /**
    * Optional synchronous getter that returns the live userland module. When
@@ -277,6 +279,7 @@ export class AppRouteRouteModule extends RouteModule<
   public readonly actionAsyncStorage = actionAsyncStorage
 
   public readonly resolvedPagePath: string
+  public readonly isMetadataRoute: boolean
   public readonly nextConfigOutput: NextConfig['output'] | undefined
 
   // Loaded lazily since the route file may be an async module (top-level
@@ -311,6 +314,7 @@ export class AppRouteRouteModule extends RouteModule<
     distDir,
     relativeProjectDir,
     resolvedPagePath,
+    isMetadataRoute,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
     super({
@@ -321,6 +325,7 @@ export class AppRouteRouteModule extends RouteModule<
     })
 
     this.resolvedPagePath = resolvedPagePath
+    this.isMetadataRoute = isMetadataRoute
     this.nextConfigOutput = nextConfigOutput
     this._getUserland = getUserland
     this._lazyUserland = new LazyModule(

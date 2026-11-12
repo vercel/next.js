@@ -78,6 +78,7 @@ export async function createAppRouteCode({
     },
     {
       nextConfigOutput: JSON.stringify(nextConfigOutput),
+      isMetadataRoute: JSON.stringify(isMetadataEntryFile),
     }
   )
 }

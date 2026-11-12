@@ -193,6 +193,28 @@ describe('route-handler-param-matching', () => {
     expect((await next.fetch('/robots.txt')).status).toBe(200)
   })
 
+  it('keeps a single-image parent named __metadata_id__ configurable', async () => {
+    const image = await next.fetch('/metadata-literal/allowed/opengraph-image')
+    expect(image.status).toBe(200)
+    expect(image.headers.get('content-type')).toBe('image/png')
+    expect(image.headers.get('x-metadata-parent')).toBe('allowed')
+    expect((await image.arrayBuffer()).byteLength).toBeGreaterThan(0)
+    expect(
+      (await next.fetch('/metadata-literal/rejected/opengraph-image')).status
+    ).toBe(404)
+  })
+
+  it('keeps parameters authored in metadata-shaped handlers configurable', async () => {
+    const response = await next.fetch('/metadata-shaped/sitemap/allowed')
+    expect(response.status).toBe(200)
+    expect((await response.json()).params).toEqual({
+      __metadata_id__: 'allowed',
+    })
+    expect((await next.fetch('/metadata-shaped/sitemap/rejected')).status).toBe(
+      404
+    )
+  })
+
   it('applies parent matching to a single-image metadata handler', async () => {
     const image = await next.fetch('/metadata/en/opengraph-image')
     expect(image.status).toBe(200)

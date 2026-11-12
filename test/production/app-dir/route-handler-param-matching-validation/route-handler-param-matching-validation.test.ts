@@ -4,6 +4,26 @@ describe('route-handler-param-matching-validation', () => {
   const { next } = nextTestSetup({ files: __dirname, skipStart: true })
 
   it.each([
+    "export const unstable_paramMatching = { __metadata_id__: 'not-found' }",
+    "export function unstable_generateParamMatching() { return { __metadata_id__: 'not-found' } }",
+  ])(
+    'rejects matching for a compiler-generated metadata ID: %s',
+    async (declaration) => {
+      const file = 'app/opengraph-image.js'
+      const source = await next.readFile(file)
+      try {
+        await next.patchFile(file, `${declaration}\n${source}`)
+        const { exitCode, cliOutput } = await next.build()
+        expect(exitCode).toBe(1)
+        expect(cliOutput).toContain('Invalid parameter "__metadata_id__"')
+        expect(cliOutput).toContain('/opengraph-image/[__metadata_id__]')
+      } finally {
+        await next.patchFile(file, source)
+      }
+    }
+  )
+
+  it.each([
     [
       "export const unstable_paramMatching = { slug: 'blocking' }",
       'only support "not-found" and "dynamic"',
