@@ -43,13 +43,7 @@ const BABEL_CONFIG_FILES: &[&str] = &[
 static BABEL_LOADER_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(^|/)@?babel[-/]loader($|/|\.)").unwrap());
 
-/// The forked version of babel-loader that we should use for automatic configuration. This version
-/// is always available, as it's installed as part of next.js.
-const NEXT_JS_BABEL_LOADER: RcStr = rcstr!("next/dist/build/babel/loader");
-
-const BABEL_PLUGIN_REACT_COMPILER: RcStr = rcstr!("babel-plugin-react-compiler");
-const BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON: RcStr =
-    rcstr!("babel-plugin-react-compiler/package.json");
+static BABEL_PLUGIN_REACT_COMPILER: RcStr = rcstr!("babel-plugin-react-compiler");
 
 /// Detect manually-configured babel loaders. This is used to generate a warning, suggesting using
 /// the built-in babel support.
@@ -265,7 +259,10 @@ pub async fn get_babel_loader_rules(
         rcstr!("*.{js,jsx,ts,tsx,cjs,mjs,mts,cts}"),
         LoaderRuleItem {
             loaders: ResolvedVc::cell(vec![WebpackLoaderItem {
-                loader: NEXT_JS_BABEL_LOADER,
+                // The forked version of babel-loader that we should use for automatic
+                // configuration. This version is always available, as it's installed as part of
+                // next.js.
+                loader: rcstr!("next/dist/build/babel/loader"),
                 options: loader_options.into(),
             }]),
             rename_as: Some(rcstr!("*")),
@@ -362,12 +359,14 @@ pub async fn resolve_babel_plugin_react_compiler(
     let babel_plugin_result = resolve(
         next_package.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
-        Request::parse(Pattern::Constant(BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON)),
+        Request::parse(Pattern::Constant(rcstr!(
+            "babel-plugin-react-compiler/package.json"
+        ))),
         node_cjs_resolve_options(),
     );
     let Some(source) = babel_plugin_result.await?.first_source() else {
         BabelPluginReactCompilerResolutionIssue {
-            failed_resolution: BABEL_PLUGIN_REACT_COMPILER,
+            failed_resolution: BABEL_PLUGIN_REACT_COMPILER.clone(),
             config_file_path: next_config
                 .config_file_path(project_path.clone())
                 .owned()
@@ -425,7 +424,7 @@ impl Issue for BabelPluginReactCompilerResolutionIssue {
             )),
             StyledString::Code(rcstr!("next")),
             StyledString::Text(rcstr!(" package. Is ")),
-            StyledString::Code(BABEL_PLUGIN_REACT_COMPILER),
+            StyledString::Code(BABEL_PLUGIN_REACT_COMPILER.clone()),
             StyledString::Text(rcstr!(" installed in your ")),
             StyledString::Code(rcstr!("node_modules")),
             StyledString::Text(rcstr!(" directory?")),

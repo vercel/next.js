@@ -109,6 +109,7 @@ fn default_preload() -> bool {
     true
 }
 
+// Must be a function rather than a `static`: `#[serde(default = "...")]` requires a function path.
 fn default_display() -> RcStr {
     rcstr!("swap")
 }

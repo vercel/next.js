@@ -4289,7 +4289,10 @@ mod tests {
 
     #[turbo_tasks::function]
     fn fs() -> Vc<Box<dyn FileSystem>> {
-        Vc::upcast(DiskFileSystem::new(rcstr!("temp"), Vc::cell(fs_path())))
+        Vc::upcast(DiskFileSystem::new(
+            rcstr!("temp"),
+            Vc::cell(rcstr!("/tmp/_mdt")),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -4301,10 +4304,6 @@ mod tests {
         let source = VirtualSource::new(path, *content);
         let module = RawModule::new(Vc::upcast(source)).to_resolved().await?;
         Ok(Vc::upcast(*module))
-    }
-
-    fn fs_path() -> RcStr {
-        rcstr!("/tmp/_mdt")
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

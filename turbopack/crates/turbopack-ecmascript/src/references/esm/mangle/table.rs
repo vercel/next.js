@@ -29,15 +29,6 @@ const FIRST_CHARS: &[u8; 54] = b"_$ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrs
 /// Characters that may appear in an identifier after the first character.
 const REST_CHARS: &[u8; 64] = b"_$0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
-/// The name assigned when a module has exactly one export to mangle.
-///
-/// Always picking the same character compresses better than hashing would: `f` is the most common
-/// character in JS keywords (`if`, `for`, `function`), and every single-export module in the graph
-/// then emits the same `.f` / `.f()` byte sequences, which gzip's back-references pick up across
-/// the whole bundle. The cost is that going from one export to two renames this one; that churn is
-/// accepted deliberately in exchange for the compression.
-const SINGLE_ITEM_IDENTIFIER: RcStr = rcstr!("f");
-
 /// Keys that are never handed out, for two different reasons.
 ///
 /// The reserved words are legal as quoted keys, but a minifier will not fold `ns["if"]` into
@@ -195,7 +186,7 @@ fn bucket_of(name: &str, len: u32) -> Option<u64> {
 /// [`RESERVED_KEYS`] are never handed out, even though they are not themselves assigned a short
 /// name.
 ///
-/// A module with a single export to mangle is special-cased to [`SINGLE_ITEM_IDENTIFIER`], so that
+/// A module with a single export to mangle is special-cased to the name `f`, so that
 /// every such module in the graph emits the same key and compresses together.
 ///
 /// The table is sized to the smallest identifier length that can hold every name that needs a
@@ -227,7 +218,13 @@ pub fn shorten_to_unique_names<'a>(
         return if bucket_of(name, 1).is_some() {
             FrozenMap::default()
         } else {
-            FrozenMap::from_iter([((*name).clone(), SINGLE_ITEM_IDENTIFIER)])
+            // Always picking the same character compresses better than hashing would: `f` is the
+            // most common character in JS keywords (`if`, `for`, `function`), and every
+            // single-export module in the graph then emits the same `.f` / `.f()` byte sequences,
+            // which gzip's back-references pick up across the whole bundle. The cost is that going
+            // from one export to two renames this one; that churn is accepted deliberately in
+            // exchange for the compression.
+            FrozenMap::from_iter([((*name).clone(), rcstr!("f"))])
         };
     }
 
