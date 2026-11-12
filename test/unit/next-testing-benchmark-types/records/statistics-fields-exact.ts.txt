@@ -1,0 +1,7 @@
+import type { BaselineData } from 'vitest';
+type Stats = BaselineData['latency'];
+type Equal<A,B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
+type Fields = Exclude<keyof Stats,'samples'>;
+const exact: Equal<{[K in Fields]: Stats[K]},Record<Fields,number>> = true;
+const optional: Equal<undefined extends Stats['samples'] ? true : false,true> = true;
+void [exact,optional];

@@ -1,0 +1,868 @@
+{
+  "finished-shared-array": {
+    "rows": [
+      [
+        {
+          "stage": "initial",
+          "absent": true
+        },
+        {
+          "stage": "body-return",
+          "same": true,
+          "array": true,
+          "prototype": true,
+          "ownPush": false,
+          "length": 3
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        },
+        {
+          "stage": "manual-finished",
+          "same": true,
+          "receiverUndefined": true,
+          "args": 1
+        },
+        {
+          "stage": "global-finished",
+          "same": true,
+          "receiverUndefined": true,
+          "args": 1
+        },
+        {
+          "stage": "context-finished",
+          "same": true,
+          "receiverUndefined": true,
+          "args": 1
+        },
+        {
+          "stage": "afterAll-task",
+          "absent": true
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual finished array shares context global and manual callbacks",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "callback-registration": {
+    "rows": [
+      [
+        {
+          "stage": "body-return",
+          "length": 1
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        },
+        {
+          "stage": "finished-start",
+          "length": 1
+        },
+        {
+          "stage": "live-refused",
+          "message": "Cannot call \"onTestFinished\" inside a test hook."
+        },
+        {
+          "stage": "global-registered",
+          "resultUndefined": true
+        },
+        {
+          "stage": "retained-registered",
+          "resultUndefined": true
+        },
+        {
+          "stage": "finished-end",
+          "length": 4
+        },
+        {
+          "stage": "final-task",
+          "absent": true,
+          "registrationRestored": true
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual finished snapshot distinguishes live global and retained registration",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "registration-getters": {
+    "rows": [
+      [
+        {
+          "stage": "finished-get",
+          "count": 1
+        },
+        {
+          "stage": "finished-get",
+          "count": 2
+        },
+        {
+          "stage": "finished-get",
+          "count": 3
+        },
+        {
+          "stage": "finished-get",
+          "count": 4
+        },
+        {
+          "stage": "body-return",
+          "length": 2
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        },
+        {
+          "stage": "finished-get",
+          "count": 5
+        },
+        {
+          "stage": "finished-get",
+          "count": 6
+        },
+        {
+          "stage": "global-finished",
+          "same": true,
+          "receiverUndefined": true,
+          "args": 1
+        },
+        {
+          "stage": "context-finished",
+          "same": true,
+          "receiverUndefined": true,
+          "args": 1
+        },
+        {
+          "stage": "finished-set",
+          "absent": true
+        },
+        {
+          "stage": "final-task",
+          "absent": true
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual finished registration and consumption use authored getters",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "retained-late-registration": {
+    "rows": [
+      [
+        {
+          "stage": "first-body",
+          "absent": true
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        },
+        {
+          "stage": "before-retained",
+          "absent": true
+        },
+        {
+          "stage": "after-retained",
+          "resultUndefined": true,
+          "firstArray": true,
+          "firstLength": 1,
+          "currentAbsent": true
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        },
+        {
+          "stage": "final-first",
+          "firstLength": 1
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "first logical task retains its original registrar",
+        "status": "passed",
+        "failureMessages": []
+      },
+      {
+        "name": "second logical task can append through first retained registrar",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "retry-registrar": {
+    "rows": [
+      [
+        {
+          "stage": "body-start",
+          "attempt": 1,
+          "sameTask": true,
+          "sameContext": true,
+          "absent": true
+        },
+        {
+          "stage": "body-return",
+          "attempt": 1,
+          "length": 1,
+          "wrapper": "runWithTimeout"
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["first actual retry"]
+        },
+        {
+          "stage": "finished",
+          "attempt": 1,
+          "same": true,
+          "length": 1,
+          "aborted": false
+        },
+        {
+          "stage": "body-start",
+          "attempt": 2,
+          "sameTask": true,
+          "sameContext": true,
+          "absent": true
+        },
+        {
+          "stage": "body-return",
+          "attempt": 2,
+          "length": 1,
+          "wrapper": "runWithTimeout"
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["first actual retry"]
+        },
+        {
+          "stage": "finished",
+          "attempt": 2,
+          "same": true,
+          "length": 1,
+          "aborted": false
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "captured registrar follows real retry reset",
+        "status": "passed",
+        "failureMessages": ["first actual retry"]
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "beforeEach-arming": {
+    "rows": [
+      [
+        {
+          "stage": "beforeEach-native",
+          "array": true,
+          "length": 1,
+          "ownPush": false
+        },
+        {
+          "stage": "native-settled"
+        },
+        {
+          "stage": "body-return",
+          "length": 1
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual native finished observer arms before beforeEach",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "raw-no-default-deadline": {
+    "rows": [
+      [
+        {
+          "stage": "body-return",
+          "name": "rawFinished",
+          "length": 1
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        },
+        {
+          "stage": "raw-start",
+          "same": true,
+          "receiverUndefined": true,
+          "args": 1
+        },
+        {
+          "stage": "raw-end"
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual manual raw callback has no invented hook deadline",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "disabled-wrapper-identity": {
+    "rows": [
+      [
+        {
+          "stage": "body-return",
+          "firstSame": true,
+          "secondSame": true,
+          "length": 2,
+          "ownPush": false
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        },
+        {
+          "stage": "registered",
+          "same": true,
+          "receiverUndefined": true,
+          "args": 1
+        },
+        {
+          "stage": "registered",
+          "same": true,
+          "receiverUndefined": true,
+          "args": 1
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "disabled registered deadlines preserve genuine handler identity",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "failed-shared-array": {
+    "rows": [
+      [
+        {
+          "stage": "initial",
+          "absent": true
+        },
+        {
+          "stage": "body-return",
+          "same": true,
+          "array": true,
+          "prototype": true,
+          "ownPush": false,
+          "length": 3
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["actual controlled body failure"]
+        },
+        {
+          "stage": "manual-failed",
+          "same": true,
+          "receiverUndefined": true,
+          "args": 1
+        },
+        {
+          "stage": "global-failed",
+          "same": true,
+          "receiverUndefined": true,
+          "args": 1
+        },
+        {
+          "stage": "context-failed",
+          "same": true,
+          "receiverUndefined": true,
+          "args": 1
+        },
+        {
+          "stage": "final-task",
+          "absent": true
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual failed context global manual callbacks share one array",
+        "status": "failed",
+        "failureMessages": ["actual controlled body failure"]
+      }
+    ],
+    "success": false,
+    "exit": 1
+  },
+  "failed-getters": {
+    "rows": [
+      [
+        {
+          "stage": "failed-get",
+          "count": 1
+        },
+        {
+          "stage": "failed-get",
+          "count": 2
+        },
+        {
+          "stage": "failed-get",
+          "count": 3
+        },
+        {
+          "stage": "failed-get",
+          "count": 4
+        },
+        {
+          "stage": "body-return",
+          "length": 2
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["actual controlled body failure"]
+        },
+        {
+          "stage": "finished-get"
+        },
+        {
+          "stage": "failed-get",
+          "count": 5
+        },
+        {
+          "stage": "failed-get",
+          "count": 6
+        },
+        {
+          "stage": "global-failed"
+        },
+        {
+          "stage": "context-failed"
+        },
+        {
+          "stage": "failed-set",
+          "absent": true
+        },
+        {
+          "stage": "finished-set",
+          "absent": true
+        },
+        {
+          "stage": "final-task",
+          "failedAbsent": true,
+          "finishedAbsent": true
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "actual failed field getter order and dual reset",
+        "status": "failed",
+        "failureMessages": ["actual controlled body failure"]
+      }
+    ],
+    "success": false,
+    "exit": 1
+  },
+  "failed-retained-late": {
+    "rows": [
+      [
+        {
+          "stage": "first-body",
+          "absent": true
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        },
+        {
+          "stage": "before-retained",
+          "absent": true
+        },
+        {
+          "stage": "after-retained",
+          "firstArray": true,
+          "firstLength": 1,
+          "currentAbsent": true
+        },
+        {
+          "stage": "afterEach",
+          "errors": []
+        },
+        {
+          "stage": "final-first",
+          "length": 1
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "first successful task retains failed registrar",
+        "status": "passed",
+        "failureMessages": []
+      },
+      {
+        "name": "foreign origin appends failed registrar after first logical end",
+        "status": "passed",
+        "failureMessages": []
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "failed-retry-reset": {
+    "rows": [
+      [
+        {
+          "stage": "body-start",
+          "attempt": 1,
+          "same": true,
+          "absent": true
+        },
+        {
+          "stage": "body-return",
+          "attempt": 1,
+          "length": 1
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["actual controlled body failure"]
+        },
+        {
+          "stage": "failed-callback",
+          "attempt": 1,
+          "same": true,
+          "length": 1
+        },
+        {
+          "stage": "body-start",
+          "attempt": 2,
+          "same": true,
+          "absent": true
+        },
+        {
+          "stage": "body-return",
+          "attempt": 2,
+          "length": 1
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["actual controlled body failure"]
+        },
+        {
+          "stage": "final-task",
+          "absent": true
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "failed callbacks reset and retained registrar rebinds across retries",
+        "status": "passed",
+        "failureMessages": ["actual controlled body failure"]
+      }
+    ],
+    "success": true,
+    "exit": 0
+  },
+  "failed-raw-no-deadline": {
+    "rows": [
+      [
+        {
+          "stage": "body-return",
+          "name": "rawFailed",
+          "length": 1
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["actual controlled body failure"]
+        },
+        {
+          "stage": "raw-start",
+          "same": true,
+          "receiverUndefined": true,
+          "args": 1
+        },
+        {
+          "stage": "raw-end"
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "manual failed callback has no invented default deadline",
+        "status": "failed",
+        "failureMessages": ["actual controlled body failure"]
+      }
+    ],
+    "success": false,
+    "exit": 1
+  },
+  "failed-registration-stack": {
+    "rows": [
+      [
+        {
+          "stage": "body-return",
+          "length": 1
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["actual controlled body failure"]
+        },
+        {
+          "stage": "slice",
+          "same": true
+        },
+        {
+          "stage": "reverse",
+          "same": true
+        },
+        {
+          "stage": "first-failed",
+          "length": 1,
+          "receiverUndefined": true
+        },
+        {
+          "stage": "live-refused",
+          "name": "onTestFinished",
+          "message": "Cannot call \"onTestFinished\" inside a test hook."
+        },
+        {
+          "stage": "live-refused",
+          "name": "onTestFailed",
+          "message": "Cannot call \"onTestFailed\" inside a test hook."
+        },
+        {
+          "stage": "appended",
+          "length": 4
+        },
+        {
+          "stage": "final-task",
+          "absent": true
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "failed registration snapshot stack",
+        "status": "failed",
+        "failureMessages": ["actual controlled body failure"]
+      }
+    ],
+    "success": false,
+    "exit": 1
+  },
+  "failed-registration-list": {
+    "rows": [
+      [
+        {
+          "stage": "body-return",
+          "length": 1
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["actual controlled body failure"]
+        },
+        {
+          "stage": "first-failed",
+          "length": 1,
+          "receiverUndefined": true
+        },
+        {
+          "stage": "live-refused",
+          "name": "onTestFinished",
+          "message": "Cannot call \"onTestFinished\" inside a test hook."
+        },
+        {
+          "stage": "live-refused",
+          "name": "onTestFailed",
+          "message": "Cannot call \"onTestFailed\" inside a test hook."
+        },
+        {
+          "stage": "appended",
+          "length": 4
+        },
+        {
+          "stage": "appended-global"
+        },
+        {
+          "stage": "appended-retained"
+        },
+        {
+          "stage": "appended-manual"
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "failed registration snapshot list",
+        "status": "failed",
+        "failureMessages": ["actual controlled body failure"]
+      }
+    ],
+    "success": false,
+    "exit": 1
+  },
+  "failed-registration-parallel": {
+    "rows": [
+      [
+        {
+          "stage": "body-return",
+          "length": 1
+        },
+        {
+          "stage": "afterEach",
+          "errors": ["actual controlled body failure"]
+        },
+        {
+          "stage": "map",
+          "same": true
+        },
+        {
+          "stage": "first-failed",
+          "length": 1,
+          "receiverUndefined": true
+        },
+        {
+          "stage": "live-refused",
+          "name": "onTestFinished",
+          "message": "Cannot call \"onTestFinished\" inside a test hook."
+        },
+        {
+          "stage": "live-refused",
+          "name": "onTestFailed",
+          "message": "Cannot call \"onTestFailed\" inside a test hook."
+        },
+        {
+          "stage": "appended",
+          "length": 4
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "failed registration snapshot parallel",
+        "status": "failed",
+        "failureMessages": ["actual controlled body failure"]
+      }
+    ],
+    "success": false,
+    "exit": 1
+  },
+  "empty-listener-fields": {
+    "rows": [
+      [
+        {
+          "stage": "afterEach",
+          "name": "empty array listener fields",
+          "errors": ["empty field controlled body failure"]
+        },
+        {
+          "stage": "get",
+          "kind": "array",
+          "field": "onFinished",
+          "reads": 1
+        },
+        {
+          "stage": "get",
+          "kind": "array",
+          "field": "onFailed",
+          "reads": 1
+        },
+        {
+          "stage": "set",
+          "kind": "array",
+          "field": "onFailed",
+          "absent": true
+        },
+        {
+          "stage": "set",
+          "kind": "array",
+          "field": "onFinished",
+          "absent": true
+        },
+        {
+          "stage": "afterEach",
+          "name": "empty object listener fields",
+          "errors": ["empty field controlled body failure"]
+        },
+        {
+          "stage": "get",
+          "kind": "object",
+          "field": "onFinished",
+          "reads": 1
+        },
+        {
+          "stage": "get",
+          "kind": "object",
+          "field": "onFailed",
+          "reads": 1
+        },
+        {
+          "stage": "set",
+          "kind": "object",
+          "field": "onFailed",
+          "absent": true
+        },
+        {
+          "stage": "set",
+          "kind": "object",
+          "field": "onFinished",
+          "absent": true
+        }
+      ]
+    ],
+    "cases": [
+      {
+        "name": "empty array listener fields",
+        "status": "failed",
+        "failureMessages": ["empty field controlled body failure"]
+      },
+      {
+        "name": "empty object listener fields",
+        "status": "failed",
+        "failureMessages": ["empty field controlled body failure"]
+      }
+    ],
+    "success": false,
+    "exit": 1
+  }
+}

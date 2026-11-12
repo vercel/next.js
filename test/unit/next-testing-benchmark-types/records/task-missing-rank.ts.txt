@@ -1,0 +1,4 @@
+import type { BaselineData, TestBenchmarkTask } from 'vitest';
+declare const data: BaselineData;
+const task: TestBenchmarkTask = {...data,name: 'baseline'};
+void task;

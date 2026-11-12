@@ -1,0 +1,11 @@
+import { test, expect, beforeEach, afterEach, afterAll, onTestFinished as globalFinished } from 'vitest'
+const rows = []
+let release = () => {}
+const row = (stage, value = {}) => rows.push({ stage, ...value })
+afterEach(({ task }) => { row('afterEach', { errors: (task.result?.errors ?? []).map(error => error?.message ?? String(error)) }); release() })
+afterAll(() => console.log('TASK_QUEUE_CONSUMER:' + JSON.stringify(rows)))
+test('disabled registered deadlines preserve genuine handler identity', context => {
+   const fn = function originalFinished(payload) { row('registered', { same: payload.task === context.task, receiverUndefined: this === undefined, args: arguments.length }) }
+   context.onTestFinished(fn, 0); globalFinished(fn, Infinity)
+   row('body-return', { firstSame: context.task.onFinished[0] === fn, secondSame: context.task.onFinished[1] === fn, length: context.task.onFinished.length, ownPush: Object.hasOwn(context.task.onFinished, 'push') })
+ })

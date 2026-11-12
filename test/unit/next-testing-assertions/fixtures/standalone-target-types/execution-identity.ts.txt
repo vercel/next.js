@@ -1,0 +1,4 @@
+import type {TestExecutionMethod} from 'vitest'
+type Equal<X,Y>=(<T>()=>T extends X?1:2) extends (<T>()=>T extends Y?1:2)?true:false
+type Require<T extends true>=T
+export type Method=Require<Equal<TestExecutionMethod,'run'|'collect'>>

@@ -1,0 +1,5 @@
+import type { BaselineData, BenchFromSource } from 'vitest';
+type Equal<A,B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
+const args: Equal<Parameters<BenchFromSource>,[]> = true;
+const result: Equal<ReturnType<BenchFromSource>,BaselineData|Promise<BaselineData>> = true;
+void [args,result];

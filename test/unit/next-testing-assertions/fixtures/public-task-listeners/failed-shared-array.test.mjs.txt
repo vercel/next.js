@@ -1,0 +1,15 @@
+import { test, afterEach, afterAll, onTestFailed as globalFailed } from 'vitest'
+const rows = []
+const row = (stage, value = {}) => rows.push({ stage, ...value })
+afterEach(({ task }) => row('afterEach', { errors: (task.result?.errors ?? []).map(error => error?.message ?? String(error)) }))
+afterAll(() => console.log('TASK_QUEUE_CONSUMER:' + JSON.stringify(rows)))
+const fail = () => { const error = new Error('actual controlled body failure'); error.stack = ''; throw error }
+let held
+const callback = label => function(payload) { row(label, { same: payload.task === held, receiverUndefined: this === undefined, args: arguments.length }) }
+test('actual failed context global manual callbacks share one array', context => {
+ held = context.task; row('initial', { absent: held.onFailed === undefined })
+ context.onTestFailed(callback('context-failed'), 0); const actual = held.onFailed
+ globalFailed(callback('global-failed'), Infinity); actual.push(callback('manual-failed'))
+ row('body-return', { same: held.onFailed === actual, array: Array.isArray(actual), prototype: Object.getPrototypeOf(actual) === Array.prototype, ownPush: Object.hasOwn(actual,'push'), length: actual.length }); fail()
+})
+afterAll(() => row('final-task', { absent: held.onFailed === undefined }))

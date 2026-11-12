@@ -1,0 +1,21 @@
+import { afterAll, expect, test } from 'vitest'
+const trace = [], held = []
+let local, caller, owner, callerTask, phase, receiver, expectedOwner
+const operations = [
+ ['include', () => ({ x: 1, y: 2 }), 'keys', ['x']],
+ ['lengthOf', () => [1, 2], 'above', [1]],
+ ['a', () => 2, 'equal', [2]],
+]
+expect.extend({ toInspectFunctionReceiver() { trace.push({ phase, kind: 'state', sameReceiver: this.assertion === receiver, sameTask: this.task === expectedOwner, receiverType: typeof this.assertion, isNot: this.isNot, promise: this.promise }); return { pass: true, message: () => 'actual native function receiver changed' } } })
+function run(label) { phase = label; for (const row of held) { const { name, fn, source, method, args, make } = row
+  trace.push({ phase, name, kind: 'shape', type: typeof fn, prototypeSource: Object.getPrototypeOf(Object.getPrototypeOf(fn)) === source, functionInstance: fn instanceof Function })
+  for (const kind of ['direct-custom', 'direct-method', 'borrowed-method', 'then']) {
+    try { if (kind === 'direct-custom') { receiver = fn; expectedOwner = owner; fn.toInspectFunctionReceiver() }
+      else if (kind === 'then') trace.push({ phase, name, kind, thenUndefined: fn.then === undefined })
+      else { const target = kind === 'borrowed-method' ? caller(make())[name] : fn; const result = Reflect.apply(method, target, args); trace.push({ phase, name, kind, resultType: typeof result, sameTarget: result === target }); receiver = result; expectedOwner = kind === 'borrowed-method' ? callerTask : owner; result.toInspectFunctionReceiver() }
+    } catch (error) { trace.push({ phase, name, kind, error: { name: error.name, message: error.message } }) }
+  }
+ } trace.push({ phase, kind: 'counts', owner: local.getState().assertionCalls, caller: caller.getState().assertionCalls }) }
+test('creator real native function records', context => { local = context.expect; owner = context.task; for (const [name, make, inner, args] of operations) { const source = local(make()), fn = source[name], method = fn[inner]; held.push({ name, make, inner, args, source, fn, method }) } })
+test('foreign real native function records', context => { caller = context.expect; callerTask = context.task; run('foreign') })
+afterAll(() => { run('afterAll'); console.log('DECLARATION_FN:' + JSON.stringify({ kind: 'chai-chainable-function-receivers', trace })) })

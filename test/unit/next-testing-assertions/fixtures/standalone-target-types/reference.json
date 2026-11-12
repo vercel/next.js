@@ -1,0 +1,182 @@
+{
+  "version": "5.0.4",
+  "typescript": "6.0.2",
+  "rootConfigAndGlobalAugmentations": true,
+  "programs": [
+    {
+      "name": "states.ts",
+      "source": "states.ts.txt",
+      "sourceSHA256": "05a67228734c0e15f43830df77c2ae752df83550da90f2db10d3cc6b0dd7a7bf",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "states-wrong.ts",
+      "source": "states-wrong.ts.txt",
+      "sourceSHA256": "6141e3a394113d6127ff9450c766f6380c7f3ff01bb5192c809d6be3c6404d01",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2820,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "states-number.ts",
+      "source": "states-number.ts.txt",
+      "sourceSHA256": "d8ebb45a6fe28d76dc11931403361ba744f24802189fd7410a44168017189ada",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "states-identity.ts",
+      "source": "states-identity.ts.txt",
+      "sourceSHA256": "82e327e86d0921754340b914119e955b399db7d0a7da953af6d34d2c0d19458f",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "execution.ts",
+      "source": "execution.ts.txt",
+      "sourceSHA256": "33d726ec118a91dc310e8e015a85b1a58efbec2a10457164e045f2408699c6c0",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "execution-wrong.ts",
+      "source": "execution-wrong.ts.txt",
+      "sourceSHA256": "7f54ac437a92aa1c4b417c1805a80dcae3d5d89a35c1295b975a8d2efacb7f63",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "execution-identity.ts",
+      "source": "execution-identity.ts.txt",
+      "sourceSHA256": "99ad0169372dd957ec6c4e67e10e62266fded682440fde2e36ae4cd94ee8e2da",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "options.ts",
+      "source": "options.ts.txt",
+      "sourceSHA256": "6096d0386ba14d430297095fc6a642b2f202a737c84783c0c6c49e830428602b",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "options-missing.ts",
+      "source": "options-missing.ts.txt",
+      "sourceSHA256": "f39cf15795bd0cf99bef42744dd1a272096d2c7da5f0a1207f58780ea6c92d18",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2741,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "options-wrong.ts",
+      "source": "options-wrong.ts.txt",
+      "sourceSHA256": "f49af7d8b632e13915197793994c10d1134948d7c0bb16b7d10dcf279d769c00",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        },
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "options-extra.ts",
+      "source": "options-extra.ts.txt",
+      "sourceSHA256": "ca1fe6bc771ef4a99d2480401820420f50b6a89158b4c099c1286cd50b62c708",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2561,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "options-identity.ts",
+      "source": "options-identity.ts.txt",
+      "sourceSHA256": "b53854a4a20e323059da522ab7f267b7799d10b9da855118a8f6bff334745a2c",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "external.ts",
+      "source": "external.ts.txt",
+      "sourceSHA256": "e3f5f8515c178a915e4e8afada688e39ba3dcdce48c255d4b8ff4bde07c6522e",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "external-empty.ts",
+      "source": "external-empty.ts.txt",
+      "sourceSHA256": "2c38dd051a11de4630a7e1beddef7fea128989eeb20692e81ec0fb9971be372c",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "external-wrong.ts",
+      "source": "external-wrong.ts.txt",
+      "sourceSHA256": "c9d6dd9b84df15057d67d33aafc7fbafddf0f6b4e291001c39b22200fc6fe1e2",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "external-extra.ts",
+      "source": "external-extra.ts.txt",
+      "sourceSHA256": "54ba38e8c5523a1ab90caebf2256b814f062654d20cbc8de7af63d875dde4d38",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2353,
+          "line": 2
+        }
+      ]
+    },
+    {
+      "name": "external-identity.ts",
+      "source": "external-identity.ts.txt",
+      "sourceSHA256": "4ef3ac0d6dabf7807f88d714d955aa31b785318664ac1fc3cec2b5bd167486fd",
+      "accepted": true,
+      "diagnostics": []
+    },
+    {
+      "name": "states-undefined.ts",
+      "source": "states-undefined.ts.txt",
+      "sourceSHA256": "bc38afd058a746c1e1c36b3965d95a5535ac70c8271da3b0b280feaa3b36add0",
+      "accepted": false,
+      "diagnostics": [
+        {
+          "code": 2322,
+          "line": 2
+        }
+      ]
+    }
+  ]
+}

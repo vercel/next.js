@@ -1,0 +1,3 @@
+import {assertType} from 'vitest'
+import type {AssertType,SnapshotResult,SnapshotStateOptions} from 'vitest'
+const result:SnapshotResult={...{filepath:'case.snap',added:0,fileDeleted:false,matched:1,unchecked:0,uncheckedKeys:['key'],unmatched:0,updated:0},uncheckedKeys:[1]}

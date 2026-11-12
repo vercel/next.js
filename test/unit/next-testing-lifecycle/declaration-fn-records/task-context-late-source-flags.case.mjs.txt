@@ -1,0 +1,8 @@
+import {test,expect,chai,afterAll} from 'vitest';
+const trace=[];let taskA,taskB,localA,localB,receiverA,receiverB,phase;
+const raw=assertion=>{Object.defineProperty(assertion,'not',{configurable:true,get(){return this;}});return assertion.not;};
+function flagRow(phase,receiver){const task=receiver.__flags['vitest-test'];trace.push({phase,kind:'flag',taskA:task===taskA,taskB:task===taskB,noTask:task===undefined});}
+expect.extend({toLateSourceTask(actual,expected){trace.push({phase,kind:'matcher',actual,expected,taskA:this.task===taskA,taskB:this.task===taskB,noTask:this.task===undefined,sameAssertion:this.assertion===receiverB});return{pass:actual===expected,message:()=> 'late source Task differs'};}});
+test('late source task A',context=>{taskA=context.task;localA=context.expect;receiverA=raw(localA('A'));flagRow('live-A',receiverA);});
+test('late source task B',context=>{taskB=context.task;localB=context.expect;receiverB=raw(localB('B'));flagRow('live-B',receiverB);const source=raw(localA('foreign-A'));flagRow('foreign-created-A',source);chai.util.transferFlags(source,receiverB);flagRow('after-foreign-transfer',receiverB);phase='foreign-transfer';receiverB.toLateSourceTask('foreign-A');});
+afterAll(()=>{const source=raw(localA('closed-A'));flagRow('closed-created-A',source);chai.util.transferFlags(source,receiverB);flagRow('after-closed-transfer',receiverB);phase='closed-transfer';receiverB.toLateSourceTask('closed-A');console.log('DECLARATION_FN:'+JSON.stringify({kind:'late-source-flags',trace,countA:localA.getState().assertionCalls,countB:localB.getState().assertionCalls}));});

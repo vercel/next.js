@@ -1,0 +1,4 @@
+import type { BaselineData, BenchFromSource } from 'vitest';
+declare const data: PromiseLike<BaselineData>;
+const source: BenchFromSource = () => data;
+void source;

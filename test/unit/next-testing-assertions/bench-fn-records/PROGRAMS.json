@@ -1,0 +1,10 @@
+[
+  "identity.ts",
+  "sync.ts",
+  "async.ts",
+  "optional.ts",
+  "required.ts",
+  "extra-argument.ts",
+  "narrow-return.ts",
+  "construct.ts"
+]

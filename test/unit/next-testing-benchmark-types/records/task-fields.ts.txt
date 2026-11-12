@@ -1,0 +1,7 @@
+import type { BaselineData, TestBenchmarkTask, TestBenchmark } from 'vitest';
+declare const data: BaselineData;
+const task: TestBenchmarkTask = {...data,name: 'baseline',rank: 1,perProject: true,fromStore: false};
+const basic: TestBenchmarkTask = {...data,name: 'baseline',rank: 1};
+const group: TestBenchmark = {name: 'comparison', tasks: [task,basic]};
+const base: BaselineData = group.tasks[0];
+void base;

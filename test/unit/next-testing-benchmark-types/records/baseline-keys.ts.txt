@@ -1,0 +1,5 @@
+import type { BaselineData } from 'vitest';
+type Equal<A,B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
+const keys: Equal<keyof BaselineData,'latency'|'throughput'|'period'|'totalTime'> = true;
+const stats: Equal<keyof BaselineData['latency'],'aad'|'critical'|'df'|'mad'|'max'|'mean'|'min'|'moe'|'p50'|'p75'|'p99'|'p995'|'p999'|'rme'|'samples'|'samplesCount'|'sd'|'sem'|'variance'> = true;
+void [keys,stats];

@@ -1,0 +1,29 @@
+import { afterAll, test } from 'vitest'
+const trace = []
+let held, owner, caller, reads = 0
+const sized = { get length() { reads++; return 2 } }
+const operations = [
+  ['toBeTypeOf', 2, ['number']], ['toBeDefined', 1, []], ['toBeUndefined', undefined, []],
+  ['toBeNull', null, []], ['toBeNaN', NaN, []], ['toBeTruthy', 1, []], ['toBeFalsy', 0, []],
+  ['toBeGreaterThan', 3, [2]], ['toBeGreaterThanOrEqual', 2, [2]],
+  ['toBeLessThan', 1, [2]], ['toBeLessThanOrEqual', 2, [2]],
+  ['toBeCloseTo', 0.1 + 0.2, [0.3, 5]], ['toBeInstanceOf', new Map(), [Map]],
+  ['toContain', [1, 2], [2]], ['toContainEqual', [{ a: 1 }], [{ a: 1 }]],
+  ['toHaveLength', sized, [2]], ['toMatch', 'hello actual task', [/actual/]],
+]
+function run(phase) {
+  for (const [name, value, args] of operations) {
+    const assertion = held(value)
+    const method = assertion[name]
+    try {
+      const returned = Reflect.apply(method, assertion, args)
+      trace.push({ phase, name, returnedType: typeof returned, sameReceiver: returned === assertion, absentThen: returned?.then === undefined, ownerCount: held.getState().assertionCalls, callerCount: caller?.getState().assertionCalls ?? null })
+    } catch (error) { trace.push({ phase, name, error: { name: error.name, message: error.message } }) }
+  }
+  const fail = held(0)
+  try { fail.not.toBeFalsy() } catch (error) { trace.push({ phase, kind: 'negative', error: { name: error.name, message: error.message } }) }
+  trace.push({ phase, kind: 'reads', reads })
+}
+test('creator hard builtin owner', context => { held = context.expect; owner = context.task })
+test('foreign hard builtin caller', context => { caller = context.expect; run('foreign'); trace.push({ kind: 'identities', sameOwner: held === owner.context.expect, differentCaller: held !== caller }) })
+afterAll(() => { run('afterAll'); console.log('DECLARATION_FN:' + JSON.stringify({ kind: 'late-hard-builtins', trace })) })

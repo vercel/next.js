@@ -1,0 +1,2 @@
+import type {TestExecutionMethod} from 'vitest'
+const method:TestExecutionMethod='test';void method

@@ -1,0 +1,2 @@
+import type {SnapshotMatchOptions} from 'vitest'
+const options:SnapshotMatchOptions={testId:'case',testName:'case name',received:{actual:42},isInline:false,key:'key',error:new Error('actual'),assertionName:'toMatchSnapshot'};void options
