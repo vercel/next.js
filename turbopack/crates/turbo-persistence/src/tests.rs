@@ -1331,6 +1331,75 @@ fn batch_get_with_overwrites(#[case] mmap: bool) -> Result<()> {
     Ok(())
 }
 
+/// The oldest SST file holds a single key, so its hash range is a single hash. Missing keys of
+/// that shard are then outside the range of the last file to check, which must still report them.
+/// Before the first commit, no shard has an SST file at all, so every key is reported as missing.
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn batch_get_misses_outside_last_sst_range(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let db = open_db::<16>(path, mmap)?;
+
+    // No SST files: below and above the parallel threshold of `batch_get`.
+    for count in [50u32, 5000] {
+        let keys_to_fetch: Vec<Vec<u8>> = (0..count).map(|i| i.to_be_bytes().to_vec()).collect();
+        let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
+        assert_eq!(results.len(), keys_to_fetch.len());
+        assert!(results.iter().all(Option::is_none));
+        // An error from the callback for a missing key is returned.
+        let failing = keys_to_fetch.len() - 1;
+        let error = db
+            .batch_get(0, &keys_to_fetch, |index, _| {
+                if index == failing {
+                    anyhow::bail!("injected failure at index {index}");
+                }
+                Ok(())
+            })
+            .expect_err("the callback error must be returned");
+        assert!(
+            format!("{error:#}").contains(&format!("injected failure at index {failing}")),
+            "unexpected error: {error:#}"
+        );
+    }
+
+    let batch = db.write_batch()?;
+    batch.put(0, 0u32.to_be_bytes().to_vec(), vec![0].into())?;
+    db.commit_write_batch(batch)?;
+
+    let batch = db.write_batch()?;
+    for i in 1..100u32 {
+        batch.put(0, i.to_be_bytes().to_vec(), vec![1].into())?;
+    }
+    db.commit_write_batch(batch)?;
+
+    // Below and above the parallel threshold of `batch_get`, with duplicate keys.
+    for missing in [50u32, 5000] {
+        let keys_to_fetch: Vec<Vec<u8>> = (0..100 + missing)
+            .chain([0, 1, 100])
+            .map(|i| i.to_be_bytes().to_vec())
+            .collect();
+        let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
+        assert_eq!(results.len(), keys_to_fetch.len());
+        for (key, result) in keys_to_fetch.iter().zip(&results) {
+            assert_eq!(
+                result.as_deref(),
+                db.get(0, key)?.as_deref(),
+                "Mismatch for key {key:?}"
+            );
+        }
+        assert_eq!(
+            results.iter().filter(|r| r.is_none()).count() as u32,
+            missing + 1
+        );
+    }
+
+    db.shutdown();
+    Ok(())
+}
+
 #[rstest]
 #[case(true)]
 #[case(false)]

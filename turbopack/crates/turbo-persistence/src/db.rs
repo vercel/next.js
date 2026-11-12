@@ -2607,20 +2607,35 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             on_result(index as usize, Some(value))
         };
         let shard_files = inner.shard_indices[family].shard(*shard);
+        // Keys that are in none of the shard's SST files, reported by the last file.
+        let mut not_found = 0;
+        let mut on_miss = |position: usize| -> Result<()> {
+            not_found += 1;
+            on_result(cells[position].1 as usize, None)
+        };
         #[cfg(feature = "stats")]
         let mut lookup_counts = crate::meta_file::MetaBatchLookupResult::default();
+        let file_count = shard_files.ranges.len();
         for (
-            range,
-            &MetaEntryIndex {
-                meta_index,
-                entry_index,
-            },
-        ) in shard_files.ranges.iter().zip(&shard_files.locations)
+            file,
+            (
+                range,
+                &MetaEntryIndex {
+                    meta_index,
+                    entry_index,
+                },
+            ),
+        ) in shard_files
+            .ranges
+            .iter()
+            .zip(&shard_files.locations)
+            .enumerate()
         {
             let _result = inner.meta_files_by_family[family][meta_index as usize]
                 .batch_lookup_entry(
                     entry_index,
                     range,
+                    file + 1 == file_count,
                     keys,
                     cells,
                     &mut resolved,
@@ -2628,6 +2643,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     key_block_cache,
                     value_block_cache,
                     &mut on_found,
+                    &mut on_miss,
                 )?;
             #[cfg(feature = "stats")]
             {
@@ -2639,17 +2655,17 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 break;
             }
         }
-        // `on_found` borrows `counts`.
-        drop(on_found);
-        counts.not_found += cells.len() - resolved_count;
-        if resolved_count < cells.len() {
-            for (position, &(_, index)) in cells.iter().enumerate() {
-                // `batch_get` has at most `u32::MAX` keys, so positions fit in a `u32`.
-                if !resolved.contains(position as u32) {
-                    on_result(index as usize, None)?;
-                }
+        if file_count == 0 {
+            // No SST file holds keys of this shard, so every key is missing.
+            for position in 0..cells.len() {
+                on_miss(position)?;
             }
         }
+        // `on_found` borrows `counts`, `on_miss` borrows `not_found`.
+        drop(on_found);
+        drop(on_miss);
+        debug_assert_eq!(resolved_count + not_found, cells.len());
+        counts.not_found += not_found;
         #[cfg(feature = "stats")]
         {
             counts.range_misses += lookup_counts.range_misses;
