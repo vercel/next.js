@@ -94,8 +94,8 @@ function registerChunk(registration: ChunkRegistration | RuntimeParams) {
       registration as CompressedModuleFactories,
       /* offset= */ 1
     )
-    // Only factory-bearing registrations are useful to pass on to a worker.
-    registerLoadedJsChunk(chunk)
+    // Module factories are available as soon as their chunk registers.
+    registerLoadedChunk(chunk)
   }
 
   return BACKEND.registerChunk(chunk, runtimeParams)
