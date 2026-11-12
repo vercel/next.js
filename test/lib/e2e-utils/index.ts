@@ -2,7 +2,7 @@ import { getDeploymentTestEnvAssignments } from './deployment-test-env'
 import path from 'path'
 import assert from 'assert'
 import { flushAllTraces, setGlobal } from 'next/dist/trace'
-import { traceLocalSpan } from 'next/dist/server/lib/trace/local-span-recorder'
+import { recordSpan } from 'next/dist/server/lib/trace/local-span-recorder'
 import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_PRODUCTION_BUILD,
@@ -296,7 +296,7 @@ async function createNext(
     }
 
     setupTracing()
-    return await traceLocalSpan({ name: 'createNext' }, async (rootSpan) => {
+    return await recordSpan({ name: 'createNext' }, async (rootSpan) => {
       const useTurbo = isNextTestWasm
         ? false
         : (opts?.turbo ?? shouldUseTurbopack())
@@ -312,7 +312,7 @@ async function createNext(
         default:
           mode = 'start'
       }
-      traceLocalSpan(
+      recordSpan(
         {
           name: `init next ${mode} instance`,
           parent: rootSpan,
@@ -345,7 +345,7 @@ async function createNext(
       registerFixture(nextInstance)
 
       if (!opts.skipStart) {
-        await traceLocalSpan(
+        await recordSpan(
           { name: 'start next instance', parent: rootSpan },
           async () => {
             await nextInstance!.start()

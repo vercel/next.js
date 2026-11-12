@@ -6,11 +6,12 @@ import { runInNewContext } from 'node:vm'
 import { setFlagsFromString } from 'node:v8'
 import { SpanStatusCode, trace } from 'next/dist/compiled/@opentelemetry/api'
 import {
+  createLocalSpan,
   getLocalParentSpan,
   getOpenTelemetrySpan,
+  traceLocalSpan,
   withLocalSpan,
 } from './local-span-recorder'
-import { createRequestSpan, traceRequestSpan } from './request-span-recorder'
 import {
   resolveRequestInsightsIdentity,
   runWithRequestInsightsIdentity,
@@ -51,7 +52,7 @@ describe('local recording span', () => {
   })
 
   it('records a snapshot exactly once when the span ends', () => {
-    const span = createRequestSpan({
+    const span = createLocalSpan({
       name: 'test.local-span',
       traceId: '0123456789abcdef0123456789abcdef',
       spanId: '0123456789abcdef',
@@ -119,7 +120,7 @@ describe('local recording span', () => {
         url: '/asset.svg',
       },
       () => {
-        const span = createRequestSpan({ name: 'serve static asset' })
+        const span = createLocalSpan({ name: 'serve static asset' })
         span.end()
       }
     )
@@ -177,7 +178,7 @@ describe('local recording span', () => {
   })
 
   it('ignores undefined values when setting attributes', () => {
-    const span = createRequestSpan({
+    const span = createLocalSpan({
       name: 'test.local-span.attributes',
       attributes: { 'next.phase': 'render' },
     })
@@ -199,7 +200,7 @@ describe('local recording span', () => {
   })
 
   it('captures status, exception, and event mutations before ending', () => {
-    const span = createRequestSpan({ name: 'test.local-span.error' })
+    const span = createLocalSpan({ name: 'test.local-span.error' })
 
     span.addEvent('test.event', { 'next.phase': 'render' })
     span.recordException(new TypeError('boom'))
@@ -235,7 +236,7 @@ describe('local recording span', () => {
     const error = new TypeError('boom')
 
     await expect(
-      traceRequestSpan({ name: 'test.local-span.trace-error' }, async () => {
+      traceLocalSpan({ name: 'test.local-span.trace-error' }, async () => {
         throw error
       })
     ).rejects.toBe(error)
@@ -253,11 +254,11 @@ describe('local recording span', () => {
   })
 
   it('can start a detached trace inside an active local span', async () => {
-    await traceRequestSpan({ name: 'foreground' }, async () => {
-      await traceRequestSpan(
-        { name: 'detached root', parent: null },
+    await traceLocalSpan({ name: 'foreground' }, async () => {
+      await traceLocalSpan(
+        { name: 'detached root', parentSpan: null },
         async () => {
-          await traceRequestSpan({ name: 'detached child' }, async () => {})
+          await traceLocalSpan({ name: 'detached child' }, async () => {})
         }
       )
     })
@@ -285,7 +286,7 @@ describe('local recording span', () => {
   })
 
   it('compares the public context supplied by the tracer', () => {
-    const span = createRequestSpan({ name: 'local parent' })
+    const span = createLocalSpan({ name: 'local parent' })
     const publicContext = {
       traceId: '0123456789abcdef0123456789abcdef',
       spanId: '0123456789abcdef',
@@ -314,7 +315,7 @@ describe('local recording span', () => {
         url: '/dashboard?tab=overview',
       },
       () => {
-        const span = createRequestSpan({ name: 'test.request-root' })
+        const span = createLocalSpan({ name: 'test.request-root' })
         span.end()
       }
     )
@@ -345,7 +346,7 @@ describe('local recording span', () => {
           url: '/dashboard',
         },
         () => {
-          const span = createRequestSpan({ name: 'Instant Insights' })
+          const span = createLocalSpan({ name: 'Instant Insights' })
           span.end()
         }
       )
@@ -363,7 +364,7 @@ describe('local recording span', () => {
 
   it('records explicit performance timestamps', () => {
     const startTime = performance.now() - 10
-    const span = createRequestSpan({
+    const span = createLocalSpan({
       name: 'test.local-span.explicit-time',
       startTime,
     })
@@ -382,7 +383,7 @@ describe('local recording span', () => {
   it('preserves explicit event and exception timestamps', () => {
     const epochTimestamp = performance.timeOrigin + 10
     const preProcessEpochTimestamp = performance.timeOrigin - 1
-    const span = createRequestSpan({ name: 'test.local-span.explicit-events' })
+    const span = createLocalSpan({ name: 'test.local-span.explicit-events' })
     span.addEvent('numeric performance time', 1)
     span.addEvent('attributes and performance time', { phase: 'render' }, 2)
     span.addEvent('Date time', new Date(4))
@@ -434,7 +435,7 @@ describe('local recording span', () => {
     const exporter = jest.fn()
     setLocalSpanExporter({ isEnabled: () => true, export: exporter })
     const span = runWithLocalSpanSink(original, () =>
-      createRequestSpan({ name: 'original collector' })
+      createLocalSpan({ name: 'original collector' })
     )
     runWithLocalSpanSink(unrelated, () => span.end())
     span.end()
@@ -451,7 +452,7 @@ describe('local recording span', () => {
     const unrelated = jest.fn()
     const exporter = jest.fn()
     setLocalSpanExporter({ isEnabled: () => true, export: exporter })
-    const span = createRequestSpan({ name: 'exported span' })
+    const span = createLocalSpan({ name: 'exported span' })
     runWithLocalSpanSink(unrelated, () => span.end())
 
     expect(unrelated).not.toHaveBeenCalled()
@@ -499,7 +500,7 @@ function createEndedSpanWithReferences(delegated: boolean) {
   }
   const collectorRef = new WeakRef(collector)
   const span = runWithLocalSpanSink(collector, () =>
-    createRequestSpan({
+    createLocalSpan({
       name: 'test.local-span.retention',
       traceId: '0123456789abcdef0123456789abcdef',
       spanId: '0123456789abcdef',

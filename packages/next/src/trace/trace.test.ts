@@ -6,15 +6,10 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_PRODUCTION_BUILD,
 } from '../shared/lib/constants'
+import { LocalRecordingSpan } from '../server/lib/trace/local-span-recorder'
 import { createJsonReporter } from './report/to-json'
 import type { Reporter } from './report/types'
 import type { TraceEvent } from './types'
-import {
-  createLocalSpan,
-  getToolingSpanSource,
-  traceLocalSpan,
-} from '../server/lib/trace/local-span-recorder'
-import { recordSpans } from '../server/lib/trace/span-store'
 import { setGlobal } from './shared'
 import {
   clearTraceEvents,
@@ -24,6 +19,7 @@ import {
   getTraceEvents,
   initializeTraceState,
   recordTraceEvents,
+  trace,
 } from './trace'
 
 function traceEvent(name: string): TraceEvent {
@@ -95,33 +91,59 @@ describe('Trace', () => {
   })
 
   describe('Tracer', () => {
+    it('shares legacy and recorder completion when callbacks fail', async () => {
+      const root = trace('root')
+      const error = new Error('failed')
+      const sync = root.traceChild('sync')
+      expect(() =>
+        sync.traceFn(() => {
+          throw error
+        })
+      ).toThrow(error)
+      sync.recorder.end()
+      sync.setAttribute('late', true)
+      expect(sync.name).toBe('sync')
+      const async = root.traceChild('async')
+      await expect(
+        async.traceAsyncFn(async () => {
+          throw error
+        })
+      ).rejects.toBe(error)
+      async.stop()
+      root.recorder.end()
+      expect(getTraceEvents()).toEqual([
+        expect.objectContaining({
+          name: 'sync',
+          parentId: root.getId(),
+          tags: { failed: true, late: true },
+        }),
+        expect.objectContaining({
+          name: 'async',
+          parentId: root.getId(),
+          tags: { failed: true },
+        }),
+        expect.objectContaining({ name: 'root' }),
+      ])
+    })
+
     it('traces a block of code', async () => {
       const tmpDir = await makeTmpDir()
       setGlobal('distDir', tmpDir)
       setGlobal('phase', 'anything')
 
-      const root = createLocalSpan({
-        name: 'root-span',
-        attributes: { 'some-tag': 'some-value' },
+      const root = trace('root-span', undefined, {
+        'some-tag': 'some-value',
       })
-      traceLocalSpan(
-        {
-          name: 'child-span',
-          parent: root,
-          synchronous: true,
-        },
-        () => null
-      )
-      await traceLocalSpan(
-        { name: 'async-child-span', parent: root },
-        async () => {
-          const delayedPromise = new Promise((resolve) => {
-            setTimeout(resolve, 100)
-          })
-          await delayedPromise
-        }
-      )
-      root.end()
+      expect(root).not.toBeInstanceOf(LocalRecordingSpan)
+      expect(root.recorder).toBeInstanceOf(LocalRecordingSpan)
+      root.traceChild('child-span').traceFn(() => null)
+      await root.traceChild('async-child-span').traceAsyncFn(async () => {
+        const delayedPromise = new Promise((resolve) => {
+          setTimeout(resolve, 100)
+        })
+        await delayedPromise
+      })
+      root.stop()
       const traceEvents = getTraceEvents()
       expect(traceEvents.length).toEqual(3)
       expect(traceEvents[0].name).toEqual('child-span')
@@ -163,32 +185,22 @@ describe('Trace', () => {
       ])
     })
 
-    it('records completed manual observations with their own start time', () => {
-      const root = createLocalSpan({ name: 'root-span' })
+    it('records manualTraceChild spans with their own start time', () => {
+      const root = trace('root-span')
       // A span that started one minute ago and ran for 1.5s, as happens when
       // the event is only recorded after the work completes (e.g. Turbopack
       // compilation events forwarded from Rust).
       const startMs = Date.now() - 60_000
       const stopMs = startMs + 1500
       const msToNs = (ms: number) => BigInt(ms) * BigInt(1_000_000)
-      recordSpans(
-        [
-          {
-            name: 'manual-child',
-            startTime: msToNs(startMs),
-            endTime: msToNs(stopMs),
-          },
-        ],
-        'tooling',
-        root
-      )
-      root.end()
+      root.manualTraceChild('manual-child', msToNs(startMs), msToNs(stopMs))
+      root.stop()
 
       const events = getTraceEvents()
       const child = events.find((e) => e.name === 'manual-child')
       expect(child).toBeDefined()
       // startTime must be the span's actual start, not the time the event was
-      // recorded (which is when recordSpans is called).
+      // recorded (which is when manualTraceChild is called).
       expect(child!.startTime).toEqual(startMs)
       expect(child!.duration).toEqual(1_500_000)
     })
@@ -433,28 +445,21 @@ describe('Trace', () => {
 
   describe('Worker', () => {
     it('exports and initializes trace state', () => {
-      const root = createLocalSpan({ name: 'root-span' })
-      expect(getToolingSpanSource(root)?.id).toEqual(1)
+      const root = trace('root-span')
+      expect(root.getId()).toEqual(1)
       const traceState = exportTraceState()
       expect(traceState.lastId).toEqual(1)
       initializeTraceState({
         lastId: 101,
       })
-      const span = createLocalSpan({ name: 'another-span' })
-      expect(getToolingSpanSource(span)?.id).toEqual(102)
+      const span = trace('another-span')
+      expect(span.getId()).toEqual(102)
     })
 
     it('trace data is serializable to a worker', async () => {
-      const root = createLocalSpan({ name: 'root-span' })
-      traceLocalSpan(
-        {
-          name: 'child-span',
-          parent: root,
-          synchronous: true,
-        },
-        () => null
-      )
-      root.end()
+      const root = trace('root-span')
+      root.traceChild('child-span').traceFn(() => null)
+      root.stop()
       const traceEvents = getTraceEvents()
       expect(traceEvents.length).toEqual(2)
       // This is a proxy check to make sure the object would be serializable
@@ -473,16 +478,9 @@ describe('Trace', () => {
         defaultParentSpanId: 1,
         shouldSaveTraceEvents: true,
       })
-      const worker1Span = createLocalSpan({ name: 'worker1' })
-      traceLocalSpan(
-        {
-          name: 'webpack-compilation1',
-          parent: worker1Span,
-          synchronous: true,
-        },
-        () => null
-      )
-      worker1Span.end()
+      const worker1Span = trace('worker1')
+      worker1Span.traceChild('webpack-compilation1').traceFn(() => null)
+      worker1Span.stop()
       const worker1Traces = getTraceEvents()
       expect(worker1Traces.length).toEqual(2)
 
@@ -493,16 +491,9 @@ describe('Trace', () => {
         defaultParentSpanId: 1,
         shouldSaveTraceEvents: true,
       })
-      const worker2Span = createLocalSpan({ name: 'worker2' })
-      traceLocalSpan(
-        {
-          name: 'webpack-compilation2',
-          parent: worker2Span,
-          synchronous: true,
-        },
-        () => null
-      )
-      worker2Span.end()
+      const worker2Span = trace('worker2')
+      worker2Span.traceChild('webpack-compilation2').traceFn(() => null)
+      worker2Span.stop()
       const worker2Traces = getTraceEvents()
       expect(worker2Traces.length).toEqual(2)
 
@@ -513,28 +504,14 @@ describe('Trace', () => {
         lastId: 0,
         shouldSaveTraceEvents: true,
       })
-      const root = createLocalSpan({ name: 'next-build' })
-      traceLocalSpan(
-        {
-          name: 'some-child-span',
-          parent: root,
-          synchronous: true,
-        },
-        () => null
-      )
+      const root = trace('next-build')
+      root.traceChild('some-child-span').traceFn(() => null)
       recordTraceEvents(worker1Traces)
       expect(exportTraceState().lastId).toEqual(8)
       recordTraceEvents(worker2Traces)
       expect(exportTraceState().lastId).toEqual(13)
-      traceLocalSpan(
-        {
-          name: 'another-child-span',
-          parent: root,
-          synchronous: true,
-        },
-        () => null
-      )
-      root.end()
+      root.traceChild('another-child-span').traceFn(() => null)
+      root.stop()
 
       // Check that the final output looks correct.
       const allTraces = getTraceEvents()

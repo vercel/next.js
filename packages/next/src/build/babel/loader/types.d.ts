@@ -1,9 +1,9 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { JSONValue } from '../../../server/config-shared'
-import type { LocalRecordingSpan } from '../../../server/lib/trace/local-span-recorder'
+import type { Span } from '../../../trace'
 
 export interface NextJsLoaderContext extends webpack.LoaderContext<{}> {
-  currentTraceSpan: LocalRecordingSpan
+  currentTraceSpan: Span
   target: string
 }
 
