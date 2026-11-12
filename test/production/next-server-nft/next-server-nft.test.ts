@@ -339,6 +339,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/typescript/getTypeScriptIntent.js",
            "/node_modules/next/dist/lib/typescript/loadTsConfig.js",
            "/node_modules/next/dist/lib/typescript/missingDependencyError.js",
+           "/node_modules/next/dist/lib/typescript/remove-stale-dev-types.js",
            "/node_modules/next/dist/lib/typescript/runTypeCheck.js",
            "/node_modules/next/dist/lib/typescript/runTypeCheckCli.js",
            "/node_modules/next/dist/lib/typescript/runTypeScriptCli.js",
