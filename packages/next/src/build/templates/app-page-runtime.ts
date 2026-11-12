@@ -2205,8 +2205,14 @@ export function createAppPageEntrypoint({
         }
 
         // Apply the selected entry's status before a platform callback can
-        // deliver it. PPR Flight responses keep their request status.
-        if (cachedData.status && (!isRSCRequest || !isRoutePPREnabled)) {
+        // deliver it. PPR Flight responses keep their request status. A status
+        // set by a proxy rewrite takes precedence over the cached entry's
+        // status.
+        if (
+          cachedData.status &&
+          (!isRSCRequest || !isRoutePPREnabled) &&
+          res.statusCode === 200
+        ) {
           res.statusCode = cachedData.status
         }
 
