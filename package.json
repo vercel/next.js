@@ -140,12 +140,14 @@
     "@opentelemetry/api": "1.4.1",
     "@picocss/pico": "1.5.10",
     "@rspack/core": "1.6.7",
+    "@sinonjs/fake-timers": "15.4.0",
     "@slack/web-api": "7.9.1",
     "@swc/cli": "0.1.55",
     "@swc/core": "1.11.24",
     "@swc/helpers": "0.5.23",
     "@swc/types": "0.1.7",
     "@taskr/esnext": "1.1.0",
+    "@testing-library/dom": "10.1.0",
     "@testing-library/jest-dom": "6.1.2",
     "@testing-library/react": "^15.0.5",
     "@types/busboy": "1.5.3",
@@ -162,6 +164,7 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "@types/shell-quote": "1.7.1",
+    "@types/sinonjs__fake-timers": "8.1.5",
     "@types/string-hash": "1.1.1",
     "@types/trusted-types": "2.0.3",
     "@types/yargs": "16.0.11",
@@ -291,6 +294,8 @@
     "typescript": "6.0.2",
     "typescript-eslint": "8.46.0",
     "unfetch": "4.2.0",
+    "vite": "8.3.4",
+    "vitest": "5.0.4",
     "wait-port": "0.2.2",
     "webpack": "5.98.0",
     "webpack-bundle-analyzer": "4.7.0",
@@ -328,6 +333,16 @@
         "dependencies": {
           "@babel/plugin-proposal-private-methods": "^7.18.6"
         }
+      },
+      "octokit@3.1.0": {
+        "dependencies": {
+          "@octokit/graphql": "7.0.1"
+        }
+      },
+      "@octokit/plugin-paginate-graphql@4.0.0": {
+        "dependencies": {
+          "@octokit/graphql": "7.0.1"
+        }
       }
     },
     "patchedDependencies": {
@@ -342,7 +357,12 @@
       "playwright-core@1.61.0": "patches/playwright-core@1.61.0.patch",
       "@types/node@20.17.7": "patches/@types__node@20.17.7.patch",
       "@vercel/agent-eval@2.2.1": "patches/@vercel__agent-eval@2.2.1.patch",
-      "@vercel/og@1.0.1": "patches/@vercel__og@1.0.1.patch"
+      "@vercel/og@1.0.1": "patches/@vercel__og@1.0.1.patch",
+      "@vitest/snapshot@5.0.4": "patches/@vitest__snapshot@5.0.4.patch",
+      "@sinonjs/fake-timers@15.4.0": "patches/@sinonjs__fake-timers@15.4.0.patch",
+      "chai@6.3.0": "patches/chai@6.3.0.patch",
+      "@vitest/expect@5.0.4": "patches/@vitest__expect@5.0.4.patch",
+      "@vitest/spy@5.0.4": "patches/@vitest__spy@5.0.4.patch"
     }
   }
 }

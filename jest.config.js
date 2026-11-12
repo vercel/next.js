@@ -30,6 +30,9 @@ const customJestConfig = {
     // Jest does not normalize/resolve paths in modulePathIgnorePatterns so we can't
     // prefix with <rootDir>/../ like we do in roots.
     'packages/next/src/compiled/',
+    // The release harness copies these fixtures into each target runner. Keep
+    // their manual mocks out of Jest's global mock registry.
+    '<rootDir>/unit/app-dir/next-testing-stable-release-gaps/fixtures/',
     '<rootDir>/development/app-dir/non-context-aware-addon/bindings',
     '<rootDir>/development/app-dir/non-context-aware-addon/single-context-addon',
     '<rootDir>/development/app-dir/ssr-in-rsc/internal-pkg/',
@@ -50,7 +53,12 @@ const customJestConfig = {
     '<rootDir>/production/supports-module-resolution-nodenext/pkg',
   ],
   modulePaths: ['<rootDir>/lib'],
-  transformIgnorePatterns: ['/next[/\\\\]dist/', '/\\.next/'],
+  // Transform emitted orchestration entry points so Jest can load dynamic imports
+  // through its mocked module registry without requiring VM module support.
+  transformIgnorePatterns: [
+    '[/\\\\]next[/\\\\]dist[/\\\\](?!(?:cli[/\\\\]next-test-runner|experimental[/\\\\]testing[/\\\\](?:orchestrator|coverage[/\\\\]istanbul-instrumentation|execution[/\\\\](?:broker|execute)))\\.js$)',
+    '/\\.next/',
+  ],
   moduleNameMapper: {
     '@next/font/(.*)': '@next/font/$1',
   },
