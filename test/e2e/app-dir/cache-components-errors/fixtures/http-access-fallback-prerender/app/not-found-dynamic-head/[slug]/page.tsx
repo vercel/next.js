@@ -15,6 +15,6 @@ export async function generateViewport() {
   return { themeColor: 'black' }
 }
 
-export default function Page() {
+export default function Page(): never {
   notFound()
 }
