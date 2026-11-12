@@ -1635,40 +1635,45 @@ impl AppEndpoint {
                 .await?;
 
         // We only need the client runtime entries for pages not for Route Handlers
-        let (availability_info, client_shared_chunks, client_chunk_group_bootstrap_params) =
-            if is_app_page {
-                let client_shared_chunk_group = get_app_client_shared_chunk_group(
-                    AssetIdent::from_path(project.project_path().owned().await?)
-                        .with_modifier(rcstr!("client-shared-chunks"))
-                        .into_vc(),
-                    this.app_project.client_runtime_entries(),
-                    *module_graphs.full,
-                    *client_chunking_context,
-                );
+        let client_shared_chunk_group = if is_app_page {
+            Some(get_app_client_shared_chunk_group(
+                AssetIdent::from_path(project.project_path().owned().await?)
+                    .with_modifier(rcstr!("client-shared-chunks"))
+                    .into_vc(),
+                this.app_project.client_runtime_entries(),
+                *module_graphs.full,
+                *client_chunking_context,
+            ))
+        } else {
+            None
+        };
 
+        // Created before awaiting the client shared chunk group: only the client chunks depend
+        // on it, so the SSR chunks are computed concurrently with it.
+        let client_references_chunks = get_app_client_references_chunks(
+            *client_references,
+            *module_graphs.full,
+            *client_chunking_context,
+            client_shared_chunk_group,
+            ssr_chunking_context.map(|ctx| *ctx),
+        );
+
+        let (client_shared_chunks, client_chunk_group_bootstrap_params) =
+            if let Some(client_shared_chunk_group) = client_shared_chunk_group {
                 client_assets.extend(client_shared_chunk_group.all_assets().await?);
 
                 let client_shared_chunk_group = client_shared_chunk_group.await?;
                 (
-                    client_shared_chunk_group.availability_info,
                     client_shared_chunk_group.assets.owned().await?,
                     client_shared_chunk_group
                         .chunk_group_bootstrap_params
                         .clone(),
                 )
             } else {
-                (AvailabilityInfo::root(), vec![], None)
+                (vec![], None)
             };
 
-        let client_references_chunks = get_app_client_references_chunks(
-            *client_references,
-            *module_graphs.full,
-            *client_chunking_context,
-            availability_info,
-            ssr_chunking_context.map(|ctx| *ctx),
-        )
-        .to_resolved()
-        .await?;
+        let client_references_chunks = client_references_chunks.to_resolved().await?;
         let client_references_chunks_ref = client_references_chunks.await?;
 
         for &assets in client_references_chunks_ref
@@ -2733,15 +2738,15 @@ impl Endpoint for AppEndpoint {
         let app_entry = self.app_endpoint_entry().await?;
         let graphs = project.whole_app_module_graphs().await?;
         let client_chunking_context = project.client_chunking_context();
-        let shared = get_app_client_shared_chunk_group(
+        let shared_chunk_group = get_app_client_shared_chunk_group(
             AssetIdent::from_path(project.project_path().owned().await?)
                 .with_modifier(rcstr!("client-shared-chunks"))
                 .into_vc(),
             this.app_project.client_runtime_entries(),
             *graphs.full,
             client_chunking_context,
-        )
-        .await?;
+        );
+        let shared = shared_chunk_group.await?;
         let mut groups = vec![AnalyzeChunkGroup {
             kind: rcstr!("bootstrap"),
             trigger: this
@@ -2766,7 +2771,7 @@ impl Endpoint for AppEndpoint {
             *references,
             *graphs.full,
             client_chunking_context,
-            shared.availability_info,
+            Some(shared_chunk_group),
             // Only client output groups are needed; SSR chunks are not browser assets.
             None,
         )

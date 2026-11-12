@@ -187,12 +187,16 @@ pub struct ClientReferencesChunks {
 ///
 /// This returns a map from client reference type to the chunks that the reference
 /// type needs to load.
+///
+/// The client chunks are chunked after the `client_shared_chunk_group` (when given), i.e. its
+/// modules are considered available. The SSR chunks don't depend on it, so passing the chunk group
+/// (instead of its availability info) lets SSR chunking start before it has been computed.
 #[turbo_tasks::function]
 pub async fn get_app_client_references_chunks(
     app_client_references: Vc<ClientReferenceGraphResult>,
     module_graph: Vc<ModuleGraph>,
     client_chunking_context: Vc<Box<dyn ChunkingContext>>,
-    client_availability_info: AvailabilityInfo,
+    client_shared_chunk_group: Option<Vc<ChunkGroupResult>>,
     ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
 ) -> Result<Vc<ClientReferencesChunks>> {
     async move {
@@ -291,14 +295,9 @@ pub async fn get_app_client_references_chunks(
 
             let chunk_group_info = module_graph.chunk_group_info();
 
-            let mut current_client_chunk_group = ChunkGroupResult {
-                assets: ResolvedVc::cell(vec![]),
-                referenced_assets: ResolvedVc::cell(vec![]),
-                references: ResolvedVc::cell(vec![]),
-                availability_info: client_availability_info,
-                chunk_group_bootstrap_params: None,
-            }
-            .resolved_cell();
+            // Created when the first client chunk group is needed, so the SSR chunks of the
+            // segments before it don't wait for `client_shared_chunk_group`.
+            let mut current_client_chunk_group: Option<ResolvedVc<ChunkGroupResult>> = None;
             let mut current_ssr_chunk_group = ChunkGroupResult::empty_resolved();
 
             let mut layout_segment_client_chunks = FxIndexMap::default();
@@ -404,6 +403,15 @@ pub async fn get_app_client_references_chunks(
                     .try_join()
                     .await?;
                 let client_chunk_group = if !client_modules.is_empty() {
+                    let current = match current_client_chunk_group {
+                        Some(current) => current,
+                        None => {
+                            let initial =
+                                initial_client_chunk_group(client_shared_chunk_group).await?;
+                            current_client_chunk_group = Some(initial);
+                            initial
+                        }
+                    };
                     async {
                         let groups = derived_isolated_merged_groups(
                             chunk_group_info,
@@ -424,7 +432,7 @@ pub async fn get_app_client_references_chunks(
                                             .into_vc(),
                                         groups,
                                         module_graph,
-                                        current_client_chunk_group.await?.availability_info,
+                                        current.await?.availability_info,
                                     )
                                     .to_resolved()
                                     .await?,
@@ -436,18 +444,19 @@ pub async fn get_app_client_references_chunks(
                         layout_segment = display(&server_component_path),
                     ))
                     .await?
+                    .map(|client_chunk_group| (current, client_chunk_group))
                 } else {
                     None
                 };
 
-                if let Some(client_chunk_group) = client_chunk_group {
-                    let client_chunk_group = current_client_chunk_group
+                if let Some((current, client_chunk_group)) = client_chunk_group {
+                    let client_chunk_group = current
                         .concatenate(*client_chunk_group)
                         .to_resolved()
                         .await?;
 
                     if is_layout {
-                        current_client_chunk_group = client_chunk_group;
+                        current_client_chunk_group = Some(client_chunk_group);
                     }
 
                     let assets = client_chunk_group
@@ -500,6 +509,25 @@ pub async fn get_app_client_references_chunks(
     }
     .instrument(tracing::info_span!("process client references"))
     .await
+}
+
+/// The (empty) chunk group the client chunk groups of the layout segments are chained onto: it
+/// only carries the availability info of the client shared chunk group, if any.
+async fn initial_client_chunk_group(
+    client_shared_chunk_group: Option<Vc<ChunkGroupResult>>,
+) -> Result<ResolvedVc<ChunkGroupResult>> {
+    let availability_info = match client_shared_chunk_group {
+        Some(client_shared_chunk_group) => client_shared_chunk_group.await?.availability_info,
+        None => AvailabilityInfo::root(),
+    };
+    Ok(ChunkGroupResult {
+        assets: ResolvedVc::cell(vec![]),
+        referenced_assets: ResolvedVc::cell(vec![]),
+        references: ResolvedVc::cell(vec![]),
+        availability_info,
+        chunk_group_bootstrap_params: None,
+    }
+    .resolved_cell())
 }
 
 /// Flattens all client-side output assets from `client_references_chunks` so the
