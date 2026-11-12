@@ -1,0 +1,10 @@
+import { beforeAll, test } from 'vitest'
+console.log('browser collection')
+beforeAll(() => console.warn('browser hook'))
+test('Browser reporter payload framing and size', async () => {
+  console.log('browser', { value: 1 })
+  console.log('')
+  console.log('kept newline\n')
+  await Promise.resolve()
+  console.error('last')
+})

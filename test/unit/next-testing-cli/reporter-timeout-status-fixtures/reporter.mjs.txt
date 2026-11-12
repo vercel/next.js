@@ -1,0 +1,27 @@
+import { record } from './record.mjs'
+export default class Reporter {
+  onInit(context) {
+    this.context = context
+    record('init-before', context)
+    if (process.env.LIFECYCLE_PROFILE.startsWith('status-')) process.exitCode = 7
+    record('init-after', context)
+    process.once('exit', eventCode => record('native-exit-event', context, { eventCode }))
+    context.onClose(() => {
+      record('close-before', context)
+      if (process.env.LIFECYCLE_PROFILE === 'numeric-mutable') context.config.teardownTimeout = 40
+      if (process.env.LIFECYCLE_PROFILE.endsWith('-clear')) process.exitCode = undefined
+      record('close-after', context)
+      const retained = setInterval(() => {}, 1000)
+      record('close-finished', context, { hasRef: retained.hasRef() })
+    })
+  }
+  onTestRunEnd() { record('run-end', this.context) }
+  get onProcessTimeout() {
+    record('timeout-getter', this.context, { receiver: this instanceof Reporter })
+    return async function (...args) {
+      record('timeout-entered', this.context, { receiver: this instanceof Reporter, argc: args.length })
+      await Promise.resolve()
+      record('timeout-finished', this.context)
+    }
+  }
+}

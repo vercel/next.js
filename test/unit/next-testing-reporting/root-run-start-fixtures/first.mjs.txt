@@ -1,0 +1,267 @@
+import { appendFileSync, existsSync, unwatchFile, watchFile } from 'node:fs'
+
+const record = (row) =>
+  appendFileSync(process.env.ROOT_RUN_START_TRACE, JSON.stringify(row) + '\n')
+const publicKeys = [
+  'taskId',
+  'project',
+  'moduleId',
+  'pool',
+  'testLines',
+  'testNamePattern',
+  'testIds',
+  'testTagsFilter',
+]
+const descriptor = (value) =>
+  value
+    ? {
+        enumerable: value.enumerable,
+        configurable: value.configurable,
+        writable: value.writable ?? null,
+        getType: typeof value.get,
+        setType: typeof value.set,
+        valueType: typeof value.value,
+      }
+    : null
+const encoded = (value) => {
+  if (value === undefined) return { type: 'undefined' }
+  if (value instanceof RegExp)
+    return { type: 'regexp', source: value.source, flags: value.flags }
+  if (Array.isArray(value)) return value.map(encoded)
+  if (value && typeof value === 'object')
+    return Object.fromEntries(
+      Object.keys(value).map((key) => [key, encoded(value[key])])
+    )
+  return value
+}
+const specification = (spec) => {
+  const serialized = spec.toJSON()
+  const prototype = Object.getPrototypeOf(spec)
+  return {
+    taskId: spec.taskId,
+    moduleId: spec.moduleId,
+    pool: spec.pool,
+    projectName: spec.project.name,
+    configName: spec.project.config.name,
+    projectRoot: spec.project.config.root,
+    constructorName: spec.constructor.name,
+    ownKeys: Reflect.ownKeys(spec).map((key) =>
+      typeof key === 'symbol' ? String(key) : key
+    ),
+    descriptors: Object.fromEntries(
+      publicKeys.map((key) => [
+        key,
+        descriptor(Object.getOwnPropertyDescriptor(spec, key)),
+      ])
+    ),
+    testModuleOwn: descriptor(
+      Object.getOwnPropertyDescriptor(spec, 'testModule')
+    ),
+    testModulePrototype: descriptor(
+      Object.getOwnPropertyDescriptor(prototype, 'testModule')
+    ),
+    toJSONPrototype: descriptor(
+      Object.getOwnPropertyDescriptor(prototype, 'toJSON')
+    ),
+    testModuleUndefined: spec.testModule === undefined,
+    serializedOptionKeys: Object.keys(serialized[2]),
+    serialized: encoded(serialized),
+  }
+}
+const queueState = (module) => ({
+  id: module.id,
+  state: module.state(),
+  children: module.children.size,
+})
+
+export default class FirstReporter {
+  reads = 0
+  specifications = []
+  queued = []
+  cancelBarrier = undefined
+
+  constructor() {
+    record({ kind: 'first-constructed' })
+  }
+
+  onInit(context) {
+    record({
+      kind: 'first-init',
+      reads: this.reads,
+      startDescriptor: descriptor(
+        Object.getOwnPropertyDescriptor(
+          Object.getPrototypeOf(this),
+          'onTestRunStart'
+        )
+      ),
+    })
+    context.onClose(() => {
+      this.cancelBarrier?.()
+      record({ kind: 'first-close' })
+    })
+  }
+
+  get onTestRunStart() {
+    this.reads++
+    record({
+      kind: 'first-get-start',
+      reads: this.reads,
+      receiver: this instanceof FirstReporter,
+    })
+    if (process.env.ROOT_RUN_START_ROLE === 'getter-throw')
+      throw new Error('root run start first getter sentinel')
+    const callback = function (...args) {
+      const specifications = args[0]
+      this.specifications = [...specifications]
+      record({
+        kind: 'first-start',
+        argc: args.length,
+        receiver: this instanceof FirstReporter,
+        reads: this.reads,
+        array: Array.isArray(specifications),
+        arrayFrozen: Object.isFrozen(specifications),
+        specsSameProject:
+          specifications.length < 2
+            ? null
+            : specifications[0].project === specifications[1].project,
+        specsDifferentProject:
+          specifications.length < 3
+            ? null
+            : specifications[0].project !== specifications[2].project,
+        specifications: specifications.map(specification),
+      })
+      const role = process.env.ROOT_RUN_START_ROLE
+      if (role === 'sync-throw')
+        throw new Error('root run start first synchronous sentinel')
+      if (role === 'async-reject')
+        return Promise.reject(
+          new Error('root run start first asynchronous sentinel')
+        )
+      if (role === 'mutate-array') specifications.splice(0)
+      if (role === 'mutate-pattern')
+        for (const spec of specifications) spec.testNamePattern = /other a/
+      if (role === 'mutate-ids')
+        for (const spec of specifications) spec.testIds = []
+      if (role === 'mutate-lines')
+        for (const spec of specifications) spec.testLines = [6]
+      if (role === 'mutate-tags')
+        for (const spec of specifications) spec.testTagsFilter = ['missing-tag']
+      if (role === 'invalid-pattern')
+        for (const spec of specifications) spec.testNamePattern = 1
+      if (role === 'invalid-ids')
+        for (const spec of specifications) spec.testIds = [1]
+      if (role === 'invalid-lines')
+        for (const spec of specifications) spec.testLines = ['six']
+      if (role === 'invalid-tags')
+        for (const spec of specifications) spec.testTagsFilter = [1]
+      if (role === 'mutate-module')
+        specifications[0].moduleId = '/changed.test.mjs'
+      if (role === 'mutate-project')
+        specifications[0].project = {
+          name: 'changed',
+          config: { root: '/changed' },
+        }
+      if (role === 'remove-start') {
+        delete Object.getPrototypeOf(this).onTestRunStart
+        record({ kind: 'first-start-removed' })
+      }
+      if (role?.startsWith('mutate-') || role?.startsWith('invalid-'))
+        record({
+          kind: 'first-mutated',
+          role,
+          passedArrayLength: specifications.length,
+          retainedCount: this.specifications.length,
+          selectors: this.specifications.map((spec) => ({
+            taskId: spec.taskId,
+            moduleId: spec.moduleId,
+            projectName: spec.project.name,
+            testNamePattern: encoded(spec.testNamePattern),
+            testIds: encoded(spec.testIds),
+            testLines: encoded(spec.testLines),
+            testTagsFilter: encoded(spec.testTagsFilter),
+          })),
+        })
+      const finish = () => record({ kind: 'first-start-finished' })
+      if (role !== 'async-barrier') return finish()
+      const release = process.env.ROOT_RUN_START_RELEASE
+      if (!release)
+        return Promise.reject(
+          new Error('root run start release path is required')
+        )
+      record({ kind: 'first-barrier-wait' })
+      return new Promise((resolve, reject) => {
+        let closed = false
+        let deadline
+        const close = () => {
+          if (closed) return false
+          closed = true
+          unwatchFile(release, check)
+          clearTimeout(deadline)
+          this.cancelBarrier = undefined
+          return true
+        }
+        const check = () => {
+          if (existsSync(release) && close()) {
+            finish()
+            resolve()
+          }
+        }
+        this.cancelBarrier = () => {
+          if (close()) reject(new Error('root run start barrier closed'))
+        }
+        watchFile(release, { interval: 10 }, check)
+        deadline = setTimeout(() => {
+          if (close()) reject(new Error('root run start barrier deadline'))
+        }, 5000)
+        check()
+      })
+    }
+    callback.call = () => {
+      throw new Error('root run start poisoned call')
+    }
+    callback.apply = () => {
+      throw new Error('root run start poisoned apply')
+    }
+    return callback
+  }
+
+  onTestModuleQueued(module) {
+    this.queued.push(module)
+    const spec = this.specifications.find((item) => item.taskId === module.id)
+    record({
+      kind: 'first-queued',
+      argc: arguments.length,
+      receiver: this instanceof FirstReporter,
+      id: module.id,
+      selectedFound: spec !== undefined,
+      specificationIdentity: spec?.testModule === module,
+      projectIdentity: spec?.project === module.project,
+      ok: module.ok(),
+      meta: module.meta(),
+      stableMeta: module.meta() === module.meta(),
+      snapshot: queueState(module),
+    })
+  }
+
+  onTestRunEnd(modules, errors, reason) {
+    record({
+      kind: 'first-end',
+      argc: arguments.length,
+      receiver: this instanceof FirstReporter,
+      reason,
+      reads: this.reads,
+      modules: modules.map(queueState),
+      specifications: this.specifications.map((spec) => ({
+        taskId: spec.taskId,
+        hasModule: spec.testModule !== undefined,
+        moduleInEnd: modules.includes(spec.testModule),
+      })),
+      retainedQueued: this.queued.map(queueState),
+      errors: errors.map((error) => ({
+        name: error?.name,
+        message: error?.message,
+        type: error?.type,
+      })),
+    })
+  }
+}

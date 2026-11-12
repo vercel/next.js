@@ -1,0 +1,1 @@
+{"name": "@next-testing/reporter-subpath", "version": "1.0.0", "type": "module", "exports": {"./custom": "./reporter.mjs"}}

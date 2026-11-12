@@ -1,0 +1,113 @@
+{
+  "root-two-errors": {
+    "status": 1,
+    "effects": [
+      {
+        "event": "module-enter"
+      },
+      {
+        "event": "before"
+      },
+      {
+        "event": "after"
+      }
+    ],
+    "failedSuites": 1,
+    "failureElements": 2,
+    "tests": 2,
+    "skipped": 1
+  },
+  "nested-two-errors": {
+    "status": 1,
+    "effects": [
+      {
+        "event": "module-enter"
+      },
+      {
+        "event": "before"
+      },
+      {
+        "event": "after"
+      }
+    ],
+    "failedSuites": 1,
+    "failureElements": 2,
+    "tests": 2,
+    "skipped": 1
+  },
+  "root-same-object": {
+    "status": 1,
+    "effects": [
+      {
+        "event": "module-enter"
+      },
+      {
+        "event": "before"
+      },
+      {
+        "event": "after"
+      }
+    ],
+    "failedSuites": 1,
+    "failureElements": 2,
+    "tests": 2,
+    "skipped": 1
+  },
+  "error-getters": {
+    "status": 1,
+    "effects": [
+      {
+        "event": "body"
+      },
+      {
+        "event": "error-stack"
+      },
+      {
+        "event": "error-message"
+      },
+      {
+        "event": "error-name"
+      },
+      {
+        "event": "error-message"
+      },
+      {
+        "event": "error-message"
+      },
+      {
+        "event": "error-name"
+      },
+      {
+        "event": "error-stack"
+      },
+      {
+        "event": "error-message"
+      },
+      {
+        "event": "error-name"
+      },
+      {
+        "event": "error-stack"
+      }
+    ],
+    "failedSuites": 1,
+    "failureElements": 1,
+    "tests": 2,
+    "skipped": 0
+  },
+  "task-meta-getter": {
+    "status": 0,
+    "effects": [
+      {
+        "event": "body"
+      },
+      {
+        "event": "task-meta-owned"
+      }
+    ],
+    "failedSuites": 0,
+    "failureElements": 0,
+    "tests": 1,
+    "skipped": 0
+  }
+}

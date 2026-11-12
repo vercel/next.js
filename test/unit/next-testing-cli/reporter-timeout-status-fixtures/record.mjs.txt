@@ -1,0 +1,3 @@
+import { appendFileSync } from 'node:fs'
+export const typed = value => ({ type: typeof value, value: typeof value === 'number' && !Number.isFinite(value) ? String(value) : value === undefined ? null : value })
+export const record = (kind, context, extra = {}) => appendFileSync(process.env.LIFECYCLE_TRACE, JSON.stringify({ kind, pid: process.pid, ms: Date.now(), hr: process.hrtime.bigint().toString(), exitCode: typed(process.exitCode), teardownTimeout: typed(context.config.teardownTimeout), ...extra }) + '\n')

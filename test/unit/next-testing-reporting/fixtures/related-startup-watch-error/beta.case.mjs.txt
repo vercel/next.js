@@ -1,0 +1,1 @@
+import{test,expect}from'vitest';import{value}from'./beta.mjs';test('beta value',()=>{expect(value).toBeGreaterThan(0);console.log('BETA '+value)})

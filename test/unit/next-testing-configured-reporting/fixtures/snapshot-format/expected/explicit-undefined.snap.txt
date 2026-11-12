@@ -1,0 +1,38 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`property matcher 1`] = `
+Object {
+  "nested": Object {
+    "a": 1,
+    "z": 2,
+  },
+  "number": Any<Number>,
+}
+`;
+
+exports[`special values 1`] = `
+Object {
+  "custom": Object {
+    "json": true,
+  },
+  "fn": [Function],
+  "regex": /a\\.b/i,
+}
+`;
+
+exports[`tree 1`] = `
+Object {
+  "a": Object {
+    "nested": Object {
+      "value": "leaf",
+    },
+  },
+  "text": "line
+quote\\"",
+  "z": Array [
+    1,
+    2,
+    3,
+  ],
+}
+`;

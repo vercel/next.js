@@ -1,0 +1,25 @@
+import { test, expect } from 'vitest'
+import { appendFileSync, readFileSync } from 'node:fs'
+
+const record = (row) =>
+  appendFileSync(process.env.ROOT_RUN_START_TRACE, JSON.stringify(row) + '\n')
+const startFinished = () =>
+  readFileSync(process.env.ROOT_RUN_START_TRACE, 'utf8')
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map(JSON.parse)
+    .some((row) => row.kind === 'first-start-finished')
+
+record({ kind: 'evaluate', file: 'b', startFinished: startFinished() })
+
+test('chosen b', () => {
+  record({
+    kind: 'body',
+    file: 'b',
+    name: 'chosen b',
+    startFinished: startFinished(),
+  })
+  expect(startFinished()).toBe(true)
+  expect(3).toBe(3)
+})

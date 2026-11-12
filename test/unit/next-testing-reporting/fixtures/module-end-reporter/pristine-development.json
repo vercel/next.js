@@ -1,0 +1,245 @@
+[
+  {
+    "event": "init"
+  },
+  {
+    "event": "module-end",
+    "type": "module",
+    "relativeModuleId": "contract.test.mjs",
+    "projectName": "live-case",
+    "state": "failed",
+    "ok": false,
+    "errors": [],
+    "cases": [
+      {
+        "type": "test",
+        "name": "passed",
+        "fullName": "live results > passed",
+        "state": "passed",
+        "errors": [],
+        "parentType": "suite",
+        "moduleType": "module",
+        "projectName": "live-case",
+        "mode": "run",
+        "tags": [],
+        "meta": {
+          "mode": "development",
+          "finished": true
+        },
+        "annotations": [],
+        "artifacts": []
+      },
+      {
+        "type": "test",
+        "name": "retried",
+        "fullName": "live results > retried",
+        "state": "passed",
+        "errors": [
+          {
+            "name": "AssertionError",
+            "message": "expected 1 to be 2 // Object.is equality"
+          }
+        ],
+        "parentType": "suite",
+        "moduleType": "module",
+        "projectName": "live-case",
+        "mode": "run",
+        "tags": [],
+        "meta": {},
+        "annotations": [],
+        "artifacts": []
+      },
+      {
+        "type": "test",
+        "name": "repeated",
+        "fullName": "live results > repeated",
+        "state": "passed",
+        "errors": [],
+        "parentType": "suite",
+        "moduleType": "module",
+        "projectName": "live-case",
+        "mode": "run",
+        "tags": [],
+        "meta": {},
+        "annotations": [],
+        "artifacts": []
+      },
+      {
+        "type": "test",
+        "name": "failed",
+        "fullName": "live results > failed",
+        "state": "failed",
+        "errors": [
+          {
+            "name": "AssertionError",
+            "message": "expected 'actual' to be 'expected' // Object.is equality"
+          }
+        ],
+        "parentType": "suite",
+        "moduleType": "module",
+        "projectName": "live-case",
+        "mode": "run",
+        "tags": [],
+        "meta": {},
+        "annotations": [],
+        "artifacts": []
+      },
+      {
+        "type": "test",
+        "name": "skipped",
+        "fullName": "live results > skipped",
+        "state": "skipped",
+        "errors": [],
+        "parentType": "suite",
+        "moduleType": "module",
+        "projectName": "live-case",
+        "mode": "skip",
+        "tags": [],
+        "meta": {},
+        "annotations": [],
+        "artifacts": []
+      },
+      {
+        "type": "test",
+        "name": "todo",
+        "fullName": "live results > todo",
+        "state": "skipped",
+        "errors": [],
+        "parentType": "suite",
+        "moduleType": "module",
+        "projectName": "live-case",
+        "mode": "todo",
+        "tags": [],
+        "meta": {},
+        "annotations": [],
+        "artifacts": []
+      }
+    ]
+  },
+  {
+    "event": "run-end",
+    "reason": "failed",
+    "errors": [],
+    "modules": [
+      {
+        "type": "module",
+        "relativeModuleId": "contract.test.mjs",
+        "projectName": "live-case",
+        "state": "failed",
+        "ok": false,
+        "errors": [],
+        "cases": [
+          {
+            "type": "test",
+            "name": "passed",
+            "fullName": "live results > passed",
+            "state": "passed",
+            "errors": [],
+            "parentType": "suite",
+            "moduleType": "module",
+            "projectName": "live-case",
+            "mode": "run",
+            "tags": [],
+            "meta": {
+              "mode": "development",
+              "finished": true
+            },
+            "annotations": [],
+            "artifacts": []
+          },
+          {
+            "type": "test",
+            "name": "retried",
+            "fullName": "live results > retried",
+            "state": "passed",
+            "errors": [
+              {
+                "name": "AssertionError",
+                "message": "expected 1 to be 2 // Object.is equality"
+              }
+            ],
+            "parentType": "suite",
+            "moduleType": "module",
+            "projectName": "live-case",
+            "mode": "run",
+            "tags": [],
+            "meta": {},
+            "annotations": [],
+            "artifacts": []
+          },
+          {
+            "type": "test",
+            "name": "repeated",
+            "fullName": "live results > repeated",
+            "state": "passed",
+            "errors": [],
+            "parentType": "suite",
+            "moduleType": "module",
+            "projectName": "live-case",
+            "mode": "run",
+            "tags": [],
+            "meta": {},
+            "annotations": [],
+            "artifacts": []
+          },
+          {
+            "type": "test",
+            "name": "failed",
+            "fullName": "live results > failed",
+            "state": "failed",
+            "errors": [
+              {
+                "name": "AssertionError",
+                "message": "expected 'actual' to be 'expected' // Object.is equality"
+              }
+            ],
+            "parentType": "suite",
+            "moduleType": "module",
+            "projectName": "live-case",
+            "mode": "run",
+            "tags": [],
+            "meta": {},
+            "annotations": [],
+            "artifacts": []
+          },
+          {
+            "type": "test",
+            "name": "skipped",
+            "fullName": "live results > skipped",
+            "state": "skipped",
+            "errors": [],
+            "parentType": "suite",
+            "moduleType": "module",
+            "projectName": "live-case",
+            "mode": "skip",
+            "tags": [],
+            "meta": {},
+            "annotations": [],
+            "artifacts": []
+          },
+          {
+            "type": "test",
+            "name": "todo",
+            "fullName": "live results > todo",
+            "state": "skipped",
+            "errors": [],
+            "parentType": "suite",
+            "moduleType": "module",
+            "projectName": "live-case",
+            "mode": "todo",
+            "tags": [],
+            "meta": {},
+            "annotations": [],
+            "artifacts": []
+          }
+        ]
+      }
+    ],
+    "sameObjects": [
+      {
+        "module": true,
+        "tests": [true, true, true, true, true, true]
+      }
+    ]
+  }
+]

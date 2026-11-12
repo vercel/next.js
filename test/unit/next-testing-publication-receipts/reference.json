@@ -1,0 +1,380 @@
+{
+  "reference": "Pristine published vitest@5.0.4; existing actual body/cleanup/getter/falsy worker observations composed without rerun. Public module/case/run-error projection is explicitly not the qualified model.",
+  "inputs": {
+    "body-failure.test.mjs.txt": "0e6233e5f41865d67b9fe223100303a3d55bb49bf76a04f9cde582c38e5208ff",
+    "cleanup-failure.test.mjs.txt": "89120df58e75a338d29e1a7f3e78e3ecfc115fe06dfaa521cc90b477f545a0c7",
+    "getter-failure.test.mjs.txt": "31f707642423106c9555bb37d97ebb2e8984181f43e0b1d271224dcfb430ccde",
+    "zero.test.mjs.txt": "630802129dfa6f579f2655b65174937adf5d253c2aced5ea0a540f748497f97b",
+    "undefined.test.mjs.txt": "a264c0be2bfba6d0114b6bc2f910bcc5a1bddc87c19bebc2e709073dc53a3548",
+    "null.test.mjs.txt": "ddfdb20fd2b7ffd49bd31a33b0097f76e0bbee76730a109dafdf4f957feacd1e",
+    "false.test.mjs.txt": "4e633475e2f1c32f385a1dd0a83b6ba96e598f4eabb9b033e1f383bcbc2ea870"
+  },
+  "models": {
+    "development": {
+      "workerGroups": {
+        "body-failure": [
+          {
+            "actor": "worker",
+            "contract": "body-failure",
+            "event": ["registered"]
+          },
+          {
+            "actor": "worker",
+            "contract": "body-failure",
+            "event": ["body"]
+          },
+          {
+            "actor": "worker",
+            "contract": "body-failure",
+            "event": ["afterAll"]
+          }
+        ],
+        "cleanup-failure": [
+          {
+            "actor": "worker",
+            "contract": "cleanup-failure",
+            "event": ["registered"]
+          },
+          {
+            "actor": "worker",
+            "contract": "cleanup-failure",
+            "event": ["body"]
+          },
+          {
+            "actor": "worker",
+            "contract": "cleanup-failure",
+            "event": ["body-awaited"]
+          },
+          {
+            "actor": "worker",
+            "contract": "cleanup-failure",
+            "event": ["afterAll"]
+          }
+        ],
+        "falsy-false": [
+          {
+            "actor": "worker",
+            "contract": "falsy-false",
+            "event": ["registered", 0]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-false",
+            "event": ["getter", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-false",
+            "event": ["body", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-false",
+            "event": ["awaited", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-false",
+            "event": ["afterAll", 1]
+          }
+        ],
+        "falsy-null": [
+          {
+            "actor": "worker",
+            "contract": "falsy-null",
+            "event": ["registered", 0]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-null",
+            "event": ["getter", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-null",
+            "event": ["body", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-null",
+            "event": ["awaited", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-null",
+            "event": ["afterAll", 1]
+          }
+        ],
+        "falsy-undefined": [
+          {
+            "actor": "worker",
+            "contract": "falsy-undefined",
+            "event": ["registered", 0]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-undefined",
+            "event": ["getter", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-undefined",
+            "event": ["body", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-undefined",
+            "event": ["awaited", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-undefined",
+            "event": ["afterAll", 1]
+          }
+        ],
+        "falsy-zero": [
+          {
+            "actor": "worker",
+            "contract": "falsy-zero",
+            "event": ["registered", 0]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-zero",
+            "event": ["getter", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-zero",
+            "event": ["body", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-zero",
+            "event": ["awaited", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-zero",
+            "event": ["afterAll", 1]
+          }
+        ],
+        "getter-failure": [
+          {
+            "actor": "worker",
+            "contract": "getter-failure",
+            "event": ["registered"]
+          },
+          {
+            "actor": "worker",
+            "contract": "getter-failure",
+            "event": ["getter"]
+          },
+          {
+            "actor": "worker",
+            "contract": "getter-failure",
+            "event": ["body"]
+          },
+          {
+            "actor": "worker",
+            "contract": "getter-failure",
+            "event": ["body-awaited"]
+          },
+          {
+            "actor": "worker",
+            "contract": "getter-failure",
+            "event": ["afterAll"]
+          }
+        ]
+      },
+      "status": 1,
+      "provenance": [
+        "/Users/timneutkens/projects/next-testing-handoffs/work2-retry-publication-errors-20261101/qualification/reference/development/actual-run-errors26",
+        "/Users/timneutkens/projects/next-testing-handoffs/work2-retry-publication-receipts-20261101/qualification/reference/development/falsy-before26"
+      ]
+    },
+    "production": {
+      "workerGroups": {
+        "body-failure": [
+          {
+            "actor": "worker",
+            "contract": "body-failure",
+            "event": ["registered"]
+          },
+          {
+            "actor": "worker",
+            "contract": "body-failure",
+            "event": ["body"]
+          },
+          {
+            "actor": "worker",
+            "contract": "body-failure",
+            "event": ["afterAll"]
+          }
+        ],
+        "cleanup-failure": [
+          {
+            "actor": "worker",
+            "contract": "cleanup-failure",
+            "event": ["registered"]
+          },
+          {
+            "actor": "worker",
+            "contract": "cleanup-failure",
+            "event": ["body"]
+          },
+          {
+            "actor": "worker",
+            "contract": "cleanup-failure",
+            "event": ["body-awaited"]
+          },
+          {
+            "actor": "worker",
+            "contract": "cleanup-failure",
+            "event": ["afterAll"]
+          }
+        ],
+        "falsy-false": [
+          {
+            "actor": "worker",
+            "contract": "falsy-false",
+            "event": ["registered", 0]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-false",
+            "event": ["getter", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-false",
+            "event": ["body", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-false",
+            "event": ["awaited", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-false",
+            "event": ["afterAll", 1]
+          }
+        ],
+        "falsy-null": [
+          {
+            "actor": "worker",
+            "contract": "falsy-null",
+            "event": ["registered", 0]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-null",
+            "event": ["getter", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-null",
+            "event": ["body", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-null",
+            "event": ["awaited", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-null",
+            "event": ["afterAll", 1]
+          }
+        ],
+        "falsy-undefined": [
+          {
+            "actor": "worker",
+            "contract": "falsy-undefined",
+            "event": ["registered", 0]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-undefined",
+            "event": ["getter", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-undefined",
+            "event": ["body", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-undefined",
+            "event": ["awaited", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-undefined",
+            "event": ["afterAll", 1]
+          }
+        ],
+        "falsy-zero": [
+          {
+            "actor": "worker",
+            "contract": "falsy-zero",
+            "event": ["registered", 0]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-zero",
+            "event": ["getter", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-zero",
+            "event": ["body", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-zero",
+            "event": ["awaited", 1]
+          },
+          {
+            "actor": "worker",
+            "contract": "falsy-zero",
+            "event": ["afterAll", 1]
+          }
+        ],
+        "getter-failure": [
+          {
+            "actor": "worker",
+            "contract": "getter-failure",
+            "event": ["registered"]
+          },
+          {
+            "actor": "worker",
+            "contract": "getter-failure",
+            "event": ["getter"]
+          },
+          {
+            "actor": "worker",
+            "contract": "getter-failure",
+            "event": ["body"]
+          },
+          {
+            "actor": "worker",
+            "contract": "getter-failure",
+            "event": ["body-awaited"]
+          },
+          {
+            "actor": "worker",
+            "contract": "getter-failure",
+            "event": ["afterAll"]
+          }
+        ]
+      },
+      "status": 1,
+      "provenance": [
+        "/Users/timneutkens/projects/next-testing-handoffs/work2-retry-publication-errors-20261101/qualification/reference/production/actual-run-errors26",
+        "/Users/timneutkens/projects/next-testing-handoffs/work2-retry-publication-receipts-20261101/qualification/reference/production/falsy-before26"
+      ]
+    }
+  }
+}

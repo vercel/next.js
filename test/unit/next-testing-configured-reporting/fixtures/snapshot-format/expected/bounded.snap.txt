@@ -1,0 +1,22 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`property matcher 1`] = `
+{
+  "nested": [Object],
+  …(1)
+}
+`;
+
+exports[`special values 1`] = `
+{
+  "custom": [Object],
+  …(2)
+}
+`;
+
+exports[`tree 1`] = `
+{
+  "a": [Object],
+  …(2)
+}
+`;

@@ -1,0 +1,8 @@
+import { test, afterAll, expect } from 'vitest'
+const row = (...event) => console.log('RETRY_PUBLICATION_ROW ' + JSON.stringify({ actor: 'worker', contract: 'falsy-null', event }))
+let reads = 0
+const metadata = { get value() { row('getter', ++reads); throw null } }
+const retry = { count: 0, metadata }
+test('body after null publication rejection', { retry }, async () => { row('body', reads); expect(reads).toBe(1); await Promise.resolve(); row('awaited', reads) })
+afterAll(() => row('afterAll', reads))
+row('registered', reads)

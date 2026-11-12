@@ -1,0 +1,2 @@
+import{test,describe,beforeAll,afterAll}from'vitest';const noStack=message=>{const error=new Error(message);error.stack=undefined;return error};
+beforeAll(()=>{throw noStack('first root failure')});afterAll(()=>{throw noStack('second root failure')});test('one',()=>{});test('two',()=>{})

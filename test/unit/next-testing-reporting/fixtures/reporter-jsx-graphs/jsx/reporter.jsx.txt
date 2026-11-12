@@ -1,0 +1,11 @@
+import React from 'react'
+import { createMarker } from './marker'
+import fs from 'node:fs'
+const rows=[],seen=[],modules=[]
+function task(t){const row={type:t.type,id:t.id,name:t.name,fullName:t.fullName,project:t.project.name,options:t.options,tags:t.tags,meta:t.meta()};if(t.type==='test'){row.result=t.result();row.annotations=t.annotations();row.artifacts=t.artifacts()}else{row.state=t.state();row.errors=t.errors();row.children=t.children.array().map(task)}return row}
+export default class Reporter{
+ onInit(context){this.root=context.config.root; const marker=createMarker(); if(!React.isValidElement(marker)) throw new Error('JSX marker was not evaluated'); rows.push({event:'jsx-marker',type:marker.type,props:marker.props});context.onClose(()=>{rows.push({event:'close'});fs.writeFileSync(this.root+'/rows.json',JSON.stringify(rows,null,2))})}
+ onTestCaseResult(test){seen.push(test);rows.push({event:'case-result',test:task(test),moduleId:test.module.moduleId,relativeModuleId:test.module.relativeModuleId,parent:test.parent.id});if(seen.length===1)throw new Error('foreign replay rejection')}
+ onTestModuleEnd(module){modules.push(module);rows.push({event:'module-end',moduleId:module.moduleId,relativeModuleId:module.relativeModuleId,module:task(module)})}
+ onTestRunEnd(actual,errors,reason){rows.push({event:'run-end',reason,modules:actual.map(task),errors:errors.map(e=>({name:e.name,message:e.message})),sameModules:actual.map((m,i)=>m===modules[i]),sameCases:seen.map(t=>[...t.module.children.allTests()].includes(t))});fs.writeFileSync(this.root+'/rows.json',JSON.stringify(rows,null,2))}
+}

@@ -1,0 +1,48 @@
+[
+  {
+    "event": "case-result",
+    "name": "first",
+    "result": {
+      "state": "passed"
+    },
+    "module": "first.test.mjs"
+  },
+  {
+    "event": "module-end",
+    "file": "first.test.mjs",
+    "state": "passed"
+  },
+  {
+    "event": "case-result",
+    "name": "second",
+    "result": {
+      "state": "passed"
+    },
+    "module": "second.test.mjs"
+  },
+  {
+    "event": "module-end",
+    "file": "second.test.mjs",
+    "state": "passed"
+  },
+  {
+    "event": "run-end",
+    "reason": "passed",
+    "files": ["first.test.mjs", "second.test.mjs"],
+    "states": ["passed", "passed"],
+    "errors": [
+      {
+        "name": "Error",
+        "message": "case result hook rejected"
+      },
+      {
+        "name": "Error",
+        "message": "case result hook rejected"
+      }
+    ],
+    "sameObjects": [true, true]
+  },
+  {
+    "event": "close"
+  }
+]

@@ -1,0 +1,8 @@
+import { appendFileSync } from 'node:fs'
+const ids = new WeakMap(); let next = 0
+const id = error => { if (!ids.has(error)) ids.set(error, ++next); return ids.get(error) }
+const taskRow = task => { const first=Array.from(task.errors());const second=Array.from(task.errors());return {type:task.type,name:task.name,state:task.state(),sameArrayMembers:first.length===second.length&&first.every((error,index)=>error===second[index]),errors:first.map(error=>({id:id(error),name:error.name,message:error.message,stack:error.stack,stacks:error.stacks}))} }
+export default class {
+ onTestModuleEnd(module) { appendFileSync(process.env.WS1_MODULE_AUDIT_FILE,JSON.stringify({event:'module-end',module:taskRow(module),suites:Array.from(module.children.allSuites()).map(taskRow)})+'\n') }
+ onTestRunEnd(modules,errors) { appendFileSync(process.env.WS1_MODULE_AUDIT_FILE,JSON.stringify({event:'run-end',errors:errors.map(error=>({name:error.name,message:error.message,stack:error.stack}))})+'\n') }
+}

@@ -1,0 +1,21 @@
+type Captured = Error
+const results: Record<string, Captured> = {}
+function aroundAll(): Captured { const error = new Error('actual lexical registration'); Error.captureStackTrace(error, aroundAll); return error }
+function invoke(factory: () => Captured): Captured { return factory() }
+results.anonymous = invoke(() => aroundAll())
+results.functionArgument = invoke(function () { return aroundAll() })
+function declaredNamedFactory(): Captured { return aroundAll() }
+results.declaration = declaredNamedFactory()
+const expression = function namedExpression(): Captured { return aroundAll() }
+results.expression = expression()
+const inferredArrow = (): Captured => aroundAll()
+results.inferredArrow = inferredArrow()
+const anonymousAssigned = function (): Captured { return aroundAll() }
+results.anonymousAssigned = anonymousAssigned()
+const holder = { method(): Captured { return aroundAll() } }
+results.objectMethod = holder.method()
+class Holder { method(): Captured { return aroundAll() } }
+results.classMethod = new Holder().method()
+results.iife = (function (): Captured { return aroundAll() })()
+results.module = aroundAll()
+export { results }
