@@ -263,7 +263,8 @@ function runTests(
   it(
     'prevents foreign chunk loads and triggers MPA navigation when directly navigating to a page with Client Components on a different deployment',
     async () => {
-      const requestedChunks: string[] = []
+      let isMpaNavigationStarted = false
+      const foreignChunksRequested: string[] = []
       const pageErrors: Error[] = []
 
       const browser = await next.browser('/', {
@@ -274,15 +275,23 @@ function runTests(
           })
           p.on('request', (req) => {
             const url = req.url()
+            if (
+              req.isNavigationRequest() &&
+              url.includes('/client-page?deployment=2')
+            ) {
+              isMpaNavigationStarted = true
+            }
             if (url.includes('/_next/static/chunks/')) {
-              requestedChunks.push(url)
+              if (!isMpaNavigationStarted) {
+                foreignChunksRequested.push(url)
+              }
             }
           })
         },
       })
 
       // Clear initial chunks loaded during root page hydration
-      requestedChunks.length = 0
+      foreignChunksRequested.length = 0
 
       // Set an expando on the html element so we can detect if the page gets unloaded
       const html = await browser.elementByCss('html')
@@ -307,8 +316,14 @@ function runTests(
       const clientComp = await browser.waitForElementByCss('#client-component')
       expect(await clientComp.text()).toBe('Client Component Loaded')
 
+      // Confirm the browser initiated a full-page document navigation
+      expect(isMpaNavigationStarted).toBe(true)
+
+      // Assert that no foreign client chunks were requested by the stale tab
+      // before the full-page MPA navigation was initiated.
+      expect(foreignChunksRequested).toEqual([])
+
       expect(pageErrors).toEqual([])
-      expect(requestedChunks).toEqual([])
     },
     60 * 1000
   )

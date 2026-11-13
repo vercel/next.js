@@ -600,6 +600,13 @@ export async function stripIsPartialByte(
   const { done, value } = await reader.read()
 
   if (done || !value || value.byteLength === 0) {
+    // If the stream has not completed naturally (i.e. an unclosed zero-byte
+    // chunk was received), eagerly cancel the underlying reader to release
+    // network resources. If it already reached EOF (done === true), the stream
+    // completed naturally and needs no further cancellation.
+    if (!done) {
+      reader.cancel().catch(() => {})
+    }
     return {
       stream: new ReadableStream({ start: (c) => c.close() }),
       isPartial: defaultIsPartial,
@@ -630,6 +637,13 @@ export async function stripIsPartialByte(
           controller.close()
         } else {
           controller.enqueue(result.value)
+        }
+      },
+      cancel(reason) {
+        try {
+          return reader.cancel(reason).catch(() => {})
+        } catch {
+          return Promise.resolve()
         }
       },
     }),
