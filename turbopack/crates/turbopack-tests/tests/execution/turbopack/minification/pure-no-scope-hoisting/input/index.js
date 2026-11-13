@@ -23,7 +23,8 @@ annotated`tagged`
 const alias = annotated
 alias()
 
-const parenthesizedAlias = annotated
+// prettier-ignore
+const parenthesizedAlias = (annotated)
 parenthesizedAlias()
 
 let argumentState = 0
