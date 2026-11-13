@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, ops::ControlFlow};
+use std::{cmp::Ordering, collections::BTreeMap, ops::ControlFlow};
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
@@ -697,7 +697,8 @@ impl UnusedReferencesRead {
     }
 }
 
-/// Collects the exports into one group per source module, or returns `None` if any export does not
+/// Collects the exports into one group per source module (or per run of consecutive keys from one
+/// module when the keys of several modules interleave), or returns `None` if any export does not
 /// fit the compact shape (a plain, immutable forward of a named binding out of an in-graph module)
 /// so the caller falls back to the general registration.
 async fn build_compact_reexports(
@@ -864,18 +865,84 @@ async fn build_compact_reexports(
     let mut groups: Vec<ReexportGroup> = groups.into_values().collect();
     groups.sort_by_key(|g| g.order);
 
+    // The runtime defines the namespace properties in list order, and a module namespace object
+    // must list its keys in code unit order.
+    for group in &mut groups {
+        group.pairs.sort_by(|(a, _), (b, _)| cmp_code_units(a, b));
+    }
+    let keys_in_order = groups
+        .iter()
+        .flat_map(|group| group.pairs.iter().map(|(exported, _)| exported))
+        .is_sorted_by(|a, b| cmp_code_units(a, b).is_le());
+
     // A scope-hoisted factory contains several logical modules. Another registration in the same
     // factory may still read a namespace imported by this one, so suppression is only safe when
-    // this module owns its factory. Unknown relative order is safe only for one group.
+    // this module owns its factory. Unknown relative order is safe only for one group. When the
+    // keys of several groups interleave, the groups are split into runs below, and a module id head
+    // cannot be repeated or reordered without changing evaluation order, so the imports must stay.
     let subsume_imports = mode == ExportRegistrationMode::Reexport
         && scope_hoisting_context.module().is_none()
         && (positions_known || groups.len() == 1)
+        && keys_in_order
         && !groups.iter().any(|group| group.locally_bound);
+
+    if !keys_in_order {
+        groups = split_into_sorted_runs(groups);
+    }
 
     Ok(Some(CompactReexports {
         groups,
         subsume_imports,
     }))
+}
+
+/// Compares two strings by UTF-16 code units, the order ECMAScript uses for module namespace keys.
+/// This differs from `str`'s UTF-8 byte order for characters outside the Basic Multilingual Plane.
+fn cmp_code_units(a: &str, b: &str) -> Ordering {
+    if a.is_ascii() && b.is_ascii() {
+        return a.cmp(b);
+    }
+    a.encode_utf16().cmp(b.encode_utf16())
+}
+
+/// Reorders the pairs of all groups by exported key and returns one group per run of consecutive
+/// pairs from the same source, so a source can contribute several groups. Only valid when the
+/// group heads are namespace variables (the imports were not subsumed): repeating such a head has
+/// no side effects. Evaluation-only groups are dropped, as their imports are kept anyway.
+fn split_into_sorted_runs(groups: Vec<ReexportGroup>) -> Vec<ReexportGroup> {
+    let mut pairs: Vec<(usize, RcStr, RcStr)> = groups
+        .iter()
+        .enumerate()
+        .flat_map(|(index, group)| {
+            group
+                .pairs
+                .iter()
+                .map(move |(exported, imported)| (index, exported.clone(), imported.clone()))
+        })
+        .collect();
+    pairs.sort_by(|(_, a, _), (_, b, _)| cmp_code_units(a, b));
+
+    let mut runs: Vec<ReexportGroup> = Vec::new();
+    let mut run_source = None;
+    for (index, exported, imported) in pairs {
+        if run_source != Some(index) {
+            let source = &groups[index];
+            runs.push(ReexportGroup {
+                order: source.order,
+                namespace_ident: source.namespace_ident.clone(),
+                ctxt: source.ctxt,
+                asset: source.asset,
+                locally_bound: source.locally_bound,
+                reference_spans: source.reference_spans.clone(),
+                pairs: Vec::new(),
+            });
+            run_source = Some(index);
+        }
+        if let Some(run) = runs.last_mut() {
+            run.pairs.push((exported, imported));
+        }
+    }
+    runs
 }
 
 /// Builds the `TURBOPACK_ESM_REEXPORT` call and reports which references it subsumes.
@@ -971,7 +1038,9 @@ async fn emit_compact_reexports(
 }
 
 /// One source module's contribution to a compact re-export registration: the module the exports
-/// come from, and the `exported name -> name on that module` pairs taken from it.
+/// come from, and the `exported name -> name on that module` pairs taken from it, sorted by
+/// exported name. When several groups' keys interleave, a module contributes one group per run of
+/// keys.
 struct ReexportGroup {
     /// Lowest binding-reference index among this group's exports. Binding references retain their
     /// relative declaration order even though evaluation references occupy a separate index range.
