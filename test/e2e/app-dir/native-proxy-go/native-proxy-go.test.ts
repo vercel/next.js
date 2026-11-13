@@ -178,9 +178,16 @@ describe('native-proxy-go', () => {
     })
   })
 
-  it.each(['DELETE', 'OPTIONS'])(
-    'frames an external rewrite body after %s header overrides',
-    async (method) => {
+  it.each([
+    ['DELETE', 'content-length'],
+    ['OPTIONS', 'content-length'],
+    ['GET', 'content-length'],
+    ['GET', 'transfer-encoding'],
+    ['HEAD', 'content-length'],
+    ['HEAD', 'transfer-encoding'],
+  ])(
+    'frames a %s external rewrite body with %s after header overrides',
+    async (method, framing) => {
       const requests: Array<{
         url: string
         body: string
@@ -209,8 +216,9 @@ describe('native-proxy-go', () => {
       }
 
       const payload =
-        'GET /api/private HTTP/1.1\r\n' +
+        'POST /api/private HTTP/1.1\r\n' +
         'Host: 127.0.0.1\r\n' +
+        'Content-Length: 0\r\n' +
         'X-From-Go: overridden\r\n\r\n'
       try {
         const direct = await fetch(
@@ -218,16 +226,44 @@ describe('native-proxy-go', () => {
         )
         expect(direct.status).toBe(403)
 
-        const response = await next.fetch(
-          `/native-proxy/external-override?port=${address.port}`,
-          { method, body: payload }
-        )
+        const response = await new Promise<{
+          status: number
+          body: string
+        }>((resolve, reject) => {
+          const req = request(
+            `${next.url}/native-proxy/external-override?port=${address.port}`,
+            {
+              method,
+              headers: {
+                [framing]:
+                  framing === 'content-length'
+                    ? String(Buffer.byteLength(payload))
+                    : 'chunked',
+              },
+            },
+            (res) => {
+              const chunks: Buffer[] = []
+              res.on('data', (chunk) => chunks.push(chunk))
+              res.once('error', reject)
+              res.on('end', () =>
+                resolve({
+                  status: res.statusCode!,
+                  body: Buffer.concat(chunks).toString(),
+                })
+              )
+            }
+          )
+          req.once('error', reject)
+          req.end(payload)
+        })
         expect(response.status).toBe(200)
         expect(requests).toEqual([
           { url: '/api/private', body: '', fromGo: undefined },
           { url: '/public', body: payload, fromGo: 'overridden' },
         ])
-        expect(await response.json()).toEqual({ body: payload })
+        if (method !== 'HEAD') {
+          expect(JSON.parse(response.body)).toEqual({ body: payload })
+        }
       } finally {
         server.closeAllConnections()
         await new Promise<void>((resolve, reject) =>
