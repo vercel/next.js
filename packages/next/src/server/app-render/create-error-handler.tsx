@@ -13,6 +13,7 @@ import { getProperError } from '../../lib/is-error'
 import { isReactLargeShellError } from './react-large-shell-error'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
 import { isNextBrowserBailoutError } from '../../shared/lib/lazy-dynamic/react-browser-bailout'
+import { setErrorOwnerStack } from '../error-owner-stack'
 
 declare global {
   var __next_log_error__: undefined | ((err: unknown) => void)
@@ -25,6 +26,19 @@ type SSRErrorHandler = (
 ) => string | undefined
 
 export type DigestedError = Error & { digest: string; environmentName?: string }
+
+function captureErrorOwnerStack(
+  error: Error,
+  captureOwnerStack: (() => string | null) | undefined
+): void {
+  // React only exposes the current owner while it invokes this error handler.
+  // Store it now so error inspection can use it after React clears the owner.
+  const ownerStack = captureOwnerStack?.()
+
+  if (ownerStack) {
+    setErrorOwnerStack(error, ownerStack)
+  }
+}
 
 /**
  * Returns a digest for well-known Next.js errors, otherwise `undefined`. If a
@@ -57,6 +71,7 @@ export function createReactServerErrorHandler(
   isBuildTimePrerendering: boolean,
   reactServerErrors: Map<string, DigestedError>,
   onReactServerRenderError: (err: DigestedError, silenceLog: boolean) => void,
+  captureOwnerStack?: () => string | null,
   spanToRecordOn?: any,
   renderErrorsByDigest?: Map<string, DigestedError>
 ): RSCErrorHandler {
@@ -120,6 +135,7 @@ export function createReactServerErrorHandler(
 
     // Format server errors in development to add more helpful error messages
     if (shouldFormatError) {
+      captureErrorOwnerStack(err, captureOwnerStack)
       formatServerError(err)
     }
 
