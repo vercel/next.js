@@ -99,6 +99,31 @@ const DEPENDENT_TASKS_DIRTY_PARALLELIZATION_THRESHOLD: usize = 10000;
 /// ensures we are responsive and this ensures a minimum amount of progress.
 const GC_MIN_PROGRESS: Duration = Duration::from_millis(100);
 
+/// Checks (in debug builds) that the `CellKeyKind::Hash` dependency of `reverse.task` on
+/// `reverse.cell` of `task` with `key` exists on the owner side, when its reader side is still
+/// outdated.
+///
+/// A reader that re-executes and reads a key again only marks the edge as no longer outdated,
+/// without re-inserting the owner side. That's correct because owner-side hashed keyed dependents:
+/// - are only removed together with the reader side, in `cleanup_old_edges`. For an outdated edge
+///   that runs while the reader is still in progress, so its next execution can't observe a
+///   half-removed edge. The GC only removes them when the owner or the reader is collected.
+/// - are kept in memory for transient readers on eviction (`filter_transient`), and are persisted
+///   and restored for persistent readers.
+///
+/// Immutable tasks drop their dependents (they are never invalidated), so they're exempt.
+#[inline]
+fn debug_assert_keyed_dependent(task: &TaskGuard<'_>, reverse: CellRef, key: CellKey) {
+    debug_assert!(
+        task.immutable() || task.cell_dependents_keyed_contains(&(reverse, key)),
+        "the outdated keyed dependency of {} on {:?} of {} with {key:?} is missing on the owner \
+         side",
+        reverse.task,
+        reverse.cell,
+        task.id(),
+    );
+}
+
 /// Priority used to re-schedule a task that became stale during execution.
 ///
 /// Stale tasks must run again, but at a priority that reflects why they're being re-run rather
@@ -503,6 +528,21 @@ impl TurboTasksBackend {
         self.storage
             .with_task(task, |t| t.gc_transient_ref_count())
             .unwrap_or(0)
+    }
+
+    /// The number of keyed dependents (dependency edges of readers on keys of its cells) of a
+    /// task (restoring it if needed). Test-only hook.
+    #[doc(hidden)]
+    pub fn keyed_cell_dependents_count_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> usize {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let Some(task) = ctx.try_task(task, TaskDataCategory::Data) else {
+            return 0;
+        };
+        task.iter_cell_dependents_keyed().count()
     }
 
     /// The effective aggregation number of a task (`None` if it doesn't exist). `u32::MAX` means
@@ -1070,11 +1110,25 @@ impl TurboTasksBackend {
             if let Some(mut reader_task) = reader_task {
                 let reader = reader.unwrap();
                 let reverse = CellRef { task: reader, cell };
+                let target = CellRef {
+                    task: task_id,
+                    cell,
+                };
                 match key {
                     None => {
                         let _ = task.add_cell_dependents(reverse);
                     }
                     Some(key) => {
+                        // A re-execution reading the same key again: the edge is still current
+                        // (dependencies stay current during a re-execution, the outdated set is a
+                        // copy) and still exists on the owner side (see
+                        // `debug_assert_keyed_dependent`), so it's only no longer outdated.
+                        if !key.is_provisional()
+                            && reader_task.remove_outdated_cell_dependencies_keyed(&(target, key))
+                        {
+                            debug_assert_keyed_dependent(&task, reverse, key);
+                            return;
+                        }
                         let _ = task.add_cell_dependents_keyed((reverse, key));
                     }
                 }
@@ -1085,10 +1139,6 @@ impl TurboTasksBackend {
                 // between grabbing the locks. If that happened, and if the task is "outdated" or
                 // doesn't have the dependency edge yet, the invalidation would be lost.
 
-                let target = CellRef {
-                    task: task_id,
-                    cell,
-                };
                 match key {
                     None => {
                         if !reader_task.remove_outdated_cell_dependencies(&target) {
@@ -1096,7 +1146,11 @@ impl TurboTasksBackend {
                         }
                     }
                     Some(key) => {
-                        if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, key)) {
+                        // For hashed keys the outdated edge was already checked above (it's
+                        // missing).
+                        if !(key.is_provisional()
+                            && reader_task.remove_outdated_cell_dependencies_keyed(&(target, key)))
+                        {
                             let _ = reader_task.add_cell_dependencies_keyed((target, key));
                         }
                     }
@@ -1271,16 +1325,28 @@ impl TurboTasksBackend {
         // meantime blocks on the reader, and then finds the edges on the reader side as well (see
         // the same ordering in `add_cell_dependency` of `try_read_task_cell`). The keys are
         // iterated once per side, so they don't need to be buffered.
+        //
+        // A re-execution reading the same keys again finds them outdated: they are still current
+        // (and exist on the owner side, see `debug_assert_keyed_dependent`), so they're only no
+        // longer outdated. A first execution has no outdated keyed dependencies to check.
+        let has_outdated = !reader_task.is_outdated_cell_dependencies_keyed_empty();
         let key_hashes = key_hashes.into_iter();
         for k in key_hashes.clone() {
-            let _ = task.add_cell_dependents_keyed((reverse, CellKey::hash(k)));
+            let key = CellKey::hash(k);
+            if has_outdated && reader_task.outdated_cell_dependencies_keyed_contains(&(target, key))
+            {
+                debug_assert_keyed_dependent(&task, reverse, key);
+                continue;
+            }
+            let _ = task.add_cell_dependents_keyed((reverse, key));
         }
         drop(task);
         for k in key_hashes {
             let key = CellKey::hash(k);
-            if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, key)) {
-                let _ = reader_task.add_cell_dependencies_keyed((target, key));
+            if has_outdated && reader_task.remove_outdated_cell_dependencies_keyed(&(target, key)) {
+                continue;
             }
+            let _ = reader_task.add_cell_dependencies_keyed((target, key));
         }
     }
 
