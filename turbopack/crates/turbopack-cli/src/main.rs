@@ -1,4 +1,9 @@
-use std::{cell::RefCell, path::Path, time::Instant};
+use std::{
+    cell::RefCell,
+    path::Path,
+    sync::Mutex,
+    time::{Duration, Instant},
+};
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -24,6 +29,8 @@ fn main() {
     thread_local! {
         static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
     }
+    /// Shared by all blocking threads, since there can be many of them.
+    static LAST_BLOCKING_SWC_ATOM_GC_TIME: Mutex<Option<Instant>> = Mutex::new(None);
 
     let mut rt = tokio::runtime::Builder::new_multi_thread();
     rt.enable_all().on_thread_stop(|| {
@@ -47,8 +54,6 @@ fn main() {
     rt.on_thread_park(|| {
         tokio_workers::park();
         LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
-            use std::time::Duration;
-
             if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
                 swc_core::ecma::atoms::hstr::global_atom_store_gc();
                 *cell = Some(Instant::now());
@@ -56,7 +61,18 @@ fn main() {
         });
         TurboMalloc::thread_park();
     })
-    .on_thread_unpark(tokio_workers::unpark);
+    .on_thread_unpark(tokio_workers::unpark)
+    // Blocking threads don't run the hooks above, do the same cleanup when they run out of work.
+    // They aren't scheduler workers, so they are not counted in `tokio_workers`.
+    .on_blocking_thread_park(|| {
+        if let Ok(mut last) = LAST_BLOCKING_SWC_ATOM_GC_TIME.try_lock()
+            && last.is_none_or(|t| t.elapsed() > Duration::from_secs(2))
+        {
+            swc_core::ecma::atoms::hstr::global_atom_store_gc();
+            *last = Some(Instant::now());
+        }
+        TurboMalloc::thread_park();
+    });
     rt.worker_threads(worker_threads);
     rt.max_blocking_threads(usize::MAX - worker_threads);
 

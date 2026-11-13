@@ -69,12 +69,15 @@ fn init() {
     use std::{
         cell::RefCell,
         panic::{set_hook, take_hook},
+        sync::Mutex,
         time::{Duration, Instant},
     };
 
     thread_local! {
         static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
     }
+    /// Shared by all blocking threads, since there can be many of them.
+    static LAST_BLOCKING_SWC_ATOM_GC_TIME: Mutex<Option<Instant>> = Mutex::new(None);
 
     use napi::bindgen_prelude::create_custom_tokio_runtime;
     use tokio::runtime::Builder;
@@ -107,6 +110,20 @@ fn init() {
             TurboMalloc::thread_park();
         })
         .on_thread_unpark(tokio_workers::unpark)
+        // Blocking threads (including former workers that handed off their worker in
+        // `block_in_place`) don't run the hooks above. Do the same cleanup when they run out of
+        // work, so that the memory they own and other threads freed is reusable, without waiting
+        // until they exit after the keep-alive. They aren't scheduler workers, so they are not
+        // counted in `tokio_workers`.
+        .on_blocking_thread_park(|| {
+            if let Ok(mut last) = LAST_BLOCKING_SWC_ATOM_GC_TIME.try_lock()
+                && last.is_none_or(|t| t.elapsed() > Duration::from_secs(2))
+            {
+                swc_core::ecma::atoms::hstr::global_atom_store_gc();
+                *last = Some(Instant::now());
+            }
+            TurboMalloc::thread_park();
+        })
         .worker_threads(worker_threads)
         // Avoid a limit on threads to avoid deadlocks due to usage of block_in_place
         .max_blocking_threads(usize::MAX - worker_threads)

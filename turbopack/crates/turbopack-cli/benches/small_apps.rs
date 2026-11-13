@@ -56,6 +56,9 @@ fn bench_small_apps(c: &mut Criterion) {
                         })
                         .on_thread_park(|| {
                             TurboMalloc::thread_park();
+                        })
+                        .on_blocking_thread_park(|| {
+                            TurboMalloc::thread_park();
                         });
                     let rt = rt.build().unwrap();
 
