@@ -2,27 +2,40 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe.each([
-  { name: 'unsalted', salt: '', identName: '', className: 'AZtFGof7ZUYpyTsu' },
+  {
+    name: 'unsalted',
+    salt: '',
+    identName: '',
+    className: 'AZtFGof7ZUYpyTsu',
+    deployedClassName: 'xf6Oeq_dcuQVrNV2',
+  },
   {
     name: 'salted',
     salt: 'css-modules-salt',
     identName: '',
     className: 'yG4xe_ErqwAQ42yP',
+    deployedClassName: 'z4aql_qsSySZRs4F',
   },
   {
     name: 'custom names',
     salt: '',
     identName: 'compat_[local]',
     className: 'compat_box',
+    deployedClassName: 'compat_box',
   },
 ])(
   'webpack-loader-css-modules-context ($name)',
-  ({ salt, identName, className: expectedClass }) => {
-    const { next } = nextTestSetup({
+  ({ salt, identName, className, deployedClassName }) => {
+    const { next, isNextDeploy } = nextTestSetup({
       files: __dirname,
       dependencies: { 'style-loader': '4.0.0', 'css-loader': '7.1.5' },
       env: { CSS_MODULE_HASH_SALT: salt, CSS_MODULE_IDENT_NAME: identName },
     })
+    // The deployment adapter appends "initial" to the configured hash salt.
+    const expectedClass =
+      isNextDeploy && process.env.NEXT_ENABLE_ADAPTER === '1'
+        ? deployedClassName
+        : className
 
     it('preserves modules, custom insertion, attributes, transform and computed styles', async () => {
       const browser = await next.browser('/')
