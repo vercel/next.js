@@ -36,7 +36,12 @@ export function getFlightStream<T>(
   flightStream: Readable | BinaryStreamOf<T>,
   debugStream: Readable | ReadableStream<Uint8Array> | undefined,
   debugEndTime: number | undefined,
-  nonce: string | undefined
+  nonce: string | undefined,
+  // Pass true for a stream that is closed while references in it may still
+  // be pending (`ReactServerPrerenderResult.asUnclosingStream`). They then
+  // stay pending, where they would otherwise be rejected with
+  // "Connection closed.". Only applies to a web stream.
+  allowPartialStream: boolean = false
 ): Promise<T> {
   const response = flightResponses.get(flightStream)
 
@@ -69,6 +74,7 @@ export function getFlightStream<T>(
       nonce,
       debugChannel: debugStream ? { readable: debugStream } : undefined,
       endTime: debugEndTime,
+      unstable_allowPartialStream: allowPartialStream,
     })
   } else {
     if (process.env.NEXT_RUNTIME === 'edge') {
