@@ -56,6 +56,36 @@ describe('worker-restart', () => {
   })
 
   describe('with experimental.staticGenerationAdaptive', () => {
+    describe.each([
+      ['child processes', false],
+      ['worker threads', true],
+    ])('prerenderEarlyExit (%s)', (_name, workerThreads) => {
+      const { next } = nextTestSetup({
+        files: { app: new FileRef(join(__dirname, 'fixtures/retries/app')) },
+        skipStart: true,
+        nextConfig: {
+          experimental: {
+            staticGenerationAdaptive: true,
+            prerenderEarlyExit: true,
+            workerThreads,
+          },
+        },
+      })
+
+      it('fails the build without retrying the page as a worker crash', async () => {
+        const { cliOutput, exitCode } = await next.build()
+        expect(exitCode).not.toBe(0)
+        expect(cliOutput).toContain('This page is bad!')
+        expect(cliOutput).toMatch(
+          /Export encountered an error .*exiting the build/
+        )
+        expect(cliOutput).not.toMatch(
+          /Retrying \d+ page\(s\) from a .*build worker/
+        )
+        expect(cliOutput).not.toContain('crashed the build worker')
+      })
+    })
+
     describe('timeout', () => {
       const { next } = nextTestSetup({
         // The fixture's own next.config.js is replaced by `nextConfig`.

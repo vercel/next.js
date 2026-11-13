@@ -2548,6 +2548,7 @@ export const defaultConfig = Object.freeze({
     serverComponentsHmrCancellation: false,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
+    staticGenerationAdaptive: true,
     transitionIndicator: false,
     gestureTransition: false,
     hydrationChangeEvent: false,
