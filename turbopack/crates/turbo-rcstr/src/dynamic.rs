@@ -109,27 +109,27 @@ pub(crate) const fn new_static_atom(string: &'static StaticPrehashedString) -> R
     }
 }
 
-/// Attempts to construct an RcStr but only if it can be constructed inline.
-/// This is primarily useful in constant contexts.
+/// Constructs an inline RcStr panics if it is too long.
+/// This is primarily useful in constant contexts and as part of our macros.  Callers should guard
+/// calls with [`is_atom_inlinable`].
 #[doc(hidden)]
-pub(crate) const fn inline_atom(text: &str) -> Option<RcStr> {
-    if is_atom_inlineable(text) {
-        let len = text.len();
-        let tag = INLINE_TAG | ((len as u8) << LEN_OFFSET);
-        let mut unsafe_data = TaggedValue::new_tag(NonZeroU8::new(tag).unwrap());
+pub(crate) const fn inline_atom(text: &str) -> RcStr {
+    assert!(is_atom_inlineable(text), "text is too long to be inlined");
 
-        // This odd pattern is needed because we cannot create slices from ranges in constant
-        // context.
-        unsafe {
-            unsafe_data
-                .data_mut()
-                .split_at_mut(len)
-                .0
-                .copy_from_slice(text.as_bytes());
-        }
-        return Some(RcStr { unsafe_data });
+    let len = text.len();
+    let tag = INLINE_TAG | ((len as u8) << LEN_OFFSET);
+    let mut unsafe_data = TaggedValue::new_tag(NonZeroU8::new(tag).unwrap());
+
+    // This odd pattern is needed because we cannot create slices from ranges in constant
+    // context.
+    unsafe {
+        unsafe_data
+            .data_mut()
+            .split_at_mut(len)
+            .0
+            .copy_from_slice(text.as_bytes());
     }
-    None
+    return RcStr { unsafe_data };
 }
 
 // Nothing special, digits of pi.
