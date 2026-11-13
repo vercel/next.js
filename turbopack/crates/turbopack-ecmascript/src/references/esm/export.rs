@@ -15,7 +15,7 @@ use swc_core::{
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, KeyedReadRef, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, Vc, turbofmt,
+    FxIndexMap, KeyedReadRef, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, turbofmt,
 };
 use turbopack_core::{
     chunk::{ChunkingContext, ModuleChunkItemIdExt, UnusedReferences},
@@ -672,41 +672,28 @@ async fn compact_reference_target(
     Ok(Some(((namespace_ident, ctxt), asset)))
 }
 
-/// Up to this many references, export code generation reads `UnusedReferences` by key, so it only
-/// depends on the entries of its own references. Above it, the module reads the whole map: a keyed
-/// read adds one dependency per reference, and for modules that re-export many bindings, that costs
-/// more memory than re-running their code generation when the map changes. A module without
-/// references doesn't read the map at all, which is the case for most modules.
-const MAX_KEYED_UNUSED_REFERENCE_READS: usize = 1;
-
-/// A read of `UnusedReferences`, by key or as a whole. See [`MAX_KEYED_UNUSED_REFERENCE_READS`].
-enum UnusedReferencesRead {
-    /// The module has no references to look up, so it doesn't read the map at all.
-    None,
-    Keyed(KeyedReadRef<UnusedReferences>),
-    Whole(ReadRef<UnusedReferences>),
-}
+/// A keyed read of `UnusedReferences` for the references of one module, so export code generation
+/// only depends on the entries of its own references, not on the whole map: a change to the unused
+/// references of another module doesn't invalidate it. A module without references doesn't read the
+/// map at all, which is the case for most modules.
+struct UnusedReferencesRead(Option<KeyedReadRef<UnusedReferences>>);
 
 impl UnusedReferencesRead {
     async fn new(
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         reference_count: usize,
     ) -> Result<Self> {
-        Ok(if reference_count == 0 {
-            Self::None
-        } else if reference_count <= MAX_KEYED_UNUSED_REFERENCE_READS {
-            Self::Keyed(chunking_context.unused_references().keyed_reader().await?)
+        Ok(Self(if reference_count == 0 {
+            None
         } else {
-            Self::Whole(chunking_context.unused_references().await?)
-        })
+            Some(chunking_context.unused_references().keyed_reader().await?)
+        }))
     }
 
     fn contains(&self, reference: &ResolvedVc<Box<dyn ModuleReference>>) -> bool {
-        match self {
-            Self::None => false,
-            Self::Keyed(unused_references) => unused_references.contains_key(reference),
-            Self::Whole(unused_references) => unused_references.contains_key(reference),
-        }
+        self.0
+            .as_ref()
+            .is_some_and(|unused_references| unused_references.contains_key(reference))
     }
 }
 
