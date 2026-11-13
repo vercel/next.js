@@ -162,6 +162,157 @@ function runTests(
     60 * 1000
   )
 
+  type ElementWithExpando = Element & { __expando?: boolean }
+
+  it(
+    'does not load foreign client chunks when prefetching a page with Client Components on a different deployment',
+    async () => {
+      let act: ReturnType<typeof createRouterAct>
+      let page: Playwright.Page
+      const requestedChunks: string[] = []
+      const pageErrors: Error[] = []
+
+      const browser = await next.browser('/', {
+        baseUrl: getPort(),
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+          act = createRouterAct(p)
+          p.on('pageerror', (err) => {
+            pageErrors.push(err)
+          })
+          p.on('request', (req) => {
+            const url = req.url()
+            if (url.includes('/_next/static/chunks/')) {
+              requestedChunks.push(url)
+            }
+          })
+        },
+      })
+
+      // Clear initial chunks loaded during root page hydration
+      requestedChunks.length = 0
+
+      // Set up deterministic response waiting before triggering prefetch
+      const prefetchResponsePromise = page.waitForResponse((res) => {
+        const req = res.request()
+        return (
+          req.url().includes('/client-page?deployment=2') &&
+          req.headers()['rsc'] === '1' &&
+          res.status() === 200
+        )
+      })
+
+      // Initiate prefetch of client-page on deployment 2
+      await act(async () => {
+        const checkbox = await browser.elementByCss(
+          '[data-link-accordion="/client-page?deployment=2"]'
+        )
+        await checkbox.click()
+      })
+
+      // Deterministically wait for the prefetch response to complete and prove
+      // the mismatched response actually arrived before asserting chunk loads
+      const prefetchResponse = await prefetchResponsePromise
+      expect(prefetchResponse.status()).toBe(200)
+
+      // Confirm the prefetch response came from deployment 2
+      if (mode === 'DEPLOYMENT_ID') {
+        expect(prefetchResponse.headers()['x-nextjs-deployment-id']).toBe('2')
+      }
+
+      await prefetchResponse.finished()
+
+      // Assert: No new client chunks should be requested as a result of the prefetch
+      // because the deployment mismatch is detected before Flight decoding starts.
+      expect(requestedChunks).toEqual([])
+      expect(pageErrors).toEqual([])
+
+      // Set an expando on the html element so we can detect if the page gets unloaded
+      const html = await browser.elementByCss('html')
+      await html.evaluate((el) => ((el as ElementWithExpando).__expando = true))
+
+      // Navigate to the target page
+      const link = await browser.elementByCss(
+        'a[href="/client-page?deployment=2"]'
+      )
+      await link.click()
+
+      // The expando should not be present because we performed a full-page MPA navigation
+      await retry(async () => {
+        const htmlAfterNav = await browser.elementByCss('html')
+        expect(
+          await htmlAfterNav.evaluate(
+            (el) => (el as ElementWithExpando).__expando
+          )
+        ).toBe(undefined)
+      })
+
+      // Should perform an MPA navigation to the new deployment safely
+      const buildId = await browser.waitForElementByCss('#build-id')
+      expect(await buildId.text()).toBe('Build ID: 2')
+
+      const clientComp = await browser.waitForElementByCss('#client-component')
+      expect(await clientComp.text()).toBe('Client Component Loaded')
+
+      // Assert that no ChunkLoadError or module factory error occurred
+      expect(pageErrors).toEqual([])
+    },
+    60 * 1000
+  )
+
+  it(
+    'prevents foreign chunk loads and triggers MPA navigation when directly navigating to a page with Client Components on a different deployment',
+    async () => {
+      const requestedChunks: string[] = []
+      const pageErrors: Error[] = []
+
+      const browser = await next.browser('/', {
+        baseUrl: getPort(),
+        beforePageLoad(p: Playwright.Page) {
+          p.on('pageerror', (err) => {
+            pageErrors.push(err)
+          })
+          p.on('request', (req) => {
+            const url = req.url()
+            if (url.includes('/_next/static/chunks/')) {
+              requestedChunks.push(url)
+            }
+          })
+        },
+      })
+
+      // Clear initial chunks loaded during root page hydration
+      requestedChunks.length = 0
+
+      // Set an expando on the html element so we can detect if the page gets unloaded
+      const html = await browser.elementByCss('html')
+      await html.evaluate((el) => ((el as ElementWithExpando).__expando = true))
+
+      // Direct client navigation without prior prefetch
+      await browser.eval('window.next.router.push("/client-page?deployment=2")')
+
+      // The expando should not be present because we performed a full-page MPA navigation
+      await retry(async () => {
+        const htmlAfterNav = await browser.elementByCss('html')
+        expect(
+          await htmlAfterNav.evaluate(
+            (el) => (el as ElementWithExpando).__expando
+          )
+        ).toBe(undefined)
+      })
+
+      const buildId = await browser.waitForElementByCss('#build-id')
+      expect(await buildId.text()).toBe('Build ID: 2')
+
+      const clientComp = await browser.waitForElementByCss('#client-component')
+      expect(await clientComp.text()).toBe('Client Component Loaded')
+
+      expect(pageErrors).toEqual([])
+      expect(requestedChunks).toEqual([])
+    },
+    60 * 1000
+  )
+
   it(
     'triggers MPA navigation when a server action redirects to a different deployment',
     async () => {

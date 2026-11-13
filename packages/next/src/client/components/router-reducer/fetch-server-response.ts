@@ -265,12 +265,22 @@ export async function fetchServerResponse(
       ).waitForWebpackRuntimeHotUpdate()
     }
 
+    const serverDeploymentId = res.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER)
+    if (
+      serverDeploymentId !== null &&
+      serverDeploymentId !== getNavigationBuildId()
+    ) {
+      // The server build does not match the client build.
+      // Trigger an MPA navigation immediately without awaiting
+      // or decoding the Flight response. decodeNavigationResponse owns
+      // the response body and cancels it upon detecting version skew.
+      flightResponsePromise.catch(() => {})
+      return doMpaNavigation(res.url)
+    }
+
     const flightResponse = await flightResponsePromise
 
-    if (
-      (res.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? flightResponse.b) !==
-      getNavigationBuildId()
-    ) {
+    if ((serverDeploymentId ?? flightResponse.b) !== getNavigationBuildId()) {
       // The server build does not match the client build.
       return doMpaNavigation(res.url)
     }
@@ -512,6 +522,23 @@ function decodeNavigationResponse<T>(
         }
         const body = response.body
         if (body === null) {
+          controller.close()
+          return
+        }
+        const serverDeploymentId = response.headers.get(
+          NEXT_NAV_DEPLOYMENT_ID_HEADER
+        )
+        if (
+          serverDeploymentId !== null &&
+          serverDeploymentId !== getNavigationBuildId()
+        ) {
+          // Version skew detected: do not read or enqueue any Flight chunks
+          // to prevent loading client chunks from a foreign deployment.
+          if (!body.locked) {
+            try {
+              body.cancel().catch(() => {})
+            } catch {}
+          }
           controller.close()
           return
         }

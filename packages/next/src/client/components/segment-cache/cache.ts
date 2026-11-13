@@ -1967,6 +1967,26 @@ export async function fetchRouteOnCacheMiss(
     // NavigationFlightResponses carrying a buildId and a structure-only
     // transport tree — which is all this flow reads — so one decode path
     // serves both.
+    const serverDeploymentId = response.headers.get(
+      NEXT_NAV_DEPLOYMENT_ID_HEADER
+    )
+    if (
+      serverDeploymentId !== null &&
+      serverDeploymentId !== getNavigationBuildId()
+    ) {
+      // The server deployment does not match the client. Treat as a 404.
+      // Cancel the response body so Flight decoding does not start and
+      // chunk loads for a foreign deployment are never initiated.
+      if (response.body && !response.body.locked) {
+        try {
+          response.body.cancel().catch(() => {})
+        } catch {}
+      }
+      closed.resolve()
+      rejectRouteCacheEntry(entry, Date.now() + REJECTION_BACKOFF_MS)
+      return null
+    }
+
     const buffer = await bufferPrefetchResponseBody(response.body)
     closed.resolve()
     setSizeInCacheMap(entry, buffer.byteLength)
@@ -1975,10 +1995,7 @@ export async function fetchRouteOnCacheMiss(
       headers
     )
 
-    if (
-      (response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b) !==
-      getNavigationBuildId()
-    ) {
+    if ((serverDeploymentId ?? serverData.b) !== getNavigationBuildId()) {
       // The server build does not match the client. Treat as a 404. During
       // an actual navigation, the router will trigger an MPA navigation.
       // TODO: We should cache the fact that this is an MPA navigation.
@@ -2245,6 +2262,20 @@ async function fetchAndWritePerSegmentPrefetchResponse(
     return null
   }
 
+  const serverDeploymentId = response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER)
+  if (
+    serverDeploymentId !== null &&
+    serverDeploymentId !== getNavigationBuildId()
+  ) {
+    // The server build does not match the client. Treat as a 404.
+    if (response.body && !response.body.locked) {
+      try {
+        response.body.cancel().catch(() => {})
+      } catch {}
+    }
+    return null
+  }
+
   const buffer = await bufferPrefetchResponseBody(response.body)
 
   // Parse the response. Always a PrefetchFlightResponse. A connection drop
@@ -2263,10 +2294,7 @@ async function fetchAndWritePerSegmentPrefetchResponse(
     // happen for an empty response.
     return null
   }
-  if (
-    (response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
-      serverResponse.b) !== getNavigationBuildId()
-  ) {
+  if ((serverDeploymentId ?? serverResponse.b) !== getNavigationBuildId()) {
     // The server build does not match the client. Treat as a 404. During
     // an actual navigation, the router will trigger an MPA navigation.
     return null
@@ -2680,6 +2708,27 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
       return null
     }
 
+    const serverDeploymentId = response.headers.get(
+      NEXT_NAV_DEPLOYMENT_ID_HEADER
+    )
+    if (
+      serverDeploymentId !== null &&
+      serverDeploymentId !== getNavigationBuildId()
+    ) {
+      // The server deployment does not match the client. Cancel the body
+      // so Flight decoding does not start and foreign chunks are not loaded.
+      if (response.body && !response.body.locked) {
+        try {
+          response.body.cancel().catch(() => {})
+        } catch {}
+      }
+      rejectSegmentEntriesIfStillPending(
+        spawnedEntries,
+        Date.now() + REJECTION_BACKOFF_MS
+      )
+      return null
+    }
+
     const renderedSearch = getRenderedSearch(response)
     if (renderedSearch !== route.renderedSearch) {
       // The search params that were used to render the target page are
@@ -2765,8 +2814,7 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
 
     const now = Date.now()
     const staleAt = await resolveStaleAt(now, serverData.s, response)
-    const buildId =
-      response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
+    const buildId = serverDeploymentId ?? serverData.b
 
     // Cut the shell out of the response, if it has one, and decode up to the
     // end of the prefetch stage, just to read `u`. If that prefix can't be
