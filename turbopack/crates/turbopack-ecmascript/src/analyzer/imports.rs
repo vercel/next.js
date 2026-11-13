@@ -36,6 +36,7 @@ use crate::{
         cjs_ast::{is_global, is_module_dot_exports},
         graph::{AssignmentScope, AssignmentScopes, EvalContext},
         is_unresolved, is_unresolved_id,
+        no_side_effects::{NoSideEffectsInfo, collect_no_side_effects},
     },
     magic_identifier::{MAGIC_IDENTIFIER_DEFAULT_EXPORT, MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM},
     module_fragments::{PartId, find_turbopack_part_id_in_asserts},
@@ -464,6 +465,9 @@ pub(crate) struct ImportMap {
     /// Map from exported name to local binding id (includes the syntax context).
     pub(crate) exports_ids: FxHashMap<RcStr, (Id, Span)>,
 
+    /// SWC-compatible binding-level `NO_SIDE_EFFECTS` annotations.
+    no_side_effects: NoSideEffectsInfo,
+
     /// CommonJS imports: stores the "resolved" imports (eg. `const { a } = require("m")`)
     /// and the generic whole-module imports (eg. `const x = require("m")`).
     cjs_imports: CjsImports,
@@ -782,26 +786,26 @@ impl ImportMap {
                 .iter()
                 .map(|(name, value)| {
                     let value = match value {
-                        Export::LocalBinding(local, is_fake_esm) => EsmExport::LocalBinding(
-                            local.clone(),
-                            if *is_fake_esm {
-                                // it is likely that these are not always actually mutable.
-                                Liveness::Mutable
-                            } else {
-                                eval_context.imports.get_export_ident_liveness(
-                                    self.exports_ids
-                                        .get(name)
-                                        .cloned()
-                                        .with_context(|| {
-                                            format!(
-                                                "Exported binding {name} not found in exports_ids"
-                                            )
-                                        })?
-                                        .0,
-                                    eval_context.unresolved_mark,
-                                )
-                            },
-                        ),
+                        Export::LocalBinding(local, is_fake_esm) => {
+                            let (id, _) =
+                                self.exports_ids.get(name).cloned().with_context(|| {
+                                    format!("Exported binding {name} not found in exports_ids")
+                                })?;
+                            let no_side_effects = self.no_side_effects.contains(&id)
+                                || (name == "default" && self.no_side_effects.default_export());
+                            EsmExport::LocalBinding(
+                                local.clone(),
+                                if *is_fake_esm {
+                                    // it is likely that these are not always actually mutable.
+                                    Liveness::Mutable
+                                } else {
+                                    eval_context
+                                        .imports
+                                        .get_export_ident_liveness(id, eval_context.unresolved_mark)
+                                },
+                                no_side_effects,
+                            )
+                        }
                         Export::ImportedBinding(i, name, is_fake_esm) => {
                             EsmExport::ImportedBinding(
                                 ResolvedVc::upcast(import_references[*i]),
@@ -858,7 +862,10 @@ impl ImportMap {
         m: &Program,
         comments: Option<&dyn Comments>,
     ) -> Self {
-        let mut data = ImportMap::default();
+        let mut data = ImportMap {
+            no_side_effects: collect_no_side_effects(m, comments),
+            ..Default::default()
+        };
         let mut analyzer = Analyzer {
             unresolved_mark,
             data: &mut data,
