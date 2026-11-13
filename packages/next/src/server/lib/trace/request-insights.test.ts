@@ -19,7 +19,6 @@ import {
   appendRequestInsightUpdateToJournal,
   closeRequestInsightsJournal,
   configureRequestInsightsJournal,
-  getArchivedRequestInsightDebugContext,
   getRequestInsightsHistory,
   initializeRequestInsightsJournal,
   readRequestInsightsJournal,
@@ -874,6 +873,7 @@ describe('request insights', () => {
     const records = ['one', 'two', 'tri'].map((requestId) => ({
       ...request,
       requestId,
+      htmlRequestId: requestId,
     }))
     const firstLineBytes = Buffer.byteLength(
       JSON.stringify({ version: 1, request: records[0] }) + '\n'
@@ -893,10 +893,28 @@ describe('request insights', () => {
     try {
       await configureRequestInsightsJournal(distDir)
       stat.mockRestore()
-      for (const record of records) appendRequestInsightToJournal(record)
+      for (const record of records) {
+        startRequestInsight(record)
+        appendRequestInsightToJournal(
+          record,
+          getRequestInsightForDebugRequest(
+            record.requestId,
+            record.htmlRequestId
+          )
+        )
+      }
+      clearRequestInsightsForTest()
+      for (const { requestId } of records) {
+        expect(
+          getRequestInsightForDebugRequest(requestId, requestId)
+        ).toBeDefined()
+      }
 
       const history = await getRequestInsightsHistory(distDir)
       expect(history.truncated).toBe(true)
+      expect(getRequestInsightForDebugRequest('one', 'one')).toBeUndefined()
+      expect(getRequestInsightForDebugRequest('two', 'two')).toBeDefined()
+      expect(getRequestInsightForDebugRequest('tri', 'tri')).toBeDefined()
       expect(history.requests.map((entry) => entry.requestId)).toEqual([
         'tri',
         'two',
@@ -1033,11 +1051,109 @@ describe('request insights', () => {
     }
   })
 
+  it.each(['pending', 'archived'])(
+    'keeps reused browser IDs ambiguous while the %s request is retained',
+    async (stage) => {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+      try {
+        await initializeRequestInsightsJournal(distDir)
+        configureJournalProvider(distDir)
+        const identity = {
+          requestId: 'first',
+          debugRequestId: 'abc',
+          htmlRequestId: 'document',
+        }
+        startRequestInsight(identity)
+        recordSpan({ name: 'render', ...identity })
+        completeRequestInsight(identity)
+        clearRequestInsightsForTest()
+        if (stage === 'archived') await getRequestInsightsHistory(distDir)
+        expect(
+          getRequestInsightForDebugRequest('abc', 'document')
+        ).toBeDefined()
+
+        startRequestInsight({ ...identity, requestId: 'second' })
+        expect(
+          getRequestInsightForDebugRequest('abc', 'document')
+        ).toBeUndefined()
+        clearRequestInsightsForTest()
+        await getRequestInsightsHistory(distDir)
+        expect(
+          getRequestInsightForDebugRequest('abc', 'document')
+        ).toBeUndefined()
+
+        await initializeRequestInsightsJournal(distDir)
+        expect(
+          getRequestInsightForDebugRequest('abc', 'document')
+        ).toBeUndefined()
+        startRequestInsight({ ...identity, requestId: 'third' })
+        expect(
+          getRequestInsightForDebugRequest('abc', 'document')?.identity
+            .requestId
+        ).toBe('third')
+      } finally {
+        await resetRequestInsightsJournalForTest()
+        await rm(distDir, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it.each(['append', 'rotating update'])(
+    'releases archived correlation after a failed %s',
+    async (operation) => {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+      const fs = require('fs/promises') as typeof import('fs/promises')
+      const append = jest.spyOn(fs, 'appendFile')
+      const stat = jest.spyOn(fs, 'stat')
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+      try {
+        await initializeRequestInsightsJournal(distDir)
+        configureJournalProvider(distDir)
+        const identity = { requestId: 'failed', htmlRequestId: 'failed' }
+        startRequestInsight(identity)
+        startRequestInsight(identity)
+        recordSpan({ name: 'render', ...identity })
+        completeRequestInsight(identity)
+        clearRequestInsightsForTest()
+        if (operation === 'rotating update') {
+          await getRequestInsightsHistory(distDir)
+          const current = await fs.stat(
+            path.join(distDir, 'request-insights.ndjson')
+          )
+          stat.mockResolvedValueOnce({ ...current, size: 50 * 1024 * 1024 })
+          await configureRequestInsightsJournal(distDir)
+          recordSpan({ name: 'late', ...identity })
+        }
+        expect(
+          getRequestInsightForDebugRequest('failed', 'failed')
+        ).toBeDefined()
+        append.mockRejectedValueOnce(new Error('write failed'))
+        await getRequestInsightsHistory(distDir)
+        expect(warn).toHaveBeenCalledTimes(1)
+        expect(
+          getRequestInsightForDebugRequest('failed', 'failed')
+        ).toBeUndefined()
+      } finally {
+        append.mockRestore()
+        stat.mockRestore()
+        warn.mockRestore()
+        await resetRequestInsightsJournalForTest()
+        await rm(distDir, { recursive: true, force: true })
+      }
+    }
+  )
+
   it.each([false, true])(
     'keeps a complete request when a late update rotates the journal, archived: %s',
     async (archive) => {
       process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-      startRequestInsight({ requestId: 'rotated' })
+      startRequestInsight({ requestId: 'rotated', htmlRequestId: 'rotated' })
+      const budget = getRequestInsightForDebugRequest(
+        'rotated',
+        'rotated'
+      )!.browserTimings
       const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
       await initializeRequestInsightsJournal(distDir)
       configureJournalProvider(distDir)
@@ -1071,6 +1187,9 @@ describe('request insights', () => {
       expect(history.truncated).toBe(true)
       expect(history.requests).toHaveLength(1)
       expect(history.requests[0].spanCount).toBe(3)
+      expect(
+        getRequestInsightForDebugRequest('rotated', 'rotated')?.browserTimings
+      ).toBe(budget)
       await resetRequestInsightsJournalForTest()
       await rm(distDir, { recursive: true, force: true })
     }
@@ -1078,7 +1197,11 @@ describe('request insights', () => {
 
   it('closes the journal idempotently and flushes pending appends', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-    startRequestInsight({ requestId: 'flushed' })
+    startRequestInsight({
+      requestId: 'flushed',
+      debugRequestId: 'abc',
+      htmlRequestId: 'document',
+    })
     const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
     await initializeRequestInsightsJournal(distDir)
     configureJournalProvider(distDir)
@@ -1108,6 +1231,9 @@ describe('request insights', () => {
       }),
     ])
 
+    expect(getRequestInsightForDebugRequest('abc', 'document')).toBeDefined()
+    clearRequestInsightsForTest()
+    expect(getRequestInsightForDebugRequest('abc', 'document')).toBeUndefined()
     await expect(closeRequestInsightsJournal()).resolves.toBeUndefined()
     await rm(distDir, { recursive: true, force: true })
   })
@@ -1710,7 +1836,6 @@ describe('request insights', () => {
 function configureJournalProvider(distDir: string): void {
   configureRequestInsightsHistoryProvider({
     append: appendRequestInsightToJournal,
-    getDebugRequest: getArchivedRequestInsightDebugContext,
     appendUpdate: appendRequestInsightUpdateToJournal,
     appendArchivedUpdate: appendArchivedRequestInsightUpdateToJournal,
     getHistory: (query) => getRequestInsightsHistory(distDir, query),
