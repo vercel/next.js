@@ -37,7 +37,7 @@ pub fn rcstr(input: TokenStream) -> TokenStream {
     {
         let source = if let Some((lit, len)) = classify_literal(input.clone()) {
             if len <= MAX_INLINE_LEN {
-                format!("::turbo_rcstr::inline_atom({lit}).unwrap()")
+                format!("::turbo_rcstr::inline_atom({lit})")
             } else {
                 format!(
                     "{{ static RCSTR_STORAGE: ::turbo_rcstr::StaticPrehashedString = \
@@ -50,7 +50,7 @@ pub fn rcstr(input: TokenStream) -> TokenStream {
         } else {
             format!(
                 "{{ const TEXT: &str = {input}; if ::turbo_rcstr::is_atom_inlineable(TEXT) {{ \
-                 ::turbo_rcstr::inline_atom(TEXT).unwrap() }} else {{ static RCSTR_STORAGE: \
+                 ::turbo_rcstr::inline_atom(TEXT) }} else {{ static RCSTR_STORAGE: \
                  ::turbo_rcstr::StaticPrehashedString = \
                  ::turbo_rcstr::make_const_prehashed_string(TEXT); const RCSTR: \
                  ::turbo_rcstr::RcStr = ::turbo_rcstr::from_static(&RCSTR_STORAGE); \
