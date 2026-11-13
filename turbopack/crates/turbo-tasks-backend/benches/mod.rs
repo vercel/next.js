@@ -10,6 +10,8 @@ pub(crate) mod collectibles;
 pub(crate) mod existing_outputs;
 pub(crate) mod gc;
 pub(crate) mod overhead;
+pub(crate) mod priority_contention;
+pub(crate) mod priority_contention_realistic;
 pub(crate) mod scope_stress;
 pub(crate) mod state_fan_out;
 pub(crate) mod stress;
@@ -20,6 +22,6 @@ criterion_group!(
     targets = stress::fibonacci, scope_stress::scope_stress, overhead::overhead, gc::gc,
         cell_fan_out::cell_fan_out, state_fan_out::state_fan_out, collectibles::collectibles,
         aggregation_churn::aggregation_churn, aggregation_queue::aggregation_queue,
-        existing_outputs::existing_outputs
+        existing_outputs::existing_outputs, priority_contention::priority_contention
 );
 criterion_main!(turbo_tasks_backend_stress);
