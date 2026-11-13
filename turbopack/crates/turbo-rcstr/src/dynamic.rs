@@ -129,7 +129,7 @@ pub(crate) const fn inline_atom(text: &str) -> RcStr {
             .0
             .copy_from_slice(text.as_bytes());
     }
-    return RcStr { unsafe_data };
+    RcStr { unsafe_data }
 }
 
 // Nothing special, digits of pi.
