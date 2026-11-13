@@ -194,17 +194,24 @@ describe('runAdaptiveStaticGeneration', () => {
   })
 
   it('spreads a run of slow pages across workers', async () => {
-    const slow = (path: string) => (Number(path.split('/')[2]) >= 40 ? 30 : 1)
-    const workers = [
-      new FakeWorker(0, { renderMs: slow }),
-      new FakeWorker(1, { renderMs: slow }),
-    ]
-    const { promise } = run(workers, exportPaths(60))
-    await promise
-    const slowCount = (w: FakeWorker) =>
-      w.rendered.filter((r) => Number(r.path.split('/')[2]) >= 40).length
-    expect(slowCount(workers[0])).toBeGreaterThan(3)
-    expect(slowCount(workers[1])).toBeGreaterThan(3)
+    // Preserve the intended fast/slow ratio on platforms with coarse timers.
+    jest.useFakeTimers()
+    try {
+      const slow = (path: string) => (Number(path.split('/')[2]) >= 40 ? 30 : 1)
+      const workers = [
+        new FakeWorker(0, { renderMs: slow }),
+        new FakeWorker(1, { renderMs: slow }),
+      ]
+      const { promise } = run(workers, exportPaths(60))
+      await jest.runAllTimersAsync()
+      await promise
+      const slowCount = (w: FakeWorker) =>
+        w.rendered.filter((r) => Number(r.path.split('/')[2]) >= 40).length
+      expect(slowCount(workers[0])).toBeGreaterThan(3)
+      expect(slowCount(workers[1])).toBeGreaterThan(3)
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   it('reroutes pages a saturated worker refuses', async () => {
