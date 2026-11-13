@@ -141,7 +141,7 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
 
 const allImgs = new Map<
   string,
-  { src: string; loading: LoadingValue; placeholder: PlaceholderValue }
+  { src: string; placeholder: PlaceholderValue }
 >()
 let perfObserver: PerformanceObserver | undefined
 
@@ -640,11 +640,13 @@ export function getImgProps(
       perfObserver = new PerformanceObserver((entryList) => {
         for (const entry of entryList.getEntries()) {
           // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
-          const imgSrc = entry?.element?.src || ''
+          const imgElement = entry?.element
+          const imgSrc = imgElement?.src || ''
           const lcpImage = allImgs.get(imgSrc)
           if (
             lcpImage &&
-            lcpImage.loading === 'lazy' &&
+            // Images sharing a URL can have different loading attributes.
+            imgElement?.getAttribute('loading') === 'lazy' &&
             lcpImage.placeholder === 'empty' &&
             !lcpImage.src.startsWith('data:') &&
             !lcpImage.src.startsWith('blob:')
@@ -750,7 +752,7 @@ export function getImgProps(
       } catch (e) {
         fullUrl = new URL(imgAttributes.src, window.location.href)
       }
-      allImgs.set(fullUrl.href, { src, loading: loadingFinal, placeholder })
+      allImgs.set(fullUrl.href, { src, placeholder })
     }
   }
 
