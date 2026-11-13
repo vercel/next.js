@@ -94,7 +94,7 @@ export async function recursiveDeleteSyncWithAsyncRetries(
   /** Directory to delete the contents of */
   dir: string,
   /** Exclude based on relative file path */
-  exclude?: RegExp,
+  exclude?: ReadonlySet<string>,
   /**
    * Only delete files whose mtime is at least this old. Directories are
    * removed once empty.
@@ -118,7 +118,7 @@ async function deleteContents(
     futureMtimeThreshold,
     previousPath,
   }: {
-    exclude: RegExp | undefined
+    exclude: ReadonlySet<string> | undefined
     staleBefore: number | undefined
     futureMtimeThreshold: number
     /** Relative path to the directory being deleted, used for exclude */
@@ -142,7 +142,7 @@ async function deleteContents(
       const absolutePath = join(dir, part.name)
       const pp = join(previousPath ?? '', part.name)
 
-      if (exclude?.test(pp)) {
+      if (exclude?.has(pp)) {
         keptAnything = true
         return
       }

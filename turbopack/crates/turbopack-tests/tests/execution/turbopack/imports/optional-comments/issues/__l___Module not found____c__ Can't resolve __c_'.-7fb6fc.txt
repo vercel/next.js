@@ -1,0 +1,21 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/imports/optional-comments/input/index.js:21:5  Module not found: Can't resolve './missing-should-error-webpack.mjs'
+  
+      17 | 
+      18 | it('reports an issue for missing imports that are not optional', async () => {
+      19 |   // webpackOptional is NOT supported, so this should NOT suppress the error
+      20 |   await expect(
+         +     v----------------------------------------------------------------------v
+      21 +     import(/* webpackOptional: true */ './missing-should-error-webpack.mjs')
+         +     ^----------------------------------------------------------------------^
+      22 |   ).rejects.toThrow("Cannot find module './missing-should-error-webpack.mjs'")
+      23 | 
+      24 |   // turbopackOptional: false should still produce errors
+      25 |   await expect(
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: relative './missing-should-error-webpack.mjs'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/imports/optional-comments/input/index.js
+  | Type of request: EcmaScript Modules request
+  |

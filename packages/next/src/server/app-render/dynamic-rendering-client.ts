@@ -1,4 +1,5 @@
 import React from 'react'
+import { browser } from 'react-dom'
 import {
   throwForMissingRequestStore,
   workUnitAsyncStorage,
@@ -10,6 +11,12 @@ import {
 } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
+import { createReactBrowserBailoutReason } from '../../shared/lib/lazy-dynamic/react-browser-bailout'
+
+const getUseSearchParamsBailoutReason = createReactBrowserBailoutReason.bind(
+  null,
+  'useSearchParams()'
+)
 
 // TODO(veil): This module is separated from `dynamic-rendering.ts` as a workaround.
 // When these hooks were part of `dynamic-rendering.ts, the source location of these
@@ -56,9 +63,9 @@ export function useDynamicRouteParams(expression: string) {
         throw new InvariantError(
           `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
-          `\`${expression}\` was called in \`generateStaticParams\`. Next.js should be preventing ${expression} from being included in server component files statically, but did not in this case.`
+          `\`${expression}\` was called in \`${workUnitStore.functionName}\`. Next.js should be preventing ${expression} from being included in server component files statically, but did not in this case.`
         )
       case 'prerender-legacy':
       case 'request':
@@ -101,7 +108,13 @@ export function useDynamicSearchParams(expression: string) {
       if (workStore.forceStatic) {
         return
       }
-      throw new BailoutToCSRError(expression)
+      if (process.env.__NEXT_EXPERIMENTAL_REACT_BROWSER_BAILOUT) {
+        // @ts-expect-error TODO: Update @types/react-dom to include the reason argument.
+        React.use(browser(getUseSearchParamsBailoutReason))
+        return
+      } else {
+        throw new BailoutToCSRError(expression)
+      }
     }
     case 'prerender':
     case 'prerender-runtime':
@@ -114,9 +127,9 @@ export function useDynamicSearchParams(expression: string) {
       throw new InvariantError(
         `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
       )
-    case 'generate-static-params':
+    case 'build-time-generator':
       throw new InvariantError(
-        `\`${expression}\` was called in \`generateStaticParams\`. Next.js should be preventing ${expression} from being included in server component files statically, but did not in this case.`
+        `\`${expression}\` was called in \`${workUnitStore.functionName}\`. Next.js should be preventing ${expression} from being included in server component files statically, but did not in this case.`
       )
     case 'request':
       return

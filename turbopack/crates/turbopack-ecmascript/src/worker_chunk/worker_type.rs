@@ -1,10 +1,9 @@
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::trace::TraceRawVcs;
 use turbopack_core::reference_type::{ReferenceType, WorkerReferenceSubType};
 
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Encode, Decode, TraceRawVcs)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Encode, Decode)]
 pub enum WorkerType {
     WebWorker,
     SharedWebWorker,

@@ -63,6 +63,16 @@ it('should support multiple patterns across directories', () => {
   expect(multiModules['./other/baz.js'].default).toBe('baz')
 })
 
+// The result keys stay logical while module resolution follows the directory symlink.
+const symlinkModules = import.meta.glob('./linked/*.js', { eager: true })
+
+it('should resolve modules through a symlink while preserving logical keys', () => {
+  const keys = Object.keys(symlinkModules).sort()
+  expect(keys).toEqual(['./linked/bar.js', './linked/foo.js'])
+  expect(symlinkModules['./linked/foo.js'].default).toBe('foo')
+  expect(symlinkModules['./linked/bar.js'].default).toBe('bar')
+})
+
 // import: '*' (namespace import) — should return the whole module namespace
 // Uses ./other/*.js to avoid colliding with the eager test above (same pattern + eager + no import)
 const namespaceModules = import.meta.glob('./other/*.js', {
@@ -116,7 +126,11 @@ it('should include dotfile directories with wildcard patterns', () => {
     './CaseDir/module-lower.js',
     './dir/bar.js',
     './dir/foo.js',
+    './linked/bar.js',
+    './linked/foo.js',
     './other/baz.js',
+    './other/deep/qux.js',
+    './other/deep/skip.js',
   ])
 })
 
@@ -181,4 +195,20 @@ it('should apply case-insensitive matching to negative patterns', () => {
   expect(Object.keys(caseInsensitiveNegative)).toEqual([
     './CaseDir/module-lower.js',
   ])
+})
+
+// A recursive pattern matches files directly in the directory it scans as well as
+// nested ones, and a negative pattern applies to both.
+const recursiveModules = import.meta.glob(
+  ['./other/**/*.js', '!./other/deep/skip.js'],
+  { eager: true }
+)
+
+it('should match files at the top of and below the scanned directory', () => {
+  expect(Object.keys(recursiveModules)).toEqual([
+    './other/baz.js',
+    './other/deep/qux.js',
+  ])
+  expect(recursiveModules['./other/baz.js'].default).toBe('baz')
+  expect(recursiveModules['./other/deep/qux.js'].default).toBe('qux')
 })

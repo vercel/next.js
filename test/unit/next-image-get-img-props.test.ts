@@ -90,36 +90,6 @@ describe('getImageProps()', () => {
     expect(props.srcSet).toBeString()
   })
 
-  it('should disable an automatic blur placeholder for a static avif', () => {
-    const { props } = getImageProps({
-      alt: 'a nice desc',
-      src: {
-        src: '/_next/static/media/test.abc123.avif',
-        width: 100,
-        height: 200,
-      },
-      placeholder: 'blur',
-    })
-
-    expect(props.style).toStrictEqual({ color: 'transparent' })
-  })
-
-  it('should preserve a custom blur placeholder for a static avif', () => {
-    const blurDataURL = 'data:image/png;base64,custom'
-    const { props } = getImageProps({
-      alt: 'a nice desc',
-      src: {
-        src: '/_next/static/media/test.abc123.avif',
-        width: 100,
-        height: 200,
-      },
-      placeholder: 'blur',
-      blurDataURL,
-    })
-
-    expect(props.style?.backgroundImage).toContain(blurDataURL)
-  })
-
   it('should handle preload', async () => {
     const { props } = getImageProps({
       alt: 'a nice desc',

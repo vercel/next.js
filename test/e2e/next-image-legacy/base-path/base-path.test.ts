@@ -7,20 +7,20 @@ import {
   retry,
 } from 'next-test-utils'
 
+// Deploy mode exclusion: This suite reads local build artifacts that deployments do not expose.
+// Image URL assertions construct expected URLs via
+// `getDeploymentId(next.testDir, ...)`, which reads the local
+// `.next/required-server-files.json`. In deploy mode that file lives on
+// Vercel's infrastructure (not on disk locally), so the constructed
+// expected URL omits the `&dpl=...` query that Vercel injects at
+// runtime. The assertions are about local-build URL shape, not deploy
+// CDN URLs, so skip in deploy.
+// @force-gate !deploy
 describe('Legacy Image Component basePath Tests', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
-    // Image URL assertions construct expected URLs via
-    // `getDeploymentId(next.testDir, ...)`, which reads the local
-    // `.next/required-server-files.json`. In deploy mode that file lives on
-    // Vercel's infrastructure (not on disk locally), so the constructed
-    // expected URL omits the `&dpl=...` query that Vercel injects at
-    // runtime. The assertions are about local-build URL shape, not deploy
-    // CDN URLs, so skip in deploy.
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let dpl: string
   beforeAll(() => {
@@ -326,36 +326,38 @@ describe('Legacy Image Component basePath Tests', () => {
     )
   })
 
-  if (isNextDev) {
-    it('should show missing src error', async () => {
-      const browser = await next.browser('/docs/missing-src')
+  // Image validation errors are development diagnostics.
+  // @force-gate dev
+  it('should show missing src error', async () => {
+    const browser = await next.browser('/docs/missing-src')
 
-      await waitForNoRedbox(browser)
+    await waitForNoRedbox(browser)
 
-      await retry(async () => {
-        const logs = (await browser.log()).map((log) => log.message).join('\n')
-        expect(logs).toMatch(/Image is missing required "src" property/gm)
-      })
+    await retry(async () => {
+      const logs = (await browser.log()).map((log) => log.message).join('\n')
+      expect(logs).toMatch(/Image is missing required "src" property/gm)
     })
+  })
 
-    it('should show invalid src error', async () => {
-      const browser = await next.browser('/docs/invalid-src')
+  // @force-gate dev
+  it('should show invalid src error', async () => {
+    const browser = await next.browser('/docs/invalid-src')
 
-      await waitForRedbox(browser)
-      expect(await getRedboxHeader(browser)).toContain(
-        'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
-      )
-    })
+    await waitForRedbox(browser)
+    expect(await getRedboxHeader(browser)).toContain(
+      'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
+    )
+  })
 
-    it('should show invalid src error when protocol-relative', async () => {
-      const browser = await next.browser('/docs/invalid-src-proto-relative')
+  // @force-gate dev
+  it('should show invalid src error when protocol-relative', async () => {
+    const browser = await next.browser('/docs/invalid-src-proto-relative')
 
-      await waitForRedbox(browser)
-      expect(await getRedboxHeader(browser)).toContain(
-        'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
-      )
-    })
-  }
+    await waitForRedbox(browser)
+    expect(await getRedboxHeader(browser)).toContain(
+      'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
+    )
+  })
 
   it('should correctly ignore prose styles', async () => {
     const browser = await next.browser('/docs/prose')
@@ -376,24 +378,23 @@ describe('Legacy Image Component basePath Tests', () => {
     expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1, 1)
   })
 
-  if (!isNextDev) {
-    it('should correctly rotate image', async () => {
-      const browser = await next.browser('/docs/rotated')
+  // @force-gate prod
+  it('should correctly rotate image', async () => {
+    const browser = await next.browser('/docs/rotated')
 
-      const id = 'exif-rotation-image'
+    const id = 'exif-rotation-image'
 
-      await retry(async () => {
-        const result = await browser.eval(
-          `document.getElementById(${JSON.stringify(id)}).naturalWidth`
-        )
-        expect(result).toBeGreaterThan(0)
-      })
-
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      const computedWidth = await getComputed(browser, id, 'width')
-      const computedHeight = await getComputed(browser, id, 'height')
-      expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(0.5625, 1)
+    await retry(async () => {
+      const result = await browser.eval(
+        `document.getElementById(${JSON.stringify(id)}).naturalWidth`
+      )
+      expect(result).toBeGreaterThan(0)
     })
-  }
+
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
+    const computedWidth = await getComputed(browser, id, 'width')
+    const computedHeight = await getComputed(browser, id, 'height')
+    expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(0.5625, 1)
+  })
 })

@@ -1,23 +1,23 @@
-use std::fmt::Display;
+use std::{fmt::Display, future::Future};
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use itertools::Itertools;
 use next_core::app_structure::FileSystemPathVec;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    Completion, FxIndexMap, FxIndexSet, JoinIterExt, NonLocalValue, OperationVc, ResolvedVc,
+    TryJoinIterExt, Vc, debug::ValueDebugFormat,
 };
 use turbopack_core::{
+    module::Module,
     module_graph::{GraphEntries, ModuleGraph},
     output::OutputAssets,
 };
 
 use crate::{operation::OptionEndpoint, paths::AssetPath, project::Project};
 
-#[derive(
-    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub struct AppPageRoute {
     pub original_name: RcStr,
     pub html_endpoint: ResolvedVc<Box<dyn Endpoint>>,
@@ -35,15 +35,54 @@ pub enum Route {
         endpoint: ResolvedVc<Box<dyn Endpoint>>,
     },
     AppPage(Vec<AppPageRoute>),
+    AppGoRoute {
+        original_name: RcStr,
+        endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    },
     AppRoute {
         original_name: RcStr,
         endpoint: ResolvedVc<Box<dyn Endpoint>>,
+        has_action_manifest: bool,
     },
     Conflict,
 }
 
 #[turbo_tasks::value(transparent)]
 pub struct ModuleGraphs(Vec<ResolvedVc<ModuleGraph>>);
+
+/// Client-side modules associated with an endpoint.
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug, Default)]
+pub struct AnalyzeClientEntries {
+    /// Server entry modules established by this endpoint's build graph.
+    pub server_modules: Vec<ResolvedVc<Box<dyn Module>>>,
+    /// Client entry modules used to bootstrap this endpoint, not observed requests.
+    pub bootstrap_modules: Vec<ResolvedVc<Box<dyn Module>>>,
+    /// Client references discovered from the endpoint's server graph.
+    pub references: Vec<AnalyzeClientReference>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+pub struct AnalyzeClientReference {
+    /// The referenced client module, with its bundler identity and variants intact.
+    pub module: ResolvedVc<Box<dyn Module>>,
+    /// Producer reference category (for example ECMAScript or CSS), not a load trigger.
+    pub kind: RcStr,
+}
+
+/// Direct emitted assets of a build-time chunk group. Groups may overlap: an
+/// App layout group can include chunks shared with other client references.
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+pub struct AnalyzeChunkGroup {
+    pub kind: RcStr,
+    pub trigger: Option<ResolvedVc<Box<dyn Module>>>,
+    pub assets: ResolvedVc<OutputAssets>,
+    /// Only Pages HTML endpoints inherit the shared _app client group.
+    pub pages_html: bool,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct AnalyzeChunkGroups(Vec<AnalyzeChunkGroup>);
 
 #[turbo_tasks::value_trait]
 pub trait Endpoint {
@@ -57,6 +96,16 @@ pub trait Endpoint {
     /// The entry modules for the modules graph.
     #[turbo_tasks::function]
     fn entries(self: Vc<Self>) -> Vc<GraphEntries>;
+    /// Build-time client bootstrap and client-reference modules for analysis.
+    #[turbo_tasks::function]
+    fn analyze_client_entries(self: Vc<Self>) -> Vc<AnalyzeClientEntries> {
+        AnalyzeClientEntries::default().cell()
+    }
+    /// Build-time client chunk groups, not observed browser requests.
+    #[turbo_tasks::function]
+    fn analyze_chunk_groups(self: Vc<Self>) -> Vc<AnalyzeChunkGroups> {
+        Vc::cell(vec![])
+    }
     /// Additional entry modules for the module graph.
     /// This may read the module graph and return additional modules.
     #[turbo_tasks::function]
@@ -76,9 +125,7 @@ pub trait Endpoint {
     fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec>;
 }
 
-#[derive(
-    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub enum EndpointGroupKey {
     Instrumentation,
     InstrumentationEdge,
@@ -117,17 +164,13 @@ impl Display for EndpointGroupKey {
     }
 }
 
-#[derive(
-    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub struct EndpointGroupEntry {
     pub endpoint: ResolvedVc<Box<dyn Endpoint>>,
     pub sub_name: Option<RcStr>,
 }
 
-#[derive(
-    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub struct EndpointGroup {
     pub primary: Vec<EndpointGroupEntry>,
     pub additional: Vec<EndpointGroupEntry>,
@@ -186,13 +229,15 @@ async fn output_of_endpoints(endpoints: Vec<Vc<Box<dyn Endpoint>>>) -> Result<Vc
 async fn module_graphs_of_endpoints(
     endpoints: Vec<Vc<Box<dyn Endpoint>>>,
 ) -> Result<Vc<ModuleGraphs>> {
+    // Deduplicate while preserving first-seen order, then hand back a `Vec`.
     let module_graphs = endpoints
         .iter()
-        .map(async |endpoint| Ok(endpoint.module_graphs().await?.into_iter()))
-        .try_flat_join()
-        .await?
+        .map(async |endpoint| anyhow::Ok(endpoint.module_graphs().await?.into_iter()))
+        .join()
+        .await
         .into_iter()
-        .collect::<FxIndexSet<_>>()
+        .flatten_ok()
+        .collect::<Result<FxIndexSet<_>>>()?
         .into_iter()
         .collect::<Vec<_>>();
     Ok(Vc::cell(module_graphs))
@@ -290,9 +335,14 @@ pub struct EndpointOutput {
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone)]
 pub enum EndpointOutputPaths {
+    Native {
+        executable_path: RcStr,
+        build: turbopack_go::GoBundleResult,
+    },
     NodeJs {
         /// Relative to the root_path
         server_entry_path: RcStr,
+        server_hmr_entry_paths: Vec<RcStr>,
         server_paths: Vec<AssetPath>,
         client_paths: Vec<RcStr>,
     },
@@ -301,9 +351,28 @@ pub enum EndpointOutputPaths {
         client_paths: Vec<RcStr>,
     },
     NotFound,
+    /// Keep failed inputs available to request-side validation, without publishing an executable.
+    /// Configuration failures have no compiler inputs to validate.
+    NativeFailed {
+        build: Option<turbopack_go::GoBundleResult>,
+    },
 }
 
 /// The routes as map from pathname to route. (pathname includes the leading
 /// slash)
 #[turbo_tasks::value(transparent)]
 pub struct Routes(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, Route>);
+
+/// Accept endpoint output using the native compiler's live-input validation contract.
+/// JavaScript and edge output require no additional validation.
+pub async fn read_with_validated_endpoint<T, F: Future<Output = Result<T>>>(
+    read: impl FnMut() -> F,
+    get_output: impl Fn(&T) -> Option<&EndpointOutputPaths>,
+) -> Result<T> {
+    turbopack_go::read_with_validated_inputs(read, |value| match get_output(value) {
+        Some(EndpointOutputPaths::Native { build, .. }) => Some(build),
+        Some(EndpointOutputPaths::NativeFailed { build }) => build.as_ref(),
+        _ => None,
+    })
+    .await
+}

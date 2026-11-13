@@ -272,6 +272,134 @@ export class Blah extends Head {
 }
 `
 describe('no-html-link-for-pages', function () {
+  describe.each([
+    ['pages', linters.withCustomPages, linterConfigWithCustomDirectory],
+    ['app', linters.withApp, linterConfig],
+  ])('indirect hrefs with %s directory', (_name, linter, config) => {
+    it('reports the inline, constant, and mapped anchors together', () => {
+      const code = [
+        'const localHref = "/"',
+        'const navigation = [{ href: "/", label: "Home" }]',
+        'export default function Page() {',
+        '  return <>',
+        '    <a href="/">Inline</a>',
+        '    <a href={localHref}>Constant</a>',
+        '    {navigation.map(item => <a key={item.href} href={item.href}>{item.label}</a>)}',
+        '  </>',
+        '}',
+      ].join('\n')
+      const reports = linter.verify(code, config, { filename: 'foo.js' })
+      expect(reports.map(({ line }) => line)).toEqual([5, 6, 7])
+      expect(
+        reports.every(({ ruleId }) => ruleId === 'no-html-link-for-pages')
+      ).toBe(true)
+    })
+
+    it.each([
+      ['expression literal', 'export default () => <a href={"/"}>Home</a>'],
+      ['template literal', 'export default () => <a href={`/`}>Home</a>'],
+      [
+        'local constant',
+        'const href = "/"; export default () => <a href={href}>Home</a>',
+      ],
+      [
+        'constant object',
+        'const item = { href: "/" }; export default () => <a href={item.href}>Home</a>',
+      ],
+      [
+        'mapped object',
+        'const navigation = [{ href: "/" }]; export default () => navigation.map(item => <a href={item.href}>Home</a>)',
+      ],
+      [
+        'shadowed map receiver name',
+        'const item = [{ href: "/" }]; export default () => item.map(item => <a href={item.href}>Home</a>)',
+      ],
+      [
+        'computed mapped property',
+        'const navigation = [{ href: "/" }]; export default () => navigation.map(item => <a href={item["href"]}>Home</a>)',
+      ],
+      [
+        'mapped string',
+        'const navigation = ["/"]; export default () => navigation.map(href => <a href={href}>Home</a>)',
+      ],
+      [
+        'mixed destinations',
+        'const navigation = [{ href: "https://example.com" }, { href: "/" }, { href: "/" }]; export default () => navigation.map(item => <a href={item.href}>Home</a>)',
+      ],
+    ])('reports %s', (_description, code) => {
+      const reports = linter.verify(code, config, { filename: 'foo.js' })
+      expect(reports).toHaveLength(1)
+      expect(reports[0]).toMatchObject({
+        ruleId: 'no-html-link-for-pages',
+        nodeType: 'JSXOpeningElement',
+        message:
+          'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages',
+      })
+    })
+
+    it.each([
+      ['unknown href', 'export default ({ href }) => <a href={href}>Home</a>'],
+      [
+        'shadowed constant',
+        'const href = "/"; export default (href) => <a href={href}>Home</a>',
+      ],
+      [
+        'reassigned href',
+        'let href = "/"; href = getHref(); export default () => <a href={href}>Home</a>',
+      ],
+      [
+        'unknown map receiver',
+        'export default ({ navigation }) => navigation.map(item => <a href={item.href}>Home</a>)',
+      ],
+      [
+        'external mapped href',
+        'const navigation = [{ href: "https://example.com" }, { href: "//example.com" }]; export default () => navigation.map(item => <a href={item.href}>Home</a>)',
+      ],
+      [
+        'hash mapped href',
+        'const navigation = [{ href: "#heading" }]; export default () => navigation.map(item => <a href={item.href}>Home</a>)',
+      ],
+      [
+        'download',
+        'const href = "/"; export default () => <a href={href} download>Home</a>',
+      ],
+      [
+        'new tab',
+        'const href = "/"; export default () => <a href={href} target="_blank">Home</a>',
+      ],
+      [
+        'expression new tab',
+        'const href = "/"; export default () => <a href={href} target={"_blank"}>Home</a>',
+      ],
+      [
+        'non-string hrefs',
+        'export default () => <><a href /><a href={null} /><a href={123} /><a href={{}} /></>',
+      ],
+      [
+        'mutated map receiver',
+        'const navigation = [{ href: "/" }]; navigation.push({ href: getHref() }); export default () => navigation.map(item => <a href={item.href}>Home</a>)',
+      ],
+      [
+        'reassigned map parameter',
+        'const navigation = [{ href: "/" }]; export default () => navigation.map(item => { item = getItem(); return <a href={item.href}>Home</a> })',
+      ],
+      [
+        'mutated map parameter',
+        'const navigation = [{ href: "/" }]; export default () => navigation.map(item => { item.href = "https://example.com"; return <a href={item.href}>Home</a> })',
+      ],
+      [
+        'escaped map parameter',
+        'const navigation = [{ href: "/" }]; export default () => navigation.map(item => { update(item); return <a href={item.href}>Home</a> })',
+      ],
+      [
+        'shadowed map parameter',
+        'const navigation = [{ href: "/" }]; export default () => navigation.map(item => { return function Inner(item) { return <a href={item.href}>Home</a> } })',
+      ],
+    ])('ignores %s', (_description, code) => {
+      expect(linter.verify(code, config, { filename: 'foo.js' })).toEqual([])
+    })
+  })
+
   it('does not print warning when there are "pages" or "app" directories with rootDir in context settings', function () {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
     linters.withNestedPages.verify(

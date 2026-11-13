@@ -2,7 +2,7 @@ import type { CompilerNameValues } from '../../../../shared/lib/constants'
 
 import path from 'path'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
-import { getImageSize } from '../../../../server/image-optimizer'
+import { getImageSize } from '../../../../server/image-optimizer/get-image-size'
 import { getBlurImage } from './blur'
 
 interface Options {
@@ -11,21 +11,14 @@ interface Options {
   assetPrefix: string
   basePath: string
   outputHashSalt: string
-  imgOptDangerouslyAllowAVIF: boolean
 }
 
 function nextImageLoader(this: any, content: Buffer) {
   const imageLoaderSpan = this.currentTraceSpan.traceChild('next-image-loader')
   return imageLoaderSpan.traceAsyncFn(async () => {
     const options: Options = this.getOptions()
-    const {
-      compilerType,
-      isDev,
-      assetPrefix,
-      basePath,
-      outputHashSalt,
-      imgOptDangerouslyAllowAVIF,
-    } = options
+    const { compilerType, isDev, assetPrefix, basePath, outputHashSalt } =
+      options
     const context = this.rootContext
 
     // Prepend the hash salt to the content for filename hash computation, so
@@ -65,7 +58,6 @@ function nextImageLoader(this: any, content: Buffer) {
       basePath,
       outputPath,
       isDev,
-      imgOptDangerouslyAllowAVIF,
       tracing: imageLoaderSpan.traceChild.bind(imageLoaderSpan),
     })
 

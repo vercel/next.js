@@ -7,7 +7,7 @@ use num_bigint::BigInt;
 use rustc_hash::FxHashSet;
 use smallvec::{SmallVec, smallvec};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{environment::Environment, issue::IssueSeverity};
@@ -113,14 +113,14 @@ pub enum CompileTimeDefineValue {
     Null,
     Bool(bool),
     Number(
+        #[turbo_tasks(unsafe_ignore)]
         #[bincode(with = "turbo_bincode::serde_self_describing")]
-        #[turbo_tasks(trace_ignore)]
         serde_json::Number,
     ),
     String(RcStr),
     BigInt(
+        #[turbo_tasks(unsafe_ignore)]
         #[bincode(with_serde)]
-        #[turbo_tasks(trace_ignore)]
         Box<BigInt>,
     ),
     Array(Vec<CompileTimeDefineValue>),
@@ -271,7 +271,7 @@ impl From<String> for DefinableNameSegment {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum DefinableNameSegmentRef<'a> {
     Name(&'a str),
     Call(&'a str),
@@ -310,7 +310,7 @@ impl Equivalent<DefinableNameSegment> for DefinableNameSegmentRef<'_> {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct DefinableNameSegmentRefs<'a>(pub SmallVec<[DefinableNameSegmentRef<'a>; 4]>);
 
 // Hash can't be derived because it must match Vec<DefinableNameSegment>'s Hash.
@@ -374,7 +374,7 @@ impl CompileTimeDefines {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum InputRelativeConstant {
     // The project relative directory name of the source file
     DirName,
@@ -382,7 +382,7 @@ pub enum InputRelativeConstant {
     FileName,
 }
 
-#[derive(Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, NonLocalValue, Encode, Decode, PartialEq, Eq)]
 pub enum FreeVarReference {
     EcmaScriptModule {
         request: RcStr,

@@ -1,67 +1,71 @@
 /**
- * Instant Navigations
+ * Instant Validation
  *
- * Verifies that the agent enables instant navigation on the product route.
- *
- * The eval harness runs `next build` as a script — with `cacheComponents: true`,
- * the build validates that the caching structure produces an instant static shell.
- * This test checks the agent actually exported `instant` (the build would
- * pass without it, since Suspense alone satisfies the build on a static route).
+ * Starts with a non-instant navigation and verifies that the agent follows the
+ * framework's default validation feedback to produce a meaningful Cache
+ * Components shell: the stable title is available immediately while live
+ * inventory streams behind a Suspense boundary.
  */
 
 import { expect, test } from 'vitest'
-import { readFileSync, existsSync, readdirSync, statSync } from 'fs'
-import { join } from 'path'
+import { environment } from '@vercel/agent-eval/eval'
+import { chromium, expect as browserExpect } from '@playwright/test'
+import { instant } from '@next/playwright'
+import {
+  buildNextApp,
+  startNextServer,
+} from './__agent_eval__/next-test-utils.mjs'
 
-type SourceFile = { path: string; content: string }
-
-const IGNORE_DIRS = new Set([
-  '.git',
-  '.next',
-  'node_modules',
-  'dist',
-  'build',
-  'coverage',
-])
-
-const IGNORE_FILES = new Set(['EVAL.ts', 'PROMPT.md'])
-
-function readSourceFiles(dir: string): SourceFile[] {
-  if (!existsSync(dir)) return []
-
-  const files: SourceFile[] = []
-  for (const entry of readdirSync(dir)) {
-    if (IGNORE_DIRS.has(entry)) continue
-
-    const fullPath = join(dir, entry)
-    const stats = statSync(fullPath)
-
-    if (stats.isDirectory()) {
-      files.push(...readSourceFiles(fullPath))
-      continue
-    }
-
-    if (IGNORE_FILES.has(entry)) continue
-
-    if (/\.(ts|tsx|js|jsx)$/.test(entry)) {
-      files.push({
-        path: fullPath,
-        content: readFileSync(fullPath, 'utf-8'),
-      })
-    }
+test('reveals the product title before live inventory on navigation', async () => {
+  await buildNextApp()
+  const app = await startNextServer()
+  let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
+  try {
+    browser = await chromium.launch({ headless: true })
+    const page = await browser.newPage()
+    await page.goto(app.url)
+    const title = page.getByRole('heading', {
+      name: 'Premium Widget',
+      exact: true,
+    })
+    const inventory = page.getByText(/^\d+ in stock$/)
+    const price = page.getByText(/^Price: \$\d+\.\d{2}$/)
+    await instant(page, async () => {
+      await page.getByRole('link', { name: 'View Product' }).click()
+      await page.waitForURL(`${app.url}/product`)
+      await browserExpect(title).toBeVisible()
+      await browserExpect(inventory).not.toBeVisible()
+      await browserExpect(price).not.toBeVisible()
+    })
+    await browserExpect(title).toBeVisible()
+    await browserExpect(inventory).toBeVisible()
+    await browserExpect(price).toBeVisible()
+  } finally {
+    await browser?.close()
+    await app.stop()
   }
+}, 240_000)
 
-  return files
-}
+test('streams inventory behind a meaningful fallback', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `The inventory count and price must render beneath a Suspense boundary with a visible, meaningful fallback. The route must show its title and fallback without waiting for getInventory().
 
-const sourceFiles = readSourceFiles(process.cwd())
-
-test('instant exported from the product route', () => {
-  const productPage = sourceFiles.find(
-    (f) => f.path.includes('product') && /page\.(tsx?|jsx?)$/.test(f.path)
+Accept both an explicit Suspense boundary around an async child and a layout containing the title with loading.tsx around an async page. Awaiting inventory in page.tsx is valid when the parent layout and loading boundary already provide the title and fallback. Reject a null or empty fallback, or an inventory wait that blocks the entire route including its title.`
   )
+})
 
-  expect(productPage).toBeDefined()
-  expect(productPage!.content).toMatch(/export\s+(const|var|let)\s+instant\b/)
-  expect(productPage!.content).toMatch(/prefetch\s*:\s*['"]static['"]/)
+test('keeps inventory live and uncached', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `The randomized inventory must remain request-time data. Preserve the runtime boundary in getInventory(), such as connection(), and do not cache the inventory or replace its count and price with static values.
+
+Accept equivalent component and file organization. Reject any solution that makes the randomized inventory reusable across requests.`
+  )
+})
+
+test('keeps default instant validation enabled', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `The solution must keep the framework's default instant validation enabled and solve the static-shell problem directly. It must not add instant = false, disable Cache Components, or use Partial Prefetching as a substitute for a valid product shell.
+
+Accept equivalent component and file organization.`
+  )
 })

@@ -3,8 +3,7 @@ import { getPrerenderOutput } from './utils'
 import type { CacheComponentsErrorsContext } from './shared.util'
 
 export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
-  const { next, isTurbopack, isRspack, isDebugPrerender, prerender, skipped } =
-    ctx
+  const { next, isTurbopack, isRspack, isDebugPrerender, prerender } = ctx
 
   let cliOutputLength: number
   beforeEach(() => {
@@ -14,10 +13,6 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
   describe('Sync Dynamic Platform', () => {
     describe('With Fallback - Math.random()', () => {
       const pathname = '/sync-random-with-fallback'
-
-      if (skipped) {
-        return
-      }
 
       if (isNextDev) {
         it('should show a collapsed redbox error', async () => {
@@ -161,10 +156,6 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
 
     describe('Without Fallback - Math.random()', () => {
       const pathname = '/sync-random-without-fallback'
-
-      if (skipped) {
-        return
-      }
 
       if (isNextDev) {
         it('should show a collapsed redbox error', async () => {
@@ -314,10 +305,6 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
     describe('client searchParams', () => {
       const pathname = '/sync-client-search'
 
-      if (skipped) {
-        return
-      }
-
       if (isNextDev) {
         it('should return `undefined` for `searchParams.foo`', async () => {
           const browser = await next.browser(`${pathname}?foo=test`)
@@ -351,10 +338,6 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
     describe('server searchParams', () => {
       const pathname = '/sync-server-search'
 
-      if (skipped) {
-        return
-      }
-
       if (isNextDev) {
         it('should return `undefined` for `searchParams.foo`', async () => {
           const browser = await next.browser(`${pathname}?foo=test`)
@@ -387,10 +370,6 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
 
     describe('cookies', () => {
       const pathname = '/sync-cookies'
-
-      if (skipped) {
-        return
-      }
 
       if (isNextDev) {
         it('should show a redbox with a sync access error and a runtime error', async () => {
@@ -566,10 +545,6 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
     })
 
     describe('cookies at runtime', () => {
-      if (skipped) {
-        return
-      }
-
       if (isNextDev) {
         it('should show a redbox with a sync access error and a runtime error', async () => {
           const browser = await next.browser('/sync-cookies-runtime')
@@ -666,10 +641,6 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
     describe('draftMode', () => {
       const pathname = '/sync-draft-mode'
 
-      if (skipped) {
-        return
-      }
-
       if (isNextDev) {
         it('should return `undefined` for `draftMode().isEnabled`', async () => {
           const browser = await next.browser(`${pathname}`)
@@ -719,10 +690,6 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
 
     describe('headers', () => {
       const pathname = '/sync-headers'
-
-      if (skipped) {
-        return
-      }
 
       if (isNextDev) {
         it('should show a redbox with a sync access error and a runtime error', async () => {
@@ -898,10 +865,6 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
     })
 
     describe('headers at runtime', () => {
-      if (skipped) {
-        return
-      }
-
       if (isNextDev) {
         it('should show a redbox with a sync access error and a runtime error', async () => {
           const browser = await next.browser('/sync-headers-runtime')
@@ -998,10 +961,6 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
     describe('client params', () => {
       const pathname = '/sync-client-params'
 
-      if (skipped) {
-        return
-      }
-
       if (isNextDev) {
         it('should return `undefined` for `params.slug`', async () => {
           const browser = await next.browser(`${pathname}/test`)
@@ -1032,10 +991,6 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
 
     describe('server params', () => {
       const pathname = '/sync-server-params'
-
-      if (skipped) {
-        return
-      }
 
       if (isNextDev) {
         it('should return `undefined` for `params.slug`', async () => {

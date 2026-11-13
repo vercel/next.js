@@ -19,7 +19,7 @@ A **cell** is a storage location for data associated with a task. Cells provide:
 - **Dependency Tracking**: When a cell's contents are read (with `.await`), the reading task is marked as dependent on the cell.
 - **Persistence**: Cells owned by persisted tasks are serializable using the [`bincode`] crate.
 
-Cells are stored in arrays associated with the task that constructed them. A `Vc` can either point to a specific cell (this is a *"resolved"* cell), or the return value of a function (this is an *"unresolved"* cell).
+Cells are stored in arrays associated with the task that constructed them. A `Vc` can either point to a specific cell (this is a _"resolved"_ cell), or the return value of a function (this is an _"unresolved"_ cell).
 
 <figure style="display: flex; flex-direction: column; justify-content: center;">
 <img alt="A diagram showing where cells are stored in tasks" width="850px" src="https://h8dxkfmaphn8o0p3.public.blob.vercel-storage.com/rustdoc-images/RawVc.excalidraw.png">
@@ -77,9 +77,9 @@ Because cells are keyed by a combination of their type and construction order, *
 
 There are a couple of explicit "subtypes" of `Vc`. These can both be cheaply converted back into a `Vc`.
 
-- **[`ResolvedVc`]:** *(aka [`RawVcUnpacked::TaskCell`])* A reference to a cell constructed within a task, as part of a [`Vc::cell`] or `value_type.cell()` constructor. As the cell has been constructed at least once, the concrete type of the cell is known (allowing [downcasting][ResolvedVc::try_downcast]). This is stored as a combination of a task id, a type id, and a cell id.
+- **[`ResolvedVc`]:** _(aka [`RawVcUnpacked::TaskCell`])_ A reference to a cell constructed within a task, as part of a [`Vc::cell`] or `value_type.cell()` constructor. As the cell has been constructed at least once, the concrete type of the cell is known (allowing [downcasting][ResolvedVc::try_downcast]). This is stored as a combination of a task id, a type id, and a cell id.
 
-- **[`OperationVc`]:** *(aka [`RawVcUnpacked::TaskOutput`])* The synchronous return value of a [`turbo_tasks::function`]. Internally, this is stored using a task id. [`OperationVc`]s must first be [`connect`][crate::OperationVc::connect]ed before being read.
+- **[`OperationVc`]:** _(aka [`RawVcUnpacked::TaskOutput`])_ The synchronous return value of a [`turbo_tasks::function`]. Internally, this is stored using a task id. [`OperationVc`]s must first be [`connect`][crate::OperationVc::connect]ed before being read.
 
 [`ResolvedVc`] is almost always preferred over the more awkward [`OperationVc`] API, but [`OperationVc`] can be useful when dealing with [collectibles], when you need to [read the result of a function with strong consistency][crate::OperationVc::read_strongly_consistent], or with [`State`].
 
@@ -88,12 +88,12 @@ These many representations are stored internally using a type-erased [`RawVc`]. 
 This means that `Vc` often uses the same in-memory representation as a `ResolvedVc` or an `OperationVc`, but it does not expose the same methods (e.g. downcasting) because the exact memory representation is not statically defined.
 
 |                 | Representation                     | Equality        | Downcasting                | Strong Consistency     | Collectibles      | [Non-Local]  |
-|-----------------|------------------------------------|-----------------|----------------------------|------------------------|-------------------|--------------|
-| [`Vc`]          | [One of many][RawVc]               | ❌ [Broken][eq] | ⚠️  After resolution        | ❌ Eventual            | ❌ No             | ❌ [No][loc] |
+| --------------- | ---------------------------------- | --------------- | -------------------------- | ---------------------- | ----------------- | ------------ |
+| [`Vc`]          | [One of many][RawVc]               | ❌ [Broken][eq] | ⚠️ After resolution        | ❌ Eventual            | ❌ No             | ❌ [No][loc] |
 | [`ResolvedVc`]  | [Task Id + Type Id + Cell Id][rtc] | ✅ Yes\*        | ✅ [Yes, cheaply][resolve] | ❌ Eventual            | ❌ No             | ✅ Yes       |
-| [`OperationVc`] | [Task Id][rto]                     | ✅ Yes\*        | ⚠️  After resolution        | ✅ [Supported][strong] | ✅ [Yes][collect] | ✅ Yes       |
+| [`OperationVc`] | [Task Id][rto]                     | ✅ Yes\*        | ⚠️ After resolution        | ✅ [Supported][strong] | ✅ [Yes][collect] | ✅ Yes       |
 
-*\* see the type's documentation for details*
+_\* see the type's documentation for details_
 
 [`ResolvedVc`]: crate::ResolvedVc
 [`OperationVc`]: crate::OperationVc
@@ -108,11 +108,9 @@ This means that `Vc` often uses the same in-memory representation as a `Resolved
 [strong]: crate::OperationVc::read_strongly_consistent
 [collect]: crate::CollectiblesSource
 
-
 ## Equality & Hashing
 
 Because `Vc`s can be equivalent but have different representation, it's not recommended to compare `Vc`s by equality. Instead, you should convert a `Vc` to an explicit subtype first (likely [`ResolvedVc`]). Future versions of `Vc` may not implement [`Eq`], [`PartialEq`], or [`Hash`].
-
 
 ## Execution Model
 
@@ -130,7 +128,6 @@ Currently, all inconsistent tasks are polled to completion. Future versions of t
 
 [eventually consistent]: https://en.wikipedia.org/wiki/Eventual_consistency
 
-
 ## Optimization: Local Outputs
 
 In addition to the potentially-explicit "resolved" and "operation" representations of a `Vc`, there's another internal representation of a `Vc`, known as a "Local `Vc`", or [`RawVcUnpacked::LocalOutput`].
@@ -139,8 +136,6 @@ This is a special case of the synchronous return value of a [`turbo_tasks::funct
 
 We prevent potentially-local `Vc`s from escaping the lifetime of a function using the [`NonLocalValue`] marker trait alongside some fallback runtime checks. We do this to avoid some ergonomic challenges that would come from using lifetime annotations with `Vc`.
 
-
-[tracing]: crate::trace::TraceRawVcs
 [`ReadRef`]: crate::ReadRef
 [`turbo_tasks::function`]: crate::function
 [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics

@@ -14,23 +14,23 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, bail, ensure};
 use byteorder::{BE, ReadBytesExt};
 use fs_err::{self as fs, File};
-use lzzzz::lz4::decompress;
+use lz4_flex::block::decompress_into;
 use memmap2::Mmap;
 use turbo_persistence::{
-    BLOCK_HEADER_SIZE, MAX_INLINE_VALUE_SIZE, checksum_block,
+    BLOCK_HEADER_SIZE, Compression, MAX_INLINE_VALUE_SIZE, checksum_block,
     meta_file::MetaFile,
     mmap_helper::advise_mmap_for_persistence,
     read_current_version,
     sst_filter::SstFilter,
     static_sorted_file::{
-        BLOCK_TYPE_FIXED_KEY_NO_HASH, BLOCK_TYPE_FIXED_KEY_WITH_HASH, BLOCK_TYPE_KEY_NO_HASH,
-        BLOCK_TYPE_KEY_WITH_HASH, FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, KEY_BLOCK_ENTRY_TYPE_BLOB,
+        BlockOffsets, FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, FixedRegions, KEY_BLOCK_ENTRY_TYPE_BLOB,
         KEY_BLOCK_ENTRY_TYPE_INLINE_MIN, KEY_BLOCK_ENTRY_TYPE_KEY_DELETED,
         KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN, KEY_BLOCK_ENTRY_TYPE_MEDIUM,
-        KEY_BLOCK_ENTRY_TYPE_SMALL,
+        KEY_BLOCK_ENTRY_TYPE_SMALL, KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, KeyBlockLayout,
+        StaticSortedFileMetaData, key_block_table_stride,
     },
 };
 
@@ -133,6 +133,7 @@ impl SstStats {
 struct SstInfo {
     sequence_number: u32,
     block_count: u16,
+    compression: Compression,
 }
 
 /// Accumulates statistics for a single entry of the given type.
@@ -263,10 +264,15 @@ fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
 
     meta_seqs.sort_unstable();
 
+    #[cfg(feature = "mmap")]
+    let access_mode = turbo_persistence::AccessMode::Mmap;
+    #[cfg(not(feature = "mmap"))]
+    let access_mode = turbo_persistence::AccessMode::File;
     let mut meta_files: Vec<MetaFile> = meta_seqs
         .iter()
         .map(|&seq| {
-            MetaFile::open(db_path, seq).with_context(|| format!("Failed to open {seq:08}.meta"))
+            MetaFile::open(db_path, seq, None, access_mode)
+                .with_context(|| format!("Failed to open {seq:08}.meta"))
         })
         .collect::<Result<_>>()?;
 
@@ -283,6 +289,7 @@ fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
             family_sst_info.entry(family).or_default().push(SstInfo {
                 sequence_number: entry.sequence_number(),
                 block_count: entry.block_count(),
+                compression: meta.compression(),
             });
         }
     }
@@ -299,20 +306,21 @@ struct RawBlock {
 }
 
 /// Reads, checksums, and decompresses a single block from the mmap.
+///
+/// The block's range comes from `block_offsets`, which was validated against the file length by
+/// [`BlockOffsets::read`], so slicing `mmap` (the same file) cannot go out of bounds.
 fn read_block(
-    mmap: &Mmap,
-    block_offsets_start: usize,
+    mmap: &[u8],
+    block_offsets: &BlockOffsets,
     block_index: u16,
     sequence_number: u32,
+    compression: Compression,
 ) -> Result<RawBlock> {
-    let offset = block_offsets_start + block_index as usize * size_of::<u32>();
-
-    let block_start = if block_index == 0 {
-        0
-    } else {
-        (&mmap[offset - size_of::<u32>()..offset]).read_u32::<BE>()? as usize
-    };
-    let block_end = (&mmap[offset..offset + size_of::<u32>()]).read_u32::<BE>()? as usize;
+    let range = block_offsets.block_range(block_index).with_context(|| {
+        format!("Failed to locate block {block_index} of {sequence_number:08}.sst")
+    })?;
+    let block_start = range.start;
+    let block_end = range.end;
 
     let uncompressed_length =
         (&mmap[block_start..block_start + size_of::<u32>()]).read_u32::<BE>()?;
@@ -343,10 +351,17 @@ fn read_block(
 
     let data = if was_compressed {
         let mut buffer = vec![0u8; uncompressed_length as usize];
-        let bytes_written = decompress(compressed_data, &mut buffer)?;
-        assert_eq!(
-            bytes_written, uncompressed_length as usize,
-            "Decompressed length does not match expected"
+        let bytes_written = match compression {
+            Compression::Lz4 => {
+                decompress_into(compressed_data, &mut buffer).context("LZ4 decompression failed")?
+            }
+            Compression::Zstd3 => zstd::bulk::decompress_to_buffer(compressed_data, &mut buffer)
+                .context("zstd decompression failed")?,
+        };
+        ensure!(
+            bytes_written == uncompressed_length as usize,
+            "Decompressed length of block {block_index} in {sequence_number:08}.sst does not \
+             match its header ({bytes_written} bytes, expected {uncompressed_length})"
         );
         buffer.into_boxed_slice()
     } else {
@@ -384,18 +399,19 @@ fn parse_key_block_indices(index_block: &[u8]) -> HashSet<u16> {
 enum KeyBlockHeader {
     Variable {
         entry_count: u32,
+        /// Bytes per offset table entry, wider when the block hoists hashes into the table.
+        table_stride: usize,
     },
     Fixed {
         entry_count: u32,
         value_type: u8,
     },
     /// Fixed-size layout whose entries share a value size but not a value type, so each carries
-    /// its own type byte between its key and its value.
+    /// its own type byte ahead of its value in the block's tail region.
     FixedMixedType {
         entry_count: u32,
-        hash_len: usize,
-        key_size: usize,
-        stride: usize,
+        /// Where the block's search and tail regions sit, derived by the shared reader helper.
+        regions: FixedRegions,
     },
 }
 
@@ -404,36 +420,34 @@ fn parse_key_block_header(block: &[u8]) -> Result<KeyBlockHeader> {
     assert!(block.len() >= 4, "Key block too small");
     let block_type = block[0];
     let entry_count = ((block[1] as u32) << 16) | ((block[2] as u32) << 8) | (block[3] as u32);
-    match block_type {
-        BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
-            Ok(KeyBlockHeader::Variable { entry_count })
-        }
-        BLOCK_TYPE_FIXED_KEY_WITH_HASH | BLOCK_TYPE_FIXED_KEY_NO_HASH => {
-            assert!(block.len() >= 6, "Fixed key block header too small");
-            if block[5] == FIXED_KEY_BLOCK_MIXED_VALUE_TYPE {
-                assert!(block.len() >= 7, "Mixed-type key block header too small");
-                let hash_len = if block_type == BLOCK_TYPE_FIXED_KEY_WITH_HASH {
-                    8
-                } else {
-                    0
-                };
-                let key_size = block[4] as usize;
-                let val_size = block[6] as usize;
-                Ok(KeyBlockHeader::FixedMixedType {
-                    entry_count,
-                    hash_len,
-                    key_size,
-                    // +1 for the per-entry type byte.
-                    stride: hash_len + key_size + val_size + 1,
-                })
-            } else {
-                Ok(KeyBlockHeader::Fixed {
-                    entry_count,
-                    value_type: block[5],
-                })
-            }
-        }
-        _ => bail!("Invalid key block type: {block_type}"),
+    let Some((layout, fixed)) = KeyBlockLayout::from_block_type(block_type) else {
+        bail!("Invalid key block type: {block_type}");
+    };
+    if !fixed {
+        return Ok(KeyBlockHeader::Variable {
+            entry_count,
+            table_stride: key_block_table_stride(layout.hash_len()),
+        });
+    }
+    assert!(block.len() >= 6, "Fixed key block header too small");
+    if block[5] == FIXED_KEY_BLOCK_MIXED_VALUE_TYPE {
+        assert!(block.len() >= 7, "Mixed-type key block header too small");
+        Ok(KeyBlockHeader::FixedMixedType {
+            entry_count,
+            // `FixedRegions` owns the search/tail split; `val_size` includes the per-entry type
+            // byte, which the header stores separately from the value size.
+            regions: FixedRegions::new(
+                entry_count as usize,
+                layout,
+                block[4] as usize,
+                block[6] as usize + 1,
+            ),
+        })
+    } else {
+        Ok(KeyBlockHeader::Fixed {
+            entry_count,
+            value_type: block[5],
+        })
     }
 }
 
@@ -447,36 +461,54 @@ fn iter_key_block_entry_types(
     block: &[u8],
 ) -> impl Iterator<Item = u8> + '_ {
     let entry_count = match header {
-        KeyBlockHeader::Variable { entry_count }
+        KeyBlockHeader::Variable { entry_count, .. }
         | KeyBlockHeader::Fixed { entry_count, .. }
         | KeyBlockHeader::FixedMixedType { entry_count, .. } => entry_count,
     };
     (0..entry_count).map(move |i| match header {
-        // Variable block: offset table starts at byte 4 (after 1B type + 3B count),
-        // each entry is 4 bytes, first byte is the entry type.
-        KeyBlockHeader::Variable { .. } => block[KEY_BLOCK_HEADER_SIZE + i as usize * 4],
+        // Variable block: offset table starts at byte 4 (after 1B type + 3B count). The type byte
+        // leads the trailing type/position word, which follows any hoisted hash.
+        KeyBlockHeader::Variable { table_stride, .. } => {
+            block[KEY_BLOCK_HEADER_SIZE
+                + i as usize * table_stride
+                + (table_stride - KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH)]
+        }
         KeyBlockHeader::Fixed { value_type, .. } => value_type,
-        KeyBlockHeader::FixedMixedType {
-            hash_len,
-            key_size,
-            stride,
-            ..
-        } => {
-            // Entry data starts after the 7-byte mixed-type header; the type byte sits between
-            // the entry's key and its value.
-            block[7 + i as usize * stride + hash_len + key_size]
+        KeyBlockHeader::FixedMixedType { regions, .. } => {
+            // Entry data starts after the 7-byte mixed-type header; within the tail region the
+            // type byte precedes the value, after the key for `HashThenKey` blocks.
+            block[7 + regions.total_len(i as usize) + regions.tail_key_size()]
         }
     })
 }
 
 /// Analyze an SST file and return entry type statistics
 fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
+    let compression = info.compression;
     let filename = format!("{:08}.sst", info.sequence_number);
     let path = db_path.join(&filename);
 
     let file = File::open(&path)?;
     let file_size = file.metadata()?.len();
+    let file_len: usize = file_size.try_into()?;
+    let meta = StaticSortedFileMetaData {
+        sequence_number: info.sequence_number,
+        block_count: info.block_count,
+    };
+    // The same validation the database runs when it opens an SST: the offsets must form valid
+    // blocks that end before the block directory.
+    let block_offsets = BlockOffsets::read(&file, &meta, file_len)?;
+    // `BlockOffsets::read` accepts an empty directory; there must be at least the index block.
+    ensure!(
+        info.block_count > 0,
+        "{filename} has no blocks, so no index block"
+    );
     let mmap = unsafe { Mmap::map(file.file())? };
+    ensure!(
+        mmap.len() == file_len,
+        "{filename} changed size while being opened ({file_len} -> {} bytes)",
+        mmap.len()
+    );
     advise_mmap_for_persistence(&mmap)?;
 
     let mut stats = SstStats {
@@ -485,17 +517,16 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
         ..Default::default()
     };
 
-    let block_offsets_start = mmap.len() - (info.block_count as usize * size_of::<u32>());
-
     // Read the index block (always the last block) first to learn which blocks are key blocks.
     // Without this, we'd have to guess block types from their first byte, which is wrong for
     // value blocks (they have no type header and their data can start with any byte).
     let index_block_index = info.block_count - 1;
     let index_raw = read_block(
         &mmap,
-        block_offsets_start,
+        &block_offsets,
         index_block_index,
         info.sequence_number,
+        compression,
     )?;
     let key_block_indices = parse_key_block_indices(&index_raw.data);
 
@@ -509,9 +540,10 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
     for block_index in 0..index_block_index {
         let raw = match read_block(
             &mmap,
-            block_offsets_start,
+            &block_offsets,
             block_index,
             info.sequence_number,
+            compression,
         ) {
             Ok(raw) => raw,
             Err(e) => {
@@ -930,7 +962,7 @@ fn main() -> Result<()> {
         db_path.display()
     );
 
-    // Analyze and report by family
+    // Analyze and report by family.
     for (family, sst_list) in &family_sst_info {
         let mut family_stats = SstStats::default();
         let mut sst_stats_list: Vec<(u32, SstStats)> = Vec::new();
@@ -966,4 +998,123 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Builds an SST from raw block bytes (header included) followed by their end offsets.
+    fn sst_bytes(blocks: &[Vec<u8>]) -> Vec<u8> {
+        let mut bytes = blocks.concat();
+        let mut end = 0;
+        for block in blocks {
+            end += block.len() as u32;
+            bytes.extend_from_slice(&end.to_be_bytes());
+        }
+        bytes
+    }
+
+    fn uncompressed_block(data: &[u8]) -> Vec<u8> {
+        let mut block = 0_u32.to_be_bytes().to_vec();
+        block.extend_from_slice(&checksum_block(data).to_be_bytes());
+        block.extend_from_slice(data);
+        block
+    }
+
+    /// Writes `bytes` as `00000001.sst` and returns its directory, which must outlive any use.
+    fn write_sst(bytes: &[u8]) -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("00000001.sst"), bytes).unwrap();
+        dir
+    }
+
+    /// Runs the full analysis on `bytes` and returns its error message.
+    fn analyze_err(bytes: &[u8], block_count: u16) -> String {
+        let dir = write_sst(bytes);
+        let info = SstInfo {
+            sequence_number: 1,
+            block_count,
+            compression: Compression::Lz4,
+        };
+        let Err(err) = analyze_sst_file(dir.path(), &info) else {
+            panic!("analyze_sst_file accepted a corrupt SST");
+        };
+        format!("{err:#}")
+    }
+
+    /// Opens `bytes` the way `analyze_sst_file` does and reads one block.
+    fn read(bytes: &[u8], block_count: u16, block_index: u16) -> Result<RawBlock> {
+        let dir = write_sst(bytes);
+        let file = File::open(dir.path().join("00000001.sst")).unwrap();
+        let meta = StaticSortedFileMetaData {
+            sequence_number: 1,
+            block_count,
+        };
+        let block_offsets = BlockOffsets::read(&file, &meta, bytes.len()).unwrap();
+        read_block(bytes, &block_offsets, block_index, 1, Compression::Lz4)
+    }
+
+    #[test]
+    fn read_block_reads_valid_blocks() {
+        let bytes = sst_bytes(&[uncompressed_block(b"value"), uncompressed_block(b"\0index")]);
+        let raw = read(&bytes, 2, 0).unwrap();
+        assert_eq!(&*raw.data, b"value");
+    }
+
+    #[test]
+    fn read_block_rejects_out_of_range_block_index() {
+        let bytes = sst_bytes(&[uncompressed_block(b"index")]);
+        let Err(err) = read(&bytes, 1, 1) else {
+            panic!("read_block accepted block 1 of 1");
+        };
+        let message = format!("{err:#}");
+        assert!(message.contains("out of bounds"), "{message}");
+    }
+
+    #[test]
+    fn analyze_rejects_file_shorter_than_block_directory() {
+        let message = analyze_err(&[0; 4], 2);
+        assert!(message.contains("too short"), "{message}");
+    }
+
+    #[test]
+    fn analyze_rejects_zero_blocks() {
+        let message = analyze_err(&[], 0);
+        assert!(message.contains("no blocks"), "{message}");
+    }
+
+    #[test]
+    fn analyze_rejects_corrupt_value_block_offset() {
+        let mut bytes = sst_bytes(&[uncompressed_block(b"value"), uncompressed_block(b"index")]);
+        let directory_start = bytes.len() - 2 * size_of::<u32>();
+        bytes[directory_start..directory_start + 4].copy_from_slice(&u32::MAX.to_be_bytes());
+        let message = analyze_err(&bytes, 2);
+        assert!(message.contains("shorter than its"), "{message}");
+    }
+
+    #[test]
+    fn analyze_rejects_corrupt_index_block_offset() {
+        let mut bytes = sst_bytes(&[uncompressed_block(b"value"), uncompressed_block(b"index")]);
+        let last_entry = bytes.len() - size_of::<u32>();
+        // Ends inside the block directory.
+        bytes[last_entry..].copy_from_slice(&(last_entry as u32 + 1).to_be_bytes());
+        let message = analyze_err(&bytes, 2);
+        assert!(
+            message.contains("past the start of its block-offset table"),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn analyze_rejects_decompressed_length_mismatch() {
+        let data = b"compressible compressible compressible";
+        let compressed = lz4_flex::block::compress(data);
+        // Claim one more byte than the compressed data decodes to.
+        let mut block = (data.len() as u32 + 1).to_be_bytes().to_vec();
+        block.extend_from_slice(&checksum_block(&compressed).to_be_bytes());
+        block.extend_from_slice(&compressed);
+        let message = analyze_err(&sst_bytes(&[block]), 1);
+        assert!(message.contains("Decompressed length"), "{message}");
+    }
 }

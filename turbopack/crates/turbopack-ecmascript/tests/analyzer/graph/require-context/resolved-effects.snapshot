@@ -1,4 +1,4 @@
-0 -> 2 free var = FreeVar(require)
+1 -> 2 free var = FreeVar(require)
 
 0 -> 3 member call = require*0*["context"]("./test", false, /\.test\.js$/)
 - *0* require: The require method from CommonJS
@@ -9,7 +9,7 @@
 0 -> 6 member call = require.context(...)*0*["resolve"]("./a")
 - *0* require.context(...): The require.context(...) method from webpack: https://webpack.js.org/api/module-methods/#requirecontext
 
-0 -> 9 member call = ???*0*["keys"]()
+7 -> 9 member call = ???*0*["keys"]()
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 

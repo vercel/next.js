@@ -33,13 +33,20 @@ function resolveAbsolutePath(modulePath?: string): string {
 Context.prototype.P = resolveAbsolutePath
 
 /**
- * Returns an absolute `file://` URL for the given module path.
+ * Returns an absolute `file://` URL for the given module path, which is
+ * relative to the project root or the named `root`.
  *
  * Uses `url.pathToFileURL` so that the resulting URL is a valid file URI on
  * all platforms (forward slashes on Windows, drive letters handled
  * correctly, path segments URL-encoded).
+ *
+ * The location of a named `root` isn't known at runtime (the output may have
+ * been moved away from the sources), so this returns a placeholder URL for it.
  */
-function resolveFileUrl(modulePath?: string): string {
+function resolveFileUrl(modulePath: string, root?: string): string {
+  if (root !== undefined) {
+    return placeholderFileUrl(modulePath, root)
+  }
   return require('url').pathToFileURL(resolveAbsolutePath(modulePath)).href
 }
 Context.prototype.F = resolveFileUrl

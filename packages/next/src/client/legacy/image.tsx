@@ -4,23 +4,18 @@ import React, {
   useRef,
   useEffect,
   useCallback,
-  useContext,
-  useMemo,
   useState,
   type JSX,
 } from 'react'
 import * as ReactDOM from 'react-dom'
 import Head from '../../shared/lib/head'
-import {
-  imageConfigDefault,
-  VALID_LOADERS,
-} from '../../shared/lib/image-config'
+import { VALID_LOADERS } from '../../shared/lib/image-config'
 import type {
-  ImageConfigComplete,
+  PreparedImageConfig,
   LoaderValue,
 } from '../../shared/lib/image-config'
 import { useIntersection } from '../use-intersection'
-import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
+import { useImageConfig } from '../use-image-config'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
 import { findClosestQuality } from '../../shared/lib/find-closest-quality'
@@ -31,7 +26,6 @@ function normalizeSrc(src: string): string {
 }
 
 const supportsFloat = typeof ReactDOM.preload === 'function'
-const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
   string,
@@ -47,7 +41,7 @@ if (typeof window === 'undefined') {
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
-type ImageConfig = ImageConfigComplete & { allSizes: number[] }
+type ImageConfig = PreparedImageConfig
 export type ImageLoader = (resolverProps: ImageLoaderProps) => string
 
 export type ImageLoaderProps = {
@@ -223,7 +217,13 @@ function defaultLoader({
         // We use dynamic require because this should only error in development
         const { hasRemoteMatch } =
           require('../../shared/lib/match-remote-pattern') as typeof import('../../shared/lib/match-remote-pattern')
-        if (!hasRemoteMatch(config.domains, config.remotePatterns, parsedSrc)) {
+        if (
+          !hasRemoteMatch(
+            config.domains ?? [],
+            config.remotePatterns ?? [],
+            parsedSrc
+          )
+        ) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
               `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
@@ -701,26 +701,7 @@ export default function Image({
   blurDataURL,
   ...all
 }: ImageProps) {
-  const configContext = useContext(ImageConfigContext)
-  const config: ImageConfig = useMemo(() => {
-    const c = configEnv || configContext || imageConfigDefault
-    const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
-    const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-    const qualities = c.qualities?.sort((a, b) => a - b)
-    return {
-      ...c,
-      allSizes,
-      deviceSizes,
-      qualities, // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
-      // security sensitive configs like `localPatterns`, which is needed
-      // during the server render to ensure it's validated. Therefore use
-      // configContext, which holds the config from the server for validation.
-      localPatterns:
-        typeof window === 'undefined'
-          ? configContext?.localPatterns
-          : c.localPatterns,
-    }
-  }, [configContext])
+  const config: ImageConfig = useImageConfig()
 
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
@@ -748,7 +729,6 @@ export default function Image({
   }
 
   let staticSrc = ''
-  let isStaticAvif = false
   if (isStaticImport(src)) {
     const staticImageData = isStaticRequire(src) ? src.default : src
 
@@ -761,7 +741,6 @@ export default function Image({
     }
     blurDataURL = blurDataURL || staticImageData.blurDataURL
     staticSrc = staticImageData.src
-    isStaticAvif = /\.avif(?:\?|$)/i.test(staticSrc)
     if (!layout || layout !== 'fill') {
       height = height || staticImageData.height
       width = width || staticImageData.width
@@ -775,12 +754,6 @@ export default function Image({
     }
   }
   src = typeof src === 'string' ? src : staticSrc
-
-  // Generating a blurDataURL requires decoding the source image, so static AVIF
-  // imports do not receive one while AVIF input optimization is disabled.
-  if (isStaticAvif && placeholder === 'blur' && !blurDataURL) {
-    placeholder = 'empty'
-  }
 
   warnOnce(
     `Image with src "${src}" is using next/legacy/image which is deprecated and will be removed in a future version of Next.js.`
@@ -916,7 +889,7 @@ export default function Image({
           )
         }
         if (!blurDataURL) {
-          const VALID_BLUR_EXT = ['jpeg', 'png', 'webp'] // should match next-image-loader
+          const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
 
           throw new Error(
             `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.

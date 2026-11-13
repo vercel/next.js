@@ -76,12 +76,9 @@ export class NextStartInstance extends NextInstance {
     })
   }
 
-  // When a previous test attempt was interrupted (typically by exceeding the
-  // per-test timeout) while `next build` was still running, the build process
-  // is still tracked here. Since `jest.retryTimes` re-runs the test body in the
-  // same process, stop the orphaned build so the caller can continue instead of
-  // failing the retry. If a server is genuinely running, throw
-  // `serverRunningError` instead.
+  // Stop a build left running after a test exceeded its timeout so subsequent
+  // tests can start or build the fixture. Throw `serverRunningError` if the
+  // process is serving requests instead.
   private async stopLeftoverBuildOrThrow(serverRunningError: string) {
     if (!this.childProcess) {
       return
@@ -103,6 +100,7 @@ export class NextStartInstance extends NextInstance {
     await this.stopLeftoverBuildOrThrow('next already started')
 
     this._cliOutput = ''
+    this.rustPanicCheckedLength = 0
     const spawnOpts = this.getSpawnOpts(options.env)
 
     let startArgs = ['pnpm', 'next', 'start']
@@ -126,11 +124,13 @@ export class NextStartInstance extends NextInstance {
       this._phase = 'building'
       const buildArgs = this.getBuildArgs()
       console.log('running', shellQuote(buildArgs))
-      await new Promise<void>((resolve, reject) => {
+      const buildPromise = new Promise<void>((resolve, reject) => {
         try {
           this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
           this.handleStdio(this.childProcess)
-          this.childProcess.on('exit', (code, signal) => {
+          // Unlike `exit`, `close` fires after the stdio streams have closed.
+          // Wait for it so trailing build output is not lost before starting.
+          this.childProcess.on('close', (code, signal) => {
             this.childProcess = undefined
             if (code || signal)
               reject(
@@ -158,6 +158,14 @@ export class NextStartInstance extends NextInstance {
           setTimeout(() => process.exit(1), 0)
         }
       })
+      try {
+        await buildPromise
+      } catch (err) {
+        // Prefer reporting a panic over the generic build failure.
+        this.throwOnRustPanics('next build', err)
+        throw err
+      }
+      this.throwOnRustPanics('next build')
 
       this._buildId = (
         await fs
@@ -266,24 +274,6 @@ export class NextStartInstance extends NextInstance {
     return buildArgs
   }
 
-  private getSpawnOpts(
-    env?: Record<string, string>
-  ): import('child_process').SpawnOptions {
-    return {
-      cwd: this.testDir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false,
-      env: {
-        ...process.env,
-        ...this.env,
-        ...env,
-        NODE_ENV: this.env.NODE_ENV || ('' as any),
-        PORT: this.forcedPort ?? '0',
-        __NEXT_TEST_MODE: 'e2e',
-      },
-    }
-  }
-
   public async build(
     options: { env?: Record<string, string>; args?: string[] } = {}
   ) {
@@ -305,7 +295,9 @@ export class NextStartInstance extends NextInstance {
       this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
       this.handleStdio(this.childProcess)
 
-      this.childProcess.on('exit', (code, signal) => {
+      // Unlike `exit`, `close` fires after the stdio streams have closed. Wait
+      // for it before snapshotting cliOutput so trailing diagnostics are not lost.
+      this.childProcess.on('close', (code, signal) => {
         this.childProcess = undefined
         resolve({
           exitCode: signal || code,
@@ -313,6 +305,7 @@ export class NextStartInstance extends NextInstance {
         })
       })
     })
+    this.throwOnRustPanics('next build')
 
     this._buildId = (
       await fs

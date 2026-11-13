@@ -2,15 +2,13 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { getOutputLogJson } from '../_testing/utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('on-request-error - basic', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   const outputLogPath = 'output-log.json'
 
@@ -18,10 +16,12 @@ describe('on-request-error - basic', () => {
     errorMessage,
     url,
     renderSource,
+    requestHeaders,
   }: {
     errorMessage: string
     url: string
     renderSource: string | undefined
+    requestHeaders?: Record<string, string>
   }) {
     // Assert the instrumentation is called
     await retry(async () => {
@@ -45,7 +45,10 @@ describe('on-request-error - basic', () => {
       count: 1,
       payload: {
         message: errorMessage,
-        request: { method: 'GET', headers: { accept: '*/*' } },
+        request: {
+          method: 'GET',
+          headers: { accept: '*/*', ...requestHeaders },
+        },
         ...(renderSource ? { context: { renderSource } } : undefined),
       },
     })
@@ -57,20 +60,26 @@ describe('on-request-error - basic', () => {
 
   describe('app router', () => {
     it('should catch server component page error in node runtime', async () => {
-      await next.fetch('/server-page')
+      await next.fetch('/server-page?source=node', {
+        headers: { 'x-instrumentation-test': 'node' },
+      })
       await validateErrorRecord({
         errorMessage: 'server-page-node-error',
-        url: '/server-page',
+        url: '/server-page?source=node',
         renderSource: 'react-server-components',
+        requestHeaders: { 'x-instrumentation-test': 'node' },
       })
     })
 
     it('should catch server component page error in edge runtime', async () => {
-      await next.fetch('/server-page/edge')
+      await next.fetch('/server-page/edge?source=edge', {
+        headers: { 'x-instrumentation-test': 'edge' },
+      })
       await validateErrorRecord({
         errorMessage: 'server-page-edge-error',
-        url: '/server-page/edge',
+        url: '/server-page/edge?source=edge',
         renderSource: 'react-server-components',
+        requestHeaders: { 'x-instrumentation-test': 'edge' },
       })
     })
 

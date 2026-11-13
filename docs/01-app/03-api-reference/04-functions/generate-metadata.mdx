@@ -111,7 +111,7 @@ For type completion of `params` and `searchParams`, you can type the first argum
 > - You cannot export both the `metadata` object and `generateMetadata` function from the same route segment.
 > - `fetch` requests inside `generateMetadata` are automatically [memoized](/docs/app/glossary#memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components.
 > - React [`cache` can be used](https://react.dev/reference/react/cache) if `fetch` is unavailable.
-> - [File-based metadata](/docs/app/api-reference/file-conventions/metadata) has the higher priority and will override the `metadata` object and `generateMetadata` function.
+> - A page's explicit `openGraph.images` or `twitter.images` property from `metadata` or `generateMetadata` overrides the corresponding [file-based images](/docs/app/api-reference/file-conventions/metadata/opengraph-image#precedence-with-metadata-exports) in the same segment or inherited from parent segments.
 
 ## Why `generateMetadata` is Server Component only
 
@@ -196,15 +196,17 @@ export function InteractiveComponent() {
 > - `searchParams` are only available in `page.js` segments.
 > - The [`redirect()`](/docs/app/api-reference/functions/redirect) and [`notFound()`](/docs/app/api-reference/functions/not-found) Next.js methods can also be used inside `generateMetadata`.
 
-### Metadata Fields
+## Metadata Fields
 
-The following fields are supported:
+The same fields are available to the static `metadata` object and the object returned by `generateMetadata`. Fields are optional and can be combined as needed.
 
-#### `title`
+Configure [`themeColor`, `colorScheme`, and viewport settings](/docs/app/api-reference/functions/generate-viewport) through `viewport` or `generateViewport`. The corresponding `metadata` fields are deprecated.
+
+### `title`
 
 The `title` attribute is used to set the title of the document. It can be defined as a simple [string](#string) or an optional [template object](#template).
 
-##### String
+#### String
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -216,7 +218,7 @@ export const metadata = {
 <title>Next.js</title>
 ```
 
-##### `default`
+#### `default`
 
 `title.default` can be used to provide a **fallback title** to child route segments that don't define a `title`.
 
@@ -238,7 +240,7 @@ export const metadata: Metadata = {}
 // Output: <title>Acme</title>
 ```
 
-##### `template`
+#### `template`
 
 `title.template` can be used to add a prefix or a suffix to `titles` defined in **child** route segments.
 
@@ -288,7 +290,7 @@ export const metadata = {
 >   - `title.template` defined in `page.js` has no effect because a page is always the terminating segment (it doesn't have any children route segments).
 > - `title.template` has **no effect** if a route has not defined a `title` or `title.default`.
 
-##### `absolute`
+#### `absolute`
 
 `title.absolute` can be used to provide a title that **ignores** `title.template` set in parent segments.
 
@@ -358,6 +360,8 @@ export const metadata = {
 
 ### Other fields
 
+You can also identify the application, authors, and keywords for a page using [document metadata](https://html.spec.whatwg.org/multipage/semantics.html#standard-metadata-names):
+
 ```jsx filename="layout.js | page.js"
 export const metadata = {
   generator: 'Next.js',
@@ -367,11 +371,6 @@ export const metadata = {
   authors: [{ name: 'Seb' }, { name: 'Josh', url: 'https://nextjs.org' }],
   creator: 'Jiachi Liu',
   publisher: 'Sebastian Markbåge',
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
 }
 ```
 
@@ -385,12 +384,20 @@ export const metadata = {
 <meta name="referrer" content="origin-when-cross-origin" />
 <meta name="creator" content="Jiachi Liu" />
 <meta name="publisher" content="Sebastian Markbåge" />
-<meta name="format-detection" content="telephone=no, address=no, email=no" />
 ```
 
-#### `metadataBase`
+| Field                                                  | Accepted input                                                                                                   |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `applicationName`, `generator`, `creator`, `publisher` | `string`                                                                                                         |
+| `authors`                                              | `{ name?: string, url?: string \| URL }` or an array of these objects                                            |
+| `keywords`                                             | `string` or `string[]`; arrays are joined with commas                                                            |
+| `referrer`                                             | A supported [referrer policy](https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/meta/name/referrer) |
 
-`metadataBase` is a convenience option to set a base URL prefix for `metadata` fields that require a fully qualified URL.
+`referrer` accepts `'no-referrer'`, `'origin'`, `'no-referrer-when-downgrade'`, `'origin-when-cross-origin'`, `'same-origin'`, `'strict-origin'`, or `'strict-origin-when-cross-origin'`.
+
+### `metadataBase`
+
+`metadataBase` accepts an absolute URL string or a `URL` instance. It sets a base URL prefix for `metadata` fields that require a fully qualified URL.
 
 - `metadataBase` allows URL-based `metadata` fields defined in the **current route segment and below** to use a **relative path** instead of an otherwise required absolute URL.
 - The field's relative path will be composed with `metadataBase` to form a fully qualified URL.
@@ -422,10 +429,9 @@ export const metadata = {
 >
 > - `metadataBase` is typically set in root `app/layout.js` to apply to URL-based `metadata` fields across all routes.
 > - When `generateMetadata` uses `'use cache'`, its return value must be serializable. `URL` instances are not supported by Cache Functions, so values such as `metadataBase` should be returned as strings (for example, `url.toString()`). See [`use cache` serialization requirements](/docs/app/api-reference/directives/use-cache#serialization).
-> - All URL-based `metadata` fields that require absolute URLs can be configured with a `metadataBase` option.
 > - `metadataBase` can contain a subdomain e.g. `https://app.acme.com` or base path e.g. `https://acme.com/start/from/here`
 > - If a `metadata` field provides an absolute URL, `metadataBase` will be ignored.
-> - Using a relative path in a URL-based `metadata` field without configuring a `metadataBase` will cause a build error.
+> - Set `metadataBase` explicitly when using relative URLs. Without it, social images use a fallback origin and can produce a warning; other URL fields can remain relative.
 > - Next.js will normalize duplicate slashes between `metadataBase` (e.g. `https://acme.com/`) and a relative field (e.g. `/path`) to a single slash (e.g. `https://acme.com/path`)
 
 #### URL Composition
@@ -463,7 +469,27 @@ Any `metadata` fields that inherit the above `metadataBase` and set their own va
 | `../payments`                    | `https://acme.com/payments`      |
 | `https://beta.acme.com/payments` | `https://beta.acme.com/payments` |
 
+### `formatDetection`
+
+`formatDetection` accepts boolean `telephone`, `date`, `address`, `email`, and `url` fields. Set a field to `false` to add its `key=no` directive; `true` and omitted fields add no directive. See Apple's [format-detection reference](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html) for telephone detection behavior.
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+}
+```
+
+```html filename="<head> output" hideLineNumbers
+<meta name="format-detection" content="telephone=no, address=no, email=no" />
+```
+
 ### `openGraph`
+
+`openGraph` configures [Open Graph metadata](https://ogp.me/) for a page. Image URLs can be absolute, or relative when [`metadataBase`](#metadatabase) is set. Use absolute URLs for audio and video.
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -471,34 +497,8 @@ export const metadata = {
     title: 'Next.js',
     description: 'The React Framework for the Web',
     url: 'https://nextjs.org',
-    siteName: 'Next.js',
-    images: [
-      {
-        url: 'https://nextjs.org/og.png', // Must be an absolute URL
-        width: 800,
-        height: 600,
-      },
-      {
-        url: 'https://nextjs.org/og-alt.png', // Must be an absolute URL
-        width: 1800,
-        height: 1600,
-        alt: 'My custom alt',
-      },
-    ],
-    videos: [
-      {
-        url: 'https://nextjs.org/video.mp4', // Must be an absolute URL
-        width: 800,
-        height: 600,
-      },
-    ],
-    audio: [
-      {
-        url: 'https://nextjs.org/audio.mp3', // Must be an absolute URL
-      },
-    ],
-    locale: 'en_US',
     type: 'website',
+    images: [{ url: 'https://nextjs.org/og.png', width: 800, height: 600 }],
   },
 }
 ```
@@ -506,49 +506,95 @@ export const metadata = {
 ```html filename="<head> output" hideLineNumbers
 <meta property="og:title" content="Next.js" />
 <meta property="og:description" content="The React Framework for the Web" />
-<meta property="og:url" content="https://nextjs.org/" />
-<meta property="og:site_name" content="Next.js" />
-<meta property="og:locale" content="en_US" />
+<meta property="og:url" content="https://nextjs.org" />
+<meta property="og:type" content="website" />
 <meta property="og:image" content="https://nextjs.org/og.png" />
 <meta property="og:image:width" content="800" />
 <meta property="og:image:height" content="600" />
-<meta property="og:image" content="https://nextjs.org/og-alt.png" />
-<meta property="og:image:width" content="1800" />
-<meta property="og:image:height" content="1600" />
-<meta property="og:image:alt" content="My custom alt" />
-<meta property="og:video" content="https://nextjs.org/video.mp4" />
-<meta property="og:video:width" content="800" />
-<meta property="og:video:height" content="600" />
-<meta property="og:audio" content="https://nextjs.org/audio.mp3" />
-<meta property="og:type" content="website" />
 ```
+
+#### Open Graph fields
+
+All Open Graph types accept these fields. See the [Open Graph protocol](https://ogp.me/#metadata) for property meanings and requirements.
+
+| Field                                                     | Accepted input                                                   |
+| --------------------------------------------------------- | ---------------------------------------------------------------- |
+| `title`                                                   | `string` or a [title object](#title)                             |
+| `description`, `siteName`, `locale`, `countryName`        | `string`                                                         |
+| `url`                                                     | `string` or `URL`                                                |
+| `alternateLocale`, `emails`, `phoneNumbers`, `faxNumbers` | `string` or `string[]`                                           |
+| `determiner`                                              | `'a'`, `'an'`, `'the'`, `'auto'`, or `''` (omits the tag)        |
+| `ttl`                                                     | `number`                                                         |
+| `images`, `audio`, `videos`                               | URL string, `URL`, media descriptor, or an array of these values |
+
+#### Open Graph media descriptors
+
+Media descriptors accept a required `url` and optional [structured properties](https://ogp.me/#structured):
+
+| Field              | Type                 | Applies to           |
+| ------------------ | -------------------- | -------------------- |
+| `url`, `secureUrl` | `string` or `URL`    | Images, audio, video |
+| `type`             | `string`             | Images, audio, video |
+| `width`, `height`  | `string` or `number` | Images, video        |
+| `alt`              | `string`             | Images               |
+
+Relative image URLs are resolved with [`metadataBase`](#metadatabase). Use absolute URLs for audio and video.
+
+#### Open Graph types
+
+Set `type` to add fields for an [Open Graph object type](https://ogp.me/#types). For example:
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
   openGraph: {
-    title: 'Next.js',
-    description: 'The React Framework for the Web',
     type: 'article',
-    publishedTime: '2023-01-01T00:00:00.000Z',
-    authors: ['Seb', 'Josh'],
+    publishedTime: '2026-01-01T00:00:00.000Z',
+    authors: ['https://example.com/authors/ada'],
   },
 }
 ```
 
 ```html filename="<head> output" hideLineNumbers
-<meta property="og:title" content="Next.js" />
-<meta property="og:description" content="The React Framework for the Web" />
 <meta property="og:type" content="article" />
-<meta property="article:published_time" content="2023-01-01T00:00:00.000Z" />
-<meta property="article:author" content="Seb" />
-<meta property="article:author" content="Josh" />
+<meta property="article:published_time" content="2026-01-01T00:00:00.000Z" />
+<meta property="article:author" content="https://example.com/authors/ada" />
 ```
 
-> **Good to know**:
->
-> - It may be more convenient to use the [file-based Metadata API](/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif) for Open Graph images. Rather than having to sync the config export with actual files, the file-based API will automatically generate the correct metadata for you.
+> **Good to know**: Use the [file-based Metadata API](/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif) to generate Open Graph image metadata from image files.
+
+The following table lists the fields Next.js supports for each `type`. All types also accept the [common Open Graph fields](#open-graph-fields).
+
+| `type`                  | Additional fields                                                               |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| `'website'`             | None                                                                            |
+| `'article'`             | `publishedTime`, `modifiedTime`, `expirationTime`, `authors`, `section`, `tags` |
+| `'book'`                | `isbn`, `releaseDate`, `authors`, `tags`                                        |
+| `'profile'`             | `firstName`, `lastName`, `username`, `gender`                                   |
+| `'music.song'`          | `duration`, `albums`, `musicians`                                               |
+| `'music.album'`         | `songs`, `musicians`, `releaseDate`                                             |
+| `'music.playlist'`      | `songs`, `creators`                                                             |
+| `'music.radio_station'` | `creators`                                                                      |
+| `'video.movie'`         | `actors`, `directors`, `writers`, `duration`, `releaseDate`, `tags`             |
+| `'video.episode'`       | `actors`, `directors`, `writers`, `duration`, `releaseDate`, `tags`, `series`   |
+| `'video.tv_show'`       | None                                                                            |
+| `'video.other'`         | None                                                                            |
+
+| Type-specific field                                              | Accepted input                                                                                        |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `publishedTime`, `modifiedTime`, `expirationTime`, `releaseDate` | Date/time string                                                                                      |
+| `isbn`, `section`, `firstName`, `lastName`, `username`, `gender` | `string`                                                                                              |
+| `duration`                                                       | `number`                                                                                              |
+| `tags`                                                           | `string` or `string[]`                                                                                |
+| `authors`, `musicians`, `creators`, `directors`, `writers`       | `string`, `URL`, or an array of either                                                                |
+| `series`                                                         | `string` or `URL`                                                                                     |
+| `albums`, `songs`                                                | `string`, `URL`, `{ url: string \| URL, disc?: number, track?: number }`, or an array of these values |
+| `actors`                                                         | `string`, `URL`, `{ url: string \| URL, role?: string }`, or an array of these values                 |
+
+Next.js maps camel-cased field names to protocol properties, such as `modifiedTime` to `article:modified_time`.
 
 ### `robots`
+
+`robots` sets crawler directives for the page. Use `googleBot` to provide separate directives for Googlebot:
 
 ```tsx filename="layout.tsx | page.tsx"
 import type { Metadata } from 'next'
@@ -578,53 +624,38 @@ export const metadata: Metadata = {
 />
 ```
 
+#### Robots fields
+
+Both `robots` and `googleBot` accept a directive string or an object. Their object fields are listed below. Only the `robots` object accepts a `googleBot` field.
+
+| Field                                                                                                         | Accepted input                         |
+| ------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `index`, `follow`                                                                                             | `boolean`                              |
+| `noarchive`, `nosnippet`, `noimageindex`, `nocache`, `notranslate`, `indexifembedded`, `nositelinkssearchbox` | `boolean`                              |
+| `unavailable_after`                                                                                           | `string`                               |
+| `'max-video-preview'`                                                                                         | `number` or `string`                   |
+| `'max-image-preview'`                                                                                         | `'none'`, `'standard'`, or `'large'`   |
+| `'max-snippet'`                                                                                               | `number`                               |
+| `googleBot`                                                                                                   | `string` or a crawler directive object |
+
+For `index` and `follow`, `false` emits `noindex` and `nofollow`. Other boolean fields emit their directive only when `true`. The deprecated object keys `noindex` and `nofollow` are not accepted boolean options.
+
+See Google's [robots meta tag reference](https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag) for directive meanings and Googlebot support. Next.js emits the configured tags; each crawler determines which directives it honors.
+
 ### `icons`
 
-> **Good to know**: We recommend using the [file-based Metadata API](/docs/app/api-reference/file-conventions/metadata/app-icons#image-files-ico-jpg-png) for icons where possible. Rather than having to sync the config export with actual files, the file-based API will automatically generate the correct metadata for you.
-
-```jsx filename="layout.js | page.js"
-export const metadata = {
-  icons: {
-    icon: '/icon.png',
-    shortcut: '/shortcut-icon.png',
-    apple: '/apple-icon.png',
-    other: {
-      rel: 'apple-touch-icon-precomposed',
-      url: '/apple-touch-icon-precomposed.png',
-    },
-  },
-}
-```
-
-```html filename="<head> output" hideLineNumbers
-<link rel="shortcut icon" href="/shortcut-icon.png" />
-<link rel="icon" href="/icon.png" />
-<link rel="apple-touch-icon" href="/apple-icon.png" />
-<link
-  rel="apple-touch-icon-precomposed"
-  href="/apple-touch-icon-precomposed.png"
-/>
-```
+`icons` adds icon links, grouped by category:
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
   icons: {
     icon: [
       { url: '/icon.png' },
-      new URL('/icon.png', 'https://example.com'),
       { url: '/icon-dark.png', media: '(prefers-color-scheme: dark)' },
     ],
-    shortcut: ['/shortcut-icon.png'],
-    apple: [
-      { url: '/apple-icon.png' },
-      { url: '/apple-icon-x3.png', sizes: '180x180', type: 'image/png' },
-    ],
-    other: [
-      {
-        rel: 'apple-touch-icon-precomposed',
-        url: '/apple-touch-icon-precomposed.png',
-      },
-    ],
+    shortcut: '/shortcut-icon.png',
+    apple: '/apple-icon.png',
+    other: { rel: 'mask-icon', url: '/mask-icon.svg', color: '#000000' },
   },
 }
 ```
@@ -632,22 +663,31 @@ export const metadata = {
 ```html filename="<head> output" hideLineNumbers
 <link rel="shortcut icon" href="/shortcut-icon.png" />
 <link rel="icon" href="/icon.png" />
-<link rel="icon" href="https://example.com/icon.png" />
 <link rel="icon" href="/icon-dark.png" media="(prefers-color-scheme: dark)" />
 <link rel="apple-touch-icon" href="/apple-icon.png" />
-<link
-  rel="apple-touch-icon-precomposed"
-  href="/apple-touch-icon-precomposed.png"
-/>
-<link
-  rel="apple-touch-icon"
-  href="/apple-icon-x3.png"
-  sizes="180x180"
-  type="image/png"
-/>
+<link rel="mask-icon" href="/mask-icon.svg" color="#000000" />
 ```
 
-> **Good to know**: The `msapplication-*` meta tags are no longer supported in Chromium builds of Microsoft Edge, and thus no longer needed.
+> **Good to know**: Use the [file-based Metadata API](/docs/app/api-reference/file-conventions/metadata/app-icons#image-files-ico-jpg-png) to generate icon metadata from image files.
+
+#### Icon categories and descriptors
+
+`icons` accepts a URL string, `URL` instance, array of URLs/descriptors, or category object. Each category accepts a single item or an array; `other` accepts descriptors only.
+
+| Category   | Default `rel`      |
+| ---------- | ------------------ |
+| `icon`     | `icon`             |
+| `shortcut` | `shortcut icon`    |
+| `apple`    | `apple-touch-icon` |
+| `other`    | `icon`             |
+
+Only a descriptor's `url` is required. An explicit `rel` overrides the category default. See the [`<link>` reference](https://developer.mozilla.org/docs/Web/HTML/Reference/Elements/link#attributes) for attribute meanings.
+
+| Descriptor field                         | Type                           |
+| ---------------------------------------- | ------------------------------ |
+| `url`                                    | `string` or `URL`              |
+| `type`, `sizes`, `color`, `rel`, `media` | `string`                       |
+| `fetchPriority`                          | `'high'`, `'low'`, or `'auto'` |
 
 ### `themeColor`
 
@@ -659,7 +699,7 @@ export const metadata = {
 
 ### `manifest`
 
-A web application manifest, as defined in the [Web Application Manifest specification](https://developer.mozilla.org/docs/Web/Manifest).
+`manifest` links to a [web app manifest](https://developer.mozilla.org/docs/Web/Manifest). It accepts a URL string or a `URL` instance.
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -673,9 +713,9 @@ export const metadata = {
 
 ### `twitter`
 
-The Twitter specification is (surprisingly) used for more than just X (formerly known as Twitter).
+`twitter` configures Twitter Card metadata. Image URLs can be absolute, or relative when [`metadataBase`](#metadatabase) is set.
 
-Learn more about the [Twitter Card markup reference](https://developer.x.com/en/docs/twitter-for-websites/cards/overview/markup).
+Set `card` to choose the card type. For example, use `'summary_large_image'` for a card with a large image:
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -686,7 +726,7 @@ export const metadata = {
     siteId: '1467726470533754880',
     creator: '@nextjs',
     creatorId: '1467726470533754880',
-    images: ['https://nextjs.org/og.png'], // Must be an absolute URL
+    images: ['https://nextjs.org/og.png'],
   },
 }
 ```
@@ -701,53 +741,87 @@ export const metadata = {
 <meta name="twitter:image" content="https://nextjs.org/og.png" />
 ```
 
-```jsx filename="layout.js | page.js"
-export const metadata = {
+#### Twitter fields
+
+All card types accept these fields:
+
+| Field                                                   | Accepted input                                                                                 |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `card`                                                  | `'summary'`, `'summary_large_image'`, `'player'`, or `'app'`                                   |
+| `site`, `siteId`, `creator`, `creatorId`, `description` | `string`                                                                                       |
+| `title`                                                 | `string` or a [title object](#title)                                                           |
+| `images`                                                | URL string, `URL`, [image descriptor](#twitter-image-descriptors), or an array of these values |
+
+If `card` is omitted, the resolver uses `'summary_large_image'` when the supplied `images` resolve to a non-empty list, or `'summary'` otherwise. Set `card` explicitly when you need a specific card type.
+
+When `openGraph` is configured, its title, description, and images can populate missing Twitter fields. When an `openGraph` or `twitter` object is configured, missing social titles and descriptions can also inherit the document's `title` and `description`.
+
+#### Player cards
+
+For `card: 'player'`, provide the media player URL, stream URL, and dimensions in `players`. Use an array of these objects for multiple players:
+
+```tsx filename="app/layout.tsx | app/page.tsx" switcher
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
   twitter: {
-    card: 'app',
-    title: 'Next.js',
-    description: 'The React Framework for the Web',
-    siteId: '1467726470533754880',
-    creator: '@nextjs',
-    creatorId: '1467726470533754880',
-    images: {
-      url: 'https://nextjs.org/og.png',
-      alt: 'Next.js Logo',
-    },
-    app: {
-      name: 'twitter_app',
-      id: {
-        iphone: 'twitter_app://iphone',
-        ipad: 'twitter_app://ipad',
-        googleplay: 'twitter_app://googleplay',
-      },
-      url: {
-        iphone: 'https://iphone_url',
-        ipad: 'https://ipad_url',
-      },
+    card: 'player',
+    players: {
+      playerUrl: 'https://example.com/player',
+      streamUrl: 'https://example.com/video.mp4',
+      width: 1280,
+      height: 720,
     },
   },
 }
 ```
 
-```html filename="<head> output" hideLineNumbers
-<meta name="twitter:site:id" content="1467726470533754880" />
-<meta name="twitter:creator" content="@nextjs" />
-<meta name="twitter:creator:id" content="1467726470533754880" />
-<meta name="twitter:title" content="Next.js" />
-<meta name="twitter:description" content="The React Framework for the Web" />
-<meta name="twitter:card" content="app" />
-<meta name="twitter:image" content="https://nextjs.org/og.png" />
-<meta name="twitter:image:alt" content="Next.js Logo" />
-<meta name="twitter:app:name:iphone" content="twitter_app" />
-<meta name="twitter:app:id:iphone" content="twitter_app://iphone" />
-<meta name="twitter:app:id:ipad" content="twitter_app://ipad" />
-<meta name="twitter:app:id:googleplay" content="twitter_app://googleplay" />
-<meta name="twitter:app:url:iphone" content="https://iphone_url" />
-<meta name="twitter:app:url:ipad" content="https://ipad_url" />
-<meta name="twitter:app:name:ipad" content="twitter_app" />
-<meta name="twitter:app:name:googleplay" content="twitter_app" />
+```jsx filename="app/layout.jsx | app/page.jsx" switcher
+export const metadata = {
+  twitter: {
+    card: 'player',
+    players: {
+      playerUrl: 'https://example.com/player',
+      streamUrl: 'https://example.com/video.mp4',
+      width: 1280,
+      height: 720,
+    },
+  },
+}
 ```
+
+All four player fields are required. `playerUrl` and `streamUrl` accept absolute URL strings or `URL` instances; `width` and `height` are numbers.
+
+#### App cards
+
+For `card: 'app'`, provide an `app` object. The `id` and `url` maps accept optional `iphone`, `ipad`, and `googleplay` keys:
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  twitter: {
+    card: 'app',
+    app: {
+      name: 'Example App',
+      id: {
+        iphone: '123456789',
+        ipad: '123456789',
+        googleplay: 'com.example.app',
+      },
+      url: { iphone: 'https://example.com/app' },
+    },
+  },
+}
+```
+
+| Field  | Accepted input                                                                           |
+| ------ | ---------------------------------------------------------------------------------------- |
+| `id`   | Required map. iPhone/iPad IDs accept strings or numbers; Google Play IDs accept strings. |
+| `url`  | Optional map of absolute URL strings or `URL` instances                                  |
+| `name` | Optional `string`, shared by all platforms                                               |
+
+#### Twitter image descriptors
+
+Twitter image descriptors use the same fields as [Open Graph image descriptors](#open-graph-media-descriptors): required `url` and optional `alt`, `secureUrl`, `type`, `width`, and `height`.
 
 ### `viewport`
 
@@ -755,14 +829,17 @@ export const metadata = {
 
 ### `verification`
 
+`verification` supports `google`, `yahoo`, `yandex`, and `me`. Each accepts a string, a number, or an array of strings/numbers. Use `other` to map additional meta names to the same value forms.
+
 ```jsx filename="layout.js | page.js"
 export const metadata = {
   verification: {
     google: 'google',
     yandex: 'yandex',
     yahoo: 'yahoo',
+    me: ['my-email', 'my-link'],
     other: {
-      me: ['my-email', 'my-link'],
+      'custom-verification': 'custom-token',
     },
   },
 }
@@ -774,16 +851,15 @@ export const metadata = {
 <meta name="yandex-verification" content="yandex" />
 <meta name="me" content="my-email" />
 <meta name="me" content="my-link" />
+<meta name="custom-verification" content="custom-token" />
 ```
 
 ### `appleWebApp`
 
+`appleWebApp` configures web app metadata such as the title, startup images, and status bar style. See Apple's [Safari metadata reference](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html) for platform-specific behavior:
+
 ```jsx filename="layout.js | page.js"
 export const metadata = {
-  itunes: {
-    appId: 'myAppStoreID',
-    appArgument: 'myAppArgument',
-  },
   appleWebApp: {
     title: 'Apple Web App',
     statusBarStyle: 'black-translucent',
@@ -798,52 +874,67 @@ export const metadata = {
 }
 ```
 
+`appleWebApp` accepts `true`, `false`, or an object. `true` enables web app capability; `false` omits the Apple web app metadata. The object fields are:
+
+| Field            | Type                                                                 | Default                           |
+| ---------------- | -------------------------------------------------------------------- | --------------------------------- |
+| `capable`        | `boolean`                                                            | `true` when an object is supplied |
+| `title`          | `string`                                                             | None                              |
+| `startupImage`   | URL string, `{ url: string, media?: string }`, or an array of either | None                              |
+| `statusBarStyle` | `'default'`, `'black'`, or `'black-translucent'`                     | `'default'`                       |
+
+### `itunes`
+
+Use `itunes` to configure an `apple-itunes-app` [Smart App Banner](https://developer.apple.com/documentation/webkit/promoting-apps-with-smart-app-banners):
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  itunes: {
+    appId: 'myAppStoreID',
+    appArgument: 'myAppArgument',
+  },
+}
+```
+
 ```html filename="<head> output" hideLineNumbers
 <meta
   name="apple-itunes-app"
   content="app-id=myAppStoreID, app-argument=myAppArgument"
 />
-<meta name="mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-title" content="Apple Web App" />
-<link
-  href="/assets/startup/apple-touch-startup-image-768x1004.png"
-  rel="apple-touch-startup-image"
-/>
-<link
-  href="/assets/startup/apple-touch-startup-image-1536x2008.png"
-  media="(device-width: 768px) and (device-height: 1024px)"
-  rel="apple-touch-startup-image"
-/>
-<meta
-  name="apple-mobile-web-app-status-bar-style"
-  content="black-translucent"
-/>
 ```
 
+`appId` is a required string. The optional `appArgument` string is resolved using [`metadataBase`](#metadatabase) and the current route.
+
 ### `alternates`
+
+`alternates` adds links for the canonical URL and other versions of the page, such as translations and an RSS feed:
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
   alternates: {
-    canonical: 'https://nextjs.org',
+    canonical: { url: 'https://nextjs.org', title: 'Next.js' },
     languages: {
       'en-US': 'https://nextjs.org/en-US',
       'de-DE': 'https://nextjs.org/de-DE',
+      'x-default': 'https://nextjs.org',
     },
     media: {
       'only screen and (max-width: 600px)': 'https://nextjs.org/mobile',
     },
     types: {
-      'application/rss+xml': 'https://nextjs.org/rss',
+      'application/rss+xml': [
+        { url: 'https://nextjs.org/rss', title: 'RSS feed' },
+      ],
     },
   },
 }
 ```
 
 ```html filename="<head> output" hideLineNumbers
-<link rel="canonical" href="https://nextjs.org" />
+<link rel="canonical" href="https://nextjs.org" title="Next.js" />
 <link rel="alternate" hreflang="en-US" href="https://nextjs.org/en-US" />
 <link rel="alternate" hreflang="de-DE" href="https://nextjs.org/de-DE" />
+<link rel="alternate" hreflang="x-default" href="https://nextjs.org" />
 <link
   rel="alternate"
   media="only screen and (max-width: 600px)"
@@ -853,10 +944,22 @@ export const metadata = {
   rel="alternate"
   type="application/rss+xml"
   href="https://nextjs.org/rss"
+  title="RSS feed"
 />
 ```
 
+| Field       | Accepted input                                                                              |
+| ----------- | ------------------------------------------------------------------------------------------- |
+| `canonical` | URL string, `URL`, or `{ url: string \| URL, title?: string }`                              |
+| `languages` | Map of language codes (including `'x-default'`) to a URL string, `URL`, or descriptor array |
+| `media`     | Map of media queries to a URL string, `URL`, or descriptor array                            |
+| `types`     | Map of content types to a URL string, `URL`, or descriptor array                            |
+
+Descriptors in the maps use `{ url: string | URL, title?: string }`. An optional descriptor `title` adds a `title` attribute to the link. Use arrays to provide multiple links for the same map key.
+
 ### `appLinks`
+
+`appLinks` describes native app destinations for the page. Configure the platforms your app supports:
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -886,9 +989,20 @@ export const metadata = {
 <meta property="al:web:should_fallback" content="true" />
 ```
 
+Each platform accepts one descriptor or an array of descriptors. Descriptor fields are:
+
+| Platform                                        | Required fields           | Optional fields                                                      |
+| ----------------------------------------------- | ------------------------- | -------------------------------------------------------------------- |
+| `ios`, `iphone`, `ipad`                         | `url` (`string` or `URL`) | `app_store_id` (`string` or `number`), `app_name` (`string`)         |
+| `android`                                       | `package` (`string`)      | `url` (`string` or `URL`), `class` (`string`), `app_name` (`string`) |
+| `windows_phone`, `windows`, `windows_universal` | `url` (`string` or `URL`) | `app_id` (`string`), `app_name` (`string`)                           |
+| `web`                                           | `url` (`string` or `URL`) | `should_fallback` (`boolean`)                                        |
+
+Each field emits `al:<platform>:<field>`, such as `al:iphone:app_name` or `al:windows:app_id`.
+
 ### `archives`
 
-Describes a collection of records, documents, or other materials of historical interest ([source](https://www.w3.org/TR/2011/WD-html5-20110113/links.html#rel-archives)).
+`archives` links to a collection of records, documents, or other materials of historical interest ([source](https://www.w3.org/TR/2011/WD-html5-20110113/links.html#rel-archives)). It accepts a string or an array of strings.
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -902,6 +1016,8 @@ export const metadata = {
 
 ### `assets`
 
+`assets` accepts a string or an array of strings.
+
 ```jsx filename="layout.js | page.js"
 export const metadata = {
   assets: ['https://nextjs.org/assets'],
@@ -913,6 +1029,8 @@ export const metadata = {
 ```
 
 ### `bookmarks`
+
+`bookmarks` accepts a string or an array of strings.
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -926,7 +1044,7 @@ export const metadata = {
 
 ### `pagination`
 
-Describes the previous and next pages in a paginated sequence.
+`pagination` links to the previous and next pages in a sequence. Its `previous` and `next` fields each accept a string or `URL` and emit `rel="prev"` and `rel="next"` links.
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -942,7 +1060,17 @@ export const metadata = {
 <link rel="next" href="https://nextjs.org/blog?page=3" />
 ```
 
+### `abstract`
+
+`abstract` accepts a string and emits `<meta name="abstract" content="..." />`. Prefer [`description`](#description), which supersedes this field.
+
+### `classification`
+
+`classification` accepts a string and emits `<meta name="classification" content="..." />`.
+
 ### `category`
+
+`category` accepts a string and emits a `category` meta tag.
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -956,52 +1084,26 @@ export const metadata = {
 
 ### `facebook`
 
-You can connect a Facebook app or Facebook account to your webpage for certain Facebook Social Plugins [Facebook Documentation](https://developers.facebook.com/docs/plugins/comments/#moderation-setup-instructions)
-
-> **Good to know**: You can specify either appId or admins, but not both.
+`facebook.appId` accepts a string; `facebook.admins` accepts a string or string array. Supply both `appId` and an array of `admins` to emit both sets of tags. See the [Facebook reference](https://developers.facebook.com/docs/plugins/comments/#moderation-setup-instructions) for platform requirements.
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
   facebook: {
     appId: '12345678',
-  },
-}
-```
-
-```html filename="<head> output" hideLineNumbers
-<meta property="fb:app_id" content="12345678" />
-```
-
-```jsx filename="layout.js | page.js"
-export const metadata = {
-  facebook: {
-    admins: '12345678',
-  },
-}
-```
-
-```html filename="<head> output" hideLineNumbers
-<meta property="fb:admins" content="12345678" />
-```
-
-If you want to generate multiple fb:admins meta tags you can use array value.
-
-```jsx filename="layout.js | page.js"
-export const metadata = {
-  facebook: {
     admins: ['12345678', '87654321'],
   },
 }
 ```
 
 ```html filename="<head> output" hideLineNumbers
+<meta property="fb:app_id" content="12345678" />
 <meta property="fb:admins" content="12345678" />
 <meta property="fb:admins" content="87654321" />
 ```
 
 ### `pinterest`
 
-You can enable or disable [Pinterest Rich Pins](https://developers.pinterest.com/docs/web-features/rich-pins-overview/) on your webpage.
+Use `pinterest.richPin` to enable or disable [Pinterest Rich Pins](https://developers.pinterest.com/docs/web-features/rich-pins-overview/). It accepts a boolean or a string and emits the `pinterest-rich-pin` meta tag.
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -1012,26 +1114,12 @@ export const metadata = {
 ```
 
 ```html filename="<head> output" hideLineNumbers
-<meta name="pinterest-rich-pin" content="true" />
+<meta property="pinterest-rich-pin" content="true" />
 ```
 
 ### `other`
 
-All metadata options should be covered using the built-in support. However, there may be custom metadata tags specific to your site, or brand new metadata tags just released. You can use the `other` option to render any custom metadata tag.
-
-```jsx filename="layout.js | page.js"
-export const metadata = {
-  other: {
-    custom: 'meta',
-  },
-}
-```
-
-```html filename="<head> output" hideLineNumbers
-<meta name="custom" content="meta" />
-```
-
-If you want to generate multiple same key meta tags you can use array value.
+Use `other` for custom named meta tags. Values can be strings, numbers, or arrays of either. Arrays emit multiple tags with the same name:
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {
@@ -1045,11 +1133,11 @@ export const metadata = {
 <meta name="custom" content="meta1" /> <meta name="custom" content="meta2" />
 ```
 
-### Types
+## Types
 
 You can add type safety to your metadata by using the `Metadata` type. If you are using the [built-in TypeScript plugin](/docs/app/api-reference/config/typescript) in your IDE, you do not need to manually add the type, but you can still explicitly add it if you want.
 
-#### `metadata` object
+### `metadata` object
 
 ```tsx filename="layout.tsx | page.tsx"
 import type { Metadata } from 'next'
@@ -1059,9 +1147,9 @@ export const metadata: Metadata = {
 }
 ```
 
-#### `generateMetadata` function
+### `generateMetadata` function
 
-##### Regular function
+#### Regular function
 
 ```tsx filename="layout.tsx | page.tsx"
 import type { Metadata } from 'next'
@@ -1073,7 +1161,7 @@ export function generateMetadata(): Metadata {
 }
 ```
 
-##### Async function
+#### Async function
 
 ```tsx filename="layout.tsx | page.tsx"
 import type { Metadata } from 'next'
@@ -1085,7 +1173,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 ```
 
-##### With segment props
+#### With segment props
 
 ```tsx filename="layout.tsx | page.tsx"
 import type { Metadata } from 'next'
@@ -1104,7 +1192,7 @@ export function generateMetadata({ params, searchParams }: Props): Metadata {
 export default function Page({ params, searchParams }: Props) {}
 ```
 
-##### With parent metadata
+#### With parent metadata
 
 ```tsx filename="layout.tsx | page.tsx"
 import type { Metadata, ResolvingMetadata } from 'next'
@@ -1119,7 +1207,7 @@ export async function generateMetadata(
 }
 ```
 
-##### JavaScript Projects
+#### JavaScript Projects
 
 For JavaScript projects, you can use JSDoc to add type safety.
 
@@ -1130,7 +1218,9 @@ export const metadata = {
 }
 ```
 
-### Unsupported Metadata
+## Unsupported Metadata
+
+The legacy top-level keys `apple-touch-fullscreen` and `apple-touch-icon-precomposed` are deprecated and do not accept values. Use `appleWebApp` and `icons.apple` respectively. An icon descriptor's `rel` is a separate link attribute.
 
 The following metadata types do not currently have built-in support. However, they can still be rendered in the layout or page itself.
 
@@ -1146,7 +1236,7 @@ The following metadata types do not currently have built-in support. However, th
 | `<link rel="preconnect" />`   | Use [ReactDOM preconnect method](#link-relpreconnect)                                                                                                                                                                                        |
 | `<link rel="dns-prefetch" />` | Use [ReactDOM prefetchDNS method](#link-reldns-prefetch)                                                                                                                                                                                     |
 
-### Resource hints
+## Resource hints
 
 The `<link>` element has a number of `rel` keywords that can be used to hint to the browser that an external resource is likely to be needed. The browser uses this information to apply preloading optimizations depending on the keyword.
 
@@ -1180,7 +1270,7 @@ export function PreloadResources() {
 }
 ```
 
-#### `<link rel="preload">`
+### `<link rel="preload">`
 
 Start loading a resource early in the page rendering (browser) lifecycle. [MDN Docs](https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/preload).
 
@@ -1192,7 +1282,7 @@ ReactDOM.preload(href: string, options: { as: string })
 <link rel="preload" href="..." as="..." />
 ```
 
-##### `<link rel="preconnect">`
+### `<link rel="preconnect">`
 
 Preemptively initiate a connection to an origin. [MDN Docs](https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/preconnect).
 
@@ -1204,7 +1294,7 @@ ReactDOM.preconnect(href: string, options?: { crossOrigin?: string })
 <link rel="preconnect" href="..." crossorigin />
 ```
 
-#### `<link rel="dns-prefetch">`
+### `<link rel="dns-prefetch">`
 
 Attempt to resolve a domain name before resources get requested. [MDN Docs](https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/dns-prefetch).
 
@@ -1235,7 +1325,7 @@ There are two default `meta` tags that are always added even if a route doesn't 
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 ```
 
-> **Good to know**: You can overwrite the default [`viewport`](/docs/app/api-reference/functions/generate-metadata#viewport) meta tag.
+> **Good to know**: You can customize the default viewport meta tag using the [`viewport` object or `generateViewport` function](/docs/app/api-reference/functions/generate-viewport).
 
 ### Streaming metadata
 
@@ -1243,7 +1333,7 @@ Streaming metadata allows Next.js to render and send the initial UI to the brows
 
 When `generateMetadata` resolves, the resulting metadata tags are appended to the `<body>` tag. We have verified that metadata is interpreted correctly by bots that execute JavaScript and inspect the full DOM (e.g. `Googlebot`).
 
-For **HTML-limited bots** that can’t execute JavaScript (e.g. `facebookexternalhit`), metadata continues to block page rendering. The resulting metadata will be available in the `<head>` tag.
+For **HTML-limited bots** that can’t execute JavaScript (e.g. `facebookexternalhit`), Next.js waits for `generateMetadata` before starting the response. The resulting metadata is available in the `<head>` tag. After `generateMetadata` resolves, Next.js can start the response and stream the remaining page content.
 
 Next.js automatically detects **HTML-limited bots** by looking at the User Agent header. You can use the [`htmlLimitedBots`](/docs/app/api-reference/config/next-config-js/htmlLimitedBots) option in your Next.js config file to override the default [User Agent list](https://github.com/vercel/next.js/blob/canary/packages/next/src/shared/lib/router/utils/html-bots.ts).
 
@@ -1346,6 +1436,8 @@ Metadata is evaluated in order, starting from the root segment down to the segme
 Following the [evaluation order](#ordering), Metadata objects exported from multiple segments in the same route are **shallowly** merged together to form the final metadata output of a route. Duplicate keys are **replaced** based on their ordering.
 
 This means metadata with nested fields such as [`openGraph`](/docs/app/api-reference/functions/generate-metadata#opengraph) and [`robots`](/docs/app/api-reference/functions/generate-metadata#robots) that are defined in an earlier segment are **overwritten** by the last segment to define them.
+
+The `other` field is an exception: its custom tag names are merged across segments. When two segments provide the same custom tag name, the later value replaces the earlier value for that name.
 
 #### Overwriting fields
 

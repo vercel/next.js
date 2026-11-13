@@ -1,3 +1,4 @@
+import type { RouteTree } from './segment-cache/cache'
 import type {
   CacheNode,
   FlightRouterState,
@@ -9,7 +10,7 @@ const MAX_BF_CACHE_ENTRIES = process.env.__NEXT_CACHE_COMPONENTS ? 3 : 1
 
 export type RouterBFCacheEntry = {
   tree: FlightRouterState
-  cacheNode: CacheNode
+  renderTree: RouteTree<CacheNode>
   stateKey: string
   // The entries form a linked list, sorted in order of most recently active.
   next: RouterBFCacheEntry | null
@@ -30,14 +31,13 @@ export type RouterBFCacheEntry = {
  * unmounted, then the React tree would be, too. So, we use React state to
  * manage it.
  *
- * Note that we don't store the RSC data for the cache entries in this hook —
- * the data for inactive segments is stored in the parent CacheNode, which
- * *does* have a longer lifetime than the React tree. This hook only determines
- * which of those trees should have their *state* preserved, by <Activity>.
+ * Each entry retains its render tree, including its RSC data. This hook
+ * determines which trees should have their React and DOM state preserved
+ * by <Activity>.
  */
 export function useRouterBFCache(
   activeTree: FlightRouterState,
-  activeCacheNode: CacheNode,
+  activeRenderTree: RouteTree<CacheNode>,
   activeStateKey: string
 ): RouterBFCacheEntry {
   // The currently active entry. The entries form a linked list, sorted in
@@ -53,7 +53,7 @@ export function useRouterBFCache(
     () => {
       const initialEntry: RouterBFCacheEntry = {
         tree: activeTree,
-        cacheNode: activeCacheNode,
+        renderTree: activeRenderTree,
         stateKey: activeStateKey,
         next: null,
       }
@@ -78,7 +78,7 @@ export function useRouterBFCache(
   // linked list.
   const newActiveEntry: RouterBFCacheEntry = {
     tree: activeTree,
-    cacheNode: activeCacheNode,
+    renderTree: activeRenderTree,
     stateKey: activeStateKey,
     next: null,
   }
@@ -105,7 +105,7 @@ export function useRouterBFCache(
       n++
       const entry: RouterBFCacheEntry = {
         tree: oldEntry.tree,
-        cacheNode: oldEntry.cacheNode,
+        renderTree: oldEntry.renderTree,
         stateKey: oldEntry.stateKey,
         next: null,
       }

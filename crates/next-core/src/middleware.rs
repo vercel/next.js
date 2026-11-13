@@ -129,7 +129,7 @@ pub async fn get_middleware_module(
     let module = asset_context
         .process(
             source,
-            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets.into())),
         )
         .module();
 

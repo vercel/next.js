@@ -283,7 +283,12 @@ export async function createPagesMapping({
         return
       }
 
-      let pageKey = getPageFromPath(pagePath, pageExtensions)
+      let pageKey = getPageFromPath(
+        pagePath,
+        pagesType === PAGE_TYPES.APP && pagePath.endsWith('route.go')
+          ? ['go']
+          : pageExtensions
+      )
       if (isAppRoute) {
         // Turbopack encodes '_' as '%5F' in app paths; normalize to underscores.
         pageKey = pageKey.replace(/%5F/g, '_')
@@ -408,6 +413,7 @@ export interface RouteDiscoveryResult {
   pageApiRoutes: RouteInfo[]
   mappedAppPages?: MappedPages
   mappedAppLayouts?: MappedPages
+  mappedAppDefaults?: MappedPages
   mappedPages?: MappedPages
   /** Raw page file paths (post-filtering), useful for telemetry */
   pagesPaths: string[]
@@ -514,6 +520,7 @@ export async function discoverRoutes(
   let slots: SlotInfo[] = []
   let mappedAppPages: MappedPages | undefined
   let mappedAppLayouts: MappedPages | undefined
+  let mappedAppDefaults: MappedPages | undefined
 
   if (appDir) {
     let appPaths: string[]
@@ -537,19 +544,16 @@ export async function discoverRoutes(
     }
 
     // Map all app file types in parallel
-    let mappedDefaultFiles: MappedPages
-    ;[mappedAppPages, mappedAppLayouts, mappedDefaultFiles] = await Promise.all(
-      [
-        mapPaths(appPaths, PAGE_TYPES.APP),
-        mapPaths(layoutPaths, PAGE_TYPES.APP),
-        mapPaths(defaultPaths, PAGE_TYPES.APP),
-      ]
-    )
+    ;[mappedAppPages, mappedAppLayouts, mappedAppDefaults] = await Promise.all([
+      mapPaths(appPaths, PAGE_TYPES.APP),
+      mapPaths(layoutPaths, PAGE_TYPES.APP),
+      mapPaths(defaultPaths, PAGE_TYPES.APP),
+    ])
 
     // Extract slots from pages and default files
     slots = combineSlots(
       extractSlotsFromRoutes(mappedAppPages, SKIP_ROUTES),
-      extractSlotsFromRoutes(mappedDefaultFiles)
+      extractSlotsFromRoutes(mappedAppDefaults)
     )
 
     // Process routes
@@ -571,6 +575,7 @@ export async function discoverRoutes(
     pageApiRoutes,
     mappedAppPages,
     mappedAppLayouts,
+    mappedAppDefaults,
     mappedPages,
     pagesPaths,
     appDirOnly,

@@ -3,11 +3,16 @@ use std::{
     error::Error as StdError,
     future::Future,
     mem::{forget, replace},
-    sync::Arc,
+    num::NonZeroUsize,
+    sync::{
+        Arc, OnceLock,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
 use anyhow::Result;
 use async_trait::async_trait;
+use crossbeam_utils::CachePadded;
 use futures::{StreamExt, TryStreamExt};
 use parking_lot::{Mutex, MutexGuard};
 use rustc_hash::FxHashMap;
@@ -20,10 +25,11 @@ use crate::{
     invalidation::{Invalidator, get_invalidator},
     manager::{
         debug_assert_in_top_level_task, debug_assert_not_in_top_level_task, mark_top_level_task,
-        unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
+        spawn_in_current_task, unmark_top_level_task_may_leak_eventually_consistent_state,
+        with_turbo_tasks,
     },
+    parallel::available_parallelism,
     spawn,
-    trace::TraceRawVcs,
 };
 
 const APPLY_EFFECTS_CONCURRENCY_LIMIT: usize = 1024;
@@ -33,6 +39,10 @@ const APPLY_EFFECTS_CONCURRENCY_LIMIT: usize = 1024;
 #[turbo_tasks::value_trait]
 pub trait Effect {
     /// Read any Vc data needed for `apply()` and return the [`CapturedEffect`] that performs it.
+    ///
+    /// Must not create cells (e.g. with `.cell()`): [`take_effects`] captures many effects
+    /// concurrently as part of the one task calling it, so the order in which cells were created,
+    /// which assigns their indices in that task, wouldn't be deterministic.
     ///
     /// An implementation may elect to elide capturing data if the `EffectStateStorage` state is
     /// already up to date.
@@ -58,7 +68,7 @@ where
 /// [`EffectStateStorage::run_apply`] (which handles the per-key state machine, in-progress
 /// coordination, dedup-hit short-circuit, and panic recovery).
 #[async_trait]
-pub trait CapturedEffect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
+pub trait CapturedEffect: NonLocalValue + Send + Sync + 'static {
     /// Unique key identifying this effect's target (e.g., absolute path bytes).
     fn key(&self) -> Box<[u8]>;
 
@@ -73,14 +83,14 @@ pub trait CapturedEffect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
 
 /// Outcome of [`CapturedEffect::apply`]. Distinguishes a side-effect failure (terminal) from a
 /// soft failure where the captured form had no content and storage state diverged between
-/// capture and apply (recoverable via [`Effects::apply`]'s invalidator path).
+/// capture and apply (recoverable via `Effects::apply`'s invalidator path).
 #[derive(Debug)]
 pub enum ApplyError {
     /// The side effect itself failed.
     Failed(Arc<dyn EffectError>),
     /// Capture short-circuited content materialization (observed `Applied { matching }` in
     /// storage), but by apply time the storage state had diverged and we have no content to
-    /// re-apply. [`Effects::apply`] should invalidate the producing operation and return
+    /// re-apply. `Effects::apply` should invalidate the producing operation and return
     /// [`EffectsError::Retry`].
     Retry,
 }
@@ -98,8 +108,8 @@ pub enum ApplyError {
 /// So instead, we leave it up to the caller to figure out how to downcast these errors themselves.
 ///
 /// [`SharedError`]: crate::util::SharedError
-pub trait EffectError: StdError + TraceRawVcs + NonLocalValue + Send + Sync + 'static {}
-impl<T> EffectError for T where T: StdError + TraceRawVcs + NonLocalValue + Send + Sync + 'static {}
+pub trait EffectError: StdError + NonLocalValue + Send + Sync + 'static {}
+impl<T> EffectError for T where T: StdError + NonLocalValue + Send + Sync + 'static {}
 
 enum EffectLastApplied {
     Unapplied,
@@ -126,7 +136,7 @@ impl EffectStateStorage {
     ///
     /// Intended for use by [`Effect::capture`] to elide content materialization when the apply
     /// would dedup. Reading this from inside a turbo-tasks task is sound because
-    /// [`Effects::apply`] re-checks at apply time and fires the producing task's invalidator on
+    /// `Effects::apply` re-checks at apply time and fires the producing task's invalidator on
     /// mismatch (via the [`ApplyError::Retry`] / [`EffectsError::Retry`] pathway).
     pub fn matches_applied(&self, key: &[u8], target: u128) -> bool {
         let entry = self.effect_state.lock().get(key).cloned();
@@ -254,11 +264,11 @@ impl EffectStateStorage {
 /// Capture effects. Call this from within a [turbo-tasks operation][crate::OperationVc].
 ///
 /// Collectibles are read from `ResolvedVc`s, so this function, and the return value of this
-/// function should be applied with [`Effects::apply`].
+/// function should be applied with `Effects::apply`.
 ///
 /// It's important to wrap calls to this function in an [operation with a strongly consistent
 /// read][crate::OperationVc::read_strongly_consistent] before applying the effects outside of the
-/// operation at the top-level (e.g. in a `run_once` closure) with [`Effects::apply`].
+/// operation at the top-level (e.g. in a `run_once` closure) with `Effects::apply`.
 ///
 /// # Example
 ///
@@ -306,13 +316,12 @@ impl EffectStateStorage {
 /// ```
 pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
     debug_assert_not_in_top_level_task("take_effects");
-    let effects = source.take_collectibles::<Box<dyn Effect>>();
-
-    let captured: Vec<Box<dyn CapturedEffect>> = effects
+    let effects: Vec<ResolvedVc<Box<dyn Effect>>> = source
+        .take_collectibles::<Box<dyn Effect>>()
         .into_iter()
-        .map(async |effect_vc| effect_vc.into_trait_ref().await?.capture().await)
-        .try_join()
-        .await?;
+        .collect();
+
+    let captured = capture_effects(effects).await?;
 
     // detect duplicate keys
     let unique_keys = build_unique_keys(&captured);
@@ -323,14 +332,128 @@ pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
     Ok(Effects::new(captured, unique_keys, invalidator))
 }
 
-#[derive(thiserror::Error, Debug, TraceRawVcs, NonLocalValue)]
+/// [`capture_effects`] uses one worker per this many effects, so a few effects are captured on the
+/// calling task's thread only.
+const CAPTURE_EFFECTS_MIN_PER_WORKER: usize = 64;
+
+/// The maximum number of workers [`capture_effects`] uses. Every capture records its reads as
+/// dependencies of the one task calling [`take_effects`], which locks that task. With more workers
+/// they mostly wait for that lock: on a warm build with ~200k effects, capturing took 4.3s with 1
+/// worker, 1.4s with 4, 0.9s with 8, and still 0.9s with 16 or 32 workers, using 2-4x the CPU
+/// time.
+const CAPTURE_EFFECTS_MAX_WORKERS: usize = 8;
+
+async fn capture_effect(effect: ResolvedVc<Box<dyn Effect>>) -> Result<Box<dyn CapturedEffect>> {
+    effect.into_trait_ref().await?.capture().await
+}
+
+/// Captures `effects`, returning the captured effects in the same order.
+///
+/// Capturing reads every effect's cell and usually the content it writes. On a warm build that
+/// data isn't in memory yet, so each read restores it from the persistent cache, synchronously on
+/// the reading thread. Polling all captures in one future would do all of those restores one by
+/// one on a single thread, so for many effects the captures are spread over several workers (up to
+/// one per available CPU and at most [`CAPTURE_EFFECTS_MAX_WORKERS`]). The workers run as part of
+/// the current task (see [`spawn_in_current_task`]), so their reads are tracked as the task's own
+/// dependencies. Each worker takes the next uncaptured effect from a shared counter, which balances
+/// the load when some captures are slower than others.
+async fn capture_effects(
+    effects: Vec<ResolvedVc<Box<dyn Effect>>>,
+) -> Result<Vec<Box<dyn CapturedEffect>>> {
+    let len = effects.len();
+    let workers = available_parallelism()
+        .map_or(1, NonZeroUsize::get)
+        .min(CAPTURE_EFFECTS_MAX_WORKERS)
+        .min(len / CAPTURE_EFFECTS_MIN_PER_WORKER);
+    if workers <= 1 {
+        return effects.into_iter().map(capture_effect).try_join().await;
+    }
+
+    let span = tracing::info_span!("capture effects", count = len, workers);
+    async move {
+        let state = Arc::new(CaptureEffectsState {
+            effects,
+            next: CachePadded::new(AtomicUsize::new(0)),
+            captured: (0..len).map(|_| OnceLock::new()).collect(),
+        });
+        let handles = (0..workers)
+            .map(|_| {
+                let state = state.clone();
+                spawn_in_current_task(async move {
+                    let result = state.capture_until_done().await;
+                    // Release the shared state before the result is handed to the joining side.
+                    drop(state);
+                    result
+                })
+            })
+            .collect::<Vec<_>>();
+
+        // Wait for every worker, even after an error, so none of them is still reading as part of
+        // this task when we return.
+        let results = futures::future::join_all(handles).await;
+        results.into_iter().collect::<Result<()>>()?;
+        let state = Arc::into_inner(state)
+            .expect("capture workers finished while still holding the shared state");
+        Ok(state
+            .captured
+            .into_iter()
+            .map(|effect| {
+                effect
+                    .into_inner()
+                    .expect("capture workers finished without capturing every effect")
+            })
+            .collect())
+    }
+    .instrument(span)
+    .await
+}
+
+/// State shared by the workers of [`capture_effects`].
+struct CaptureEffectsState {
+    effects: Vec<ResolvedVc<Box<dyn Effect>>>,
+    /// Index of the next effect to capture. Every worker increments it for every effect, so it is
+    /// kept on its own cache line to avoid false sharing with the fields around it.
+    next: CachePadded<AtomicUsize>,
+    /// `captured[i]` is the captured `effects[i]`, set by the worker that took index `i`. It stays
+    /// empty until then.
+    captured: Box<[OnceLock<Box<dyn CapturedEffect>>]>,
+}
+
+impl CaptureEffectsState {
+    /// Captures effects until there are none left or a capture fails.
+    async fn capture_until_done(&self) -> Result<()> {
+        let len = self.effects.len();
+        loop {
+            let idx = self.next.fetch_add(1, Ordering::Relaxed);
+            let Some(&effect) = self.effects.get(idx) else {
+                return Ok(());
+            };
+            let captured = match capture_effect(effect).await {
+                Ok(captured) => captured,
+                Err(err) => {
+                    // Make the other workers stop early, the result is an error anyway. Indices
+                    // handed out after this are `>= len`, so no index is handed out twice.
+                    self.next.store(len, Ordering::Relaxed);
+                    return Err(err);
+                }
+            };
+            // `fetch_add` hands out every index below `len` at most once (`store` above only sets
+            // the counter to `len`), so the slot is still empty.
+            if self.captured[idx].set(captured).is_err() {
+                panic!("effect {idx} was captured twice");
+            }
+        }
+    }
+}
+
+#[derive(thiserror::Error, Debug, NonLocalValue)]
 #[error("Conflicting effects for the same key (key length: {key_len} bytes)")]
 struct ConflictingEffectError {
     key_len: usize,
 }
 
 const MAX_KEYS_TO_DISPLAY: usize = 10;
-/// Error returned by [`Effects::apply`]. Callers should retry on `Retry`; everything else is
+/// Error returned by `Effects::apply`. Callers should retry on `Retry`; everything else is
 /// terminal.
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum EffectsError {
@@ -384,16 +507,16 @@ pub struct Effects {
     /// Pre-resolved effects awaiting application. Lives for the lifetime of the cell — released
     /// when the producer reruns and `cell = "new"` overwrites the cell, which is when any
     /// upstream `ReadRef` strong-count cascades are naturally released.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore)]
     captured: CapturedSlice,
     /// Captured at `take_effects` time. `None` for `Effects::empty()` (nothing to retry).
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore)]
     invalidator: Option<Invalidator>,
     /// Unique key info computed eagerly in `take_effects`. Holds one index into `captured` per
     /// unique key, or a `ConflictingEffectError` if two captured effects share a key with
     /// different hashes. No [`EffectStateStorage`] interaction here — that is deferred to
     /// `apply()`.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore)]
     unique_keys: Arc<UniqueKeys>,
 }
 
@@ -548,7 +671,7 @@ impl Effects {
 /// `|v| &v.effects`; for an `OperationVc<Effects>` it is `|e| e`).
 ///
 /// On [`EffectsError::Retry`] the producing operation has already been invalidated by
-/// [`Effects::apply`], so the next
+/// `Effects::apply`, so the next
 /// [`read_strongly_consistent`][OperationVc::read_strongly_consistent] re-runs the producer and
 /// yields a fresh [`Effects`] whose `capture()` re-materializes content. Retries are bounded to
 /// avoid livelock when two producers perpetually stomp the same key; after the first retry a
@@ -556,7 +679,7 @@ impl Effects {
 /// error.
 ///
 /// This is one of two public entry points for applying effects (see also
-/// [`read_strongly_consistent_and_apply_effects_with`]) — [`Effects::apply`] is private so the
+/// [`resolve_strongly_consistent_and_take_and_apply_effects`]) — `Effects::apply` is private so the
 /// retry contract cannot be bypassed.
 pub async fn read_strongly_consistent_and_apply_effects<T, F>(
     op: OperationVc<T>,

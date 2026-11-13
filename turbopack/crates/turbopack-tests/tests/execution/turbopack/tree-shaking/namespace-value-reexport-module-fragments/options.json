@@ -1,0 +1,7 @@
+{
+  "followReexports": true,
+  "moduleFragmentsEnabled": true,
+  "removeUnusedImports": true,
+  "removeUnusedExports": true,
+  "scopeHoisting": false
+}
