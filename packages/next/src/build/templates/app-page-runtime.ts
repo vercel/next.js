@@ -726,10 +726,16 @@ export function createAppPageEntrypoint({
       !isDynamicRSCRequest
     ) {
       if (shellCacheKey !== null) {
-        // Normal fallback serving uses the source shell's separate cache
-        // lookup. Explicit revalidation skips that path, so it must write the
-        // source key here even when no params can be completed.
-        if (shellCacheKey !== fallbackPathname || isOnDemandRevalidate) {
+        if (
+          shellCacheKey !== fallbackPathname ||
+          // Explicit revalidation uses the source key because it bypasses the
+          // separate fallback lookup below.
+          isOnDemandRevalidate ||
+          // Requests for the source shell need a key in minimal mode so output
+          // handlers can reuse one prerender. Minimal mode bypasses the
+          // separate fallback lookup below.
+          (isMinimalMode && resolvedPathname === fallbackPathname)
+        ) {
           ssgCacheKey = shellCacheKey
           usesShellCacheKey = true
         }
