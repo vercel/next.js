@@ -79,15 +79,19 @@ node .next/standalone/server.js
 
 ### Environment variable files
 
-If `next build` loads a `.env` or `.env.production` file, it copies that file into `.next/standalone` so `server.js` can load the same values at runtime. This automatic step does not copy `.env.local`, `.env.production.local`, or `.env.development*` files.
+When `next build` loads a `.env` or `.env.production` file, standalone output includes a copy of it in `.next/standalone`. At runtime, `server.js` reads these copies as defaults: environment variables set when the server starts take precedence, and any variable you do not set falls back to the copied value.
 
-This copy is separate from [file tracing](#caveats), so `outputFileTracingExcludes` does not remove these files. To keep secrets out of the standalone output, avoid storing them in `.env` or `.env.production` and set them as [environment variables](/docs/app/guides/environment-variables) when you start `server.js`, or delete the copied files after `next build`:
+Other files the build loads, such as `.env.local` and `.env.production.local`, are not copied. Their values still apply to build-time work, like prerendered pages and inlined `NEXT_PUBLIC_` variables, but server code running at request time only sees them if you set them when the server starts.
+
+Since the copied files ship with the standalone output, keep only non-secret defaults in them and provide secrets as [environment variables](/docs/app/guides/environment-variables) when you start `server.js`, for example from your hosting platform's environment settings or a secret manager. The [Docker example](https://github.com/vercel/next.js/tree/canary/examples/with-docker) follows this approach by leaving `.env` out of the build context with `.dockerignore`.
+
+This copy is separate from [file tracing](#caveats), so `outputFileTracingExcludes` does not remove these files. To remove them, delete them after `next build`:
 
 ```bash filename="Terminal"
 rm -f .next/standalone/.env .next/standalone/.env.production
 ```
 
-> **Good to know**: When `outputFileTracingRoot` points above the project directory (for example, in a monorepo), the files are copied relative to that root, for example `.next/standalone/packages/web-app/.env`.
+> **Good to know**: Deleting the files also removes their fallback values, so set every variable the server needs at runtime. When `outputFileTracingRoot` points above the project directory, the files are copied relative to that root, for example `.next/standalone/packages/web-app/.env`.
 
 ## Caveats
 
@@ -155,7 +159,7 @@ These options are applied to server traces and do not affect routes that do not 
 
 They also do not affect the `.env` and `.env.production` files that standalone output copies. See [Environment variable files](#environment-variable-files).
 
-Route globs, including `'/*'`, do not apply to the production server trace (`.next/next-server.js.nft.json`), whose files standalone output also copies. To exclude files from that trace, use the `'next-server'` key in `outputFileTracingExcludes`. This key is only supported for excludes:
+Standalone output also copies the files in the production server trace (`.next/next-server.js.nft.json`). For this trace, exclude keys are matched against the name `next-server` instead of a route path, so route globs that start with a slash, such as `'/*'`, do not apply to it. To exclude files from this trace, use the `'next-server'` key in `outputFileTracingExcludes`. This key is only supported for excludes:
 
 ```js filename="next.config.js"
 module.exports = {
