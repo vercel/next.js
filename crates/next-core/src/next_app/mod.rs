@@ -26,6 +26,33 @@ pub use crate::next_app::{
     app_route_entry::get_app_route_entry,
 };
 
+/// The reason a segment can't be appended to an [AppPage].
+#[derive(Debug, thiserror::Error)]
+pub enum AppPageError {
+    /// Nothing that modifies the path can follow a catch-all segment, so the resulting route could
+    /// never be matched.
+    #[error(
+        "Invalid segment {segment:?}, catch all segment must be the last segment modifying the \
+         path (segments: {segments:?})"
+    )]
+    SegmentAfterCatchAll {
+        segment: PageSegment,
+        catch_all: PageSegment,
+        segments: Vec<PageSegment>,
+    },
+    #[error(
+        "Invalid segment {segment:?}, this page path already has the final PageType appended \
+         (segments: {segments:?})"
+    )]
+    AlreadyComplete {
+        segment: PageSegment,
+        segments: Vec<PageSegment>,
+    },
+    /// The segment couldn't be parsed.
+    #[error(transparent)]
+    InvalidSegment(#[from] anyhow::Error),
+}
+
 /// See [AppPage].
 #[turbo_tasks::task_input]
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
@@ -148,49 +175,41 @@ impl AppPage {
         Self::default()
     }
 
-    /// Returns the first catch-all (`[...slug]`) or optional catch-all (`[[...slug]]`) segment of
-    /// this page, if any. No segment that modifies the path can follow it.
-    pub fn catch_all_segment(&self) -> Option<&PageSegment> {
-        self.0.iter().find(|segment| {
-            matches!(
-                segment,
-                PageSegment::CatchAll(..) | PageSegment::OptionalCatchAll(..)
-            )
-        })
-    }
-
-    pub fn push(&mut self, segment: PageSegment) -> Result<()> {
-        if self.catch_all_segment().is_some()
-            && matches!(
-                segment,
-                PageSegment::Static(..)
-                    | PageSegment::Dynamic(..)
-                    | PageSegment::CatchAll(..)
-                    | PageSegment::OptionalCatchAll(..)
-            )
-        {
-            bail!(
-                "Invalid segment {:?}, catch all segment must be the last segment modifying the \
-                 path (segments: {:?})",
-                segment,
-                self.0
-            )
+    pub fn push(&mut self, segment: PageSegment) -> Result<(), AppPageError> {
+        if matches!(
+            segment,
+            PageSegment::Static(..)
+                | PageSegment::Dynamic(..)
+                | PageSegment::CatchAll(..)
+                | PageSegment::OptionalCatchAll(..)
+        ) {
+            // A catch-all segment is usually one of the last segments, so search from the end.
+            if let Some(catch_all) = self.0.iter().rev().find(|segment| {
+                matches!(
+                    segment,
+                    PageSegment::CatchAll(..) | PageSegment::OptionalCatchAll(..)
+                )
+            }) {
+                return Err(AppPageError::SegmentAfterCatchAll {
+                    segment,
+                    catch_all: catch_all.clone(),
+                    segments: self.0.clone(),
+                });
+            }
         }
 
         if self.is_complete() {
-            bail!(
-                "Invalid segment {:?}, this page path already has the final PageType appended \
-                 (segments: {:?})",
+            return Err(AppPageError::AlreadyComplete {
                 segment,
-                self.0
-            )
+                segments: self.0.clone(),
+            });
         }
 
         self.0.push(segment);
         Ok(())
     }
 
-    pub fn push_str(&mut self, segment: &str) -> Result<()> {
+    pub fn push_str(&mut self, segment: &str) -> Result<(), AppPageError> {
         if segment.is_empty() {
             return Ok(());
         }
@@ -198,13 +217,13 @@ impl AppPage {
         self.push(PageSegment::parse(segment)?)
     }
 
-    pub fn clone_push(&self, segment: PageSegment) -> Result<Self> {
+    pub fn clone_push(&self, segment: PageSegment) -> Result<Self, AppPageError> {
         let mut cloned = self.clone();
         cloned.push(segment)?;
         Ok(cloned)
     }
 
-    pub fn clone_push_str(&self, segment: &str) -> Result<Self> {
+    pub fn clone_push_str(&self, segment: &str) -> Result<Self, AppPageError> {
         let mut cloned = self.clone();
         cloned.push_str(segment)?;
         Ok(cloned)
@@ -282,7 +301,7 @@ impl AppPage {
     }
 
     pub fn complete(&self, page_type: PageType) -> Result<Self> {
-        self.clone_push(PageSegment::PageType(page_type))
+        Ok(self.clone_push(PageSegment::PageType(page_type))?)
     }
 }
 

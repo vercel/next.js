@@ -1,6 +1,7 @@
 import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
 
 const imageFile = `import { ImageResponse } from 'next/og'
 
@@ -71,8 +72,7 @@ describe('catch-all-nested-routes', () => {
     /** Messages expected in the CLI output. */
     expectedMessages: string[]
     /**
-     * Text expected in the error page. It embeds the first error as escaped
-     * JSON, so this must not contain quotes.
+     * Text expected in the error page, which embeds the first error.
      */
     expectedInResponse: string
     /** Add the files while the dev server is stopped, then start it. */
@@ -94,7 +94,7 @@ describe('catch-all-nested-routes', () => {
         const res = await next.fetch(requestPath)
         expect(res.status).toBe(500)
         expect(await res.text()).toContain(expectedInResponse)
-        const output = next.cliOutput.slice(outputStart)
+        const output = stripAnsi(next.cliOutput.slice(outputStart))
         for (const message of expectedMessages) {
           expect(output).toContain(message)
         }
@@ -125,9 +125,9 @@ describe('catch-all-nested-routes', () => {
       ],
       requestPath: '/section',
       expectedMessages: [
-        'Metadata file "app/section/[[...slug]]/opengraph-image.tsx" can\'t be used inside the catch-all segment "[[...slug]]"',
-        'Metadata file "app/section/[[...slug]]/twitter-image.tsx" can\'t be used inside the catch-all segment "[[...slug]]"',
-        'the metadata route "/section/[[...slug]]/opengraph-image" can never be matched',
+        "Metadata file app/section/[[...slug]]/opengraph-image.tsx can't be used inside the catch-all segment [[...slug]]",
+        "Metadata file app/section/[[...slug]]/twitter-image.tsx can't be used inside the catch-all segment [[...slug]]",
+        'the metadata route /section/[[...slug]]/opengraph-image can never be matched',
       ],
       expectedInResponse: 'can never be matched',
     })
@@ -138,7 +138,7 @@ describe('catch-all-nested-routes', () => {
       files: ['app/docs/[...slug]/icon.tsx'],
       requestPath: '/docs/a',
       expectedMessages: [
-        'Metadata file "app/docs/[...slug]/icon.tsx" can\'t be used inside the catch-all segment "[...slug]"',
+        "Metadata file app/docs/[...slug]/icon.tsx can't be used inside the catch-all segment [...slug]",
       ],
       expectedInResponse: 'app/docs/[...slug]/icon.tsx',
     })
@@ -149,7 +149,7 @@ describe('catch-all-nested-routes', () => {
       files: ['app/section/[[...slug]]/extra/page.tsx'],
       requestPath: '/section',
       expectedMessages: [
-        'Routes in "app/section/[[...slug]]/extra" can\'t be nested inside the catch-all segment "[[...slug]]"',
+        "Routes in app/section/[[...slug]]/extra can't be nested inside the catch-all segment [[...slug]]",
       ],
       expectedInResponse: 'app/section/[[...slug]]/extra',
     })
@@ -163,8 +163,8 @@ describe('catch-all-nested-routes', () => {
       ],
       requestPath: '/docs/a',
       expectedMessages: [
-        'Routes in "app/docs/[...slug]/api" can\'t be nested inside the catch-all segment "[...slug]"',
-        'Metadata file "app/docs/[...slug]/apple-icon.png" can\'t be used inside the catch-all segment "[...slug]"',
+        "Routes in app/docs/[...slug]/api can't be nested inside the catch-all segment [...slug]",
+        "Metadata file app/docs/[...slug]/apple-icon.png can't be used inside the catch-all segment [...slug]",
       ],
       expectedInResponse: 'can never be matched',
     })
@@ -180,9 +180,9 @@ describe('catch-all-nested-routes', () => {
       ],
       requestPath: '/section',
       expectedMessages: [
-        'Metadata file "app/section/[[...slug]]/opengraph-image.tsx" can\'t be used inside the catch-all segment "[[...slug]]"',
-        'Metadata file "app/section/[[...slug]]/twitter-image.tsx" can\'t be used inside the catch-all segment "[[...slug]]"',
-        'Routes in "app/section/[[...slug]]/a" can\'t be nested inside the catch-all segment "[[...slug]]"',
+        "Metadata file app/section/[[...slug]]/opengraph-image.tsx can't be used inside the catch-all segment [[...slug]]",
+        "Metadata file app/section/[[...slug]]/twitter-image.tsx can't be used inside the catch-all segment [[...slug]]",
+        "Routes in app/section/[[...slug]]/a can't be nested inside the catch-all segment [[...slug]]",
       ],
       expectedInResponse: 'can never be matched',
     })

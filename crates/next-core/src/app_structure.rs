@@ -17,7 +17,7 @@ use turbopack_core::issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledSt
 use crate::{
     mode::NextMode,
     next_app::{
-        AppPage, AppPath, PageSegment, PageType,
+        AppPage, AppPageError, AppPath, PageSegment, PageType,
         metadata::{
             GlobalMetadataFileMatch, MetadataFileMatch, match_global_metadata_file,
             match_local_metadata_file, normalize_metadata_route,
@@ -1908,13 +1908,12 @@ async fn directory_tree_to_loader_tree_internal(
         // When constructing the app_page fails (e. g. due to limitations of the order),
         // we only want to emit the error when there are actual pages below that
         // directory.
-        if let Err(e) = child_app_page.push_str(&normalize_underscore(subdir_name)) {
-            if app_page.catch_all_segment().is_some() {
-                // Routes nested inside a catch-all segment can never be matched, so they can't be
-                // part of this loader tree. `directory_tree_to_entrypoints_internal` reports them.
-                continue;
-            }
-            illegal_path_error = Some(e);
+        match child_app_page.push_str(&normalize_underscore(subdir_name)) {
+            Ok(()) => {}
+            // Routes nested inside a catch-all segment can never be matched, so they can't be
+            // part of this loader tree. `directory_tree_to_entrypoints_internal` reports them.
+            Err(AppPageError::SegmentAfterCatchAll { .. }) => continue,
+            Err(e) => illegal_path_error = Some(e),
         }
 
         // The recursive call returns `None` without any side effects when the child can't
@@ -1941,7 +1940,7 @@ async fn directory_tree_to_loader_tree_internal(
         };
 
         if let Some(illegal_path) = subtree.as_ref().and(illegal_path_error) {
-            return Err(illegal_path);
+            return Err(illegal_path.into());
         }
 
         if let Some(subtree) = subtree {
@@ -2333,23 +2332,21 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         let route_name = get_metadata_route_name(meta.clone()).await?;
         let metadata_page = match app_page.clone_push_str(&route_name) {
             Ok(metadata_page) => metadata_page,
-            Err(err) => {
-                // A metadata file inside a catch-all segment would create a route like
-                // `/[...slug]/opengraph-image`, which can never be matched. Report it instead of
-                // failing the whole app.
-                let Some(catch_all_segment) = app_page.catch_all_segment() else {
-                    return Err(err);
-                };
+            // A metadata file inside a catch-all segment would create a route like
+            // `/[...slug]/opengraph-image`, which can never be matched. Report it instead of
+            // failing the whole app.
+            Err(AppPageError::SegmentAfterCatchAll { catch_all, .. }) => {
                 let (MetadataItem::Static { path } | MetadataItem::Dynamic { path }) = &meta;
                 NestedInCatchAllSegmentIssue {
                     path: path.clone(),
-                    catch_all_segment: catch_all_segment.to_string().into(),
+                    catch_all_segment: catch_all.to_string().into(),
                     metadata_route: Some(format!("{app_page}/{route_name}").into()),
                 }
                 .resolved_cell()
                 .emit();
                 continue;
             }
+            Err(err) => return Err(err.into()),
         };
 
         add_app_metadata_route(
@@ -2584,11 +2581,12 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 // When constructing the app_page fails (e. g. due to limitations of the order),
                 // we only want to emit the error when there are actual pages below that
                 // directory.
-                if let Err(e) = child_app_page.push_str(&normalize_underscore(subdir_name)) {
-                    if let Some(catch_all_segment) = app_page.catch_all_segment() {
-                        // A segment after a catch-all segment can never be matched. Report the
-                        // directory (once, at the topmost invalid level) if it contains any
-                        // entrypoints, and skip it instead of failing the whole app.
+                match child_app_page.push_str(&normalize_underscore(subdir_name)) {
+                    Ok(()) => {}
+                    // A segment after a catch-all segment can never be matched. Report the
+                    // directory (once, at the topmost invalid level) if it contains any
+                    // entrypoints, and skip it instead of failing the whole app.
+                    Err(AppPageError::SegmentAfterCatchAll { catch_all, .. }) => {
                         if *directory_tree_has_entrypoints(*subdirectory).await? {
                             let directory = if app_page.is_root() {
                                 subdir_name.to_string()
@@ -2597,7 +2595,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                             };
                             NestedInCatchAllSegmentIssue {
                                 path: app_dir.join(&directory)?,
-                                catch_all_segment: catch_all_segment.to_string().into(),
+                                catch_all_segment: catch_all.to_string().into(),
                                 metadata_route: None,
                             }
                             .resolved_cell()
@@ -2605,7 +2603,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         }
                         return Ok(None);
                     }
-                    illegal_path = Some(e);
+                    Err(e) => illegal_path = Some(e),
                 }
 
                 let map = directory_tree_to_entrypoints_internal(
@@ -2626,7 +2624,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 if let Some(illegal_path) = illegal_path
                     && !map.is_empty()
                 {
-                    return Err(illegal_path);
+                    return Err(illegal_path.into());
                 }
 
                 let mut loader_trees = Vec::new();
@@ -2814,42 +2812,61 @@ impl Issue for NestedInCatchAllSegmentIssue {
     }
 
     async fn title(&self) -> Result<StyledString> {
-        Ok(StyledString::Text(
-            if self.metadata_route.is_some() {
-                format!(
-                    "Metadata file \"{}\" can't be used inside the catch-all segment \"{}\"",
-                    self.path.path, self.catch_all_segment
-                )
+        Ok(StyledString::Line(vec![
+            StyledString::Text(if self.metadata_route.is_some() {
+                rcstr!("Metadata file ")
             } else {
-                format!(
-                    "Routes in \"{}\" can't be nested inside the catch-all segment \"{}\"",
-                    self.path.path, self.catch_all_segment
-                )
-            }
-            .into(),
-        ))
+                rcstr!("Routes in ")
+            }),
+            StyledString::Code(self.path.path.clone()),
+            StyledString::Text(if self.metadata_route.is_some() {
+                rcstr!(" can't be used inside the catch-all segment ")
+            } else {
+                rcstr!(" can't be nested inside the catch-all segment ")
+            }),
+            StyledString::Code(self.catch_all_segment.clone()),
+        ]))
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
-        let catch_all_segment = &self.catch_all_segment;
-        Ok(Some(StyledString::Text(
+        let catch_all_segment = StyledString::Code(self.catch_all_segment.clone());
+        Ok(Some(StyledString::Line(
             if let Some(metadata_route) = &self.metadata_route {
-                format!(
-                    "A catch-all segment must be the last segment of a route, so the metadata \
-                     route \"{metadata_route}\" can never be matched. Serve the file from a Route \
-                     Handler outside of the catch-all segment \"{catch_all_segment}\" instead. \
-                     For images, reference that Route Handler with `generateMetadata` (for \
-                     example `openGraph.images`, `twitter.images` or `icons`)."
-                )
+                vec![
+                    StyledString::Text(rcstr!(
+                        "A catch-all segment must be the last segment of a route, so the metadata \
+                         route "
+                    )),
+                    StyledString::Code(metadata_route.clone()),
+                    StyledString::Text(rcstr!(
+                        " can never be matched. Serve the file from a Route Handler outside of \
+                         the catch-all segment "
+                    )),
+                    catch_all_segment,
+                    StyledString::Text(rcstr!(
+                        " instead. For images, reference that Route Handler with "
+                    )),
+                    StyledString::Code(rcstr!("generateMetadata")),
+                    StyledString::Text(rcstr!(" (for example ")),
+                    StyledString::Code(rcstr!("openGraph.images")),
+                    StyledString::Text(rcstr!(", ")),
+                    StyledString::Code(rcstr!("twitter.images")),
+                    StyledString::Text(rcstr!(" or ")),
+                    StyledString::Code(rcstr!("icons")),
+                    StyledString::Text(rcstr!(").")),
+                ]
             } else {
-                format!(
-                    "A catch-all segment must be the last segment of a route, so pages, route \
-                     handlers and metadata files nested inside the catch-all segment \
-                     \"{catch_all_segment}\" can never be matched. Move them outside of the \
-                     catch-all segment."
-                )
-            }
-            .into(),
+                vec![
+                    StyledString::Text(rcstr!(
+                        "A catch-all segment must be the last segment of a route, so pages, route \
+                         handlers and metadata files nested inside the catch-all segment "
+                    )),
+                    catch_all_segment,
+                    StyledString::Text(rcstr!(
+                        " can never be matched. Move them outside of the catch-all segment."
+                    )),
+                ]
+            },
         )))
     }
 
