@@ -1206,6 +1206,41 @@ jobs:
       stepName: 'test-cache-components-prod-${{ matrix.group }}'
     secrets: inherit
 
+  # Reruns the routing gate and the front server's behavior suite with
+  # `next start` behind the experimental Go front server. Both must pass the
+  # same as they do without it (packages/next/src/server/front).
+  test-front-server-prod:
+    name: test front server prod
+    needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/2, 2/2]
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      needsGo: 'yes'
+      afterBuild: |
+        # `next` ships no next-front binary yet; build one and pass it in.
+        go build -C packages/next/src/server/front -trimpath -o "$RUNNER_TEMP/next-front" .
+        export __NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY="$RUNNER_TEMP/next-front"
+        export __NEXT_EXPERIMENTAL_FRONT_SERVER=1
+
+        node scripts/test-routing.mjs --mode=start -g ${{ matrix.group }}
+
+        if [ "${{ matrix.group }}" = "1/2" ]; then
+          NEXT_TEST_MODE=start IS_TURBOPACK_TEST=1 TURBOPACK_BUILD=1 \
+            node run-tests.js \
+              test/production/app-dir/front-server/front-server.test.ts \
+              test/production/app-dir/front-server/front-server-process.test.ts
+        fi
+      stepName: 'test-front-server-prod-${{ matrix.group }}'
+    secrets: inherit
+
   # We block merging unless this job passes. This is enforced by a "require
   # status checks to pass" rule on the canary branch.
   # <https://github.com/vercel/next.js/settings/rules/15507172>

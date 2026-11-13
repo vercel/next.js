@@ -6,12 +6,19 @@ import { once } from 'events'
 import { promisify } from 'util'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import {
+  FRONT_SERVER_BINARY_ENV,
+  FRONT_SERVER_ENV,
+} from 'next/dist/server/lib/front-server-env'
 
 const execFileAsync = promisify(execFile)
+const FLAG = FRONT_SERVER_ENV
 
-// `next start` as a process: who owns the public port, startup, shutdown and
-// exit codes. The suite starts `next start` itself, so it can signal it and
-// pass it arguments.
+// The processes `next start` runs with and without
+// __NEXT_EXPERIMENTAL_FRONT_SERVER: who owns the public port, startup and
+// shutdown, and what happens when one of the processes dies. The suite starts
+// `next start` itself, so it sets the variable per test and ignores the value
+// it inherits.
 describe('front-server process', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
@@ -30,7 +37,7 @@ describe('front-server process', () => {
   afterEach(() => {
     for (const child of running) {
       try {
-        // The whole group, so any child goes too.
+        // The whole group, so a next-front child goes too.
         process.kill(-child.pid!, 'SIGKILL')
       } catch {
         // Already gone.
@@ -48,7 +55,15 @@ describe('front-server process', () => {
 
   function spawnNext(
     command: 'start' | 'dev',
-    { args = [] }: { args?: string[] }
+    {
+      flag,
+      args = [],
+      env: extraEnv = {},
+    }: {
+      flag: string | undefined
+      args?: string[]
+      env?: Readonly<Record<string, string>>
+    }
   ) {
     // `spawn` leaves out variables whose value is undefined.
     const env: NodeJS.ProcessEnv = {
@@ -58,6 +73,8 @@ describe('front-server process', () => {
       PORT: undefined,
       NEXT_TELEMETRY_DISABLED: '1',
       __NEXT_TEST_MODE: 'e2e',
+      [FLAG]: flag,
+      ...extraEnv,
     }
 
     const child = spawn(
@@ -84,10 +101,11 @@ describe('front-server process', () => {
   }
 
   async function startNext(
-    options: { args?: string[] } = {},
+    options: { flag: string | undefined; args?: string[] },
     command: 'start' | 'dev' = 'start'
   ): Promise<Started> {
     const started = spawnNext(command, {
+      ...options,
       args: options.args ?? ['-p', '0'],
     })
     const port = await retry(
@@ -127,6 +145,45 @@ describe('front-server process', () => {
     return [...new Set(stdout.split('\n').filter(Boolean).map(Number))]
   }
 
+  /** The addresses a process listens on, like `127.0.0.1:51234` or `*:3000`. */
+  async function listenAddressesOf(pid: number): Promise<string[]> {
+    if (process.platform === 'linux') {
+      return [
+        ...new Set(
+          (await linuxListeners())
+            .filter((listener) => listener.pid === pid)
+            .map((listener) => `${listener.host}:${listener.port}`)
+        ),
+      ]
+    }
+    const { stdout } = await execFileAsync('lsof', [
+      '-nP',
+      '-a',
+      `-p${pid}`,
+      '-iTCP',
+      '-sTCP:LISTEN',
+      '-Fn',
+    ]).catch(() => ({ stdout: '' }))
+    return [
+      ...new Set(
+        stdout
+          .split('\n')
+          .filter((line) => line.startsWith('n'))
+          .map((line) => line.slice(1))
+      ),
+    ]
+  }
+
+  async function commandOf(pid: number): Promise<string> {
+    const { stdout } = await execFileAsync('ps', [
+      '-o',
+      'comm=',
+      '-p',
+      `${pid}`,
+    ])
+    return path.basename(stdout.trim())
+  }
+
   async function childrenOf(pid: number): Promise<number[]> {
     const { stdout } = await execFileAsync('pgrep', ['-P', `${pid}`]).catch(
       () => ({ stdout: '' })
@@ -134,69 +191,180 @@ describe('front-server process', () => {
     return stdout.split('\n').filter(Boolean).map(Number)
   }
 
-  it('owns the public port itself', async () => {
-    const { child, port } = await startNext()
-    expect(await listenersOf(port)).toEqual([child.pid])
-    expect(await childrenOf(child.pid!)).toEqual([])
-    expect(await getText(port)).toMatchObject({ status: 200 })
-  })
-
-  it('exits 143 on SIGTERM', async () => {
-    const { child, port, exit } = await startNext()
-    expect(await getText(port)).toMatchObject({ status: 200 })
-    process.kill(child.pid!, 'SIGTERM')
-    expect(await exit).toEqual({ code: 143, signal: null })
-  })
-
-  it('exits 130 when the process group gets SIGINT, like Ctrl+C', async () => {
-    const { child, port, exit } = await startNext()
-    expect(await getText(port)).toMatchObject({ status: 200 })
-    process.kill(-child.pid!, 'SIGINT')
-    expect(await exit).toEqual({ code: 130, signal: null })
-  })
-
-  it('finishes an in-flight request across SIGTERM', async () => {
-    const { child, port, exit } = await startNext()
-    const response = getText(port, '/slow?ms=2000')
-    // Let the request reach the route before the signal.
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    process.kill(child.pid!, 'SIGTERM')
-    expect(await response).toEqual({ status: 200, text: 'waited 2000' })
-    expect(await exit).toEqual({ code: 143, signal: null })
-  })
-
-  it('listens on the port passed with -p', async () => {
-    const port = await getFreePort()
-    const started = await startNext({ args: ['-p', String(port)] })
-    expect(started.port).toBe(port)
-    expect(await getText(port)).toMatchObject({ status: 200 })
-  })
-
-  it('fails to start when the port is in use', async () => {
-    const blocker = net.createServer()
-    blocker.listen(0)
-    await once(blocker, 'listening')
-    const port = portOf(blocker)
-    try {
-      const { exit, output } = spawnNext('start', {
-        args: ['-p', String(port)],
-      })
-      expect(await exit).toEqual({ code: 1, signal: null })
-      // Printed once.
-      expect(output().match(/Failed to start server/g)).toHaveLength(1)
-      expect(output()).not.toContain('Ready in')
-    } finally {
-      blocker.close()
+  async function frontOf(nodePid: number): Promise<number> {
+    for (const pid of await childrenOf(nodePid)) {
+      if ((await commandOf(pid)).startsWith('next-front')) return pid
     }
+    throw new Error(`next start (pid ${nodePid}) has no next-front child`)
+  }
+
+  function isAlive(pid: number) {
+    try {
+      process.kill(pid, 0)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  describe.each([undefined, '', '0', 'false'])(`with ${FLAG}=%p`, (flag) => {
+    it('lets Node own the public port', async () => {
+      const { child, port } = await startNext({ flag })
+      expect(await listenersOf(port)).toEqual([child.pid])
+      expect(await childrenOf(child.pid!)).toEqual([])
+      expect(await getText(port)).toMatchObject({ status: 200 })
+    })
   })
 
-  it('honors --keepAliveTimeout on the public port', async () => {
-    const { port } = await startNext({
-      args: ['-p', '0', '--keepAliveTimeout', '2000'],
+  it('fails clearly when it finds no next-front binary', async () => {
+    const missing = path.join(next.testDir, 'no-such-next-front')
+    const { exit, output } = spawnNext('start', {
+      flag: '1',
+      args: ['-p', '0'],
+      env: { [FRONT_SERVER_BINARY_ENV]: missing },
     })
-    const idle = await measureIdleClose(port)
-    expect(idle).toBeGreaterThan(1500)
-    expect(idle).toBeLessThan(4000)
+    expect(await exit).toEqual({ code: 1, signal: null })
+    expect(output()).toContain(
+      `${FRONT_SERVER_BINARY_ENV} points at ${missing}, which doesn't exist`
+    )
+    expect(output()).not.toContain('Ready in')
+  })
+
+  // Behavior that must not change when the front is on.
+  function unchangedBehavior(flag: string | undefined) {
+    it('exits 143 on SIGTERM', async () => {
+      const { child, port, exit } = await startNext({ flag })
+      expect(await getText(port)).toMatchObject({ status: 200 })
+      process.kill(child.pid!, 'SIGTERM')
+      expect(await exit).toEqual({ code: 143, signal: null })
+    })
+
+    it('exits 130 when the process group gets SIGINT, like Ctrl+C', async () => {
+      const { child, port, exit } = await startNext({ flag })
+      expect(await getText(port)).toMatchObject({ status: 200 })
+      process.kill(-child.pid!, 'SIGINT')
+      expect(await exit).toEqual({ code: 130, signal: null })
+    })
+
+    it('finishes an in-flight request across SIGTERM', async () => {
+      const { child, port, exit } = await startNext({ flag })
+      const response = getText(port, '/slow?ms=2000')
+      // Let the request reach the route before the signal.
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      process.kill(child.pid!, 'SIGTERM')
+      expect(await response).toEqual({ status: 200, text: 'waited 2000' })
+      expect(await exit).toEqual({ code: 143, signal: null })
+    })
+
+    it('listens on the port passed with -p', async () => {
+      const port = await getFreePort()
+      const started = await startNext({ flag, args: ['-p', String(port)] })
+      expect(started.port).toBe(port)
+      expect(await getText(port)).toMatchObject({ status: 200 })
+    })
+
+    it('fails to start when the port is in use', async () => {
+      const blocker = net.createServer()
+      blocker.listen(0)
+      await once(blocker, 'listening')
+      const port = portOf(blocker)
+      try {
+        const { exit, output } = spawnNext('start', {
+          flag,
+          args: ['-p', String(port)],
+        })
+        expect(await exit).toEqual({ code: 1, signal: null })
+        // Node reports it once; the front prints only the raw error.
+        expect(output().match(/Failed to start server/g)).toHaveLength(1)
+        expect(output()).not.toContain('Ready in')
+      } finally {
+        blocker.close()
+      }
+    })
+
+    it('honors --keepAliveTimeout on the public port', async () => {
+      const { port } = await startNext({
+        flag,
+        args: ['-p', '0', '--keepAliveTimeout', '2000'],
+      })
+      const idle = await measureIdleClose(port)
+      expect(idle).toBeGreaterThan(1500)
+      expect(idle).toBeLessThan(4000)
+    })
+  }
+
+  describe(`with ${FLAG} unset`, () => {
+    unchangedBehavior(undefined)
+  })
+
+  // Needs a next-front build. `next` ships none unless built with
+  // NEXT_BUILD_FRONT_SERVER=1, so this runs where the binary is passed in.
+  // @force-gate frontServerBinary
+  describe(`with ${FLAG}=1`, () => {
+    it('puts next-front on the public port and Node on 127.0.0.1', async () => {
+      const { child, port } = await startNext({ flag: '1' })
+      const front = await frontOf(child.pid!)
+      expect(await listenersOf(port)).toEqual([front])
+
+      const nodeAddresses = await listenAddressesOf(child.pid!)
+      expect(nodeAddresses).toHaveLength(1)
+      expect(nodeAddresses[0]).toMatch(/^127\.0\.0\.1:\d+$/)
+      expect(nodeAddresses[0]).not.toBe(`127.0.0.1:${port}`)
+
+      const { status, text } = await getText(port)
+      expect(status).toBe(200)
+      expect(text).toContain('hello world')
+    })
+
+    it("passes Node's timeouts to next-front", async () => {
+      const { child } = await startNext({
+        flag: '1',
+        args: ['-p', '0', '--keepAliveTimeout', '65000'],
+      })
+      const { stdout } = await execFileAsync('ps', [
+        '-o',
+        'args=',
+        '-p',
+        `${await frontOf(child.pid!)}`,
+      ])
+      // --keepAliveTimeout for clients; Node's own headersTimeout (60 s) and
+      // keepAliveTimeout (5 s, minus a second for the pool), which Next.js
+      // leaves at Node's defaults.
+      expect(stdout).toContain(
+        '--idle-timeout-ms 65000 --header-timeout-ms 60000 --upstream-idle-ms 4000'
+      )
+    })
+
+    it('exits 1 when next-front dies', async () => {
+      const { child, exit } = await startNext({ flag: '1' })
+      process.kill(await frontOf(child.pid!), 'SIGKILL')
+      expect(await exit).toEqual({ code: 1, signal: null })
+    })
+
+    it('stops next-front when Node dies', async () => {
+      const { child, exit } = await startNext({ flag: '1' })
+      const front = await frontOf(child.pid!)
+      process.kill(child.pid!, 'SIGKILL')
+      await exit
+      await retry(() => expect(isAlive(front)).toBe(false), 5_000, 100)
+    })
+
+    unchangedBehavior('1')
+  })
+
+  it('next dev ignores the variable', async () => {
+    const { child, port } = await startNext({ flag: '1' }, 'dev')
+    expect(await getText(port)).toMatchObject({ status: 200 })
+    for (const pid of await listenersOf(port)) {
+      expect(await commandOf(pid)).not.toMatch(/^next-front/)
+    }
+    // `next dev` serves from a child process; neither it nor the CLI process
+    // starts next-front.
+    for (const pid of [child.pid!, ...(await childrenOf(child.pid!))]) {
+      for (const grandchild of await childrenOf(pid)) {
+        expect(await commandOf(grandchild)).not.toMatch(/^next-front/)
+      }
+    }
   })
 })
 

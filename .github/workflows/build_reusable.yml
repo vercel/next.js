@@ -40,6 +40,10 @@ on:
         required: false
         description: 'if nextest rust dep is needed'
         type: string
+      needsGo:
+        required: false
+        description: 'if Go is needed, e.g. to build next-front (packages/next/src/server/front)'
+        type: string
       needsRustJsInstall:
         required: false
         description: 'if Rust JS dependencies should be installed'
@@ -320,8 +324,11 @@ jobs:
       - name: Wait for Rust toolchain
         wait: install-rust
 
-      - name: Install Go for native bundle tests
-        if: ${{ inputs.needsNextest == 'yes' }}
+      # One step for the nextest jobs and the needsGo jobs, so the version stays
+      # pinned here instead of following packages/next/src/server/front/go.mod,
+      # which would let a front-server bump change the nextest toolchain.
+      - name: Install Go
+        if: ${{ inputs.needsNextest == 'yes' || inputs.needsGo == 'yes' }}
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.24.x'
