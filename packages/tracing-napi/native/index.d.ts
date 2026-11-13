@@ -3,12 +3,4 @@ export interface NapiNftResult {
   issues: Array<string>
 }
 
-export declare function nodeFileTrace(
-  projectRoot: string,
-  cwd: string,
-  outputBase: string,
-  input: Array<string>,
-  graph: boolean,
-  showIssues: boolean,
-  maxDepth?: number | undefined | null
-): Promise<NapiNftResult>
+export declare function nodeFileTrace(projectRoot: string, cwd: string, outputBase: string, input: Array<string>, graph: boolean, showIssues: boolean, maxDepth?: number | undefined | null): Promise<NapiNftResult>
