@@ -47,7 +47,11 @@ export function createAdmissionConfig(options: {
     options.maxConcurrency ?? DEFAULT_ADAPTIVE_MAX_CONCURRENCY
   )
   return {
-    minConcurrency: Math.min(2, maxConcurrency),
+    // When CPU bound, give back windows grown for I/O, but never go below the
+    // fixed window the non-adaptive path uses. A smaller window measured
+    // ~2x slower on a large docs app whose pages look CPU bound by event
+    // loop utilization yet still overlap short waits.
+    minConcurrency: Math.min(8, maxConcurrency),
     initialConcurrency: Math.min(8, maxConcurrency),
     maxConcurrency,
     eluTarget: 0.8,
@@ -243,7 +247,7 @@ export class AdmissionController {
     }
 
     if (sample.elu > Math.min(0.98, config.eluTarget + 0.1)) {
-      // CPU bound: more pages in flight only add memory and latency.
+      // CPU bound: windows grown for I/O only add memory and latency now.
       const floor = Math.min(config.minConcurrency, config.maxConcurrency)
       if (this.limit > floor) {
         this.limit = Math.max(floor, this.limit - 1)

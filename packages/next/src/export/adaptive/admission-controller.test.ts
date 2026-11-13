@@ -71,11 +71,14 @@ describe('AdmissionController', () => {
     expect(controller.concurrency).toBe(13)
   })
 
-  it('shrinks toward the floor when CPU bound', () => {
+  it('when CPU bound, shrinks a grown window back to the initial window, not below', () => {
     const controller = new AdmissionController(createAdmissionConfig({}))
     const update = sampler(controller)
-    for (let i = 0; i < 20; i++) update({ elu: 1 })
-    expect(controller.concurrency).toBe(2)
+    update({ postGcHeap: 80 * MB, running: 1 })
+    for (let i = 0; i < 4; i++) update({ heapUsed: 100 * MB })
+    expect(controller.concurrency).toBeGreaterThan(8)
+    for (let i = 0; i < 60; i++) update({ elu: 1 })
+    expect(controller.concurrency).toBe(8)
   })
 
   it('applies hysteresis: refuses above high water until below low water', () => {
