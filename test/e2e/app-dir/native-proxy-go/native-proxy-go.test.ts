@@ -204,6 +204,49 @@ describe('native-proxy-go', () => {
   })
 
   it.each([
+    { helper: 'Next', mode: 'nil' },
+    { helper: 'Next', mode: 'replace' },
+    { helper: 'Next', mode: 'empty' },
+    { helper: 'Rewrite', mode: 'nil' },
+    { helper: 'Rewrite', mode: 'replace' },
+    { helper: 'Rewrite', mode: 'empty' },
+  ])(
+    '$helper applies ProxyOptions with $mode request headers',
+    async ({ helper, mode }) => {
+      const query = new URLSearchParams({
+        headers: mode,
+        rewrite: helper === 'Rewrite' ? '1' : '0',
+      })
+      const response = await next.fetch(`/native-proxy/options?${query}`, {
+        method: 'DELETE',
+        headers: { 'x-from-go': 'client', 'x-client-remove': 'original' },
+        body: 'body with request header options',
+      })
+      expect(response.status).toBe(200)
+      expect(response.headers.get('x-go-proxy')).toBe('yes')
+      expect(await response.json()).toMatchObject({
+        method: 'DELETE',
+        body: 'body with request header options',
+        fromGo:
+          mode === 'nil' ? 'client' : mode === 'replace' ? 'options' : null,
+        removed: mode === 'nil' ? 'original' : null,
+      })
+    }
+  )
+
+  it.each(['next', 'rewrite'])(
+    'rejects multiple options for %s without stopping the worker',
+    async (helper) => {
+      expect(
+        (await next.fetch(`/native-proxy/invalid-${helper}-options`)).status
+      ).toBe(500)
+      const following = await next.fetch('/native-proxy/inspect')
+      expect(following.status).toBe(200)
+      expect(following.headers.get('x-go-proxy')).toBe('yes')
+    }
+  )
+
+  it.each([
     ['DELETE', 'content-length'],
     ['OPTIONS', 'content-length'],
     ['GET', 'content-length'],
@@ -216,7 +259,7 @@ describe('native-proxy-go', () => {
       const requests: Array<{
         url: string
         body: string
-        fromGo: string | undefined
+        fromGo: string | string[] | undefined
       }> = []
       const server = createServer((req, res) => {
         const chunks: Buffer[] = []

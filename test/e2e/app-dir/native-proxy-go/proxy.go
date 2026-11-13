@@ -27,6 +27,23 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch r.URL.Path {
+	case "/native-proxy/options":
+		options := ProxyOptions{}
+		switch r.URL.Query().Get("headers") {
+		case "replace":
+			options.Request.Headers = http.Header{"X-From-Go": {"options"}}
+		case "empty":
+			options.Request.Headers = http.Header{}
+		}
+		if r.URL.Query().Get("rewrite") == "1" {
+			Rewrite(w, "/native-proxy/inspect", options)
+		} else {
+			Next(w, options)
+		}
+	case "/native-proxy/invalid-next-options":
+		Next(w, ProxyOptions{}, ProxyOptions{})
+	case "/native-proxy/invalid-rewrite-options":
+		Rewrite(w, "/native-proxy/inspect", ProxyOptions{}, ProxyOptions{})
 	case "/native-proxy/blocked":
 		http.Error(w, "blocked by Go", http.StatusForbidden)
 	case "/native-proxy/compressed":
@@ -49,13 +66,15 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 		headers := r.Header.Clone()
 		headers.Set("x-from-go", "overridden")
 		headers.Del("x-client-remove")
-		OverrideRequestHeaders(w, headers)
-		Rewrite(w, "/native-proxy/inspect")
+		Rewrite(w, "/native-proxy/inspect", ProxyOptions{
+			Request: RequestOptions{Headers: headers},
+		})
 	case "/native-proxy/external-override":
 		headers := r.Header.Clone()
 		headers.Set("x-from-go", "overridden")
-		OverrideRequestHeaders(w, headers)
-		Rewrite(w, "http://127.0.0.1:"+r.URL.Query().Get("port")+"/public")
+		Rewrite(w, "http://127.0.0.1:"+r.URL.Query().Get("port")+"/public", ProxyOptions{
+			Request: RequestOptions{Headers: headers},
+		})
 	case "/native-proxy/cookies":
 		http.SetCookie(w, &http.Cookie{Name: "first", Value: "one", Path: "/"})
 		http.SetCookie(w, &http.Cookie{Name: "second", Value: "two", Path: "/"})

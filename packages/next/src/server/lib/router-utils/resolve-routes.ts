@@ -699,7 +699,9 @@ export function getResolveRoutes(
 
             const originalContentLength = req.headers['content-length']
             const originalTransferEncoding = req.headers['transfer-encoding']
-            if (middlewareHeaders['x-middleware-override-headers']) {
+            if (
+              middlewareHeaders['x-middleware-override-headers'] !== undefined
+            ) {
               const overriddenHeaders: Set<string> = new Set()
               let overrideHeaders: string | string[] =
                 middlewareHeaders['x-middleware-override-headers']
@@ -709,7 +711,8 @@ export function getResolveRoutes(
               }
 
               for (const key of overrideHeaders) {
-                overriddenHeaders.add(key.trim())
+                const name = key.trim()
+                if (name) overriddenHeaders.add(name)
               }
               delete middlewareHeaders['x-middleware-override-headers']
 

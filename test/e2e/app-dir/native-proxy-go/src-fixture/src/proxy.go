@@ -8,11 +8,10 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 		headers := r.Header.Clone()
 		headers.Set("Host", r.Host)
 		headers.Set("x-from-go", "proxy")
-		OverrideRequestHeaders(w, headers)
 		if r.URL.Path == "/native-proxy/rewrite" {
-			Rewrite(w, "/native-proxy/native")
+			Rewrite(w, "/native-proxy/native", ProxyOptions{Request: RequestOptions{Headers: headers}})
 		} else {
-			Next(w)
+			Next(w, ProxyOptions{Request: RequestOptions{Headers: headers}})
 		}
 		return
 	}

@@ -23,13 +23,34 @@ Enable `experimental.goRoutes` and follow the [Go setup requirements](/docs/app/
 
 Next.js generates these helpers in the proxy package:
 
-| Helper                               | Behavior                                                                               |
-| ------------------------------------ | -------------------------------------------------------------------------------------- |
-| `Next(w)`                            | Continue routing the request.                                                          |
-| `Rewrite(w, destination)`            | Route the request to another URL.                                                      |
-| `OverrideRequestHeaders(w, headers)` | Replace downstream request headers with an `http.Header`. Omitted headers are removed. |
+| Helper                                | Behavior                          |
+| ------------------------------------- | --------------------------------- |
+| `Next(w, options...)`                 | Continue routing the request.     |
+| `Rewrite(w, destination, options...)` | Route the request to another URL. |
 
-Call `OverrideRequestHeaders` before `Next` or `Rewrite`. Go stores Host in `r.Host`, separately from `r.Header`. When cloning request headers, add `headers.Set("Host", r.Host)` to preserve Host.
+Both helpers accept zero or one `ProxyOptions` value:
+
+```go
+// Continue or rewrite without modifying request headers.
+Next(w)
+Rewrite(w, "/destination")
+```
+
+### ProxyOptions
+
+```go
+type ProxyOptions struct {
+  Request RequestOptions
+}
+
+type RequestOptions struct {
+  Headers http.Header
+}
+```
+
+`Request.Headers` replaces the downstream request headers. Headers omitted from the replacement are removed. A `nil` map preserves the incoming headers; a non-nil empty map (`http.Header{}`) removes them all. Passing more than one options value panics.
+
+Go stores Host in `r.Host`, separately from `r.Header`. When cloning request headers, add `headers.Set("Host", r.Host)` to preserve Host.
 
 Returning without calling `Next` or `Rewrite` sends the response directly. Use standard Go APIs such as `http.Redirect`, `http.SetCookie`, and `http.Flusher` for redirects, response cookies, and streaming. Relative redirect and rewrite destinations resolve against the incoming URL.
 
@@ -58,9 +79,9 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 
 ### Modifying downstream request headers
 
-Clone the incoming headers, apply changes, and call `OverrideRequestHeaders` before `Next`. Headers omitted from the replacement are removed from the downstream request.
+Clone the incoming headers, apply changes, and pass them through `ProxyOptions.Request.Headers`. The same options value works with `Next` and `Rewrite`.
 
-```go filename="proxy.go" highlight={6-10}
+```go filename="proxy.go" highlight={10-13}
 package main
 
 import "net/http"
@@ -70,8 +91,10 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
   headers.Set("Host", r.Host)
   headers.Set("x-proxy", "go")
   headers.Del("x-example")
-  OverrideRequestHeaders(w, headers)
-  Next(w)
+  options := ProxyOptions{
+    Request: RequestOptions{Headers: headers},
+  }
+  Next(w, options)
 }
 ```
 

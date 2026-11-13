@@ -6,13 +6,26 @@ import (
 	"strings"
 )
 
+// ProxyOptions configures the request forwarded by Next or Rewrite.
+type ProxyOptions struct {
+	Request RequestOptions
+}
+
+// RequestOptions contains downstream request overrides.
+type RequestOptions struct {
+	// A nil map preserves the request headers. A non-nil map replaces them.
+	Headers http.Header
+}
+
 // Next continues routing only when the proxy explicitly returns this header.
 // All other responses are terminal, including empty responses.
-func Next(w http.ResponseWriter) {
+func Next(w http.ResponseWriter, options ...ProxyOptions) {
+	nextGoProxyOptions(w, options)
 	w.Header().Set("x-middleware-next", "1")
 }
 
-func Rewrite(w http.ResponseWriter, destination string) {
+func Rewrite(w http.ResponseWriter, destination string, options ...ProxyOptions) {
+	nextGoProxyOptions(w, options)
 	w.Header().Set("x-middleware-rewrite", destination)
 }
 
@@ -76,9 +89,14 @@ func (w *nextGoProxyWriter) Flush() {
 	_ = http.NewResponseController(w.ResponseWriter).Flush()
 }
 
-// OverrideRequestHeaders replaces the downstream request headers, matching
-// NextResponse.next({ request: { headers } }). A missing header is deleted.
-func OverrideRequestHeaders(w http.ResponseWriter, headers http.Header) {
+func nextGoProxyOptions(w http.ResponseWriter, options []ProxyOptions) {
+	if len(options) > 1 {
+		panic("Next and Rewrite accept at most one ProxyOptions value")
+	}
+	if len(options) == 0 || options[0].Request.Headers == nil {
+		return
+	}
+	headers := options[0].Request.Headers
 	names := make([]string, 0, len(headers))
 	for name, values := range headers {
 		name = strings.ToLower(name)
