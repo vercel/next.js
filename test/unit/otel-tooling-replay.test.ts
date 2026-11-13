@@ -165,32 +165,75 @@ describe('tooling OTel safety', () => {
   }
 
   it.each(['early', 'live'])(
-    'preserves completed parents for %s object and numeric children',
+    'preserves completed %s object parents without numeric lookup',
     (mode) => {
       installProvider()
       const root = buildRoot()
       if (mode === 'live') backend.enableReporting()
       const parent = child('parent', root)
-      const parentId = tracing.getTraceSpanSource(parent)!.id
       parent.end()
       child('object-child', parent).end()
-      child('numeric-child', parentId).end()
       const middle = child('local-only', parent, { reportToOtel: false })
       middle.end()
+      if (mode === 'early') backend.enableReporting()
       child('descendant', middle).end()
+      root.end()
+
+      expectExported('parent', 'object-child', 'descendant', 'next-build')
+      for (const span of exported.slice(1, 3)) {
+        expect(span.parentSpanContext?.spanId).toBe(
+          exported[0].spanContext().spanId
+        )
+      }
+    }
+  )
+
+  it.each(['early', 'live'])(
+    'retains a numeric parent exposed after %s completion',
+    (mode) => {
+      installProvider()
+      const root = buildRoot()
+      if (mode === 'live') backend.enableReporting()
+      const parent = new tracing.Span({
+        name: 'parent',
+        parent: root,
+        reportToOtel: true,
+      })
+      parent.stop()
+      child('numeric-child', parent.getId()).end()
       if (mode === 'early') backend.enableReporting()
       root.end()
 
-      expectExported(
-        'parent',
-        'object-child',
-        'numeric-child',
-        'descendant',
-        'next-build'
+      expectExported('parent', 'numeric-child', 'next-build')
+      expect(exported[1].parentSpanContext?.spanId).toBe(
+        exported[0].spanContext().spanId
       )
-      for (const span of exported.slice(1, 4)) {
-        expect(span.parentSpanContext?.spanId).toBe(
-          exported[0].spanContext().spanId
+    }
+  )
+
+  it.each([false, true])(
+    'does not retain completed leaves or worker batches with a provider: %s',
+    (withProvider) => {
+      if (withProvider) installProvider()
+      const root = backend.startSpan(
+        { id: -1, name: 'root', start: BigInt(0) },
+        true
+      )!
+      for (let i = 0; i < 900; i++) child('early-leaf', -1).end()
+      backend.enableReporting()
+      for (let i = 0; i < 2_000; i++) child('live-leaf', -1).end()
+      replay(
+        { id: 10_001, parentId: 10_000, name: 'worker-child' },
+        { id: 10_000, parentId: -1, name: 'worker-parent' }
+      )
+
+      expect(root.session.queue).toHaveLength(0)
+      expect([...root.session.records.keys()]).toEqual([-1])
+      expect(root.session.contexts.size).toBe(0)
+      if (withProvider) {
+        expect(exported).toHaveLength(2_902)
+        expect(exported[2_901].parentSpanContext?.spanId).toBe(
+          exported[2_900].spanContext().spanId
         )
       }
     }
@@ -241,14 +284,21 @@ describe('tooling OTel safety', () => {
         name: 'child',
         start: BigInt(0),
       })!
+      backend.retainSpanContext(record.reference)
       backend.completeSpan(record, { end: BigInt(1) })
       expect(root.session.records.has(record.id)).toBe(false)
-      expect(root.session.contexts.size).toBe(2)
+      expect(root.session.contexts.size).toBe(1)
 
       if (mode === 'close') backend.closeReporting()
       else if (mode === 'worker') backend.configureState(undefined, true)
-      else
-        backend.startSpan({ id: 1, name: 'next-root', start: BigInt(0) }, true)
+      else {
+        const nextRoot = backend.startSpan(
+          { id: 1, name: 'next-root', start: BigInt(0) },
+          true
+        )!
+        backend.retainSpanContext(record.reference)
+        expect(nextRoot.session.contexts.size).toBe(0)
+      }
 
       expect(root.session.contexts.size).toBe(0)
       expect(root.session.records.size).toBe(0)
@@ -634,10 +684,12 @@ describe('tooling OTel safety', () => {
 
   it('retains out-of-order worker results without replacing a live coordinator parent', () => {
     const root = buildRoot()
-    const parent = child('live-coordinator', root)
-    const parentId = (
-      require('../../packages/next/src/trace/trace') as typeof import('../../packages/next/src/trace/trace')
-    ).getTraceSpanSource(parent)!.id
+    const parent = new tracing.Span({
+      name: 'live-coordinator',
+      parent: root,
+      reportToOtel: true,
+    })
+    const parentId = parent.getId()
     const rootId = (
       require('../../packages/next/src/trace/trace') as typeof import('../../packages/next/src/trace/trace')
     ).getTraceSpanSource(root)!.id
@@ -658,7 +710,7 @@ describe('tooling OTel safety', () => {
       `worker-${parentId}`,
     ])
     child('numeric-child', parentId).end()
-    parent.end()
+    parent.stop()
     child('late-numeric-child', parentId).end()
     root.end()
     expectExported(
