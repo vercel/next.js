@@ -38,6 +38,22 @@
 //! `change_one` after evicting everything, which has to restore the owner task (and its dependents)
 //! from disk (`KEYED_DEPS_PERSIST` lines).
 //!
+//! `KEYED_DEPS_PROFILE=1` replaces the criterion benchmarks by a step-by-step driver for profiling
+//! and A/B comparisons. For every configuration it creates one backend and runs the steps in
+//! `KEYED_DEPS_PHASES` (comma separated; default
+//! `initial,change_all,change_all,change_unread,change_one,change_shift,change_shift,change_none`)
+//! once each, in order, each in its own `run_once`. The additional step `change_shift` moves every
+//! reader's key range by `m` (alternating between two ranges, `m` more keys are added to the map in
+//! this mode), so all readers re-execute and replace all their keyed dependency edges by new ones.
+//! Every step prints a `KEYED_DEPS_PHASE` line with the wall time and the number of re-executed
+//! readers (and appends it to `KEYED_DEPS_STATS_FILE`), and asserts that
+//! - the root's sum equals an independently computed sum of the values the readers read, and
+//! - the number of re-executed readers is the one the step must cause.
+//!
+//! With `KEYED_DEPS_PROFILE_MEM=1` the line additionally contains the mimalloc committed bytes
+//! (after a collect, measured after the timed region) relative to before the first step, per edge,
+//! and the peak RSS.
+//!
 //! The grid can be narrowed with env vars (comma separated): `KEYED_DEPS_N`, `KEYED_DEPS_M`,
 //! `KEYED_DEPS_MODES`, `KEYED_DEPS_LAYOUTS`, `KEYED_DEPS_SCENARIOS`. The number of worker threads
 //! follows `TURBO_TASKS_AVAILABLE_PARALLELISM` (or the available CPUs).
@@ -46,6 +62,8 @@
 //! cargo bench -p turbo-tasks-backend --bench mod -- keyed_deps
 //! KEYED_DEPS_N=1000 KEYED_DEPS_M=10000 TURBO_TASKS_AVAILABLE_PARALLELISM=16 \
 //!   taskset -c 0-15 cargo bench -p turbo-tasks-backend --bench mod -- keyed_deps
+//! KEYED_DEPS_PROFILE=1 KEYED_DEPS_N=1000 KEYED_DEPS_M=10000 KEYED_DEPS_LAYOUTS=shared \
+//!   KEYED_DEPS_MODES=keyed_reader cargo bench -p turbo-tasks-backend --bench mod -- keyed_deps
 //! ```
 
 use std::{
@@ -83,6 +101,9 @@ struct Input {
     all: State<u32>,
     /// Forces a recomputation of the map without changing its value.
     none: State<u32>,
+    /// Profile mode only: shifts the keys every reader reads by `m`, so all readers re-execute and
+    /// replace all their keyed dependencies by new ones (the old edges are cleaned up).
+    shift: State<u32>,
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -92,6 +113,7 @@ fn create_input() -> Vc<Input> {
         unread: State::new(0),
         all: State::new(0),
         none: State::new(0),
+        shift: State::new(0),
     }
     .cell()
 }
@@ -100,7 +122,10 @@ fn create_input() -> Vc<Input> {
 struct KeyedMap(FxHashMap<u32, u32>);
 
 fn value_of(key: u32, k: u32, one: u32, unread: u32, all: u32) -> u32 {
-    let mut value = key.wrapping_mul(0x9e37_79b9) ^ all;
+    // `all` is added instead of xor-ed. A change in the profile driver shifts every value by the
+    // same small difference, so each reader's sum changes for the benchmark's key counts. The
+    // output assertions rely on that to detect a reader that wasn't re-executed.
+    let mut value = key.wrapping_mul(0x9e37_79b9).wrapping_add(all);
     if key == 0 {
         value = value.wrapping_add(one);
     }
@@ -167,11 +192,12 @@ impl Layout {
         }
     }
 
-    /// The total number of keys in the map.
+    /// The total number of keys in the map (profile mode: plus `m` keys for the shift scenario).
     fn k(self, n: u32, m: u32) -> u32 {
+        let extra = if profile_mode() { m } else { 0 };
         match self {
-            Layout::Disjoint => n * m + 1,
-            Layout::Shared => m + 1,
+            Layout::Disjoint => n * m + 1 + extra,
+            Layout::Shared => m + 1 + extra,
         }
     }
 
@@ -235,6 +261,7 @@ impl FromStr for Scenario {
 #[turbo_tasks::function]
 async fn reader(
     map: ResolvedVc<KeyedMap>,
+    input: ResolvedVc<Input>,
     index: u32,
     first_key: u32,
     m: u32,
@@ -242,6 +269,12 @@ async fn reader(
 ) -> Result<Vc<u64>> {
     let _ = index;
     READER_EXECUTIONS.fetch_add(1, Ordering::Relaxed);
+    let first_key = if profile_mode() {
+        let shift = *input.await?.shift.get();
+        first_key + (shift % 2) * m
+    } else {
+        first_key
+    };
     let mut sum = 0u64;
     match mode {
         0 => {
@@ -282,7 +315,7 @@ async fn readers_root(
         Layout::Disjoint
     };
     let values = (0..n)
-        .map(|index| reader(*map, index, layout.first_key(index, m), m, mode))
+        .map(|index| reader(*map, *input, index, layout.first_key(index, m), m, mode))
         .try_join()
         .await?;
     Ok(Vc::cell(
@@ -330,9 +363,8 @@ impl Config {
     }
 }
 
-fn env_list<T: FromStr>(name: &str, default: &[T]) -> Vec<T>
+fn env_list<T: FromStr + Clone>(name: &str, default: &[T]) -> Vec<T>
 where
-    T: Clone,
     T::Err: std::fmt::Debug,
 {
     match std::env::var(name) {
@@ -552,6 +584,170 @@ fn run_initial(
     (elapsed, tt)
 }
 
+/// `KEYED_DEPS_PROFILE=1` replaces the criterion benchmarks by a step-by-step driver, see the
+/// module docs.
+fn profile_mode() -> bool {
+    static P: std::sync::LazyLock<bool> =
+        std::sync::LazyLock::new(|| std::env::var_os("KEYED_DEPS_PROFILE").is_some());
+    *P
+}
+
+/// The `Input` state values set so far by the profile driver.
+#[derive(Default, Clone, Copy)]
+struct StateLog {
+    one: u32,
+    unread: u32,
+    all: u32,
+    shift: u32,
+}
+
+/// The sum `readers_root` must return after the steps recorded in `s`, computed without
+/// turbo-tasks.
+fn expected_root_sum(config: Config, k: u32, s: &StateLog) -> u64 {
+    let mut sum = 0u64;
+    for index in 0..config.n {
+        let first_key = config.layout.first_key(index, config.m) + (s.shift % 2) * config.m;
+        for key in first_key..first_key + config.m {
+            let value = if key < k {
+                value_of(key, k, s.one, s.unread, s.all) as u64
+            } else {
+                0
+            };
+            sum = sum.wrapping_add(value);
+        }
+    }
+    sum
+}
+
+/// The number of reader executions a profile step must cause.
+fn expected_reruns(config: Config, phase: &str, s: &StateLog) -> u64 {
+    let n = config.n as u64;
+    let full = config.mode == Mode::Full;
+    // After an odd number of shifts no reader reads key 0 (the key `change_one` changes).
+    let key0_read = s.shift % 2 == 0;
+    match phase {
+        "initial" | "change_all" | "change_shift" => n,
+        "change_none" => 0,
+        "change_unread" => {
+            if full {
+                n
+            } else {
+                0
+            }
+        }
+        "change_one" => match (full, config.layout) {
+            (true, _) => n,
+            (false, _) if !key0_read => 0,
+            (false, Layout::Shared) => n,
+            (false, Layout::Disjoint) => 1,
+        },
+        other => panic!("unknown phase {other}"),
+    }
+}
+
+fn run_profile(rt: &tokio::runtime::Runtime, config: Config) {
+    let phases: Vec<String> = std::env::var("KEYED_DEPS_PHASES")
+        .unwrap_or_else(|_| {
+            "initial,change_all,change_all,change_unread,change_one,change_shift,change_shift,\
+             change_none"
+                .to_string()
+        })
+        .split(',')
+        .map(|s| s.to_string())
+        .collect();
+    let threads = available_parallelism().map_or(1, |p| p.get());
+    let tt = rt.block_on(async { create_tt() });
+    let k = config.k();
+    let input_op = rt
+        .block_on(tt.run_once(async move {
+            let input_op = create_input();
+            let input = input_op.resolve().strongly_consistent().await?;
+            map_root(input, k).read_strongly_consistent().await?;
+            Ok(input_op)
+        }))
+        .unwrap();
+    let mut shift_count = 0u32;
+    let mut state_log = StateLog::default();
+    // `KEYED_DEPS_PROFILE_MEM=1`: mimalloc commit delta from before the first step, measured
+    // (after a collect) after each step, outside the timed region.
+    let measure_memory = std::env::var_os("KEYED_DEPS_PROFILE_MEM").is_some();
+    let mem_before = measure_memory.then(memory);
+    for (i, phase) in phases.iter().enumerate() {
+        // Every step sets a new value (1, 2, ...).
+        let value = i as u32 + 1;
+        if phase == "change_shift" {
+            shift_count += 1;
+        }
+        let shift_value = shift_count;
+        let phase_name = phase.clone();
+        let before = READER_EXECUTIONS.load(Ordering::Relaxed);
+        let (elapsed, root) = rt
+            .block_on(tt.run_once(async move {
+                let input = input_op.resolve().strongly_consistent().await?;
+                let state = input_op.read_strongly_consistent().await?;
+                let start = Instant::now();
+                match phase_name.as_str() {
+                    "initial" => {}
+                    "change_one" => state.one.set(value),
+                    "change_unread" => state.unread.set(value),
+                    "change_all" => state.all.set(value),
+                    "change_none" => state.none.set(value),
+                    // Readers use `shift % 2`; every `change_shift` increments it by one, so it
+                    // flips the key range.
+                    "change_shift" => state.shift.set(shift_value),
+                    other => panic!("unknown phase {other}"),
+                }
+                config.root(input).read_strongly_consistent().await?;
+                let elapsed = start.elapsed();
+                let root = *config.root(input).read_strongly_consistent().await?;
+                Ok((elapsed, root))
+            }))
+            .unwrap();
+        match phase.as_str() {
+            "change_one" => state_log.one = value,
+            "change_unread" => state_log.unread = value,
+            "change_all" => state_log.all = value,
+            "change_shift" => state_log.shift = shift_value,
+            _ => {}
+        }
+        let reruns = READER_EXECUTIONS.load(Ordering::Relaxed) - before;
+        // Output assertions: the root sum must equal an independently computed sum of the values
+        // the readers read, and the number of re-executed readers must match the scenario.
+        let expected_root = expected_root_sum(config, k, &state_log);
+        assert_eq!(
+            root, expected_root,
+            "root sum mismatch in step {i} ({phase})"
+        );
+        let expected_reruns = expected_reruns(config, phase, &state_log);
+        assert_eq!(
+            reruns, expected_reruns,
+            "reader re-execution count mismatch in step {i} ({phase})"
+        );
+        let mem = match mem_before {
+            Some((commit_before, _)) => {
+                let (commit_after, _) = memory();
+                let delta = commit_after as i64 - commit_before as i64;
+                format!(
+                    " commit_delta={delta} commit_per_edge={:.1} peak_rss={}",
+                    delta as f64 / config.edges() as f64,
+                    peak_rss()
+                )
+            }
+            None => String::new(),
+        };
+        report(format!(
+            "KEYED_DEPS_PHASE threads={threads} mode={} layout={} n={} m={} k={k} step={i} \
+             phase={phase} ms={:.3} reruns={reruns} root={root}{mem}",
+            config.mode.name(),
+            config.layout.name(),
+            config.n,
+            config.m,
+            elapsed.as_secs_f64() * 1000.0,
+        ));
+    }
+    rt.block_on(async { tt.stop_and_wait().await });
+}
+
 pub fn keyed_deps(c: &mut Criterion) {
     let ns = env_list("KEYED_DEPS_N", &[1u32, 10, 100, 1_000]);
     let ms = env_list("KEYED_DEPS_M", &[1u32, 10, 100, 1_000, 10_000]);
@@ -581,6 +777,20 @@ pub fn keyed_deps(c: &mut Criterion) {
     group.sample_size(10);
     group.warm_up_time(Duration::from_millis(500));
     group.measurement_time(Duration::from_secs(3));
+
+    if profile_mode() {
+        for &layout in &layouts {
+            for &mode in &modes {
+                for &n in &ns {
+                    for &m in &ms {
+                        run_profile(&runtime(), Config { n, m, mode, layout });
+                    }
+                }
+            }
+        }
+        group.finish();
+        return;
+    }
 
     for &layout in &layouts {
         for &mode in &modes {
