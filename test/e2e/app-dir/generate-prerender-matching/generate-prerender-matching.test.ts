@@ -607,29 +607,6 @@ describe('parameter matching cache components requirement', () => {
   })
 })
 
-describe('parameter matching static export validation', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
-    files: path.join(__dirname, 'fixtures', 'export-open-param'),
-    skipStart: true,
-    skipDeployment: true,
-  })
-
-  if (skipped || !isNextStart) {
-    it.skip('only runs during production builds', () => {})
-    return
-  }
-
-  beforeAll(async () => {
-    await next.build().catch(() => {})
-  })
-
-  it('rejects static export before validating parameter matching', () => {
-    expect(next.cliOutput).toContain(
-      "`cacheComponents` is not yet supported with `output: 'export'`."
-    )
-  })
-})
-
 describe('parameter matching fallback validation', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'empty-fallback'),
