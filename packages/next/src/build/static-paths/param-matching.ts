@@ -231,6 +231,11 @@ export function validateParamMatchingParams(
   let dynamicParamName: string | undefined
   for (const { paramName } of pathnameSegments) {
     const mode = paramMatching[paramName]
+    if (output === 'export' && mode !== 'not-found') {
+      throw new Error(
+        `Route "${page}" must configure parameter "${paramName}" as "not-found" when using parameter matching with "output: export".`
+      )
+    }
     if (mode === 'dynamic') dynamicParamName = paramName
     if (dynamicParamName && generatedParamNames.has(paramName)) {
       throw new Error(
@@ -240,11 +245,6 @@ export function validateParamMatchingParams(
     if (mode === 'not-found' && missingParamNames.has(paramName)) {
       throw new Error(
         `Route "${page}" configures parameter "${paramName}" as "not-found", but generateStaticParams returned a result without that parameter.`
-      )
-    }
-    if (output === 'export' && mode !== 'not-found') {
-      throw new Error(
-        `Route "${page}" must configure parameter "${paramName}" as "not-found" when using parameter matching with "output: export".`
       )
     }
   }

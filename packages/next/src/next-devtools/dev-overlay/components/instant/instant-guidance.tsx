@@ -238,6 +238,7 @@ export function InstantGuidance({
   kind = 'blocking-route',
   explanation,
   cause,
+  isStaticExport,
   showExplanation = true,
   generateErrorInfo,
 }: {
@@ -245,10 +246,11 @@ export function InstantGuidance({
   kind?: GuidanceKind
   explanation?: string
   cause?: string
+  isStaticExport?: boolean
   showExplanation?: boolean
   generateErrorInfo?: () => Promise<string>
 }) {
-  const cards = getCards(kind, variant, cause)
+  const cards = getCards(kind, variant, cause, isStaticExport)
   let docsUrl: string
   switch (kind) {
     case 'static-route':
@@ -311,13 +313,21 @@ export function InstantHeaderExplanation({
   variant,
   explanation,
   docsUrl,
+  isStaticExport,
 }: {
   kind?: GuidanceKind
   variant?: GuidanceVariant
   explanation?: string
   docsUrl?: string
+  isStaticExport?: boolean
 }) {
-  const resolvedExplanation = explanation || (kind ? EXPLANATIONS[kind] : '')
+  const resolvedExplanation =
+    explanation ||
+    (isStaticExport
+      ? 'This route uses output: "export" and must render without a runtime server, but some data requires rendering at request time.'
+      : kind
+        ? EXPLANATIONS[kind]
+        : '')
   let resolvedDocsUrl = docsUrl
   if (!resolvedDocsUrl && kind === 'blocking-route') {
     resolvedDocsUrl = BLOCKING_ROUTE_DOCS_URLS[variant ?? 'dynamic']

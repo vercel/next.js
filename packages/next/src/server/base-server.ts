@@ -2903,9 +2903,12 @@ export default abstract class Server<
               matchedRoute = route
             }
           }
+          // A complete generated route can inherit NOT_FOUND as its fallback
+          // policy. Only reject matches that still have fallback parameters.
           if (
             paramMatching !== undefined &&
-            matchedRoute?.fallbackMode === FallbackMode.NOT_FOUND
+            matchedRoute?.fallbackMode === FallbackMode.NOT_FOUND &&
+            (matchedRoute.fallbackRouteParams?.length ?? 0) > 0
           ) {
             addRequestMeta(req, 'devParamMatchingRejected', true)
           }

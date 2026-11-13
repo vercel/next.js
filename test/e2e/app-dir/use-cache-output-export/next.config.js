@@ -2,6 +2,7 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  partialPrefetching: false,
   experimental: {
     useCache: true,
   },

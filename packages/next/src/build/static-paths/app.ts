@@ -1013,7 +1013,7 @@ export async function buildAppStaticPaths({
   // Validate the effective route policy, after layout overrides and parallel
   // branches have been merged. Navigation mode cannot serve a fallback and
   // resume it, or leave any parameter permanently dynamic.
-  if (isEnsureStaticPage && paramMatching) {
+  if (isEnsureStaticPage && paramMatching && nextConfigOutput !== 'export') {
     for (const [paramName, mode] of Object.entries(paramMatching)) {
       if (mode === 'fallback' || mode === 'dynamic') {
         throw new Error(
@@ -1142,7 +1142,11 @@ export async function buildAppStaticPaths({
 
   // `ensureStatic = "navigation"` currently requires all params to
   // be prerendered via gSP.
-  if (isEnsureStaticPage && pathnameRouteParamSegments.length > 0) {
+  if (
+    isEnsureStaticPage &&
+    nextConfigOutput !== 'export' &&
+    pathnameRouteParamSegments.length > 0
+  ) {
     if (routeParams.length === 0) {
       // In Cache Components we throw in `generateRouteStaticParams` for empty arrays,
       // so empty `routeParams` implies that no `generateStaticParams` is present at all
@@ -1157,9 +1161,9 @@ export async function buildAppStaticPaths({
   // TODO: dynamic params should be allowed to be granular per segment but
   // we need additional information stored/leveraged in the prerender
   // manifest to allow this behavior.
-  const dynamicParams = segments.every(
-    (segment) => segment.config?.dynamicParams !== false
-  )
+  const dynamicParams =
+    !(cacheComponents && nextConfigOutput === 'export') &&
+    segments.every((segment) => segment.config?.dynamicParams !== false)
 
   const supportsRoutePreGeneration =
     hadAllParamsGenerated || !process.env.__NEXT_DEV_SERVER
@@ -1262,9 +1266,10 @@ export async function buildAppStaticPaths({
       fallbackRootParams,
       remainingPrerenderableParams,
       isPrerenderOutput:
-        paramMatching &&
         fallbackRouteParams.length > 0 &&
-        routeFallbackMode === FallbackMode.BLOCKING_STATIC_RENDER
+        (nextConfigOutput === 'export' ||
+          (paramMatching &&
+            routeFallbackMode === FallbackMode.BLOCKING_STATIC_RENDER))
           ? false
           : undefined,
       throwOnEmptyStaticShell: true,

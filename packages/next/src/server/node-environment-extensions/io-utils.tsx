@@ -31,7 +31,14 @@ export function io(expression: string, type: SyncIOApiType) {
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
           expression,
-          applyOwnerStack(createSyncIOError(workStore.route, expression, type)),
+          applyOwnerStack(
+            createSyncIOError(
+              workStore.route,
+              expression,
+              type,
+              workStore.isStaticExport
+            )
+          ),
           workUnitStore
         )
       }
@@ -65,7 +72,12 @@ export function io(expression: string, type: SyncIOApiType) {
           case RenderStage.PrefetchStatic_prefetchApi:
           case RenderStage.PrefetchStatic:
           case RenderStage.NavigationStatic: {
-            syncIOError = createSyncIOError(workStore.route, expression, type)
+            syncIOError = createSyncIOError(
+              workStore.route,
+              expression,
+              type,
+              workStore.isStaticExport
+            )
             break
           }
           case RenderStage.ShellRuntime:
@@ -77,7 +89,8 @@ export function io(expression: string, type: SyncIOApiType) {
             syncIOError = createSyncIORuntimeError(
               workStore.route,
               expression,
-              type
+              type,
+              workStore.isStaticExport
             )
             break
           }

@@ -235,6 +235,7 @@ export interface PageInfo {
   hasEmptyStaticShell?: boolean
   hasPostponed?: boolean
   isDynamicAppRoute?: boolean
+  isStaticExport?: boolean
 }
 
 export type PageInfos = Map<string, PageInfo>
@@ -252,6 +253,12 @@ function getTreeViewSymbol(
   }
 
   if (pageInfo?.isRoutePPREnabled) {
+    if (pageInfo.isStaticExport) {
+      // Even an empty browser-only shell is a complete deployment artifact.
+      // An exported route never needs a server to render or resume it.
+      return '○'
+    }
+
     if (
       // If the page has an empty static shell, then it's equivalent to a
       // dynamic page
@@ -1013,7 +1020,7 @@ export async function isPageStatic({
             // We know this is an app page or app route module because we
             // checked above that the page type is 'app'.
             routeModule as AppPageRouteModule | AppRouteRouteModule,
-            { cacheComponents, partialPrefetching }
+            { cacheComponents, partialPrefetching, output: nextConfigOutput }
           )
         } catch (err) {
           throw new Error(`Failed to collect configuration for ${page}`, {
