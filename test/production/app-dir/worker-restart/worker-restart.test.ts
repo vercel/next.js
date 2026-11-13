@@ -83,6 +83,11 @@ describe('worker-restart', () => {
           /Retrying \d+ page\(s\) from a .*build worker/
         )
         expect(cliOutput).not.toContain('crashed the build worker')
+        expect(cliOutput).not.toContain('> Build error occurred')
+        expect(cliOutput).not.toContain('NEXT_PRERENDER_EARLY_EXIT')
+        expect(
+          cliOutput.match(/Export encountered an error .*exiting the build/g)
+        ).toHaveLength(1)
       })
     })
 

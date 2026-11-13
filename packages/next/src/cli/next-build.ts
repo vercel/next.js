@@ -170,6 +170,10 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
       if (experimentalDebugMemoryUsage) {
         disableMemoryDebuggingMode()
       }
+      if (isError(err) && err.code === 'NEXT_PRERENDER_EARLY_EXIT') {
+        // The prerender worker has already printed the error.
+        process.exit(1)
+      }
       console.error('')
       if (
         isError(err) &&
