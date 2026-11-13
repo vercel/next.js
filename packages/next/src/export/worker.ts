@@ -474,6 +474,17 @@ type ExportPageContext = {
   renderOpts: WorkerRenderOptsPartial
   phase: StaticGenerationPhase
   profiler: ReturnType<typeof getStaticGenerationProfiler>
+  /**
+   * How `prerenderEarlyExit` stops the build. The adaptive scheduler throws
+   * instead of exiting: a worker that exits looks like a crash to it (and in
+   * worker thread mode, jest-worker restarts the thread), so it would retry
+   * the page instead of failing the build.
+   */
+  earlyExit?: 'exit' | 'throw'
+}
+
+class PrerenderEarlyExitError extends Error {
+  code = 'NEXT_PRERENDER_EARLY_EXIT'
 }
 
 /**
@@ -623,9 +634,11 @@ async function exportPageWithRetry(
         }
         // If prerenderEarlyExit is enabled, we'll exit the build immediately.
         if (nextConfig.experimental.prerenderEarlyExit) {
-          console.error(
-            `Export encountered an error on ${pageKey}, exiting the build.`
-          )
+          const message = `Export encountered an error on ${pageKey}, exiting the build.`
+          console.error(message)
+          if (context.earlyExit === 'throw') {
+            throw new PrerenderEarlyExitError(message)
+          }
           process.exit(1)
         } else {
           // Otherwise, this is a no-op. The build will continue, and a summary of failed pages will be displayed at the end.
@@ -786,7 +799,7 @@ async function createAdaptiveSession(
       const phase = task.phase ?? 'initial'
       const renderOpts = await getRenderOpts(phase)
       return exportPageWithRetry(
-        { input, renderOpts, phase, profiler },
+        { input, renderOpts, phase, profiler, earlyExit: 'throw' },
         task.exportPath,
         retryCount,
         task.renderResumeDataCache,
