@@ -191,14 +191,19 @@ type PrerenderClassification =
       response: 'empty' | 'initial' | 'complete'
 
       /**
-       * The request-time compute needed to serve the completed response.
+       * The request-time compute mode for serving this output.
        *
-       * - `blocking`: compute must finish before a response can be served.
-       * - `resuming`: an initial response is served while postponed work
-       *   resumes on the server.
-       * - `static`: no server compute is required per request.
+       * - `blocking`: wait for a usable prerender before serving the response.
+       * - `dynamic`: request-time rendering produces the first response bytes.
+       * - `resuming`: initial content is served while postponed work resumes.
+       * - `static`: generated output needs no per-request server rendering.
+       *
+       * A blocking output requires generation or revalidation when no usable
+       * cached prerender exists. The result can still be partial. A dynamic
+       * render can reuse cached postponed state and stream without waiting for
+       * a separate prerender first.
        */
-      compute: 'blocking' | 'resuming' | 'static'
+      compute: 'blocking' | 'dynamic' | 'resuming' | 'static'
 
       /**
        * The byte size of the prerendered HTML shell. Only the HTML output

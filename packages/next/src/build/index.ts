@@ -259,7 +259,7 @@ type Fallback = null | boolean | string
 
 export type PrerenderRouteType = 'route' | 'fallback' | 'shell' | 'page'
 export type PrerenderResponse = 'empty' | 'initial' | 'complete'
-export type PrerenderCompute = 'blocking' | 'resuming' | 'static'
+export type PrerenderCompute = 'blocking' | 'dynamic' | 'resuming' | 'static'
 
 /**
  * Classification for the primary response in a prerender group.
@@ -271,7 +271,10 @@ interface PrerenderManifestClassification {
   /** The completeness of the prerendered response. */
   response?: PrerenderResponse
 
-  /** The per-request compute needed to serve this prerender. */
+  /**
+   * The request-time compute mode for this output. Blocking outputs wait for
+   * generation or revalidation when no usable cached prerender is available.
+   */
   compute?: PrerenderCompute
 
   /** The byte size of this route's prerendered HTML. */
@@ -505,7 +508,7 @@ function getPprAppPageClassification(
         : 'complete',
     compute: result.hasPostponed
       ? result.hasEmptyStaticShell
-        ? 'blocking'
+        ? 'dynamic'
         : 'resuming'
       : 'static',
     htmlSize: result.htmlSize,
@@ -4055,6 +4058,13 @@ export default async function build(
                   fallbackMode === FallbackMode.PRERENDER
                     ? collectMeta(metadata)
                     : {}
+                const isExplicitlyBlocking =
+                  fallbackMode === FallbackMode.BLOCKING_STATIC_RENDER &&
+                  route.fallbackRouteParams.some(
+                    ({ paramName }) =>
+                      paramMatchingByRoute.get(originalAppPath)?.[paramName] ===
+                      'blocking'
+                  )
                 let classification: PrerenderManifestClassification = {}
                 if (!isAppRouteHandler) {
                   if (typeof fallback === 'string' && isRoutePPREnabled) {
@@ -4072,7 +4082,14 @@ export default async function build(
                     classification = {
                       routeType: 'page',
                       response: 'empty',
-                      compute: 'blocking',
+                      // Static navigation guarantees static server output.
+                      // Other PPR routes can render dynamically unless the
+                      // parameter policy explicitly requires a prerender first.
+                      compute: isEnsureStaticPage
+                        ? 'static'
+                        : isRoutePPREnabled && !isExplicitlyBlocking
+                          ? 'dynamic'
+                          : 'blocking',
                     }
                   }
                 }
@@ -4105,16 +4122,7 @@ export default async function build(
                   ),
                   dataRoute,
                   fallback,
-                  isExplicitlyBlocking:
-                    fallbackMode === FallbackMode.BLOCKING_STATIC_RENDER &&
-                    route.fallbackRouteParams.some(
-                      ({ paramName }) =>
-                        paramMatchingByRoute.get(originalAppPath)?.[
-                          paramName
-                        ] === 'blocking'
-                    )
-                      ? true
-                      : undefined,
+                  isExplicitlyBlocking: isExplicitlyBlocking || undefined,
                   fallbackRevalidate: fallbackCacheControl?.revalidate,
                   fallbackExpire: fallbackCacheControl?.expire,
                   fallbackStatus: meta.status,
