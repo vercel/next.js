@@ -3612,3 +3612,150 @@ fn batch_get_callback_error_propagates(#[case] mmap: bool) -> Result<()> {
     db.shutdown();
     Ok(())
 }
+
+/// Snapshot of every entry in a persistence directory: file name to file content. Used to check
+/// that read-only opens leave the directory exactly as they found it.
+fn dir_snapshot(path: &Path) -> Result<std::collections::BTreeMap<String, Vec<u8>>> {
+    let mut snapshot = std::collections::BTreeMap::new();
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let name = entry.file_name().into_string().expect("utf-8 file name");
+        snapshot.insert(name, fs::read(entry.path())?);
+    }
+    Ok(snapshot)
+}
+
+/// Names of the `.sst` / `.meta` / `.blob` files currently in `path`, keyed by sequence number.
+fn data_file_seqs(path: &Path) -> Result<std::collections::BTreeSet<u32>> {
+    let mut seqs = std::collections::BTreeSet::new();
+    for entry in fs::read_dir(path)? {
+        let path = entry?.path();
+        if matches!(
+            path.extension().and_then(|ext| ext.to_str()),
+            Some("sst" | "meta" | "blob")
+        ) {
+            seqs.insert(path.file_stem().unwrap().to_str().unwrap().parse()?);
+        }
+    }
+    Ok(seqs)
+}
+
+/// A database on the serial scheduler, for the read-only open tests.
+type SerialDb = TurboPersistence<crate::parallel_scheduler::SerialScheduler, 1>;
+
+fn open_read_only(path: &Path) -> Result<SerialDb> {
+    TurboPersistence::open_read_only_with_config(path.to_path_buf(), DbConfig::new())
+}
+
+/// Builds a directory in the state a crash can leave behind: a pending deletion record for the
+/// files of an older commit, orphaned files newer than `CURRENT`, and a stale `CURRENT.next`.
+/// Returns the sequence numbers listed in the deletion record and the orphaned sequence numbers.
+fn crashed_db_dir(path: &Path) -> Result<(Vec<u32>, Vec<u32>)> {
+    let db = SerialDb::open(path.to_path_buf())?;
+    let batch = db.write_batch()?;
+    batch.put(0, vec![1u8], vec![10u8].into())?;
+    db.commit_write_batch(batch)?;
+    let first_commit: Vec<u32> = data_file_seqs(path)?.into_iter().collect();
+    let batch = db.write_batch()?;
+    batch.put(0, vec![2u8], vec![20u8].into())?;
+    db.commit_write_batch(batch)?;
+    db.shutdown();
+    drop(db);
+
+    let current = read_current_version(path)?
+        .expect("CURRENT should exist")
+        .max_sequence_number;
+    // A deletion record (as written by compaction) for the first commit's files, whose deletion
+    // was interrupted.
+    let del_content: Vec<u8> = first_commit
+        .iter()
+        .flat_map(|seq| seq.to_be_bytes())
+        .collect();
+    fs::write(path.join(format!("{current:08}.del")), del_content)?;
+    // Files of a commit that crashed before `CURRENT` was updated.
+    let orphans = vec![current + 1, current + 2];
+    fs::write(path.join(format!("{:08}.sst", orphans[0])), b"orphan sst")?;
+    fs::write(path.join(format!("{:08}.meta", orphans[1])), b"orphan meta")?;
+    fs::write(path.join("CURRENT.next"), b"\xAA")?;
+    Ok((first_commit, orphans))
+}
+
+/// Opening read-only must not perform crash cleanup: orphaned files, pending deletion records
+/// and a stale `CURRENT.next` all stay on disk untouched, while reads still see the committed
+/// state. A writable open afterwards still performs the cleanup.
+#[test]
+fn read_only_open_does_not_clean_up_directory() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let (deleted, orphans) = crashed_db_dir(path)?;
+    let before = dir_snapshot(path)?;
+
+    {
+        let db = open_read_only(path)?;
+        // Files listed in the deletion record are no longer part of the database.
+        assert_eq!(db.get(0, &vec![1u8])?, None);
+        assert_eq!(db.get(0, &vec![2u8])?.as_deref(), Some(&[20u8][..]));
+        assert!(
+            db.write_batch::<Vec<u8>>().is_err(),
+            "a read-only database must refuse writes"
+        );
+        db.shutdown();
+    }
+    assert_eq!(
+        dir_snapshot(path)?,
+        before,
+        "a read-only open must not create, modify or delete files"
+    );
+
+    // A writable open still recovers the directory.
+    {
+        let db = SerialDb::open(path.to_path_buf())?;
+        assert_eq!(db.get(0, &vec![2u8])?.as_deref(), Some(&[20u8][..]));
+        db.shutdown();
+    }
+    let seqs = data_file_seqs(path)?;
+    for seq in deleted.iter().chain(&orphans) {
+        assert!(
+            !seqs.contains(seq),
+            "file {seq} should have been cleaned up"
+        );
+    }
+    assert!(!path.join("CURRENT.next").exists());
+    Ok(())
+}
+
+/// Opening read-only without a `CURRENT` file fails instead of initializing the directory, and
+/// leaves every file in place.
+#[test]
+fn read_only_open_without_current_fails_without_writing() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    crashed_db_dir(path)?;
+    fs::remove_file(path.join("CURRENT"))?;
+    let before = dir_snapshot(path)?;
+
+    assert!(open_read_only(path).is_err());
+    assert_eq!(
+        dir_snapshot(path)?,
+        before,
+        "a failed read-only open must not create, modify or delete files"
+    );
+
+    // A writable open of an empty directory still initializes it.
+    let empty = tempfile::tempdir()?;
+    assert!(open_read_only(empty.path()).is_err());
+    assert!(dir_snapshot(empty.path())?.is_empty());
+    SerialDb::open(empty.path().to_path_buf())?.shutdown();
+    assert!(read_current_version(empty.path())?.is_some());
+    Ok(())
+}
+
+/// Opening read-only at a path that doesn't exist fails without creating it.
+#[test]
+fn read_only_open_of_missing_directory_does_not_create_it() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path().join("missing");
+    assert!(open_read_only(&path).is_err());
+    assert!(!path.exists());
+    Ok(())
+}

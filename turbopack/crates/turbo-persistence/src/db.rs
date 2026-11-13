@@ -556,7 +556,8 @@ impl<S: ParallelScheduler + Default, const FAMILIES: usize> TurboPersistence<S, 
     }
 
     /// Open a TurboPersistence database at the given path in read only mode.
-    /// This will read the directory. No Cleanup is performed.
+    /// This will read the directory. No cleanup is performed and nothing on disk is created,
+    /// modified or deleted: the directory and its `CURRENT` file must already exist.
     pub fn open_read_only_with_config(path: PathBuf, config: DbConfig<FAMILIES>) -> Result<Self> {
         Self::open_read_only_with_parallel_scheduler(path, config, Default::default())
     }
@@ -632,7 +633,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     }
 
     /// Open a TurboPersistence database at the given path in read only mode.
-    /// This will read the directory. No Cleanup is performed.
+    /// This will read the directory. No cleanup is performed and nothing on disk is created,
+    /// modified or deleted: the directory and its `CURRENT` file must already exist.
     fn open_read_only_with_parallel_scheduler(
         path: PathBuf,
         config: DbConfig<FAMILIES>,
@@ -644,7 +646,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             parallel_scheduler,
             config,
         });
-        db.open_directory(false)?;
+        db.open_directory(true)?;
         Ok(db)
     }
 
