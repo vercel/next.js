@@ -5,6 +5,7 @@ import type { RouteTree } from './segment-cache/cache'
 import type { CacheNode } from '../../shared/lib/app-router-types'
 import type { LoadingModuleData } from '../../shared/lib/app-router-types'
 import type {
+  DynamicParamTypesShort,
   FlightRouterState,
   FlightSegmentPath,
   Segment,
@@ -20,6 +21,7 @@ import React, {
   Suspense,
   useDeferredValue,
   useLayoutEffect,
+  useMemo,
   type FragmentInstance,
   type JSX,
   type ActivityProps,
@@ -27,6 +29,7 @@ import React, {
 import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
+  IsRouteActiveContext,
   TemplateContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import { unresolvedThenable } from './unresolved-thenable'
@@ -39,6 +42,7 @@ import {
   RenderValidationBoundaryAtThisLevel,
 } from './instant-validation/boundary'
 import { createSegmentKey } from './router-reducer/create-segment-key'
+import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
 import {
   useRouterBFCache,
   type RouterBFCacheEntry,
@@ -308,17 +312,15 @@ function InnerLayoutRouter({
   segmentPath,
   debugNameContext,
   renderTree,
-  params,
+  parentParams,
   url,
-  isActive,
 }: {
   tree: FlightRouterState
   segmentPath: FlightSegmentPath
   debugNameContext: string
   renderTree: RouteTree<CacheNode>
-  params: Params
+  parentParams: Params
   url: string
-  isActive: boolean
 }) {
   const context = useContext(GlobalLayoutRouterContext)
   const parentNavPromises = useContext(NavigationPromisesContext)
@@ -326,6 +328,56 @@ function InnerLayoutRouter({
   if (!context) {
     throw new Error('invariant global layout router not mounted')
   }
+
+  // If this segment contains a route param, add it to the params of the parent
+  // segments. The result represents the set of params that the layout/page
+  // components are permitted to access below this point.
+  const segment = tree[0]
+  let paramName: string | null = null
+  let paramCacheKey: string | null = null
+  let paramType: DynamicParamTypesShort | null = null
+  if (Array.isArray(segment)) {
+    paramName = segment[0]
+    paramCacheKey = segment[1]
+    paramType = segment[2]
+  }
+  const params = useMemo(() => {
+    if (paramName !== null && paramCacheKey !== null && paramType !== null) {
+      const paramValue = getParamValueFromCacheKey(paramCacheKey, paramType)
+      if (paramValue !== null) {
+        return {
+          ...parentParams,
+          [paramName]: paramValue,
+        }
+      }
+    }
+    return parentParams
+  }, [parentParams, paramName, paramCacheKey, paramType])
+
+  // The layout router context narrows down tree and childNodes at each level.
+  //
+  // The value only changes when one of its fields does. A hidden segment keeps
+  // all of them, so the components that read this context in a hidden route
+  // don't re-render when the active route changes. That includes the ones
+  // that call useRouter(), useSelectedLayoutSegment() or
+  // useSelectedLayoutSegments().
+  const layoutRouterContext = useMemo(
+    () => ({
+      parentTree: tree,
+      parentRenderTree: renderTree,
+      parentSegmentPath: segmentPath,
+      parentParams: params,
+      // This is always set to null as we enter a child segment. It's
+      // populated by LoadingBoundaryProvider the next time we reach a
+      // loading boundary.
+      parentLoadingData: null,
+      debugNameContext: debugNameContext,
+
+      // TODO-APP: overriding of url for parallel routes
+      url: url,
+    }),
+    [tree, renderTree, segmentPath, params, debugNameContext, url]
+  )
 
   // `rsc` represents the renderable node for this segment.
 
@@ -392,24 +444,7 @@ function InnerLayoutRouter({
   }
 
   children = (
-    // The layout router context narrows down tree and childNodes at each level.
-    <LayoutRouterContext.Provider
-      value={{
-        parentTree: tree,
-        parentRenderTree: renderTree,
-        parentSegmentPath: segmentPath,
-        parentParams: params,
-        // This is always set to null as we enter a child segment. It's
-        // populated by LoadingBoundaryProvider the next time we reach a
-        // loading boundary.
-        parentLoadingData: null,
-        debugNameContext: debugNameContext,
-
-        // TODO-APP: overriding of url for parallel routes
-        url: url,
-        isActive: isActive,
-      }}
-    >
+    <LayoutRouterContext.Provider value={layoutRouterContext}>
       {children}
     </LayoutRouterContext.Provider>
   )
@@ -440,23 +475,21 @@ export function LoadingBoundaryProvider({
   // send the boundary data once, rather than once per child. But that's a
   // negligible benefit and can be achieved via caching instead.
   const parentContext = use(LayoutRouterContext)
-  if (parentContext === null) {
+  // All values except for parentLoadingData are the same as the parent context.
+  // Like the parent context, the value only changes when one of its fields
+  // does.
+  const context = useMemo(
+    () =>
+      parentContext === null
+        ? null
+        : { ...parentContext, parentLoadingData: loading },
+    [parentContext, loading]
+  )
+  if (context === null) {
     return children
   }
-  // All values except for parentLoadingData are the same as the parent context.
   return (
-    <LayoutRouterContext.Provider
-      value={{
-        parentTree: parentContext.parentTree,
-        parentRenderTree: parentContext.parentRenderTree,
-        parentSegmentPath: parentContext.parentSegmentPath,
-        parentParams: parentContext.parentParams,
-        parentLoadingData: loading,
-        debugNameContext: parentContext.debugNameContext,
-        url: parentContext.url,
-        isActive: parentContext.isActive,
-      }}
-    >
+    <LayoutRouterContext.Provider value={context}>
       {children}
     </LayoutRouterContext.Provider>
   )
@@ -544,20 +577,29 @@ export default function OuterLayoutRouter({
     parentParams,
     parentLoadingData,
     url,
-    isActive,
     debugNameContext,
   } = context
+
+  // Whether the segment this router is rendered in is currently shown.
+  const isActive = useContext(IsRouteActiveContext)
 
   // Get the render tree for this segment by reading it from the parent segment's
   // child map.
   const parentTreeSegment = parentTree[0]
-  const segmentPath =
-    parentSegmentPath === null
-      ? // TODO: The root segment value is currently omitted from the segment
-        // path. This has led to a bunch of special cases scattered throughout
-        // the code. We should clean this up.
-        [parallelRouterKey]
-      : parentSegmentPath.concat([parentTreeSegment, parallelRouterKey])
+  // The segment is compared by its value, so that the path stays the same when
+  // the router creates a new tree with the same segments.
+  const parentTreeSegmentKey = createRouterCacheKey(parentTreeSegment)
+  const segmentPath = useMemo(
+    () =>
+      parentSegmentPath === null
+        ? // TODO: The root segment value is currently omitted from the segment
+          // path. This has led to a bunch of special cases scattered throughout
+          // the code. We should clean this up.
+          [parallelRouterKey]
+        : parentSegmentPath.concat([parentTreeSegment, parallelRouterKey]),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- parentTreeSegment is represented by its key
+    [parentSegmentPath, parentTreeSegmentKey, parallelRouterKey]
+  )
 
   // The "state" key of a segment is the one passed to React. In the browser it
   // represents the identity of the UI tree. Whenever the state key changes,
@@ -597,6 +639,7 @@ export default function OuterLayoutRouter({
   let activeNavigationState: RouterNavigationState | null = null
   if (process.env.__NEXT_CACHE_COMPONENTS && typeof window !== 'undefined') {
     activeNavigationState = {
+      url,
       params: use(PathParamsContext),
       pathname: use(PathnameContext),
       searchParams: use(SearchParamsContext),
@@ -624,7 +667,10 @@ export default function OuterLayoutRouter({
     const tree = bfcacheEntry.tree
     const renderTree = bfcacheEntry.renderTree
     const stateKey = bfcacheEntry.stateKey
+    const navigationState = bfcacheEntry.navigationState
     const segment = tree[0]
+    // An inactive entry keeps the URL it was hidden with.
+    const entryUrl = navigationState !== null ? navigationState.url : url
     /*
     - Error boundary
       - Only renders error boundary if error component is provided.
@@ -642,7 +688,7 @@ export default function OuterLayoutRouter({
       const { SegmentBoundaryTriggerNode, SegmentViewStateNode } =
         require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
 
-      const pagePrefix = normalizeAppPath(url)
+      const pagePrefix = normalizeAppPath(entryUrl)
       segmentViewStateNode = (
         <SegmentViewStateNode key={pagePrefix} page={pagePrefix} />
       )
@@ -652,23 +698,6 @@ export default function OuterLayoutRouter({
           <SegmentBoundaryTriggerNode />
         </>
       )
-    }
-
-    let params = parentParams
-    if (Array.isArray(segment)) {
-      // This segment contains a route param. Accumulate these as we traverse
-      // down the router tree. The result represents the set of params that
-      // the layout/page components are permitted to access below this point.
-      const paramName = segment[0]
-      const paramCacheKey = segment[1]
-      const paramType = segment[2]
-      const paramValue = getParamValueFromCacheKey(paramCacheKey, paramType)
-      if (paramValue !== null) {
-        params = {
-          ...parentParams,
-          [paramName]: paramValue,
-        }
-      }
     }
 
     const debugName = getBoundaryDebugNameFromSegment(segment)
@@ -722,13 +751,12 @@ export default function OuterLayoutRouter({
             >
               <RedirectBoundary>
                 <InnerLayoutRouter
-                  url={url}
+                  url={entryUrl}
                   tree={tree}
-                  params={params}
+                  parentParams={parentParams}
                   renderTree={renderTree}
                   segmentPath={segmentPath}
                   debugNameContext={childDebugNameContext}
-                  isActive={isEntryActive}
                 />
                 {segmentBoundaryTriggerNode}
               </RedirectBoundary>
@@ -775,7 +803,6 @@ export default function OuterLayoutRouter({
       // Provide the entry's navigation state to its subtree. There is none on
       // the server, where the root providers in AppRouter already supply the
       // values of the single, active entry.
-      const navigationState = bfcacheEntry.navigationState
       if (navigationState !== null) {
         if (process.env.NODE_ENV !== 'production') {
           child = (
@@ -787,15 +814,17 @@ export default function OuterLayoutRouter({
           )
         }
         child = (
-          <PathParamsContext.Provider value={navigationState.params}>
-            <PathnameContext.Provider value={navigationState.pathname}>
-              <SearchParamsContext.Provider
-                value={navigationState.searchParams}
-              >
-                {child}
-              </SearchParamsContext.Provider>
-            </PathnameContext.Provider>
-          </PathParamsContext.Provider>
+          <IsRouteActiveContext.Provider value={isEntryActive}>
+            <PathParamsContext.Provider value={navigationState.params}>
+              <PathnameContext.Provider value={navigationState.pathname}>
+                <SearchParamsContext.Provider
+                  value={navigationState.searchParams}
+                >
+                  {child}
+                </SearchParamsContext.Provider>
+              </PathnameContext.Provider>
+            </PathParamsContext.Provider>
+          </IsRouteActiveContext.Provider>
         )
       }
       child = (
