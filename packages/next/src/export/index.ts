@@ -48,7 +48,10 @@ import {
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import type { ExportPathMap } from '../server/config-shared'
-import { parseMaxPostponedStateSize } from '../server/config-shared'
+import {
+  defaultConfig,
+  parseMaxPostponedStateSize,
+} from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../server/ci-info'
 import { Telemetry } from '../telemetry/storage'
@@ -77,10 +80,12 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import type { Params } from '../server/request/params'
 import { Bundler } from '../lib/bundler'
 import { getBuildDistDir, getExportPathPageKey } from './utils'
-import { mapWithConcurrency } from './helpers/map-with-concurrency'
+import { runAdaptiveStaticGeneration } from './adaptive/orchestrator'
+import os from 'os'
 import { getStaticGenerationChunkSize } from './helpers/static-generation-chunk-size'
 import {
   formatStaticGenerationSummary,
+  getConstrainedMemory,
   isStaticGenerationProfileEnabled,
   resetStaticGenerationProfile,
   writeStaticGenerationSummary,
@@ -725,7 +730,7 @@ async function exportAppImpl(
       Math.ceil(exportPaths.length / minPageCountPerBatch)
     )
 
-    const exportBatch = (batch: ExportPathEntry[], placement?: string) => {
+    const exportBatch = (batch: ExportPathEntry[]) => {
       // Only send the seeds this batch needs. Sending the whole map to
       // every worker can exceed the maximum IPC message size.
       let batchRenderResumeDataCaches: Record<string, string> | undefined
@@ -761,35 +766,68 @@ async function exportAppImpl(
         fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
         renderResumeDataCachesByPage: batchRenderResumeDataCaches,
         phase,
-        sessionId,
-        placement,
       })
     }
 
     if (nextConfig.experimental.staticGenerationAdaptive) {
-      // Dynamic dispatch: cut the pages into small chunks and keep one chunk
-      // in flight per worker. Whichever worker finishes first pulls the next
-      // chunk, so a run of slow pages spreads over every worker instead of
-      // becoming one worker's long tail. Each worker keeps its incremental
-      // cache across chunks (see `getSharedIncrementalCache` in the worker).
-      const chunkSize = getStaticGenerationChunkSize(
-        exportPaths.length,
-        numWorkers,
-        nextConfig.experimental.staticGenerationMaxConcurrency ?? 8,
-        nextConfig.experimental.staticGenerationChunkSize
-      )
-      const chunks: ExportPathEntry[][] = []
-      for (let i = 0; i < exportPaths.length; i += chunkSize) {
-        chunks.push(exportPaths.slice(i, i + chunkSize))
-      }
-
-      // Results are concatenated in chunk order, so they keep the order of
-      // `exportPaths` no matter which worker rendered which chunk.
-      return (
-        await mapWithConcurrency(chunks, numWorkers, (chunk, index) =>
-          exportBatch(chunk, `shared-queue:chunk-${index + 1}/${chunks.length}`)
-        )
-      ).flat()
+      // Adaptive scheduling: each worker claims a route and pulls chunks of
+      // it, helps other routes from their end once every route is owned, and
+      // picks its own concurrency from its event loop utilization and memory
+      // headroom. See `export/adaptive/orchestrator.ts`.
+      const configuredMaxConcurrency =
+        nextConfig.experimental.staticGenerationMaxConcurrency
+      return runAdaptiveStaticGeneration({
+        exportPaths,
+        phase,
+        sessionId,
+        session: {
+          buildId,
+          deploymentId: nextConfig.deploymentId,
+          clientAssetToken: nextConfig.supportsImmutableAssets
+            ? ''
+            : nextConfig.deploymentId,
+          parentSpanId: span.getId(),
+          pagesDataDir,
+          renderOpts,
+          options,
+          dir,
+          distDir,
+          outDir: options.buildExport
+            ? join(distDir, 'server', 'pages')
+            : outDir,
+          nextConfig,
+          cacheHandler: nextConfig.cacheHandler,
+          cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
+          fetchCache: true,
+          fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
+          sessionId,
+        },
+        renderResumeDataCachesByPage,
+        getPageKey: getExportPathPageKey,
+        numSlots: options.numWorkers,
+        initialSlots: numWorkers,
+        chunkSize: getStaticGenerationChunkSize(
+          exportPaths.length,
+          numWorkers,
+          nextConfig.experimental.staticGenerationChunkSize
+        ),
+        // Like `experimental.cpus`, a value other than the default counts as
+        // a user setting and caps each worker's concurrency.
+        maxConcurrency:
+          configuredMaxConcurrency !== undefined &&
+          configuredMaxConcurrency !==
+            defaultConfig.experimental!.staticGenerationMaxConcurrency
+            ? configuredMaxConcurrency
+            : undefined,
+        machineMemoryLimit: getConstrainedMemory() ?? os.totalmem(),
+        getParentRss: () => process.memoryUsage.rss(),
+        callStep: (_slot, input) => worker.exportPagesAdaptive(input),
+        // Experimental knob, off by default while it's being measured: keep
+        // a second heavy route off other workers while light routes wait.
+        heavyRouteLimit:
+          process.env.__NEXT_STATIC_GENERATION_HEAVY_ROUTE_LIMIT === '1',
+        log: (message) => Log.warn(message),
+      })
     }
 
     // Calculate the page count per batch based on the number of workers.

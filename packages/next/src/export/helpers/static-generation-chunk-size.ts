@@ -1,20 +1,15 @@
 /**
- * Pages per chunk for the adaptive scheduler. A worker renders one chunk at a
- * time with up to `maxConcurrency` pages in flight, so a chunk smaller than
- * `maxConcurrency` can't fill the worker. Aim for about four chunks per
- * worker so late chunks can rebalance, capped at three windows' worth of
- * pages so a slow chunk doesn't become the tail.
+ * Pages per chunk for the adaptive scheduler. Workers report how many pages
+ * they can take with every step, and the scheduler never sends more than
+ * that, so the chunk size only bounds a single hand-off. Aim for about eight
+ * chunks per worker so the tail rebalances, between 5 and 25 pages.
  */
 export function getStaticGenerationChunkSize(
   pageCount: number,
   numWorkers: number,
-  maxConcurrency: number,
   configured: number | undefined
 ): number {
   if (configured && configured > 0) return Math.floor(configured)
-  const target = Math.ceil(pageCount / (Math.max(1, numWorkers) * 4))
-  return Math.max(
-    1,
-    Math.max(maxConcurrency, Math.min(3 * maxConcurrency, target))
-  )
+  const target = Math.ceil(pageCount / (Math.max(1, numWorkers) * 8))
+  return Math.max(5, Math.min(25, target))
 }

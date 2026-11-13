@@ -92,6 +92,17 @@ export class Worker {
       onActivity?: () => void
       onActivityAbort?: () => void
       onRestart?: (method: string, args: any[], attempts: number) => void
+      /**
+       * Recover when a child process is killed by a signal (e.g. out of
+       * memory) or exits with one of `recoverableExitCodes`, instead of
+       * exiting the parent. jest-worker starts a replacement child and
+       * rejects the call that was in flight with a `WorkerError`; the caller
+       * is expected to retry that work. Other exit codes still fail the
+       * build.
+       */
+      recoverFromWorkerExit?: {
+        recoverableExitCodes: ReadonlySet<number>
+      }
       logger?: Pick<typeof console, 'error' | 'info' | 'warn'>
       exposedMethods: ReadonlyArray<string>
       enableWorkerThreads?: boolean
@@ -106,6 +117,7 @@ export class Worker {
       isolatedMemory,
       onActivity,
       onActivityAbort,
+      recoverFromWorkerExit,
       ...farmOptions
     } = options
 
@@ -206,24 +218,70 @@ export class Worker {
        * But this property is not available in NodeThreadWorker, so we need to check if we are using ChildProcessWorker
        */
       if (!farmOptions.enableWorkerThreads) {
-        for (const worker of ((this._worker as any)._workerPool?._workers ||
-          []) as {
+        const watchChild = (worker: {
           _child?: ChildProcess
-        }[]) {
-          worker._child?.on('exit', (code, signal) => {
-            if ((code || (signal && signal !== 'SIGINT')) && this._worker) {
-              logger.error(
-                `Next.js build worker exited with code: ${code} and signal: ${signal}`
-              )
+          initialize?: () => void
+        }) => {
+          const child = worker._child
+          if (!child) return
 
-              // if a child process doesn't exit gracefully, we want to bubble up the exit code to the parent process
-              process.exit(code ?? 1)
-            }
-          })
+          if (recoverFromWorkerExit) {
+            // Runs before jest-worker's own exit handler (hence `prepend`).
+            child.prependListener('exit', (code, signal) => {
+              if (!this._worker || !(code || (signal && signal !== 'SIGINT'))) {
+                return
+              }
+              if (code !== null) {
+                if (!recoverFromWorkerExit.recoverableExitCodes.has(code)) {
+                  // The worker chose to exit (e.g. `prerenderEarlyExit`, or a
+                  // fatal error). Fail the build like without recovery.
+                  logger.error(
+                    `Next.js build worker exited with code: ${code} and signal: ${signal}`
+                  )
+                  process.exit(code)
+                }
+              } else {
+                // Killed by a signal: out of memory (SIGABRT from V8, SIGKILL
+                // from the OOM killer) or killed from outside.
+                logger.error(
+                  `Next.js build worker exited with code: ${code} and signal: ${signal}`
+                )
+                // jest-worker only restarts children that exit with a
+                // non-zero code, and shuts the worker down otherwise. Start
+                // the replacement before that happens so the worker's merged
+                // stdout/stderr stay open. With `maxRetries: 0` this also
+                // rejects the call that was in flight.
+                try {
+                  worker.initialize?.()
+                } catch (err) {
+                  logger.error(err)
+                  process.exit(1)
+                }
+              }
+              // For non-zero codes jest-worker starts the replacement in its
+              // own handler, which runs after this one.
+              queueMicrotask(() => {
+                if (worker._child && worker._child !== child) {
+                  watchChild(worker)
+                }
+              })
+            })
+          } else {
+            child.on('exit', (code, signal) => {
+              if ((code || (signal && signal !== 'SIGINT')) && this._worker) {
+                logger.error(
+                  `Next.js build worker exited with code: ${code} and signal: ${signal}`
+                )
+
+                // if a child process doesn't exit gracefully, we want to bubble up the exit code to the parent process
+                process.exit(code ?? 1)
+              }
+            })
+          }
 
           // if a child process emits a particular message, we track that as activity
           // so the parent process can keep track of progress
-          worker._child?.on('message', ([, data]: [number, unknown]) => {
+          child.on('message', ([, data]: [number, unknown]) => {
             if (
               data &&
               typeof data === 'object' &&
@@ -233,6 +291,14 @@ export class Worker {
               onActivityImpl()
             }
           })
+        }
+
+        for (const worker of ((this._worker as any)._workerPool?._workers ||
+          []) as {
+          _child?: ChildProcess
+          initialize?: () => void
+        }[]) {
+          watchChild(worker)
         }
       }
 

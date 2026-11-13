@@ -65,7 +65,18 @@ import {
   getStaticGenerationProfiler,
   getStaticWorkerId,
 } from './static-generation-profile'
-import { mapWithConcurrency } from './helpers/map-with-concurrency'
+import type { StaticGenerationPhase } from './static-generation-profile'
+import type { WorkerRenderOptsPartial } from './types'
+import { AdaptiveWorkerSession } from './adaptive/worker-session'
+import { createAdmissionConfig } from './adaptive/admission-controller'
+import { MemoryMonitor } from './adaptive/memory-monitor'
+import {
+  MEMORY_PRESSURE_EXIT_CODE,
+  RECYCLE_EXIT_CODE,
+  type AdaptiveSessionInput,
+  type AdaptiveStepInput,
+  type AdaptiveStepResult,
+} from './adaptive/types'
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
 }
@@ -73,10 +84,10 @@ import { mapWithConcurrency } from './helpers/map-with-concurrency'
 type IncrementalCacheOptions = Parameters<typeof createIncrementalCache>[0]
 
 /**
- * With `staticGenerationAdaptive`, pages arrive in many small `exportPages`
- * calls. Keep one incremental cache per worker for the whole session and
- * phase, so the in-memory fetch cache is shared by every page this worker
- * renders in that phase, as it was when each worker got one big batch.
+ * With `staticGenerationAdaptive`, pages arrive in many small steps. Keep one
+ * incremental cache per worker for the whole session and phase, so the
+ * in-memory fetch cache is shared by every page this worker renders in that
+ * phase, as it was when each worker got one big batch.
  *
  * The cache is rebuilt when the session, the phase, or any cache option
  * changes, so nothing leaks between `exportApp` runs or between the initial
@@ -447,34 +458,45 @@ async function exportPageImpl(
   }
 }
 
-export async function exportPages(
-  input: ExportPagesInput
-): Promise<ExportPagesResult> {
+type ExportPageContext = {
+  input: Pick<
+    ExportPagesInput,
+    | 'buildId'
+    | 'deploymentId'
+    | 'clientAssetToken'
+    | 'parentSpanId'
+    | 'distDir'
+    | 'outDir'
+    | 'pagesDataDir'
+    | 'nextConfig'
+    | 'options'
+  >
+  renderOpts: WorkerRenderOptsPartial
+  phase: StaticGenerationPhase
+  profiler: ReturnType<typeof getStaticGenerationProfiler>
+  /**
+   * How `prerenderEarlyExit` stops the build. The adaptive scheduler throws
+   * instead of exiting: a worker that exits looks like a crash to it (and in
+   * worker thread mode, jest-worker restarts the thread), so it would retry
+   * the page instead of failing the build.
+   */
+  earlyExit?: 'exit' | 'throw'
+}
+
+class PrerenderEarlyExitError extends Error {
+  code = 'NEXT_PRERENDER_EARLY_EXIT'
+}
+
+/**
+ * Per-process setup shared by `exportPages` and `exportPagesAdaptive`.
+ */
+async function prepareExportWorker(
+  nextConfig: ExportPagesInput['nextConfig']
+): Promise<void> {
   // Load native bindings in the worker process so that code frame rendering
   // (which uses the native codeFrameColumns function) works during prerendering.
   await installBindings()
   installCodeFrameSupport()
-
-  const {
-    exportPaths,
-    dir,
-    distDir,
-    outDir,
-    cacheHandler,
-    cacheMaxMemorySize,
-    fetchCacheKeyPrefix,
-    pagesDataDir,
-    renderOpts,
-    nextConfig,
-    options,
-    renderResumeDataCachesByPage = {},
-    phase = 'initial',
-    sessionId,
-    placement,
-  } = input
-
-  const profiler = getStaticGenerationProfiler()
-  const profiledCall = profiler?.beginCall(distDir)
 
   installGlobalBehaviors(nextConfig)
 
@@ -486,25 +508,195 @@ export async function exportPages(
       Error.stackTraceLimit = 50
     } catch {}
   }
+}
 
-  const incrementalCacheOptions: IncrementalCacheOptions = {
-    cacheHandler,
-    cacheMaxMemorySize,
-    fetchCacheKeyPrefix,
-    distDir,
-    dir,
+function getIncrementalCacheOptions(
+  input: Pick<
+    ExportPagesInput,
+    | 'cacheHandler'
+    | 'cacheMaxMemorySize'
+    | 'fetchCacheKeyPrefix'
+    | 'distDir'
+    | 'dir'
+    | 'nextConfig'
+  >
+): IncrementalCacheOptions {
+  return {
+    cacheHandler: input.cacheHandler,
+    cacheMaxMemorySize: input.cacheMaxMemorySize,
+    fetchCacheKeyPrefix: input.fetchCacheKeyPrefix,
+    distDir: input.distDir,
+    dir: input.dir,
     // skip writing to disk in minimal mode for now, pending some
     // changes to better support it
     flushToDisk: !hasNextSupport,
-    cacheHandlers: nextConfig.cacheHandlers,
+    cacheHandlers: input.nextConfig.cacheHandlers,
   }
+}
+
+async function exportPageWithRetry(
+  context: ExportPageContext,
+  exportPath: ExportPathEntry,
+  maxAttempts: number,
+  serializedRenderResumeDataCache: string | undefined,
+  placement?: string
+): Promise<ExportPagesResult[number]> {
+  const { input, renderOpts, phase, profiler } = context
+  const { distDir, outDir, pagesDataDir, nextConfig, options } = input
+  const { page, path } = exportPath
+  const pageKey = getExportPathPageKey(exportPath)
+  let attempt = 0
+  let result
+
+  const hasDebuggerAttached =
+    // Also tests for `inspect-brk`
+    process.env.NODE_OPTIONS?.includes('--inspect')
+
+  const profiledPage = profiler?.beginPage()
+
+  const renderResumeDataCache = serializedRenderResumeDataCache
+    ? createRenderResumeDataCache(
+        serializedRenderResumeDataCache,
+        renderOpts.experimental.maxPostponedStateSizeBytes,
+        renderOpts.experimental.disableResumeDataCacheCompression
+      )
+    : undefined
+
+  while (attempt < maxAttempts) {
+    try {
+      result = await Promise.race<ExportPageResult | undefined>([
+        exportPage({
+          exportPath,
+          distDir,
+          outDir,
+          pagesDataDir,
+          renderOpts,
+          trailingSlash: nextConfig.trailingSlash,
+          subFolders: nextConfig.trailingSlash && !options.buildExport,
+          buildExport: options.buildExport,
+          optimizeCss: nextConfig.experimental.optimizeCss,
+          disableOptimizedLoading:
+            nextConfig.experimental.disableOptimizedLoading,
+          parentSpanId: input.parentSpanId,
+          httpAgentOptions: nextConfig.httpAgentOptions,
+          debugOutput: options.debugOutput,
+          enableExperimentalReact: needsExperimentalReact(nextConfig),
+          sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
+          buildId: input.buildId,
+          deploymentId: input.deploymentId,
+          clientAssetToken: input.clientAssetToken,
+          renderResumeDataCache,
+          phase,
+          useScopedBuildArtifacts:
+            Boolean(nextConfig.adapterPath) &&
+            nextConfig.output !== 'export' &&
+            options.buildExport,
+        }),
+        hasDebuggerAttached
+          ? // With a debugger attached, exporting can take infinitely if we paused script execution.
+            new Promise(() => {})
+          : // If exporting the page takes longer than the timeout, reject the promise.
+            new Promise((_, reject) => {
+              setTimeout(() => {
+                reject(new TimeoutError())
+              }, nextConfig.staticPageGenerationTimeout * 1000)
+            }),
+      ])
+
+      // If there was an error in the export, throw it immediately. In the catch block, we might retry the export,
+      // or immediately fail the build, depending on user configuration. We might also continue on and attempt other pages.
+      if (result && 'error' in result) {
+        throw new ExportPageError()
+      }
+
+      // If the export succeeds, break out of the retry loop
+      break
+    } catch (err) {
+      // The only error that should be caught here is an ExportError, as `exportPage` doesn't throw and instead returns an object with an `error` property.
+      // This is an overly cautious check to ensure that we don't accidentally catch an unexpected error.
+      if (!(err instanceof ExportPageError || err instanceof TimeoutError)) {
+        throw err
+      }
+
+      if (err instanceof TimeoutError) {
+        // If the export times out, we will restart the worker up to 3 times.
+        maxAttempts = 3
+      }
+
+      // We've reached the maximum number of attempts
+      if (attempt >= maxAttempts - 1) {
+        // Log a message if we've reached the maximum number of attempts.
+        // We only care to do this if maxAttempts was configured.
+        if (maxAttempts > 1) {
+          console.info(
+            `Failed to build ${pageKey} after ${maxAttempts} attempts.`
+          )
+        }
+        // If prerenderEarlyExit is enabled, we'll exit the build immediately.
+        if (nextConfig.experimental.prerenderEarlyExit) {
+          const message = `Export encountered an error on ${pageKey}, exiting the build.`
+          console.error(message)
+          if (context.earlyExit === 'throw') {
+            throw new PrerenderEarlyExitError(message)
+          }
+          process.exit(1)
+        } else {
+          // Otherwise, this is a no-op. The build will continue, and a summary of failed pages will be displayed at the end.
+        }
+      } else {
+        // Otherwise, we have more attempts to make. Wait before retrying
+        if (err instanceof TimeoutError) {
+          console.info(
+            `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}) because it took more than ${nextConfig.staticPageGenerationTimeout} seconds. Retrying again shortly.`
+          )
+        } else {
+          console.info(
+            `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}). Retrying again shortly.`
+          )
+        }
+
+        // Exponential backoff with random jitter to avoid thundering herd on retries
+        const baseDelay = 500 // 500ms
+        const maxDelay = 2000 // 2 seconds
+        const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay)
+        const jitter = Math.random() * 0.3 * delay // Add up to 30% random jitter
+        await new Promise((r) => setTimeout(r, delay + jitter))
+      }
+    }
+
+    attempt++
+  }
+
+  if (profiler && profiledPage) {
+    profiler.endPage(profiledPage, { phase, page, path, result, placement })
+  }
+
+  return { result, path, page, pageKey }
+}
+
+export async function exportPages(
+  input: ExportPagesInput
+): Promise<ExportPagesResult> {
+  const {
+    exportPaths,
+    distDir,
+    renderOpts,
+    nextConfig,
+    renderResumeDataCachesByPage = {},
+    phase = 'initial',
+    placement,
+  } = input
+
+  const profiler = getStaticGenerationProfiler()
+  const profiledCall = profiler?.beginCall(distDir)
+
+  await prepareExportWorker(nextConfig)
 
   // If the fetch cache was enabled, we need to create an incremental
   // cache instance for this page.
-  const incrementalCache = await (nextConfig.experimental
-    .staticGenerationAdaptive
-    ? getSharedIncrementalCache({ sessionId, phase }, incrementalCacheOptions)
-    : createIncrementalCache(incrementalCacheOptions))
+  const incrementalCache = await createIncrementalCache(
+    getIncrementalCacheOptions(input)
+  )
 
   renderOpts.incrementalCache = incrementalCache
   profiler?.instrumentIncrementalCache(incrementalCache)
@@ -512,173 +704,185 @@ export async function exportPages(
   const maxConcurrency =
     nextConfig.experimental.staticGenerationMaxConcurrency ?? 8
   const results: ExportPagesResult = []
-
-  const exportPageWithRetry = async (
-    exportPath: ExportPathEntry,
-    maxAttempts: number
-  ) => {
-    const { page, path } = exportPath
-    const pageKey = getExportPathPageKey(exportPath)
-    let attempt = 0
-    let result
-
-    const hasDebuggerAttached =
-      // Also tests for `inspect-brk`
-      process.env.NODE_OPTIONS?.includes('--inspect')
-
-    const profiledPage = profiler?.beginPage()
-
-    const renderResumeDataCache = renderResumeDataCachesByPage[pageKey]
-      ? createRenderResumeDataCache(
-          renderResumeDataCachesByPage[pageKey],
-          renderOpts.experimental.maxPostponedStateSizeBytes,
-          renderOpts.experimental.disableResumeDataCacheCompression
-        )
-      : undefined
-
-    while (attempt < maxAttempts) {
-      try {
-        result = await Promise.race<ExportPageResult | undefined>([
-          exportPage({
-            exportPath,
-            distDir,
-            outDir,
-            pagesDataDir,
-            renderOpts,
-            trailingSlash: nextConfig.trailingSlash,
-            subFolders: nextConfig.trailingSlash && !options.buildExport,
-            buildExport: options.buildExport,
-            optimizeCss: nextConfig.experimental.optimizeCss,
-            disableOptimizedLoading:
-              nextConfig.experimental.disableOptimizedLoading,
-            parentSpanId: input.parentSpanId,
-            httpAgentOptions: nextConfig.httpAgentOptions,
-            debugOutput: options.debugOutput,
-            enableExperimentalReact: needsExperimentalReact(nextConfig),
-            sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
-            buildId: input.buildId,
-            deploymentId: input.deploymentId,
-            clientAssetToken: input.clientAssetToken,
-            renderResumeDataCache,
-            phase,
-            useScopedBuildArtifacts:
-              Boolean(nextConfig.adapterPath) &&
-              nextConfig.output !== 'export' &&
-              options.buildExport,
-          }),
-          hasDebuggerAttached
-            ? // With a debugger attached, exporting can take infinitely if we paused script execution.
-              new Promise(() => {})
-            : // If exporting the page takes longer than the timeout, reject the promise.
-              new Promise((_, reject) => {
-                setTimeout(() => {
-                  reject(new TimeoutError())
-                }, nextConfig.staticPageGenerationTimeout * 1000)
-              }),
-        ])
-
-        // If there was an error in the export, throw it immediately. In the catch block, we might retry the export,
-        // or immediately fail the build, depending on user configuration. We might also continue on and attempt other pages.
-        if (result && 'error' in result) {
-          throw new ExportPageError()
-        }
-
-        // If the export succeeds, break out of the retry loop
-        break
-      } catch (err) {
-        // The only error that should be caught here is an ExportError, as `exportPage` doesn't throw and instead returns an object with an `error` property.
-        // This is an overly cautious check to ensure that we don't accidentally catch an unexpected error.
-        if (!(err instanceof ExportPageError || err instanceof TimeoutError)) {
-          throw err
-        }
-
-        if (err instanceof TimeoutError) {
-          // If the export times out, we will restart the worker up to 3 times.
-          maxAttempts = 3
-        }
-
-        // We've reached the maximum number of attempts
-        if (attempt >= maxAttempts - 1) {
-          // Log a message if we've reached the maximum number of attempts.
-          // We only care to do this if maxAttempts was configured.
-          if (maxAttempts > 1) {
-            console.info(
-              `Failed to build ${pageKey} after ${maxAttempts} attempts.`
-            )
-          }
-          // If prerenderEarlyExit is enabled, we'll exit the build immediately.
-          if (nextConfig.experimental.prerenderEarlyExit) {
-            console.error(
-              `Export encountered an error on ${pageKey}, exiting the build.`
-            )
-            process.exit(1)
-          } else {
-            // Otherwise, this is a no-op. The build will continue, and a summary of failed pages will be displayed at the end.
-          }
-        } else {
-          // Otherwise, we have more attempts to make. Wait before retrying
-          if (err instanceof TimeoutError) {
-            console.info(
-              `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}) because it took more than ${nextConfig.staticPageGenerationTimeout} seconds. Retrying again shortly.`
-            )
-          } else {
-            console.info(
-              `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}). Retrying again shortly.`
-            )
-          }
-
-          // Exponential backoff with random jitter to avoid thundering herd on retries
-          const baseDelay = 500 // 500ms
-          const maxDelay = 2000 // 2 seconds
-          const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay)
-          const jitter = Math.random() * 0.3 * delay // Add up to 30% random jitter
-          await new Promise((r) => setTimeout(r, delay + jitter))
-        }
-      }
-
-      attempt++
-    }
-
-    if (profiler && profiledPage) {
-      profiler.endPage(profiledPage, { phase, page, path, result, placement })
-    }
-
-    return { result, path, page, pageKey }
-  }
-
+  const context: ExportPageContext = { input, renderOpts, phase, profiler }
   const retryCount = nextConfig.experimental.staticGenerationRetryCount ?? 1
+  const exportOne = (exportPath: ExportPathEntry) =>
+    exportPageWithRetry(
+      context,
+      exportPath,
+      retryCount,
+      renderResumeDataCachesByPage[getExportPathPageKey(exportPath)],
+      placement
+    )
 
+  // With `staticGenerationAdaptive`, pages go through `exportPagesAdaptive`
+  // instead, which renders them in a rolling window of adaptive size.
   try {
-    if (nextConfig.experimental.staticGenerationAdaptive) {
-      // Rolling window: start the next page as soon as any page finishes, so
-      // a slow page only occupies its own slot. Results keep the order of
-      // `exportPaths`; the RDC seed selection in `export/index.ts` relies on
-      // it when several seeds match.
-      results.push(
-        ...(await mapWithConcurrency(
-          exportPaths,
-          maxConcurrency,
-          (exportPath) => exportPageWithRetry(exportPath, retryCount)
-        ))
-      )
-    } else {
-      for (let i = 0; i < exportPaths.length; i += maxConcurrency) {
-        const subset = exportPaths.slice(i, i + maxConcurrency)
+    for (let i = 0; i < exportPaths.length; i += maxConcurrency) {
+      const subset = exportPaths.slice(i, i + maxConcurrency)
 
-        const subsetResults = await Promise.all(
-          subset.map((exportPath) =>
-            exportPageWithRetry(exportPath, retryCount)
-          )
-        )
+      const subsetResults = await Promise.all(subset.map(exportOne))
 
-        results.push(...subsetResults)
-      }
+      results.push(...subsetResults)
     }
   } finally {
     profiledCall?.end(phase, exportPaths.length)
   }
 
   return results
+}
+
+/**
+ * The worker's state for one adaptive static generation session (one
+ * `exportApp` run). See `export/adaptive/orchestrator.ts` for the parent side.
+ */
+let adaptiveSession:
+  | {
+      id: string
+      distDir: string
+      session: AdaptiveWorkerSession
+      monitor: MemoryMonitor
+      timer: NodeJS.Timeout
+    }
+  | undefined
+
+function disposeAdaptiveSession() {
+  if (!adaptiveSession) return
+  clearInterval(adaptiveSession.timer)
+  adaptiveSession.monitor.dispose()
+  adaptiveSession = undefined
+}
+
+async function createAdaptiveSession(
+  sessionId: string,
+  input: AdaptiveSessionInput,
+  maxConcurrency: number | undefined,
+  workerId: string
+) {
+  await prepareExportWorker(input.nextConfig)
+
+  const profiler = getStaticGenerationProfiler()
+  const incrementalCacheOptions = getIncrementalCacheOptions(input)
+  const retryCount =
+    input.nextConfig.experimental.staticGenerationRetryCount ?? 1
+
+  // One render options object per phase, each with that phase's cache.
+  let current:
+    | {
+        phase: StaticGenerationPhase
+        renderOpts: Promise<WorkerRenderOptsPartial>
+      }
+    | undefined
+  const getRenderOpts = (phase: StaticGenerationPhase) => {
+    if (current?.phase !== phase) {
+      current = {
+        phase,
+        renderOpts: getSharedIncrementalCache(
+          { sessionId, phase },
+          incrementalCacheOptions
+        ).then((incrementalCache) => {
+          profiler?.instrumentIncrementalCache(incrementalCache)
+          return { ...input.renderOpts, incrementalCache }
+        }),
+      }
+    }
+    return current.renderOpts
+  }
+
+  const monitor = new MemoryMonitor()
+  const session = new AdaptiveWorkerSession({
+    workerId,
+    config: createAdmissionConfig({ maxConcurrency }),
+    now: () => Date.now(),
+    readMemory: () => monitor.read(),
+    exportPage: async (task) => {
+      const phase = task.phase ?? 'initial'
+      const renderOpts = await getRenderOpts(phase)
+      return exportPageWithRetry(
+        { input, renderOpts, phase, profiler, earlyExit: 'throw' },
+        task.exportPath,
+        retryCount,
+        task.renderResumeDataCache,
+        task.placement
+      )
+    },
+    onMemoryExhausted: () => {
+      console.warn(
+        'A static generation worker is about to run out of memory. Restarting it and retrying its pages one at a time.'
+      )
+      profiler?.flush()
+      process.exit(MEMORY_PRESSURE_EXIT_CODE)
+    },
+  })
+  const timer = setInterval(() => session.tick(), 100)
+  timer.unref()
+  return { id: sessionId, distDir: input.distDir, session, monitor, timer }
+}
+
+/**
+ * One scheduling step of adaptive static generation: accept (or refuse) the
+ * submitted pages, then resolve once this worker could take more pages or has
+ * drained, with the results that finished in the meantime.
+ */
+export async function exportPagesAdaptive(
+  step: AdaptiveStepInput
+): Promise<AdaptiveStepResult> {
+  const workerId = getStaticWorkerId()
+
+  if (
+    step.recycleWorkerId === workerId &&
+    (!adaptiveSession || adaptiveSession.session.idle)
+  ) {
+    // jest-worker starts a fresh process to replace this one.
+    getStaticGenerationProfiler()?.flush()
+    process.exit(RECYCLE_EXIT_CODE)
+  }
+
+  if (adaptiveSession?.id !== step.sessionId) {
+    if (!step.session) {
+      return {
+        workerId,
+        needsSession: true,
+        results: [],
+        refused: step.submit.map((task) => task.id),
+        status: {
+          workerId,
+          running: 0,
+          queued: 0,
+          capacity: 0,
+          concurrency: 0,
+          saturated: false,
+          elu: 0,
+          rss: 0,
+          rawRss: process.memoryUsage.rss(),
+          heapUsed: 0,
+          heapLimit: 0,
+          memoryUsage: 0,
+          memoryPerPage: undefined,
+          postGcFloor: undefined,
+        },
+      }
+    }
+    disposeAdaptiveSession()
+    adaptiveSession = await createAdaptiveSession(
+      step.sessionId,
+      step.session,
+      step.limits.maxConcurrency,
+      workerId
+    )
+  }
+
+  const profiledCall = getStaticGenerationProfiler()?.beginCall(
+    adaptiveSession.distDir
+  )
+  try {
+    return await adaptiveSession.session.step({
+      ...step,
+      submit: step.submit.map((task) => ({ ...task, phase: step.phase })),
+    })
+  } finally {
+    profiledCall?.end(step.phase, step.submit.length)
+  }
 }
 
 async function exportPage(
