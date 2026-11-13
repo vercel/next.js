@@ -770,10 +770,10 @@ async function exportAppImpl(
     }
 
     if (nextConfig.experimental.staticGenerationAdaptive) {
-      // Adaptive scheduling: pages wait in one shared queue, idle workers
-      // pull chunks of them, and each worker picks its own concurrency from
-      // its event loop utilization and memory headroom. See
-      // `export/adaptive/orchestrator.ts`.
+      // Adaptive scheduling: each worker claims a route and pulls chunks of
+      // it, helps other routes from their end once every route is owned, and
+      // picks its own concurrency from its event loop utilization and memory
+      // headroom. See `export/adaptive/orchestrator.ts`.
       const configuredMaxConcurrency =
         nextConfig.experimental.staticGenerationMaxConcurrency
       return runAdaptiveStaticGeneration({
@@ -822,6 +822,10 @@ async function exportAppImpl(
         machineMemoryLimit: getConstrainedMemory() ?? os.totalmem(),
         getParentRss: () => process.memoryUsage.rss(),
         callStep: (_slot, input) => worker.exportPagesAdaptive(input),
+        // Experimental knob, off by default while it's being measured: keep
+        // a second heavy route off other workers while light routes wait.
+        heavyRouteLimit:
+          process.env.__NEXT_STATIC_GENERATION_HEAVY_ROUTE_LIMIT === '1',
         log: (message) => Log.warn(message),
       })
     }

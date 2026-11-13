@@ -53,7 +53,9 @@ export class AdaptiveWorkerSession {
   private readonly queue: AdaptiveTaskInput[] = []
   private running = 0
   private runningIsolated = false
-  private completed: Array<{ id: number } & ExportPagesResult[number]> = []
+  private completed: Array<
+    { id: number; heapPerPage?: number } & ExportPagesResult[number]
+  > = []
   private fatalError: { error: unknown } | undefined
   private waiters = new Set<() => void>()
   private rssLimit: number | undefined
@@ -187,7 +189,15 @@ export class AdaptiveWorkerSession {
       .exportPage(task)
       .then(
         (result) => {
-          this.completed.push({ id: task.id, ...result })
+          const heapUsed = this.memory?.heapUsed
+          this.completed.push({
+            id: task.id,
+            heapPerPage:
+              heapUsed !== undefined
+                ? heapUsed / Math.max(1, this.running)
+                : undefined,
+            ...result,
+          })
         },
         (error) => {
           this.fatalError ??= { error }

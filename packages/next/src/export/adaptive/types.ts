@@ -89,7 +89,16 @@ export type AdaptiveStepResult = {
   workerId: string
   /** The worker has no state for this session; resend with `session`. */
   needsSession?: boolean
-  results: Array<{ id: number } & ExportPagesResult[number]>
+  results: Array<
+    {
+      id: number
+      /**
+       * Heap in use divided by pages in flight when this page finished: a
+       * rough per-page memory cost for route statistics.
+       */
+      heapPerPage?: number
+    } & ExportPagesResult[number]
+  >
   /** Submitted pages the worker did not accept. */
   refused: number[]
   status: AdaptiveWorkerStatus

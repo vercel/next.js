@@ -1,7 +1,10 @@
 /**
  * Parent-side scheduler for adaptive static generation.
  *
- * Pages wait in one shared queue. Each worker slot has at most one step call
+ * Pages wait in a route-affine queue (see `route-queue.ts`): each worker
+ * claims a route and works through it in order, and helps with other routes
+ * from their end only when every remaining route is owned. Each worker slot
+ * has at most one step call
  * in flight (jest-worker runs one call per worker at a time). A step hands the
  * worker a chunk of pages and returns as soon as the worker could take more,
  * while earlier pages keep rendering, so a worker never drains to zero
@@ -23,13 +26,18 @@ import type {
   AdaptiveTaskInput,
   AdaptiveWorkerStatus,
 } from './types'
+import { RouteQueue } from './route-queue'
 
 type Task = {
   id: number
+  /** The page (route) this path belongs to. */
+  route: string
   exportPath: ExportPathEntry
   crashes: number
   isolate: boolean
   placement: string
+  /** Handed out by the route queue and not yet completed or returned. */
+  fromRouteQueue: boolean
 }
 
 type Slot = {
@@ -71,6 +79,8 @@ export type AdaptiveOrchestratorOptions = {
   ) => Promise<AdaptiveStepResult>
   /** Times a page may be retried after crashing a worker. */
   maxCrashRetries?: number
+  /** See "heavy-route limit" in `route-queue.ts`. */
+  heavyRouteLimit?: boolean
   log?: (message: string) => void
 }
 
@@ -120,6 +130,7 @@ export function runAdaptiveStaticGeneration(
     getParentRss,
     callStep,
     maxCrashRetries = 2,
+    heavyRouteLimit = false,
     log = () => {},
   } = options
 
@@ -127,14 +138,20 @@ export function runAdaptiveStaticGeneration(
     exportPaths.length
   )
   let remaining = exportPaths.length
-  const queue: Task[] = exportPaths.map((exportPath, id) => ({
+  const allTasks: Task[] = exportPaths.map((exportPath, id) => ({
     id,
+    route: exportPath.page,
     exportPath,
     crashes: 0,
     isolate: false,
     placement: 'queue',
+    fromRouteQueue: false,
   }))
-  const tasks = new Map<number, Task>(queue.map((task) => [task.id, task]))
+  const tasks = new Map<number, Task>(allTasks.map((task) => [task.id, task]))
+  const routeQueue = new RouteQueue<Task>(allTasks, { heavyRouteLimit })
+  /** Pages retried after a crash; each runs alone. */
+  const retryQueue: Task[] = []
+  const pendingCount = () => routeQueue.size + retryQueue.length
   /** Accepted, unfinished pages by worker id. */
   const outstanding = new Map<string, Set<number>>()
 
@@ -183,10 +200,20 @@ export function runAdaptiveStaticGeneration(
     const totalWorkerRawRss = () =>
       slots.reduce((sum, slot) => sum + (slot.status?.rawRss ?? 0), 0)
 
+    /** Puts a handed-out page back: into its route, or to the retry queue. */
     const requeue = (task: Task, placement: string) => {
       task.placement = placement
-      // Retried pages go to the front so they don't become the tail.
-      queue.unshift(task)
+      if (task.isolate) {
+        if (task.fromRouteQueue) routeQueue.forget(task)
+        task.fromRouteQueue = false
+        // Retried pages go first so they don't become the tail.
+        retryQueue.unshift(task)
+      } else if (task.fromRouteQueue) {
+        task.fromRouteQueue = false
+        routeQueue.giveBack([task])
+      } else {
+        retryQueue.unshift(task)
+      }
     }
 
     const loseWorker = (workerId: string, reason: string) => {
@@ -215,16 +242,20 @@ export function runAdaptiveStaticGeneration(
     }
 
     const takeChunk = (slot: Slot): Task[] => {
-      if (queue.length === 0) return []
       // A page retried after a crash runs alone.
-      if (queue[0].isolate) {
-        return outstandingFor(slot.workerId) === 0 ? [queue.shift()!] : []
+      if (retryQueue.length > 0) {
+        return outstandingFor(slot.workerId) === 0 ? [retryQueue.shift()!] : []
       }
+      if (routeQueue.size === 0) return []
       const capacity = slot.status ? slot.status.capacity : chunkSize
       const count = Math.max(1, Math.min(chunkSize, capacity))
-      const chunk: Task[] = []
-      while (chunk.length < count && queue.length > 0 && !queue[0].isolate) {
-        chunk.push(queue.shift()!)
+      const { tasks: chunk, placement } = routeQueue.take(slot.index, count)
+      for (const task of chunk) {
+        task.fromRouteQueue = true
+        // Keep why a page came back, for the profile.
+        task.placement = task.placement.startsWith('refused-by-')
+          ? `${task.placement};${placement}`
+          : placement
       }
       return chunk
     }
@@ -240,7 +271,7 @@ export function runAdaptiveStaticGeneration(
 
     const maybeActivateSlot = () => {
       const inactive = slots.find((slot) => !slot.active)
-      if (!inactive || queue.length <= chunkSize) return
+      if (!inactive || pendingCount() <= chunkSize) return
       const active = slots.filter((slot) => slot.active)
       const allCpuBound = active.every(
         (slot) => slot.status && slot.status.elu >= CPU_BOUND_ELU
@@ -355,9 +386,14 @@ export function runAdaptiveStaticGeneration(
             workerOutstanding.add(task.id)
           }
         }
-        for (const { id, ...pageResult } of result.results) {
+        for (const { id, heapPerPage, ...pageResult } of result.results) {
           if (results[id] !== undefined) continue
           results[id] = pageResult
+          const task = tasks.get(id)
+          if (task?.fromRouteQueue) {
+            task.fromRouteQueue = false
+            routeQueue.complete(task, pageResult.result?.duration, heapPerPage)
+          }
           remaining--
           slot.pagesDone++
           for (const set of outstanding.values()) set.delete(id)
@@ -465,7 +501,7 @@ export function runAdaptiveStaticGeneration(
 
         // Pages retried after a crash run alone, on a worker with nothing in
         // flight.
-        const headIsolated = queue.length > 0 && queue[0].isolate
+        const headIsolated = retryQueue.length > 0
         // Over the machine budget, only idle workers take new pages. A
         // saturated worker, or one with no capacity left, would refuse them
         // right away; wait for it to free up instead.
@@ -477,14 +513,14 @@ export function runAdaptiveStaticGeneration(
             slot.status?.saturated === true ||
             headIsolated ||
             noCapacity)
-        const chunk = queue.length > 0 && !holdBack ? takeChunk(slot) : []
+        const chunk = pendingCount() > 0 && !holdBack ? takeChunk(slot) : []
 
         if (chunk.length > 0) {
           send(slot, chunk, { wait: 'capacity' })
         } else if (pending > 0) {
           // Waiting for capacity only helps if we could then send pages.
           const wait =
-            queue.length > 0 && !machineSaturated && !headIsolated
+            pendingCount() > 0 && !machineSaturated && !headIsolated
               ? 'capacity'
               : 'drained'
           send(slot, [], { wait })
@@ -494,7 +530,7 @@ export function runAdaptiveStaticGeneration(
       if (!slots.some((slot) => slot.busy) && remaining > 0) {
         fail(
           new Error(
-            `Invariant: adaptive static generation stalled with ${remaining} page(s) left and ${queue.length} queued`
+            `Invariant: adaptive static generation stalled with ${remaining} page(s) left and ${pendingCount()} queued`
           )
         )
       }

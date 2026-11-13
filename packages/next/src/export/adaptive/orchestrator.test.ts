@@ -314,4 +314,32 @@ describe('runAdaptiveStaticGeneration', () => {
     await promise
     expect(workers[0].maxRunning).toBeLessThanOrEqual(3)
   })
+
+  it('keeps each route on one worker until the end of the build', async () => {
+    const workers = [
+      new FakeWorker(0, { renderMs: () => 2 }),
+      new FakeWorker(1, { renderMs: () => 2 }),
+    ]
+    const paths = [
+      ...exportPaths(20, '/a'),
+      ...exportPaths(20, '/b'),
+      ...exportPaths(20, '/c'),
+      // The last route is long, so the other worker helps with it.
+      ...exportPaths(60, '/d'),
+    ]
+    const { promise } = run(workers, paths)
+    const results = await promise
+    expect(results.map((r) => r.path)).toEqual(paths.map((p) => p.path))
+    const rendered = workers.flatMap((w) => w.rendered)
+    for (const route of ['/a', '/b', '/c']) {
+      const byWorker = new Set(
+        rendered
+          .filter((r) => r.path.startsWith(route + '/'))
+          .map((r) => r.workerId)
+      )
+      // Only the last route can be shared, when the other worker helps.
+      expect(byWorker.size).toBe(1)
+    }
+    expect(rendered.some((r) => r.placement?.startsWith('help:'))).toBe(true)
+  })
 })
