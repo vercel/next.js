@@ -2,12 +2,12 @@
 
 const defaultCacheHandler =
   require('next/dist/server/lib/cache-handlers/default.external').default
-const writeFailureState = require('./write-failure-state')
+const cacheControl = require('./cache-control')
+const retainedCache = require('./retained-cache')
 const { EventEmitter, once } = require('node:events')
 const outerWrites = new EventEmitter()
 const pendingOuterWrites = once(outerWrites, 'complete')
 const observedOuters = new Set()
-
 // Delay the English inner write until both outer entries reach `set()`. The
 // nested route calls `outerOne()` and then `outerTwo()`, which share `inner()`.
 // The wrapper must propagate the inner language dependency before it computes
@@ -19,18 +19,31 @@ const observedOuters = new Set()
  */
 module.exports = {
   ...defaultCacheHandler,
+  async get(cacheKey, softTags) {
+    if (!cacheControl.handlesKey(cacheKey)) {
+      return defaultCacheHandler.get(cacheKey, softTags)
+    }
+    return cacheControl.run({ type: 'get', cacheKey }, async () => {
+      // Capture the backend result before a response control waits. A later
+      // write must not change the result returned by this lookup.
+      const entry =
+        cacheControl.options.backend === 'retain-stale'
+          ? retainedCache.get(cacheKey)
+          : await defaultCacheHandler.get(cacheKey, softTags)
+      return cacheControl.run({ type: 'get-response', cacheKey }, () => entry)
+    })
+  },
   async set(cacheKey, pendingEntry) {
     const { tags } = await pendingEntry
-    // Reject the English `set()` calls. The French request must still generate
-    // and store an entry with its own root parameter value.
-    if (tags.includes(`write-failure:${writeFailureState.id}`)) {
-      if (tags.includes('write-failure-language:en')) {
-        writeFailureState.failedWriteLanguages.push('en')
-        throw new Error('expected English cache write failure')
-      }
-      await defaultCacheHandler.set(cacheKey, pendingEntry)
-      writeFailureState.writtenLanguages.push('fr')
-      return
+    if (cacheControl.handlesKey(cacheKey)) {
+      const entry = tags.some((tag) => tag.startsWith('_N_RP_'))
+        ? 'redirect'
+        : 'value'
+      return cacheControl.run({ type: 'set', cacheKey, tags, entry }, () => {
+        return cacheControl.options.backend === 'retain-stale'
+          ? retainedCache.set(cacheKey, pendingEntry)
+          : defaultCacheHandler.set(cacheKey, pendingEntry)
+      })
     }
     const outer = tags.find(
       (tag) => tag === 'nested-outer-one' || tag === 'nested-outer-two'
