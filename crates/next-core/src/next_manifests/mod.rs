@@ -460,11 +460,11 @@ pub struct ActionManifestEntry<'a> {
 
     pub filename: &'a str,
 
-    /// Durability metadata for `"use cache"` functions. This only depends on
-    /// the server reference's module, so it's identical across all workers and
-    /// is stored once per entry instead of once per worker.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub durability: Option<ActionManifestEntryDurability<'a>>,
+    /// Deduplicated durability metadata for `"use cache"` functions. Workers
+    /// reference an item of this list by index, because most workers share the
+    /// same value (but not all of them, e.g. when the chunking context differs).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub durability: Vec<ActionManifestEntryDurability<'a>>,
 
     /// Source location line number (1-indexed), if available
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -481,6 +481,9 @@ pub struct ActionManifestWorkerEntry<'a> {
     pub module_id: ActionManifestModuleId<'a>,
     #[serde(rename = "async")]
     pub is_async: bool,
+    /// Index into the entry's `durability` list.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub durability: Option<u32>,
     /// The sorted root param dependencies collected from the cache module's
     /// graph. An empty list means that collection found no root params. The
     /// build omits this field when it does not collect dependencies for the
@@ -489,7 +492,7 @@ pub struct ActionManifestWorkerEntry<'a> {
     pub root_param_dependencies: Option<&'a [RcStr]>,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionManifestEntryDurability<'a> {
     pub code_hash: &'a str,

@@ -370,6 +370,25 @@ impl Asset for ServerActionManifestAsset {
         ) in &action_metadata
         {
             let entry = mapping.entry(hash_id).or_default();
+
+            // The durability data is usually identical for all workers of an action, so it's
+            // stored deduplicated at the entry level and referenced by index from the worker.
+            let durability = data.as_ref().map(|d| {
+                let durability = ActionManifestEntryDurability {
+                    code_hash: d.path_code_hash.as_str(),
+                    runtime_env_vars_read: d.runtime_env_vars_read.as_slice(),
+                    runtime_env_vars_existence: d.runtime_env_vars_existence.as_slice(),
+                };
+                let index = match entry.durability.iter().position(|d| *d == durability) {
+                    Some(index) => index,
+                    None => {
+                        entry.durability.push(durability);
+                        entry.durability.len() - 1
+                    }
+                };
+                index as u32
+            });
+
             entry.workers.insert(
                 &key,
                 ActionManifestWorkerEntry {
@@ -377,6 +396,7 @@ impl Asset for ServerActionManifestAsset {
                     is_async: async_module_info
                         .is_async(self.chunk_item.module().to_resolved().await?)
                         .await?,
+                    durability,
                     root_param_dependencies: root_param_dependencies
                         .as_ref()
                         .map(|names| names.as_slice()),
@@ -386,13 +406,6 @@ impl Asset for ServerActionManifestAsset {
             // Hoist the filename and exported_name to the entry level
             entry.exported_name = exported_name;
             entry.filename = filename.as_ref();
-            // The durability data only depends on the server reference's module, so it's
-            // identical for every worker and is stored once at the entry level.
-            entry.durability = data.as_ref().map(|d| ActionManifestEntryDurability {
-                code_hash: d.path_code_hash.as_str(),
-                runtime_env_vars_read: d.runtime_env_vars_read.as_slice(),
-                runtime_env_vars_existence: d.runtime_env_vars_existence.as_slice(),
-            });
         }
 
         Ok(AssetContent::file(

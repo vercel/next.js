@@ -63,6 +63,7 @@ import {
   getRscModuleMappingForUseCache,
   getServerActionsManifest,
   getServerModuleMap,
+  normalizeWorkerPageName,
 } from '../app-render/manifests-singleton'
 import type { CacheEntry } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
@@ -3995,9 +3996,15 @@ async function computeCacheKeyImplementationPart(
   implementationPart: unknown
   runtimeEnvVarStateHash: string | undefined
 }> {
-  let durability = workStore.durableUseCacheEntries
-    ? getServerActionsManifest().node[id]?.durability
+  const entry = workStore.durableUseCacheEntries
+    ? getServerActionsManifest().node[id]
     : undefined
+  const durabilityIndex =
+    entry?.workers?.[normalizeWorkerPageName(workStore.page)]?.durability
+  const durability =
+    durabilityIndex !== undefined
+      ? entry?.durability?.[durabilityIndex]
+      : undefined
   if (durability) {
     // use cache is only supported in Node.js runtime. So we can use the Node.js crypto module here.
     const crypto = require('crypto') as typeof import('crypto')

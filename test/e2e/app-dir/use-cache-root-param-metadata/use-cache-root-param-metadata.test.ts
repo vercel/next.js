@@ -43,6 +43,7 @@ describe('use-cache-root-param-metadata', () => {
         const workers = Object.values<any>(entry.workers)
         expect(workers.length).toBeGreaterThan(0)
         for (const worker of workers) {
+          expect(worker.durability).toBeUndefined()
           expect({ name, dependencies: worker.rootParamDependencies }).toEqual({
             name,
             dependencies: expected,

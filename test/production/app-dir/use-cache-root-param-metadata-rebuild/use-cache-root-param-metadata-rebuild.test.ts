@@ -116,9 +116,9 @@ export async function getValue() {
             const entry = await getEntry()
             const worker = await getWorker()
             expect(worker.rootParamDependencies).toBeUndefined()
-            expect(worker.durability).toBeUndefined()
-            expect(entry.durability.codeHash).toEqual(expect.any(String))
-            expect(entry.durability.runtimeEnvVarsRead).toContain(
+            const durability = entry.durability[worker.durability]
+            expect(durability.codeHash).toEqual(expect.any(String))
+            expect(durability.runtimeEnvVarsRead).toContain(
               'ROOT_PARAM_METADATA_TEST_VALUE'
             )
           }

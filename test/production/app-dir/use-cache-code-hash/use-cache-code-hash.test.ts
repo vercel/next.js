@@ -27,17 +27,27 @@ async function getCodeHashes(
     runtimeEnvVarsExistence?: string[]
   }[] = []
   for (const [actionId, entry] of Object.entries<any>(manifest.node)) {
+    if (entry.durability) {
+      // Durability values are deduplicated per action.
+      const serialized = entry.durability.map((d) => JSON.stringify(d))
+      expect(new Set(serialized).size).toBe(serialized.length)
+    }
     for (const [workerKey, worker] of Object.entries<any>(entry.workers)) {
-      // Durability is stored once per action, not per worker.
-      expect(worker.durability).toBeUndefined()
+      const durability =
+        worker.durability !== undefined
+          ? entry.durability[worker.durability]
+          : undefined
+      if (worker.durability !== undefined) {
+        expect(durability).toBeDefined()
+      }
       if (!pages || pages.includes(workerKey)) {
         hashes.push({
           id: actionId,
           page: workerKey,
-          codeHash: entry.durability?.codeHash,
+          codeHash: durability?.codeHash,
           rootParamDependencies: worker.rootParamDependencies,
-          runtimeEnvVarsRead: entry.durability?.runtimeEnvVarsRead,
-          runtimeEnvVarsExistence: entry.durability?.runtimeEnvVarsExistence,
+          runtimeEnvVarsRead: durability?.runtimeEnvVarsRead,
+          runtimeEnvVarsExistence: durability?.runtimeEnvVarsExistence,
         })
       }
     }
@@ -74,7 +84,7 @@ async function getCodeHashes(
         let cacheWorkers = 0
         for (const entry of Object.values<any>(manifest.node)) {
           for (const worker of Object.values<any>(entry.workers)) {
-            if (entry.durability) {
+            if (worker.durability !== undefined) {
               cacheWorkers++
               expect(worker.rootParamDependencies).toBeDefined()
             } else {
