@@ -371,9 +371,6 @@ impl Asset for ServerActionManifestAsset {
         {
             let entry = mapping.entry(hash_id).or_default();
 
-            // The durability data is stored at the entry level, keyed by a hash of the data
-            // itself, and the worker references it by that key. Equal keys have equal data, so
-            // the manifests of all pages can be merged without deduplication.
             let durability = data.as_ref().map(|d| {
                 let key = d.durability_key.as_str();
                 entry.durability.insert(
