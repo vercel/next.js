@@ -470,7 +470,7 @@ impl PatternMapping {
         let unused_references;
         let dropped_targets = match reference {
             Some(reference) => {
-                unused_references = chunking_context.unused_references().await?;
+                unused_references = chunking_context.unused_references().keyed_reader().await?;
                 unused_references.get(&reference)
             }
             None => None,

@@ -14,9 +14,11 @@ use swc_core::{
 };
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, turbofmt};
+use turbo_tasks::{
+    FxIndexMap, KeyedReadRef, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, Vc, turbofmt,
+};
 use turbopack_core::{
-    chunk::{ChunkingContext, ModuleChunkItemIdExt},
+    chunk::{ChunkingContext, ModuleChunkItemIdExt, UnusedReferences},
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, analyze::AnalyzeIssue},
     module::{Module, ModuleSideEffects},
@@ -670,6 +672,44 @@ async fn compact_reference_target(
     Ok(Some(((namespace_ident, ctxt), asset)))
 }
 
+/// Up to this many references, export code generation reads `UnusedReferences` by key, so it only
+/// depends on the entries of its own references. Above it, the module reads the whole map: a keyed
+/// read adds one dependency per reference, and for modules that re-export many bindings, that costs
+/// more memory than re-running their code generation when the map changes. A module without
+/// references doesn't read the map at all, which is the case for most modules.
+const MAX_KEYED_UNUSED_REFERENCE_READS: usize = 1;
+
+/// A read of `UnusedReferences`, by key or as a whole. See [`MAX_KEYED_UNUSED_REFERENCE_READS`].
+enum UnusedReferencesRead {
+    /// The module has no references to look up, so it doesn't read the map at all.
+    None,
+    Keyed(KeyedReadRef<UnusedReferences>),
+    Whole(ReadRef<UnusedReferences>),
+}
+
+impl UnusedReferencesRead {
+    async fn new(
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        reference_count: usize,
+    ) -> Result<Self> {
+        Ok(if reference_count == 0 {
+            Self::None
+        } else if reference_count <= MAX_KEYED_UNUSED_REFERENCE_READS {
+            Self::Keyed(chunking_context.unused_references().keyed_reader().await?)
+        } else {
+            Self::Whole(chunking_context.unused_references().await?)
+        })
+    }
+
+    fn contains(&self, reference: &ResolvedVc<Box<dyn ModuleReference>>) -> bool {
+        match self {
+            Self::None => false,
+            Self::Keyed(unused_references) => unused_references.contains_key(reference),
+            Self::Whole(unused_references) => unused_references.contains_key(reference),
+        }
+    }
+}
+
 /// Collects the exports into one group per source module, or returns `None` if any export does not
 /// fit the compact shape (a plain, immutable forward of a named binding out of an in-graph module)
 /// so the caller falls back to the general registration.
@@ -679,10 +719,10 @@ async fn build_compact_reexports(
     eval_context: &EvalContext,
     mode: ExportRegistrationMode,
     synthetic_references: Option<SyntheticReexportReferences<'_>>,
+    unused_references: &UnusedReferencesRead,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     scope_hoisting_context: ScopeHoistingContext<'_>,
 ) -> Result<Option<CompactReexports>> {
-    let unused_references = chunking_context.unused_references().await?;
     let locally_bound: FxHashSet<usize> = eval_context
         .imports
         .locally_bound_reference_idxs()
@@ -700,7 +740,7 @@ async fn build_compact_reexports(
         // a group for a reference the usage graph pruned: its target may not exist in this chunk,
         // and its code generation deliberately emits no namespace binding either.
         for (order, reference) in part_references.iter().enumerate() {
-            if unused_references.contains_key(&ResolvedVc::upcast(*reference)) {
+            if unused_references.contains(&ResolvedVc::upcast(*reference)) {
                 continue;
             }
 
@@ -735,7 +775,7 @@ async fn build_compact_reexports(
         for (index, reference) in esm_references.iter().enumerate() {
             // Unused re-exports are absent from the module ID map and cannot contribute
             // an import or a source-order position to the compact registration.
-            if unused_references.contains_key(&ResolvedVc::upcast(*reference)) {
+            if unused_references.contains(&ResolvedVc::upcast(*reference)) {
                 continue;
             }
 
@@ -758,7 +798,7 @@ async fn build_compact_reexports(
         // The usage graph can prune a re-export's target even though its name is still
         // present in the facade's expanded export list. Do not generate a module ID for
         // a target that was excluded from chunking.
-        if unused_references.contains_key(esm_ref) {
+        if unused_references.contains(esm_ref) {
             continue;
         }
         if *mutable {
@@ -1014,11 +1054,25 @@ impl EsmExports {
         synthetic_references: Option<SyntheticReexportReferences<'_>>,
         is_async_module: bool,
     ) -> Result<(CodeGeneration, SubsumedImports)> {
-        let unused_references = chunking_context.unused_references().await?;
         let export_usage_info = chunking_context
             .module_export_usage(*ResolvedVc::upcast(module))
             .await?;
         let expanded = self.expand_exports(*export_usage_info.export_usage).await?;
+        let reference_count = expanded
+            .exports
+            .values()
+            .filter(|export| {
+                matches!(
+                    export,
+                    EsmExport::ImportedBinding(..) | EsmExport::ImportedNamespace(_)
+                )
+            })
+            .count()
+            + synthetic_references.map_or(0, |(part_references, esm_references)| {
+                part_references.len() + esm_references.len()
+            });
+        let unused_references =
+            UnusedReferencesRead::new(chunking_context, reference_count).await?;
 
         if scope_hoisting_context.skip_module_exports() && expanded.dynamic_exports.is_empty() {
             // If the current module is not exposed, no need to generate exports.
@@ -1095,6 +1149,7 @@ impl EsmExports {
                 eval_context,
                 export_registration_mode,
                 synthetic_references,
+                &unused_references,
                 chunking_context,
                 scope_hoisting_context,
             )
@@ -1110,7 +1165,7 @@ impl EsmExports {
         for (exported, local) in &expanded.exports {
             if let EsmExport::ImportedBinding(reference, ..)
             | EsmExport::ImportedNamespace(reference) = local
-                && unused_references.contains_key(reference)
+                && unused_references.contains(reference)
             {
                 continue;
             }
