@@ -1,0 +1,5 @@
+{
+  "minify": true,
+  "minifyChunksAfterItems": true,
+  "scopeHoisting": false
+}

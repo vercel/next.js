@@ -1,0 +1,6 @@
+{
+  "minifyMode": "OptimalSize",
+  "minifyChunksAfterItems": true,
+  "runtime": "Browser",
+  "runtimeType": "Production"
+}

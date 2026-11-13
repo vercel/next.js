@@ -90,7 +90,7 @@ impl EcmascriptBrowserRuntimeChunk {
 
         let ecma_emit =
             EcmascriptEmitOptions::get_or_default(Vc::upcast(*chunking_context)).await?;
-        if let Some(swc_minify_options) = &ecma_emit.swc_minify_options {
+        if let Some(swc_minify_options) = &ecma_emit.standalone_minify_options {
             code = minify(
                 code,
                 chunking_context.emitted_source_map_type().await?.is_some(),

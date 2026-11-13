@@ -23,7 +23,7 @@ use crate::{
         chunk_type::{estimated_chunk_item_size, rounded_chunk_item_size},
         item::{ChunkItemFactoryContent, chunk_item_factory_content},
     },
-    emit_options::EcmascriptEmitOptions,
+    emit_options::{ChunkItemMinifyOptions, EcmascriptEmitOptions},
 };
 
 const CODE: &str = "(() => {\n  const value = 1 + 2;\n  console.log(value);\n})";
@@ -97,12 +97,16 @@ impl EcmascriptChunkItem for TestItem {
 }
 
 /// Per-item minification, compressing without mangling.
-fn minify() -> Option<ResolvedVc<EcmascriptEmitOptions>> {
+fn minify() -> Option<ResolvedVc<ChunkItemMinifyOptions>> {
     Some(
-        EcmascriptEmitOptions::builder()
-            .preset_minify_no_mangle()
-            .build()
-            .resolved_cell(),
+        ChunkItemMinifyOptions {
+            options: EcmascriptEmitOptions::builder()
+                .preset_minify_no_mangle()
+                .minify_per_chunk_item()
+                .build()
+                .chunk_item_minify_options,
+        }
+        .resolved_cell(),
     )
 }
 

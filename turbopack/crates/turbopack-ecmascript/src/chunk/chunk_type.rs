@@ -11,7 +11,7 @@ use crate::{
         batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo},
         item::{ChunkItemFactoryContent, chunk_item_factory_content},
     },
-    emit_options::EcmascriptEmitOptions,
+    emit_options::ChunkItemMinifyOptions,
 };
 
 #[turbo_tasks::value]
@@ -99,7 +99,7 @@ impl ChunkType for EcmascriptChunkType {
 pub(crate) async fn rounded_chunk_item_size(
     chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
-    minify: Option<ResolvedVc<EcmascriptEmitOptions>>,
+    minify: Option<ResolvedVc<ChunkItemMinifyOptions>>,
     source_maps: bool,
 ) -> usize {
     estimated_chunk_item_size(chunk_item, async_module_info, minify, source_maps)
@@ -113,7 +113,7 @@ pub(crate) async fn rounded_chunk_item_size(
 pub(crate) async fn estimated_chunk_item_size(
     chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
-    minify: Option<ResolvedVc<EcmascriptEmitOptions>>,
+    minify: Option<ResolvedVc<ChunkItemMinifyOptions>>,
     source_maps: bool,
 ) -> Result<usize> {
     Ok(

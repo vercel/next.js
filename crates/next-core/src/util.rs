@@ -574,28 +574,32 @@ pub fn relativize_glob<'a>(
 /// enabled (i.e. `no_mangling` is `false`):
 /// - `true`  → `preset_minify_deterministic` (stable names, used for SSR)
 /// - `false` → `preset_minify_optimal_size`  (smallest output, used for client)
+///
+/// `minify_before_chunking` (EXPERIMENTAL) minifies each chunk item on its own instead of the
+/// assembled chunk. Pass `false` for contexts that don't support it.
 pub async fn minify_emit_options(
     minify: Vc<bool>,
     no_mangling: Vc<bool>,
     deterministic_mangle: bool,
+    minify_before_chunking: bool,
 ) -> Result<SmallVec<[ResolvedVc<Box<dyn EmitOption>>; 2]>> {
     if !*minify.await? {
         return Ok(SmallVec::new());
     }
 
     let ecma_opts = if *no_mangling.await? {
-        EcmascriptEmitOptions::builder()
-            .preset_minify_no_mangle()
-            .build()
+        EcmascriptEmitOptions::builder().preset_minify_no_mangle()
     } else if deterministic_mangle {
-        EcmascriptEmitOptions::builder()
-            .preset_minify_deterministic()
-            .build()
+        EcmascriptEmitOptions::builder().preset_minify_deterministic()
     } else {
-        EcmascriptEmitOptions::builder()
-            .preset_minify_optimal_size()
-            .build()
+        EcmascriptEmitOptions::builder().preset_minify_optimal_size()
     };
+    let ecma_opts = if minify_before_chunking {
+        ecma_opts.minify_per_chunk_item()
+    } else {
+        ecma_opts
+    }
+    .build();
     let css_opts = CssEmitOptions::builder().preset_minify().build();
 
     Ok(smallvec![

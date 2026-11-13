@@ -16,12 +16,12 @@ use crate::{
         EcmascriptChunkItemOrBatchWithAsyncInfo, EcmascriptChunkItemWithAsyncInfo,
         item::{ChunkItemFactoryContent, chunk_item_factory_content},
     },
-    emit_options::EcmascriptEmitOptions,
+    emit_options::ChunkItemMinifyOptions,
     minify::minify_chunk_item,
 };
 
-/// The module factory of a chunk item, minified on its own with the per-item minify options of
-/// `emit_options` (see [`EcmascriptEmitOptions::per_item_swc_minify_options`]).
+/// The module factory of a chunk item, minified on its own with `minify_options` (see
+/// [`ChunkItemMinifyOptions`]).
 ///
 /// Keyed by the content cell rather than by the chunk item, so that chunk size estimation (which
 /// reads the estimated content) and code generation (which reads the final content) share one
@@ -34,11 +34,11 @@ use crate::{
 pub async fn minified_module_factory(
     content: Vc<EcmascriptChunkItemContent>,
     source_maps: bool,
-    emit_options: Vc<EcmascriptEmitOptions>,
+    minify_options: Vc<ChunkItemMinifyOptions>,
 ) -> Result<Vc<Code>> {
     let factory = content.await?.module_factory().await?;
-    Ok(match emit_options.await?.per_item_swc_minify_options() {
-        Some(swc_minify_options) => minify_chunk_item(&factory, source_maps, &swc_minify_options)?,
+    Ok(match &minify_options.await?.options {
+        Some(swc_minify_options) => minify_chunk_item(&factory, source_maps, swc_minify_options)?,
         None => factory,
     }
     .cell())
@@ -46,14 +46,14 @@ pub async fn minified_module_factory(
 
 async fn code_module_id_and_path(
     item: &EcmascriptChunkItemWithAsyncInfo,
-    minify: Option<ResolvedVc<EcmascriptEmitOptions>>,
+    minify: Option<ResolvedVc<ChunkItemMinifyOptions>>,
     source_maps: bool,
 ) -> Result<CodeModuleIdAndPath> {
     let async_info = item.async_info.map(|info| *info);
-    // `None` here means the chunk will be minified as a whole later (or not at all); only the
-    // per-item mode asks for the factory to be minified now. A strict factory keeps its
-    // `"use strict"` directive either way; the chunk drops it where it places the factory in a
-    // strict context (see `write_module_factories`).
+    // `None` here means the chunk items aren't minified on their own (the chunk may still be
+    // minified as a whole later). A strict factory keeps its `"use strict"` directive either way;
+    // the chunk drops it where it places the factory in a strict context (see
+    // `write_module_factories`).
     let (code, strict) = if let Ok(ChunkItemFactoryContent::Minified { factory, strict }) =
         chunk_item_factory_content(item.chunk_item, async_info, false, minify, source_maps).await
     {
@@ -92,7 +92,7 @@ pub struct BatchGroupCodeModuleIdsAndPaths(
 #[turbo_tasks::function]
 pub async fn batch_group_code_module_ids_and_paths(
     batch_group: Vc<EcmascriptChunkItemBatchGroup>,
-    minify: Option<ResolvedVc<EcmascriptEmitOptions>>,
+    minify: Option<ResolvedVc<ChunkItemMinifyOptions>>,
     source_maps: bool,
 ) -> Result<Vc<BatchGroupCodeModuleIdsAndPaths>> {
     Ok(Vc::cell(
@@ -105,7 +105,7 @@ pub async fn batch_group_code_module_ids_and_paths(
                     item.clone(),
                     item_code_module_ids_and_paths(
                         item.clone(),
-                        minify.map(|emit_options| *emit_options),
+                        minify.map(|minify_options| *minify_options),
                         source_maps,
                     )
                     .await?,
@@ -121,7 +121,7 @@ pub async fn batch_group_code_module_ids_and_paths(
 #[turbo_tasks::function]
 pub async fn item_code_module_ids_and_paths(
     item: EcmascriptChunkItemOrBatchWithAsyncInfo,
-    minify: Option<ResolvedVc<EcmascriptEmitOptions>>,
+    minify: Option<ResolvedVc<ChunkItemMinifyOptions>>,
     source_maps: bool,
 ) -> Result<Vc<CodeModuleIdsAndPaths>> {
     Ok(Vc::cell(match item {

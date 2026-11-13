@@ -1,0 +1,3 @@
+(()=>{"use strict";(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/0_9x_turbopack-tests_tests_snapshot_minify_chunks-after-items_input_0z2pfn4f52o_8._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/minify/chunks-after-items/input/helper.js [test] (ecmascript)",t=>{function s(t){return 2*t}t.s(["double",()=>s])},"[project]/turbopack/crates/turbopack-tests/tests/snapshot/minify/chunks-after-items/input/index.js [test] (ecmascript)",t=>{t.s([]),console.log((0,t.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/minify/chunks-after-items/input/helper.js [test] (ecmascript)").double)(21))}])})();
+
+//# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_minify_chunks-after-items_input_0z2pfn4f52o_8._.js.map

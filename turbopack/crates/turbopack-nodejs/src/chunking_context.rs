@@ -90,12 +90,6 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
-    /// EXPERIMENTAL. See [`ChunkingContext::minify_before_chunking`].
-    pub fn minify_before_chunking(mut self, minify_before_chunking: bool) -> Self {
-        self.chunking_context.minify_before_chunking = minify_before_chunking;
-        self
-    }
-
     pub fn source_map_generation_options(mut self, options: SourceMapGenerationOptions) -> Self {
         self.chunking_context.source_map_generation_options = Some(options);
         self
@@ -249,9 +243,6 @@ pub struct NodeJsChunkingContext {
     enable_dynamic_chunk_content_loading: bool,
     /// Emit options for this chunking context
     emit_options: Vec<ResolvedVc<Box<dyn EmitOption>>>,
-    /// EXPERIMENTAL: minify each chunk item before the chunk is assembled, rather than minifying
-    /// the finished chunk. See [`ChunkingContext::minify_before_chunking`].
-    minify_before_chunking: bool,
     /// Whether to generate source maps
     emitted_source_map_type: Option<SourceMapType>,
     source_map_generation_options: Option<SourceMapGenerationOptions>,
@@ -312,7 +303,6 @@ impl NodeJsChunkingContext {
                 environment,
                 runtime_type,
                 emit_options: vec![],
-                minify_before_chunking: false,
                 emitted_source_map_type: Some(SourceMapType::Full),
                 source_map_generation_options: None,
                 manifest_chunks: false,
@@ -469,11 +459,6 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     fn emit_options(&self) -> Vc<EmitOptions> {
         Vc::cell(self.emit_options.clone())
-    }
-
-    #[turbo_tasks::function]
-    fn minify_before_chunking(&self) -> Vc<bool> {
-        Vc::cell(self.minify_before_chunking)
     }
 
     #[turbo_tasks::function]

@@ -249,7 +249,15 @@ pub async fn get_edge_chunking_context_with_client_assets(
         static_suffix: css_url_suffix.to_resolved().await?,
     })
     // React needs deterministic function names to work correctly.
-    .emit_options(minify_emit_options(turbo_minify, no_mangling, true).await?)
+    .emit_options(
+        minify_emit_options(
+            turbo_minify,
+            no_mangling,
+            true,
+            !next_mode.is_development() && *minify_before_chunking.await?,
+        )
+        .await?,
+    )
     .emitted_source_map_type(*emitted_source_map_type.await?)
     .source_map_generation_options(*source_map_generation_options.await?)
     // The edge server runtime is browser-like, so it uses a `BrowserChunkingContext` whose default
@@ -288,8 +296,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
-            .minify_before_chunking(*minify_before_chunking.await?);
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(Vc::upcast(builder.build()))
@@ -362,7 +369,15 @@ pub async fn get_edge_chunking_context(
     // implementation in the edge sandbox. It will respond with the
     // asset from the output directory.
     .asset_base_path(Some(rcstr!("blob:server/edge/")))
-    .emit_options(minify_emit_options(turbo_minify, no_mangling, false).await?)
+    .emit_options(
+        minify_emit_options(
+            turbo_minify,
+            no_mangling,
+            false,
+            !next_mode.is_development() && *minify_before_chunking.await?,
+        )
+        .await?,
+    )
     .emitted_source_map_type(*emitted_source_map_type.await?)
     .source_map_generation_options(*source_map_generation_options.await?)
     // The edge server runtime is browser-like, so it uses a `BrowserChunkingContext` whose default
@@ -401,8 +416,7 @@ pub async fn get_edge_chunking_context(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
-            .minify_before_chunking(*minify_before_chunking.await?);
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(Vc::upcast(builder.build()))

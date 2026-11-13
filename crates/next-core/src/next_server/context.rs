@@ -1110,7 +1110,15 @@ pub async fn get_server_chunking_context_with_client_assets(
         static_suffix: ResolvedVc::cell(None),
     })
     // React needs deterministic function names to work correctly.
-    .emit_options(minify_emit_options(minify, no_mangling, true).await?)
+    .emit_options(
+        minify_emit_options(
+            minify,
+            no_mangling,
+            true,
+            next_mode.is_production() && *minify_before_chunking.await?,
+        )
+        .await?,
+    )
     .emitted_source_map_type(*emitted_source_map_type.await?)
     .source_map_generation_options(*source_map_generation_options.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
@@ -1153,8 +1161,7 @@ pub async fn get_server_chunking_context_with_client_assets(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
-            .minify_before_chunking(*minify_before_chunking.await?);
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(builder.build())
@@ -1227,7 +1234,15 @@ pub async fn get_server_chunking_context(
         suffix: AssetSuffix::Inferred,
         static_suffix: ResolvedVc::cell(None),
     })
-    .emit_options(minify_emit_options(minify, no_mangling, false).await?)
+    .emit_options(
+        minify_emit_options(
+            minify,
+            no_mangling,
+            false,
+            !next_mode.is_development() && *minify_before_chunking.await?,
+        )
+        .await?,
+    )
     .emitted_source_map_type(*emitted_source_map_type.await?)
     .source_map_generation_options(*source_map_generation_options.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
@@ -1266,8 +1281,7 @@ pub async fn get_server_chunking_context(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
-            .minify_before_chunking(*minify_before_chunking.await?);
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(builder.build())

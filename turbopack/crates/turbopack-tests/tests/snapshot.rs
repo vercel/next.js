@@ -86,6 +86,10 @@ struct SnapshotOptions {
     /// EXPERIMENTAL: minify each chunk item before assembling the chunk.
     #[serde(default)]
     minify_before_chunking: bool,
+    /// EXPERIMENTAL: minify each chunk item before assembling the chunk, and the assembled chunk
+    /// again afterwards.
+    #[serde(default)]
+    minify_chunks_after_items: bool,
     #[serde(default)]
     runtime: Runtime,
     #[serde(default = "default_runtime_type")]
@@ -149,24 +153,36 @@ enum MinifyMode {
 }
 
 impl MinifyMode {
-    /// Returns JS and CSS minification emit options for this mode.
-    /// Returns an empty vec for `MinifyMode::None`.
-    fn emit_options(&self) -> SmallVec<[ResolvedVc<Box<dyn EmitOption>>; 2]> {
+    /// Returns JS and CSS minification emit options for this mode, given which of chunk items and
+    /// chunks are minified. Returns an empty vec for `MinifyMode::None`.
+    fn emit_options(
+        &self,
+        minify_before_chunking: bool,
+        minify_chunks_after_items: bool,
+    ) -> SmallVec<[ResolvedVc<Box<dyn EmitOption>>; 2]> {
         match self {
             MinifyMode::None => SmallVec::new(),
             mode => {
                 let ecma_opts = match mode {
-                    MinifyMode::OptimalSize => EcmascriptEmitOptions::builder()
-                        .preset_minify_optimal_size()
-                        .build(),
-                    MinifyMode::Deterministic => EcmascriptEmitOptions::builder()
-                        .preset_minify_deterministic()
-                        .build(),
-                    MinifyMode::NoMangle => EcmascriptEmitOptions::builder()
-                        .preset_minify_no_mangle()
-                        .build(),
+                    MinifyMode::OptimalSize => {
+                        EcmascriptEmitOptions::builder().preset_minify_optimal_size()
+                    }
+                    MinifyMode::Deterministic => {
+                        EcmascriptEmitOptions::builder().preset_minify_deterministic()
+                    }
+                    MinifyMode::NoMangle => {
+                        EcmascriptEmitOptions::builder().preset_minify_no_mangle()
+                    }
                     MinifyMode::None => unreachable!(),
                 };
+                let ecma_opts = if minify_chunks_after_items {
+                    ecma_opts.minify_chunk_items_and_chunks()
+                } else if minify_before_chunking {
+                    ecma_opts.minify_per_chunk_item()
+                } else {
+                    ecma_opts
+                }
+                .build();
                 let css_opts = CssEmitOptions::builder().preset_minify().build();
                 smallvec![
                     ResolvedVc::upcast(ecma_opts.resolved_cell()),
@@ -191,6 +207,7 @@ impl Default for SnapshotOptions {
             entry: default_entry(),
             minify_mode: MinifyMode::default(),
             minify_before_chunking: false,
+            minify_chunks_after_items: false,
             runtime: Default::default(),
             runtime_type: default_runtime_type(),
             environment: Default::default(),
@@ -598,7 +615,6 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 env,
                 options.runtime_type,
             )
-            .minify_before_chunking(options.minify_before_chunking)
             .module_merging(options.scope_hoisting)
             .shared_runtime(options.shared_runtime)
             .export_usage(if options.remove_unused_exports {
@@ -609,7 +625,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type)
             .chunk_loading_global(options.chunk_loading_global.into())
-            .emit_options(options.minify_mode.emit_options());
+            .emit_options(options.minify_mode.emit_options(
+                options.minify_before_chunking,
+                options.minify_chunks_after_items,
+            ));
 
             if options.single_chunk {
                 builder = builder.single_chunk().await?;
@@ -652,7 +671,6 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 env,
                 options.runtime_type,
             )
-            .minify_before_chunking(options.minify_before_chunking)
             .module_merging(options.scope_hoisting)
             .export_usage(if options.remove_unused_exports {
                 Some(binding_usage.unwrap().connect().to_resolved().await?)
@@ -661,7 +679,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             })
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type)
-            .emit_options(options.minify_mode.emit_options());
+            .emit_options(options.minify_mode.emit_options(
+                options.minify_before_chunking,
+                options.minify_chunks_after_items,
+            ));
 
             if options.remove_unused_imports {
                 builder = builder.unused_references(

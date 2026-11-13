@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 0, "column": 299}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/minify/standalone-with-item-minify/input/helper.js"],"sourcesContent":["export function double(value) {\n  const doubled = value * 2\n  return doubled\n}\n"],"names":["double","value","doubled"],"mappings":"AAAO,SAASA,EAAOC,CAAK,EAE1B,OADwB,AACjBC,EADSD,CAElB"}},
+    {"offset": {"line": 0, "column": 346}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 0, "column": 481}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/minify/standalone-with-item-minify/input/index.js"],"sourcesContent":["import { double } from './helper'\n\nfunction unusedInEntry(a, b) {\n  const neverRead = a + b\n  return a * b\n}\n\nconsole.log(double(21))\n"],"names":["unusedInEntry","a","b","neverRead","console","log"],"mappings":"QAOAI,QAAQC,GAAG,CAAC,CAAA,EAPZ,AAOY,EAPZ,CAAA,CAAA,oIAOY,MAAA,AAAM,EAAC"}},
+    {"offset": {"line": 0, "column": 653}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

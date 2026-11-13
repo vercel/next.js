@@ -33,7 +33,7 @@ use crate::{
         chunk_type::EcmascriptChunkType, minified_module_factory,
         placeable::EcmascriptChunkPlaceable,
     },
-    emit_options::EcmascriptEmitOptions,
+    emit_options::ChunkItemMinifyOptions,
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     runtime_functions::TURBOPACK_ASYNC_MODULE,
     utils::StringifyJs,
@@ -281,7 +281,7 @@ pub(crate) enum ChunkItemFactoryContent {
 }
 
 /// The content of a chunk item as it goes into a chunk, so that chunk size estimation and code
-/// generation agree on what a chunk item is: minified per item with the emit options in `minify`
+/// generation agree on what a chunk item is: minified per item with `minify`
 /// (see [`ChunkMinification::per_item`](crate::chunk::ChunkMinification)), the raw content
 /// otherwise.
 ///
@@ -292,7 +292,7 @@ pub(crate) async fn chunk_item_factory_content(
     chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
     estimated: bool,
-    minify: Option<ResolvedVc<EcmascriptEmitOptions>>,
+    minify: Option<ResolvedVc<ChunkItemMinifyOptions>>,
     source_maps: bool,
 ) -> Result<ChunkItemFactoryContent> {
     let content = chunk_item
@@ -301,11 +301,11 @@ pub(crate) async fn chunk_item_factory_content(
         .content_with_async_module_info(async_module_info, estimated)
         .await?;
     Ok(match minify {
-        Some(emit_options) => ChunkItemFactoryContent::Minified {
+        Some(minify_options) => ChunkItemFactoryContent::Minified {
             // Reading the content here surfaces a generation error before minifying rather than
             // inside it.
             strict: content.await?.options.strict,
-            factory: minified_module_factory(content, source_maps, *emit_options),
+            factory: minified_module_factory(content, source_maps, *minify_options),
         },
         None => ChunkItemFactoryContent::Unminified(content),
     })
