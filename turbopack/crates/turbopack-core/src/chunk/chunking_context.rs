@@ -443,9 +443,7 @@ pub trait ChunkingContext {
     /// Emit options allow crate-specific configuration (e.g., SWC minify options,
     /// CSS minification settings) without requiring turbopack-core to depend on those crates.
     #[turbo_tasks::function]
-    fn emit_options(self: Vc<Self>) -> Vc<EmitOptions> {
-        Vc::cell(vec![])
-    }
+    fn emit_options(self: Vc<Self>) -> Vc<EmitOptions>;
 
     /// EXPERIMENTAL: minify each chunk item on its own, before the chunk is assembled, instead of
     /// minifying the finished chunk.

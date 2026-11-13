@@ -14,13 +14,44 @@ use crate::{
 
 /// Adapts [`Xxh3Hash64Hasher`] to the [`std::hash::Hasher`] trait so that types that only
 /// implement [`std::hash::Hash`] (such as the SWC minify options inside
-/// [`EcmascriptEmitOptions`]) can be hashed deterministically across runs (unlike
-/// [`std::hash::DefaultHasher`], which uses a random seed).
+/// [`EcmascriptEmitOptions`]) can feed a stable version hash.
+///
+/// The standard default integer methods use native byte order and pointer width, so integers are
+/// normalized to little-endian, with `usize` / `isize` widened to 64 bits.
 struct Xxh3StdHasher(Xxh3Hash64Hasher);
+
+macro_rules! write_le {
+    ($($method:ident: $ty:ty),* $(,)?) => {
+        $(
+            fn $method(&mut self, i: $ty) {
+                self.write(&i.to_le_bytes());
+            }
+        )*
+    };
+}
 
 impl Hasher for Xxh3StdHasher {
     fn write(&mut self, bytes: &[u8]) {
         self.0.write_bytes(bytes);
+    }
+
+    write_le!(
+        write_u16: u16,
+        write_u32: u32,
+        write_u64: u64,
+        write_u128: u128,
+        write_i16: i16,
+        write_i32: i32,
+        write_i64: i64,
+        write_i128: i128,
+    );
+
+    fn write_usize(&mut self, i: usize) {
+        self.write_u64(i as u64);
+    }
+
+    fn write_isize(&mut self, i: isize) {
+        self.write_i64(i as i64);
     }
 
     fn finish(&self) -> u64 {

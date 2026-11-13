@@ -568,7 +568,7 @@ pub fn relativize_glob<'a>(
 }
 
 /// Returns JS and CSS minification emit options to add to a chunking context
-/// builder. Returns an empty `Vec` when minification is disabled.
+/// builder. Returns an empty `SmallVec` when minification is disabled.
 ///
 /// `deterministic_mangle` selects the mangling strategy used when mangling IS
 /// enabled (i.e. `no_mangling` is `false`):

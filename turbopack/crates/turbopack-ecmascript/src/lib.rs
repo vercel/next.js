@@ -1253,8 +1253,7 @@ impl EcmascriptModuleContent {
             *specified_module_type,
             *source_map_generation_options,
             *original_source_map,
-            ecma_emit.indent,
-            ecma_emit.merged_module_comments,
+            &ecma_emit,
             Some(&*input),
             None,
         )
@@ -1276,8 +1275,7 @@ impl EcmascriptModuleContent {
             specified_module_type,
             source_map_generation_options,
             None,
-            true,
-            true,
+            &EcmascriptEmitOptions::DEFAULT,
             None,
             None,
         )
@@ -1346,8 +1344,7 @@ impl EcmascriptModuleContent {
                         *specified_module_type,
                         *source_map_generation_options,
                         *original_source_map,
-                        ecma_emit.indent,
-                        ecma_emit.merged_module_comments,
+                        &ecma_emit,
                         Some(&*options),
                         Some(ScopeHoistingOptions {
                             module: *module,
@@ -1991,8 +1988,7 @@ async fn process_parse_result(
     specified_module_type: SpecifiedModuleType,
     source_map_generation_options: SourceMapGenerationOptions,
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
-    indent: bool,
-    merged_module_comments: bool,
+    emit_options: &EcmascriptEmitOptions,
     options: Option<&EcmascriptModuleContentOptions>,
     scope_hoisting_options: Option<ScopeHoistingOptions<'_>>,
 ) -> Result<CodeGenResult> {
@@ -2066,7 +2062,7 @@ async fn process_parse_result(
                             _ => Default::default(),
                         };
 
-                    let prepend_ident_comment = if merged_module_comments {
+                    let prepend_ident_comment = if emit_options.merged_module_comments {
                         Some(Comment {
                             kind: CommentKind::Line,
                             span: DUMMY_SP,
@@ -2219,7 +2215,7 @@ async fn process_parse_result(
                 is_esm,
                 strict,
                 original_source_map: CodeGenResultOriginalSourceMap::Single(original_source_map),
-                indent,
+                indent: emit_options.indent,
                 scope_hoisting_syntax_contexts: retain_syntax_context
                     // TODO ideally don't clone here
                     .map(|(_, ctxts, _, export_contexts)| (ctxts, export_contexts.into_owned())),

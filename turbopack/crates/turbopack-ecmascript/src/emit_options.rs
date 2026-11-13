@@ -27,13 +27,19 @@ pub struct EcmascriptEmitOptions {
     pub merged_module_comments: bool,
 }
 
+impl EcmascriptEmitOptions {
+    /// The options used when a chunking context has no `EcmascriptEmitOptions`: no
+    /// minification, indent enabled, merged module comments enabled.
+    pub const DEFAULT: EcmascriptEmitOptions = EcmascriptEmitOptions {
+        swc_minify_options: None,
+        indent: true,
+        merged_module_comments: true,
+    };
+}
+
 impl Default for EcmascriptEmitOptions {
     fn default() -> Self {
-        Self {
-            swc_minify_options: None,
-            indent: true,
-            merged_module_comments: true,
-        }
+        Self::DEFAULT
     }
 }
 
@@ -67,11 +73,7 @@ impl EcmascriptEmitOptions {
     pub async fn get_or_default(
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<impl Deref<Target = EcmascriptEmitOptions>> {
-        static DEFAULT: EcmascriptEmitOptions = EcmascriptEmitOptions {
-            swc_minify_options: None,
-            indent: true,
-            merged_module_comments: true,
-        };
+        static DEFAULT: EcmascriptEmitOptions = EcmascriptEmitOptions::DEFAULT;
         Ok(match Self::find(chunking_context).await? {
             Some(vc) => Either::Left(vc.await?),
             None => Either::Right(&DEFAULT),
