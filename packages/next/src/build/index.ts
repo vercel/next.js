@@ -2942,6 +2942,7 @@ export default async function build(
                   isSSG,
                   isRoutePPREnabled,
                   isEnsureStaticPage,
+                  isStaticExport: config.output === 'export',
                   ssgPageRoutes,
                   initialCacheControl: undefined,
                   runtime: pageRuntime,
@@ -3367,6 +3368,17 @@ export default async function build(
                   : false
 
                 routes.forEach((route) => {
+                  // Keep generic candidates for route-pattern metadata, but an
+                  // export can only emit concrete paths. There is no server to
+                  // complete or resume a fallback prerender after deployment.
+                  if (
+                    config.output === 'export' &&
+                    route.fallbackRouteParams &&
+                    route.fallbackRouteParams.length > 0
+                  ) {
+                    return
+                  }
+
                   // If the route has any dynamic root segments, we need to skip
                   // rendering the route. This is because we don't support
                   // revalidating the shells without the parameters present.
@@ -4036,7 +4048,8 @@ export default async function build(
                     isDynamicAppRoute: true,
                     // if PPR is turned on and the route contains a dynamic segment,
                     // we assume it'll be partially prerendered
-                    hasPostponed: isRoutePPREnabled,
+                    hasPostponed:
+                      isRoutePPREnabled && config.output !== 'export',
                   })
                 } else {
                   // Concrete generated paths inherit the parent route's base
@@ -4053,7 +4066,8 @@ export default async function build(
                     isDynamicAppRoute: true,
                     // if PPR is turned on and the route contains a dynamic segment,
                     // we assume it'll be partially prerendered
-                    hasPostponed: isRoutePPREnabled,
+                    hasPostponed:
+                      isRoutePPREnabled && config.output !== 'export',
                   })
                 }
 

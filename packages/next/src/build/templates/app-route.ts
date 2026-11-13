@@ -71,6 +71,7 @@ const routeModule = new AppRouteRouteModule({
   isMetadataRoute,
   isStaticMetadataFile,
   nextConfigOutput,
+  cacheComponents: !!process.env.__NEXT_CACHE_COMPONENTS,
   // The lazy require factory ensures that:
   // - In dev: devRequestTimingInternalsEnd is set before userland executes,
   //   correctly attributing module load time to application-code rather than

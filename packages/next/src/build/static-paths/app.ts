@@ -53,6 +53,7 @@ import {
   resolveParamMatching,
   getParamMatchingFallbackMode,
   validateParamMatchingParams,
+  validateStaticExportParamMatching,
 } from './param-matching'
 
 /**
@@ -1069,6 +1070,21 @@ export async function buildAppStaticPaths({
       })
     : undefined
 
+  if (cacheComponents && nextConfigOutput === 'export') {
+    // Metadata generators enumerate IDs separately from authored URL params.
+    const authoredRouteParamSegments =
+      isAppRouteRouteModule(ComponentMod.routeModule) &&
+      ComponentMod.routeModule.isMetadataRoute &&
+      segments.at(-1)?.paramName === '__metadata_id__'
+        ? pathnameRouteParamSegments.slice(0, -1)
+        : pathnameRouteParamSegments
+    validateStaticExportParamMatching(
+      page,
+      paramMatching,
+      authoredRouteParamSegments
+    )
+  }
+
   // Validate the effective route policy, after layout overrides and parallel
   // branches have been merged. Navigation mode cannot serve a fallback and
   // resume it, or leave any parameter permanently dynamic.
@@ -1169,8 +1185,7 @@ export async function buildAppStaticPaths({
       paramMatching,
       matchingInfo.generatedParamNames,
       matchingInfo.missingParamNames,
-      pathnameRouteParamSegments,
-      nextConfigOutput
+      pathnameRouteParamSegments
     )
   }
 
@@ -1403,9 +1418,10 @@ export async function buildAppStaticPaths({
       fallbackRootParams,
       remainingPrerenderableParams,
       isPrerenderOutput:
-        paramMatching &&
         fallbackRouteParams.length > 0 &&
-        routeFallbackMode === FallbackMode.BLOCKING_STATIC_RENDER
+        (nextConfigOutput === 'export' ||
+          (paramMatching &&
+            routeFallbackMode === FallbackMode.BLOCKING_STATIC_RENDER))
           ? false
           : undefined,
       throwOnEmptyStaticShell: true,
