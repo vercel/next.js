@@ -338,7 +338,7 @@ export function captureTraceSpanSource(
   },
   parent?: TraceSpanSource
 ): TraceSpanSource {
-  const time = options.startTime
+  const time = options.startTime ?? options.wallStartTimeMs
   const epochMs = time === undefined ? undefined : getTimestamp(time)
   let monotonicStartTime = options.monotonicStartTime
   let wallStartTimeMs = options.wallStartTimeMs ?? epochMs

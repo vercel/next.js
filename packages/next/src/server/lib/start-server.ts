@@ -55,9 +55,6 @@ import { isCI } from '../ci-info'
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
 let devServerSessionSpan: Span | undefined
-const processStart =
-  process.hrtime.bigint() - BigInt(Math.floor(process.uptime() * 1e9))
-const processWallStart = Math.floor(Date.now() - process.uptime() * 1000)
 
 function finalizeDevSession(reason: string) {
   devServerSessionSpan?.setAttribute('exit.reason', reason)
@@ -717,8 +714,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         reportToOtel: true,
         reportingRoot: true,
         parent: null,
-        startTime: processStart,
-        wallStartTimeMs: processWallStart,
+        wallStartTimeMs: Math.floor(performance.timeOrigin),
         attrs: {
           ...enabledFeaturesFromParent,
           ...rageRestartAttrsFromParent,
