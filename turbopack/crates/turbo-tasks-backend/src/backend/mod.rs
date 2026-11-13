@@ -519,6 +519,31 @@ impl TurboTasksBackend {
         Some(get_aggregation_number(&task))
     }
 
+    /// The number of collectibles with changes that `task` hasn't sent to its uppers yet, because
+    /// the task is dirty (see delayed collectible propagation in `aggregation_update.rs`).
+    #[doc(hidden)]
+    pub fn pending_collectibles_count_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Option<usize> {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let task = ctx.try_task(task, TaskDataCategory::Meta)?;
+        Some(task.pending_collectibles_len())
+    }
+
+    /// Whether `task` is dirty (in any session).
+    #[doc(hidden)]
+    pub fn is_dirty_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Option<bool> {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let task = ctx.try_task(task, TaskDataCategory::Meta)?;
+        Some(task.is_dirty().is_some())
+    }
+
     /// The GC roots set as currently persisted on disk (task id -> [`TtlCounter`]).
     #[doc(hidden)]
     pub fn persisted_gc_roots_for_testing(&self) -> Vec<(TaskId, TtlCounter)> {
