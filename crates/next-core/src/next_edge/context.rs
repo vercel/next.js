@@ -6,8 +6,8 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
-        AssetSuffix, ChunkingConfig, ChunkingContext, CrossOrigin, MangleType, MinifyType,
-        SourceMapSourceType, UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
+        AssetSuffix, ChunkingConfig, ChunkingContext, CrossOrigin, SourceMapSourceType,
+        UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
@@ -33,7 +33,8 @@ use crate::{
     next_shared::resolve::NextSharedRuntimeResolvePlugin,
     util::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
-        free_var_references_with_vercel_system_env_warnings, worker_forwarded_globals,
+        free_var_references_with_vercel_system_env_warnings, minify_emit_options,
+        worker_forwarded_globals,
     },
 };
 
@@ -247,14 +248,6 @@ pub async fn get_edge_chunking_context_with_client_assets(
         suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
         static_suffix: css_url_suffix.to_resolved().await?,
     })
-    .minify_type(if *turbo_minify.await? {
-        MinifyType::Minify {
-            // React needs deterministic function names to work correctly.
-            mangle: (!*no_mangling.await?).then_some(MangleType::Deterministic),
-        }
-    } else {
-        MinifyType::NoMinify
-    })
     .emitted_source_map_type(*emitted_source_map_type.await?)
     .source_map_generation_options(*source_map_generation_options.await?)
     // The edge server runtime is browser-like, so it uses a `BrowserChunkingContext` whose default
@@ -272,7 +265,9 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .unused_references(unused_references.to_resolved().await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
-    .worker_forwarded_globals(worker_forwarded_globals());
+    .worker_forwarded_globals(worker_forwarded_globals())
+    // React needs deterministic function names to work correctly.
+    .emit_options(minify_emit_options(turbo_minify, no_mangling, true).await?);
 
     if !next_mode.is_development() {
         let defaults = ChunkSizeDefaults::new(*turbo_minify.await?, *minify_before_chunking.await?);
@@ -367,13 +362,6 @@ pub async fn get_edge_chunking_context(
     // implementation in the edge sandbox. It will respond with the
     // asset from the output directory.
     .asset_base_path(Some(rcstr!("blob:server/edge/")))
-    .minify_type(if *turbo_minify.await? {
-        MinifyType::Minify {
-            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
-        }
-    } else {
-        MinifyType::NoMinify
-    })
     .emitted_source_map_type(*emitted_source_map_type.await?)
     .source_map_generation_options(*source_map_generation_options.await?)
     // The edge server runtime is browser-like, so it uses a `BrowserChunkingContext` whose default
@@ -391,7 +379,8 @@ pub async fn get_edge_chunking_context(
     .unused_references(unused_references.to_resolved().await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
-    .worker_forwarded_globals(worker_forwarded_globals());
+    .worker_forwarded_globals(worker_forwarded_globals())
+    .emit_options(minify_emit_options(turbo_minify, no_mangling, false).await?);
 
     if !next_mode.is_development() {
         let defaults = ChunkSizeDefaults::new(*turbo_minify.await?, *minify_before_chunking.await?);
