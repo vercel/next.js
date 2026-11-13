@@ -8,13 +8,13 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkingContext, MinifyType},
+    chunk::ChunkingContext,
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     source_map::{GenerateSourceMap, SourceMapAsset, SourceMapGenerationOptions, SourceMapType},
 };
-use turbopack_ecmascript::minify::minify;
+use turbopack_ecmascript::{emit_options::EcmascriptEmitOptions, minify::minify};
 
 use crate::BrowserChunkingContext;
 
@@ -63,14 +63,15 @@ impl EcmascriptBrowserWorkerEntrypoint {
             };
         let mut code = generate_worker_bootstrap_code(&forwarded_globals, shared_runtime)?;
 
-        if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
+        let ecma_emit = EcmascriptEmitOptions::get_or_default(*this.chunking_context).await?;
+        if let Some(swc_minify_options) = &ecma_emit.swc_minify_options {
             code = minify(
                 code,
                 this.chunking_context
                     .emitted_source_map_type()
                     .await?
                     .is_some(),
-                mangle,
+                swc_minify_options,
             )?;
         }
 

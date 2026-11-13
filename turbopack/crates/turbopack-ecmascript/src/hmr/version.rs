@@ -1,26 +1,44 @@
+use std::hash::{Hash, Hasher};
+
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ReadRef, TryJoinIterExt, Vc, turbobail};
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
-use turbopack_core::{
-    chunk::{MinifyType, ModuleId},
-    version::Version,
+use turbo_tasks_hash::{DeterministicHasher, Xxh3Hash64Hasher, encode_base64};
+use turbopack_core::{chunk::ModuleId, version::Version};
+
+use crate::{
+    chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries},
+    emit_options::EcmascriptEmitOptions,
 };
 
-use crate::chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries};
+/// Adapts [`Xxh3Hash64Hasher`] to the [`std::hash::Hasher`] trait so that types that only
+/// implement [`std::hash::Hash`] (such as the SWC minify options inside
+/// [`EcmascriptEmitOptions`]) can be hashed deterministically across runs (unlike
+/// [`std::hash::DefaultHasher`], which uses a random seed).
+struct Xxh3StdHasher(Xxh3Hash64Hasher);
+
+impl Hasher for Xxh3StdHasher {
+    fn write(&mut self, bytes: &[u8]) {
+        self.0.write_bytes(bytes);
+    }
+
+    fn finish(&self) -> u64 {
+        self.0.finish()
+    }
+}
 
 /// The version of a single Ecmascript chunk's content, tracked as the set of
 /// per-module content hashes.
 ///
 /// Runtime-agnostic: the browser and node chunking contexts share this one
-/// implementation rather than each carrying a copy. `minify_type` participates
-/// in the hash because minification changes the emitted bytes without changing
-/// any module's own hash.
+/// implementation rather than each carrying a copy. The ecmascript emit options
+/// participate in the hash because they (e.g. minification) change the emitted
+/// bytes without changing any module's own hash.
 #[turbo_tasks::value(serialization = "skip")]
 pub struct EcmascriptChunkVersion {
     pub chunk_path: RcStr,
-    pub minify_type: MinifyType,
+    pub emit_options: Option<ReadRef<EcmascriptEmitOptions>>,
     pub entries_hashes: FxIndexMap<ModuleId, u128>,
 }
 
@@ -31,7 +49,7 @@ impl EcmascriptChunkVersion {
         output_root: FileSystemPath,
         chunk_path: FileSystemPath,
         content: Vc<EcmascriptChunkContent>,
-        minify_type: MinifyType,
+        emit_options: Option<ResolvedVc<EcmascriptEmitOptions>>,
     ) -> Result<Vc<Self>> {
         let Some(chunk_path) = output_root.get_path_to(&chunk_path) else {
             turbobail!("chunk path {chunk_path} is not in output root {output_root}");
@@ -47,7 +65,10 @@ impl EcmascriptChunkVersion {
 
         Ok(EcmascriptChunkVersion {
             chunk_path: chunk_path.into(),
-            minify_type,
+            emit_options: match emit_options {
+                Some(emit_options) => Some(emit_options.await?),
+                None => None,
+            },
             entries_hashes,
         }
         .cell())
@@ -60,7 +81,9 @@ impl Version for EcmascriptChunkVersion {
     fn id(&self) -> Vc<RcStr> {
         let mut hasher = Xxh3Hash64Hasher::new();
         hasher.write_ref(&self.chunk_path);
-        hasher.write_ref(&self.minify_type);
+        let mut emit_options_hasher = Xxh3StdHasher(Xxh3Hash64Hasher::new());
+        self.emit_options.as_deref().hash(&mut emit_options_hasher);
+        hasher.write_value(emit_options_hasher.finish());
         let sorted_hashes = {
             let mut hashes: Vec<_> = self.entries_hashes.values().copied().collect();
             hashes.sort();

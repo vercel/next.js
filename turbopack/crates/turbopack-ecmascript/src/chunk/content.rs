@@ -2,9 +2,9 @@ use std::future::IntoFuture;
 
 use anyhow::Result;
 use either::Either;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
-    chunk::{ChunkItem, ChunkItems, ChunkingContext, MangleType, MinifyType, batch_info},
+    chunk::{ChunkItem, ChunkItems, ChunkingContext, batch_info},
     code_builder::Code,
 };
 
@@ -14,22 +14,23 @@ use crate::{
         batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo},
         batch_group_code_module_ids_and_paths, item_code_module_ids_and_paths,
     },
+    emit_options::EcmascriptEmitOptions,
     minify::minify,
 };
 
 /// How the code of an ecmascript chunk is minified: never, once per chunk item before the chunk
 /// is assembled, or once for the whole assembled chunk. Never both.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone)]
 pub enum ChunkMinification {
     None,
     /// Each chunk item is minified on its own (in parallel, cached per item). See
     /// [`ChunkingContext::minify_before_chunking`].
     PerItem {
-        mangle: Option<MangleType>,
+        emit_options: ResolvedVc<EcmascriptEmitOptions>,
     },
     /// The assembled chunk is minified in one pass.
     WholeChunk {
-        mangle: Option<MangleType>,
+        emit_options: ReadRef<EcmascriptEmitOptions>,
     },
 }
 
@@ -37,30 +38,40 @@ impl ChunkMinification {
     pub async fn for_chunking_context(
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Self> {
-        Ok(match *chunking_context.minify_type().await? {
-            MinifyType::NoMinify => ChunkMinification::None,
-            MinifyType::Minify { mangle } => {
-                if *chunking_context.minify_before_chunking().await? {
-                    ChunkMinification::PerItem { mangle }
-                } else {
-                    ChunkMinification::WholeChunk { mangle }
-                }
+        let Some(emit_options) = EcmascriptEmitOptions::find(chunking_context).await? else {
+            return Ok(ChunkMinification::None);
+        };
+        let emit_options_value = emit_options.await?;
+        if emit_options_value.swc_minify_options.is_none() {
+            return Ok(ChunkMinification::None);
+        }
+        Ok(if *chunking_context.minify_before_chunking().await? {
+            ChunkMinification::PerItem { emit_options }
+        } else {
+            ChunkMinification::WholeChunk {
+                emit_options: emit_options_value,
             }
         })
     }
 
-    /// The minification to apply to each chunk item before it is written into the chunk.
-    pub(crate) fn per_item(self) -> MinifyType {
+    /// The emit options to minify each chunk item with before it is written into the chunk, if
+    /// any.
+    pub(crate) fn per_item(&self) -> Option<ResolvedVc<EcmascriptEmitOptions>> {
         match self {
-            ChunkMinification::PerItem { mangle } => MinifyType::Minify { mangle },
-            ChunkMinification::None | ChunkMinification::WholeChunk { .. } => MinifyType::NoMinify,
+            ChunkMinification::PerItem { emit_options } => Some(*emit_options),
+            ChunkMinification::None | ChunkMinification::WholeChunk { .. } => None,
         }
     }
 
     /// Applies the whole-chunk minification, if any, to the assembled chunk.
-    pub fn finish_chunk(self, code: Code, source_maps: bool) -> Result<Code> {
+    pub fn finish_chunk(&self, code: Code, source_maps: bool) -> Result<Code> {
         match self {
-            ChunkMinification::WholeChunk { mangle } => minify(code, source_maps, mangle),
+            ChunkMinification::WholeChunk { emit_options } => {
+                match &emit_options.swc_minify_options {
+                    Some(swc_minify_options) => minify(code, source_maps, swc_minify_options),
+                    None => Ok(code),
+                }
+            }
             ChunkMinification::None | ChunkMinification::PerItem { .. } => Ok(code),
         }
     }
@@ -108,13 +119,13 @@ impl EcmascriptChunkContent {
     /// [`ChunkMinification::PerItem`].
     pub async fn chunk_item_code_module_ids_and_paths(
         &self,
-        minification: ChunkMinification,
+        minification: &ChunkMinification,
         source_maps: bool,
     ) -> Result<Vec<CodeModuleIdAndPath>> {
-        let minify = minification.per_item();
+        let minify = minification.per_item().map(|emit_options| *emit_options);
         // Source maps only affect the per-item minification. Normalize the flag otherwise so it
         // doesn't fork the per-item tasks for chunks that are minified as a whole (or not at all).
-        let source_maps = source_maps && matches!(minify, MinifyType::Minify { .. });
+        let source_maps = source_maps && minify.is_some();
         let chunk_item_groups = batch_info(
             &self.batch_groups,
             &self.chunk_items,
