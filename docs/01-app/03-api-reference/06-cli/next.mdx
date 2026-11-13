@@ -57,6 +57,10 @@ The following commands are available:
 
 `next dev` starts the application in development mode with Hot Module Reloading (HMR), error reporting, and more.
 
+By default, it also creates or updates managed documentation instructions in `AGENTS.md`, even when no coding agent is detected. Set [`agentRules: false`](/docs/app/api-reference/config/next-config-js/agentRules) in your Next.js config to disable this behavior and remove the managed rules block. If [`experimental.agentFeedback`](/docs/app/api-reference/config/next-config-js/agentFeedback) and Next.js Telemetry are enabled, it also manages feedback instructions outside CI.
+
+Upgrade instructions are managed independently and enabled by default, without requiring agent detection. Set [`experimental.agentUpgrade: false`](/docs/app/api-reference/config/next-config-js/agentUpgrade) to disable upgrade reminders and remove their managed block.
+
 > **Good to know**: Development builds output to `.next/dev` instead of `.next`. This allows you to run `next dev` and `next build` concurrently without conflicts.
 
 The following options are available when running `next dev`:

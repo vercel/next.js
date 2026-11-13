@@ -33,7 +33,7 @@ Before upgrading, point `AGENTS.md` at version-matched Next.js docs so a coding 
 npx @next/codemod@canary agents-md
 ```
 
-After upgrading, check that `AGENTS.md` points at the docs bundled with the installed version in `node_modules/next/dist/docs/`. On Next.js 16.2 and later, `next dev` keeps this block up to date when it detects a coding agent. If the setup downloaded docs into `.next-docs/`, remove that directory once nothing references it. See [Version-matched documentation](/docs/app/guides/ai-agents#version-matched-documentation) for the managed block and setup details.
+After upgrading, check that `AGENTS.md` points at the docs bundled with the installed version in `node_modules/next/dist/docs/`. On Next.js 16.5 and later, `next dev` keeps this block up to date even when no coding agent is detected. If the setup downloaded docs into `.next-docs/`, remove that directory once nothing references it. See [Version-matched documentation](/docs/app/guides/ai-agents#version-matched-documentation) for the managed block and setup details.
 
 ## Using the codemod
 

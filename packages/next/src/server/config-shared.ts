@@ -513,11 +513,15 @@ export interface DeprecatedConfig {
 export interface ExperimentalConfig {
   /** Native Go App Router handlers. Turbopack and self-hosted next start only. */
   goRoutes?: boolean
-  /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
+  /**
+   * Nudge coding agents about security upgrades, stable releases, or Future Defaults.
+   * `next dev` manages upgrade instructions in AGENTS.md even without a detected agent.
+   */
   agentUpgrade?: 'security' | 'latest' | 'experimental-future' | false
   /**
    * Adds managed instructions to AGENTS.md that let AI coding agents prepare
-   * anonymized Next.js feedback for user review.
+   * anonymized Next.js feedback for user review. Written by `next dev` even
+   * when no agent is detected. Requires telemetry and does not run in CI.
    */
   agentFeedback?: boolean
   /**
@@ -2261,10 +2265,9 @@ export interface NextConfig {
   expireTime?: number
 
   /**
-   * When `next dev` detects an AI coding agent and no managed
-   * agent-rules block is present, Next.js auto-generates `AGENTS.md` at the
-   * project root so the agent reads version-matched docs from
-   * `node_modules/next/dist/docs/` instead of stale training data. Set to
+   * When `next dev` runs, Next.js creates or updates the managed agent-rules
+   * block in `AGENTS.md` at the project root so coding agents read version-matched
+   * docs from `node_modules/next/dist/docs/` instead of stale training data. Set to
    * `false` to disable this behavior.
    *
    * @default true

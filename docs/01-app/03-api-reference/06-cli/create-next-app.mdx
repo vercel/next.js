@@ -65,6 +65,8 @@ The following options are available:
 
 ## Examples
 
+`--no-agents-md` skips creating `AGENTS.md` during project setup. To prevent `next dev` from adding managed instructions later, also set [`agentRules: false`](/docs/app/api-reference/config/next-config-js/agentRules) and [`experimental.agentUpgrade: false`](/docs/app/api-reference/config/next-config-js/agentUpgrade) in the generated project's Next.js config, and leave [`experimental.agentFeedback`](/docs/app/api-reference/config/next-config-js/agentFeedback) disabled. These options control separate managed blocks.
+
 ### With the default template
 
 To create a new app using the default template, run the following command in your terminal:
