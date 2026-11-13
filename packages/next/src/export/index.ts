@@ -270,7 +270,10 @@ async function exportAppImpl(
 
   let prerenderManifest: DeepReadonly<PrerenderManifest> | undefined
   try {
-    prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
+    // Generate mode rewrites this manifest between export passes. Read it fresh.
+    prerenderManifest = JSON.parse(
+      await fs.readFile(join(distDir, PRERENDER_MANIFEST), 'utf8')
+    )
   } catch {}
 
   let appRoutePathManifest: Record<string, string> | undefined
