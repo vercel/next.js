@@ -50,7 +50,7 @@ pub async fn node_file_trace(
         .map_err(|e| napi::Error::from_reason(format!("{e:#}")))?;
 
     Ok(NapiNftResult {
-        files: result.files.into_iter().map(Into::into).collect(),
-        issues: result.issues.into_iter().map(Into::into).collect(),
+        files: result.files.into_iter().map(String::from).collect(),
+        issues: result.issues.into_iter().map(String::from).collect(),
     })
 }

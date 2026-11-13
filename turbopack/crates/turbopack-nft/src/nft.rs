@@ -217,11 +217,11 @@ async fn to_graph(
                     }
                 }
             }
-            result.push(turbofmt!("{indent}{}", path).await?);
+            result.push(turbofmt!("{indent}{path}").await?);
         } else if references.is_empty() {
-            result.push(turbofmt!("{indent}{} *", path).await?);
+            result.push(turbofmt!("{indent}{path} *").await?);
         } else {
-            result.push(turbofmt!("{indent}{} *...", path).await?);
+            result.push(turbofmt!("{indent}{path} *...").await?);
         }
     }
     result.push("".into());
