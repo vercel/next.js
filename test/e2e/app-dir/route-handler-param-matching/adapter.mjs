@@ -11,6 +11,7 @@ export default {
       'adapter-admission.json',
       JSON.stringify({
         admission: manifest.routeHandlerParamMatching,
+        appRoutes: outputs.appRoutes.map(({ pathname }) => pathname),
         prerenders: outputs.prerenders.map(({ pathname, route, config }) => ({
           pathname,
           route,

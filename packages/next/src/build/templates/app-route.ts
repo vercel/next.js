@@ -49,11 +49,13 @@ import {
 // an empty string.
 declare const nextConfigOutput: AppRouteRouteModuleOptions['nextConfigOutput']
 declare const isMetadataRoute: boolean
+declare const isStaticMetadataFile: boolean
 
 // We inject the nextConfigOutput here so that we can use them in the route
 // module.
 // INJECT:nextConfigOutput
 // INJECT:isMetadataRoute
+// INJECT:isStaticMetadataFile
 
 const routeModule = new AppRouteRouteModule({
   definition: {
@@ -67,6 +69,7 @@ const routeModule = new AppRouteRouteModule({
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
   isMetadataRoute,
+  isStaticMetadataFile,
   nextConfigOutput,
   // The lazy require factory ensures that:
   // - In dev: devRequestTimingInternalsEnd is set before userland executes,
