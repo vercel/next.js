@@ -499,6 +499,11 @@ jobs:
 
       - run: ${{ inputs.afterBuild }}
         id: after-build
+        # On cancellation or step timeout, the runner sends SIGINT/SIGTERM to
+        # this step's bash process only. `afterBuild` scripts end in
+        # `exec node run-tests.js` so the signal reaches run-tests.js, which
+        # then prints the buffered output of the tests that are still running.
+        #
         # defaults.run.shell sets a stronger options (`-leo pipefail`)
         # Set this back to github action's weaker defaults:
         # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
