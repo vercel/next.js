@@ -411,9 +411,9 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
         expect(Object.keys(entry.durability)).toHaveLength(2)
         const pageWorker = entry.workers['app/(site)/page-api-url/page']
         const routeWorker = entry.workers['app/(site)/page-api-url/api/route']
-        expect(entry.durability[pageWorker.durability]).toBeDefined()
-        expect(entry.durability[routeWorker.durability]).toBeDefined()
-        expect(pageWorker.durability).not.toBe(routeWorker.durability)
+        expect(entry.durability[pageWorker.codeHash]).toBeDefined()
+        expect(entry.durability[routeWorker.codeHash]).toBeDefined()
+        expect(pageWorker.codeHash).not.toBe(routeWorker.codeHash)
       })
     })
 

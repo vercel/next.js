@@ -486,7 +486,7 @@ pub struct ActionManifestWorkerEntry<'a> {
     pub is_async: bool,
     /// The code hash, which is the key into the entry's `durability` map.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub durability: Option<&'a str>,
+    pub code_hash: Option<&'a str>,
     /// The sorted root param dependencies collected from the cache module's
     /// graph. An empty list means that collection found no root params. The
     /// build omits this field when it does not collect dependencies for the

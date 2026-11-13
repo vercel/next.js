@@ -374,7 +374,7 @@ impl Asset for ServerActionManifestAsset {
             // The durability data is stored at the entry level, keyed by code hash, and the
             // worker references it by that key. Equal code hashes always have equal data, so the
             // manifests of all pages can be merged without deduplication.
-            let durability = data.as_ref().map(|d| {
+            let code_hash = data.as_ref().map(|d| {
                 let code_hash = d.path_code_hash.as_str();
                 entry.durability.insert(
                     code_hash,
@@ -393,7 +393,7 @@ impl Asset for ServerActionManifestAsset {
                     is_async: async_module_info
                         .is_async(self.chunk_item.module().to_resolved().await?)
                         .await?,
-                    durability,
+                    code_hash,
                     root_param_dependencies: root_param_dependencies
                         .as_ref()
                         .map(|names| names.as_slice()),

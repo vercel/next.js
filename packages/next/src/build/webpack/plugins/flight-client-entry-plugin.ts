@@ -88,7 +88,7 @@ type Actions = {
         // run.
         rootParamDependencies?: readonly string[]
         // The code hash, which is the key into the action's `durability` map.
-        durability?: string
+        codeHash?: string
       }
     }
     // Record which layer the action is in (rsc or sc_action), in the specific entry

@@ -4000,10 +4000,14 @@ async function computeCacheKeyImplementationPart(
     ? getServerActionsManifest().node[id]
     : undefined
   const codeHash =
-    entry?.workers?.[normalizeWorkerPageName(workStore.page)]?.durability
-  const durability =
-    codeHash !== undefined ? entry?.durability?.[codeHash] : undefined
-  if (codeHash !== undefined && durability) {
+    entry?.workers?.[normalizeWorkerPageName(workStore.page)]?.codeHash
+  if (entry && codeHash !== undefined) {
+    const durability = entry.durability?.[codeHash]
+    if (!durability) {
+      throw new InvariantError(
+        `Missing durability metadata for code hash "${codeHash}" of action "${id}" in the server reference manifest.`
+      )
+    }
     // use cache is only supported in Node.js runtime. So we can use the Node.js crypto module here.
     const crypto = require('crypto') as typeof import('crypto')
     let runtimeEnvVarStateHash = crypto
