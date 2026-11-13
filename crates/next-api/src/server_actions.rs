@@ -8,8 +8,8 @@ use next_core::{
     get_next_package,
     next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
     next_manifests::{
-        ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry,
-        ActionManifestWorkerEntryDurability, ServerReferenceManifest,
+        ActionLayer, ActionManifestEntryDurability, ActionManifestModuleId,
+        ActionManifestWorkerEntry, ServerReferenceManifest,
     },
     root_param_getters_path,
     util::NextRuntime,
@@ -377,11 +377,6 @@ impl Asset for ServerActionManifestAsset {
                     is_async: async_module_info
                         .is_async(self.chunk_item.module().to_resolved().await?)
                         .await?,
-                    durability: data.as_ref().map(|d| ActionManifestWorkerEntryDurability {
-                        code_hash: d.path_code_hash.as_str(),
-                        runtime_env_vars_read: d.runtime_env_vars_read.as_slice(),
-                        runtime_env_vars_existence: d.runtime_env_vars_existence.as_slice(),
-                    }),
                     root_param_dependencies: root_param_dependencies
                         .as_ref()
                         .map(|names| names.as_slice()),
@@ -391,6 +386,13 @@ impl Asset for ServerActionManifestAsset {
             // Hoist the filename and exported_name to the entry level
             entry.exported_name = exported_name;
             entry.filename = filename.as_ref();
+            // The durability data only depends on the server reference's module, so it's
+            // identical for every worker and is stored once at the entry level.
+            entry.durability = data.as_ref().map(|d| ActionManifestEntryDurability {
+                code_hash: d.path_code_hash.as_str(),
+                runtime_env_vars_read: d.runtime_env_vars_read.as_slice(),
+                runtime_env_vars_existence: d.runtime_env_vars_existence.as_slice(),
+            });
         }
 
         Ok(AssetContent::file(

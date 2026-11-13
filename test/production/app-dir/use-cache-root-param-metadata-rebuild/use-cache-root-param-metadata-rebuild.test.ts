@@ -7,7 +7,7 @@ describe('use-cache-root-param-metadata-rebuild', () => {
     skipStart: true,
   })
 
-  async function getWorker() {
+  async function getEntry() {
     const manifest = await next.readJSON(
       '.next/server/server-reference-manifest.json'
     )
@@ -15,6 +15,11 @@ describe('use-cache-root-param-metadata-rebuild', () => {
       entry.filename.endsWith('read-value.ts')
     )
     expect(entry).toBeDefined()
+    return entry
+  }
+
+  async function getWorker() {
+    const entry = await getEntry()
     const workers = Object.values<any>(entry.workers)
     expect(workers).toHaveLength(1)
     return workers[0]
@@ -108,10 +113,12 @@ export async function getValue() {
 `,
           async () => {
             expect((await next.build()).exitCode).toBe(0)
+            const entry = await getEntry()
             const worker = await getWorker()
             expect(worker.rootParamDependencies).toBeUndefined()
-            expect(worker.durability.codeHash).toEqual(expect.any(String))
-            expect(worker.durability.runtimeEnvVarsRead).toContain(
+            expect(worker.durability).toBeUndefined()
+            expect(entry.durability.codeHash).toEqual(expect.any(String))
+            expect(entry.durability.runtimeEnvVarsRead).toContain(
               'ROOT_PARAM_METADATA_TEST_VALUE'
             )
           }

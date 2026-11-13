@@ -460,6 +460,12 @@ pub struct ActionManifestEntry<'a> {
 
     pub filename: &'a str,
 
+    /// Durability metadata for `"use cache"` functions. This only depends on
+    /// the server reference's module, so it's identical across all workers and
+    /// is stored once per entry instead of once per worker.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub durability: Option<ActionManifestEntryDurability<'a>>,
+
     /// Source location line number (1-indexed), if available
     #[serde(skip_serializing_if = "Option::is_none")]
     pub line: Option<u32>,
@@ -475,8 +481,6 @@ pub struct ActionManifestWorkerEntry<'a> {
     pub module_id: ActionManifestModuleId<'a>,
     #[serde(rename = "async")]
     pub is_async: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub durability: Option<ActionManifestWorkerEntryDurability<'a>>,
     /// The sorted root param dependencies collected from the cache module's
     /// graph. An empty list means that collection found no root params. The
     /// build omits this field when it does not collect dependencies for the
@@ -487,7 +491,7 @@ pub struct ActionManifestWorkerEntry<'a> {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ActionManifestWorkerEntryDurability<'a> {
+pub struct ActionManifestEntryDurability<'a> {
     pub code_hash: &'a str,
     pub runtime_env_vars_read: &'a [RcStr],
     pub runtime_env_vars_existence: &'a [RcStr],

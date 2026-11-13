@@ -68,6 +68,14 @@ type Actions = {
   [actionId: string]: {
     exportedName?: string
     filename?: string
+    // Durability metadata for "use cache" functions. It only depends on the
+    // server reference's module, so it's identical for every worker and is
+    // stored once per action instead of once per worker.
+    durability?: {
+      codeHash: string
+      runtimeEnvVarsRead: string[]
+      runtimeEnvVarsExistence: string[]
+    }
     workers: {
       [name: string]: {
         moduleId: string | number
@@ -76,11 +84,6 @@ type Actions = {
         // empty list means none were found; absence means collection did not
         // run.
         rootParamDependencies?: readonly string[]
-        durability?: {
-          codeHash: string
-          runtimeEnvVarsRead: string[]
-          runtimeEnvVarsExistence: string[]
-        }
       }
     }
     // Record which layer the action is in (rsc or sc_action), in the specific entry

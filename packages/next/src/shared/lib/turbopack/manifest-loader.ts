@@ -268,6 +268,9 @@ export class TurbopackManifestLoader {
         })
         action.filename = other[key].filename
         action.exportedName = other[key].exportedName
+        if (other[key].durability) {
+          action.durability = other[key].durability
+        }
         Object.assign(action.workers, other[key].workers)
       }
     }
