@@ -601,22 +601,71 @@ describe('tooling OTel safety', () => {
 
   it('bounds worker batches queued before registration', () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
-    const root = buildRoot()
+    const root = backend.startSpan(
+      { id: -1, name: 'next-build', start: BigInt(0) },
+      true
+    )!
     replay(
       ...Array.from({ length: 1_000 }, (_, index) => ({
         id: 10_000 + index,
         name: `worker-${index}`,
       }))
     )
+    for (let id = 20_000; id < 22_000; id++) {
+      replay({ id, name: 'overflow' })
+    }
+    expect(root.session.queue).toHaveLength(2)
     installProvider()
     backend.enableReporting()
-    root.end()
+    backend.completeSpan(root, { end: BigInt(1) })
 
     expect(exported).toHaveLength(1_000)
     expect(exported.some((span) => span.name === 'worker-998')).toBe(true)
     expect(exported.some((span) => span.name === 'worker-999')).toBe(false)
     expect(warn).toHaveBeenCalledTimes(1)
   })
+
+  it.each(['early', 'live'])(
+    'delivers %s metrics when tracing fails',
+    async (mode) => {
+      const readMetrics = installMeterProvider()
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+      installProvider(() => {
+        throw new Error('application processor failure')
+      })
+      if (mode === 'live') backend.enableReporting()
+      observe('turbopack-persistence', { bytes_written: 123 })
+      backend.enableReporting()
+
+      expect(await readMetrics()).toEqual([
+        histogram('turbopack.bytes_written', 'turbopack-persistence', 1, 123),
+      ])
+      expect(exported).toHaveLength(0)
+      expect(warn).toHaveBeenCalledTimes(1)
+    }
+  )
+
+  it.each(['early', 'live'])(
+    'completes %s traces when metrics fail',
+    (mode) => {
+      installMeterProvider()
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+      const getMeter = jest
+        .spyOn(meterProvider!, 'getMeter')
+        .mockImplementation(() => {
+          throw new Error('application meter failure')
+        })
+      installProvider()
+      if (mode === 'live') backend.enableReporting()
+      observe('turbopack-persistence', { bytes_written: 123 })
+      backend.enableReporting()
+
+      expectExported('turbopack-persistence')
+      expect(exported[0].attributes.bytes_written).toBe(123)
+      expect(getMeter).toHaveBeenCalledTimes(1)
+      expect(warn).toHaveBeenCalledTimes(1)
+    }
+  )
 
   it('keeps local diagnostics when application SDK callbacks throw', async () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})

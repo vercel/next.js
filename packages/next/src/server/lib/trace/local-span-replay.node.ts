@@ -220,22 +220,26 @@ function completeOpenTelemetrySpan(
   completion: ReportingCompletion
 ): void {
   try {
-    if (record.failed) return
     const attributes = completionAttributes(completion.attributes)
-    const { api } = require('./otel-api') as typeof import('./otel-api')
-    const parent = getParentContext(record)
-    const metricParent =
-      record.reference.context ??
-      parent ??
-      record.session.root?.reference.context
-    reportToolingMeasurements(
-      record.name,
-      attributes,
-      metricParent
-        ? api.trace.setSpanContext(api.ROOT_CONTEXT, metricParent)
-        : api.ROOT_CONTEXT
-    )
+    try {
+      const { api } = require('./otel-api') as typeof import('./otel-api')
+      const parent = getParentContext(record)
+      const metricParent =
+        record.reference.context ??
+        parent ??
+        record.session.root?.reference.context
+      reportToolingMeasurements(
+        record.name,
+        attributes,
+        metricParent
+          ? api.trace.setSpanContext(api.ROOT_CONTEXT, metricParent)
+          : api.ROOT_CONTEXT
+      )
+    } catch {
+      warnLoss(record.session)
+    }
 
+    if (record.failed) return
     const span = record.span
     if (!span) return
     if (completion.name) span.updateName(completion.name)
@@ -292,7 +296,7 @@ export function replayWorkerEvents(
 ): void {
   if (session.closed || suppressed || selections.length === 0) return
   const target = session
-  const selected = new Set(selections.map(({ id }) => id))
+  const selected = new Map(selections.map(({ id, parentId }) => [id, parentId]))
   const remaining = target.ready
     ? events.length
     : Math.max(0, REPLAY_EVENT_LIMIT - 1 - target.nonRootCount)
@@ -301,16 +305,17 @@ export function replayWorkerEvents(
     .slice(0, remaining)
   target.nonRootCount += batch.length
   if (batch.length < selections.length) warnLoss(target)
-  target.queue.push(() => replayWorkerBatch(target, batch, selections))
+  if (batch.length === 0) return
+  const parents = new Map(batch.map(({ id }) => [id, selected.get(id)]))
+  target.queue.push(() => replayWorkerBatch(target, batch, parents))
   flush(target)
 }
 
 function replayWorkerBatch(
   target: ReplaySession,
   events: TraceEvent[],
-  selections: readonly ReportingSpanSelection[]
+  parents: ReadonlyMap<number, number | undefined>
 ): void {
-  const parents = new Map(selections.map(({ id, parentId }) => [id, parentId]))
   const batch = new Map(events.map((event) => [event.id, event]))
 
   const records = new Map<number, ReportingSpan>()
