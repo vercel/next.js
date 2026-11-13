@@ -6,9 +6,13 @@ import { once } from 'events'
 import { promisify } from 'util'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import {
+  FRONT_SERVER_BINARY_ENV,
+  FRONT_SERVER_ENV,
+} from 'next/dist/server/lib/front-server-env'
 
 const execFileAsync = promisify(execFile)
-const FLAG = '__NEXT_EXPERIMENTAL_FRONT_SERVER'
+const FLAG = FRONT_SERVER_ENV
 
 // The processes `next start` runs with and without
 // __NEXT_EXPERIMENTAL_FRONT_SERVER: who owns the public port, startup and
@@ -217,11 +221,11 @@ describe('front-server process', () => {
     const { exit, output } = spawnNext('start', {
       flag: '1',
       args: ['-p', '0'],
-      env: { __NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY: missing },
+      env: { [FRONT_SERVER_BINARY_ENV]: missing },
     })
     expect(await exit).toEqual({ code: 1, signal: null })
     expect(output()).toContain(
-      `__NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY points at ${missing}, which doesn't exist`
+      `${FRONT_SERVER_BINARY_ENV} points at ${missing}, which doesn't exist`
     )
     expect(output()).not.toContain('Ready in')
   })
@@ -270,7 +274,8 @@ describe('front-server process', () => {
           args: ['-p', String(port)],
         })
         expect(await exit).toEqual({ code: 1, signal: null })
-        expect(output()).toContain('Failed to start server')
+        // Node reports it once; the front prints only the raw error.
+        expect(output().match(/Failed to start server/g)).toHaveLength(1)
         expect(output()).not.toContain('Ready in')
       } finally {
         blocker.close()
@@ -309,6 +314,25 @@ describe('front-server process', () => {
       const { status, text } = await getText(port)
       expect(status).toBe(200)
       expect(text).toContain('hello world')
+    })
+
+    it("passes Node's timeouts to next-front", async () => {
+      const { child } = await startNext({
+        flag: '1',
+        args: ['-p', '0', '--keepAliveTimeout', '65000'],
+      })
+      const { stdout } = await execFileAsync('ps', [
+        '-o',
+        'args=',
+        '-p',
+        `${await frontOf(child.pid!)}`,
+      ])
+      // --keepAliveTimeout for clients; Node's own headersTimeout (60 s) and
+      // keepAliveTimeout (5 s, minus a second for the pool), which Next.js
+      // leaves at Node's defaults.
+      expect(stdout).toContain(
+        '--idle-timeout-ms 65000 --header-timeout-ms 60000 --upstream-idle-ms 4000'
+      )
     })
 
     it('exits 1 when next-front dies', async () => {

@@ -2480,52 +2480,52 @@ export async function next_compile(task, opts) {
 // The Go front server `next start` runs with __NEXT_EXPERIMENTAL_FRONT_SERVER=1
 // (src/server/front, launched by src/server/lib/front-server.ts). While it is
 // experimental, the binaries are built into dist/server/front only with
-// NEXT_BUILD_FRONT_SERVER=1, so `next` doesn't grow and its build doesn't need
-// Go. The launcher finds them there, or wherever
-// __NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY points (src/server/lib/front-binary.ts).
-const FRONT_SERVER_TARGETS = [
-  ['linux', 'amd64'],
-  ['linux', 'arm64'],
-  ['darwin', 'amd64'],
-  ['darwin', 'arm64'],
-]
-const FRONT_SERVER_MIN_GO = [1, 24]
-
+// NEXT_BUILD_FRONT_SERVER=1 (named in src/server/lib/front-server-env.ts), so
+// `next` doesn't grow and its build doesn't need Go. The launcher finds them
+// there, or wherever __NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY points
+// (src/server/lib/front-binary.ts). What to build, and the file names, come
+// from src/server/front/targets.json; the minimum Go version from its go.mod.
 export async function front_server(task, opts) {
+  // front-binary.ts reads this at runtime, with or without the binaries.
+  await task.source('src/server/front/targets.json').target('dist/server/front')
   if (nodeProcess.env.NEXT_BUILD_FRONT_SERVER !== '1') {
     return
   }
+
+  const frontDir = join(__dirname, 'src/server/front')
+  const targets = require('./src/server/front/targets.json')
+  const goMod = await fs.readFile(join(frontDir, 'go.mod'), 'utf8')
+  const [minMajor, minMinor] = /^go (\d+)\.(\d+)/m
+    .exec(goMod)
+    .slice(1)
+    .map(Number)
   const go = nodeProcess.env.TURBOPACK_GO || 'go'
   const goVersion = await execa(go, ['env', 'GOVERSION'], { reject: false })
   const [major, minor] = (/^go(\d+)\.(\d+)/.exec(goVersion.stdout ?? '') || [])
     .slice(1)
     .map(Number)
-  const [minMajor, minMinor] = FRONT_SERVER_MIN_GO
   const hasGo =
     goVersion.exitCode === 0 &&
     (major > minMajor || (major === minMajor && minor >= minMinor))
   if (!hasGo) {
     throw new Error(
-      `NEXT_BUILD_FRONT_SERVER=1 needs Go ${minMajor}.${minMinor}+, which wasn't found (tried "${go}"; set TURBOPACK_GO to pick another).`
+      `NEXT_BUILD_FRONT_SERVER=1 needs Go ${minMajor}.${minMinor}+ (packages/next/src/server/front/go.mod), which wasn't found (tried "${go}"; set TURBOPACK_GO to pick another).`
     )
   }
 
-  const targets = opts.dev
-    ? [
-        [
-          nodeProcess.platform,
-          { x64: 'amd64', arm64: 'arm64' }[nodeProcess.arch],
-        ],
-      ]
-    : FRONT_SERVER_TARGETS
-  const outDir = join(__dirname, 'dist/server/front')
-  for (const [goos, goarch] of targets) {
-    if (!FRONT_SERVER_TARGETS.some(([o, a]) => o === goos && a === goarch)) {
-      console.warn(
-        `warning: next-front has no build for ${nodeProcess.platform}/${nodeProcess.arch}.`
-      )
-      continue
-    }
+  const hostTarget = {
+    os: nodeProcess.platform,
+    arch: targets.goArch[nodeProcess.arch],
+  }
+  const isTarget = (target) =>
+    targets.targets.some((t) => t.os === target.os && t.arch === target.arch)
+  if (opts.dev && !isTarget(hostTarget)) {
+    console.warn(
+      `warning: next-front has no build for ${nodeProcess.platform}/${nodeProcess.arch}.`
+    )
+    return
+  }
+  for (const { os, arch } of opts.dev ? [hostTarget] : targets.targets) {
     await execa(
       go,
       [
@@ -2534,17 +2534,16 @@ export async function front_server(task, opts) {
         '-buildvcs=false',
         '-ldflags=-s -w',
         '-o',
-        join(outDir, `next-front-${goos}-${goarch}`),
+        join(
+          __dirname,
+          'dist/server/front',
+          targets.binaryName.replace('{os}', os).replace('{arch}', arch)
+        ),
         '.',
       ],
       {
-        cwd: join(__dirname, 'src/server/front'),
-        env: {
-          CGO_ENABLED: '0',
-          GOOS: goos,
-          GOARCH: goarch,
-          GOTOOLCHAIN: 'local',
-        },
+        cwd: frontDir,
+        env: { CGO_ENABLED: '0', GOOS: os, GOARCH: arch, GOTOOLCHAIN: 'local' },
         stdio: 'inherit',
       }
     )

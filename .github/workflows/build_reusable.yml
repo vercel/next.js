@@ -320,6 +320,9 @@ jobs:
       - name: Wait for Rust toolchain
         wait: install-rust
 
+      # One step for the nextest jobs and the needsGo jobs, so the version stays
+      # pinned here instead of following packages/next/src/server/front/go.mod,
+      # which would let a front-server bump change the nextest toolchain.
       - name: Install Go
         if: ${{ inputs.needsNextest == 'yes' || inputs.needsGo == 'yes' }}
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0

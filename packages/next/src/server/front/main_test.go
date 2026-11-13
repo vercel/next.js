@@ -37,7 +37,7 @@ func startProxy(t *testing.T, handler http.HandlerFunc) (string, <-chan received
 	if err != nil {
 		t.Fatal(err)
 	}
-	front := &http.Server{Handler: newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr))}
+	front := &http.Server{Handler: newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second)}
 	go front.Serve(ln)
 	t.Cleanup(func() { front.Close() })
 	return ln.Addr().String(), seen
@@ -235,7 +235,7 @@ func TestShutdownWaitsForACustomStatusLineResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	front := &http.Server{Handler: newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr))}
+	front := &http.Server{Handler: newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second)}
 	go front.Serve(ln)
 
 	conn, err := net.Dial("tcp", ln.Addr().String())
@@ -306,5 +306,23 @@ func TestClosesAConnectionWhoseHeadersNeverFinish(t *testing.T) {
 	case <-upstreamHit:
 		t.Error("an incomplete request reached the handler")
 	default:
+	}
+}
+
+func TestRequiresEveryFlag(t *testing.T) {
+	full := []string{"--listen", ":0", "--upstream", "127.0.0.1:1", "--idle-timeout-ms", "65000", "--header-timeout-ms", "60000", "--upstream-idle-ms", "4000"}
+	cfg, err := parseConfig(full)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.idleTimeout != 65*time.Second || cfg.headerTimeout != 60*time.Second || cfg.upstreamIdle != 4*time.Second {
+		t.Errorf("parsed %+v", cfg)
+	}
+	for i := 0; i < len(full); i += 2 {
+		without := append(append([]string{}, full[:i]...), full[i+2:]...)
+		_, err := parseConfig(without)
+		if err == nil || !strings.Contains(err.Error(), full[i]) {
+			t.Errorf("without %s: err = %v, want it named", full[i], err)
+		}
 	}
 }

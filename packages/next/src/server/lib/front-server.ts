@@ -10,6 +10,7 @@ import {
   type StartServerResult,
 } from './start-server'
 import { findFrontBinary } from './front-binary'
+import { FRONT_SERVER_ENV } from './front-server-env'
 import { formatHostname } from './format-hostname'
 import { printAndExit } from './utils'
 
@@ -24,7 +25,7 @@ import { printAndExit } from './utils'
  * exits 1 if the front dies.
  */
 export function isFrontServerEnabled(): boolean {
-  return process.env.__NEXT_EXPERIMENTAL_FRONT_SERVER === '1'
+  return process.env[FRONT_SERVER_ENV] === '1'
 }
 
 export async function startFrontServer(
@@ -46,15 +47,23 @@ export async function startFrontServer(
     // The OS could hand Node the public port when it is in its ephemeral
     // range; Node then binds again so the front can take it.
     avoidPort: options.port,
-    // The front owns client keep-alive. Node keeps its default, which stays
-    // above the front's 4 s idle connection timeout.
+    // The front owns client keep-alive; Node's private listener keeps
+    // Node's default.
     keepAliveTimeout: undefined,
-    beforeStartLog: (privatePort) =>
+    beforeStartLog: (privateServer) =>
       spawnFront(binary.path, {
         hostname: options.hostname,
         port: options.port,
-        privatePort,
-        idleTimeoutMs: options.keepAliveTimeout ?? 5000,
+        privatePort: privateServer.port,
+        // Every value the front uses comes from Node, so it has no defaults
+        // of its own: client keep-alive as without the front (--keepAliveTimeout
+        // or Node's), Node's header timeout, and a pool idle time a second
+        // below Node's keep-alive, so the front never sends a request on a
+        // connection Node is closing.
+        idleTimeoutMs:
+          options.keepAliveTimeout ?? privateServer.keepAliveTimeout,
+        headerTimeoutMs: privateServer.headersTimeout,
+        upstreamIdleMs: privateServer.keepAliveTimeout - 1000,
       }),
   })
 }
@@ -66,6 +75,8 @@ function spawnFront(
     port: number
     privatePort: number
     idleTimeoutMs: number
+    headerTimeoutMs: number
+    upstreamIdleMs: number
   }
 ): Promise<PublicServer> {
   const listen = `${options.hostname ? formatHostname(options.hostname) : ''}:${options.port}`
@@ -78,6 +89,10 @@ function spawnFront(
       `127.0.0.1:${options.privatePort}`,
       '--idle-timeout-ms',
       String(options.idleTimeoutMs),
+      '--header-timeout-ms',
+      String(options.headerTimeoutMs),
+      '--upstream-idle-ms',
+      String(options.upstreamIdleMs),
     ],
     {
       stdio: ['pipe', 'pipe', 'inherit'],

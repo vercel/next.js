@@ -4,11 +4,14 @@
 //
 // Contract with Node (packages/next/src/server/lib/front-server.ts):
 //
-//		next-front --listen :3000 --upstream 127.0.0.1:51234 --idle-timeout-ms 5000
+//		next-front --listen :3000 --upstream 127.0.0.1:51234 \
+//		  --idle-timeout-ms 5000 --header-timeout-ms 60000 --upstream-idle-ms 4000
 //
+//	  - Every flag is required. Node passes every behavior value, read off its
+//	    own server, so the front has no defaults of its own.
 //	  - Once it listens, it prints `NEXT_FRONT_READY <port>` on stdout.
-//	  - If it can't listen, it prints "Failed to start server" on stderr and
-//	    exits 1.
+//	  - If it can't listen, it prints the error on stderr and exits 1; Node
+//	    reports "Failed to start server".
 //	  - On stdin EOF (Node exited or asked it to stop), SIGINT or SIGTERM it
 //	    stops accepting, finishes in-flight requests and exits 0.
 package main
@@ -32,24 +35,69 @@ import (
 	"time"
 )
 
+// config is the command line. Node sets every field.
+type config struct {
+	listen   string
+	upstream string
+	// Client keep-alive: Node's keepAliveTimeout, or --keepAliveTimeout.
+	idleTimeout time.Duration
+	// Node's headersTimeout. Without it, clients that never finish their
+	// headers would hold the front's connections forever, and Node, which
+	// only sees complete requests, couldn't time them out. Bodies need no
+	// limit here: Node's own requestTimeout applies as the front streams them.
+	headerTimeout time.Duration
+	// How long the front keeps an idle connection to Node: below Node's
+	// keep-alive, so a request never goes out on a connection Node is
+	// closing.
+	upstreamIdle time.Duration
+}
+
+func parseConfig(args []string) (config, error) {
+	flags := flag.NewFlagSet("next-front", flag.ContinueOnError)
+	listen := flags.String("listen", "", "public address, like :3000 or 127.0.0.1:3000")
+	upstream := flags.String("upstream", "", "Node's private address, like 127.0.0.1:51234")
+	idleMs := flags.Int("idle-timeout-ms", 0, "how long an idle client connection stays open")
+	headerMs := flags.Int("header-timeout-ms", 0, "how long a client may take to send request headers")
+	upstreamIdleMs := flags.Int("upstream-idle-ms", 0, "how long an idle connection to Node stays pooled")
+	if err := flags.Parse(args); err != nil {
+		return config{}, err
+	}
+	set := map[string]bool{}
+	flags.Visit(func(f *flag.Flag) { set[f.Name] = true })
+	var missing []string
+	flags.VisitAll(func(f *flag.Flag) {
+		if !set[f.Name] {
+			missing = append(missing, "--"+f.Name)
+		}
+	})
+	if len(missing) > 0 {
+		return config{}, fmt.Errorf("missing %s", strings.Join(missing, ", "))
+	}
+	ms := func(n int) time.Duration { return time.Duration(n) * time.Millisecond }
+	return config{
+		listen:        *listen,
+		upstream:      *upstream,
+		idleTimeout:   ms(*idleMs),
+		headerTimeout: ms(*headerMs),
+		upstreamIdle:  ms(*upstreamIdleMs),
+	}, nil
+}
+
 func main() {
-	listen := flag.String("listen", "", "public address, like :3000 or 127.0.0.1:3000")
-	upstream := flag.String("upstream", "", "Node's private address, like 127.0.0.1:51234")
-	idleTimeoutMs := flag.Int("idle-timeout-ms", 5000, "how long an idle client connection stays open")
-	flag.Parse()
-	if *listen == "" || *upstream == "" {
-		fmt.Fprintln(os.Stderr, "next-front: --listen and --upstream are required")
+	cfg, err := parseConfig(os.Args[1:])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "next-front:", err)
 		os.Exit(2)
 	}
 
-	ln, err := net.Listen("tcp", *listen)
+	ln, err := net.Listen("tcp", cfg.listen)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to start server:", err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	addr := ln.Addr().(*net.TCPAddr)
 
-	srv := newServer(newProxy(*upstream, addr), time.Duration(*idleTimeoutMs)*time.Millisecond, headerTimeout)
+	srv := newServer(newProxy(cfg.upstream, addr, cfg.upstreamIdle), cfg.idleTimeout, cfg.headerTimeout)
 
 	fmt.Printf("NEXT_FRONT_READY %d\n", addr.Port)
 
@@ -73,14 +121,6 @@ func main() {
 	}
 	<-stopped
 }
-
-// headerTimeout matches Node's default `server.headersTimeout`: plain `next
-// start` closes a connection whose request headers haven't all arrived within
-// 60 s. Without it, clients that never finish their headers would hold the
-// front's connections forever, and Node, which only sees complete requests,
-// couldn't time them out. Bodies need no limit here: Node's own
-// `requestTimeout` still applies as the front streams them through.
-const headerTimeout = 60 * time.Second
 
 // newServer is the public server. Keep-alive and request headers are the only
 // things it times out, so long responses and uploads stream unbounded, as in
@@ -116,8 +156,9 @@ func stopRequested() <-chan struct{} {
 }
 
 // newProxy forwards to Node at upstream. public is the address the front
-// listens on.
-func newProxy(upstream string, public *net.TCPAddr) http.Handler {
+// listens on; upstreamIdle is how long an idle connection to Node stays
+// pooled.
+func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) http.Handler {
 	publicPort := strconv.Itoa(public.Port)
 	// Node, listening on all interfaces, sees IPv4 clients as IPv4-mapped IPv6
 	// addresses. Go reports them as plain IPv4.
@@ -142,9 +183,7 @@ func newProxy(upstream string, public *net.TCPAddr) http.Handler {
 			// under load.
 			MaxIdleConns:        0,
 			MaxIdleConnsPerHost: 512,
-			// Below Node's 5 s keep-alive, so a request never goes out on a
-			// connection Node is closing.
-			IdleConnTimeout: 4 * time.Second,
+			IdleConnTimeout:     upstreamIdle,
 			// Otherwise Go asks Node for gzip and decompresses the response.
 			DisableCompression:    true,
 			ExpectContinueTimeout: 1 * time.Second,

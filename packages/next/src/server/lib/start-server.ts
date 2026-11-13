@@ -147,12 +147,19 @@ export interface StartServerOptions {
    * server (see `front-server.ts`). Runs once this server listens, before the
    * URLs print, and returns the public address.
    */
-  beforeStartLog?: (privatePort: number) => Promise<PublicServer>
+  beforeStartLog?: (privateServer: PrivateServer) => Promise<PublicServer>
   /**
    * Bind again if the OS picks this port for a `port: 0` listener, so a
    * front server can take it.
    */
   avoidPort?: number
+}
+
+/** This server's real port and timeouts, read off its `http.Server`. */
+export type PrivateServer = {
+  port: number
+  keepAliveTimeout: number
+  headersTimeout: number
 }
 
 /** The address clients use, when it isn't the one this server listens on. */
@@ -370,7 +377,11 @@ export async function startServer(
       let publicServer: PublicServer | undefined
       if (serverOptions.beforeStartLog) {
         try {
-          publicServer = await serverOptions.beforeStartLog(port)
+          publicServer = await serverOptions.beforeStartLog({
+            port,
+            keepAliveTimeout: server.keepAliveTimeout,
+            headersTimeout: server.headersTimeout,
+          })
         } catch (err) {
           Log.error(`Failed to start server`)
           console.error(err)
