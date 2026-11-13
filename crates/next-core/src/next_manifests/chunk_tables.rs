@@ -1,14 +1,14 @@
 //! Shares chunk paths and chunk lists in the JavaScript emitted for client reference manifests.
 //!
-//! The client references of an entry mostly load the same chunks, so a manifest repeats the
-//! same lists of chunk paths for many entries, and the same paths across lists. Written as JSON
-//! it can be 10-30x larger than its information content, which costs build memory, disk space,
-//! and load time.
+//! There is lots of natural redundancy that we are eliminating:
+//! - path prefixes for URLs and files (extracted into constants and reused)
+//! - file paths and URLs themselves are repeated too (interned into an array and reused by index)
+//! - lists of file paths are often repeated (interned into an array and reused by index)
 //!
-//! [`ChunkTables`] interns the lists while the manifest is built. Each distinct path is then
-//! written once, in a table `s`, and each list that is used more than once is written once, in a
-//! table `l`. Paths are numbered in first-seen order, so lists are mostly runs of consecutive
-//! indices, and `r` builds a list from `start, length` pairs:
+//! Finally, even when we don't get perfect reuse, we do observe repeated construction patterns, so
+//! there are factory functions for constructing common arrays and objects.
+//!
+//! The factory functions are both a code size and a performance win, since they are trivial to JIT.
 //!
 //! ```js
 //! const p0 = "server/chunks/ssr/";
