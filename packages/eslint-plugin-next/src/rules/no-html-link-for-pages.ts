@@ -174,9 +174,15 @@ export default defineRule({
       return {}
     }
 
-    const configuredExtensions = context.settings?.next?.pageExtensions
+    const nextSettings: { pageExtensions?: unknown } =
+      context.settings?.next || {}
+    const configuredExtensions = Array.isArray(nextSettings.pageExtensions)
+      ? nextSettings.pageExtensions.filter(
+          (ext): ext is string => typeof ext === 'string' && ext.length > 0
+        )
+      : []
     const pageExtensions =
-      Array.isArray(configuredExtensions) && configuredExtensions.length > 0
+      configuredExtensions.length > 0
         ? configuredExtensions
         : ['tsx', 'ts', 'jsx', 'js']
     const pageUrls = cachedGetUrlFromPagesDirectories(

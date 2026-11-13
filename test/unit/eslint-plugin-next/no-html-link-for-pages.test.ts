@@ -640,9 +640,13 @@ describe('no-html-link-for-pages', function () {
     )
   })
   it('invalid static route with pageExtensions in pages dir', function () {
-    const [report] = linters.withPageExtensionsPages.verify(invalidStaticCode, linterConfigWithPageExtensions, {
-      filename: 'foo.js',
-    })
+    const [report] = linters.withPageExtensionsPages.verify(
+      invalidStaticCode,
+      linterConfigWithPageExtensions,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.notEqual(report, undefined, 'No lint errors found.')
     assert.equal(
       report.message,
@@ -650,9 +654,13 @@ describe('no-html-link-for-pages', function () {
     )
   })
   it('invalid dynamic route with pageExtensions in pages dir', function () {
-    const [report] = linters.withPageExtensionsPages.verify(invalidDynamicCode, linterConfigWithPageExtensions, {
-      filename: 'foo.js',
-    })
+    const [report] = linters.withPageExtensionsPages.verify(
+      invalidDynamicCode,
+      linterConfigWithPageExtensions,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.notEqual(report, undefined, 'No lint errors found.')
     assert.equal(
       report.message,
@@ -660,9 +668,13 @@ describe('no-html-link-for-pages', function () {
     )
   })
   it('invalid static route with pageExtensions in app dir', function () {
-    const [report] = linters.withPageExtensionsApp.verify(invalidStaticCode, linterConfigWithPageExtensions, {
-      filename: 'foo.js',
-    })
+    const [report] = linters.withPageExtensionsApp.verify(
+      invalidStaticCode,
+      linterConfigWithPageExtensions,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.notEqual(report, undefined, 'No lint errors found.')
     assert.equal(
       report.message,
@@ -670,9 +682,13 @@ describe('no-html-link-for-pages', function () {
     )
   })
   it('invalid dynamic route with pageExtensions in app dir', function () {
-    const [report] = linters.withPageExtensionsApp.verify(invalidDynamicCode, linterConfigWithPageExtensions, {
-      filename: 'foo.js',
-    })
+    const [report] = linters.withPageExtensionsApp.verify(
+      invalidDynamicCode,
+      linterConfigWithPageExtensions,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.notEqual(report, undefined, 'No lint errors found.')
     assert.equal(
       report.message,
@@ -692,7 +708,7 @@ describe('no-html-link-for-pages', function () {
 
   it('does not treat colocated app components as routes', function () {
     const report = linters.withPageExtensionsApp.verify(
-      "<a href='/list/foo/helper'>Helper</a>",
+      "<a href='/about/helper'>Helper</a>",
       linterConfigWithPageExtensions,
       { filename: 'foo.js' }
     )
@@ -732,5 +748,4 @@ describe('no-html-link-for-pages', function () {
     )
     assert.equal(report.length, 1)
   })
-
 })
