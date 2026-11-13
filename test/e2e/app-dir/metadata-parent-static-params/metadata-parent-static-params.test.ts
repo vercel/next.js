@@ -36,6 +36,42 @@ describe('metadata-parent-static-params', () => {
     ).toBe(404)
   })
 
+  it('discovers function metadata generators before authored static params', async () => {
+    for (const [slug, id] of [
+      ['alpha', 'alpha-small'],
+      ['alpha', 'alpha-large'],
+      ['beta', 'beta-wide'],
+    ]) {
+      await expectImage(
+        `/images-late-params/${slug}/opengraph-image/${id}`,
+        slug,
+        id
+      )
+    }
+    expect(
+      (await next.fetch('/images-late-params/alpha/opengraph-image/beta-wide'))
+        .status
+    ).toBe(404)
+  })
+
+  it('discovers variable metadata generators before authored static params', async () => {
+    for (const lang of ['en', 'ja']) {
+      for (const id of ['0', 'blog']) {
+        const response = await next.fetch(
+          `/sitemaps-late-params/${lang}/sitemap/${id}.xml`
+        )
+        expect(response.status).toBe(200)
+        expect(response.headers.get('content-type')).toBe('application/xml')
+        expect(await response.text()).toContain(
+          `<loc>https://metadata-parent-static-params.example/${id}</loc>`
+        )
+      }
+    }
+    expect(
+      (await next.fetch('/sitemaps-late-params/en/sitemap/unknown.xml')).status
+    ).toBe(404)
+  })
+
   it('supports re-exporting the parent generator', async () => {
     await expectImage('/reexported/first/icon/square', 'first', 'square')
     await expectImage('/reexported/second/icon/square', 'second', 'square')
@@ -100,6 +136,23 @@ describe('metadata-parent-static-params', () => {
       '/images/alpha/opengraph-image/alpha-large',
       '/images/alpha/opengraph-image/alpha-small',
       '/images/beta/opengraph-image/beta-wide',
+    ])
+    expect(
+      routes.filter((route) => route.startsWith('/images-late-params/')).sort()
+    ).toEqual([
+      '/images-late-params/alpha/opengraph-image/alpha-large',
+      '/images-late-params/alpha/opengraph-image/alpha-small',
+      '/images-late-params/beta/opengraph-image/beta-wide',
+    ])
+    expect(
+      routes
+        .filter((route) => route.startsWith('/sitemaps-late-params/'))
+        .sort()
+    ).toEqual([
+      '/sitemaps-late-params/en/sitemap/0.xml',
+      '/sitemaps-late-params/en/sitemap/blog.xml',
+      '/sitemaps-late-params/ja/sitemap/0.xml',
+      '/sitemaps-late-params/ja/sitemap/blog.xml',
     ])
     expect(
       routes.filter((route) => route.startsWith('/reexported/')).sort()
