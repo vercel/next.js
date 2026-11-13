@@ -16,9 +16,10 @@ import type {
   AttributeValue,
   Span as OpenTelemetrySpan,
 } from 'next/dist/compiled/@opentelemetry/api'
+import { normalizeTraceAttributes } from '../server/lib/trace/span-attributes'
+export { normalizeTraceAttributes } from '../server/lib/trace/span-attributes'
 import { getTimestamp, toHrTime } from '../server/lib/trace/utils'
 import { getTraceClock } from '../server/lib/trace/local-span-clock.node'
-export { normalizeTraceAttributes } from '../server/lib/trace/span-attributes'
 
 let replay:
   | typeof import('../server/lib/trace/local-span-replay.node')
@@ -53,6 +54,8 @@ interface Attributes {
   [key: string]: unknown
 }
 
+type RecordedTraceEvent = TraceEvent & { tags: Attributes }
+
 export enum SpanStatus {
   Started = 'started',
   Stopped = 'stopped',
@@ -60,13 +63,16 @@ export enum SpanStatus {
 
 type ReportingOptions = Pick<
   LocalSpanOptions,
-  'reportToOtel' | 'recordToInsights' | 'reportingRoot'
-> & { scope?: boolean; parent?: LocalSpanOptions['parent'] | Span }
+  'reportToOtel' | 'reportingRoot'
+> & {
+  scope?: boolean
+  recordToInsights?: boolean
+  parent?: LocalSpanOptions['parent'] | Span
+}
 
 export class Span {
   readonly recorder: LocalRecordingSpan
 
-  private readonly attributes: Attributes
   private readonly scope: boolean
   constructor({
     name,
@@ -84,24 +90,20 @@ export class Span {
     startTime?: bigint
     wallStartTimeMs?: number
   } & ReportingOptions) {
-    this.attributes = { ...attrs }
-    this.recorder = createTraceSpan(
-      {
-        ...reporting,
-        scope,
-        name,
-        parent:
-          parent instanceof Span
-            ? parent.recorder
-            : parent === undefined
-              ? parentId
-              : parent,
-        attributes: normalizeTraceAttributes(this.attributes),
-        monotonicStartTime: startTime,
-        wallStartTimeMs,
-      },
-      this.attributes
-    )
+    this.recorder = createTraceSpan({
+      ...reporting,
+      scope,
+      name,
+      parent:
+        parent instanceof Span
+          ? parent.recorder
+          : parent === undefined
+            ? parentId
+            : parent,
+      attributes: attrs,
+      monotonicStartTime: startTime,
+      wallStartTimeMs,
+    })
     this.scope = scope
   }
 
@@ -137,14 +139,14 @@ export class Span {
   }
 
   getId(): SpanId {
+    this.recorder.retainReportingContext()
     return getTraceSpanSource(this.recorder)!.id
   }
 
   setAttribute(key: string, value: unknown): this {
-    const attributes = normalizeTraceAttributes({ [key]: value })
-    this.attributes[key] = value
-    if (!getTraceSpanSource(this.recorder)?.event)
-      this.recorder.setAttributes(attributes)
+    const attributes =
+      getTraceSpanSource(this.recorder)!.event?.tags ?? this.recorder.attributes
+    attributes[key] = value
     return this
   }
 
@@ -169,33 +171,6 @@ export const trace = (
   options?: ReportingOptions
 ) => new Span({ ...options, name, parentId, attrs })
 
-export function normalizeTraceAttributes(
-  attributes: Attributes | undefined
-): Record<string, AttributeValue> {
-  // next/dist/trace accepts arbitrary tags, so encode non-scalars for OTel.
-  const entries: [string, AttributeValue][] = []
-  for (const key of Object.keys(attributes ?? {})) {
-    try {
-      const value = attributes![key]
-      if (value === null || value === undefined) continue
-      if (
-        typeof value === 'string' ||
-        typeof value === 'number' ||
-        typeof value === 'boolean'
-      ) {
-        entries.push([key, value])
-      } else {
-        const encoded = JSON.stringify(value)
-        if (encoded !== undefined) entries.push([key, encoded])
-      }
-    } catch {
-      // Diagnostics must not interrupt the work being measured. Cyclic values,
-      // bigint payloads and throwing serializers cannot become OTel attributes.
-    }
-  }
-  return Object.fromEntries(entries)
-}
-
 /** Completed span timestamps use nanoseconds since Unix epoch. */
 type CompletedSpan = {
   name: string
@@ -217,26 +192,22 @@ export function recordSpan(
     completed.endTime !== undefined
       ? completed.endTime + correction
       : clock.monotonic
-  const attributes = { ...completed.attributes }
-  createTraceSpan(
-    {
-      name: completed.name,
-      attributes: normalizeTraceAttributes(attributes),
-      parent,
-      reportToOtel: completed.reportToOtel,
-      recordToInsights: completed.recordToInsights,
-      monotonicStartTime:
-        completed.startTime !== undefined
-          ? completed.startTime + correction
-          : clock.monotonic,
-      wallStartTimeMs:
-        completed.startTime !== undefined
-          ? Number(completed.startTime / nsPerMs)
-          : clock.wallTimeMs,
-      monotonicEndTime,
-    },
-    attributes
-  )
+  createTraceSpan({
+    name: completed.name,
+    attributes: completed.attributes,
+    parent,
+    reportToOtel: completed.reportToOtel,
+    recordToInsights: completed.recordToInsights,
+    monotonicStartTime:
+      completed.startTime !== undefined
+        ? completed.startTime + correction
+        : clock.monotonic,
+    wallStartTimeMs:
+      completed.startTime !== undefined
+        ? Number(completed.startTime / nsPerMs)
+        : clock.wallTimeMs,
+    monotonicEndTime,
+  })
 }
 
 export type LocalSpanTiming = {
@@ -251,7 +222,7 @@ export type TraceSpanSource = {
   parentId?: SpanId
   startTime: bigint
   wallStartTimeMs: number
-  event?: TraceEvent
+  event?: RecordedTraceEvent
   selectedId?: number
 }
 
@@ -264,12 +235,13 @@ export function getTraceSpanSource(
 }
 
 export function createTraceSpan(
-  options: Omit<LocalSpanOptions, 'attributes'> & {
-    attributes?: OpenTelemetryAttributes
-    scope?: boolean
-    monotonicEndTime?: bigint
-  },
-  traceAttributes?: Attributes
+  options: Omit<LocalSpanOptions, 'parent'> &
+    LocalSpanTiming & {
+      parent?: OpenTelemetrySpan | SpanId | null
+      recordToInsights?: boolean
+      scope?: boolean
+      monotonicEndTime?: bigint
+    }
 ): LocalRecordingSpan {
   const parent = typeof options.parent === 'object' ? options.parent : undefined
   const ancestor = parent ? getTraceSpanSource(parent) : undefined
@@ -277,9 +249,11 @@ export function createTraceSpan(
     {
       ...options,
       parent:
-        typeof options.parent === 'number' || options.parent === null
+        typeof options.parent === 'number'
           ? options.parent
-          : undefined,
+          : options.parent === null
+            ? null
+            : undefined,
     },
     ancestor
   )
@@ -289,28 +263,16 @@ export function createTraceSpan(
   const span = createRecordingSpan(
     {
       ...options,
+      parent,
       startTime: source.wallStartTimeMs,
-      endTime:
-        options.monotonicEndTime === undefined
-          ? options.endTime
-          : toHrTime(options.monotonicEndTime + offset),
+      endTime: undefined,
+      reportToOtel: false,
       attributes: options.attributes,
       clock: {
         start: source.startTime + offset,
         end: (time) => getTraceSpanEndTime(time, offset),
       },
-      reporting: {
-        id: source.id,
-        parentId: source.parentId,
-        attributes: {
-          'next.tooling.id': source.id,
-          ...(source.parentId === undefined
-            ? {}
-            : { 'next.tooling.parent_id': source.parentId }),
-        },
-      },
       onError: (recording, error) => {
-        if (traceAttributes) traceAttributes.failed = true
         recording.setAttribute('failed', true)
         if (options.scope) {
           const { recordSpanError } =
@@ -322,18 +284,55 @@ export function createTraceSpan(
         }
       },
     },
-    (records, end) => {
-      for (const record of records) {
-        source.event = completeTraceSpan(
-          source,
-          record.name,
-          traceAttributes ?? record.attributes ?? {},
-          end! - offset
-        )
-      }
+    (recording, end) => {
+      source.event = completeTraceSpan(
+        source,
+        recording.name,
+        recording.attributes,
+        end - offset
+      )
     }
   )
   traceSources.set(span, source)
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    // Tooling destinations are only available in Node.
+  } else {
+    if (options.recordToInsights && process.env.__NEXT_DEV_SERVER) {
+      const { captureInsightSpanRecorder } =
+        require('../server/lib/trace/request-insights-span-recorder') as typeof import('../server/lib/trace/request-insights-span-recorder')
+      const type = options.attributes?.['next.span_type']
+      span.addDelivery(
+        captureInsightSpanRecorder(
+          span,
+          parent ?? undefined,
+          options.name,
+          typeof type === 'string' ? type : options.name
+        )
+      )
+    }
+    if (options.reportToOtel) {
+      span.startReporting(
+        {
+          id: source.id,
+          parentId: source.parentId,
+          attributes: {
+            ...normalizeTraceAttributes(span.attributes),
+            'next.tooling.id': source.id,
+            ...(source.parentId === undefined
+              ? {}
+              : { 'next.tooling.parent_id': source.parentId }),
+          },
+        },
+        options.reportingRoot,
+        options.monotonicEndTime !== undefined || options.endTime !== undefined
+      )
+    }
+  }
+  const endTime =
+    options.monotonicEndTime === undefined
+      ? options.endTime
+      : toHrTime(options.monotonicEndTime + offset)
+  if (endTime !== undefined) span.end(endTime)
   return span
 }
 
@@ -408,12 +407,12 @@ export function completeTraceSpan(
   name: string,
   attributes: Attributes,
   end: bigint
-): TraceEvent {
+): RecordedTraceEvent {
   const duration = (end - source.startTime) / NUM_OF_MICROSEC_IN_NANOSEC
   if (duration > Number.MAX_SAFE_INTEGER) {
     throw new Error(`Duration is too long to express as float64: ${duration}`)
   }
-  const event: TraceEvent = {
+  const event: RecordedTraceEvent = {
     name,
     id: source.id,
     parentId: source.parentId,
@@ -486,13 +485,7 @@ export function recordTraceEvents(
     savedTraceEvents.push(...events)
   }
   if (selections?.length) {
-    replay?.replayWorkerEvents(
-      events.map((event) => ({
-        ...event,
-        tags: normalizeTraceAttributes(event.tags),
-      })),
-      selections
-    )
+    replay?.replayWorkerEvents(events, selections)
   }
 }
 

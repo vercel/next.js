@@ -30,11 +30,11 @@ Local trace files and Request Insights remain independent of build registration 
 
 ## Capture and replay
 
-`LocalRecordingSpan` owns capture and completion for requests and tooling. `local-span-replay.node.ts` queues tooling span starts and completions until the SDK is registered. Selected operations preserve explicit parent relationships. `scope: true` activates coarse local operations; `recordToInsights: true` selects Request Insights independently of external reporting. Compiler workers return completed records and selection metadata for coordinator replay without initializing another SDK.
+`LocalRecordingSpan` owns capture and completion for requests and tooling. File delivery reads the captured timing and raw attributes directly. OTel attributes and Request Insights records are projected only for selected destinations; `request-insights-span-recorder.ts` owns activity identities, grouping and delivery. `local-span-replay.node.ts` queues tooling span starts and completions until the SDK is registered. Selected operations preserve explicit parent relationships. `scope: true` activates coarse local operations; `recordToInsights: true` selects Request Insights independently of external reporting. Compiler workers return completed records and selection metadata for coordinator replay without initializing another SDK.
 
 Registration drains one bounded queue through the normal tracer API with the original timestamps. Later starts and completions use the same queue and drain immediately. Worker batches resolve their selected parent order when ingested. Metrics use the normal meter API independently of the tracer provider.
 
-Numeric parent lookup retains span contexts until the session closes, including after parent completion. Completed non-root payloads and SDK spans are released independently.
+Parent span objects retain lightweight context handles after completion. Calling `Span.getId()` also retains that context for numeric parent lookup until the session closes. Worker contexts stay within their replay batch. Completed non-root payloads and SDK spans are released independently.
 
 The queue guard defers work created by synchronous SDK callbacks until the current item returns. It holds at most 1,000 spans before registration, with one slot reserved for the root. Full queues warn and drop external reporting without dropping local traces. Closing drops pending records without fabricating completion times for unfinished work.
 

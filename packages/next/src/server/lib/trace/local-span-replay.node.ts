@@ -8,6 +8,7 @@ import type {
 import type { TraceEvent, ReportingSpanSelection } from '../../../trace/types'
 import { getTraceClock } from './local-span-clock.node'
 import { reportToolingMeasurements } from './local-span-metrics.node'
+import { normalizeTraceAttributes } from './span-attributes'
 import type { SpanStoreEvent } from './span-store'
 import { toHrTime } from './utils'
 
@@ -18,9 +19,16 @@ export const epochTime = (time: bigint) => time + epochOffset
 export const getClockOffset = () => epochOffset.toString()
 export const REPLAY_EVENT_LIMIT = 1_000
 
+export type ReportingSpanContext = {
+  id: number
+  sessionId: symbol
+  context?: SpanContext
+}
+
 export type ReportingStart = {
   id: number
   parentId?: number
+  parent?: ReportingSpanContext
   name: string
   start: bigint
   attributes?: Attributes
@@ -36,6 +44,7 @@ export type ReportingCompletion = {
 }
 
 type ReplaySession = {
+  id: symbol
   ready: boolean
   closed: boolean
   flushing: boolean
@@ -43,16 +52,15 @@ type ReplaySession = {
   nonRootCount: number
   root?: ReportingSpan
   records: Map<number, ReportingSpan>
-  contexts: Map<number, SpanContext>
+  contexts: Map<number, ReportingSpanContext>
   queue: Array<() => void>
 }
 
 export type ReportingSpan = ReportingStart & {
   session: ReplaySession
+  reference: ReportingSpanContext
   completion?: ReportingCompletion
   span?: Span
-  context?: SpanContext
-  parentContext?: SpanContext
   done?: boolean
   failed?: boolean
 }
@@ -62,6 +70,7 @@ let suppressed = false
 
 function createSession(): ReplaySession {
   return {
+    id: Symbol(),
     ready: false,
     closed: false,
     flushing: false,
@@ -104,12 +113,23 @@ export function startSpan(
   const record: ReportingSpan = {
     ...start,
     session,
+    reference: { id: start.id, sessionId: session.id },
+    parent:
+      start.parent ??
+      session.contexts.get(start.parentId!) ??
+      session.records.get(start.parentId!)?.reference,
   }
   if (root) session.root = record
   else session.nonRootCount++
   session.records.set(record.id, record)
   session.queue.push(() => startOpenTelemetrySpan(record))
   return record
+}
+
+export function retainSpanContext(reference: ReportingSpanContext): void {
+  if (!session.closed && reference.sessionId === session.id) {
+    session.contexts.set(reference.id, reference)
+  }
 }
 
 export function completeSpan(
@@ -141,11 +161,13 @@ function flush(target: ReplaySession): void {
 
 function getParentContext(record: ReportingSpan): SpanContext | undefined {
   return (
-    record.parentContext ??
-    record.session.contexts.get(record.parentId!) ??
+    (record.parent?.sessionId === record.session.id
+      ? record.parent.context
+      : undefined) ??
+    record.session.contexts.get(record.parentId!)?.context ??
     (record === record.session.root || record.parentId === undefined
       ? undefined
-      : record.session.root?.context)
+      : record.session.root?.reference.context)
   )
 }
 
@@ -177,14 +199,7 @@ function startOpenTelemetrySpan(record: ReportingSpan): void {
       },
       context
     )
-    record.context = record.span.spanContext()
-    if (
-      !record.session.closed &&
-      (record.session.records.get(record.id) === record ||
-        !record.session.contexts.has(record.id))
-    ) {
-      record.session.contexts.set(record.id, record.context)
-    }
+    record.reference.context = record.span.spanContext()
   } catch {
     record.failed = true
     warnLoss(record.session)
@@ -210,7 +225,9 @@ function completeOpenTelemetrySpan(
     const { api } = require('./otel-api') as typeof import('./otel-api')
     const parent = getParentContext(record)
     const metricParent =
-      record.context ?? parent ?? record.session.root?.context
+      record.reference.context ??
+      parent ??
+      record.session.root?.reference.context
     reportToolingMeasurements(
       record.name,
       attributes,
@@ -312,12 +329,13 @@ function replayWorkerBatch(
       end: epochTime(
         (BigInt(event.timestamp) + BigInt(event.duration)) * BigInt(1_000)
       ),
-      attributes: event.tags as Attributes,
+      attributes: normalizeTraceAttributes(event.tags),
     }
     const record: ReportingSpan = {
       id,
       parentId,
-      parentContext: parent?.context,
+      parent: parent?.reference,
+      reference: { id, sessionId: target.id },
       name: event.name,
       start: epochTime(BigInt(event.timestamp) * BigInt(1_000)),
       attributes: {
