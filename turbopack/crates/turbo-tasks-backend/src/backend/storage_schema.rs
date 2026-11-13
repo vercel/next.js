@@ -22,6 +22,7 @@ use std::{
     sync::Arc,
 };
 
+use auto_hash_map::EdgeSet;
 use parking_lot::Mutex;
 use rustc_hash::FxHasher;
 use turbo_tasks::{
@@ -75,7 +76,8 @@ struct TaskStorageSchema {
     #[field(storage = "direct", category = "meta", inline, default)]
     aggregation_number: AggregationNumber,
 
-    /// Tasks that depend on this task's output.
+    /// Tasks that depend on this task's output. Like all reverse edges, only added when the
+    /// forward edge is new, so entries are pushed (`push_output_dependent`) without a lookup.
 
     #[field(
         storage = "auto_set",
@@ -84,7 +86,7 @@ struct TaskStorageSchema {
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    output_dependent: AutoSet<TaskId, 4>,
+    output_dependent: EdgeSet<TaskId, 4>,
 
     /// The task's output value.
     /// Filtered during serialization to skip transient outputs (referencing transient tasks).
@@ -255,7 +257,7 @@ struct TaskStorageSchema {
         filter_transient,
         shrink_on_completion
     )]
-    children: AutoSet<TaskId, 6>,
+    children: EdgeSet<TaskId, 6>,
 
     /// Follower nodes in the aggregation tree (reference counted).
     ///
@@ -275,7 +277,7 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    output_dependencies: AutoSet<TaskId, 6>,
+    output_dependencies: EdgeSet<TaskId, 6>,
 
     /// Cells this task depends on as a whole (keyless). The common case; kept separate from
     /// `cell_dependencies_keyed` so it stores a bare `CellRef` instead of a `(CellRef, CellKey)`
@@ -287,7 +289,7 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    cell_dependencies: AutoSet<CellRef, 3>,
+    cell_dependencies: EdgeSet<CellRef, 3>,
 
     /// Cells this task depends on with a `CellKey`. Rare.
     /// - `CellKeyKind::Hash`: narrowed to a hashed sub-value, only invalidated when it changes.
@@ -304,7 +306,7 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    cell_dependencies_keyed: AutoSet<(CellRef, CellKey), 1>,
+    cell_dependencies_keyed: EdgeSet<(CellRef, CellKey), 1>,
 
     /// Collectibles this task depends on.
     #[field(
@@ -314,7 +316,7 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    collectibles_dependencies: AutoSet<CollectiblesRef, 3>,
+    collectibles_dependencies: EdgeSet<CollectiblesRef, 3>,
 
     /// Outdated output dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", drop_on_completion)]
@@ -338,24 +340,38 @@ struct TaskStorageSchema {
     /// Tasks that depend on this task's cells as a whole (keyless). Reverse of
     /// `cell_dependencies`. In a `cell_dependents` entry the `CellRef.task` field holds the
     /// DEPENDENT task's id and `CellRef.cell` is this task's cell (see `CellDependency` docs).
+    /// Entries are pushed, see `output_dependent`.
     #[field(
         storage = "auto_set",
         category = "data",
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    cell_dependents: AutoSet<CellRef, 3>,
+    cell_dependents: EdgeSet<CellRef, 3>,
 
-    /// Tasks that depend on this task's cells with a `CellKey`. Reverse of
-    /// `cell_dependencies_keyed`. `CellKeyKind::Hash` entries are only invalidated when that
-    /// sub-value changes, `CellKeyKind::Provisional` entries like `cell_dependents`.
+    /// Tasks that depend on this task's cells with a `CellKeyKind::Hash` key, only invalidated
+    /// when that sub-value changes. Reverse of `cell_dependencies_keyed`, together with
+    /// `cell_dependents_provisional`. Only grows until the edges become outdated, so it stays a
+    /// flat array even for widely read cells.
     #[field(
         storage = "auto_set",
         category = "data",
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    cell_dependents_keyed: AutoSet<(CellRef, CellKey), 1>,
+    cell_dependents_keyed: EdgeSet<(CellRef, CellKey), 1>,
+
+    /// Tasks that depend on this task's cells with a `CellKeyKind::Provisional` key, invalidated
+    /// like `cell_dependents`. These are removed again soon, when the reader's `KeyedReadRef` or
+    /// `LazyReadRef` is dropped or its execution completes, so they are kept apart from
+    /// `cell_dependents_keyed` in a small hash set.
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        drop_on_completion_if_immutable
+    )]
+    cell_dependents_provisional: AutoSet<(CellRef, CellKey), 1>,
 
     /// Tasks that depend on collectibles of a specific type from this task.
     /// Maps TraitTypeId -> Set<TaskId>
@@ -560,6 +576,11 @@ pub enum KeyEvictability {
 }
 
 impl TaskStorage {
+    /// Whether the task is executing (or about to).
+    pub(crate) fn is_in_progress(&self) -> bool {
+        self.get_in_progress().is_some()
+    }
+
     /// Determine the evictability level of this task based on its flags.
     ///
     /// This checks only the flags on the TaskStorage itself. The caller
@@ -925,11 +946,12 @@ impl TaskStorage {
     ///
     /// The `Data`-category dependent sets are deliberately not consulted:
     ///
-    /// - `cell_dependents` / `cell_dependents_keyed` are redundant with ancestry. A cell dependent
-    ///   is either a child, whose child edge already orders the teardown, or a sibling reached by
-    ///   passing a `ResolvedVc` laterally, which needs a common ancestor that collects both in the
-    ///   same pass. Counting them deadlocked the caller/callee cycle `NftJsonAsset::content` ->
-    ///   `all_assets_from_entries_filtered`, whose tasks could then never be collected.
+    /// - `cell_dependents` / `cell_dependents_keyed` / `cell_dependents_provisional` are redundant
+    ///   with ancestry. A cell dependent is either a child, whose child edge already orders the
+    ///   teardown, or a sibling reached by passing a `ResolvedVc` laterally, which needs a common
+    ///   ancestor that collects both in the same pass. Counting them deadlocked the caller/callee
+    ///   cycle `NftJsonAsset::content` -> `all_assets_from_entries_filtered`, whose tasks could
+    ///   then never be collected.
     /// - `output_dependent` is redundant with `parent_count`. It records a read of a task's
     ///   *output*, which is the `OperationVc` representation, and those reads go through
     ///   `connect()` -- so the reader is already a child. (A `ResolvedVc` read, the one that
@@ -1083,6 +1105,17 @@ where
         self.extend(items)
     }
 }
+impl<V: Copy + Eq + Hash, const I: usize> MergeRestore for EdgeSet<V, I> {
+    type Item = V;
+    fn merge_restore(&mut self, items: impl IntoIterator<Item = Self::Item>) {
+        // The transient residue and the restored persistent entries are disjoint, so append them
+        // without looking them up (or inflating the set).
+        for item in items {
+            self.push(item);
+        }
+        self.shrink_to_fit();
+    }
+}
 
 /// Outcome of a `drop_partial` call: did residue (transient entries that
 /// can't be reconstructed from disk) survive the drop?
@@ -1199,6 +1232,18 @@ impl<T: IsTransient> DropPartial for Option<T> {
 }
 
 impl<T: IsTransient + Hash + Eq, const I: usize> DropPartial for AutoSet<T, I> {
+    fn drop_partial(&mut self) -> DropPartialOutcome {
+        self.retain(|t| t.is_transient());
+        if self.is_empty() {
+            DropPartialOutcome::Empty
+        } else {
+            self.shrink_to_fit();
+            DropPartialOutcome::HasResidue
+        }
+    }
+}
+
+impl<T: IsTransient + Copy + Eq + Hash, const I: usize> DropPartial for EdgeSet<T, I> {
     fn drop_partial(&mut self) -> DropPartialOutcome {
         self.retain(|t| t.is_transient());
         if self.is_empty() {

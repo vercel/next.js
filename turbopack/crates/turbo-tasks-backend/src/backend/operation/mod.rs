@@ -20,9 +20,9 @@ use tracing::info_span;
 #[cfg(feature = "trace_prepare_tasks")]
 use tracing::trace_span;
 use turbo_tasks::{
-    CellId, DynTaskInputs, FxIndexMap, RawVc, SharedReference, TaskExecutionReason, TaskId,
-    TaskPriority, TurboTasks, TurboTasksCallApi, ValueTypePersistence, backend::CachedTaskTypeArc,
-    macro_helpers::NativeFunction,
+    CellId, CellKey, DynTaskInputs, FxIndexMap, RawVc, SharedReference, TaskExecutionReason,
+    TaskId, TaskPriority, TurboTasks, TurboTasksCallApi, ValueTypePersistence,
+    backend::CachedTaskTypeArc, macro_helpers::NativeFunction,
 };
 
 #[cfg(any(test, feature = "verify_aggregation_graph"))]
@@ -38,7 +38,7 @@ use crate::{
         storage::{SpecificTaskDataCategory, StorageWriteGuard, TaskEntryGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    data::{CollectibleRef, Dirtyness, InProgressState, TransientTask},
+    data::{CellRef, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
 
 /// Whether an [`ExecuteContext`] task open may create the task, requires it to already exist, or
@@ -1489,6 +1489,45 @@ impl<'a> TaskGuard<'a> {
             .expect("parent_count underflow: decremented below the number of persistent parents");
         self.set_parent_count(new_value);
         new_value
+    }
+
+    /// Adds a keyed cell dependent, to `cell_dependents_provisional` for a
+    /// [`CellKeyKind::Provisional`] key and to `cell_dependents_keyed` otherwise. The caller
+    /// guarantees it is new (a reverse edge is only added when its forward edge is new), so it is
+    /// pushed.
+    ///
+    /// [`CellKeyKind::Provisional`]: turbo_tasks::CellKeyKind::Provisional
+    pub fn add_keyed_cell_dependent(&mut self, dependent: (CellRef, CellKey)) {
+        if dependent.1.is_provisional() {
+            let _ = self.add_cell_dependents_provisional(dependent);
+        } else {
+            self.push_cell_dependents_keyed(dependent);
+        }
+    }
+
+    /// Removes a keyed cell dependent, see [`Self::add_keyed_cell_dependent`].
+    pub fn remove_keyed_cell_dependent(&mut self, dependent: &(CellRef, CellKey)) -> bool {
+        if dependent.1.is_provisional() {
+            self.remove_cell_dependents_provisional(dependent)
+        } else {
+            self.remove_cell_dependents_keyed(dependent)
+        }
+    }
+
+    /// Whether the task has a keyed cell dependent, see [`Self::add_keyed_cell_dependent`].
+    #[cfg(test)]
+    pub fn has_keyed_cell_dependent(&self, dependent: &(CellRef, CellKey)) -> bool {
+        if dependent.1.is_provisional() {
+            self.cell_dependents_provisional_contains(dependent)
+        } else {
+            self.cell_dependents_keyed_contains(dependent)
+        }
+    }
+
+    /// All keyed cell dependents, provisional or not.
+    pub fn iter_keyed_cell_dependents(&self) -> impl Iterator<Item = (CellRef, CellKey)> + '_ {
+        self.iter_cell_dependents_keyed()
+            .chain(self.iter_cell_dependents_provisional())
     }
 
     /// Like [`Self::update_and_get_parent_count`], but for the transient (session-only) parent
