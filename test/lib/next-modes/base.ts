@@ -1,15 +1,12 @@
 import os from 'os'
 import path from 'path'
-import { randomBytes } from 'crypto'
 import {
   existsSync,
   promises as fs,
   mkdirSync,
   readFileSync,
-  renameSync,
   rmSync,
   statSync,
-  writeFileSync,
 } from 'fs'
 import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
@@ -19,6 +16,7 @@ import { ChildProcess } from 'child_process'
 import spawn from 'cross-spawn'
 import { quote as shellQuote } from 'shell-quote'
 import { createNextInstall } from '../create-next-install'
+import { replaceFile } from '../replace-file'
 import {
   getCommitFromPreviewBuildUrl,
   previewTarballUrl,
@@ -1201,36 +1199,16 @@ export class NextInstance {
       patchedContent = content
     }
 
-    let backupPath: string | undefined
-    if (!newFile && runWithTempContent) {
-      backupPath = `${outputPath}.${randomBytes(4).toString('hex')}.bak`
-    }
-
-    // Never modify files in place: pnpm installs hard links, so a patch could
-    // corrupt its shared store and affect other fixtures. Keep the original
-    // inode for temporary patches and write the replacement as a new file.
-    if (backupPath) {
-      renameSync(outputPath, backupPath)
-    } else if (!newFile) {
-      rmSync(outputPath, { force: true })
-    }
-
-    try {
-      writeFileSync(outputPath, patchedContent, {
-        flush: true,
-        mode: originalStat?.mode,
-      })
-      if (runWithTempContent) {
-        await runWithTempContent({ newFile })
-      }
-    } finally {
-      if (runWithTempContent) {
-        rmSync(outputPath, { force: true })
-        if (backupPath) {
-          renameSync(backupPath, outputPath)
-        }
-      }
-    }
+    // Write the replacement outside of the test directory, so the dev server's
+    // watchers don't see it, and atomically rename it over the target.
+    await replaceFile({
+      outputPath,
+      stagingDir: path.dirname(this.testDir),
+      content: patchedContent,
+      mode: originalStat?.mode,
+      newFile,
+      runWithTempContent,
+    })
 
     return { newFile }
   }

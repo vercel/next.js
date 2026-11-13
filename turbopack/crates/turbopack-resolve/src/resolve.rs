@@ -2,7 +2,7 @@ use anyhow::Result;
 use next_taskless::{BUN_EXTERNALS, EDGE_NODE_EXTERNALS, NODE_EXTERNALS};
 use turbo_rcstr::rcstr;
 use turbo_tasks::Vc;
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 use turbopack_core::resolve::{
     AliasMap, AliasPattern, ExternalTraced, ExternalType, FindContextFileResult, find_context_file,
     options::{
@@ -246,8 +246,14 @@ pub async fn resolve_options(
             TsConfigHandling::Disabled => resolve_options,
             TsConfigHandling::ContextFile => find_tsconfig().await?,
             TsConfigHandling::Fixed(tsconfig_path) => {
-                let meta = tsconfig_path.metadata().await;
-                if meta.is_ok() {
+                // A symlink counts as existing, even if it's dangling: reading it will fail
+                // loudly instead of silently ignoring it. A failure to read the parent directory
+                // is treated like a missing file.
+                let exists = matches!(
+                    tsconfig_path.get_type().await.as_deref(),
+                    Ok(FileSystemEntryType::File | FileSystemEntryType::Symlink)
+                );
+                if exists {
                     // If the file exists, use it.
                     apply_tsconfig_resolve_options(
                         resolve_options,

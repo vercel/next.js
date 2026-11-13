@@ -510,7 +510,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 cjs_static_exports: self.cjs_static_exports,
                 has_direct_eval: self.has_direct_eval,
                 env_var_info: EnvVarInfo {
-                    runtime: self.env_var_info_runtime,
+                    runtime: self.env_var_info_runtime.into(),
                 }
                 .resolved_cell(),
             },
@@ -942,9 +942,7 @@ async fn analyze_ecmascript_module_internal(
             inner_assets,
         };
 
-        fn unreachable_comment() -> RcStr {
-            rcstr!("TURBOPACK unreachable")
-        }
+        static UNREACHABLE_COMMENT: RcStr = rcstr!("TURBOPACK unreachable");
 
         // This is a stack of effects to process. We use a stack since during processing
         // of an effect we might want to add more effects into the middle of the
@@ -970,7 +968,7 @@ async fn analyze_ecmascript_module_internal(
                     );
 
                     analysis.add_code_gen(RemovalCodeGen::new(
-                        unreachable_comment(),
+                        UNREACHABLE_COMMENT.clone(),
                         AstPathRange::StartAfter(analysis.intern_path(&start_ast_path)),
                     ));
                 }
@@ -992,7 +990,7 @@ async fn analyze_ecmascript_module_internal(
                         ($block:ident) => {
                             if analyze_mode.is_codegen {
                                 analysis.add_code_gen(RemovalCodeGen::new(
-                                    unreachable_comment(),
+                                    UNREACHABLE_COMMENT.clone(),
                                     $block.range.clone(),
                                 ));
                             }
@@ -1151,12 +1149,13 @@ async fn analyze_ecmascript_module_internal(
                         .cloned()
                         .unwrap_or(ExportUsage::All);
 
-                    let args = process_effect_args(args, &mut queue_stack);
+                    let (args, mut argument_effects) = process_effect_args(args);
                     handle_call(
                         &ast_path,
                         span,
                         func,
                         args,
+                        &mut argument_effects,
                         &analysis_state,
                         &mut analysis,
                         in_try,
@@ -1165,6 +1164,7 @@ async fn analyze_ecmascript_module_internal(
                         call_usage,
                     )
                     .await?;
+                    add_argument_effects(&mut queue_stack, argument_effects);
                 }
                 Effect::DynamicImport {
                     args,
@@ -1173,7 +1173,8 @@ async fn analyze_ecmascript_module_internal(
                     in_try,
                     export_usage,
                 } => {
-                    let args = process_effect_args(args, &mut queue_stack);
+                    let (args, argument_effects) = process_effect_args(args);
+                    add_argument_effects(&mut queue_stack, argument_effects);
                     handle_dynamic_import(
                         &ast_path,
                         span,
@@ -1249,12 +1250,13 @@ async fn analyze_ecmascript_module_internal(
                         }
                     }
 
-                    let args = process_effect_args(args, &mut queue_stack);
+                    let (args, mut argument_effects) = process_effect_args(args);
                     handle_call(
                         &ast_path,
                         span,
                         func,
                         args,
+                        &mut argument_effects,
                         &analysis_state,
                         &mut analysis,
                         in_try,
@@ -1265,6 +1267,7 @@ async fn analyze_ecmascript_module_internal(
                         ExportUsage::All,
                     )
                     .await?;
+                    add_argument_effects(&mut queue_stack, argument_effects);
                 }
                 Effect::FreeVar {
                     var,
@@ -1729,28 +1732,30 @@ async fn compile_time_info_for_module_options(
     .cell())
 }
 
-// Process all argument effects first so they happen exactly once. If we model the behavior of
-// closures passed to more functions, their effects need to be inlined at the appropriate spot like
-// the Array.prototype.map handling above.
+// Keep argument effects separate until call handling has determined which arguments survive
+// codegen.
 fn process_effect_args<'a>(
     args: BumpVec<'a, EffectArg<'a>>,
-    queue_stack: &mut Vec<Action<'a>>,
-) -> Vec<JsValue<'a>> {
+) -> (Vec<JsValue<'a>>, Vec<BumpBox<'a, [Effect<'a>]>>) {
     args.into_iter()
         .map(|effect_arg| match effect_arg {
-            EffectArg::Value(value) => value,
-            EffectArg::Closure(value, block) => {
-                add_effects(
-                    queue_stack,
-                    BumpVec::from(BumpBox::into_inner(block).effects),
-                );
-                value
-            }
-            EffectArg::Spread => {
-                JsValue::unknown_empty(true, rcstr!("spread is not supported yet"))
-            }
+            EffectArg::Value(value, effects) => (value, effects),
+            EffectArg::Closure(value, block) => (value, BumpBox::into_inner(block).effects),
+            EffectArg::Spread(effects) => (
+                JsValue::unknown_empty(true, rcstr!("spread is not supported yet")),
+                effects,
+            ),
         })
-        .collect()
+        .unzip()
+}
+
+fn add_argument_effects<'a>(
+    queue_stack: &mut Vec<Action<'a>>,
+    argument_effects: Vec<BumpBox<'a, [Effect<'a>]>>,
+) {
+    for effects in argument_effects.into_iter().rev() {
+        add_effects(queue_stack, BumpVec::from(effects));
+    }
 }
 
 async fn handle_call<'a>(
@@ -1758,6 +1763,7 @@ async fn handle_call<'a>(
     span: Span,
     func: JsValue<'a>,
     unlinked_args: Vec<JsValue<'a>>,
+    argument_effects: &mut [BumpBox<'a, [Effect<'a>]>],
     state: &AnalysisState<'a>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     in_try: bool,
@@ -1808,6 +1814,7 @@ async fn handle_call<'a>(
                         new,
                         ValueLinkContext::InAlternative,
                         &linked_args,
+                        argument_effects,
                         handler,
                         span,
                         ignore_dynamic_requests,
@@ -1835,6 +1842,7 @@ async fn handle_call<'a>(
                 new,
                 ValueLinkContext::Default,
                 &linked_args,
+                argument_effects,
                 handler,
                 span,
                 ignore_dynamic_requests,
@@ -2025,6 +2033,7 @@ async fn handle_well_known_function_call<'a, 'l, F, Fut>(
     new: bool,
     link_context: ValueLinkContext,
     linked_args: &F,
+    argument_effects: &mut [BumpBox<'a, [Effect<'a>]>],
     handler: &Handler,
     span: Span,
     ignore_dynamic_requests: bool,
@@ -2112,7 +2121,9 @@ where
                             return Ok(());
                         }
                     }
-                    let error_mode = if in_try {
+                    let error_mode = if attributes.optional {
+                        ResolveErrorMode::Ignore
+                    } else if in_try {
                         ResolveErrorMode::Warn
                     } else {
                         ResolveErrorMode::Error
@@ -2157,6 +2168,17 @@ where
                     }
 
                     if *compile_time_info.environment().rendering().await? == Rendering::Client {
+                        let request = Request::parse(pat).to_resolved().await?;
+                        // If this is a definite Worker/SharedWorker constructor, we're generating
+                        // code rather than only tracing dependencies, and the worker filename is
+                        // known, we can drop the first argument's effects: the worker loader
+                        // replaces the URL, so we don't need its asset copy or import.meta object.
+                        if link_context == ValueLinkContext::Default
+                            && !tracing_only
+                            && request.await?.request().is_some()
+                        {
+                            take(&mut argument_effects[0]);
+                        }
                         let error_mode = if in_try {
                             ResolveErrorMode::Warn
                         } else {
@@ -2165,7 +2187,7 @@ where
                         analysis.add_reference_code_gen(
                             WorkerAssetReference::new_web_worker(
                                 origin,
-                                Request::parse(pat).to_resolved().await?,
+                                request,
                                 issue_source(source, span),
                                 error_mode,
                                 tracing_only,
@@ -4383,7 +4405,12 @@ async fn value_visitor_inner<'a>(
                 rcstr!("ignored SharedWorker constructor"),
             ),
             "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
-            "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
+            "URL" => JsValue::unknown_if(
+                ignore,
+                JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
+                true,
+                rcstr!("ignored URL constructor"),
+            ),
             "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule),
             "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
             "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),

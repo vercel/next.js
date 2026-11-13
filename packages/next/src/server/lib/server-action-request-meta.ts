@@ -12,7 +12,10 @@ export type ServerActionRequestMetadata = {
 }
 
 export function getServerActionRequestMetadata(
-  req: IncomingMessage | BaseNextRequest | NextRequest
+  req: Pick<
+    IncomingMessage | BaseNextRequest | NextRequest,
+    'headers' | 'method'
+  >
 ): ServerActionRequestMetadata {
   let actionId: string | null
   let contentType: string | null

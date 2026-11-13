@@ -65,7 +65,6 @@ import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 
 export { normalizeConfig } from './config-shared'
 import { verifyDistDir } from '../lib/dist-dir'
-import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 export type { DomainLocale, NextConfig } from './config-shared'
 
 const REACT_18_DEPRECATION_WARNING =
@@ -138,7 +137,7 @@ function normalizeNextConfigZodErrors(
         message +=
           '\n`experimental.dynamicIO` has been replaced by `cacheComponents`. Please update your next.config file accordingly.'
         message +=
-          '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents'
+          '\nLearn more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
       }
     }
 
@@ -545,8 +544,8 @@ function assignDefaultsAndValidate(
       rootTtlMs: turbopackGc.rootTtlMs,
     }
   } else {
-    // Enable by default on canary releases.
-    turbopackGcOptions = isStableBuild() ? undefined : {}
+    // Not set by the user: enabled by default with the default timings.
+    turbopackGcOptions = {}
   }
   ;(result as NextConfigComplete).experimental.turbopackGcOptions =
     turbopackGcOptions

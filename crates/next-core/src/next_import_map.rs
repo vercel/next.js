@@ -1202,7 +1202,7 @@ async fn insert_next_shared_aliases(
     );
 
     import_map.insert_alias(
-        AliasPattern::exact(GOOGLE_FONTS_INTERNAL_PREFIX),
+        AliasPattern::exact(GOOGLE_FONTS_INTERNAL_PREFIX.clone()),
         ImportMapping::Dynamic(ResolvedVc::upcast(
             NextFontGoogleFontFileReplacer::new(project_path.clone(), next_mode, fetch_client)
                 .to_resolved()

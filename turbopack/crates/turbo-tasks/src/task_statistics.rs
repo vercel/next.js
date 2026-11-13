@@ -46,6 +46,10 @@ impl TaskStatistics {
         self.with_task_type_statistics(native_fn, |stats| stats.cache_miss += 1)
     }
 
+    pub fn increment_execution(&self, native_fn: &'static NativeFunction) {
+        self.with_task_type_statistics(native_fn, |stats| stats.executions += 1)
+    }
+
     fn with_task_type_statistics(
         &self,
         native_fn: &'static NativeFunction,
@@ -62,8 +66,13 @@ impl TaskStatistics {
 /// Statistics for an individual function.
 #[derive(Default, Serialize, Clone)]
 pub struct TaskFunctionStatistics {
+    /// Calls of the function that found an existing task, in memory or in the persistent cache.
     pub cache_hit: u32,
+    /// Calls of the function that created a new task.
     pub cache_miss: u32,
+    /// How often a task of the function started executing. This also counts re-executions of
+    /// existing tasks, e.g. after an invalidation, which their callers count as a `cache_hit`.
+    pub executions: u32,
 }
 
 impl Serialize for TaskStatistics {

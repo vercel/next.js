@@ -55,6 +55,8 @@ use turbo_tasks::{FunctionId, TaskDirtyCause};
 use turbo_tasks_malloc::TurboMalloc;
 
 use self::eviction::EvictionControl;
+#[cfg(not(target_family = "wasm"))]
+pub use self::operation::aggregation_queue;
 #[cfg(test)]
 pub(crate) use self::storage::TrackOutcome;
 pub use self::{
@@ -72,12 +74,12 @@ use crate::{
         },
         snapshot_coordinator::{OperationGuard, SlowSettle, SnapshotCoordinator},
         storage::{Storage, StorageOptions, encode_snapshot_item},
-        storage_schema::{TaskStorage, TaskStorageAccessors},
+        storage_schema::{ActivenessAccessors, TaskStorage, TaskStorageAccessors},
     },
     backing_storage::SnapshotItem,
     data::{
-        ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
-        InProgressState, InProgressStateInner, LeafDistance, OutputValue, TransientTask,
+        CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState, InProgressState,
+        InProgressStateInner, LeafDistance, OutputValue, TransientTask,
     },
     error::{TaskError, TaskErrorItem},
     kv_backing_storage::TurboBackingStorage,
@@ -503,6 +505,19 @@ impl TurboTasksBackend {
             .unwrap_or(0)
     }
 
+    /// The effective aggregation number of a task (`None` if it doesn't exist). `u32::MAX` means
+    /// the task is an aggregation root. Test-only hook.
+    #[doc(hidden)]
+    pub fn aggregation_number_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Option<u32> {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let task = ctx.try_task(task, TaskDataCategory::Meta)?;
+        Some(get_aggregation_number(&task))
+    }
+
     /// The GC roots set as currently persisted on disk (task id -> [`TtlCounter`]).
     #[doc(hidden)]
     pub fn persisted_gc_roots_for_testing(&self) -> Vec<(TaskId, TtlCounter)> {
@@ -541,6 +556,11 @@ impl TurboTasksBackend {
     fn track_cache_miss_by_fn(&self, native_fn: &'static NativeFunction) {
         self.task_statistics
             .map(|stats| stats.increment_cache_miss(native_fn));
+    }
+
+    fn track_execution_by_fn(&self, native_fn: &'static NativeFunction) {
+        self.task_statistics
+            .map(|stats| stats.increment_execution(native_fn));
     }
 
     /// Reconstructs a full [`TurboTasksExecutionError`] from the compact [`TaskError`] storage
@@ -763,7 +783,7 @@ impl TurboTasksBackend {
             // Check the dirty count of the root node
             let has_dirty_containers = task.has_dirty_containers();
             if has_dirty_containers || is_dirty.is_some() {
-                let activeness = task.get_activeness_mut();
+                let activeness = task.get_activeness_state_mut();
                 let mut task_ids_to_schedule: Vec<_> = Vec::new();
                 // When there are dirty task, subscribe to the all_clean_event
                 let activeness = if let Some(activeness) = activeness {
@@ -781,8 +801,7 @@ impl TurboTasksBackend {
                         task_ids_to_schedule = task.dirty_containers().collect();
                         task_ids_to_schedule.push(task_id);
                     }
-                    let activeness =
-                        task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
+                    let activeness = task.activeness_state_mut_or_insert(task_id);
                     activeness.set_active_until_clean();
                     activeness
                 };
@@ -813,10 +832,15 @@ impl TurboTasksBackend {
                                         InProgressState::Scheduled { .. } => "scheduled",
                                         InProgressState::Canceled => "canceled",
                                     });
-                            let activeness = task.get_activeness().map_or_else(
-                                || "not active".to_string(),
-                                |activeness| format!("{activeness:?}"),
-                            );
+                            let activeness = if task.is_active() {
+                                format!(
+                                    "active count {}, {:?}",
+                                    task.active_count(),
+                                    task.get_activeness_state()
+                                )
+                            } else {
+                                "not active".to_string()
+                            };
                             let aggregation_number = get_aggregation_number(&task);
                             let missing_upper = if let Some((parent_task_id, _)) = parent_and_count
                             {
@@ -941,7 +965,18 @@ impl TurboTasksBackend {
                 #[cfg(feature = "trace_leaf_distance_update")]
                 let mut leaf_distance_span = None;
                 let reader = reader.unwrap();
-                if task.add_output_dependent(reader) {
+                // Note: We use `task_pair` earlier to lock the task and its reader at the same
+                // time. If we didn't and just locked the reader here, an invalidation could occur
+                // between grabbing the locks. If that happened, and if the task is "outdated" or
+                // doesn't have the dependency edge yet, the invalidation would be lost.
+                //
+                // The reader's forward edge tells whether the reverse edge exists: an edge from the
+                // reader's previous execution (outdated) or an earlier read in this execution
+                // already has one, so only a new edge adds it.
+                let is_new_edge = !reader_task.remove_outdated_output_dependencies(&task_id)
+                    && reader_task.add_output_dependencies(task_id);
+                if is_new_edge {
+                    task.push_output_dependent(reader);
                     // Ensure that dependent leaf distance is strictly monotonic increasing.
                     let leaf_distance = task.get_leaf_distance().copied().unwrap_or_default();
                     if let Some(new_reader_leaf_distance) = compute_leaf_distance_update(
@@ -969,15 +1004,6 @@ impl TurboTasksBackend {
                 }
 
                 drop(task);
-
-                // Note: We use `task_pair` earlier to lock the task and its reader at the same
-                // time. If we didn't and just locked the reader here, an invalidation could occur
-                // between grabbing the locks. If that happened, and if the task is "outdated" or
-                // doesn't have the dependency edge yet, the invalidation would be lost.
-
-                if !reader_task.remove_outdated_output_dependencies(&task_id) {
-                    let _ = reader_task.add_output_dependencies(task_id);
-                }
                 drop(reader_task);
 
                 if let Some((reader_leaf_distance, dependents)) = leaf_distance_propagation {
@@ -1046,37 +1072,36 @@ impl TurboTasksBackend {
             if let Some(mut reader_task) = reader_task {
                 let reader = reader.unwrap();
                 let reverse = CellRef { task: reader, cell };
-                match key {
-                    None => {
-                        let _ = task.add_cell_dependents(reverse);
-                    }
-                    Some(key) => {
-                        let _ = task.add_cell_dependents_keyed((reverse, key));
-                    }
-                }
-                drop(task);
 
                 // Note: We use `task_pair` earlier to lock the task and its reader at the same
                 // time. If we didn't and just locked the reader here, an invalidation could occur
                 // between grabbing the locks. If that happened, and if the task is "outdated" or
                 // doesn't have the dependency edge yet, the invalidation would be lost.
-
+                //
+                // The reader's forward edge tells whether the reverse edge exists: an edge from the
+                // reader's previous execution (outdated) or an earlier read in this execution
+                // already has one, so only a new edge adds it.
                 let target = CellRef {
                     task: task_id,
                     cell,
                 };
                 match key {
                     None => {
-                        if !reader_task.remove_outdated_cell_dependencies(&target) {
-                            let _ = reader_task.add_cell_dependencies(target);
+                        if !reader_task.remove_outdated_cell_dependencies(&target)
+                            && reader_task.add_cell_dependencies(target)
+                        {
+                            task.push_cell_dependents(reverse);
                         }
                     }
                     Some(key) => {
-                        if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, key)) {
-                            let _ = reader_task.add_cell_dependencies_keyed((target, key));
+                        if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, key))
+                            && reader_task.add_cell_dependencies_keyed((target, key))
+                        {
+                            task.add_keyed_cell_dependent((reverse, key));
                         }
                     }
                 }
+                drop(task);
                 drop(reader_task);
             }
         }
@@ -1199,14 +1224,17 @@ impl TurboTasksBackend {
         let _ = task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence);
     }
 
-    /// Refines the [`CellKey::Provisional`] dependency of `reader` on `cell` of `task_id` (created
-    /// by a `Vc::keyed_reader()` or `Vc::lazy_reader()` read): it's replaced with
-    /// [`CellKey::Hash`] dependencies on `key_hashes`. With no `key_hashes` (an unaccessed
+    /// Refines the [`CellKeyKind::Provisional`] dependency of `reader` on `cell` of `task_id`
+    /// (created by a `Vc::keyed_reader()` or `Vc::lazy_reader()` read): it's replaced with
+    /// [`CellKeyKind::Hash`] dependencies on `key_hashes`. With no `key_hashes` (an unaccessed
     /// `LazyReadRef`), it's removed.
     ///
     /// When the cell content is currently missing (e.g. while `update_cell` invalidates its
-    /// dependents), the [`CellKey::Provisional`] dependency is kept, conservatively depending on
-    /// the whole cell.
+    /// dependents), the [`CellKeyKind::Provisional`] dependency is kept, conservatively depending
+    /// on the whole cell.
+    ///
+    /// [`CellKeyKind::Provisional`]: turbo_tasks::CellKeyKind::Provisional
+    /// [`CellKeyKind::Hash`]: turbo_tasks::CellKeyKind::Hash
     fn refine_provisional_cell_dependency(
         &self,
         task_id: TaskId,
@@ -1230,8 +1258,8 @@ impl TurboTasksBackend {
             task: task_id,
             cell,
         };
-        let provisional = CellKey::Provisional(id);
-        task.remove_cell_dependents_keyed(&(reverse, provisional));
+        let provisional = CellKey::provisional(id);
+        task.remove_keyed_cell_dependent(&(reverse, provisional));
         reader_task.remove_cell_dependencies_keyed(&(target, provisional));
         reader_task.remove_outdated_cell_dependencies_keyed(&(target, provisional));
         // Immutable tasks never need dependency edges and can never be invalidated.
@@ -1239,16 +1267,18 @@ impl TurboTasksBackend {
             return;
         }
         for k in key_hashes {
-            let key = CellKey::Hash(k);
-            let _ = task.add_cell_dependents_keyed((reverse, key));
-            if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, key)) {
-                let _ = reader_task.add_cell_dependencies_keyed((target, key));
+            let key = CellKey::hash(k);
+            // Only a new forward edge needs its reverse edge, see `try_read_task_cell`.
+            if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, key))
+                && reader_task.add_cell_dependencies_keyed((target, key))
+            {
+                task.add_keyed_cell_dependent((reverse, key));
             }
         }
     }
 
-    /// Converts all [`CellKey::Provisional`] dependencies of `reader` that are still present into
-    /// normal (full) cell dependencies. Called when an execution of `reader` that made
+    /// Converts all [`CellKeyKind::Provisional`] dependencies of `reader` that are still present
+    /// into normal (full) cell dependencies. Called when an execution of `reader` that made
     /// `Vc::keyed_reader()` or `Vc::lazy_reader()` reads completes, as the ids are only meaningful
     /// within that execution.
     ///
@@ -1257,14 +1287,17 @@ impl TurboTasksBackend {
     /// the dependencies are still kept consistent), or when their refinement was refused (see
     /// `refine_provisional_cell_dependency`).
     ///
-    /// A concurrent `update_cell` that collected the [`CellKey::Provisional`] dependent before the
-    /// conversion still invalidates `reader`, as it always invalidates collected
-    /// [`CellKey::Provisional`] dependents.
+    /// A concurrent `update_cell` that collected the [`CellKeyKind::Provisional`] dependent before
+    /// the conversion still invalidates `reader`, as it always invalidates collected
+    /// [`CellKeyKind::Provisional`] dependents.
     ///
     /// Unlike [`Self::refine_provisional_cell_dependency`], which narrows a dependency to
-    /// [`CellKey::Hash`] dependencies and refuses while the cell content is missing, this doesn't
-    /// depend on the cell content and converts to a full dependency (or just removes the edge when
-    /// the cell's task is immutable), so it can't reuse that method.
+    /// [`CellKeyKind::Hash`] dependencies and refuses while the cell content is missing, this
+    /// doesn't depend on the cell content and converts to a full dependency (or just removes the
+    /// edge when the cell's task is immutable), so it can't reuse that method.
+    ///
+    /// [`CellKeyKind::Provisional`]: turbo_tasks::CellKeyKind::Provisional
+    /// [`CellKeyKind::Hash`]: turbo_tasks::CellKeyKind::Hash
     fn convert_remaining_provisional_cell_dependencies_at_task_completion(
         &self,
         ctx: &mut ExecuteContext<'_>,
@@ -1273,7 +1306,7 @@ impl TurboTasksBackend {
         let remaining: SmallVec<[(CellRef, CellKey); 4]> = ctx
             .task(reader, TaskDataCategory::Data)
             .iter_cell_dependencies_keyed()
-            .filter(|(_, key)| matches!(key, CellKey::Provisional(_)))
+            .filter(|(_, key)| key.is_provisional())
             .collect();
         for (target, key) in remaining {
             let reverse = CellRef {
@@ -1284,20 +1317,22 @@ impl TurboTasksBackend {
                 // Not expected (reads of own cells aren't tracked), but don't leave it behind.
                 let mut reader_task = ctx.task(reader, TaskDataCategory::All);
                 reader_task.remove_cell_dependencies_keyed(&(target, key));
-                reader_task.remove_cell_dependents_keyed(&(reverse, key));
+                reader_task.remove_keyed_cell_dependent(&(reverse, key));
                 continue;
             }
             let (mut task, mut reader_task) =
                 ctx.task_pair(target.task, reader, TaskDataCategory::All);
-            task.remove_cell_dependents_keyed(&(reverse, key));
+            task.remove_keyed_cell_dependent(&(reverse, key));
             reader_task.remove_cell_dependencies_keyed(&(target, key));
             // Immutable tasks never need dependency edges and can never be invalidated.
             if task.immutable() && !cfg!(feature = "verify_immutable") {
                 continue;
             }
-            let _ = task.add_cell_dependents(reverse);
-            if !reader_task.remove_outdated_cell_dependencies(&target) {
-                let _ = reader_task.add_cell_dependencies(target);
+            // Only a new forward edge needs its reverse edge, see `try_read_task_cell`.
+            if !reader_task.remove_outdated_cell_dependencies(&target)
+                && reader_task.add_cell_dependencies(target)
+            {
+                task.push_cell_dependents(reverse);
             }
         }
     }
@@ -1814,7 +1849,11 @@ impl TurboTasksBackend {
         // `stopping` has already published `Stopping`, which makes a concurrent idle verification
         // pass bail out.
         #[cfg(feature = "verify_aggregation_graph")]
-        self.verify_aggregation_graph(turbo_tasks, false);
+        {
+            self.verify_aggregation_graph(turbo_tasks, false);
+            // Storage is still alive here and no new aggregation updates can start.
+            self.verify_aggregation_edges();
+        }
         // eagerly drop the task cache before persisting
         self.storage.drop_task_cache();
         if self.should_persist()
@@ -2284,6 +2323,11 @@ impl TurboTasksBackend {
                     task.iter_collectibles_dependencies().collect();
                 task.set_outdated_collectibles_dependencies(outdated_collectibles_dependencies);
             }
+
+            // `connect_child` looks up every child the execution connects in the previous
+            // execution's `children`, which completion flattened: switch a large set to a hash
+            // table for that. The completion flattens it again.
+            task.children_inflate();
         }
 
         let (span, future) = match task_type {
@@ -2293,6 +2337,7 @@ impl TurboTasksBackend {
                     this,
                     arg,
                 } = &*task_type;
+                self.track_execution_by_fn(native_fn);
                 (
                     native_fn.span(
                         task_id.persistence(),
@@ -2394,8 +2439,9 @@ impl TurboTasksBackend {
                 || !ctx
                     .task(task_id, TaskDataCategory::Data)
                     .iter_cell_dependencies_keyed()
-                    .any(|(_, key)| matches!(key, CellKey::Provisional(_))),
-            "`CellKey::Provisional` dependencies must be converted when the execution completes"
+                    .any(|(_, key)| key.is_provisional()),
+            "`CellKeyKind::Provisional` dependencies must be converted when the execution \
+             completes"
         );
 
         let TaskExecutionCompletePrepareResult {
@@ -2966,10 +3012,7 @@ impl TurboTasksBackend {
             return Some(stale_priority);
         }
 
-        let has_active_count = ctx.should_track_activeness()
-            && task
-                .get_activeness()
-                .is_some_and(|activeness| activeness.active_counter > 0);
+        let has_active_count = ctx.should_track_activeness() && task.has_positive_active_count();
         connect_children(
             ctx,
             task_id,
@@ -3485,53 +3528,62 @@ impl TurboTasksBackend {
     ) -> AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1> {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut collectibles = AutoMap::default();
+        // Lock the reader together with the task, so that reading the collectibles and making the
+        // reader's dependency on them current happen atomically. Otherwise a collectibles change in
+        // between would still see the dependency as outdated (not read yet) and make the reader
+        // dirty, but not stale. The reader's execution would then complete with the collectibles
+        // it read before the change, and its dirty flag would be cleared.
+        let (mut task, mut reader) = match reader_id {
+            Some(reader_id) if reader_id != task_id => {
+                let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
+                (task, Some(reader))
+            }
+            _ => (ctx.task(task_id, TaskDataCategory::All), None),
+        };
+        if task
+            .get_persistent_task_type()
+            .is_some_and(|t| !t.native_fn.is_root)
         {
-            let mut task = ctx.task(task_id, TaskDataCategory::All);
-            if task
-                .get_persistent_task_type()
-                .is_some_and(|t| !t.native_fn.is_root)
-            {
-                drop(task);
-                panic!(
-                    "Reading collectibles of non-root task {} (reader: {}). The `root` attribute \
-                     is missing on the task.",
-                    self.debug_get_task_description(task_id),
-                    reader_id.map_or_else(
-                        || "unknown".to_string(),
-                        |r| self.debug_get_task_description(r)
-                    )
-                );
+            drop(task);
+            drop(reader);
+            panic!(
+                "Reading collectibles of non-root task {} (reader: {}). The `root` attribute is \
+                 missing on the task.",
+                self.debug_get_task_description(task_id),
+                reader_id.map_or_else(
+                    || "unknown".to_string(),
+                    |r| self.debug_get_task_description(r)
+                )
+            );
+        }
+        for (collectible, count) in task.iter_aggregated_collectibles() {
+            if *count > 0 && collectible.collectible_type == collectible_type {
+                *collectibles
+                    .entry(RawVc::task_cell(
+                        collectible.cell.task,
+                        collectible.cell.cell,
+                    ))
+                    .or_insert(0) += 1;
             }
-            for (collectible, count) in task.iter_aggregated_collectibles() {
-                if *count > 0 && collectible.collectible_type == collectible_type {
-                    *collectibles
-                        .entry(RawVc::task_cell(
-                            collectible.cell.task,
-                            collectible.cell.cell,
-                        ))
-                        .or_insert(0) += 1;
-                }
-            }
-            for (&collectible, &count) in task.iter_collectibles() {
-                if collectible.collectible_type == collectible_type {
-                    *collectibles
-                        .entry(RawVc::task_cell(
-                            collectible.cell.task,
-                            collectible.cell.cell,
-                        ))
-                        .or_insert(0) += count;
-                }
-            }
-            if let Some(reader_id) = reader_id {
-                let _ = task.add_collectibles_dependents((collectible_type, reader_id));
+        }
+        for (&collectible, &count) in task.iter_collectibles() {
+            if collectible.collectible_type == collectible_type {
+                *collectibles
+                    .entry(RawVc::task_cell(
+                        collectible.cell.task,
+                        collectible.cell.cell,
+                    ))
+                    .or_insert(0) += count;
             }
         }
         if let Some(reader_id) = reader_id {
-            let mut reader = ctx.task(reader_id, TaskDataCategory::Data);
+            let _ = task.add_collectibles_dependents((collectible_type, reader_id));
             let target = CollectiblesRef {
                 task: task_id,
                 collectible_type,
             };
+            // A task reading its own collectibles uses the same guard for both roles.
+            let reader = reader.as_mut().unwrap_or(&mut task);
             if !reader.remove_outdated_collectibles_dependencies(&target) {
                 let _ = reader.add_collectibles_dependencies(target);
             }
@@ -3720,13 +3772,13 @@ impl TurboTasksBackend {
         let is_dirty = task.is_dirty();
         let has_dirty_containers = task.has_dirty_containers();
         if is_dirty.is_some() || has_dirty_containers {
-            if let Some(activeness_state) = task.get_activeness_mut() {
+            if let Some(activeness_state) = task.get_activeness_state_mut() {
                 // We will finish the task, but it would be removed after the task is done
                 activeness_state.unset_root_type();
                 activeness_state.set_active_until_clean();
             };
         } else {
-            if let Some(activeness_state) = task.take_activeness() {
+            if let Some(activeness_state) = task.take_all_activeness() {
                 // Technically nobody should be listening to this event, but just in case
                 // we notify it anyway
                 activeness_state.all_clean_event.notify(usize::MAX);
@@ -3738,6 +3790,30 @@ impl TurboTasksBackend {
             if !old_edges.is_empty() {
                 cleanup_old_edges(task_id, old_edges, AggregationUpdateQueue::new(), &mut ctx);
             }
+        }
+    }
+
+    /// Verifies the aggregation edges of all resident tasks (see
+    /// [`operation::verify_aggregation_edges`]). Must only be called when no aggregation updates
+    /// run.
+    #[cfg(any(test, feature = "verify_aggregation_graph"))]
+    pub(crate) fn verify_aggregation_edges(&self) {
+        if std::env::var("TURBO_ENGINE_VERIFY_GRAPH").ok().as_deref() == Some("0") {
+            return;
+        }
+        let violations =
+            operation::verify_aggregation_edges(&self.storage.aggregation_edges_for_verification());
+        if !violations.is_empty() {
+            panic!(
+                "The aggregation edges are inconsistent ({} violations):\n{}",
+                violations.len(),
+                violations
+                    .iter()
+                    .take(20)
+                    .map(String::as_str)
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            );
         }
     }
 

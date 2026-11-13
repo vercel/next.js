@@ -259,6 +259,28 @@ fn be_key_u64(key: &[u8]) -> u64 {
     u64::from_be_bytes(key.try_into().expect("8-byte key"))
 }
 
+/// Stably sorts `entries` by a key that `pack` combines with the entry's index into one integer
+/// (the key in the high bits), which `index` recovers.
+///
+/// Each key is read once and the dense packed integers are sorted, instead of sorting the entries
+/// with a key extracting comparator, which reads both keys through their entries on every
+/// comparison. The index in the low bits breaks ties, so an unstable sort of the integers gives
+/// the stable order.
+fn sort_by_packed_key<T: Copy, P: Ord + Copy>(
+    entries: &mut [T],
+    pack: impl Fn(T, usize) -> P,
+    index: impl Fn(P) -> usize,
+) {
+    let mut packed: Vec<P> = entries
+        .iter()
+        .enumerate()
+        .map(|(i, &entry)| pack(entry, i))
+        .collect();
+    packed.sort_unstable();
+    let sorted: Vec<T> = packed.iter().map(|&p| entries[index(p)]).collect();
+    entries.copy_from_slice(&sorted);
+}
+
 /// Trait for entries from that SST files can be created
 pub trait Entry {
     /// Returns the hash of the key
@@ -1018,8 +1040,16 @@ impl<E: Entry> StreamingSstWriter<E> {
             let mut entries: Vec<&PendingEntry<E>> = pending_keys.range(start..end).collect();
             // Stable sort is important to preserve relative order of tombstones
             match info.uniform_key_len() {
-                Some(4) => entries.sort_by_key(|&e| be_key_u32(e.entry.key_bytes())),
-                Some(8) => entries.sort_by_key(|&e| be_key_u64(e.entry.key_bytes())),
+                Some(4) => sort_by_packed_key(
+                    &mut entries,
+                    |e, index| u64::from(be_key_u32(e.entry.key_bytes())) << 32 | index as u64,
+                    |packed| packed as u32 as usize,
+                ),
+                Some(8) => sort_by_packed_key(
+                    &mut entries,
+                    |e, index| u128::from(be_key_u64(e.entry.key_bytes())) << 64 | index as u128,
+                    |packed| packed as u64 as usize,
+                ),
                 _ => entries.sort_by_key(|&e| e.entry.key_bytes()),
             }
             Either::Right(entries.into_iter())
@@ -1479,6 +1509,36 @@ impl<W: Write> IndexBlockBuilder<W> {
     fn put(&mut self, hash: u64, block: u16) {
         self.writer.write_u64::<BE>(hash).unwrap();
         self.writer.write_u16::<BE>(block).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod sort_by_packed_key_tests {
+    use super::sort_by_packed_key;
+
+    /// Equal keys keep their order, like the stable sort the writer used before.
+    #[test]
+    fn test_is_stable() {
+        // (key, original position), with few distinct keys so most are duplicates.
+        let entries: Vec<(u64, usize)> = (0..1000).map(|i| ((i * 7919 % 13) as u64, i)).collect();
+        let mut expected = entries.clone();
+        expected.sort_by_key(|e| e.0);
+
+        let mut by_u32 = entries.clone();
+        sort_by_packed_key(
+            &mut by_u32,
+            |e, index| (e.0 << 32) | index as u64,
+            |packed| packed as u32 as usize,
+        );
+        assert_eq!(by_u32, expected);
+
+        let mut by_u64 = entries;
+        sort_by_packed_key(
+            &mut by_u64,
+            |e, index| (u128::from(e.0 | 1 << 63) << 64) | index as u128,
+            |packed| packed as u64 as usize,
+        );
+        assert_eq!(by_u64, expected);
     }
 }
 
@@ -2436,6 +2496,89 @@ mod tests {
         // Corrupt a byte in the first block's data (after the 8-byte header)
         corrupt_sst_byte(dir.path(), 1, BLOCK_HEADER_SIZE as u64 + 1);
         assert_corruption_detected(dir.path(), 1, &meta, &entries);
+    }
+
+    /// Overwriting the directory entry of any non-index block of a real SST with an offset
+    /// outside the data section must make lookup in every access mode and file-backed iteration
+    /// fail to open it, with the block-offset validation error rather than a panic or later error.
+    #[test]
+    fn corrupt_block_offsets_are_rejected_on_open() -> Result<()> {
+        let mut entries = vec![TestEntry::medium(b"medium", &vec![0xAB; 8192])];
+        for i in 0..64u32 {
+            entries.push(TestEntry::small(
+                format!("small-{i:04}").as_bytes(),
+                &[i as u8; 64],
+            ));
+        }
+        sort_entries(&mut entries);
+
+        let dir = tempfile::tempdir()?;
+        let written = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        let meta = StaticSortedFileMetaData {
+            sequence_number: 1,
+            block_count: written.block_count,
+        };
+        assert!(
+            meta.block_count >= 3,
+            "expected value, key and index blocks, got {} blocks",
+            meta.block_count
+        );
+        let path = dir.path().join("00000001.sst");
+        let original = std::fs::read(&path)?;
+        let directory_start = original.len() - usize::from(meta.block_count) * size_of::<u32>();
+        // Sanity check: the uncorrupted file reads back with the expected values.
+        let sst = open_sst(dir.path(), 1, &written)?;
+        let kc = make_cache();
+        let vc = make_cache();
+        for entry in &entries {
+            assert_lookup(&sst, entry, &kc, &vc)?;
+        }
+        // The caches can hold blocks that reference the mapping, so release them with the file
+        // before the file is rewritten below.
+        drop((sst, kc, vc));
+
+        let access_modes: &[crate::AccessMode] = &[
+            #[cfg(feature = "mmap")]
+            crate::AccessMode::Mmap,
+            crate::AccessMode::File,
+        ];
+        for block_index in 0..usize::from(meta.block_count) - 1 {
+            for bad_end in [u32::MAX, directory_start as u32 + 4] {
+                let mut bytes = original.clone();
+                let entry = directory_start + block_index * size_of::<u32>();
+                bytes[entry..entry + size_of::<u32>()].copy_from_slice(&bad_end.to_be_bytes());
+                std::fs::write(&path, &bytes)?;
+                for &access_mode in access_modes {
+                    let errors = [
+                        StaticSortedFile::open(dir.path(), meta, Compression::Lz4, access_mode)
+                            .err(),
+                        crate::static_sorted_file::StaticSortedFileIter::open(
+                            dir.path(),
+                            meta,
+                            Compression::Lz4,
+                        )
+                        .err(),
+                    ];
+                    for err in errors {
+                        let err = err.unwrap_or_else(|| {
+                            panic!(
+                                "block {block_index}, end {bad_end} ({access_mode:?}): a corrupt \
+                                 block offset was accepted"
+                            )
+                        });
+                        let message = format!("{err:#}");
+                        // Raising one block's end either makes the next block go backwards, or
+                        // (for the last data block) pushes the blocks past the table.
+                        assert!(
+                            message.contains("shorter than its")
+                                || message.contains("past the start of its block-offset table"),
+                            "block {block_index}, end {bad_end} ({access_mode:?}): {message}"
+                        );
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     #[test]

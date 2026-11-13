@@ -82,8 +82,8 @@ export type NextConfigComplete = Required<
       instantInsights: { validationLevel: ValidationLevel }
       // Normalized by finalized config with a default and the expected type
       turbopackMemoryEvictionMode: MemoryEvictionMode
-      // Normalized by config.ts: `false`/unset becomes `undefined` (GC off),
-      // `true` becomes `{}` (GC on with default timings)
+      // Normalized by config.ts: `false` becomes `undefined` (GC off),
+      // `true`/unset becomes `{}` (GC on with default timings)
       turbopackGcOptions: TurbopackGcOptions | undefined
     }
     // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
@@ -844,9 +844,8 @@ export interface ExperimentalConfig {
    * Enables Turbopack's garbage collector, which deletes unreachable
    * tasks from the persistent cache and from memory.
    *
-   *
-   * - `false` (default): never collect.
-   * - `true`: collect
+   * - `false`: never collect.
+   * - `true` (default): collect
    * - An object: collect, overriding individual timings.
    *   - `minProgressMs`: how long a GC pass runs before it will honour an
    *     interrupt. Defaults to 100ms.
@@ -905,6 +904,7 @@ export interface ExperimentalConfig {
   /**
    * Minify each module separately instead of each finished chunk, so minification runs in
    * parallel and is cached per module. The trade-off is slightly worse compression.
+   * Chunking then sizes modules by their minified code, see `turbopackChunking`.
    * Defaults to false. Only applies to production builds.
    */
   turbopackMinifyBeforeChunking?: boolean
@@ -919,6 +919,10 @@ export interface ExperimentalConfig {
   /**
    * (`next --turbopack` only) These options change the assumptions Turbopack makes when
    * making chunk merging decisions and the raw size thresholds it uses.
+   *
+   * Sizes are measured on unminified code, or on minified code when
+   * `turbopackMinifyBeforeChunking` applies. In that case the default sizes and request cost
+   * below are scaled down to match; values set here are used as-is.
    */
   turbopackChunking?: {
     /**

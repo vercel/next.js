@@ -36,7 +36,7 @@ const REST_CHARS: &[u8; 64] = b"_$0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij
 /// then emits the same `.f` / `.f()` byte sequences, which gzip's back-references pick up across
 /// the whole bundle. The cost is that going from one export to two renames this one; that churn is
 /// accepted deliberately in exchange for the compression.
-const SINGLE_ITEM_IDENTIFIER: RcStr = rcstr!("f");
+static SINGLE_ITEM_IDENTIFIER: RcStr = rcstr!("f");
 
 /// Keys that are never handed out, for two different reasons.
 ///
@@ -227,7 +227,7 @@ pub fn shorten_to_unique_names<'a>(
         return if bucket_of(name, 1).is_some() {
             FrozenMap::default()
         } else {
-            FrozenMap::from_iter([((*name).clone(), SINGLE_ITEM_IDENTIFIER)])
+            FrozenMap::from_iter([((*name).clone(), SINGLE_ITEM_IDENTIFIER.clone())])
         };
     }
 

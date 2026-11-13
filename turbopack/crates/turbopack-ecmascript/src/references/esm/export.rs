@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, ops::ControlFlow};
+use std::{cmp::Ordering, collections::BTreeMap, ops::ControlFlow};
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
@@ -14,9 +14,11 @@ use swc_core::{
 };
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, turbofmt};
+use turbo_tasks::{
+    FxIndexMap, KeyedReadRef, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, turbofmt,
+};
 use turbopack_core::{
-    chunk::{ChunkingContext, ModuleChunkItemIdExt},
+    chunk::{ChunkingContext, ModuleChunkItemIdExt, UnusedReferences},
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, analyze::AnalyzeIssue},
     module::{Module, ModuleSideEffects},
@@ -670,37 +672,64 @@ async fn compact_reference_target(
     Ok(Some(((namespace_ident, ctxt), asset)))
 }
 
-/// Collects the exports into one group per source module, or returns `None` if any export does not
-/// fit the compact shape (a plain, immutable forward of a named binding out of an in-graph module)
-/// so the caller falls back to the general registration.
+/// A keyed read of `UnusedReferences` for the references of one module, so export code generation
+/// only depends on the entries of its own references, not on the whole map: a change to the unused
+/// references of another module doesn't invalidate it. A module without references doesn't read the
+/// map at all, which is the case for most modules.
+struct UnusedReferencesRead(Option<KeyedReadRef<UnusedReferences>>);
+
+impl UnusedReferencesRead {
+    async fn new(
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        reference_count: usize,
+    ) -> Result<Self> {
+        Ok(Self(if reference_count == 0 {
+            None
+        } else {
+            Some(chunking_context.unused_references().keyed_reader().await?)
+        }))
+    }
+
+    fn contains(&self, reference: &ResolvedVc<Box<dyn ModuleReference>>) -> bool {
+        self.0
+            .as_ref()
+            .is_some_and(|unused_references| unused_references.contains_key(reference))
+    }
+}
+
+/// Orders the exports by key and groups adjacent exports forwarded from the same module, or returns
+/// `None` if any export does not fit the compact shape (a plain, immutable forward of a named
+/// binding out of an in-graph module) so the caller falls back to the general registration.
 async fn build_compact_reexports(
     exports: &FrozenMap<RcStr, EsmExport>,
     mangled_names: Option<&FrozenMap<RcStr, RcStr>>,
     eval_context: &EvalContext,
     mode: ExportRegistrationMode,
     synthetic_references: Option<SyntheticReexportReferences<'_>>,
+    unused_references: &UnusedReferencesRead,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     scope_hoisting_context: ScopeHoistingContext<'_>,
 ) -> Result<Option<CompactReexports>> {
-    let unused_references = chunking_context.unused_references().await?;
     let locally_bound: FxHashSet<usize> = eval_context
         .imports
         .locally_bound_reference_idxs()
         .collect();
 
     // Keyed by the namespace variable, which names the resolved module: two exports forwarded from
-    // the same module share a group even when they came from different `export ... from` clauses.
-    let mut groups: FxIndexMap<NamespaceKey, ReexportGroup> = FxIndexMap::default();
+    // the same module share a source even when they came from different `export ... from` clauses.
+    let mut sources: FxIndexMap<NamespaceKey, ReexportSource> = FxIndexMap::default();
+    // `(exported key, key on the source module, index into `sources`)`.
+    let mut pairs: Vec<(RcStr, RcStr, usize)> = Vec::new();
     let mut synthetic_order: FxIndexMap<NamespaceKey, usize> = FxIndexMap::default();
     let mut positions_known = true;
 
     if let Some((part_references, esm_references)) = synthetic_references {
         // Structural part references run first. A retained facade locals reference may have no
-        // forwarded names at all, but the empty group still imports it for evaluation. Do not add
-        // a group for a reference the usage graph pruned: its target may not exist in this chunk,
+        // forwarded names at all, but its source still imports it for evaluation. Do not add
+        // a source for a reference the usage graph pruned: its target may not exist in this chunk,
         // and its code generation deliberately emits no namespace binding either.
         for (order, reference) in part_references.iter().enumerate() {
-            if unused_references.contains_key(&ResolvedVc::upcast(*reference)) {
+            if unused_references.contains(&ResolvedVc::upcast(*reference)) {
                 continue;
             }
 
@@ -719,15 +748,16 @@ async fn build_compact_reexports(
                 }
 
                 synthetic_order.entry(key.clone()).or_insert(order);
-                groups.entry(key.clone()).or_insert_with(|| ReexportGroup {
-                    order,
-                    namespace_ident: key.0,
-                    ctxt: key.1,
-                    asset,
-                    locally_bound: false,
-                    reference_spans: FxHashSet::default(),
-                    pairs: Vec::new(),
-                });
+                sources
+                    .entry(key.clone())
+                    .or_insert_with(|| ReexportSource {
+                        order,
+                        namespace_ident: key.0,
+                        ctxt: key.1,
+                        asset,
+                        locally_bound: false,
+                        reference_spans: FxHashSet::default(),
+                    });
             }
         }
 
@@ -735,7 +765,7 @@ async fn build_compact_reexports(
         for (index, reference) in esm_references.iter().enumerate() {
             // Unused re-exports are absent from the module ID map and cannot contribute
             // an import or a source-order position to the compact registration.
-            if unused_references.contains_key(&ResolvedVc::upcast(*reference)) {
+            if unused_references.contains(&ResolvedVc::upcast(*reference)) {
                 continue;
             }
 
@@ -758,7 +788,7 @@ async fn build_compact_reexports(
         // The usage graph can prune a re-export's target even though its name is still
         // present in the facade's expanded export list. Do not generate a module ID for
         // a target that was excluded from chunking.
-        if unused_references.contains_key(esm_ref) {
+        if unused_references.contains(esm_ref) {
             continue;
         }
         if *mutable {
@@ -811,44 +841,99 @@ async fn build_compact_reexports(
             0
         };
 
-        let group = groups.entry(key).or_insert_with(|| ReexportGroup {
+        let entry = sources.entry(key);
+        let source_index = entry.index();
+        let source = entry.or_insert_with(|| ReexportSource {
             order,
             namespace_ident,
             ctxt,
             asset,
             locally_bound: false,
             reference_spans: FxHashSet::default(),
-            pairs: Vec::new(),
         });
-        group.order = group.order.min(order);
+        source.order = source.order.min(order);
         if let Some(idx) = idx {
-            group.locally_bound |= locally_bound.contains(&idx);
-            group
+            source.locally_bound |= locally_bound.contains(&idx);
+            source
                 .reference_spans
                 .insert(eval_context.imports.reference_span(idx));
         }
-        group.pairs.push((exported_key, imported_key));
+        pairs.push((exported_key, imported_key, source_index));
     }
 
-    if groups.is_empty() {
+    if sources.is_empty() {
         return Ok(None);
     }
+    let sources: Vec<ReexportSource> = sources.into_values().collect();
 
-    let mut groups: Vec<ReexportGroup> = groups.into_values().collect();
-    groups.sort_by_key(|g| g.order);
+    // The runtime defines the namespace properties in list order, and a module namespace object
+    // must list its keys in code unit order. Adjacent exports from the same module share a group.
+    pairs.sort_by(|(a, ..), (b, ..)| cmp_code_units(a, b));
+    let mut groups: Vec<ReexportGroup> = Vec::new();
+    for (exported, imported, source) in pairs {
+        match groups.last_mut() {
+            Some(group) if group.source == source => group.pairs.push((exported, imported)),
+            _ => groups.push(ReexportGroup {
+                source,
+                pairs: vec![(exported, imported)],
+            }),
+        }
+    }
+
+    // A group whose head is a module id evaluates that module, so the imports can only be subsumed
+    // when the groups follow the import order and no module heads more than one group. A strictly
+    // increasing order guarantees both.
+    let source_order = |group: &ReexportGroup| sources.get(group.source).map(|source| source.order);
+    let groups_in_import_order = groups.is_sorted_by(
+        |a, b| matches!((source_order(a), source_order(b)), (Some(a), Some(b)) if a < b),
+    );
+
+    if groups_in_import_order {
+        // A module without forwarded names still contributes an evaluation-only group, at its
+        // import position. When the groups are not in import order, the imports are kept, which
+        // already evaluate such a module.
+        let mut has_group = vec![false; sources.len()];
+        for group in &groups {
+            if let Some(has_group) = has_group.get_mut(group.source) {
+                *has_group = true;
+            }
+        }
+        groups.extend(
+            has_group
+                .iter()
+                .enumerate()
+                .filter(|(_, has_group)| !**has_group)
+                .map(|(source, _)| ReexportGroup {
+                    source,
+                    pairs: Vec::new(),
+                }),
+        );
+        groups.sort_by_key(|group| source_order(group));
+    }
 
     // A scope-hoisted factory contains several logical modules. Another registration in the same
     // factory may still read a namespace imported by this one, so suppression is only safe when
-    // this module owns its factory. Unknown relative order is safe only for one group.
+    // this module owns its factory. Unknown relative order is safe only for one source.
     let subsume_imports = mode == ExportRegistrationMode::Reexport
         && scope_hoisting_context.module().is_none()
-        && (positions_known || groups.len() == 1)
-        && !groups.iter().any(|group| group.locally_bound);
+        && (positions_known || sources.len() == 1)
+        && groups_in_import_order
+        && !sources.iter().any(|source| source.locally_bound);
 
     Ok(Some(CompactReexports {
+        sources,
         groups,
         subsume_imports,
     }))
+}
+
+/// Compares two strings by UTF-16 code units, the order ECMAScript uses for module namespace keys.
+/// This differs from `str`'s UTF-8 byte order for characters outside the Basic Multilingual Plane.
+fn cmp_code_units(a: &str, b: &str) -> Ordering {
+    if a.is_ascii() && b.is_ascii() {
+        return a.cmp(b);
+    }
+    a.encode_utf16().cmp(b.encode_utf16())
 }
 
 /// Builds the `TURBOPACK_ESM_REEXPORT` call and reports which references it subsumes.
@@ -861,6 +946,9 @@ async fn emit_compact_reexports(
     let mut subsumed = SubsumedImports::default();
 
     for (i, group) in compact.groups.iter().enumerate() {
+        let Some(source) = compact.sources.get(group.source) else {
+            bail!("compact re-export group refers to a missing source");
+        };
         // Both names of every pair are recovered by splitting on commas in the compact spelling,
         // so select that spelling independently for each group whose names are all comma-free.
         let comma_free = group
@@ -874,20 +962,20 @@ async fn emit_compact_reexports(
         }
 
         if compact.subsume_imports {
-            let id = group.asset.chunk_item_id(chunking_context).await?;
+            let id = source.asset.chunk_item_id(chunking_context).await?;
             elems.push(Some(module_id_to_lit(&id).into()));
             subsumed
                 .namespaces
-                .insert((group.namespace_ident.clone(), group.ctxt));
+                .insert((source.namespace_ident.clone(), source.ctxt));
             subsumed
                 .evaluation_spans
-                .extend(group.reference_spans.iter().copied());
+                .extend(source.reference_spans.iter().copied());
         } else {
             elems.push(Some(
                 Expr::Ident(Ident::new(
-                    group.namespace_ident.clone().into(),
+                    source.namespace_ident.clone().into(),
                     DUMMY_SP,
-                    group.ctxt.unwrap_or_default(),
+                    source.ctxt.unwrap_or_default(),
                 ))
                 .into(),
             ));
@@ -943,10 +1031,18 @@ async fn emit_compact_reexports(
     ))
 }
 
-/// One source module's contribution to a compact re-export registration: the module the exports
-/// come from, and the `exported name -> name on that module` pairs taken from it.
+/// A run of adjacent entries in a compact re-export registration that are forwarded from the same
+/// module: the `exported name -> name on that module` pairs, in code unit order of the exported
+/// names. A module whose exports interleave with another module's heads several groups.
 struct ReexportGroup {
-    /// Lowest binding-reference index among this group's exports. Binding references retain their
+    /// Index into [`CompactReexports::sources`].
+    source: usize,
+    pairs: Vec<(RcStr, RcStr)>,
+}
+
+/// A module that exports are forwarded from in a compact re-export registration.
+struct ReexportSource {
+    /// Lowest binding-reference index among this module's exports. Binding references retain their
     /// relative declaration order even though evaluation references occupy a separate index range.
     order: usize,
     /// The variable an already-generated import bound to this module's namespace.
@@ -958,13 +1054,12 @@ struct ReexportGroup {
     locally_bound: bool,
     /// Source spans of the re-export declarations whose evaluation references are subsumed.
     reference_spans: FxHashSet<Span>,
-    pairs: Vec<(RcStr, RcStr)>,
 }
 
-/// Identifies the namespace variable a group reads from. The syntax context is part of the key
+/// Identifies the namespace variable a source is read from. The syntax context is part of the key
 /// because two merged modules can import the same target under the same generated name in
 /// different hygiene contexts, which the import code generation also keys on -- merging those into
-/// one group would read the wrong variable and suppress both declarations.
+/// one source would read the wrong variable and suppress both declarations.
 pub(crate) type NamespaceKey = (String, Option<SyntaxContext>);
 
 type SyntheticReexportReferences<'a> = (
@@ -997,6 +1092,7 @@ pub(crate) struct SubsumedImports {
 
 /// A compact registration, ready to emit.
 struct CompactReexports {
+    sources: Vec<ReexportSource>,
     groups: Vec<ReexportGroup>,
     /// Whether the group heads are module ids (the registration performs the imports itself) or
     /// namespace objects (the imports stay where they are).
@@ -1014,11 +1110,25 @@ impl EsmExports {
         synthetic_references: Option<SyntheticReexportReferences<'_>>,
         is_async_module: bool,
     ) -> Result<(CodeGeneration, SubsumedImports)> {
-        let unused_references = chunking_context.unused_references().await?;
         let export_usage_info = chunking_context
             .module_export_usage(*ResolvedVc::upcast(module))
             .await?;
         let expanded = self.expand_exports(*export_usage_info.export_usage).await?;
+        let reference_count = expanded
+            .exports
+            .values()
+            .filter(|export| {
+                matches!(
+                    export,
+                    EsmExport::ImportedBinding(..) | EsmExport::ImportedNamespace(_)
+                )
+            })
+            .count()
+            + synthetic_references.map_or(0, |(part_references, esm_references)| {
+                part_references.len() + esm_references.len()
+            });
+        let unused_references =
+            UnusedReferencesRead::new(chunking_context, reference_count).await?;
 
         if scope_hoisting_context.skip_module_exports() && expanded.dynamic_exports.is_empty() {
             // If the current module is not exposed, no need to generate exports.
@@ -1095,6 +1205,7 @@ impl EsmExports {
                 eval_context,
                 export_registration_mode,
                 synthetic_references,
+                &unused_references,
                 chunking_context,
                 scope_hoisting_context,
             )
@@ -1110,7 +1221,7 @@ impl EsmExports {
         for (exported, local) in &expanded.exports {
             if let EsmExport::ImportedBinding(reference, ..)
             | EsmExport::ImportedNamespace(reference) = local
-                && unused_references.contains_key(reference)
+                && unused_references.contains(reference)
             {
                 continue;
             }
