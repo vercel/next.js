@@ -671,14 +671,12 @@ function getValueType(value: unknown): string {
  * Calls a single generateStaticParams function within a WorkUnitStore context,
  * making root param getters available during static param generation.
  */
-async function callGenerateStaticParams(
-  route: string,
-  generateStaticParams: NonNullable<AppSegment['generateStaticParams']>,
+async function runGenerateStaticParams<T>(
+  generateStaticParams: (options: { params?: Params }) => Promise<T>,
   parentParams: Params,
   rootParamKeys: readonly string[],
-  implicitTags: ImplicitTags,
-  isStaticExport: boolean
-): Promise<Params[]> {
+  implicitTags: ImplicitTags
+): Promise<T> {
   const rootParams: Params = {}
   for (const key of rootParamKeys) {
     if (key in parentParams) {
@@ -694,12 +692,16 @@ async function callGenerateStaticParams(
     rootParams,
   }
 
-  const generatedParams: unknown = await workUnitAsyncStorage.run(
-    workUnitStore,
-    generateStaticParams,
-    { params: parentParams }
-  )
+  return workUnitAsyncStorage.run(workUnitStore, generateStaticParams, {
+    params: parentParams,
+  })
+}
 
+function validateGeneratedStaticParams(
+  route: string,
+  generatedParams: unknown,
+  isStaticExport: boolean
+): Params[] {
   if (!Array.isArray(generatedParams)) {
     throw new Error(
       `Invalid value returned from generateStaticParams for "${route}". Expected an array, but received type ${getValueType(generatedParams)}. See more info here: https://nextjs.org/docs/messages/generate-static-params`
@@ -721,6 +723,49 @@ async function callGenerateStaticParams(
   }
 
   return generatedParams
+}
+
+async function callGenerateStaticParams(
+  route: string,
+  generateStaticParams: NonNullable<AppSegment['generateStaticParams']>,
+  parentParams: Params,
+  rootParamKeys: readonly string[],
+  implicitTags: ImplicitTags,
+  isStaticExport: boolean
+): Promise<Params[]> {
+  const generatedParams = await runGenerateStaticParams(
+    generateStaticParams,
+    parentParams,
+    rootParamKeys,
+    implicitTags
+  )
+  return validateGeneratedStaticParams(route, generatedParams, isStaticExport)
+}
+
+function getParamGenerationInfo(
+  pathnameSegments: ReadonlyArray<{ readonly paramName: string }>,
+  routeParams: readonly Params[],
+  metadataParentParams?: readonly Params[]
+) {
+  const generatedParamNames = new Set<string>()
+  const missingParamNames = new Set<string>()
+  for (const [index, { paramName }] of pathnameSegments.entries()) {
+    // The final metadata parameter is the compiler-owned ID. Its generation
+    // evidence must still come from complete metadata URLs, while authored
+    // parameters can have allowed values without any current metadata IDs.
+    const paramsToCheck =
+      metadataParentParams && index < pathnameSegments.length - 1
+        ? metadataParentParams
+        : routeParams
+    for (const params of paramsToCheck) {
+      if (paramName in params) {
+        generatedParamNames.add(paramName)
+      } else {
+        missingParamNames.add(paramName)
+      }
+    }
+  }
+  return { generatedParamNames, missingParamNames }
 }
 
 /**
@@ -1037,28 +1082,46 @@ export async function buildAppStaticPaths({
     }
   }
 
-  const routeParams = await workAsyncStorage.run(
-    store,
-    generateRouteStaticParams,
-    segments,
-    store,
-    isRoutePPREnabled,
-    rootParamKeys,
-    nextConfigOutput === 'export'
-  )
-  const generatedParamNames = new Set<string>()
-  const missingParamNames = new Set<string>()
-  if (routeParams.length > 0) {
-    for (const { paramName } of pathnameRouteParamSegments) {
-      for (const params of routeParams) {
-        if (paramName in params) {
-          generatedParamNames.add(paramName)
-        } else {
-          missingParamNames.add(paramName)
+  const { routeParams, parentParams: metadataParentParams } =
+    await workAsyncStorage.run(store, async () => {
+      const leafSegment = segments[segments.length - 1]
+      if (leafSegment?.generateMetadataStaticParams) {
+        if (leafSegment.config?.fetchCache !== undefined) {
+          store.fetchCache = leafSegment.config.fetchCache
         }
+        const result = await runGenerateStaticParams(
+          leafSegment.generateMetadataStaticParams,
+          {},
+          rootParamKeys,
+          await getImplicitTags(store.page, store.route, null)
+        )
+        validateGeneratedStaticParams(
+          store.route,
+          result.routeParams,
+          nextConfigOutput === 'export'
+        )
+        if (result.routeParams.length === 0 && isRoutePPREnabled) {
+          throwEmptyGenerateStaticParamsError(
+            leafSegment.createEmptyParamsError
+          )
+        }
+        return result
       }
-    }
-  }
+      return {
+        routeParams: await generateRouteStaticParams(
+          segments,
+          store,
+          isRoutePPREnabled,
+          rootParamKeys,
+          nextConfigOutput === 'export'
+        ),
+        parentParams: undefined,
+      }
+    })
+  const { generatedParamNames, missingParamNames } = getParamGenerationInfo(
+    pathnameRouteParamSegments,
+    routeParams
+  )
   // An explicitly prerenderable parameter also makes its unconfigured prefix
   // prerenderable, even without build-time examples. Only the unconfigured
   // suffix after this boundary can remain permanently dynamic.
@@ -1094,11 +1157,18 @@ export async function buildAppStaticPaths({
   }
 
   if (paramMatching) {
+    const matchingInfo = metadataParentParams
+      ? getParamGenerationInfo(
+          pathnameRouteParamSegments,
+          routeParams,
+          metadataParentParams
+        )
+      : { generatedParamNames, missingParamNames }
     validateParamMatchingParams(
       page,
       paramMatching,
-      generatedParamNames,
-      missingParamNames,
+      matchingInfo.generatedParamNames,
+      matchingInfo.missingParamNames,
       pathnameRouteParamSegments,
       nextConfigOutput
     )
@@ -1132,7 +1202,7 @@ export async function buildAppStaticPaths({
       false,
       closedSegments,
       [],
-      routeParams
+      metadataParentParams ?? routeParams
     )
     routeHandlerParamMatching = {
       paramNames: closedSegments.map(({ paramName }) => paramName),

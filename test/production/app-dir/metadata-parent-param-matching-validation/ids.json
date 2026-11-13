@@ -1,0 +1,9 @@
+{
+  "images": {
+    "empty": [],
+    "with-image": ["old"],
+    "empty-all": [],
+    "outside": ["outside"]
+  },
+  "sitemaps": []
+}
