@@ -613,6 +613,13 @@ impl Storage {
         }
     }
 
+    /// Shared (read-locked) access to an already resident task. Returns `None` if the task isn't
+    /// resident. Many threads can hold this for the same task concurrently, unlike
+    /// [`Self::access_mut`]. The guard must not be held while acquiring any other `map` lock.
+    pub fn access_read(&self, key: TaskId) -> Option<StorageReadGuard<'_>> {
+        self.map.get(&key).map(|inner| StorageReadGuard { inner })
+    }
+
     /// Read-only access to an already resident task. Returns `None` if the task isnt in memory
     /// resident. The closure runs while a shard read lock is held, so it must be cheap and must
     /// not re-enter the map.
@@ -998,6 +1005,52 @@ impl StorageWriteGuard<'_> {
                 }
             }
         }
+    }
+}
+
+/// A shared lock on a task's storage. See [`Storage::access_read`].
+pub struct StorageReadGuard<'a> {
+    inner: dashmap::mapref::one::Ref<'a, TaskId, Box<TaskStorage>>,
+}
+
+impl Deref for StorageReadGuard<'_> {
+    type Target = TaskStorage;
+
+    fn deref(&self) -> &Self::Target {
+        self.inner.value()
+    }
+}
+
+impl crate::backend::storage_schema::TaskStorageAccessors for StorageReadGuard<'_> {
+    fn typed(&self) -> &TaskStorage {
+        self.inner.value()
+    }
+
+    fn typed_mut(&mut self) -> &mut TaskStorage {
+        unreachable!("StorageReadGuard is read-only")
+    }
+
+    fn track_modification(
+        &mut self,
+        _category: SpecificTaskDataCategory,
+        _name: &str,
+    ) -> TrackOutcome {
+        unreachable!("StorageReadGuard is read-only")
+    }
+
+    fn undo_track_modification(&mut self, _outcome: TrackOutcome) {
+        unreachable!("StorageReadGuard is read-only")
+    }
+
+    #[track_caller]
+    fn check_access(&self, category: SpecificTaskDataCategory) {
+        debug_assert!(
+            self.inner
+                .value()
+                .flags
+                .is_restored(TaskDataCategory::from(category)),
+            "read of {category:?} that is not restored"
+        );
     }
 }
 
