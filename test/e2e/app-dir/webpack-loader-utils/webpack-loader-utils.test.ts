@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('webpack-loader-utils', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
     dependencies: {
       'style-loader': '4.0.0',
@@ -26,7 +26,11 @@ describe('webpack-loader-utils', () => {
         hashFunction: 'xxhash64',
         hashDigest: 'hex',
         hashDigestLength: 16,
-        hashSalt: null,
+        // Non-adapter deployments retain the unset salt.
+        hashSalt:
+          isNextDeploy && process.env.NEXT_ENABLE_ADAPTER === '1'
+            ? 'initial'
+            : null,
       },
       paths: [
         'styles/panel.module.css?theme=dark#button',
