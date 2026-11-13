@@ -1,0 +1,54 @@
+# Checks examples/auth: typecheck, build, and an end-to-end sign-in test.
+# The sign-in test needs a free Mockatoo test account in the MOCK_EMAIL and
+# MOCK_PASSWORD secrets (https://app.mockatoo.globalunderdog.com/signup).
+# Without them, for example on pull requests from forks, it's skipped.
+name: examples-auth
+
+on:
+  push:
+    paths:
+      - 'examples/auth/**'
+      - '.github/workflows/examples-auth.yml'
+  pull_request:
+    paths:
+      - 'examples/auth/**'
+      - '.github/workflows/examples-auth.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      MOCK_EMAIL: ${{ secrets.MOCK_EMAIL }}
+      MOCK_PASSWORD: ${{ secrets.MOCK_PASSWORD }}
+    defaults:
+      run:
+        working-directory: examples/auth
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: examples/auth
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+      - run: npm install
+      - run: npx tsc --noEmit
+      - run: npx next build
+        env:
+          AUTH_SECRET: build-only
+          AUTH_GITHUB_ID: build-only
+          AUTH_GITHUB_SECRET: build-only
+      - name: Skip the sign-in test without credentials
+        if: env.MOCK_EMAIL == ''
+        run: echo "::notice::MOCK_EMAIL and MOCK_PASSWORD are not set, so the sign-in test is skipped."
+      - if: env.MOCK_EMAIL != ''
+        run: npx playwright install --with-deps chromium
+      - name: Sign-in test
+        if: env.MOCK_EMAIL != ''
+        run: |
+          export AUTH_SECRET="$(openssl rand -base64 32)"
+          npm run test:e2e
+        env:
+          CI: true
