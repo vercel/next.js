@@ -93,6 +93,22 @@ describe('Trace', () => {
   })
 
   describe('Tracer', () => {
+    it('keeps attribute serializers out of file-only capture', () => {
+      const toJSON = jest.fn(() => ({ serialized: true }))
+      const metadata = { toJSON }
+      const root = trace('file-only', undefined, { metadata })
+      const child = root.traceChild('file-only-child')
+      child.setAttribute('metadata', metadata)
+      child.stop()
+      root.stop()
+
+      expect(toJSON).not.toHaveBeenCalled()
+      expect(getTraceEvents()).toMatchObject([
+        { name: 'file-only-child', parentId: root.getId(), tags: { metadata } },
+        { name: 'file-only', tags: { metadata } },
+      ])
+    })
+
     it('keeps epoch end times separate from monotonic stop times', () => {
       const start = Date.now()
       const end = start + 5
