@@ -335,6 +335,30 @@ describe('front-server process', () => {
       )
     })
 
+    it('reaches Node over a Unix socket in a private directory', async () => {
+      const { child, port, exit } = await startNext({ flag: '1' })
+      const { stdout } = await execFileAsync('ps', [
+        '-o',
+        'args=',
+        '-p',
+        `${await frontOf(child.pid!)}`,
+      ])
+      const socketPath = /--upstream unix:(\S+)/.exec(stdout)?.[1]
+      expect(socketPath).toBeDefined()
+      const dir = path.dirname(socketPath!)
+      expect((await fs.stat(dir)).mode & 0o777).toBe(0o700)
+      expect((await fs.stat(socketPath!)).isSocket()).toBe(true)
+
+      const { status, text } = await getText(port)
+      expect(status).toBe(200)
+      expect(text).toContain('hello world')
+
+      // Removed on a graceful exit.
+      process.kill(child.pid!, 'SIGTERM')
+      await exit
+      await expect(fs.stat(dir)).rejects.toThrow()
+    })
+
     it('exits 1 when next-front dies', async () => {
       const { child, exit } = await startNext({ flag: '1' })
       process.kill(await frontOf(child.pid!), 'SIGKILL')

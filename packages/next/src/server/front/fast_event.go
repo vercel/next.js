@@ -623,11 +623,18 @@ func (l *eventLoop) acquire(c *eventClient) (*eventUpstream, error) {
 		if u.ec.closed {
 			continue
 		}
-		var probe [1]byte
-		_, _, probeError := syscall.Recvfrom(u.ec.fd, probe[:], syscall.MSG_PEEK|syscall.MSG_DONTWAIT)
-		if !wouldBlock(probeError) {
-			l.closeConn(u.ec)
-			continue
+		// Check that Node hasn't closed a connection that sat idle for a
+		// while. Node closes idle connections only after its keep-alive
+		// timeout, so one used moments ago is still open, and the check
+		// would cost a syscall on nearly every request. While draining,
+		// Node may be closing idle connections, so always check.
+		if l.now.Sub(u.ec.last) >= l.server.probeAfter || l.server.draining.Load() {
+			var probe [1]byte
+			_, _, probeError := syscall.Recvfrom(u.ec.fd, probe[:], syscall.MSG_PEEK|syscall.MSG_DONTWAIT)
+			if !wouldBlock(probeError) {
+				l.closeConn(u.ec)
+				continue
+			}
 		}
 		u.client = c
 		u.reused = true
@@ -656,7 +663,7 @@ func (l *eventLoop) connect(c *eventClient) (*eventUpstream, error) {
 	if err != nil {
 		return nil, err
 	}
-	configureEventSocket(fd, true)
+	configureEventSocket(fd, l.server.family != syscall.AF_UNIX)
 	err = syscall.Connect(fd, l.server.upstreamAddr)
 	if err != nil && err != syscall.EINPROGRESS {
 		syscall.Close(fd)

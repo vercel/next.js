@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -23,10 +24,18 @@ type reactorFixture struct {
 	front     *frontend
 	done      chan error
 	upstreams atomic.Int64 // connections Node (the stub) accepted
+	// closeNodeConns closes every connection the stub holds.
+	closeNodeConns func()
 }
 
 // startReactor is startProxy for the reactor.
 func startReactor(t *testing.T, handler http.HandlerFunc, tweak ...func(*config)) *reactorFixture {
+	t.Helper()
+	return startReactorWith(t, handler, false, tweak...)
+}
+
+// startReactorWith reaches the stub upstream over a Unix socket when unix is set.
+func startReactorWith(t *testing.T, handler http.HandlerFunc, unix bool, tweak ...func(*config)) *reactorFixture {
 	t.Helper()
 	fx := &reactorFixture{seen: make(chan received, 64), done: make(chan error, 1)}
 	upstream := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -43,14 +52,29 @@ func startReactor(t *testing.T, handler http.HandlerFunc, tweak ...func(*config)
 			fx.upstreams.Add(1)
 		}
 	}
+	fx.closeNodeConns = upstream.CloseClientConnections
+	upstreamAddr := ""
+	if unix {
+		path := filepath.Join(t.TempDir(), "node.sock")
+		unixListener, err := net.Listen("unix", path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		upstream.Listener.Close()
+		upstream.Listener = unixListener
+		upstreamAddr = "unix:" + path
+	}
 	upstream.Start()
 	t.Cleanup(upstream.Close)
+	if !unix {
+		upstreamAddr = upstream.Listener.Addr().String()
+	}
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := config{upstream: upstream.Listener.Addr().String(), idleTimeout: 5 * time.Second, headerTimeout: 5 * time.Second, upstreamIdle: 4 * time.Second}
+	cfg := config{upstream: upstreamAddr, idleTimeout: 5 * time.Second, headerTimeout: 5 * time.Second, upstreamIdle: 4 * time.Second}
 	for _, f := range tweak {
 		f(&cfg)
 	}
@@ -471,5 +495,49 @@ func TestReactorForwardsWhatNetHTTPForwards(t *testing.T) {
 				t.Errorf("reactor forwarded\n  %q %q %v\nnet/http forwarded\n  %q %q %v", got.requestURI, got.host, got.header, want.requestURI, want.host, want.header)
 			}
 		})
+	}
+}
+
+func TestReactorReachesNodeOverAUnixSocket(t *testing.T) {
+	payload := bytes.Repeat([]byte("x"), 256<<10)
+	fx := startReactorWith(t, func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		fmt.Fprintf(w, "%s %s %d", r.Method, r.Header.Get("X-Forwarded-For"), len(b))
+	}, true)
+	conn, reader := dial(t, fx.addr)
+	for i := 0; i < 20; i++ {
+		io.WriteString(conn, keepAliveGet("/"))
+		if _, body := readBody(t, reader); body != "GET 127.0.0.1 0" {
+			t.Fatalf("body %q", body)
+		}
+	}
+	fmt.Fprintf(conn, "POST / HTTP/1.1\r\nHost: x\r\nContent-Length: %d\r\n\r\n", len(payload))
+	conn.Write(payload)
+	if _, body := readBody(t, reader); body != fmt.Sprintf("POST 127.0.0.1 %d", len(payload)) {
+		t.Errorf("body %q", body)
+	}
+	if n := fx.upstreams.Load(); n != 1 {
+		t.Errorf("Node accepted %d connections, want 1", n)
+	}
+	// The net/http path dials the same socket.
+	io.WriteString(conn, "POST / HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nabc\r\n0\r\n\r\n")
+	if _, body := readBody(t, reader); body != "POST 127.0.0.1 3" {
+		t.Errorf("handed-off body %q", body)
+	}
+}
+
+// Node closing pooled connections it considers idle must not fail requests,
+// including ones that are not retried.
+func TestReactorSurvivesNodeClosingPooledConnections(t *testing.T) {
+	fx := startReactor(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, r.Method) })
+	conn, reader := dial(t, fx.addr)
+	for i := 0; i < 5; i++ {
+		io.WriteString(conn, "POST / HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\n\r\n")
+		if res, body := readBody(t, reader); res.StatusCode != 200 || body != "POST" {
+			t.Fatalf("status %d body %q", res.StatusCode, body)
+		}
+		// Close every connection Node holds, as its keep-alive timer would.
+		fx.closeNodeConns()
+		time.Sleep(50 * time.Millisecond)
 	}
 }

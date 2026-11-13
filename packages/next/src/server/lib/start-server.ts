@@ -160,6 +160,8 @@ export type PrivateServer = {
   port: number
   keepAliveTimeout: number
   headersTimeout: number
+  /** Connections emitted on it are served like ones it accepted. */
+  server: import('net').Server
 }
 
 /** The address clients use, when it isn't the one this server listens on. */
@@ -381,6 +383,7 @@ export async function startServer(
             port,
             keepAliveTimeout: server.keepAliveTimeout,
             headersTimeout: server.headersTimeout,
+            server,
           })
         } catch (err) {
           Log.error(`Failed to start server`)
