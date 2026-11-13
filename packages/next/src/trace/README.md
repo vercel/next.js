@@ -34,6 +34,8 @@ Local trace files and Request Insights remain independent of build registration 
 
 Registration drains one bounded queue through the normal tracer API with the original timestamps. Later starts and completions use the same queue and drain immediately. Worker batches resolve their selected parent order when ingested. Metrics use the normal meter API independently of the tracer provider.
 
+Numeric parent lookup retains span contexts until the session closes, including after parent completion. Completed non-root payloads and SDK spans are released independently.
+
 The queue guard defers work created by synchronous SDK callbacks until the current item returns. It holds at most 1,000 spans before registration, with one slot reserved for the root. Full queues warn and drop external reporting without dropping local traces. Closing drops pending records without fabricating completion times for unfinished work.
 
 ## Tests

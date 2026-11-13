@@ -43,6 +43,7 @@ type ReplaySession = {
   nonRootCount: number
   root?: ReportingSpan
   records: Map<number, ReportingSpan>
+  contexts: Map<number, SpanContext>
   queue: Array<() => void>
 }
 
@@ -51,6 +52,7 @@ export type ReportingSpan = ReportingStart & {
   completion?: ReportingCompletion
   span?: Span
   context?: SpanContext
+  parentContext?: SpanContext
   done?: boolean
   failed?: boolean
 }
@@ -66,6 +68,7 @@ function createSession(): ReplaySession {
     warned: false,
     nonRootCount: 0,
     records: new Map(),
+    contexts: new Map(),
     queue: [],
   }
 }
@@ -84,7 +87,7 @@ export function startSpan(
 ): ReportingSpan | undefined {
   if (suppressed) return
   if (root && (session.root || session.closed)) {
-    session.closed = true
+    closeReporting()
     session = createSession()
   }
   if (session.closed) return
@@ -138,7 +141,8 @@ function flush(target: ReplaySession): void {
 
 function getParentContext(record: ReportingSpan): SpanContext | undefined {
   return (
-    record.session.records.get(record.parentId!)?.context ??
+    record.parentContext ??
+    record.session.contexts.get(record.parentId!) ??
     (record === record.session.root || record.parentId === undefined
       ? undefined
       : record.session.root?.context)
@@ -174,6 +178,13 @@ function startOpenTelemetrySpan(record: ReportingSpan): void {
       context
     )
     record.context = record.span.spanContext()
+    if (
+      !record.session.closed &&
+      (record.session.records.get(record.id) === record ||
+        !record.session.contexts.has(record.id))
+    ) {
+      record.session.contexts.set(record.id, record.context)
+    }
   } catch {
     record.failed = true
     warnLoss(record.session)
@@ -193,9 +204,9 @@ function completeOpenTelemetrySpan(
   record: ReportingSpan,
   completion: ReportingCompletion
 ): void {
-  if (record.failed) return
-  const attributes = completionAttributes(completion.attributes)
   try {
+    if (record.failed) return
+    const attributes = completionAttributes(completion.attributes)
     const { api } = require('./otel-api') as typeof import('./otel-api')
     const parent = getParentContext(record)
     const metricParent =
@@ -218,6 +229,10 @@ function completeOpenTelemetrySpan(
     if (completion.status) span.setStatus(completion.status)
     else if (attributes.failed === true) span.setStatus({ code: 2 })
     span.end(toHrTime(completion.end))
+  } catch {
+    record.failed = true
+    warnLoss(record.session)
+  } finally {
     record.span = undefined
     if (
       record !== record.session.root &&
@@ -225,10 +240,6 @@ function completeOpenTelemetrySpan(
     ) {
       record.session.records.delete(record.id)
     }
-  } catch {
-    record.failed = true
-    record.span = undefined
-    warnLoss(record.session)
   }
 }
 
@@ -240,9 +251,7 @@ export function configureState(
   if (offset) epochOffset = BigInt(offset)
   suppressed = worker
   if (worker) {
-    session.closed = true
-    session.queue.length = 0
-    session.records.clear()
+    closeReporting()
   }
 }
 
@@ -257,6 +266,7 @@ export function closeReporting(): void {
   session.closed = true
   session.queue.length = 0
   session.records.clear()
+  session.contexts.clear()
 }
 
 export function replayWorkerEvents(
@@ -307,6 +317,7 @@ function replayWorkerBatch(
     const record: ReportingSpan = {
       id,
       parentId,
+      parentContext: parent?.context,
       name: event.name,
       start: epochTime(BigInt(event.timestamp) * BigInt(1_000)),
       attributes: {
@@ -319,7 +330,6 @@ function replayWorkerBatch(
       completion,
     }
     records.set(id, record)
-    if (parent?.context) target.records.set(parentId!, parent)
     startOpenTelemetrySpan(record)
     completeOpenTelemetrySpan(record, completion)
     return record
