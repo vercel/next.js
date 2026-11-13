@@ -682,6 +682,137 @@ describe('server-hmr', () => {
       })
     })
   })
+
+  describe('new export on an already-evaluated module', () => {
+    async function fetchJson(pathname: string) {
+      const res = await next.fetch(pathname)
+      expect(res.status).toBe(200)
+      return res.json()
+    }
+
+    it('exposes the new export to a newly added route handler', async () => {
+      const initial = await fetchJson('/api/new-export/alpha')
+      expect(initial.result).toBe('alpha:x')
+      const outputLengthBeforePatch = next.cliOutput.length
+
+      await next.patchFile(
+        'app/api/new-export/shared.ts',
+        (content) =>
+          content +
+          `
+export function gamma(input: string) {
+  return 'gamma:' + input
+}
+`,
+        async () => {
+          await next.patchFile(
+            'app/api/new-export/gamma/route.ts',
+            `import { gamma } from '../shared'
+import { evaluatedAt } from '../unmodified'
+
+export async function GET() {
+  return Response.json({ result: gamma('h'), evaluatedAt })
+}
+`,
+            async () => {
+              await retry(async () => {
+                expect(await fetchJson('/api/new-export/gamma')).toEqual({
+                  result: 'gamma:h',
+                  // The unmodified module should NOT have been re-evaluated
+                  evaluatedAt: initial.evaluatedAt,
+                })
+              })
+              expect(
+                next.cliOutput.slice(outputLengthBeforePatch)
+              ).not.toContain('is not a function')
+            }
+          )
+        }
+      )
+    })
+
+    it('exposes the new export to an existing route handler', async () => {
+      expect(await fetchJson('/api/new-export-existing')).toEqual({
+        result: 'alpha:x',
+      })
+      const outputLengthBeforePatch = next.cliOutput.length
+
+      await next.patchFile(
+        'app/api/new-export-existing/shared.ts',
+        (content) =>
+          content +
+          `
+export function gamma(input: string) {
+  return 'gamma:' + input
+}
+`,
+        async () => {
+          await next.patchFile(
+            'app/api/new-export-existing/route.ts',
+            (content) =>
+              content
+                .replace(
+                  "import { alpha } from './shared'",
+                  "import { alpha, gamma } from './shared'"
+                )
+                .replace("alpha('x')", "alpha('x') + ',' + gamma('h')"),
+            async () => {
+              await retry(async () => {
+                expect(await fetchJson('/api/new-export-existing')).toEqual({
+                  result: 'alpha:x,gamma:h',
+                })
+              })
+              expect(
+                next.cliOutput.slice(outputLengthBeforePatch)
+              ).not.toContain('is not a function')
+            }
+          )
+        }
+      )
+    })
+
+    // `'use cache'` requires Cache Components.
+    // @force-gate cacheComponents
+    it('exposes a new `use cache` export to a newly added route handler', async () => {
+      expect(await fetchJson('/api/new-export-cached/alpha')).toEqual({
+        result: 'alpha:x',
+      })
+      const outputLengthBeforePatch = next.cliOutput.length
+
+      await next.patchFile(
+        'app/api/new-export-cached/shared.ts',
+        (content) =>
+          content +
+          `
+export async function gamma(input: string) {
+  'use cache'
+  return 'gamma:' + input
+}
+`,
+        async () => {
+          await next.patchFile(
+            'app/api/new-export-cached/gamma/route.ts',
+            `import { gamma } from '../shared'
+
+export async function GET() {
+  return Response.json({ result: await gamma('h') })
+}
+`,
+            async () => {
+              await retry(async () => {
+                expect(await fetchJson('/api/new-export-cached/gamma')).toEqual(
+                  { result: 'gamma:h' }
+                )
+              })
+              expect(
+                next.cliOutput.slice(outputLengthBeforePatch)
+              ).not.toContain('is not a function')
+            }
+          )
+        }
+      )
+    })
+  })
 })
 
 // The server Fast Refresh opt-out only applies to Turbopack.
