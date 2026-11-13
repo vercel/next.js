@@ -3,9 +3,7 @@ use bincode::{Decode, Encode};
 use indoc::formatdoc;
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    Completion, Completions, ResolvedVc, TryFlatJoinIterExt, Vc, fxindexmap, turbofmt,
-};
+use turbo_tasks::{Completion, Completions, ResolvedVc, TryFlatJoinIterExt, Vc, turbofmt};
 use turbo_tasks_fs::{
     DiskFileSystem, File, FileContent, FileSystemEntryType, FileSystemPath,
     json::parse_json_with_source_context,
@@ -20,7 +18,7 @@ use turbopack_core::{
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{FindContextFileResult, find_context_file_or_package_key, options::ImportMapping},
     source::Source,
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, SourceMapType},
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
@@ -400,7 +398,7 @@ async fn postcss_executor(
     let config_asset = asset_context
         .process(
             config_loader_source(project_path, postcss_config_path.clone()),
-            ReferenceType::Entry(EntryReferenceSubType::Undefined),
+            ReferenceType::Entry(EntryReferenceSubType::default()),
         )
         .module()
         .to_resolved()
@@ -413,9 +411,7 @@ async fn postcss_executor(
                 .await?,
             turbofmt!("?config={postcss_config_path}").await?,
         )),
-        ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-            rcstr!("CONFIG") => config_asset
-        })),
+        ReferenceType::Internal(ResolvedVc::cell([(rcstr!("CONFIG"), config_asset)].into())),
     ))
 }
 
@@ -454,10 +450,10 @@ async fn find_config_in_location(
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for PostCssTransformedAsset {
     #[turbo_tasks::function]
-    async fn generate_source_map(&self) -> Result<Vc<FileContent>> {
+    async fn generate_source_map(&self, ty: SourceMapType) -> Result<Vc<FileContent>> {
         let source = ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(self.source);
         match source {
-            Some(source) => Ok(source.generate_source_map()),
+            Some(source) => Ok(source.generate_source_map(ty)),
             None => Ok(FileContent::NotFound.cell()),
         }
     }

@@ -554,17 +554,13 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
 
         let path = self.db_path.join(format!("{seq:08}.sst"));
-        let (meta, file) = self
-            .parallel_scheduler
-            .block_in_place(|| {
-                write_static_stored_file(
-                    entries,
-                    &path,
-                    MetaEntryFlags::FRESH,
-                    self.family_configs[usize_from_u32(family)].compression,
-                )
-            })
-            .with_context(|| format!("Unable to write SST file {seq:08}.sst"))?;
+        let (meta, file) = write_static_stored_file(
+            entries,
+            &path,
+            MetaEntryFlags::FRESH,
+            self.family_configs[usize_from_u32(family)].compression,
+        )
+        .with_context(|| format!("Unable to write SST file {seq:08}.sst"))?;
 
         #[cfg(feature = "verify_sst_content")]
         {

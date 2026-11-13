@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
+    atoms::atom,
     common::DUMMY_SP,
     ecma::ast::{Expr, Ident},
     quote,
@@ -15,7 +16,8 @@ use turbopack_core::chunk::ChunkingContext;
 use crate::{
     ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
-    create_visitor, magic_identifier,
+    create_visitor,
+    magic_identifier::MAGIC_IDENTIFIER_IMPORT_META_STR,
     runtime_functions::{TURBOPACK_MODULE, TURBOPACK_RESOLVE_FILE_URL},
 };
 
@@ -212,7 +214,7 @@ fn encode_path(path: &'_ str) -> Cow<'_, str> {
 
 fn meta_ident() -> Ident {
     Ident::new(
-        magic_identifier::mangle("import.meta").into(),
+        atom!(MAGIC_IDENTIFIER_IMPORT_META_STR),
         DUMMY_SP,
         Default::default(),
     )

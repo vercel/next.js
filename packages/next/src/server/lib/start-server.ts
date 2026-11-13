@@ -455,7 +455,6 @@ export async function startServer(
                   telemetry.flushDetached({
                     mode: 'dev',
                     dir,
-                    distDir: null,
                     events: null,
                   })
                 }
@@ -716,6 +715,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         nextServerReady: true,
         port: process.env.PORT,
         distDir: result.distDir,
+        telemetryDisabled: process.env.NEXT_TELEMETRY_DISABLED,
       })
     }
   })

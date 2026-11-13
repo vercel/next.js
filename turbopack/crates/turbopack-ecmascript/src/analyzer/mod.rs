@@ -515,7 +515,10 @@ mod tests {
                     let mut new_args = Vec::with_capacity(args.len());
                     for arg in args {
                         match arg {
-                            EffectArg::Value(v) => {
+                            EffectArg::Value(v, effects) => {
+                                queue.extend(
+                                    BumpVec::from(effects).into_iter().rev().map(|e| (i, e)),
+                                );
                                 new_args.push(
                                     resolve(
                                         arena,
@@ -547,7 +550,10 @@ mod tests {
                                         .map(|e| (i, e)),
                                 );
                             }
-                            EffectArg::Spread => {
+                            EffectArg::Spread(effects) => {
+                                queue.extend(
+                                    BumpVec::from(effects).into_iter().rev().map(|e| (i, e)),
+                                );
                                 new_args.push(JsValue::unknown_empty(true, rcstr!("spread")));
                             }
                         }

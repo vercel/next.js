@@ -49,6 +49,7 @@ import {
 } from 'zlib'
 import {
   imageOptimizerTransform,
+  type ImageOptimizerTransformOptions,
   type ImageUpstream,
 } from './image-optimizer/transform'
 import {
@@ -1108,27 +1109,56 @@ async function makeBlurPlaceholder(buffer: Buffer, contentType: string) {
   }
 }
 
+type ImageOptimizerNextConfig = {
+  experimental: Pick<
+    NextConfigComplete['experimental'],
+    | 'imgOptConcurrency'
+    | 'imgOptOperationCache'
+    | 'imgOptMaxInputPixels'
+    | 'imgOptSequentialRead'
+    | 'imgOptTimeoutInSeconds'
+    | 'imgOptMozjpeg'
+  >
+  images: Pick<
+    NextConfigComplete['images'],
+    'dangerouslyAllowSVG' | 'minimumCacheTTL'
+  >
+}
+
+/**
+ * Helper that extracts fields from `NextConfigComplete` into
+ * `ImageOptimizerTransformOptions`.
+ *
+ * `next/experimental/image-optimizer-transform` is a public module, so it
+ * doesn't make sense for it's functions to depend on the structure of
+ * `NextConfigComplete`, which is an internal-only interface for the
+ * post-transformed `next.config.js` file.
+ *
+ * Internally, we would like to call these APIs with the `NextConfigComplete`,
+ * so this transforms it.
+ */
+export function getImageOptimizerTransformOptions(
+  nextConfig: ImageOptimizerNextConfig
+): ImageOptimizerTransformOptions {
+  return {
+    dangerouslyAllowSVG: nextConfig.images.dangerouslyAllowSVG,
+    minimumCacheTTL: nextConfig.images.minimumCacheTTL,
+    concurrency: nextConfig.experimental.imgOptConcurrency,
+    operationCache: nextConfig.experimental.imgOptOperationCache,
+    maxInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
+    sequentialRead: nextConfig.experimental.imgOptSequentialRead,
+    timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
+    mozjpeg: nextConfig.experimental.imgOptMozjpeg,
+  }
+}
+
 export async function imageOptimizer(
   imageUpstream: ImageUpstream,
   paramsResult: Pick<
     ImageParamsResult,
     'href' | 'width' | 'quality' | 'mimeType'
   >,
-  nextConfig: {
-    experimental: Pick<
-      NextConfigComplete['experimental'],
-      | 'imgOptConcurrency'
-      | 'imgOptOperationCache'
-      | 'imgOptMaxInputPixels'
-      | 'imgOptSequentialRead'
-      | 'imgOptTimeoutInSeconds'
-      | 'imgOptMozjpeg'
-    >
-    images: Pick<
-      NextConfigComplete['images'],
-      'dangerouslyAllowSVG' | 'minimumCacheTTL'
-    >
-  },
+  transformOptions: ImageOptimizerTransformOptions,
   opts: {
     isDev?: boolean
     silent?: boolean
@@ -1157,7 +1187,7 @@ export async function imageOptimizer(
       maxAge:
         opts.previousCacheEntry?.cacheControl?.revalidate ||
         Math.max(
-          nextConfig.images.minimumCacheTTL,
+          transformOptions.minimumCacheTTL ?? 0,
           getMaxAge(imageUpstream.cacheControl)
         ),
       etag: previouslyCachedImage.etag,
@@ -1165,12 +1195,10 @@ export async function imageOptimizer(
     }
   }
 
-  const result = await imageOptimizerTransform(
-    imageUpstream,
-    paramsResult,
-    nextConfig,
-    { logger: opts.silent ? undefined : Log }
-  )
+  const result = await imageOptimizerTransform(imageUpstream, paramsResult, {
+    ...transformOptions,
+    logger: opts.silent ? undefined : Log,
+  })
 
   // Images passed through unoptimized (SVG, animated, or failed) are served
   // as-is rather than wrapped in a blur placeholder.

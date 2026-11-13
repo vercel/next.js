@@ -23,7 +23,6 @@ use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
-    chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
     ident::{AssetIdent, Layer},
@@ -34,7 +33,8 @@ use turbopack_core::{
     output::{ExpandedOutputAssets, OutputAsset},
     raw_module::RawModule,
     reference_type::{
-        CssReferenceSubType, EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType,
+        CssReferenceSubType, EcmaScriptModulesReferenceSubType, EntryReferenceSubType, InnerAssets,
+        ReferenceType,
     },
     resolve::{
         ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
@@ -45,6 +45,7 @@ use turbopack_core::{
         resolve,
     },
     source::Source,
+    source_map::SourceMapGenerationOptions,
     source_transform::SourceTransforms,
 };
 use turbopack_css::{CssModule, EcmascriptCssModule};
@@ -95,6 +96,16 @@ async fn apply_module_type(
         _ => None,
     };
     let is_evaluation = matches!(&part, Some(ModulePart::Evaluation));
+    // A standalone entry isn't canonicalized: nothing imports its exports, so a facade or module
+    // fragments would have nothing to tree shake, and whether the module has reexports would
+    // change the identity of the entry, which HMR can't follow when an edit adds or removes one.
+    let is_standalone_entry = matches!(
+        &reference_type,
+        ReferenceType::Entry(EntryReferenceSubType {
+            standalone: true,
+            ..
+        })
+    );
     let is_lazy_dynamic_import = matches!(
         &reference_type,
         ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::LazyDynamicImport)
@@ -199,7 +210,9 @@ async fn apply_module_type(
                     }
                 }
 
-                let canonicalization = if module_fragments_enabled {
+                let canonicalization = if is_standalone_entry {
+                    EcmascriptModuleCanonicalization::None
+                } else if module_fragments_enabled {
                     EcmascriptModuleCanonicalization::ModuleFragments(
                         part.cloned().unwrap_or_else(ModulePart::facade),
                     )
@@ -228,14 +241,21 @@ async fn apply_module_type(
         ModuleType::NodeAddon => {
             ResolvedVc::upcast(NodeAddonModule::new(*source).to_resolved().await?)
         }
-        ModuleType::CssModule => ResolvedVc::upcast(
-            EcmascriptCssModule::new(*source, Vc::upcast(module_asset_context))
-                .to_resolved()
-                .await?,
+        ModuleType::CssModule {
+            source_map_generation_options,
+        } => ResolvedVc::upcast(
+            EcmascriptCssModule::new(
+                *source,
+                Vc::upcast(module_asset_context),
+                *source_map_generation_options,
+            )
+            .to_resolved()
+            .await?,
         ),
 
         ModuleType::Css {
             ty,
+            source_map_generation_options,
             environment,
             lightningcss_features,
             module_css_debuggable_idents,
@@ -243,6 +263,7 @@ async fn apply_module_type(
             CssModule::new(
                 *source,
                 Vc::upcast(module_asset_context),
+                *source_map_generation_options,
                 *ty,
                 css_import_context.map(|c| *c),
                 environment.as_deref().copied(),
@@ -644,10 +665,10 @@ async fn process_default_internal(
             .resolve_options_context()
             .to_resolved()
             .await?;
-        let source_maps = matches!(
-            module_options_context.ecmascript.source_maps,
-            SourceMapsType::Full
-        );
+        let generate_full_source_map = module_options_context
+            .ecmascript
+            .source_map_generation_options
+            .full;
 
         // Determine the import map for loader-runner
         let loader_runner_package = webpack_loaders_options.loader_runner_package;
@@ -688,7 +709,7 @@ async fn process_default_internal(
             webpack_loaders_options.mode.clone(),
             rename_as.clone(),
             *resolve_options_context,
-            source_maps,
+            generate_full_source_map,
             config_tracing_module_context(*execution_context),
         )
         .to_resolved()
@@ -713,6 +734,7 @@ async fn process_default_internal(
                     empty_transforms,
                     default_options,
                     None,
+                    module_options_context.css.source_map_generation_options,
                     Default::default(),
                 )
                 .await?;
@@ -916,11 +938,11 @@ pub async fn externals_tracing_module_context(
                 ),
                 // enable_types should not be enabled here. It gets set automatically when a TS file
                 // is encountered.
-                source_maps: SourceMapsType::None,
+                source_map_generation_options: SourceMapGenerationOptions::NONE,
                 ..Default::default()
             },
             css: CssOptionsContext {
-                source_maps: SourceMapsType::None,
+                source_map_generation_options: SourceMapGenerationOptions::NONE,
                 enable_raw_css: true,
                 ..Default::default()
             },

@@ -184,6 +184,7 @@ describe('app dir - metadata', () => {
 
       await matchDom('link', 'rel="canonical"', {
         href: 'https://example.com/alternates',
+        title: 'Canonical page',
       })
       await matchDom('link', 'title="js title"', {
         type: 'application/rss+xml',
@@ -348,6 +349,37 @@ describe('app dir - metadata', () => {
   })
 
   describe('opengraph', () => {
+    it('should render a scalar music album song descriptor', async () => {
+      const $ = await next.render$('/opengraph/music-album')
+
+      expect($('meta[property="og:type"]').attr('content')).toBe('music.album')
+      expect(
+        $('meta[property="music:song"]')
+          .map((_, tag) => $(tag).attr('content'))
+          .get()
+      ).toEqual(['https://example.com/song'])
+      expect($('meta[property="music:song:disc"]').attr('content')).toBe('1')
+      expect($('meta[property="music:song:track"]').attr('content')).toBe('2')
+      expect($('meta[property="music:musician"]').attr('content')).toBe(
+        'https://example.com/musician'
+      )
+    })
+
+    it('should render scalar music playlist songs and creators', async () => {
+      const $ = await next.render$('/opengraph/music-playlist')
+
+      expect($('meta[property="og:type"]').attr('content')).toBe(
+        'music.playlist'
+      )
+      for (const property of ['song', 'creator']) {
+        expect(
+          $(`meta[property="music:${property}"]`)
+            .map((_, tag) => $(tag).attr('content'))
+            .get()
+        ).toEqual([`https://example.com/${property}`])
+      }
+    })
+
     it('should support opengraph tags', async () => {
       const browser = await next.browser('/opengraph')
       const matchMultiDom = createMultiDomMatcher(browser)

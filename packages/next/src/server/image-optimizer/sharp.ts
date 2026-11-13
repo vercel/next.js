@@ -1,6 +1,7 @@
-// This module is part of the `next/image-optimizer-transform` dependency graph,
-// which runs in a child process. Please keep it lightweight with very few
-// imports. Only `getSharp` is public (re-exported from `./transform`).
+// This module is part of the `next/experimental/image-optimizer-transform`
+// dependency graph, which runs in a child process. Please keep it lightweight
+// with very few imports. Only `getSharp` is public (re-exported from
+// `./transform`).
 import isError from '../../lib/is-error'
 import { AVIF, JPEG, PNG, WEBP } from './image-type'
 
@@ -58,7 +59,7 @@ export async function optimizeImage({
   height,
   concurrency,
   operationCache,
-  limitInputPixels,
+  maxInputPixels,
   sequentialRead,
   timeoutInSeconds,
   mozjpeg = true,
@@ -70,14 +71,14 @@ export async function optimizeImage({
   height?: number
   concurrency?: number | null
   operationCache?: boolean | null | undefined
-  limitInputPixels?: number
+  maxInputPixels?: number
   sequentialRead?: boolean | null
   timeoutInSeconds?: number
   mozjpeg?: boolean
 }): Promise<Buffer> {
   const sharp = getSharp(concurrency, operationCache)
   const transformer = sharp(buffer, {
-    limitInputPixels,
+    limitInputPixels: maxInputPixels,
     sequentialRead: sequentialRead ?? undefined,
   })
     .timeout({

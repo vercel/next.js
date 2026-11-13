@@ -102,7 +102,10 @@ async fn service_worker_chunk(
 
     let source: Vc<Box<dyn Source>> = Vc::upcast(FileSource::new(source_path));
     let module = asset_context
-        .process(source, ReferenceType::Entry(EntryReferenceSubType::Web))
+        .process(
+            source,
+            ReferenceType::Entry(EntryReferenceSubType::default()),
+        )
         .module()
         .to_resolved()
         .await?;

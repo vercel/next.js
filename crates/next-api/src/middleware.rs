@@ -81,7 +81,7 @@ impl MiddlewareEndpoint {
             .asset_context
             .process(
                 *self.source,
-                ReferenceType::Entry(EntryReferenceSubType::Middleware),
+                ReferenceType::Entry(EntryReferenceSubType::default()),
             )
             .module();
 
@@ -249,7 +249,7 @@ impl MiddlewareEndpoint {
                 entrypoint,
                 regions,
                 matchers: matchers.clone(),
-                env: this.project.edge_env().owned().await?,
+                env: this.project.edge_env().owned().await?.into_iter().collect(),
             };
             let middleware_manifest_v2 = MiddlewaresManifestV2 {
                 middleware: [(rcstr!("/"), edge_function_definition)]
@@ -279,7 +279,7 @@ impl MiddlewareEndpoint {
         self.asset_context
             .process(
                 *self.source,
-                ReferenceType::Entry(EntryReferenceSubType::Middleware),
+                ReferenceType::Entry(EntryReferenceSubType::default()),
             )
             .module()
     }

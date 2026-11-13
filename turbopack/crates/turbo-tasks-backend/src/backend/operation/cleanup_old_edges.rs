@@ -15,7 +15,7 @@ use crate::{
                 get_aggregation_number, get_uppers, is_aggregating_node,
             },
         },
-        storage_schema::TaskStorageAccessors,
+        storage_schema::{ActivenessAccessors, TaskStorageAccessors},
     },
     data::{CellRef, CollectibleRef, CollectiblesRef},
 };
@@ -204,12 +204,11 @@ fn cleanup_old_edges_inner(
                     queue.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
                         upper_id: task_id,
                         lost_follower_ids: children,
-                        retry: 0,
                     });
                 } else {
                     let upper_ids = get_uppers(&task);
-                    let has_active_count = ctx.should_track_activeness()
-                        && task.get_activeness().is_some_and(|a| a.active_counter > 0);
+                    let has_active_count =
+                        ctx.should_track_activeness() && task.has_positive_active_count();
                     drop(task);
                     if has_active_count {
                         // TODO combine both operations to avoid the clone

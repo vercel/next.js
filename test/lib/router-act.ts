@@ -366,6 +366,16 @@ export function createRouterAct(
               try {
                 originalResponse = await page.request.fetch(request, {
                   maxRedirects: 0,
+                  // Use a fresh connection for every forwarded request.
+                  // `page.request` otherwise reuses sockets from a
+                  // process-wide keep-alive pool, which can sit idle between
+                  // `act` scopes for about the server's keep-alive timeout.
+                  // If the server's event loop is busy (e.g. rendering) when
+                  // that timeout is due, it closes the idle socket before
+                  // reading a request that was just sent on it, and the
+                  // request fails with `read ECONNRESET`. Browsers retry such
+                  // requests transparently; Playwright doesn't.
+                  headers: { ...request.headers(), connection: 'close' },
                 })
               } catch (fetchError) {
                 error.message =

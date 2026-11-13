@@ -81,6 +81,7 @@ import {
   fillStaticMetadataSegment,
   normalizeMetadataPageToRoute,
 } from '../../../lib/metadata/get-metadata-route'
+import { initializeRequestInsightsJournal } from '../trace/request-insights-journal'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
 import {
@@ -177,6 +178,28 @@ export type ServerFields = {
   resetFetch?: () => void
 }
 
+/**
+ * Whether a route has a segment after a catch-all segment, e.g.
+ * `/blog/[...slug]/opengraph-image`. A catch-all segment must be the last
+ * segment of a route, so such a route can never be matched.
+ */
+function isNestedInCatchAllSegment(route: string): boolean {
+  const segments = route
+    .split('/')
+    .filter(
+      (segment) =>
+        segment !== '' &&
+        !(segment.startsWith('(') && segment.endsWith(')')) &&
+        !segment.startsWith('@')
+    )
+  const catchAllIndex = segments.findIndex(
+    (segment) =>
+      (segment.startsWith('[[...') && segment.endsWith(']]')) ||
+      (segment.startsWith('[...') && segment.endsWith(']'))
+  )
+  return catchAllIndex !== -1 && catchAllIndex < segments.length - 1
+}
+
 async function verifyTypeScript(opts: SetupOpts) {
   const verifyResult = await verifyAndRunTypeScript({
     dir: opts.dir,
@@ -243,6 +266,10 @@ async function startWatcher(
       relativeDistDir: opts.nextConfig.distDir,
     }
   )
+
+  if (nextConfig.experimental.requestInsights) {
+    await initializeRequestInsightsJournal(distDir)
+  }
 
   const validFileMatcher = createValidFileMatcher(
     nextConfig.pageExtensions,
@@ -1327,7 +1354,14 @@ async function startWatcher(
         // we serve a separate manifest with all pages for the client in
         // dev mode so that we can match a page after a rewrite on the client
         // before it has been built and is populated in the _buildManifest
-        const sortedRoutes = getSortedRoutes(routedPages)
+        const sortedRoutes = getSortedRoutes(
+          // Turbopack reports routes nested inside a catch-all segment as an
+          // error and doesn't create entrypoints for them. Leave them out here
+          // so they don't stop the dev server from starting.
+          opts.turbo
+            ? routedPages.filter((page) => !isNestedInCatchAllSegment(page))
+            : routedPages
+        )
 
         opts.fsChecker.dynamicRoutes = sortedRoutes.map(
           (page): FilesystemDynamicRoute => {
