@@ -72,6 +72,7 @@ pub async fn get_app_metadata_route_entry(
     let source = Vc::upcast(FileSource::new(original_path));
     let segment_config = parse_segment_config_from_source(source, ParseSegmentMode::App);
     let is_dynamic_metadata = matches!(metadata, MetadataItem::Dynamic { .. });
+    let is_static_metadata_file = matches!(metadata, MetadataItem::Static { .. });
     let is_multi_dynamic: bool = if Some(segment_config).is_some() {
         // is_multi_dynamic is true when config.generateSitemaps or
         // config.generateImageMetadata is defined in dynamic routes
@@ -108,6 +109,8 @@ pub async fn get_app_metadata_route_entry(
         page,
         project_root,
         Some(segment_config),
+        true,
+        is_static_metadata_file,
         next_config,
     ))
 }

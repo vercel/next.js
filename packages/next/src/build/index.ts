@@ -152,6 +152,7 @@ import type {
   FallbackRouteParam,
   PrerenderRouteMatcher,
   PrerenderedRoute,
+  RouteHandlerParamMatching,
 } from './static-paths/types'
 import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import type { ParamMatching } from './segment-config/app/app-segments'
@@ -190,7 +191,6 @@ import { NextBuildContext } from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata-route'
-import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
@@ -463,6 +463,8 @@ export type PrerenderManifest = {
   __private_unstable_hasParamMatching?: true
   routes: { [route: string]: PrerenderManifestRoute }
   dynamicRoutes: { [route: string]: DynamicPrerenderManifestRoute }
+  /** Handler URL admission, including routes without any prerendered response. */
+  routeHandlerParamMatching?: Record<string, RouteHandlerParamMatching>
   notFoundRoutes: string[]
   /** @deprecated only kept for the builder, use PreviewPropsManifest within Next.js itself */
   preview: __ApiPreviewProps
@@ -2287,8 +2289,13 @@ export default async function build(
       const serverPropsPages = new Set<string>()
       const additionalPaths = new Map<string, PrerenderedRoute[]>()
       const staticPaths = new Map<string, PrerenderedRoute[]>()
+      const staticMetadataRoutes = new Set<string>()
       const prerenderRouteMatchers = new Map<string, PrerenderRouteMatcher[]>()
       const paramMatchingByRoute = new Map<string, ParamMatching | undefined>()
+      const routeHandlerParamMatchingByRoute = new Map<
+        string,
+        RouteHandlerParamMatching
+      >()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
       const appDefaultConfigs = new Map<string, AppSegmentConfig>()
@@ -2538,6 +2545,7 @@ export default async function build(
                 let isEnsureStaticPage = false
                 let isSSG = false
                 let isStatic = false
+                let isStaticMetadataFile = false
                 let ssgPageRoutes: string[] | null = null
                 let pagePath = ''
 
@@ -2684,6 +2692,17 @@ export default async function build(
                       )
 
                       if (pageType === 'app' && originalAppPath) {
+                        isStaticMetadataFile =
+                          workerResult.isStaticMetadataFile === true
+                        if (isStaticMetadataFile) {
+                          staticMetadataRoutes.add(page)
+                        }
+                        if (workerResult.routeHandlerParamMatching) {
+                          routeHandlerParamMatchingByRoute.set(
+                            normalizeAppPath(originalAppPath),
+                            workerResult.routeHandlerParamMatching
+                          )
+                        }
                         if (
                           isAppCacheComponentsEnabled &&
                           !isAppRouteRoute(originalAppPath)
@@ -2763,7 +2782,7 @@ export default async function build(
                               // use a placeholder path with empty params instead.
                               workerResult.prerenderedRoutes.some(
                                 (route) =>
-                                  isStaticMetadataFile(route.pathname) ||
+                                  isStaticMetadataFile ||
                                   !isEmptyParams(route.params)
                               )
                             if (isDynamic && !hasGenerateStaticParams) {
@@ -2919,6 +2938,7 @@ export default async function build(
                 pageInfos.set(page, {
                   originalAppPath,
                   isStatic,
+                  isStaticMetadataFile,
                   isSSG,
                   isRoutePPREnabled,
                   isEnsureStaticPage,
@@ -3169,9 +3189,15 @@ export default async function build(
         // Record evaluated exports, including empty fragments, rather than
         // inferring API usage from the resulting fallback modes.
         __private_unstable_hasParamMatching:
+          routeHandlerParamMatchingByRoute.size > 0 ||
           [...paramMatchingByRoute.values()].some(
             (paramMatching) => paramMatching !== undefined
-          ) || undefined,
+          ) ||
+          undefined,
+        routeHandlerParamMatching:
+          routeHandlerParamMatchingByRoute.size > 0
+            ? Object.fromEntries(routeHandlerParamMatchingByRoute)
+            : undefined,
         routes: {},
         dynamicRoutes: {},
         notFoundRoutes: [],
@@ -3522,6 +3548,7 @@ export default async function build(
 
             const appConfig = appDefaultConfigs.get(originalAppPath)
             if (!appConfig) throw new InvariantError('App config not found')
+            const isStaticMetadataFile = staticMetadataRoutes.has(page)
 
             const ssgPageRoutesSet = new Set(pageInfos.get(page)?.ssgPageRoutes)
             // Preserve the specificity order that unknown prerender routes had
@@ -3610,8 +3637,9 @@ export default async function build(
               // Rewriting here ensures they land in `prerenderManifest.routes`
               // as known static entries rather than in `dynamicRoutes` with
               // fallback params, which they don't actually need.
-              const staticMetadataPrerenderPathname =
-                getStaticMetadataPrerenderPathname(prerenderedRoute.pathname)
+              const staticMetadataPrerenderPathname = isStaticMetadataFile
+                ? getStaticMetadataPrerenderPathname(prerenderedRoute.pathname)
+                : undefined
 
               if (
                 staticMetadataPrerenderPathname &&
@@ -3889,7 +3917,7 @@ export default async function build(
                 // shape) must not generate a dynamic PRERENDER manifest entry
                 // — the route handler shipped with the dynamic route still
                 // serves these at runtime.
-                if (isStaticMetadataFile(route.pathname)) {
+                if (isStaticMetadataFile) {
                   continue
                 }
 
@@ -4630,7 +4658,9 @@ export default async function build(
         // exist and throw an invariant error. Strip those entries before the
         // manifest is written.
         for (const route of Object.keys(prerenderManifest.dynamicRoutes)) {
-          if (isStaticMetadataFile(route)) {
+          const sourceRoute =
+            prerenderManifest.dynamicRoutes[route].fallbackSourceRoute ?? route
+          if (staticMetadataRoutes.has(sourceRoute)) {
             delete prerenderManifest.dynamicRoutes[route]
           }
         }
@@ -4781,6 +4811,7 @@ export default async function build(
               bundler,
               configOutDir: path.join(dir, configOutDir),
               staticPages,
+              staticMetadataRoutes,
               serverPropsPages,
               nextVersion: process.env.__NEXT_VERSION as string,
               repoRoot: config.repoRoot,

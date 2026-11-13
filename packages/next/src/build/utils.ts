@@ -56,6 +56,7 @@ import { trace } from '../trace'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { RouteKind } from '../server/route-kind'
+import { isAppRouteRouteModule } from '../server/route-modules/checks'
 import type { PageExtensions } from './page-extensions-type'
 import type { FallbackMode } from '../lib/fallback'
 import type { OutgoingHttpHeaders } from 'http'
@@ -69,6 +70,7 @@ import { collectRootParamKeys } from './segment-config/app/collect-root-param-ke
 import type {
   PrerenderRouteMatcher,
   PrerenderedRoute,
+  RouteHandlerParamMatching,
 } from './static-paths/types'
 import type { CacheControl } from '../server/lib/cache-control'
 import { formatExpire, formatRevalidate } from './output/format'
@@ -84,7 +86,6 @@ import type {
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
 import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata-route'
-import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { mapNftFileEntries, type NftJson, resolveNftOutputPath } from './nft'
 
@@ -235,6 +236,7 @@ export interface PageInfo {
   hasEmptyStaticShell?: boolean
   hasPostponed?: boolean
   isDynamicAppRoute?: boolean
+  isStaticMetadataFile?: boolean
 }
 
 export type PageInfos = Map<string, PageInfo>
@@ -405,7 +407,9 @@ export async function printTreeView(
       const symbol = getTreeViewSymbol(item, pageInfo)
       const hasChildRoutes = Boolean(pageInfo?.ssgPageRoutes?.length)
 
-      const displayPath = getTreeViewDisplayPath(item)
+      const displayPath = pageInfo?.isStaticMetadataFile
+        ? getTreeViewDisplayPath(item)
+        : item
 
       if (hasGSPAndRevalidateZero.has(item)) {
         usedSymbols.add('ƒ')
@@ -813,11 +817,13 @@ export function printCustomRoutes({
 type PageIsStaticResult = {
   isRoutePPREnabled?: boolean
   isStatic?: boolean
+  isStaticMetadataFile?: boolean
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderedRoutes: PrerenderedRoute[] | undefined
   prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
   paramMatching: ParamMatching | undefined
+  routeHandlerParamMatching?: RouteHandlerParamMatching
   prerenderFallbackMode: FallbackMode | undefined
   rootParamKeys: readonly string[] | undefined
   isNextImageImported?: boolean
@@ -940,6 +946,7 @@ export async function isPageStatic({
       let prerenderedRoutes: PrerenderedRoute[] | undefined
       let prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
       let paramMatching: ParamMatching | undefined
+      let routeHandlerParamMatching: RouteHandlerParamMatching | undefined
       let prerenderFallbackMode: FallbackMode | undefined
       let appConfig: AppSegmentConfig = {}
       let rootParamKeys: readonly string[] | undefined
@@ -995,6 +1002,8 @@ export async function isPageStatic({
       }
 
       const { Component, routeModule } = componentsResult
+      const isStaticMetadataFile =
+        isAppRouteRouteModule(routeModule) && routeModule.isStaticMetadataFile
 
       const Comp = Component as NextComponentType | undefined
 
@@ -1058,15 +1067,7 @@ export async function isPageStatic({
         // build the static paths. The edge runtime doesn't support static
         // paths.
         if (route.dynamicSegments.length > 0 && !pathIsEdgeRuntime) {
-          let pathname = normalizeAppPath(page)
-          if (pathname.endsWith('/route')) {
-            pathname = pathname.slice(0, -'/route'.length)
-          }
-
-          if (
-            routeModule.definition.kind === RouteKind.APP_ROUTE &&
-            isStaticMetadataFile(pathname)
-          ) {
+          if (isStaticMetadataFile) {
             ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
               buildStaticMetadataStaticPaths(page))
           } else {
@@ -1074,6 +1075,7 @@ export async function isPageStatic({
               prerenderedRoutes,
               prerenderRouteMatchers,
               paramMatching,
+              routeHandlerParamMatching,
               fallbackMode: prerenderFallbackMode,
             } = await (
               require('./static-paths/app') as typeof import('./static-paths/app')
@@ -1172,11 +1174,13 @@ export async function isPageStatic({
 
       return {
         isStatic,
+        isStaticMetadataFile,
         isRoutePPREnabled,
         prerenderFallbackMode,
         prerenderedRoutes,
         prerenderRouteMatchers,
         paramMatching,
+        routeHandlerParamMatching,
         rootParamKeys,
         hasStaticProps,
         hasServerProps,

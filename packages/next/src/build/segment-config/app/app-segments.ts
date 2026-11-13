@@ -324,7 +324,24 @@ async function collectAppRouteSegments(routeModule: AppRouteRouteModule) {
   segment.filePath = routeModule.definition.filename
 
   // Extract the segment config from the userland module.
-  attach(segment, routeModule.userland, routeModule.definition.pathname, [])
+  // A handler owns its complete URL, independently of page layouts. Metadata
+  // generators own the synthetic ID; it is not an authored matching parameter.
+  const visibleParamNames = segments.flatMap(({ paramName }, index) =>
+    paramName &&
+    !(
+      routeModule.isMetadataRoute &&
+      index === segments.length - 1 &&
+      paramName === '__metadata_id__'
+    )
+      ? [paramName]
+      : []
+  )
+  attach(
+    segment,
+    routeModule.userland,
+    routeModule.definition.pathname,
+    visibleParamNames
+  )
 
   let segmentTree: AppSegmentTree[] = []
   for (let index = segments.length - 1; index >= 0; index--) {

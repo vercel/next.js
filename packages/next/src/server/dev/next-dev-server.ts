@@ -1,3 +1,4 @@
+import { isAppRouteRoute } from '../../lib/is-app-route-route'
 import type { FindComponentsResult, NodeRequestHandler } from '../next-server'
 import type { LoadComponentsReturnType } from '../load-components'
 import type { Options as ServerOptions } from '../next-server'
@@ -821,6 +822,9 @@ export default class DevServer extends Server {
       }
     }
     const result = this.staticPathsCache.get(pathname)
+    // A stale handler policy could execute a method that was just closed by
+    // HMR. Wait for the current declaration and generated tuples on each request.
+    const requiresFreshHandlerParams = isAppPath && isAppRouteRoute(page || '')
 
     const nextInvoke = withCoalescedInvoke(__getStaticPaths)(
       `staticPaths-${pathname}`,
@@ -953,12 +957,12 @@ export default class DevServer extends Server {
       })
       .catch((err) => {
         this.staticPathsCache.remove(pathname)
-        if (!result) throw err
+        if (!result || requiresFreshHandlerParams) throw err
         Log.error(`Failed to generate static paths for ${pathname}:`)
         console.error(err)
       })
 
-    if (result) {
+    if (result && !requiresFreshHandlerParams) {
       return result
     }
     return nextInvoke as NonNullable<typeof result>

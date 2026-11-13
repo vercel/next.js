@@ -30,6 +30,7 @@ describe('param-matching-types', () => {
   it.each([
     ['app/static/[lang]/layout.tsx', 'fixtures/invalid-layout.tsx'],
     ['app/generated/[slug]/page.tsx', 'fixtures/invalid-generator.tsx'],
+    ['app/handlers/[lang]/[slug]/route.ts', 'fixtures/invalid-handler.ts'],
   ])('still rejects invisible parameter keys in %s', async (file, fixture) => {
     const original = await next.readFile(file)
     try {
@@ -41,6 +42,25 @@ describe('param-matching-types', () => {
       expect(result.exitCode).not.toBe(0)
       expect(result.stdout).toContain('"missing"')
       expect(result.stdout).toContain("constraint 'never'")
+    } finally {
+      await next.patchFile(file, original)
+    }
+  })
+  it('rejects both matching exports from a handler', async () => {
+    const file = 'app/handlers/[lang]/[slug]/route.ts'
+    const original = await next.readFile(file)
+    try {
+      await next.patchFile(
+        file,
+        await next.readFile('fixtures/duplicate-handler.ts')
+      )
+      const result = await execa('pnpm', ['tsc', '--noEmit'], {
+        cwd: next.testDir,
+        reject: false,
+      })
+      expect(result.exitCode).not.toBe(0)
+      expect(result.stdout).toContain('unstable_generateParamMatching')
+      expect(result.stdout).toContain('RouteHandlerConfig')
     } finally {
       await next.patchFile(file, original)
     }
