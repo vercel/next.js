@@ -32,7 +32,11 @@ use turbo_tasks::{
 };
 
 use crate::{
-    backend::{cell_data::CellData, counter_map::CounterMap},
+    backend::{
+        cell_data::CellData,
+        counter_map::CounterMap,
+        keyed_dependents::{CellKeyedDependents, KeyedDependentsIndex},
+    },
     data::{
         ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
         InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType, TransientTask,
@@ -346,9 +350,10 @@ struct TaskStorageSchema {
     )]
     cell_dependents: AutoSet<CellRef, 3>,
 
-    /// Tasks that depend on this task's cells with a `CellKey`. Reverse of
-    /// `cell_dependencies_keyed`. `CellKeyKind::Hash` entries are only invalidated when that
-    /// sub-value changes, `CellKeyKind::Provisional` entries like `cell_dependents`.
+    /// Tasks that depend on this task's cells with a `CellKeyKind::Provisional` `CellKey` (a
+    /// `Vc::keyed_reader()` or `Vc::lazy_reader()` read that isn't refined yet). Reverse of the
+    /// provisional `cell_dependencies_keyed` entries. Invalidated like `cell_dependents`.
+    /// `CellKeyKind::Hash` dependents are in `cell_dependents_keyed_index`.
     #[field(
         storage = "auto_set",
         category = "data",
@@ -356,6 +361,20 @@ struct TaskStorageSchema {
         drop_on_completion_if_immutable
     )]
     cell_dependents_keyed: AutoSet<(CellRef, CellKey), 1>,
+
+    /// Tasks that depend on this task's cells with a `CellKeyKind::Hash` `CellKey`, indexed by
+    /// cell and key, so a change of some keys only visits their dependents. Reverse of the hashed
+    /// `cell_dependencies_keyed` entries. Only invalidated when that sub-value changes. Transient
+    /// dependents are handled like in `filter_transient` fields (see `KeyedDependentsIndex`).
+    #[field(
+        storage = "auto_map",
+        category = "data",
+        custom_mutators,
+        custom_drop_partial,
+        drop_on_completion_if_immutable,
+        as_type = "AutoMap<CellId, CellKeyedDependents, 0>"
+    )]
+    cell_dependents_keyed_index: KeyedDependentsIndex,
 
     /// Tasks that depend on collectibles of a specific type from this task.
     /// Maps TraitTypeId -> Set<TaskId>

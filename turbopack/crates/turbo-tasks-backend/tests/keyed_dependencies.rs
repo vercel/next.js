@@ -15,7 +15,7 @@ use std::{
 
 use anyhow::Result;
 use rustc_hash::FxHashMap;
-use turbo_tasks::{ResolvedVc, State, TaskId, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, State, TaskId, TransientInstance, TryJoinIterExt, Vc};
 
 use crate::util::create_tt_with_workers;
 
@@ -156,6 +156,44 @@ async fn maybe_readers(
     } else {
         Ok(Vc::cell(len))
     }
+}
+
+/// A transient reader (a task with a `TransientInstance` argument) of keys `0 .. m`, like `reader`.
+/// It doesn't read the `State`s directly (a persistent `State` can't be persisted with a transient
+/// reader).
+#[turbo_tasks::function]
+async fn transient_reader(
+    map: ResolvedVc<Map>,
+    test: u32,
+    index: u32,
+    m: u32,
+    marker: TransientInstance<()>,
+) -> Result<Vc<u64>> {
+    let _ = (index, marker);
+    EXECUTIONS[test as usize].fetch_add(1, Ordering::SeqCst);
+    let map = map.keyed_reader().await?;
+    let mut sum = 0u64;
+    for key in 0..m {
+        sum += *map.get(&key).unwrap() as u64;
+    }
+    Ok(Vc::cell(sum))
+}
+
+/// `n` transient readers of the same keys as `readers`.
+#[turbo_tasks::function(root)]
+async fn transient_readers(
+    inputs: ResolvedVc<Inputs>,
+    test: u32,
+    n: u32,
+    m: u32,
+    marker: TransientInstance<()>,
+) -> Result<Vc<u64>> {
+    let map = make_map(*inputs, m).to_resolved().await?;
+    let sums = (0..n)
+        .map(|index| transient_reader(*map, test, index, m, marker.clone()))
+        .try_join()
+        .await?;
+    Ok(Vc::cell(sums.iter().map(|sum| **sum).sum()))
 }
 
 /// The sum `readers` returns for the given input values (`one == 0`).
@@ -451,6 +489,64 @@ async fn keyed_readers_collected_by_gc_remove_their_edges() {
             tt2.backend()
                 .keyed_cell_dependents_count_for_testing(owner, &tt2),
             0
+        );
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap();
+    tt.stop_and_wait().await;
+}
+
+/// Persistent and transient readers depend on the same keys of a persistent cell, whose owner is
+/// evicted (transient dependents can't be persisted, so they must survive the eviction in memory)
+/// and restored. Afterwards both still depend on exactly their keys.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn keyed_dependents_survive_eviction_of_owner() {
+    const TEST: u32 = 7;
+    let (n, m) = (8, 32);
+    let (tt, _dir) = create_tt_with_workers("keyed_dependents_survive_eviction_of_owner", 4);
+    let tt2 = tt.clone();
+    turbo_tasks::run_once(tt.clone(), async move {
+        let inputs_op = create_inputs(TEST);
+        let inputs_vc = inputs_op.resolve().strongly_consistent().await?;
+        let inputs = inputs_op.read_strongly_consistent().await?;
+        let persistent = readers(inputs_vc, TEST, n, m, Mode::KeyedReader as u8);
+        let transient = transient_readers(*inputs_vc, TEST, n, m, TransientInstance::new(()));
+        let check = async |values: u32, one: u32, reruns: u64| -> Result<()> {
+            let before = executions(TEST);
+            let expected = expected_with_one(n, m, values, one, 0);
+            assert_eq!(*persistent.read_strongly_consistent().await?, expected);
+            assert_eq!(*transient.strongly_consistent().await?, expected);
+            assert_eq!(executions(TEST) - before, reruns);
+            Ok(())
+        };
+        check(0, 0, 2 * n as u64).await?;
+
+        let evict = || {
+            let outcome = tt2.backend().snapshot_and_evict_for_testing(&tt2);
+            assert!(outcome.had_new_data);
+        };
+
+        // A read key changes: all readers re-execute.
+        evict();
+        inputs.one.set(7);
+        check(0, 7, 2 * n as u64).await?;
+
+        // An unread key changes: no reader re-executes.
+        evict();
+        inputs.unread.set(1);
+        check(0, 7, 0).await?;
+
+        // All keys change: all readers re-execute.
+        evict();
+        inputs.values.set(3);
+        check(3, 7, 2 * n as u64).await?;
+
+        let owner = TaskId::try_from(*map_task_id(inputs_vc, m).read_strongly_consistent().await?)?;
+        assert_eq!(
+            tt2.backend()
+                .keyed_cell_dependents_count_for_testing(owner, &tt2),
+            (2 * n * m) as usize
         );
         anyhow::Ok(())
     })

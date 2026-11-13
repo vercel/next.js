@@ -3,6 +3,7 @@ mod cell_data;
 mod counter_map;
 mod eviction;
 mod gc;
+mod keyed_dependents;
 mod operation;
 mod snapshot_coordinator;
 mod storage;
@@ -115,7 +116,7 @@ const GC_MIN_PROGRESS: Duration = Duration::from_millis(100);
 #[inline]
 fn debug_assert_keyed_dependent(task: &TaskGuard<'_>, reverse: CellRef, key: CellKey) {
     debug_assert!(
-        task.immutable() || task.cell_dependents_keyed_contains(&(reverse, key)),
+        task.immutable() || task.has_cell_dependent_keyed(reverse, key),
         "the outdated keyed dependency of {} on {:?} of {} with {key:?} is missing on the owner \
          side",
         reverse.task,
@@ -542,7 +543,7 @@ impl TurboTasksBackend {
         let Some(task) = ctx.try_task(task, TaskDataCategory::Data) else {
             return 0;
         };
-        task.iter_cell_dependents_keyed().count()
+        task.iter_all_cell_dependents_keyed().count()
     }
 
     /// The effective aggregation number of a task (`None` if it doesn't exist). `u32::MAX` means
@@ -1129,7 +1130,7 @@ impl TurboTasksBackend {
                             debug_assert_keyed_dependent(&task, reverse, key);
                             return;
                         }
-                        let _ = task.add_cell_dependents_keyed((reverse, key));
+                        let _ = task.add_cell_dependent_keyed(reverse, key);
                     }
                 }
                 drop(task);
@@ -1338,7 +1339,7 @@ impl TurboTasksBackend {
                 debug_assert_keyed_dependent(&task, reverse, key);
                 continue;
             }
-            let _ = task.add_cell_dependents_keyed((reverse, key));
+            let _ = task.add_cell_dependent_keyed(reverse, key);
         }
         drop(task);
         for k in key_hashes {
