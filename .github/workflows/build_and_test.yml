@@ -1020,7 +1020,9 @@ jobs:
           test/e2e/app-dir/metadata-edge/index.test.ts \
           test/e2e/app-dir/non-root-project-monorepo/non-root-project-monorepo.test.ts \
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts \
-          test/e2e/incremental-cache-path-traversal/index.test.ts
+          test/e2e/incremental-cache-path-traversal/index.test.ts \
+          test/production/app-dir/worker-restart/worker-restart.test.ts \
+          test/production/app-dir/static-generation-adaptive/static-generation-adaptive.test.ts
 
         # Root params use a webpack loader, so cover Windows path handling with webpack.
         unset IS_TURBOPACK_TEST TURBOPACK_BUILD

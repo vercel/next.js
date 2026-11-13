@@ -232,12 +232,16 @@ export class Worker {
                 return
               }
               if (code !== null) {
-                if (!recoverFromWorkerExit.recoverableExitCodes.has(code)) {
-                  // The worker chose to exit (e.g. `prerenderEarlyExit`, or a
-                  // fatal error). Fail the build like without recovery.
+                const recoverable =
+                  recoverFromWorkerExit.recoverableExitCodes.has(code)
+                // Code 1 can represent a forced termination on Windows.
+                // Report it even when the caller opted into recovery.
+                if (!recoverable || code === 1) {
                   logger.error(
                     `Next.js build worker exited with code: ${code} and signal: ${signal}`
                   )
+                }
+                if (!recoverable) {
                   process.exit(code)
                 }
               } else {

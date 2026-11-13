@@ -804,7 +804,9 @@ async function exportAppImpl(
         },
         renderResumeDataCachesByPage,
         getPageKey: getExportPathPageKey,
-        numSlots: options.numWorkers,
+        // Keep the page-count limit when activating additional workers.
+        // Fetch deduplication is process-local, so extra workers can duplicate requests.
+        numSlots: numWorkers,
         initialSlots: numWorkers,
         chunkSize: getStaticGenerationChunkSize(
           exportPaths.length,
