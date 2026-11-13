@@ -85,7 +85,7 @@ pub fn capture_all_edges(task: &TaskGuard<'_>) -> Vec<OutdatedEdge> {
                 },
             }),
     );
-    old_edges.extend(task.iter_cell_dependents_keyed().map(|(entry, key)| {
+    old_edges.extend(task.iter_all_cell_dependents_keyed().map(|(entry, key)| {
         OutdatedEdge::KeyedCellDependency {
             dependent: entry.task,
             cell: CellRef {
@@ -300,13 +300,13 @@ fn cleanup_old_edges_inner(
                 for owner_edges in edges.chunk_by(|a, b| a.1.task == b.1.task) {
                     let mut task = ctx.task(owner_edges[0].1.task, TaskDataCategory::Data);
                     for &(dependent, cell, key) in owner_edges {
-                        task.remove_cell_dependents_keyed(&(
+                        task.remove_cell_dependent_keyed(
                             CellRef {
                                 task: dependent,
                                 cell: cell.cell,
                             },
                             key,
-                        ));
+                        );
                     }
                 }
                 edges.sort_unstable_by_key(|&(dependent, _, _)| dependent);

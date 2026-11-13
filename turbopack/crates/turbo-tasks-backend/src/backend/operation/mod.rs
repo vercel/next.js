@@ -20,9 +20,9 @@ use tracing::info_span;
 #[cfg(feature = "trace_prepare_tasks")]
 use tracing::trace_span;
 use turbo_tasks::{
-    CellId, DynTaskInputs, FxIndexMap, RawVc, SharedReference, TaskExecutionReason, TaskId,
-    TaskPriority, TurboTasks, TurboTasksCallApi, ValueTypePersistence, backend::CachedTaskTypeArc,
-    macro_helpers::NativeFunction,
+    CellId, CellKey, DynTaskInputs, FxIndexMap, RawVc, SharedReference, TaskExecutionReason,
+    TaskId, TaskPriority, TurboTasks, TurboTasksCallApi, ValueTypePersistence,
+    backend::CachedTaskTypeArc, macro_helpers::NativeFunction,
 };
 
 #[cfg(any(test, feature = "verify_aggregation_graph"))]
@@ -38,7 +38,7 @@ use crate::{
         storage::{SpecificTaskDataCategory, StorageWriteGuard, TaskEntryGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    data::{CollectibleRef, Dirtyness, InProgressState, TransientTask},
+    data::{CellRef, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
 
 /// Whether an [`ExecuteContext`] task open may create the task, requires it to already exist, or
@@ -1636,6 +1636,113 @@ impl<'a> TaskGuard<'a> {
             .unwrap_or_default();
         dirty_count > clean_count
     }
+    /// Adds the keyed dependent `reverse` (the dependent task and this task's cell) with `key`:
+    /// `CellKeyKind::Hash` keys to `cell_dependents_keyed_index`, `CellKeyKind::Provisional` keys
+    /// to `cell_dependents_keyed`. Returns `false` if it already existed.
+    pub fn add_cell_dependent_keyed(&mut self, reverse: CellRef, key: CellKey) -> bool {
+        if key.is_provisional() {
+            return self.add_cell_dependents_keyed((reverse, key));
+        }
+        self.check_access(SpecificTaskDataCategory::Data);
+        // Like `filter_transient` fields: transient dependents aren't persisted, so adding them
+        // doesn't modify the persisted data.
+        let outcome = if reverse.task.is_transient() {
+            TrackOutcome::NoChange
+        } else {
+            self.track_modification(
+                SpecificTaskDataCategory::Data,
+                "cell_dependents_keyed_index",
+            )
+        };
+        let added = self.typed_mut().cell_dependents_keyed_index_mut().insert(
+            reverse.cell,
+            key,
+            reverse.task,
+        );
+        if !added {
+            self.undo_track_modification(outcome);
+        }
+        added
+    }
+
+    /// Removes the keyed dependent `reverse` with `key`, see
+    /// [`Self::add_cell_dependent_keyed`]. Returns `false` if it didn't exist.
+    pub fn remove_cell_dependent_keyed(&mut self, reverse: CellRef, key: CellKey) -> bool {
+        if key.is_provisional() {
+            return self.remove_cell_dependents_keyed(&(reverse, key));
+        }
+        if !self.has_cell_dependent_keyed(reverse, key) {
+            return false;
+        }
+        if !reverse.task.is_transient() {
+            let _ = self.track_modification(
+                SpecificTaskDataCategory::Data,
+                "cell_dependents_keyed_index",
+            );
+        }
+        let index = self.typed_mut().cell_dependents_keyed_index_mut();
+        let removed = index.remove(reverse.cell, key, reverse.task);
+        debug_assert!(removed);
+        if index.is_empty() {
+            let _ = self.typed_mut().take_cell_dependents_keyed_index();
+        }
+        removed
+    }
+
+    /// Whether the keyed dependent `reverse` with `key` exists, see
+    /// [`Self::add_cell_dependent_keyed`].
+    pub fn has_cell_dependent_keyed(&self, reverse: CellRef, key: CellKey) -> bool {
+        if key.is_provisional() {
+            return self.cell_dependents_keyed_contains(&(reverse, key));
+        }
+        self.check_access(SpecificTaskDataCategory::Data);
+        self.typed()
+            .cell_dependents_keyed_index()
+            .is_some_and(|index| index.contains(reverse.cell, key, reverse.task))
+    }
+
+    /// All keyed dependents (`CellKeyKind::Hash` and `CellKeyKind::Provisional`), as the
+    /// dependent task and this task's cell, with the key.
+    pub fn iter_all_cell_dependents_keyed(&self) -> impl Iterator<Item = (CellRef, CellKey)> + '_ {
+        self.check_access(SpecificTaskDataCategory::Data);
+        let hashed = self
+            .typed()
+            .cell_dependents_keyed_index()
+            .into_iter()
+            .flat_map(|index| index.iter_all())
+            .map(|(cell, key, task)| (CellRef { task, cell }, key));
+        self.iter_cell_dependents_keyed().chain(hashed)
+    }
+
+    /// The tasks depending on `key` (a `CellKeyKind::Hash` key) of `cell`.
+    pub fn cell_dependents_of_key(
+        &self,
+        cell: CellId,
+        key: CellKey,
+    ) -> impl Iterator<Item = TaskId> + '_ {
+        debug_assert!(!key.is_provisional());
+        self.check_access(SpecificTaskDataCategory::Data);
+        self.typed()
+            .cell_dependents_keyed_index()
+            .and_then(|index| index.get(&cell))
+            .into_iter()
+            .flat_map(move |dependents| dependents.dependents(key))
+    }
+
+    /// The `CellKeyKind::Hash` keyed dependents of `cell`, as the dependent task and the key.
+    pub fn iter_hashed_cell_dependents_of_cell(
+        &self,
+        cell: CellId,
+    ) -> impl Iterator<Item = (TaskId, CellKey)> + '_ {
+        self.check_access(SpecificTaskDataCategory::Data);
+        self.typed()
+            .cell_dependents_keyed_index()
+            .and_then(|index| index.get(&cell))
+            .into_iter()
+            .flat_map(|dependents| dependents.iter())
+            .map(|(key, task)| (task, key))
+    }
+
     /// Insert cell data, returning the old value if present.
     pub fn insert_cell_data(
         &mut self,

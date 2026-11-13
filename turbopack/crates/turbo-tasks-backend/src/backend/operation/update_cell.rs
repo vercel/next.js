@@ -132,6 +132,8 @@ pub fn update_cell(
                         .push(None);
                 }
             }
+            // Provisional `keyed_reader()` / `lazy_reader()` read dependents: always
+            // invalidate, like keyless dependents.
             for (
                 CellRef {
                     task: dependent_task,
@@ -140,24 +142,34 @@ pub fn update_cell(
                 key,
             ) in task.iter_cell_dependents_keyed()
             {
-                if dependent_cell != cell {
-                    continue;
-                }
-                let affected = match key.kind() {
-                    // Hashed dependents: invalidate only when the changed sub-value (key)
-                    // matches.
-                    CellKeyKind::Hash(_) => updated_key_hashes_set
-                        .as_ref()
-                        .is_none_or(|set| set.contains(&key)),
-                    // Provisional `keyed_reader()` / `lazy_reader()` read dependents: always
-                    // invalidate, like keyless dependents.
-                    CellKeyKind::Provisional(_) => true,
-                };
-                if affected {
+                if dependent_cell == cell {
+                    debug_assert!(matches!(key.kind(), CellKeyKind::Provisional(_)));
                     dependent_tasks
                         .entry(dependent_task)
                         .or_default()
                         .push(Some(key));
+                }
+            }
+            // Hashed dependents: invalidate only when the changed sub-value (key) matches. They
+            // are indexed by key, so only the dependents of the changed keys are visited.
+            match updated_key_hashes_set.as_ref() {
+                Some(keys) => {
+                    for &key in keys.iter() {
+                        for dependent_task in task.cell_dependents_of_key(cell, key) {
+                            dependent_tasks
+                                .entry(dependent_task)
+                                .or_default()
+                                .push(Some(key));
+                        }
+                    }
+                }
+                None => {
+                    for (dependent_task, key) in task.iter_hashed_cell_dependents_of_cell(cell) {
+                        dependent_tasks
+                            .entry(dependent_task)
+                            .or_default()
+                            .push(Some(key));
+                    }
                 }
             }
         }
@@ -582,7 +594,7 @@ mod invalidate_cell_dependents_tests {
                 CellKey::provisional(1),
                 CellKey::hash(5),
             ] {
-                let _ = cell_task.add_cell_dependents_keyed((reverse_ref(), key));
+                let _ = cell_task.add_cell_dependent_keyed(reverse_ref(), key);
                 let _ = dependent.add_cell_dependencies_keyed((cell_ref(), key));
             }
             // A full dependency from the previous execution that wasn't re-read as such. The
@@ -610,7 +622,7 @@ mod invalidate_cell_dependents_tests {
         assert!(cell_task.cell_dependents_contains(&reverse_ref()));
         // Hashed dependencies are untouched.
         assert!(dependent.cell_dependencies_keyed_contains(&(cell_ref(), CellKey::hash(5))));
-        assert!(cell_task.cell_dependents_keyed_contains(&(reverse_ref(), CellKey::hash(5))));
+        assert!(cell_task.has_cell_dependent_keyed(reverse_ref(), CellKey::hash(5)));
     }
 
     #[tokio::test(flavor = "multi_thread")]
