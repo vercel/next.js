@@ -1497,6 +1497,7 @@ impl AppEndpoint {
             // Route Handlers only use their own exports, not ancestor layout configuration.
             None,
             false,
+            false,
             next_config,
         ))
     }

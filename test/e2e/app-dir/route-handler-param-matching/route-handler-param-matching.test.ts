@@ -1,3 +1,4 @@
+import { RouteKind } from 'next/dist/server/route-kind'
 import { nextTestSetup } from 'e2e-utils'
 import {
   fetchViaHTTP,
@@ -7,6 +8,64 @@ import {
   retry,
 } from 'next-test-utils'
 import { join } from 'node:path'
+
+const metadataPathCases = [
+  {
+    pathname: '/files/known/icon.png',
+    source: '/files/[slug]/icon.png',
+    canonical: '/files/-/icon.png',
+    paramName: 'slug',
+    value: 'known',
+    body: 'known',
+  },
+  {
+    pathname: '/maps/en/sitemap.xml',
+    source: '/maps/[lang]/sitemap.xml',
+    canonical: '/maps/-/sitemap.xml',
+    paramName: 'lang',
+    value: 'en',
+    body: '<loc>https://route-handler-param-matching.example/single-sitemap</loc>',
+  },
+]
+
+async function expectMetadataPathArtifacts(
+  next: ReturnType<typeof nextTestSetup>['next']
+) {
+  const manifest = await next.readJSON('.next/prerender-manifest.json')
+  const report = await next.readJSON('adapter-admission.json')
+  for (const {
+    pathname,
+    source,
+    canonical,
+    paramName,
+    value,
+    body,
+  } of metadataPathCases) {
+    expect(manifest.routes[pathname]?.srcRoute).toBe(source)
+    expect(manifest.routeHandlerParamMatching[source]).toEqual({
+      paramNames: [paramName],
+      tuples: [[value]],
+    })
+    expect(manifest.routes[canonical]).toBeUndefined()
+    const route = {
+      kind: RouteKind.APP_ROUTE,
+      sourceRoute: `${source}/route`,
+    }
+    const bodyPath = next.getPrerenderFilePath(pathname, '.body', { route })
+    expect(await next.hasFile(bodyPath)).toBe(true)
+    expect(await next.readFile(bodyPath)).toContain(body)
+    expect(
+      await next.hasFile(
+        next.getPrerenderFilePath(canonical, '.body', { route })
+      )
+    ).toBe(false)
+    expect(report.appRoutes).toContain(source)
+    expect(report.prerenders).toContainEqual(
+      expect.objectContaining({ pathname, route: source })
+    )
+    expect(next.cliOutput).not.toContain(canonical)
+  }
+}
 
 describe('route-handler-param-matching', () => {
   const { next } = nextTestSetup({ files: __dirname })
@@ -213,6 +272,31 @@ describe('route-handler-param-matching', () => {
     expect((await next.fetch('/metadata-shaped/sitemap/rejected')).status).toBe(
       404
     )
+  })
+
+  it('plans authored icon.png handlers with their own parameter matching', async () => {
+    const response = await next.fetch('/files/known/icon.png')
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('known')
+    expect((await next.fetch('/files/unknown/icon.png')).status).toBe(404)
+    expect((await next.fetch('/files/-/icon.png')).status).toBe(404)
+  })
+
+  it('enumerates parent parameters for a single generated sitemap', async () => {
+    const response = await next.fetch('/maps/en/sitemap.xml')
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('application/xml')
+    expect(await response.text()).toContain(
+      '<loc>https://route-handler-param-matching.example/single-sitemap</loc>'
+    )
+    expect((await next.fetch('/maps/unknown/sitemap.xml')).status).toBe(404)
+    expect((await next.fetch('/maps/-/sitemap.xml')).status).toBe(404)
+  })
+
+  // These assertions inspect local prerender files and adapter output.
+  // @force-gate start
+  it('keeps metadata-shaped code routes concrete in manifests and adapters', async () => {
+    await expectMetadataPathArtifacts(next)
   })
 
   it('applies parent matching to a single-image metadata handler', async () => {
@@ -437,6 +521,39 @@ describe('route-handler-param-matching', () => {
       })
     } finally {
       await next.patchFile(file, source)
+    }
+  })
+})
+
+// This checks compiled entry provenance across separate local build phases.
+// @force-gate start
+describe('route-handler-param-matching compile/generate metadata', () => {
+  const { next } = nextTestSetup({ files: __dirname, skipStart: true })
+
+  it('preserves source classification when generate reloads compiled entries', async () => {
+    const compiled = await next.build({
+      args: ['--experimental-build-mode', 'compile'],
+    })
+    expect(compiled.exitCode).toBe(0)
+    const generated = await next.build({
+      args: ['--experimental-build-mode', 'generate'],
+    })
+    expect(generated.exitCode).toBe(0)
+    await expectMetadataPathArtifacts(next)
+    await next.start({ skipBuild: true })
+    try {
+      const response = await next.fetch('/files/known/icon.png')
+      expect(response.status).toBe(200)
+      expect(await response.text()).toBe('known')
+      expect((await next.fetch('/files/unknown/icon.png')).status).toBe(404)
+      const sitemap = await next.fetch('/maps/en/sitemap.xml')
+      expect(sitemap.status).toBe(200)
+      expect(await sitemap.text()).toContain(
+        '<loc>https://route-handler-param-matching.example/single-sitemap</loc>'
+      )
+      expect((await next.fetch('/maps/unknown/sitemap.xml')).status).toBe(404)
+    } finally {
+      await next.stop()
     }
   })
 })

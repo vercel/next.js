@@ -36,6 +36,7 @@ pub async fn get_app_route_entry(
     project_root: FileSystemPath,
     original_segment_config: Option<Vc<NextSegmentConfig>>,
     is_metadata_route: bool,
+    is_static_metadata_file: bool,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<AppEntry>> {
     let segment_from_source = parse_segment_config_from_source(source, ParseSegmentMode::App);
@@ -90,6 +91,14 @@ pub async fn get_app_route_entry(
             (
                 "isMetadataRoute",
                 if is_metadata_route { "true" } else { "false" },
+            ),
+            (
+                "isStaticMetadataFile",
+                if is_static_metadata_file {
+                    "true"
+                } else {
+                    "false"
+                },
             ),
         ],
         [],

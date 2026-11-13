@@ -53,10 +53,11 @@ export async function createAppRouteCode({
     DEFAULT_METADATA_ROUTE_EXTENSIONS,
     true
   )
-  if (isMetadataEntryFile) {
-    const { ext } = getFilenameAndExtension(resolvedPagePath)
-    const isDynamicRouteExtension = pageExtensions.includes(ext)
+  const { ext } = getFilenameAndExtension(resolvedPagePath)
+  const isDynamicRouteExtension = pageExtensions.includes(ext)
+  const isStaticMetadataFile = isMetadataEntryFile && !isDynamicRouteExtension
 
+  if (isMetadataEntryFile) {
     resolvedPagePath = `next-metadata-route-loader?${stringify({
       filePath: resolvedPagePath,
       isDynamicRouteExtension: isDynamicRouteExtension ? '1' : '0',
@@ -79,6 +80,7 @@ export async function createAppRouteCode({
     {
       nextConfigOutput: JSON.stringify(nextConfigOutput),
       isMetadataRoute: JSON.stringify(isMetadataEntryFile),
+      isStaticMetadataFile: JSON.stringify(isStaticMetadataFile),
     }
   )
 }
