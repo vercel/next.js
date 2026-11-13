@@ -9173,6 +9173,7 @@ dependencies = [
  "bincode",
  "codspeed-criterion-compat",
  "concurrent-queue",
+ "crossbeam-utils",
  "dashmap 7.0.0-rc2",
  "either",
  "event-listener",
