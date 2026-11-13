@@ -1,5 +1,9 @@
 // @ts-check
 
+const {
+  workUnitAsyncStorage,
+} = require('next/dist/server/app-render/work-unit-async-storage.external')
+
 /**
  * @typedef {import('next/cache').CacheEntry} CacheEntry
  * @typedef {Omit<CacheEntry, 'value'> & { chunks: Uint8Array[] }} StoredEntry
@@ -20,7 +24,11 @@ module.exports = {
       return undefined
     }
 
-    console.log('RDC handoff handler hit', cacheKey)
+    console.log(
+      'RDC handoff handler hit',
+      workUnitAsyncStorage.getStore()?.type,
+      cacheKey
+    )
     const { chunks, ...metadata } = storedEntry
     return {
       ...metadata,

@@ -336,24 +336,32 @@ describe('resume-data-cache', () => {
     })
 
     const cacheKey = JSON.stringify('rdc-handler-handoff')
-    const cacheEntryOutput = next.cliOutput
-      .slice(outputIndex)
-      .split('\n')
-      .filter((line) => line.includes(cacheKey))
-      .join('\n')
-    expect(cacheEntryOutput).toIncludeRepeated('RDC handoff handler hit', 1)
-
-    // The first render fills the RDC from the handler. The runtime prefetch
-    // must then read the RDC. The retained handler lookup could otherwise hide
-    // a missing RDC update.
-    expect(cacheEntryOutput).toIncludeRepeated(
-      'Resume Data Cache entry not found',
-      1
-    )
-    expect(cacheEntryOutput).toIncludeRepeated(
-      'Resume Data Cache entry found',
-      1
-    )
+    // The foreground response and background prerender each fill their own RDC.
+    // Their later stages must reuse it. The background work may still be
+    // pending after the action response finishes.
+    await retry(() => {
+      const cacheEntryOutput = next.cliOutput
+        .slice(outputIndex)
+        .split('\n')
+        .filter((line) => line.includes(cacheKey))
+        .join('\n')
+      expect(cacheEntryOutput).toIncludeRepeated(
+        'RDC handoff handler hit request ',
+        1
+      )
+      expect(cacheEntryOutput).toIncludeRepeated(
+        'RDC handoff handler hit prerender ',
+        1
+      )
+      expect(cacheEntryOutput).toIncludeRepeated(
+        'Resume Data Cache entry not found',
+        2
+      )
+      expect(cacheEntryOutput).toIncludeRepeated(
+        'Resume Data Cache entry found',
+        2
+      )
+    })
   })
 
   it('should see fresh data after updateTag in server action with fetch cache', async () => {
