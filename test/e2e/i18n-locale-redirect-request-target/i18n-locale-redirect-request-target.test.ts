@@ -177,7 +177,7 @@ describe('i18n-locale-redirect-request-target', () => {
   })
 
   describe('with basePath and trailingSlash', () => {
-    const { next, isNextDev } = nextTestSetup({
+    const { next, isNextDev, isTurbopack } = nextTestSetup({
       files: __dirname,
       skipDeployment: true,
       nextConfig: {
@@ -233,9 +233,10 @@ describe('i18n-locale-redirect-request-target', () => {
       `)
     })
     it('normalizes repeated and backslashed slashes after the basePath', async () => {
-      // `next dev` drops the basePath from this normalization redirect, while
-      // `next start` keeps it; neither applies the locale redirect.
-      const location = isNextDev ? '/' : '/docs/'
+      // `next dev` with Turbopack drops the basePath from this normalization
+      // redirect, while webpack dev and `next start` keep it; none applies the
+      // locale redirect.
+      const location = isNextDev && isTurbopack ? '/' : '/docs/'
       expect(
         await matrix(next.appPort, ['/docs//', '/docs/\\'], {
           plain: {},
