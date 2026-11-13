@@ -120,8 +120,8 @@ export function logExperimentalInfo({
 }
 
 /**
- * Keep the agent-rules block in sync with next.config, regardless of whether
- * an agent is detected. Disabling it removes only that managed block.
+ * Keep the agent-rules block in sync with next.config.
+ * Disabling it removes only that managed block.
  */
 export async function syncAgentRulesForDev(
   dir: string,
@@ -134,8 +134,8 @@ export async function syncAgentRulesForDev(
 }
 
 /**
- * Keep the opt-in agent-feedback block in sync with next.config, regardless of
- * whether an agent is detected. Disabling it removes only that managed block.
+ * Keep the opt-in agent-feedback block in sync with next.config.
+ * Disabling it removes only that managed block.
  */
 export async function syncAgentFeedbackForDev(
   dir: string,
@@ -149,7 +149,7 @@ export async function syncAgentFeedbackForDev(
 
 /**
  * Sync upgrade delegation using the reminder policy independently of agentRules.
- * Creation and removal do not require a detected agent.
+ * Disabling reminders removes only this managed block.
  */
 export async function syncAgentUpgradeForDev(
   dir: string,

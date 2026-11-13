@@ -515,13 +515,13 @@ export interface ExperimentalConfig {
   goRoutes?: boolean
   /**
    * Nudge coding agents about security upgrades, stable releases, or Future Defaults.
-   * `next dev` manages upgrade instructions in AGENTS.md even without a detected agent.
+   * `next dev` manages upgrade instructions in AGENTS.md using this policy.
    */
   agentUpgrade?: 'security' | 'latest' | 'experimental-future' | false
   /**
    * Adds managed instructions to AGENTS.md that let AI coding agents prepare
-   * anonymized Next.js feedback for user review. Written by `next dev` even
-   * when no agent is detected. Requires telemetry and does not run in CI.
+   * anonymized Next.js feedback for user review. Written by `next dev` when
+   * enabled. Requires telemetry and does not run in CI.
    */
   agentFeedback?: boolean
   /**

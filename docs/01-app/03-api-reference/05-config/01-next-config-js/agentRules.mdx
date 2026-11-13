@@ -7,7 +7,7 @@ related:
     - app/api-reference/config/next-config-js/agentFeedback
 ---
 
-The `agentRules` option controls whether `next dev` creates and updates version-matched documentation instructions for AI coding agents. It is enabled by default, even when no coding agent is detected.
+The `agentRules` option controls whether `next dev` creates and updates version-matched documentation instructions for AI coding agents. It is enabled by default.
 
 Set `agentRules` to `false` to disable this behavior:
 
@@ -50,7 +50,7 @@ The managed block directs agents to documentation bundled with the installed Nex
 
 ## Disable agent rules
 
-Set `agentRules` to `false` to stop `next dev` from creating or updating the managed block. The next `next dev` run removes the existing agent rules block and preserves all other content, even when no agent is detected. If the file contained only the managed block, Next.js deletes the file instead of leaving it empty.
+Set `agentRules` to `false` to stop `next dev` from creating or updating the managed block. The next `next dev` run removes the existing agent rules block and preserves all other content. If the file contained only the managed block, Next.js deletes the file instead of leaving it empty.
 
 To prevent [`create-next-app`](/docs/app/api-reference/cli/create-next-app) from creating agent files in a new project, pass the `--no-agents-md` option. Also set `agentRules: false` in the generated project's Next.js config to prevent `next dev` from adding the managed rules block later.
 
@@ -60,8 +60,8 @@ Upgrade instructions are also independent and enabled by default. To prevent `ne
 
 ## Version History
 
-| Version   | Changes                                                                            |
-| --------- | ---------------------------------------------------------------------------------- |
-| `v16.5.0` | `next dev` creates and updates the managed block without detecting a coding agent. |
-| `v16.4.0` | Setting `agentRules` to `false` removes an existing managed block on `next dev`.   |
-| `v16.3.0` | `agentRules` configuration option added.                                           |
+| Version   | Changes                                                                          |
+| --------- | -------------------------------------------------------------------------------- |
+| `v16.5.0` | `next dev` creates and updates the managed block by default.                     |
+| `v16.4.0` | Setting `agentRules` to `false` removes an existing managed block on `next dev`. |
+| `v16.3.0` | `agentRules` configuration option added.                                         |

@@ -57,7 +57,7 @@ If you don't choose within ten seconds, or the buffered output grows past about 
 
 When a coding agent runs `next dev` or `next build`, the first eligible reminder stops the command with instructions to report the upgrade. Retrying the same command promptly continues the original task with a warning.
 
-When upgrade reminders are enabled, `next dev` also writes a separate managed upgrade block to `AGENTS.md`, even when no coding agent is detected. This block delegates handling of the installed CLI's reminders:
+When upgrade reminders are enabled, `next dev` also writes a separate managed upgrade block to `AGENTS.md`. This block delegates handling of the installed CLI's reminders:
 
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-upgrade -->
@@ -69,7 +69,7 @@ Upgrade reminders emitted by this project's installed Next.js CLI during `next d
 <!-- END:nextjs-agent-upgrade -->
 ```
 
-Setting `experimental.agentUpgrade: false` removes this block on the next `next dev` run, even when no agent is detected. Documentation rules (`agentRules`) and feedback instructions (`experimental.agentFeedback`) remain independent. `create-next-app` includes the upgrade block for new apps using the default `security` policy.
+Setting `experimental.agentUpgrade: false` removes this block on the next `next dev` run. Documentation rules (`agentRules`) and feedback instructions (`experimental.agentFeedback`) remain independent. `create-next-app` includes the upgrade block for new apps using the default `security` policy.
 
 Reminders require the installed Next.js version to support `experimental.agentUpgrade`. Running the current canary upgrade CLI does not add reminders to an older installation.
 
@@ -77,7 +77,7 @@ During `next dev`, Next.js DevTools can also show a **Vulnerability Insight** wh
 
 ## Version History
 
-| Version   | Changes                                                                                    |
-| --------- | ------------------------------------------------------------------------------------------ |
-| `v16.5.0` | `next dev` creates and updates the managed upgrade block without detecting a coding agent. |
-| `v16.4.0` | `experimental.agentUpgrade` configuration option added.                                    |
+| Version   | Changes                                                              |
+| --------- | -------------------------------------------------------------------- |
+| `v16.5.0` | `next dev` creates and updates the managed upgrade block by default. |
+| `v16.4.0` | `experimental.agentUpgrade` configuration option added.              |
