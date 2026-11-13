@@ -133,6 +133,8 @@ pub struct Metadata {
     pub apple: Vec<MetadataWithAltItem>,
     pub twitter: Vec<MetadataWithAltItem>,
     pub open_graph: Vec<MetadataWithAltItem>,
+    /// Static `opengraph-video.<ext>` file. Only a single file per segment is supported.
+    pub open_graph_video: Option<MetadataItem>,
     pub sitemap: Option<MetadataItem>,
     // The page indicates where the metadata is defined and captured.
     // The steps for capturing metadata (get_directory_tree) and constructing
@@ -151,6 +153,7 @@ impl Metadata {
             apple,
             twitter,
             open_graph,
+            open_graph_video,
             sitemap,
             base_page: _,
         } = self;
@@ -158,6 +161,7 @@ impl Metadata {
             && apple.is_empty()
             && twitter.is_empty()
             && open_graph.is_empty()
+            && open_graph_video.is_none()
             && sitemap.is_none()
     }
 }
@@ -419,6 +423,17 @@ async fn get_directory_tree_internal(
                     "apple-icon" => &mut metadata_apple,
                     "twitter-image" => &mut metadata_twitter,
                     "opengraph-image" => &mut metadata_open_graph,
+                    "opengraph-video" => {
+                        // Only a single video file is supported, prefer `.mp4` when both `.mp4`
+                        // and `.webm` exist to match the webpack behavior.
+                        if modules.metadata.open_graph_video.is_none()
+                            || basename.ends_with(".mp4")
+                        {
+                            modules.metadata.open_graph_video =
+                                Some(MetadataItem::Static { path: file });
+                        }
+                        continue;
+                    }
                     "sitemap" => {
                         if dynamic {
                             modules.metadata.sitemap = Some(MetadataItem::Dynamic { path: file });
@@ -2317,6 +2332,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         apple,
         twitter,
         open_graph,
+        open_graph_video,
         sitemap,
         base_page: _,
     } = &modules.metadata;
@@ -2324,6 +2340,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     for meta in sitemap
         .iter()
         .cloned()
+        .chain(open_graph_video.iter().cloned())
         .chain(icon.iter().cloned().map(MetadataItem::from))
         .chain(apple.iter().cloned().map(MetadataItem::from))
         .chain(twitter.iter().cloned().map(MetadataItem::from))
@@ -2890,6 +2907,7 @@ async fn directory_tree_has_entrypoints(directory_tree: Vc<DirectoryTree>) -> Re
         apple,
         twitter,
         open_graph,
+        open_graph_video,
         sitemap,
         base_page: _,
     } = &modules.metadata;
@@ -2900,6 +2918,7 @@ async fn directory_tree_has_entrypoints(directory_tree: Vc<DirectoryTree>) -> Re
         || !apple.is_empty()
         || !twitter.is_empty()
         || !open_graph.is_empty()
+        || open_graph_video.is_some()
         || sitemap.is_some()
     {
         return Ok(Vc::cell(true));

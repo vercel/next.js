@@ -4,7 +4,10 @@ import type {
 } from './types'
 import path from 'path'
 import { stringify } from 'querystring'
-import { STATIC_METADATA_IMAGES } from '../../../../lib/metadata/is-metadata-route'
+import {
+  STATIC_METADATA_IMAGES,
+  STATIC_METADATA_VIDEOS,
+} from '../../../../lib/metadata/is-metadata-route'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 import type { MetadataResolver } from '../next-app-loader'
 import type { PageExtensions } from '../../../page-extensions-type'
@@ -64,6 +67,7 @@ export async function createStaticMetadataFromRoute(
     apple: [],
     twitter: [],
     openGraph: [],
+    openGraphVideo: [],
     manifest: undefined,
   }
 
@@ -92,15 +96,28 @@ export async function createStaticMetadataFromRoute(
     }
 
     const isFavicon = type === 'favicon'
-    const resolvedMetadataFiles = await enumMetadataFiles(
-      resolvedDir,
-      STATIC_METADATA_IMAGES[type].filename,
-      [
-        ...STATIC_METADATA_IMAGES[type].extensions,
-        ...(isFavicon ? [] : pageExtensions),
-      ],
-      { metadataResolver, numericSuffix: !isFavicon }
-    )
+    const isVideo = type === 'openGraphVideo'
+    let resolvedMetadataFiles: string[]
+    if (isVideo) {
+      // Video files are static only and support a single file per segment.
+      const videoFiles = await enumMetadataFiles(
+        resolvedDir,
+        STATIC_METADATA_VIDEOS[type].filename,
+        STATIC_METADATA_VIDEOS[type].extensions,
+        { metadataResolver, numericSuffix: false }
+      )
+      resolvedMetadataFiles = videoFiles.slice(0, 1)
+    } else {
+      resolvedMetadataFiles = await enumMetadataFiles(
+        resolvedDir,
+        STATIC_METADATA_IMAGES[type].filename,
+        [
+          ...STATIC_METADATA_IMAGES[type].extensions,
+          ...(isFavicon ? [] : pageExtensions),
+        ],
+        { metadataResolver, numericSuffix: !isFavicon }
+      )
+    }
     resolvedMetadataFiles
       .sort((a, b) => a.localeCompare(b))
       .forEach((filepath) => {
@@ -131,6 +148,7 @@ export async function createStaticMetadataFromRoute(
   await collectIconModuleIfExists('apple')
   await collectIconModuleIfExists('openGraph')
   await collectIconModuleIfExists('twitter')
+  await collectIconModuleIfExists('openGraphVideo')
   if (isRootLayoutOrRootPage) {
     await collectIconModuleIfExists('favicon')
     await collectIconModuleIfExists('manifest')
@@ -148,6 +166,7 @@ export function createMetadataExportsCode(
     apple: [${metadata.apple.join(',')}],
     openGraph: [${metadata.openGraph.join(',')}],
     twitter: [${metadata.twitter.join(',')}],
+    openGraphVideo: [${metadata.openGraphVideo.join(',')}],
     manifest: ${metadata.manifest ? metadata.manifest : 'undefined'}
   }`
     : ''

@@ -6,7 +6,8 @@ use std::{
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{FileContent, FileSystemPath};
+use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::{file_source::FileSource, module::Module};
 use turbopack_ecmascript::{magic_identifier, text::TextContentFileSource, utils::StringifyJs};
@@ -86,6 +87,7 @@ impl AppPageLoaderTreeBuilder {
             apple,
             twitter,
             open_graph,
+            open_graph_video,
             sitemap: _,
             base_page,
         } = metadata;
@@ -117,6 +119,10 @@ impl AppPageLoaderTreeBuilder {
             .await?;
         self.write_metadata_items(app_page, "openGraph", open_graph.iter(), depth)
             .await?;
+        if let Some(open_graph_video) = open_graph_video {
+            self.write_metadata_video(app_page, "openGraphVideo", open_graph_video)
+                .await?;
+        }
 
         if let Some(global_metadata) = global_metadata {
             self.write_metadata_manifest(global_metadata.manifest.clone())
@@ -145,6 +151,51 @@ impl AppPageLoaderTreeBuilder {
             StringifyJs(&manifest_route)
         )?;
 
+        Ok(())
+    }
+
+    /// Writes a static metadata video item, e.g. `opengraph-video.mp4`. Unlike images, the
+    /// dimensions are not resolved, only the url (with a content hash) and the mime type.
+    ///
+    /// For webpack, refer to the `openGraphVideo` branch in `next-metadata-image-loader`.
+    async fn write_metadata_video(
+        &mut self,
+        app_page: &AppPage,
+        name: &str,
+        item: &MetadataItem,
+    ) -> Result<()> {
+        let path = item.clone().into_path();
+        let content_hash = match &*path.read().await? {
+            FileContent::Content(file) => {
+                encode_hex(hash_xxh3_hash64(file.content().content_hash()))
+            }
+            FileContent::NotFound => String::new(),
+        };
+        let pathname_prefix = match &self.base_path {
+            Some(base_path) if !base_path.is_empty() => {
+                format!("{base_path}{app_page}")
+            }
+            _ => app_page.to_string(),
+        };
+        let metadata_route = fill_static_metadata_segment(
+            &pathname_prefix,
+            &get_metadata_route_name(item.clone()).await?,
+        );
+        let url = if content_hash.is_empty() {
+            metadata_route.to_string()
+        } else {
+            format!("{metadata_route}?{content_hash}")
+        };
+        let content_type = get_content_type(path).await?;
+
+        writeln!(self.loader_tree_code, "    {name}: [")?;
+        writeln!(
+            self.loader_tree_code,
+            "      async () => [{{ url: {}, type: {} }}],",
+            StringifyJs(&url),
+            StringifyJs(&content_type),
+        )?;
+        writeln!(self.loader_tree_code, "    ],")?;
         Ok(())
     }
 

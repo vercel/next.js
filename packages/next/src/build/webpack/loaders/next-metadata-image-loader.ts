@@ -6,12 +6,16 @@ import type webpack from 'webpack'
 import type {
   MetadataImageModule,
   PossibleImageFileNameConvention,
+  PossibleVideoFileNameConvention,
 } from './metadata/types'
 import { existsSync, promises as fs } from 'fs'
 import path from 'path'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer/get-image-size'
-import { imageExtMimeTypeMap } from '../../../lib/mime-type'
+import {
+  imageExtMimeTypeMap,
+  videoExtMimeTypeMap,
+} from '../../../lib/mime-type'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 import { fillStaticMetadataSegment } from '../../../lib/metadata/get-metadata-route'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
@@ -21,7 +25,7 @@ import { installBindings } from '../../swc/install-bindings'
 
 interface Options {
   segment: string
-  type: PossibleImageFileNameConvention
+  type: PossibleImageFileNameConvention | PossibleVideoFileNameConvention
   pageExtensions: PageExtensions
   basePath: string
 }
@@ -61,6 +65,22 @@ async function nextMetadataImageLoader(
   const pageSegment = isDynamicResource ? fileNameBase : interpolatedName
   const hashQuery = contentHash ? '?' + contentHash : ''
   const pathnamePrefix = normalizePathSep(path.join(basePath, segment))
+
+  // Static video files, e.g. `opengraph-video.mp4`. They're only referenced by
+  // url and mime type, the dimensions of video are not resolved.
+  if (type === 'openGraphVideo') {
+    const videoUrl = fillStaticMetadataSegment(pathnamePrefix, interpolatedName)
+    const videoData = {
+      ...(extension in videoExtMimeTypeMap && {
+        type: videoExtMimeTypeMap[
+          extension as keyof typeof videoExtMimeTypeMap
+        ],
+      }),
+      url: videoUrl + hashQuery,
+    }
+
+    return `export default function () { return [${JSON.stringify(videoData)}] }`
+  }
 
   if (isDynamicResource) {
     const exportedFieldsExcludingDefault = (
