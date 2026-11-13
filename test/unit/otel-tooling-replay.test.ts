@@ -1,5 +1,5 @@
 import { toHrTime } from '../../packages/next/src/server/lib/trace/utils'
-import type { Span } from '@opentelemetry/api'
+import type { Span } from '../../packages/next/src/server/lib/trace/tracer'
 import type { ReadableSpan, Sampler } from '@opentelemetry/sdk-trace'
 import type { TraceEvent } from '../../packages/next/src/trace/types'
 
@@ -44,6 +44,7 @@ describe('tooling OTel safety', () => {
     await meterProvider?.shutdown()
     meterProvider = undefined
     jest.dontMock('../../packages/next/src/trace/report')
+    jest.dontMock('../../packages/next/src/server/lib/trace/otel-api')
     api.trace.disable()
     api.metrics.disable()
     api.context.disable()
@@ -162,6 +163,97 @@ describe('tooling OTel safety', () => {
   function expectExported(...names: string[]) {
     expect(exported.map((span) => span.name)).toEqual(names)
   }
+
+  it.each(['early', 'live'])(
+    'preserves completed parents for %s object and numeric children',
+    (mode) => {
+      installProvider()
+      const root = buildRoot()
+      if (mode === 'live') backend.enableReporting()
+      const parent = child('parent', root)
+      const parentId = tracing.getTraceSpanSource(parent)!.id
+      parent.end()
+      child('object-child', parent).end()
+      child('numeric-child', parentId).end()
+      const middle = child('local-only', parent, { reportToOtel: false })
+      middle.end()
+      child('descendant', middle).end()
+      if (mode === 'early') backend.enableReporting()
+      root.end()
+
+      expectExported(
+        'parent',
+        'object-child',
+        'numeric-child',
+        'descendant',
+        'next-build'
+      )
+      for (const span of exported.slice(1, 4)) {
+        expect(span.parentSpanContext?.spanId).toBe(
+          exported[0].spanContext().spanId
+        )
+      }
+    }
+  )
+
+  it.each(['early', 'live'])(
+    'samples %s spans using their initial attributes',
+    (mode) => {
+      installProvider(undefined, {
+        shouldSample: (_context, _traceId, _name, _kind, attributes) => ({
+          decision:
+            attributes.sample === true
+              ? sdk.SamplingDecision.RECORD_AND_SAMPLED
+              : sdk.SamplingDecision.NOT_RECORD,
+        }),
+        toString: () => 'AttributeSampler',
+      })
+      const root = buildRoot()
+      if (mode === 'live') backend.enableReporting()
+      const selected = child('selected', root, { attributes: { sample: true } })
+      const rejected = child('rejected', root, {
+        attributes: { sample: false },
+      })
+      selected.setAttribute('sample', false)
+      rejected.setAttribute('sample', true)
+      if (mode === 'early') backend.enableReporting()
+      selected.end()
+      rejected.end()
+      root.end()
+
+      expectExported('selected')
+      expect(exported[0].attributes.sample).toBe(false)
+    }
+  )
+
+  it.each(['close', 'restart', 'worker'])(
+    'releases retained contexts on session %s',
+    (mode) => {
+      installProvider()
+      const root = backend.startSpan(
+        { id: 1, name: 'root', start: BigInt(0) },
+        true
+      )!
+      backend.enableReporting()
+      const record = backend.startSpan({
+        id: 2,
+        parentId: 1,
+        name: 'child',
+        start: BigInt(0),
+      })!
+      backend.completeSpan(record, { end: BigInt(1) })
+      expect(root.session.records.has(record.id)).toBe(false)
+      expect(root.session.contexts.size).toBe(2)
+
+      if (mode === 'close') backend.closeReporting()
+      else if (mode === 'worker') backend.configureState(undefined, true)
+      else
+        backend.startSpan({ id: 1, name: 'next-root', start: BigInt(0) }, true)
+
+      expect(root.session.contexts.size).toBe(0)
+      expect(root.session.records.size).toBe(0)
+    }
+  )
 
   function replay(
     ...events: (Partial<TraceEvent> & Pick<TraceEvent, 'id' | 'name'>)[]
@@ -491,6 +583,31 @@ describe('tooling OTel safety', () => {
     expect(warn).toHaveBeenCalledTimes(1)
   })
 
+  it.each(['memory-usage', 'failed-start', 'failed-end'])(
+    'releases completed %s replay records',
+    (name) => {
+      jest.spyOn(console, 'warn').mockImplementation(() => {})
+      installProvider((span) => {
+        if (span.name === 'failed-start') throw new Error('start failed')
+        if (span.name === 'failed-end') {
+          jest
+            .spyOn(span as ReadableSpan & Span, 'end')
+            .mockImplementation(() => {
+              throw new Error('end failed')
+            })
+        }
+      })
+      const root = buildRoot()
+      backend.enableReporting()
+      const record = backend.startSpan({ id: 100, name, start: BigInt(0) })!
+      backend.completeSpan(record, { end: BigInt(1) })
+
+      expect(record.session.records.has(record.id)).toBe(false)
+      expect(record.session.records.size).toBe(1)
+      root.end()
+    }
+  )
+
   it('finishes reentrant SDK work without recursive entry or duplicate completion', () => {
     const root = buildRoot()
     let inside = false
@@ -529,31 +646,41 @@ describe('tooling OTel safety', () => {
     // Parallel workers inherit snapshots of the coordinator counter. Their
     // completion order and overlapping IDs must not filter distinct results.
     for (const id of [100, parentId]) {
-      replay({
-        id,
-        parentId: rootId,
-        name: `worker-${id}`,
-        timestamp: 1,
-        duration: 1,
-      })
+      replay(
+        { id: id + 1000, parentId: id, name: `worker-child-${id}` },
+        { id, parentId: rootId, name: `worker-${id}` }
+      )
     }
     expect(local.map((event) => event.name)).toEqual([
+      'worker-child-100',
       'worker-100',
+      `worker-child-${parentId}`,
       `worker-${parentId}`,
     ])
     child('numeric-child', parentId).end()
     parent.end()
+    child('late-numeric-child', parentId).end()
     root.end()
     expectExported(
       'worker-100',
+      'worker-child-100',
       `worker-${parentId}`,
+      `worker-child-${parentId}`,
       'numeric-child',
       'live-coordinator',
+      'late-numeric-child',
       'next-build'
     )
-    expect(exported[2].parentSpanContext?.spanId).toBe(
-      exported[3].spanContext().spanId
-    )
+    for (const [childIndex, parentIndex] of [
+      [1, 0],
+      [3, 2],
+      [4, 5],
+      [6, 5],
+    ]) {
+      expect(exported[childIndex].parentSpanContext?.spanId).toBe(
+        exported[parentIndex].spanContext().spanId
+      )
+    }
   })
 
   it.each(['on', 'off'])(
@@ -622,6 +749,30 @@ describe('tooling OTel safety', () => {
       if (sampling === 'off') expect(exported).toEqual([])
     }
   )
+
+  it('keeps tooling traces when the application API has no metrics', () => {
+    jest.doMock('../../packages/next/src/server/lib/trace/otel-api', () => {
+      const actual = jest.requireActual(
+        '../../packages/next/src/server/lib/trace/otel-api'
+      )
+      return { ...actual, api: { ...actual.api, metrics: undefined } }
+    })
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    installProvider()
+    const root = buildRoot()
+    backend.enableReporting()
+    observe('turbopack-persistence', { bytes_written: 1 }, root)
+    observe('memory-usage', { 'memory.rss': 100 }, root)
+    root.end()
+
+    expectExported('turbopack-persistence', 'next-build')
+    expect(local.map((event) => event.name)).toEqual([
+      'turbopack-persistence',
+      'memory-usage',
+      'next-build',
+    ])
+    expect(warn).not.toHaveBeenCalled()
+  })
 
   it('keeps root metric context for parentless operations', () => {
     const record = jest.fn()

@@ -10,6 +10,7 @@ export function reportToolingMeasurements(
     name === 'turbopack-persistence' || name === 'turbopack-compaction'
   if (!native && name !== 'memory-usage' && !restart) return
   const { api } = require('./otel-api') as typeof import('./otel-api')
+  if (!api.metrics) return
   const meter = api.metrics.getMeter('next.js', process.env.__NEXT_VERSION)
   const measurements = native
     ? [

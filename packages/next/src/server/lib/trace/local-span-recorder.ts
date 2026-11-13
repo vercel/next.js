@@ -499,6 +499,7 @@ export class LocalRecordingSpan implements Span {
   public name: string
   private nameUpdated = false
   private reportingSpan?: ReportingSpan
+  private reportingId?: number
   private readonly parentReportingId?: number
 
   private attributes: SpanStoreAttributes
@@ -567,7 +568,7 @@ export class LocalRecordingSpan implements Span {
   }
 
   getReportingId(): number | undefined {
-    return this.reportingSpan?.id ?? this.parentReportingId
+    return this.reportingId ?? this.parentReportingId
   }
 
   startReporting(
@@ -582,7 +583,7 @@ export class LocalRecordingSpan implements Span {
         parentId: this.parentReportingId ?? identity?.parentId,
         name: this.name,
         start: this.clock?.start ?? epochNanoseconds(this.startTime),
-        attributes: identity?.attributes,
+        attributes: { ...this.attributes, ...identity?.attributes },
         links: this.links?.map(({ traceId, spanId, attributes }) => ({
           context: { traceId, spanId, traceFlags: 0 },
           attributes,
@@ -590,6 +591,7 @@ export class LocalRecordingSpan implements Span {
       },
       root
     )
+    this.reportingId = this.reportingSpan?.id
     if (!completed) replay.flushReporting()
   }
 
