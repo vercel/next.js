@@ -94,6 +94,18 @@ struct WebpackLoadersProcessingResult {
 
 pub use turbopack_core::loader::{WebpackLoaderItem, WebpackLoaderItems};
 
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Encode, Decode)]
+#[serde(rename_all = "camelCase")]
+pub struct WebpackLoaderContextOptions {
+    pub hash_function: RcStr,
+    pub hash_digest: RcStr,
+    pub hash_digest_length: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hash_salt: Option<RcStr>,
+    pub hot: bool,
+}
+
 #[turbo_tasks::value]
 pub struct WebpackLoaders {
     evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
@@ -101,6 +113,7 @@ pub struct WebpackLoaders {
     loaders: ResolvedVc<WebpackLoaderItems>,
     target: ResolvedVc<RcStr>,
     mode: RcStr,
+    context_options: WebpackLoaderContextOptions,
     rename_as: Option<RcStr>,
     resolve_options_context: ResolvedVc<ResolveOptionsContext>,
     source_maps: bool,
@@ -126,6 +139,7 @@ impl WebpackLoaders {
         loaders: ResolvedVc<WebpackLoaderItems>,
         target: ResolvedVc<RcStr>,
         mode: RcStr,
+        context_options: WebpackLoaderContextOptions,
         rename_as: Option<RcStr>,
         resolve_options_context: ResolvedVc<ResolveOptionsContext>,
         source_maps: bool,
@@ -137,6 +151,7 @@ impl WebpackLoaders {
             loaders,
             target,
             mode,
+            context_options,
             rename_as,
             resolve_options_context,
             source_maps,
@@ -549,6 +564,7 @@ impl WebpackLoadersProcessedAsset {
                     EvaluateArg::Vc(ResolvedVc::cell(transform.target.await?.to_string().into())),
                     EvaluateArg::Vc(ResolvedVc::cell(transform.mode.to_string().into())),
                     EvaluateArg::Vc(ResolvedVc::cell(transform.source_maps.into())),
+                    EvaluateArg::Vc(ResolvedVc::cell(json!(transform.context_options))),
                 ],
                 additional_invalidation: Completion::immutable().to_resolved().await?,
                 loader_names,

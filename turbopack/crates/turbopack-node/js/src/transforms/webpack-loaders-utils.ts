@@ -47,6 +47,133 @@ export function absolutify(context: string, request: string): string {
     .join('!')
 }
 
+export interface LoaderHashOptions {
+  hashFunction: string
+  hashDigest: string
+  hashDigestLength: number
+  hashSalt?: string
+}
+
+export interface LoaderPathData {
+  filename?: string
+  hash?: string
+  contentHash?: string
+  contentHashType?: string
+  chunk?: {
+    id?: string | number
+    name?: string
+    hash?: string
+    contentHash?: string | Record<string, string>
+  }
+}
+
+// Based on webpack's TemplatedPathPlugin (MIT, Jason Anderson @diurnalist).
+// This supports its string/filename/hash subset. Hashes must
+// come from the caller: there is no compilation hash, chunk graph or asset hook.
+// https://github.com/webpack/webpack/blob/v5.98.0/lib/TemplatedPathPlugin.js
+export function getPath(template: string, data: LoaderPathData = {}): string {
+  if (typeof template !== 'string') {
+    throw new Error('Loader getPath only supports string templates')
+  }
+  const values = new Map<string, string | number | undefined>()
+  if (typeof data.filename === 'string') {
+    if (data.filename.startsWith('data:')) {
+      throw new Error('Loader getPath does not support data URI filenames')
+    }
+    const match = /^((?:\0.|[^?#\0])*)(\?(?:\0.|[^#\0])*)?(#.*)?$/.exec(
+      data.filename
+    )!
+    const file = match[1].replace(/\0(.)/g, '$1')
+    const base = path.basename(file)
+    const ext = path.extname(file)
+    values.set('file', file)
+    values.set('base', base)
+    values.set('filebase', base)
+    values.set('path', file.slice(0, file.length - base.length))
+    values.set('name', base.slice(0, base.length - ext.length))
+    values.set('ext', ext)
+    values.set('query', (match[2] || '').replace(/\0(.)/g, '$1'))
+    values.set('fragment', match[3] || '')
+  }
+  if (data.hash) {
+    values.set('hash', data.hash)
+    values.set('fullhash', data.hash)
+  }
+  if (data.chunk) {
+    values.set('id', data.chunk.id)
+    values.set('name', data.chunk.name || data.chunk.id)
+    values.set('chunkhash', data.chunk.hash)
+    values.set(
+      'contenthash',
+      data.contentHash ||
+        (data.contentHashType && typeof data.chunk.contentHash === 'object'
+          ? data.chunk.contentHash[data.contentHashType]
+          : undefined)
+    )
+  }
+  return template.replace(/\[\\*([\w:]+)\\*\]/gi, (match, content: string) => {
+    if (content.length + 2 === match.length) {
+      const variable = /^(\w+)(?::(\w+))?$/.exec(content)
+      if (!variable || !values.has(variable[1])) return match
+      const [, kind, argument] = variable
+      const value = values.get(kind)
+      if (value === undefined || value === null) {
+        throw new Error(
+          `Path variable ${match} not implemented in this context: ${template}`
+        )
+      }
+      const result = String(value)
+      const length = argument && Number.parseInt(argument, 10)
+      return length && /^(?:hash|fullhash|chunkhash|contenthash)$/.test(kind)
+        ? result.slice(0, length)
+        : result
+    }
+    return match.startsWith('[\\') && match.endsWith('\\]')
+      ? `[${match.slice(2, -2)}]`
+      : match
+  })
+}
+
+function compatibilitySubset<T extends object>(
+  properties: T,
+  name: string,
+  optionalProbe?: string
+) {
+  return new Proxy(Object.freeze(properties), {
+    get(target, property, receiver) {
+      if (Object.hasOwn(target, property)) {
+        return Reflect.get(target, property, receiver)
+      }
+      if (property === optionalProbe) return undefined
+      throw new Error(
+        `Turbopack does not support ${name}.${String(property)} in webpack loaders`
+      )
+    },
+    set(_target, property) {
+      throw new Error(`${name}.${String(property)} is read-only in Turbopack`)
+    },
+  })
+}
+
+export function createCompilationFacade(hashOptions: LoaderHashOptions) {
+  const outputOptions = compatibilitySubset(
+    {
+      hashFunction: hashOptions.hashFunction,
+      hashDigest: hashOptions.hashDigest,
+      hashDigestLength: hashOptions.hashDigestLength,
+      hashSalt: hashOptions.hashSalt,
+    },
+    '_compilation.outputOptions'
+  )
+  // css-loader probes options before using optional webpack features. Leave
+  // that probe undefined; every other unsupported compilation read throws.
+  return compatibilitySubset(
+    { outputOptions, getPath },
+    '_compilation',
+    'options'
+  )
+}
+
 export interface WebpackHash {
   update(data: string | Buffer, inputEncoding?: BufferEncoding): WebpackHash
   digest(encoding?: BufferEncoding): string | Buffer

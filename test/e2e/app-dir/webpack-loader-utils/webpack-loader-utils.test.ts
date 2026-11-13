@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('webpack-loader-utils', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
     dependencies: {
       'style-loader': '4.0.0',
@@ -17,6 +17,25 @@ describe('webpack-loader-utils', () => {
       xxhash: '44bc2cf5ad770999',
       webpack: !process.env.IS_TURBOPACK_TEST,
       compiler: !process.env.IS_TURBOPACK_TEST,
+      compilationHooks: !process.env.IS_TURBOPACK_TEST,
+      compilationHooksRead: process.env.IS_TURBOPACK_TEST
+        ? 'Turbopack does not support _compilation.hooks in webpack loaders'
+        : 'object',
+      compilationOptionsProbe: !!process.env.IS_TURBOPACK_TEST,
+      hashOptions: {
+        hashFunction: 'xxhash64',
+        hashDigest: 'hex',
+        hashDigestLength: 16,
+        // Non-adapter deployments retain the unset salt.
+        hashSalt:
+          isNextDeploy && process.env.NEXT_ENABLE_ADAPTER === '1'
+            ? 'initial'
+            : null,
+      },
+      paths: [
+        'styles/panel.module.css?theme=dark#button',
+        'component-0-f00d-abc-01234',
+      ],
       mode: isNextDev ? 'development' : 'production',
     })
   })

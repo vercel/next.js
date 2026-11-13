@@ -65,6 +65,16 @@ The following loaders have been tested to work with Turbopack's webpack loader i
 - [`sass-loader`](https://www.npmjs.com/package/sass-loader) [_(Configured automatically)_](/docs/app/api-reference/turbopack#css-and-styling)
 - [`graphql-tag/loader`](https://www.npmjs.com/package/graphql-tag)
 
+#### Loader hash and path helpers
+
+Turbopack exposes `hashFunction`, `hashDigest`, and `hashDigestLength` on the loader context, with defaults of `xxhash64`, `hex`, and `16`. `hashSalt` reflects `outputHashSalt` when configured and remains unset otherwise.
+
+For loaders that interpolate names, `_compilation.outputOptions` provides the same hash settings. `_compilation.getPath(template, data)` supports string templates with filename placeholders (`[file]`, `[path]`, `[base]`, `[name]`, `[ext]`, `[query]`, and `[fragment]`) and caller-supplied hash or scalar chunk values (`[hash]`, `[fullhash]`, `[chunkhash]`, `[contenthash]`, and `[id]`). Hash placeholders support a length, such as `[contenthash:8]`. Unknown placeholders remain unchanged.
+
+For browser loaders in development, `hot` is `true` so loaders can generate HMR handlers. Other loader environments leave `hot` unset.
+
+The `_compilation` compatibility object and its hash settings are read-only. Reading unsupported members, including `_compilation.hooks` or unimplemented output options, throws an error naming the unsupported API. The exception is `_compilation.options`, which returns `undefined` so loaders can probe for optional webpack features. `_compiler`, module and chunk graphs, and implicit compilation hashes remain unavailable. Function templates and data URI filenames are not supported by `getPath`.
+
 #### Missing Webpack loader features
 
 Turbopack uses the [`loader-runner`](https://github.com/webpack/loader-runner) library to execute webpack loaders, which provides most of the standard loader API. However, some features are not supported:
@@ -81,7 +91,7 @@ Turbopack uses the [`loader-runner`](https://github.com/webpack/loader-runner) l
 
 **Utilities:**
 
-- [`utils`](https://webpack.js.org/api/loaders/#thisutils) - No support
+- [`utils`](https://webpack.js.org/api/loaders/#thisutils) - Partial support: `absolutify`, `contextify`, and `createHash` are implemented.
 
 If you have a loader that is critically dependent upon one of these features please file an issue.
 

@@ -694,6 +694,7 @@ async fn process_default_internal(
             loaders_vc,
             *webpack_loaders_options.target,
             webpack_loaders_options.mode.clone(),
+            webpack_loaders_options.context_options.clone(),
             rename_as.clone(),
             *resolve_options_context,
             source_maps,

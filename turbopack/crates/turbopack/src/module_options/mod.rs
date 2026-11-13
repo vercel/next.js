@@ -505,6 +505,7 @@ impl ModuleOptions {
                                     *rule.loaders,
                                     *webpack_loaders_options.target,
                                     webpack_loaders_options.mode.clone(),
+                                    webpack_loaders_options.context_options.clone(),
                                     rule.rename_as.clone(),
                                     resolve_options_context,
                                     matches!(ecmascript_source_maps, SourceMapsType::Full),
