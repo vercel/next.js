@@ -85,7 +85,7 @@ pub fn capture_all_edges(task: &TaskGuard<'_>) -> Vec<OutdatedEdge> {
                 },
             }),
     );
-    old_edges.extend(task.iter_cell_dependents_keyed().map(|(entry, key)| {
+    old_edges.extend(task.iter_keyed_cell_dependents().map(|(entry, key)| {
         OutdatedEdge::KeyedCellDependency {
             dependent: entry.task,
             cell: CellRef {
@@ -283,7 +283,7 @@ fn cleanup_old_edges_inner(
                 // Same as above but in the `_keyed` sets.
                 {
                     let mut task = ctx.task(cell.task, TaskDataCategory::Data);
-                    task.remove_cell_dependents_keyed(&(
+                    task.remove_keyed_cell_dependent(&(
                         CellRef {
                             task: dependent,
                             cell: cell.cell,

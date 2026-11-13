@@ -22,18 +22,21 @@
 //!   default) is a pure heap vector with a 2-byte header — 16 B on 64-bit, vs 24 B for `Vec`.
 //! * `MAX` — hard cap on the element count. Defaults to `MAX_TINY_VEC_SIZE`. Pushing past `MAX`
 //!   panics; growth doubles until it would exceed `MAX`, then caps at exactly `MAX`.
+//! * `L` — the [`TinyLen`] integer holding the length and capacity: `u8` (the default, for `MAX <=
+//!   254`) or `u32` (for [`crate::EdgeSet`]). A `u32` length and capacity fit in the padding before
+//!   an 8-aligned union, so they usually cost nothing either.
 //!
 //! # Representation
-//! * `cap == INLINE`: elements live inline in `data.inline[..len]`.
-//! * `cap > INLINE`: elements live on the heap at `data.heap[..len]`, in an allocation of `cap`
-//!   elements. Only reachable once more than `INLINE` elements are inserted; capped at `MAX`.
+//! * capacity `== INLINE`: elements live inline in `data.inline[..len]`.
+//! * capacity `> INLINE`: elements live on the heap at `data.heap[..len]`, in an allocation of
+//!   `cap` elements. Only reachable once more than `INLINE` elements are inserted; capped at `MAX`.
 
 use std::{
     alloc::{self, Layout},
     fmt::{Debug, Formatter},
     iter::FusedIterator,
     mem::{ManuallyDrop, MaybeUninit},
-    num::NonZeroU8,
+    num::{NonZeroU8, NonZeroU32},
     ops::{Deref, DerefMut},
     ptr::{self, NonNull, drop_in_place, slice_from_raw_parts_mut},
     slice::{Iter, IterMut},
@@ -49,21 +52,89 @@ union Data<T, const INLINE: usize> {
 
 const MAX_TINY_VEC_SIZE: usize = (u8::MAX - 1) as usize;
 /// Bounded small-vector with an optional inline buffer; see the module docs.
-pub struct TinyVec<T, const INLINE: usize, const MAX: usize = MAX_TINY_VEC_SIZE> {
+pub struct TinyVec<T, const INLINE: usize, const MAX: usize = MAX_TINY_VEC_SIZE, L: TinyLen = u8> {
     /// `actual_len + 1`. Always in `1..=MAX+1`; never `0` (the niche).
-    len: NonZeroU8,
-    /// Current capacity. `INLINE` while inline, `> INLINE` (and `<= MAX`) while
-    /// spilled to the heap.
-    cap: u8,
+    len: L::NonZero,
+    /// The capacity beyond `INLINE`: `0` while inline, the heap capacity minus `INLINE` (so
+    /// `> 0`, and the capacity `<= MAX`) while spilled. Stored relative to `INLINE` so that
+    /// [`TinyVec::new`] can be `const`.
+    extra_cap: L,
     data: Data<T, INLINE>,
 }
 
+/// The integer type holding a [`TinyVec`]'s length and capacity: `u8` (the default, for at most
+/// 254 elements) or `u32`.
+pub trait TinyLen: Copy + Eq + private::Sealed {
+    /// The non-zero type holding `len + 1`, whose `0` niche an enclosing enum can use.
+    type NonZero: Copy;
+    const ZERO: Self;
+    /// `len + 1` of an empty vec.
+    const EMPTY_LEN: Self::NonZero;
+    /// The largest length: `len + 1` must fit.
+    const MAX_LEN: usize;
+    fn to_usize(self) -> usize;
+    /// Panics if `n` is more than `MAX_LEN`.
+    fn from_usize(n: usize) -> Self;
+    /// The length stored as `len + 1`.
+    fn len_to_usize(len: Self::NonZero) -> usize;
+    /// Panics if `len` is more than `MAX_LEN`.
+    fn len_from_usize(len: usize) -> Self::NonZero;
+}
+
+mod private {
+    pub trait Sealed {}
+}
+
+macro_rules! impl_tiny_len {
+    ($ty:ty, $non_zero:ty) => {
+        impl private::Sealed for $ty {}
+        impl TinyLen for $ty {
+            type NonZero = $non_zero;
+            const ZERO: Self = 0;
+            const EMPTY_LEN: $non_zero = <$non_zero>::MIN;
+            const MAX_LEN: usize = (<$ty>::MAX - 1) as usize;
+            #[inline]
+            fn to_usize(self) -> usize {
+                self as usize
+            }
+            #[inline]
+            fn from_usize(n: usize) -> Self {
+                // A hard check: capacities size the allocations.
+                assert!(n <= Self::MAX_LEN, "TinyVec capacity overflow");
+                n as $ty
+            }
+            #[inline]
+            fn len_to_usize(len: $non_zero) -> usize {
+                (len.get() - 1) as usize
+            }
+            #[inline]
+            fn len_from_usize(len: usize) -> $non_zero {
+                // A hard check, as this is a safe function: in a release build `len + 1` would
+                // otherwise wrap to zero for `len == <$ty>::MAX`. `TinyVec` never passes more than
+                // its `MAX`, which is checked against `MAX_LEN` at compile time, so the check is
+                // usually folded into the callers' own bounds checks.
+                assert!(len <= Self::MAX_LEN, "TinyVec length overflow");
+                // SAFETY: `len <= MAX_LEN = MAX - 1`, so `len + 1` fits and isn't zero.
+                unsafe { <$non_zero>::new_unchecked(len as $ty + 1) }
+            }
+        }
+    };
+}
+impl_tiny_len!(u8, NonZeroU8);
+impl_tiny_len!(u32, NonZeroU32);
+
 // SAFETY: `TinyVec<T>` owns its `T`s (inline or in a private heap allocation),
 // so it is `Send`/`Sync` exactly when `T` is, just like `Vec<T>`.
-unsafe impl<T: Send, const INLINE: usize, const MAX: usize> Send for TinyVec<T, INLINE, MAX> {}
-unsafe impl<T: Sync, const INLINE: usize, const MAX: usize> Sync for TinyVec<T, INLINE, MAX> {}
+unsafe impl<T: Send, const INLINE: usize, const MAX: usize, L: TinyLen> Send
+    for TinyVec<T, INLINE, MAX, L>
+{
+}
+unsafe impl<T: Sync, const INLINE: usize, const MAX: usize, L: TinyLen> Sync
+    for TinyVec<T, INLINE, MAX, L>
+{
+}
 
-impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
+impl<T, const INLINE: usize, const MAX: usize, L: TinyLen> TinyVec<T, INLINE, MAX, L> {
     /// Compile-time guards. Referenced from every constructor so violations fail
     /// to compile rather than corrupting the `len`/`cap` bytes at runtime.
     const ASSERT: () = {
@@ -73,23 +144,17 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
             "TinyVec inline capacity INLINE must be <= MAX"
         );
         assert!(
-            MAX <= MAX_TINY_VEC_SIZE,
-            "TinyVec MAX must fit in NonZeroU8 with the +1 offset",
+            MAX <= L::MAX_LEN,
+            "TinyVec MAX must fit in the length type with the +1 offset",
         );
-    };
-
-    /// Stored length representing an empty vec (`actual_len == 0`).
-    const EMPTY_LEN: NonZeroU8 = match NonZeroU8::new(1) {
-        Some(n) => n,
-        None => unreachable!(),
     };
 
     #[inline]
     pub const fn new() -> Self {
         let () = Self::ASSERT;
         Self {
-            len: Self::EMPTY_LEN,
-            cap: INLINE as u8,
+            len: L::EMPTY_LEN,
+            extra_cap: L::ZERO,
             data: Data {
                 inline: ManuallyDrop::new([const { MaybeUninit::uninit() }; INLINE]),
             },
@@ -107,30 +172,36 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
         let cap = capacity.min(MAX);
         let heap = Self::alloc(cap);
         Self {
-            len: Self::EMPTY_LEN,
-            cap: cap as u8,
+            len: L::EMPTY_LEN,
+            extra_cap: L::from_usize(cap - INLINE),
             data: Data { heap },
         }
     }
 
     #[inline]
-    const fn is_spilled(&self) -> bool {
-        self.cap as usize > INLINE
+    fn is_spilled(&self) -> bool {
+        self.extra_cap != L::ZERO
     }
 
     #[inline]
-    pub const fn len(&self) -> usize {
-        (self.len.get() - 1) as usize
+    pub fn len(&self) -> usize {
+        L::len_to_usize(self.len)
     }
 
     #[inline]
-    pub const fn is_empty(&self) -> bool {
-        self.len.get() == 1
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     #[inline]
-    pub const fn capacity(&self) -> usize {
-        self.cap as usize
+    pub fn capacity(&self) -> usize {
+        INLINE + self.extra_cap.to_usize()
+    }
+
+    /// Sets the capacity field. `cap` must be `INLINE` (inline) or the heap capacity.
+    #[inline]
+    fn set_capacity(&mut self, cap: usize) {
+        self.extra_cap = L::from_usize(cap - INLINE);
     }
 
     /// # Safety
@@ -140,8 +211,7 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
     pub(crate) fn set_len(&mut self, actual: usize) {
         debug_assert!(actual <= self.capacity());
         debug_assert!(actual <= MAX);
-        // actual <= MAX <= 254 => actual + 1 in 1..=255, never zero.
-        self.len = unsafe { NonZeroU8::new_unchecked(actual as u8 + 1u8) };
+        self.len = L::len_from_usize(actual);
     }
 
     /// Pointer to element storage (inline or heap), valid for `len` reads.
@@ -265,7 +335,7 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
             }
         }
         // else: ZST `T`, the dangling pointer stays valid.
-        self.cap = new_cap as u8;
+        self.set_capacity(new_cap);
     }
 
     /// Ensure capacity for at least one more element, spilling inline -> heap or
@@ -290,7 +360,7 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
             ptr::copy_nonoverlapping(self.as_ptr(), new_heap.as_ptr(), len);
         }
         self.data = Data { heap: new_heap };
-        self.cap = new_cap as u8;
+        self.set_capacity(new_cap);
     }
 
     /// Appends `value`, growing a full buffer by exactly one element instead of doubling it.
@@ -442,7 +512,7 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
                 self.data = Data {
                     inline: ManuallyDrop::new(inline),
                 };
-                self.cap = INLINE as u8;
+                self.set_capacity(INLINE);
                 Self::dealloc(old, old_cap);
             }
         } else if self.capacity() > len {
@@ -454,7 +524,7 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
 
     /// Remove all elements and yield them by value, leaving `self` empty.
     #[inline]
-    pub fn drain(&mut self) -> Drain<'_, T, INLINE, MAX> {
+    pub fn drain(&mut self) -> Drain<'_, T, INLINE, MAX, L> {
         let end = self.len();
         // Logically empty now; `Drain` owns the elements and drops any it does
         // not yield (panic safety).
@@ -495,11 +565,11 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
             ptr::copy_nonoverlapping(self.as_ptr(), new_heap.as_ptr(), len);
         }
         self.data = Data { heap: new_heap };
-        self.cap = target as u8;
+        self.set_capacity(target);
     }
 }
 
-impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
+impl<T, const INLINE: usize, const MAX: usize, L: TinyLen> TinyVec<T, INLINE, MAX, L> {
     /// Extend from an exact-sized iterator, reserving exactly once up front
     /// (avoiding the `size_hint().0` lower-bound dance in the generic `Extend`).
     pub fn extend_exact<It>(&mut self, iter: It)
@@ -515,14 +585,14 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
     }
 }
 
-impl<T, const INLINE: usize, const MAX: usize> Default for TinyVec<T, INLINE, MAX> {
+impl<T, const INLINE: usize, const MAX: usize, L: TinyLen> Default for TinyVec<T, INLINE, MAX, L> {
     #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T, const INLINE: usize, const MAX: usize> Drop for TinyVec<T, INLINE, MAX> {
+impl<T, const INLINE: usize, const MAX: usize, L: TinyLen> Drop for TinyVec<T, INLINE, MAX, L> {
     #[inline]
     fn drop(&mut self) {
         let len = self.len();
@@ -535,7 +605,9 @@ impl<T, const INLINE: usize, const MAX: usize> Drop for TinyVec<T, INLINE, MAX> 
     }
 }
 
-impl<T: Clone, const INLINE: usize, const MAX: usize> Clone for TinyVec<T, INLINE, MAX> {
+impl<T: Clone, const INLINE: usize, const MAX: usize, L: TinyLen> Clone
+    for TinyVec<T, INLINE, MAX, L>
+{
     fn clone(&self) -> Self {
         let mut out = Self::with_capacity(self.len());
         for v in self.iter() {
@@ -545,20 +617,24 @@ impl<T: Clone, const INLINE: usize, const MAX: usize> Clone for TinyVec<T, INLIN
     }
 }
 
-impl<T, const INLINE: usize, const MAX: usize> ShrinkToFit for TinyVec<T, INLINE, MAX> {
+impl<T, const INLINE: usize, const MAX: usize, L: TinyLen> ShrinkToFit
+    for TinyVec<T, INLINE, MAX, L>
+{
     #[inline]
     fn shrink_to_fit(&mut self) {
         Self::shrink_to_fit(self);
     }
 }
 
-impl<T: Debug, const INLINE: usize, const MAX: usize> Debug for TinyVec<T, INLINE, MAX> {
+impl<T: Debug, const INLINE: usize, const MAX: usize, L: TinyLen> Debug
+    for TinyVec<T, INLINE, MAX, L>
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_list().entries(self.iter()).finish()
     }
 }
 
-impl<T, const INLINE: usize, const MAX: usize> Deref for TinyVec<T, INLINE, MAX> {
+impl<T, const INLINE: usize, const MAX: usize, L: TinyLen> Deref for TinyVec<T, INLINE, MAX, L> {
     type Target = [T];
     #[inline]
     fn deref(&self) -> &[T] {
@@ -566,14 +642,16 @@ impl<T, const INLINE: usize, const MAX: usize> Deref for TinyVec<T, INLINE, MAX>
     }
 }
 
-impl<T, const INLINE: usize, const MAX: usize> DerefMut for TinyVec<T, INLINE, MAX> {
+impl<T, const INLINE: usize, const MAX: usize, L: TinyLen> DerefMut for TinyVec<T, INLINE, MAX, L> {
     #[inline]
     fn deref_mut(&mut self) -> &mut [T] {
         self.as_mut_slice()
     }
 }
 
-impl<'a, T, const INLINE: usize, const MAX: usize> IntoIterator for &'a TinyVec<T, INLINE, MAX> {
+impl<'a, T, const INLINE: usize, const MAX: usize, L: TinyLen> IntoIterator
+    for &'a TinyVec<T, INLINE, MAX, L>
+{
     type Item = &'a T;
     type IntoIter = Iter<'a, T>;
     #[inline]
@@ -582,8 +660,8 @@ impl<'a, T, const INLINE: usize, const MAX: usize> IntoIterator for &'a TinyVec<
     }
 }
 
-impl<'a, T, const INLINE: usize, const MAX: usize> IntoIterator
-    for &'a mut TinyVec<T, INLINE, MAX>
+impl<'a, T, const INLINE: usize, const MAX: usize, L: TinyLen> IntoIterator
+    for &'a mut TinyVec<T, INLINE, MAX, L>
 {
     type Item = &'a mut T;
     type IntoIter = IterMut<'a, T>;
@@ -594,13 +672,15 @@ impl<'a, T, const INLINE: usize, const MAX: usize> IntoIterator
 }
 
 /// By-value iterator returned by [`TinyVec::into_iter`].
-pub struct IntoIter<T, const INLINE: usize, const MAX: usize> {
-    vec: TinyVec<T, INLINE, MAX>,
+pub struct IntoIter<T, const INLINE: usize, const MAX: usize, L: TinyLen = u8> {
+    vec: TinyVec<T, INLINE, MAX, L>,
     idx: usize,
     end: usize,
 }
 
-impl<T, const INLINE: usize, const MAX: usize> Iterator for IntoIter<T, INLINE, MAX> {
+impl<T, const INLINE: usize, const MAX: usize, L: TinyLen> Iterator
+    for IntoIter<T, INLINE, MAX, L>
+{
     type Item = T;
     #[inline]
     fn next(&mut self) -> Option<T> {
@@ -640,11 +720,18 @@ impl<T, const INLINE: usize, const MAX: usize> Iterator for IntoIter<T, INLINE, 
     }
 }
 
-impl<T, const INLINE: usize, const MAX: usize> ExactSizeIterator for IntoIter<T, INLINE, MAX> {}
+impl<T, const INLINE: usize, const MAX: usize, L: TinyLen> ExactSizeIterator
+    for IntoIter<T, INLINE, MAX, L>
+{
+}
 
-impl<T, const INLINE: usize, const MAX: usize> FusedIterator for IntoIter<T, INLINE, MAX> {}
+// Stops at `end` for good.
+impl<T, const INLINE: usize, const MAX: usize, L: TinyLen> FusedIterator
+    for IntoIter<T, INLINE, MAX, L>
+{
+}
 
-impl<T, const INLINE: usize, const MAX: usize> Drop for IntoIter<T, INLINE, MAX> {
+impl<T, const INLINE: usize, const MAX: usize, L: TinyLen> Drop for IntoIter<T, INLINE, MAX, L> {
     fn drop(&mut self) {
         // Drop not-yet-yielded elements; the inner `vec` (len already 0) then
         // frees any heap allocation without double-dropping.
@@ -659,9 +746,11 @@ impl<T, const INLINE: usize, const MAX: usize> Drop for IntoIter<T, INLINE, MAX>
     }
 }
 
-impl<T, const INLINE: usize, const MAX: usize> IntoIterator for TinyVec<T, INLINE, MAX> {
+impl<T, const INLINE: usize, const MAX: usize, L: TinyLen> IntoIterator
+    for TinyVec<T, INLINE, MAX, L>
+{
     type Item = T;
-    type IntoIter = IntoIter<T, INLINE, MAX>;
+    type IntoIter = IntoIter<T, INLINE, MAX, L>;
     #[inline]
     fn into_iter(mut self) -> Self::IntoIter {
         let end = self.len();
@@ -676,7 +765,9 @@ impl<T, const INLINE: usize, const MAX: usize> IntoIterator for TinyVec<T, INLIN
     }
 }
 
-impl<T, const INLINE: usize, const MAX: usize> FromIterator<T> for TinyVec<T, INLINE, MAX> {
+impl<T, const INLINE: usize, const MAX: usize, L: TinyLen> FromIterator<T>
+    for TinyVec<T, INLINE, MAX, L>
+{
     fn from_iter<It: IntoIterator<Item = T>>(iter: It) -> Self {
         let iter = iter.into_iter();
         let (lower, _) = iter.size_hint();
@@ -688,7 +779,9 @@ impl<T, const INLINE: usize, const MAX: usize> FromIterator<T> for TinyVec<T, IN
     }
 }
 
-impl<T, const INLINE: usize, const MAX: usize> Extend<T> for TinyVec<T, INLINE, MAX> {
+impl<T, const INLINE: usize, const MAX: usize, L: TinyLen> Extend<T>
+    for TinyVec<T, INLINE, MAX, L>
+{
     #[inline]
     fn extend<It: IntoIterator<Item = T>>(&mut self, iter: It) {
         for v in iter {
@@ -698,13 +791,15 @@ impl<T, const INLINE: usize, const MAX: usize> Extend<T> for TinyVec<T, INLINE, 
 }
 
 /// Draining iterator returned by [`TinyVec::drain`].
-pub struct Drain<'a, T, const INLINE: usize, const MAX: usize> {
-    vec: &'a mut TinyVec<T, INLINE, MAX>,
+pub struct Drain<'a, T, const INLINE: usize, const MAX: usize, L: TinyLen = u8> {
+    vec: &'a mut TinyVec<T, INLINE, MAX, L>,
     idx: usize,
     end: usize,
 }
 
-impl<T, const INLINE: usize, const MAX: usize> Iterator for Drain<'_, T, INLINE, MAX> {
+impl<T, const INLINE: usize, const MAX: usize, L: TinyLen> Iterator
+    for Drain<'_, T, INLINE, MAX, L>
+{
     type Item = T;
     #[inline]
     fn next(&mut self) -> Option<T> {
@@ -742,11 +837,18 @@ impl<T, const INLINE: usize, const MAX: usize> Iterator for Drain<'_, T, INLINE,
     }
 }
 
-impl<T, const INLINE: usize, const MAX: usize> ExactSizeIterator for Drain<'_, T, INLINE, MAX> {}
+impl<T, const INLINE: usize, const MAX: usize, L: TinyLen> ExactSizeIterator
+    for Drain<'_, T, INLINE, MAX, L>
+{
+}
 
-impl<T, const INLINE: usize, const MAX: usize> FusedIterator for Drain<'_, T, INLINE, MAX> {}
+// Stops at `end` for good.
+impl<T, const INLINE: usize, const MAX: usize, L: TinyLen> FusedIterator
+    for Drain<'_, T, INLINE, MAX, L>
+{
+}
 
-impl<T, const INLINE: usize, const MAX: usize> Drop for Drain<'_, T, INLINE, MAX> {
+impl<T, const INLINE: usize, const MAX: usize, L: TinyLen> Drop for Drain<'_, T, INLINE, MAX, L> {
     fn drop(&mut self) {
         // SAFETY: elements `[idx, end)` are initialized and unyielded.
         unsafe {
@@ -794,6 +896,32 @@ mod tests {
             16,
             "MAX must not affect layout"
         );
+
+        // A `u32` length and capacity fit in the padding before the 8-aligned union, and the
+        // length's niche still folds an enclosing enum's discriminant in.
+        #[allow(dead_code)]
+        enum Wide<T, const INLINE: usize> {
+            List(TinyVec<T, INLINE, { u32::MAX as usize - 1 }, u32>),
+            Map(Box<u32>),
+        }
+        assert_eq!(size_of::<Wide<u32, 0>>(), 16);
+        assert_eq!(size_of::<Wide<u32, 4>>(), 24);
+        assert_eq!(size_of::<Wide<u32, 6>>(), 32);
+        assert_eq!(size_of::<Wide<u64, 3>>(), 32);
+        assert_eq!(size_of::<Wide<(u64, u64), 1>>(), 24);
+    }
+
+    #[test]
+    #[should_panic(expected = "TinyVec length overflow")]
+    fn len_from_usize_rejects_lengths_past_max_len() {
+        // 255 + 1 would wrap to zero in a `u8`.
+        let _ = <u8 as TinyLen>::len_from_usize(255);
+    }
+
+    #[test]
+    #[should_panic(expected = "TinyVec length overflow")]
+    fn wide_len_from_usize_rejects_lengths_past_max_len() {
+        let _ = <u32 as TinyLen>::len_from_usize(u32::MAX as usize);
     }
 
     #[test]

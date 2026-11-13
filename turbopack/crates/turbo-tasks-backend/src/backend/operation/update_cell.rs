@@ -138,7 +138,7 @@ pub fn update_cell(
                     cell: dependent_cell,
                 },
                 key,
-            ) in task.iter_cell_dependents_keyed()
+            ) in task.iter_keyed_cell_dependents()
             {
                 if dependent_cell != cell {
                     continue;
@@ -582,12 +582,12 @@ mod invalidate_cell_dependents_tests {
                 CellKey::provisional(1),
                 CellKey::hash(5),
             ] {
-                let _ = cell_task.add_cell_dependents_keyed((reverse_ref(), key));
+                cell_task.add_keyed_cell_dependent((reverse_ref(), key));
                 let _ = dependent.add_cell_dependencies_keyed((cell_ref(), key));
             }
             // A full dependency from the previous execution that wasn't re-read as such. The
             // conversion re-reads it, so it must no longer be outdated (and not be cleaned up).
-            let _ = cell_task.add_cell_dependents(reverse_ref());
+            cell_task.push_cell_dependents(reverse_ref());
             let _ = dependent.add_cell_dependencies(cell_ref());
             let _ = dependent.add_outdated_cell_dependencies(cell_ref());
         }
@@ -603,14 +603,14 @@ mod invalidate_cell_dependents_tests {
         // The `Provisional` dependencies became a full dependency, on both sides of the edge.
         for key in [CellKey::provisional(0), CellKey::provisional(1)] {
             assert!(!dependent.cell_dependencies_keyed_contains(&(cell_ref(), key)));
-            assert!(!cell_task.cell_dependents_keyed_contains(&(reverse_ref(), key)));
+            assert!(!cell_task.has_keyed_cell_dependent(&(reverse_ref(), key)));
         }
         assert!(dependent.cell_dependencies_contains(&cell_ref()));
         assert!(!dependent.outdated_cell_dependencies_contains(&cell_ref()));
         assert!(cell_task.cell_dependents_contains(&reverse_ref()));
         // Hashed dependencies are untouched.
         assert!(dependent.cell_dependencies_keyed_contains(&(cell_ref(), CellKey::hash(5))));
-        assert!(cell_task.cell_dependents_keyed_contains(&(reverse_ref(), CellKey::hash(5))));
+        assert!(cell_task.has_keyed_cell_dependent(&(reverse_ref(), CellKey::hash(5))));
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -623,7 +623,7 @@ mod invalidate_cell_dependents_tests {
             let mut ctx = ExecuteContext::new(tt.backend(), &tt);
             let (mut cell_task, mut dependent) =
                 ctx.task_pair(task(CELL_TASK), task(DEPENDENT), TaskDataCategory::All);
-            let _ = cell_task.add_cell_dependents_keyed((reverse_ref(), CellKey::provisional(0)));
+            cell_task.add_keyed_cell_dependent((reverse_ref(), CellKey::provisional(0)));
             let _ = dependent.add_cell_dependencies_keyed((cell_ref(), CellKey::provisional(0)));
         }
 

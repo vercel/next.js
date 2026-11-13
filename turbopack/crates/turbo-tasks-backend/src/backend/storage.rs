@@ -744,6 +744,10 @@ impl Storage {
                 // delete by the GC.
                 if task_id.is_transient() && !task.flags.deleted() {
                     evicted.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
+                    // A task that is executing would only inflate its forward sets again.
+                    if !task.is_in_progress() {
+                        task.shrink_edge_sets();
+                    }
                     return true;
                 }
                 if task.flags.deleted() {
@@ -798,6 +802,8 @@ impl Storage {
                                 return false;
                             }
                             DropPartialOutcome::HasResidue => {
+                                // The category that stays resident keeps its edge sets.
+                                task.shrink_edge_sets();
                                 if data && meta {
                                     evicted.data_and_meta += 1;
                                 } else if data {
@@ -811,6 +817,11 @@ impl Storage {
                     }
                     ValueEvictability::Unevictable(reason) => {
                         evicted.unevictable_reasons[reason.index()] += 1;
+                        // Kept in memory as it is: flatten its edge sets, unless it is executing
+                        // (or about to), when it would only inflate its forward sets again.
+                        if reason != UnevictableReason::InProgress {
+                            task.shrink_edge_sets();
+                        }
                     }
                 }
                 true
