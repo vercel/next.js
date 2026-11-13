@@ -8590,7 +8590,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 [[package]]
 name = "tokio"
 version = "1.52.1"
-source = "git+https://github.com/sokra/tokio.git?branch=fleet%2Fblocking-thread-park#017a3a677f76e13450d47a24e3b51049195a75d2"
+source = "git+https://github.com/sokra/tokio.git?branch=fleet%2Fblocking-thread-park#6c8f0809e7f81fd938b3429983068e72b4f9befe"
 dependencies = [
  "bytes",
  "libc",
