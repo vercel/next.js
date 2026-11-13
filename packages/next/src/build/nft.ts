@@ -142,12 +142,38 @@ function relativePathIfInside(
   return isRelativePathInside(relative) ? relative : undefined
 }
 
+function resolveBasePath(
+  traceFileDirectory: string,
+  relativePath: string,
+  resolvedDirectories: Map<string, string>
+): string {
+  const { dir, base } = path.parse(relativePath)
+  // Root-only paths and dot segments do not name a file that can be appended
+  // to its resolved parent. In particular, UNC share roots must stay intact.
+  if (base === '' || base === '.' || base === '..') {
+    return path.resolve(traceFileDirectory, relativePath)
+  }
+
+  let directory = resolvedDirectories.get(dir)
+  if (directory === undefined) {
+    directory = path.resolve(traceFileDirectory, dir)
+    if (!directory.endsWith(path.sep)) directory += path.sep
+    resolvedDirectories.set(dir, directory)
+  }
+  return directory + base
+}
+
 function mapBasePath(
   traceFileDirectory: string,
   baseRoot: string,
-  relativePath: string
+  relativePath: string,
+  resolvedDirectories: Map<string, string>
 ): { source: string; destination: string } {
-  const source = path.resolve(traceFileDirectory, relativePath)
+  const source = resolveBasePath(
+    traceFileDirectory,
+    relativePath,
+    resolvedDirectories
+  )
   // Both paths are resolved. Avoid resolving them again in path.relative for
   // the common case, checking the separator so sibling prefixes do not match.
   const destination =
@@ -160,9 +186,15 @@ function mapBasePath(
 function mapBasePathInsideRoot(
   traceFileDirectory: string,
   baseRoot: string,
-  relativePath: string
+  relativePath: string,
+  resolvedDirectories: Map<string, string>
 ): { source: string; destination: string } {
-  const mapped = mapBasePath(traceFileDirectory, baseRoot, relativePath)
+  const mapped = mapBasePath(
+    traceFileDirectory,
+    baseRoot,
+    relativePath,
+    resolvedDirectories
+  )
   if (!isRelativePathInside(mapped.destination)) {
     invalid(`path ${JSON.stringify(relativePath)} escapes the base root`)
   }
@@ -198,6 +230,9 @@ export function mapNftFileEntries(
 ): MappedNftFileEntry[] {
   const traceFileDirectory = path.dirname(traceFilePath)
   baseRoot = path.resolve(baseRoot)
+  // Traces commonly contain many files in each directory. Reuse normalization
+  // within this invocation only: relative parents depend on the trace location.
+  const resolvedDirectories = new Map<string, string>()
   const roots = nft.additionalRoots ?? []
   const result: MappedNftFileEntry[] = []
 
@@ -221,7 +256,7 @@ export function mapNftFileEntries(
       // (i.e. not an additional root)
       const mapped =
         currentRootIndex === -1
-          ? mapBasePath(traceFileDirectory, baseRoot, file)
+          ? mapBasePath(traceFileDirectory, baseRoot, file, resolvedDirectories)
           : mapAdditionalRootPath(
               traceFileDirectory,
               roots[currentRootIndex],
@@ -245,8 +280,18 @@ export function mapNftFileEntries(
         symlinkTarget =
           targetRootIndex === -1
             ? (options?.skipBaseRootEscapes
-                ? mapBasePathInsideRoot(traceFileDirectory, baseRoot, target)
-                : mapBasePath(traceFileDirectory, baseRoot, target)
+                ? mapBasePathInsideRoot(
+                    traceFileDirectory,
+                    baseRoot,
+                    target,
+                    resolvedDirectories
+                  )
+                : mapBasePath(
+                    traceFileDirectory,
+                    baseRoot,
+                    target,
+                    resolvedDirectories
+                  )
               ).destination
             : mapAdditionalRootPath(
                 traceFileDirectory,
