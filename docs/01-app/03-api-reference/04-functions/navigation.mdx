@@ -1,6 +1,6 @@
 ---
 title: navigation
-nav_title: navigation()
+nav_title: navigation
 description: Defer runtime work until the user navigates with the navigation function.
 related:
   links:

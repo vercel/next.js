@@ -22,7 +22,7 @@ kind: error
   come back here for the specific fix.
 </div>
 
-During [prerendering](/docs/app/glossary#prerendering), a Server Component called a synchronous [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) or Node [`crypto`](https://nodejs.org/api/crypto.html) API that produces a random value ([`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID), [`crypto.getRandomValues()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues), [`crypto.randomBytes()`](https://nodejs.org/api/crypto.html#cryptorandombytessize-callback), [`crypto.generateKeyPairSync()`](https://nodejs.org/api/crypto.html#cryptogeneratekeypairsynctype-options)) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't bake an unpredictable value into the prerendered HTML. The value at build time will differ from the value at runtime, so you need to choose: cache the generated value so it's stable, defer the call behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so it runs per-request, or move it to the client.
+During [prerendering](/docs/app/glossary#prerendering), a Server Component called a synchronous [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) or Node [`crypto`](https://nodejs.org/api/crypto.html) API that produces a random value ([`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID), [`crypto.getRandomValues()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues), [`crypto.randomBytes()`](https://nodejs.org/api/crypto.html#cryptorandombytessize-callback), [`crypto.generateKeyPairSync()`](https://nodejs.org/api/crypto.html#cryptogeneratekeypairsynctype-options)). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't bake an unpredictable value into the prerendered HTML. The value at build time will differ from the value at runtime, so you need to choose: cache the generated value so it's stable, defer the call with [`io()`](/docs/app/api-reference/functions/io) or [`connection()`](/docs/app/api-reference/functions/connection) inside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, or move it to the client.
 
 Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now)) have parallel error pages: see [`Math.random()`](/docs/messages/blocking-prerender-random) and [`Date.now()`](/docs/messages/blocking-prerender-current-time). The Client Component case is handled at [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client).
 
@@ -99,7 +99,7 @@ export async function CsrfToken() {
 
 #### Alternative: `await io()`
 
-Use [`io()`](/docs/app/api-reference/functions/io) from `next/cache` to keep the read out of the static shell. Unlike [`connection()`](/docs/app/api-reference/functions/connection), `io()` doesn't block prefetches and works inside `"use cache"` scopes and Client Components.
+Use [`io()`](/docs/app/api-reference/functions/io) from `next/cache` to keep the read out of the static shell. Unlike [`connection()`](/docs/app/api-reference/functions/connection), `io()` works inside `"use cache"` scopes and Client Components.
 
 ```jsx filename="app/dashboard/csrf-token.js"
 import { io } from 'next/cache'
@@ -145,6 +145,7 @@ The route renders on every request. The shell still ships instantly because of t
 
 ### Gotchas
 
+- For errors after awaiting request data, see [Synchronous IO after request data](/docs/app/api-reference/functions/io#synchronous-io-after-request-data).
 - Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling a crypto API in any of them raises this same error.
 - For genuinely security-critical tokens (session IDs, CSRF), [Generate on every request](#generate-on-every-request) is the only correct choice. Caching a CSRF token across visitors defeats its purpose.
 - This error only fires for synchronous random-producing APIs. Async crypto operations ([`crypto.subtle.digest()`](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/digest), [`crypto.generateKeyPair()`](https://nodejs.org/api/crypto.html#cryptogeneratekeypairtype-options-callback)) integrate with [`<Suspense>`](https://react.dev/reference/react/Suspense) naturally and don't trip the error.

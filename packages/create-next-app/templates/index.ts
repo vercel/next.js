@@ -18,7 +18,7 @@ import { Bundler, GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.3.0";
+const nextjsReactPeerVersion = "19.3.1";
 function sorted(obj: Record<string, string>) {
   return Object.keys(obj)
     .sort()
@@ -273,14 +273,14 @@ export const installTemplate = async ({
 
   /** Copy the version from package.json or override for tests. */
   const version = process.env.NEXT_PRIVATE_TEST_VERSION ?? pkg.version;
-  const bundlerFlags = bundler === Bundler.Webpack ? " --webpack" : "";
 
   // When isolated tests pack workspace packages and pass their tarball
   // paths via `NEXT_TEST_PKG_PATHS` (set by `run-tests.js`), prefer those
   // paths over `version` so siblings like `next-rspack` and
   // `eslint-config-next` install from their own tarball — not from the
   // `next` tarball, which would cause npm to extract `next`'s contents
-  // into the sibling's `node_modules/` entry.
+  // into the sibling's `node_modules/` entry. Their packed workspace
+  // companions are added as overrides below.
   const testPkgPaths: Map<string, string> | null = (() => {
     const env = process.env.NEXT_TEST_PKG_PATHS;
     if (!env) return null;
@@ -299,8 +299,8 @@ export const installTemplate = async ({
     version: "0.1.0",
     private: true,
     scripts: {
-      dev: `next dev${bundlerFlags}`,
-      build: `next build${bundlerFlags}`,
+      dev: "next dev",
+      build: "next build",
       start: "next start",
       ...(eslint && { lint: "eslint" }),
       ...(biome && { lint: "biome check", format: "biome format --write" }),
@@ -343,10 +343,13 @@ export const installTemplate = async ({
       bundler === Bundler.Turbopack
         ? "@tailwindcss/turbopack"
         : "@tailwindcss/postcss";
+    // TODO: Restore "^4" once Tailwind fixes 4.3.4, whose CommonJS build
+    // require()s the ESM-only magic-string 1.x. That fails on Node.js versions
+    // without require(esm) support (before 20.19 and 22.12).
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      [tailwindPlugin]: "^4",
-      tailwindcss: "^4",
+      [tailwindPlugin]: "4.3.3",
+      tailwindcss: "4.3.3",
     };
   }
 
@@ -354,7 +357,7 @@ export const installTemplate = async ({
   if (eslint) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      eslint: "^9",
+      eslint: "^10",
       "eslint-config-next": resolvePkgVersion("eslint-config-next"),
     };
   }
@@ -395,6 +398,51 @@ export const installTemplate = async ({
     packageJson.devDependencies = sorted(packageJson.devDependencies);
   }
 
+  // Direct dependencies above install from their packed tarballs, but their
+  // workspace companions (e.g. `@next/env` from `next`) would otherwise
+  // resolve from the registry, where a freshly bumped release version may not
+  // be published yet. Point them at their local tarballs too. Only override
+  // companions of direct dependencies: Yarn Classic resolves every
+  // `resolutions` entry, even ones nothing depends on.
+  const testPkgCompanions: Record<string, string> = {
+    next: "@next/env",
+    "eslint-config-next": "@next/eslint-plugin-next",
+  };
+  const testPkgOverrides: Record<string, string> = {};
+  if (testPkgPaths) {
+    const isDirectDependency = (name: string) =>
+      Boolean(
+        packageJson.dependencies[name] || packageJson.devDependencies?.[name],
+      );
+    for (const [parent, companion] of Object.entries(testPkgCompanions)) {
+      const tarballPath = testPkgPaths.get(companion);
+      if (
+        tarballPath &&
+        isDirectDependency(parent) &&
+        !isDirectDependency(companion)
+      ) {
+        testPkgOverrides[companion] = tarballPath;
+      }
+    }
+  }
+  const hasTestPkgOverrides = Object.keys(testPkgOverrides).length > 0;
+  if (hasTestPkgOverrides) {
+    // npm and bun read `overrides`; yarn and bun read `resolutions`.
+    packageJson.overrides = sorted(testPkgOverrides);
+    packageJson.resolutions = sorted(testPkgOverrides);
+  }
+  // pnpm v10+ reads overrides from the `pnpm-workspace.yaml` written below.
+  // JSON strings are valid YAML double-quoted scalars, including Windows paths.
+  const pnpmWorkspaceOverrides = hasTestPkgOverrides
+    ? [
+        "overrides:",
+        ...Object.entries(sorted(testPkgOverrides)).map(
+          ([name, tarballPath]) =>
+            `  ${JSON.stringify(name)}: ${JSON.stringify(tarballPath)}`,
+        ),
+      ]
+    : [];
+
   if (packageManager === "pnpm") {
     // Only create pnpm-workspace.yaml for pnpm v10+.
     // In v9, having a pnpm-workspace.yaml (even with packages: []) causes
@@ -416,6 +464,7 @@ export const installTemplate = async ({
         "  sharp: false",
         // Not needed for pnpm: https://github.com/unrs/unrs-resolver/issues/193#issuecomment-3295510146
         "  unrs-resolver: false",
+        ...pnpmWorkspaceOverrides,
         "",
       ].join(os.EOL);
       await fs.writeFile(
@@ -431,12 +480,16 @@ export const installTemplate = async ({
         "  - sharp",
         // Not needed for pnpm: https://github.com/unrs/unrs-resolver/issues/193#issuecomment-3295510146
         "  - unrs-resolver",
+        ...pnpmWorkspaceOverrides,
         "",
       ].join(os.EOL);
       await fs.writeFile(
         path.join(root, "pnpm-workspace.yaml"),
         pnpmWorkspaceYaml,
       );
+    } else if (hasTestPkgOverrides) {
+      // pnpm v9 gets no `pnpm-workspace.yaml`, so use package.json instead.
+      packageJson.pnpm = { overrides: sorted(testPkgOverrides) };
     }
   }
 

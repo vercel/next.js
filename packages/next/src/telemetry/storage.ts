@@ -9,7 +9,6 @@ import { getAnonymousMeta } from './anonymous-meta'
 import * as ciEnvironment from '../server/ci-info'
 import { postNextTelemetryPayload } from './post-telemetry-payload'
 import { getRawProjectId } from './project-id'
-import { AbortController } from 'next/dist/compiled/@edge-runtime/ponyfill'
 import fs from 'fs'
 
 // This is the key that stores whether or not telemetry is enabled or disabled.
@@ -234,14 +233,16 @@ export class Telemetry {
   flushDetached = ({
     mode,
     dir,
-    distDir,
     events,
   }: {
     mode: 'dev'
     dir: string
-    distDir: string | null
     events: TelemetryEvent[] | null
   }) => {
+    if (!this.isEnabled) {
+      return
+    }
+
     // Nudges detach only their own events; shutdown flushes the full queue.
     const allEvents: TelemetryEvent[] = events ?? []
 
@@ -289,7 +290,8 @@ export class Telemetry {
         mode,
         dir,
         eventsFile,
-        ...(distDir ? [distDir] : []),
+        // Use the same directory as the batch file, without reloading user config.
+        this.distDir,
       ],
       {
         detached: !this.NEXT_TELEMETRY_DEBUG,

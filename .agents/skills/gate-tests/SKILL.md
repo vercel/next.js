@@ -36,6 +36,18 @@ failure" starts passing, so stale workarounds get deleted instead of rotting.
 
 ## Choosing the directive
 
+Don't add mode gates that the test directory already guarantees:
+
+- `@gate dev` is unnecessary in `test/development/`: these tests only run in
+  dev mode.
+- `@gate start` is unnecessary in `test/production/`: these tests only run in
+  production build/start mode.
+- `@gate !deploy` is unnecessary outside `test/e2e/`: only `test/e2e/` tests
+  run in deploy mode.
+
+The same applies to `@force-gate dev`, `@force-gate start`, and
+`@force-gate !deploy` in those respective locations.
+
 Ask what kind of difference you're encoding:
 
 1. **A behavior change — both states assert something meaningful.** Don't
@@ -93,11 +105,17 @@ Every name in a pragma must be declared in `test/lib/gate/conditions.ts`
 
 - **static** — the run's shape: `dev`, `start`, `deploy`, `mode`, `turbopack`,
   `rspack`, `webpack`, `bundler`, `react18`, `wasm`, `linux`, `macos`,
-  `windows`, `ci`; specialized CI variants `adapter`, `nodeMiddleware`,
-  `standaloneOutput`, `turbopackDev`, and `turbopackBuild`; plus the
-  always-false `FIXME`/`TODO`.
+  `windows`, `ci`; the deploy host `vercel`; specialized CI variants
+  `adapter`, `nodeMiddleware`, `standaloneOutput`, `turbopackDev`, and
+  `turbopackBuild`; plus the always-false `FIXME`/`TODO`.
   `prod` and `prefetching` are semantic aliases for `!dev` — prefer the name
   that states _why_ the suite cannot run.
+  `vercel` is true only in a deploy run with `NEXT_TEST_DEPLOY_TARGET_VERCEL=1`,
+  which our CI sets on every Vercel deploy job. Other platforms run the
+  deploy suites through `NEXT_TEST_DEPLOY_SCRIPT_PATH` to test their
+  adapters, so prefer it over `deploy` when the reason is Vercel-specific:
+  `@force-gate !deploy || vercel` skips only other platforms, `!vercel` skips
+  only Vercel.
 - **lazy** — a predicate over the fixture's _resolved_ `next.config`
   (`cacheComponents`, `ppr`, `useOffline`, `output`, …).
 
@@ -138,7 +156,7 @@ start passing. Working example: `test/e2e/app-dir/concurrent-router-queue/`
 pairs with a lazy `@force-gate` when the off state proves nothing —
 `test/e2e/app-dir/use-offline/` — which skips the redundant axis run (build
 included) instead of covering it. Axis `A` aliases `__NEXT_CACHE_COMPONENTS`
-for now (see `scripts/run-jest.sh`) — fine, because these fixtures pin
+for now (see `test/jest-global-setup.ts`) — fine, because these fixtures pin
 `cacheComponents` explicitly, so that run's env default is a no-op for them.
 
 **Keep exactly one flag varying per fixture.** A red shard must attribute to a

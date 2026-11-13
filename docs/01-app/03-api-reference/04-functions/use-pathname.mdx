@@ -114,7 +114,7 @@ function ExampleClientComponent() {
 
 ### Avoid hydration mismatch with rewrites
 
-When a page is prerendered, the HTML is generated for the source pathname. If the page is then reached through a rewrite using `next.config` or `Proxy`, the browser URL may differ, and `usePathname()` will read the rewritten pathname on the client.
+When a page is prerendered, the HTML is generated for its path, such as `/blog/hello` for `app/blog/[slug]/page.tsx`. If a rewrite in `next.config` or `Proxy` serves that page at a different URL, the browser keeps the URL it requested, and `usePathname()` reads that browser URL on the client rather than the rewrite destination.
 
 To avoid hydration mismatches, design the UI so that only a small, isolated part depends on the client pathname. Render a stable fallback on the server and update that part after mount. The deferred read shows a brief moment of the fallback before the real pathname appears; see [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the visible flicker.
 

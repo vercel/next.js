@@ -15,6 +15,9 @@ export default function Root({ children }: { children: ReactNode }) {
         <Link href="/en/bar" prefetch={false}>
           English bar
         </Link>
+        <Link href="/en/hub" prefetch={false}>
+          English hub
+        </Link>
         {children}
       </body>
     </html>

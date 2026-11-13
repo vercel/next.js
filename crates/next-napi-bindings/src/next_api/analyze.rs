@@ -4,8 +4,9 @@ use anyhow::{Result, ensure};
 use next_api::{
     analyze::{
         AnalyzeClientReferenceEntry, AnalyzeDataOutputAsset, AnalyzeRouteEntries,
-        AnalyzeRouteEntry, ModulesDataOutputAsset, RouteBundleSummary, analyze_output_assets,
-        analyze_route_entry_id, combine_output_assets, combine_traced_files,
+        AnalyzeRouteEntry, AnalyzeRouteInput, AnalyzeRouteInputs, ModulesDataOutputAsset,
+        RouteBundleSummary, analyze_output_assets, analyze_route_entry_id, analyze_route_files,
+        combine_output_assets, combine_traced_files,
     },
     project::ProjectContainer,
     route::{AnalyzeChunkGroup, AnalyzeChunkGroups, Endpoint, EndpointGroup, EndpointGroupKey},
@@ -166,7 +167,6 @@ async fn get_analyze_data_operation(
     app_dir_only: bool,
 ) -> Result<Vc<OutputAssets>> {
     let project = container.project();
-    let project = project.with_next_config(project.next_config().with_analyze_config());
 
     let analyze_output_root = project
         .node_root()
@@ -206,7 +206,7 @@ async fn get_analyze_data_operation(
         }
     }
 
-    let analyze_data_and_summaries = endpoint_groups
+    let prepared_endpoint_groups = endpoint_groups
         .iter()
         .map(async |(key, endpoint_group)| {
             let output_assets = if has_combined
@@ -263,39 +263,65 @@ async fn get_analyze_data_operation(
             {
                 groups.extend(shared_chunk_groups.iter().cloned());
             }
+            Ok((key, output_assets, traced_files, groups, entries))
+        })
+        .try_join()
+        .await?;
+
+    let inputs = prepared_endpoint_groups
+        .iter()
+        .map(async |(key, output_assets, traced_files, _, _)| {
+            anyhow::Ok((
+                key.as_str().into(),
+                AnalyzeRouteInput {
+                    output_assets: output_assets.to_resolved().await?,
+                    traced_files: traced_files.to_resolved().await?,
+                },
+            ))
+        })
+        .try_join()
+        .await?;
+    let inputs: Vc<AnalyzeRouteInputs> = Vc::cell(inputs.into_iter().collect());
+    let files = analyze_route_files(inputs, *whole_app_module_graphs.await?.full);
+
+    let analyze_data_and_summaries = prepared_endpoint_groups
+        .into_iter()
+        .map(|(key, _, _, groups, entries)| {
             let chunk_groups: Vc<AnalyzeChunkGroups> = Vc::cell(groups);
             let route_entries: Vc<AnalyzeRouteEntries> = Vc::cell(entries);
-            let analyze_data = AnalyzeDataOutputAsset::new(
-                analyze_output_root
-                    .join(&key.to_string())?
-                    .join("analyze.data")?,
-                output_assets,
-                traced_files,
-                route_entries,
-                chunk_groups,
-                *whole_app_module_graphs.await?.full,
-            )
-            .to_resolved()
-            .await?;
+            async move {
+                let analyze_data = AnalyzeDataOutputAsset::new(
+                    analyze_output_root
+                        .join(&key.to_string())?
+                        .join("analyze.data")?,
+                    key.as_str().into(),
+                    files,
+                    route_entries,
+                    chunk_groups,
+                    *whole_app_module_graphs.await?.full,
+                )
+                .to_resolved()
+                .await?;
 
-            let summary = if let EndpointGroupKey::Route(route) = key {
-                Some(RouteSummary {
-                    route: route.to_string(),
-                    bundles: analyze_output_assets(
-                        output_assets,
-                        traced_files,
-                        route_entries,
-                        chunk_groups,
-                        *whole_app_module_graphs.await?.full,
-                    )
-                    .await?
-                    .summary,
-                })
-            } else {
-                None
-            };
+                let summary = if let EndpointGroupKey::Route(route) = key {
+                    Some(RouteSummary {
+                        route: route.to_string(),
+                        bundles: analyze_output_assets(
+                            key.as_str().into(),
+                            files,
+                            route_entries,
+                            chunk_groups,
+                            *whole_app_module_graphs.await?.full,
+                        )
+                        .await?
+                        .summary,
+                    })
+                } else {
+                    None
+                };
 
-            Ok((ResolvedVc::upcast(analyze_data), summary))
+                Ok((ResolvedVc::upcast(analyze_data), summary))
+            }
         })
         .try_join()
         .await?;

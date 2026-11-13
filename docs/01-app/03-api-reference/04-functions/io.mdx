@@ -79,12 +79,17 @@ export function CurrentTime() {
 
 ## When you don't need `io()`
 
-- The component already uses a [Request-time API](/docs/app/glossary#request-time-apis) like `cookies()` or `headers()`. The request-time API is itself the suspension point.
-- The data comes from an awaited `fetch` or async database query wrapped in `<Suspense>`. The `await` is the suspension point.
+If an operation already suspends prerendering, such as an uncached `fetch` or async database query inside `<Suspense>`, you don't need an additional `io()` call before it.
+
+### Synchronous IO after request data
+
+During build-time prerendering, awaiting [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) suspends before the following code executes. With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), these APIs can resolve during runtime prerendering. An uncached read of time or randomness after these APIs can still trigger a prerender error, even inside `<Suspense>`.
+
+Call `await io()` before the synchronous read, or before calling a helper that performs it. To keep the helper eligible for runtime prefetching instead, [read the required request values outside a `use cache` scope and pass them as arguments](/docs/app/getting-started/caching#passing-runtime-values-to-cached-functions). Include the synchronous read in the cached scope.
 
 ## How `io()` differs from `connection()`
 
-The [`connection()`](/docs/app/api-reference/functions/connection) function excludes the code that follows it from the static shell, but it stays suspended until a full user navigation reaches the server, so it also blocks [prefetches](/docs/app/guides/prefetching). `io()` suspends like any other asynchronous function, so the code after it can be wrapped in [`"use cache"`](/docs/app/api-reference/directives/use-cache) and prefetched and cached on the client. Prefer `io()` over `connection()`, and reach for `connection()` only when you need to wait for a real user request.
+Unlike [`connection()`](/docs/app/api-reference/functions/connection), `io()` also works inside a [`"use cache"`](/docs/app/api-reference/directives/use-cache) scope, where it resolves immediately, so a function that calls it can run in cached and uncached code alike. Calling `connection()` inside a cache scope throws an error. Outside a cache scope, the two behave the same: the code after either one is excluded from every prerender, whether the prerender runs at build time or for a [prefetch](/docs/app/guides/prefetching). Prefer `io()` over `connection()`, and reach for `connection()` only when you need to wait for a real user request.
 
 ## Reference
 

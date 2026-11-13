@@ -35,12 +35,12 @@ declare module 'components' {
 
   export function Button(
     props: {
-      action: () => Promise<any>
+      action: (...args: any[]) => Promise<any>
     } & React.ComponentProps<'button'>
   ): React.ReactNode
 
   export function Form(
-    props: React.PropsWithChildren<{ action: () => Promise<any> }>
+    props: React.PropsWithChildren<{ action: (...args: any[]) => Promise<any> }>
   ): React.ReactNode
 
   export function Client(props: Record<string, any>): React.ReactNode

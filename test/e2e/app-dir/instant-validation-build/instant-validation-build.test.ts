@@ -842,8 +842,8 @@ describe('instant-validation-build', () => {
         .toMatchInlineSnapshot(`
        "Error: Route "/root-params/[lang]/invalid-root-param-not-provided" accessed root param "lang" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`params\` object.
            at <unknown> (app/root-params/[lang]/invalid-root-param-not-provided/page.tsx:18:11)
-           at a (ensure-error.ts:48:11)
-           at b (app/root-params/[lang]/invalid-root-param-not-provided/page.tsx:17:9)
+           at a.s.d (ensure-error.ts:48:11)
+           at a.s.level (app/root-params/[lang]/invalid-root-param-not-provided/page.tsx:17:9)
          16 |
          17 |   await ensureRejects(
        > 18 |     () => lang(),
@@ -871,8 +871,8 @@ describe('instant-validation-build', () => {
         .toMatchInlineSnapshot(`
        "Error: Route "/root-params/[lang]/invalid-root-param-not-provided-caught" accessed root param "lang" which is not defined in the \`unstable_samples\` of \`instant\`. Add it to the sample's \`params\` object.
            at <unknown> (app/root-params/[lang]/invalid-root-param-not-provided-caught/page.tsx:19:13)
-           at a (ensure-error.ts:48:11)
-           at b (app/root-params/[lang]/invalid-root-param-not-provided-caught/page.tsx:18:11)
+           at a.s.d (ensure-error.ts:48:11)
+           at a.s.level (app/root-params/[lang]/invalid-root-param-not-provided-caught/page.tsx:18:11)
          17 |   try {
          18 |     await ensureRejects(
        > 19 |       () => lang(),

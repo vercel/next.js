@@ -182,7 +182,7 @@ export function getRequiredConfiguration(
         nodenext: typescript.ModuleResolutionKind.NodeNext,
         node12: (typescript.ModuleResolutionKind as any).Node12,
         node:
-          (typescript.ModuleResolutionKind as any).Node10 ??
+          typescript.ModuleResolutionKind.Node10 ??
           typescript.ModuleResolutionKind.NodeJs,
       }
       res[optionKey] = moduleResolutionMap[value.toLowerCase()] ?? value

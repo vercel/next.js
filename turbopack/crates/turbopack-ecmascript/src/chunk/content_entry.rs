@@ -1,6 +1,6 @@
 use anyhow::Result;
 use either::Either;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{FixintU128, FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItemExt, ModuleId},
     code_builder::Code,
@@ -21,7 +21,7 @@ use crate::chunk::{
 #[derive(Debug)]
 pub struct EcmascriptChunkContentEntry {
     pub code: ResolvedVc<Code>,
-    pub hash: ResolvedVc<u128>,
+    pub hash: ResolvedVc<FixintU128>,
 }
 
 impl EcmascriptChunkContentEntry {

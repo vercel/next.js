@@ -28,8 +28,9 @@ concurrency:
 
 jobs:
   evaluate:
-    if: ${{ github.repository_owner == 'vercel' && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch != 'canary')) }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch != 'canary') }}
     runs-on: ubuntu-latest
+    environment: bot-autonomous
     permissions:
       contents: read
     outputs:
@@ -79,7 +80,7 @@ jobs:
       - name: Setup corepack
         if: steps.precheck.outputs.should_evaluate == 'true'
         run: |
-          npm i -g corepack@0.31
+          npm i -g corepack@0.34.7
           corepack enable
 
       - name: Install dependencies

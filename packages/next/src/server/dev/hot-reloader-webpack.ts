@@ -42,7 +42,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   COMPILER_NAMES,
-  RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
 import type { __ApiPreviewProps } from '../api-utils'
 import { findPageFile } from '../lib/find-page-file'
@@ -104,6 +103,7 @@ import {
   type ReactDebugChannelForBrowser,
 } from './debug-channel'
 import {
+  getPendingVersionInfo,
   getVersionInfo,
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
@@ -111,6 +111,7 @@ import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
+import { createAtomicManifestOutputFileSystem } from './atomic-manifest-output-fs'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { Lockfile } from '../../build/lockfile'
 import {
@@ -257,16 +258,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   protected appDir?: string
   private telemetry: Telemetry
   private resetFetch: () => void
-  private lockfile: Lockfile | undefined
-  private versionInfo: VersionInfo = {
-    staleness: 'unknown',
-    installed: '0.0.0',
-  }
+  // Resolves once the registry lookup settles, with the placeholder info if it
+  // fails. Never awaited during start-up so a slow registry cannot delay the
+  // dev server or the dev overlay.
+  private versionInfo!: Promise<VersionInfo>
   private devtoolsFrontendUrl: string | undefined
   private reloadAfterInvalidation: boolean = false
   private isSrcDir: boolean
   private cacheStatusesByRequestId = new Map<string, ServerCacheStatus>()
   private hasVulnerabilityInsight: Promise<boolean>
+  private hasInstrumentationInject: boolean
 
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -292,6 +293,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       lockfile,
       onDevServerCleanup,
       hasVulnerabilityInsight,
+      hasInstrumentationInject,
     }: {
       config: NextConfigComplete
       isSrcDir: boolean
@@ -304,9 +306,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       appDir?: string
       telemetry: Telemetry
       resetFetch: () => void
-      lockfile: Lockfile | undefined
+      lockfile: Lockfile
       onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
       hasVulnerabilityInsight: Promise<boolean>
+      hasInstrumentationInject: boolean
     }
   ) {
     this.hasAppRouterEntrypoints = false
@@ -325,8 +328,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.serverPrevDocumentHash = null
     this.telemetry = telemetry
     this.resetFetch = resetFetch
-    this.lockfile = lockfile
     this.hasVulnerabilityInsight = hasVulnerabilityInsight
+    this.hasInstrumentationInject = hasInstrumentationInject
 
     this.config = config
     this.previewProps = previewProps
@@ -345,7 +348,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     fileLogger.initialize(this.distDir, mcpServerEnabled)
 
     onDevServerCleanup?.(async () => {
-      await lockfile?.unlock()
+      await lockfile.unlock()
     })
   }
 
@@ -845,6 +848,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     })
 
     const fallbackCompiler = getWebpackBundler()(fallbackConfig)
+    // Requests can read manifests while a rebuild is emitting them.
+    fallbackCompiler.outputFileSystem = createAtomicManifestOutputFileSystem(
+      fallbackCompiler.outputFileSystem!
+    )
 
     this.fallbackWatcher = await new Promise((resolve) => {
       let bootedFallbackCompiler = false
@@ -873,7 +880,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
-    this.versionInfo = await this.tracedGetVersionInfo(startSpan)
+    // Not awaited, so a slow registry doesn't delay startup. The catch is
+    // attached right away: nothing subscribes to this promise until the hot
+    // middleware is created.
+    this.versionInfo = this.tracedGetVersionInfo(startSpan).catch((error) => {
+      console.error(error)
+      return getPendingVersionInfo()
+    })
 
     const inspectorURLRaw = inspector.url()
     if (inspectorURLRaw !== undefined) {
@@ -976,9 +989,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   page,
                 })
               : undefined
-
-            const isServerComponent =
-              isAppPath && staticInfo?.rsc !== RSC_MODULE_TYPES.client
 
             const pageType: PAGE_TYPES = entryData.bundlePath.startsWith(
               'pages/'
@@ -1086,7 +1096,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     isDev: true,
                     page,
                     pages: this.pagesMapping,
-                    isServerComponent,
+                    isServerComponent: isAppPath,
                     appDirLoader,
                     pagesType: isAppPath ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
                     preferredRegion: staticInfo?.preferredRegion,
@@ -1156,7 +1166,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     isDev: true,
                     page,
                     pages: this.pagesMapping,
-                    isServerComponent,
+                    isServerComponent: isAppPath,
                     pagesType: PAGE_TYPES.PAGES,
                     preferredRegion: staticInfo?.preferredRegion,
                   })
@@ -1234,7 +1244,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.server,
                   name: bundlePath,
-                  isServerComponent,
+                  isServerComponent: isAppPath,
                   value,
                   hasAppDir,
                 })
@@ -1278,8 +1288,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     // Copy over the filesystem so that it is shared between all compilers.
     const inputFileSystem = this.multiCompiler.compilers[0].inputFileSystem
+    // Requests can read manifests while a rebuild is emitting them.
+    const outputFileSystem = createAtomicManifestOutputFileSystem(
+      this.multiCompiler.compilers[0].outputFileSystem!
+    )
     for (const compiler of this.multiCompiler.compilers) {
       compiler.inputFileSystem = inputFileSystem
+      compiler.outputFileSystem = outputFileSystem
       // This is set for the initial compile. After that Watching class in webpack adds it.
       compiler.fsStartTime = Date.now()
       // Ensure NodeEnvironmentPlugin doesn't purge the inputFileSystem. Purging is handled in `done` below.
@@ -1671,6 +1686,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       appDir: this.appDir,
       rootDir: this.dir,
       nextConfig: this.config,
+      hasInstrumentationInject: this.hasInstrumentationInject,
       ...(this.config.onDemandEntries as {
         maxInactiveAge: number
         pagesBufferLength: number

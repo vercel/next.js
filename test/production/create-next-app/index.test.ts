@@ -1,8 +1,14 @@
-import { mkdir, readFile, writeFile } from 'fs/promises'
+import { chmod, mkdir, readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
+import {
+  writeAgentFeedbackFiles,
+  writeAgentFiles,
+  writeAgentUpgradeFiles,
+} from 'next/dist/server/lib/generate-agent-files'
 import {
   resolveNextTgzFilename,
   run,
+  getPreferencesDir,
   useTempDir,
   projectFilesShouldExist,
   projectFilesShouldNotExist,
@@ -46,7 +52,10 @@ describe('create-next-app', () => {
       const Conf = require('next/dist/compiled/conf')
 
       await useTempDir(async (cwd) => {
-        const conf = new Conf({ projectName: 'create-next-app' })
+        const conf = new Conf({
+          projectName: 'create-next-app',
+          cwd: getPreferencesDir(cwd),
+        })
         conf.clear()
         const projectName = 'cache-components'
         const res = await run(
@@ -119,47 +128,85 @@ describe('create-next-app', () => {
 
     await useTempDir(async (cwd) => {
       const projectName = 'dir-not-writable'
+      // Create writable preferences before restricting the app's parent directory.
+      await mkdir(getPreferencesDir(cwd))
 
-      // if the folder isn't able to be write restricted we can't test so skip
-      if (
-        await writeFile(join(cwd, 'test'), 'hello')
-          .then(() => true)
-          .catch(() => false)
-      ) {
-        console.warn(
-          `Test folder is not write restricted skipping write permission test`
-        )
-        return
-      }
+      try {
+        await chmod(cwd, 0o500)
 
-      const res = await run(
-        [
-          projectName,
-          '--ts',
-          '--app',
-          '--eslint',
-          '--no-tailwind',
-          '--no-src-dir',
-          '--no-import-alias',
-          '--no-react-compiler',
-          '--no-agents-md',
-          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
-        ],
-        nextTgzFilename,
-        {
-          cwd,
-          reject: false,
+        // if the folder isn't able to be write restricted we can't test so skip
+        if (
+          await writeFile(join(cwd, 'test'), 'hello')
+            .then(() => true)
+            .catch(() => false)
+        ) {
+          console.warn(
+            `Test folder is not write restricted skipping write permission test`
+          )
+          return
         }
-      )
 
-      expect(res.stderr).toMatch(expectedErrorMessage)
-      expect(res.exitCode).toBe(1)
-    }, 0o500).catch((err) => {
+        const res = await run(
+          [
+            projectName,
+            '--ts',
+            '--app',
+            '--eslint',
+            '--no-tailwind',
+            '--no-src-dir',
+            '--no-import-alias',
+            '--no-react-compiler',
+            '--no-agents-md',
+            ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+          ],
+          nextTgzFilename,
+          {
+            cwd,
+            reject: false,
+          }
+        )
+
+        expect(res.stderr).toMatch(expectedErrorMessage)
+        expect(res.exitCode).toBe(1)
+      } finally {
+        await chmod(cwd, 0o700)
+      }
+    }).catch((err) => {
       if (!expectedErrorMessage.test(err.message)) {
         throw err
       }
     })
   })
+
+  it('should exit with a non-zero code when dependency installation fails', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'install-fails'
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-linter',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+        ],
+        // A missing local tarball makes `npm install` fail without network.
+        join(cwd, 'does-not-exist', 'next.tgz'),
+        {
+          cwd,
+          reject: false,
+          // Install `next` from the missing tarball instead of the packed one.
+          env: { NEXT_TEST_PKG_PATHS: '' },
+        }
+      )
+      expect(res.stdout).toContain('Aborting installation.')
+      expect(res.exitCode).toBe(1)
+    })
+  })
+
   it('should create AGENTS.md with --agents-md flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'with-agents-md'
@@ -175,6 +222,7 @@ describe('create-next-app', () => {
           '--no-import-alias',
           '--no-react-compiler',
           '--agents-md',
+          '--no-agent-feedback',
           '--skip-install',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
@@ -189,6 +237,60 @@ describe('create-next-app', () => {
         projectName,
         files: ['AGENTS.md'],
       })
+      const agentsMd = await readFile(
+        join(cwd, projectName, 'AGENTS.md'),
+        'utf8'
+      )
+      expect(agentsMd).toContain('<!-- BEGIN:nextjs-agent-rules -->')
+      expect(agentsMd).not.toContain('nextjs-agent-feedback')
+      expect(agentsMd).toContain('<!-- BEGIN:nextjs-agent-upgrade -->')
+      expect(writeAgentUpgradeFiles(join(cwd, projectName)).agentsMd).toBe(
+        'unchanged'
+      )
+    })
+  })
+
+  it('should write the agent feedback block to AGENTS.md with --agents-md --agent-feedback', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'with-agents-md-and-feedback'
+
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-linter',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--agents-md',
+          '--agent-feedback',
+          '--skip-install',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+        }
+      )
+      expect(res.exitCode).toBe(0)
+
+      const projectDir = join(cwd, projectName)
+      const agentsMd = await readFile(join(projectDir, 'AGENTS.md'), 'utf8')
+      const rulesIdx = agentsMd.indexOf('<!-- BEGIN:nextjs-agent-rules -->')
+      const feedbackIdx = agentsMd.indexOf(
+        '<!-- BEGIN:nextjs-agent-feedback -->'
+      )
+      expect(rulesIdx).toBeGreaterThanOrEqual(0)
+      expect(feedbackIdx).toBeGreaterThan(rulesIdx)
+
+      // `next dev` rewrites AGENTS.md when its blocks differ, so the scaffolded
+      // file must match byte-for-byte or the initial commit is immediately dirty.
+      expect(writeAgentFiles(projectDir).agentsMd).toBe('unchanged')
+      expect(writeAgentFeedbackFiles(projectDir).agentsMd).toBe('unchanged')
+      expect(agentsMd).toContain('<!-- BEGIN:nextjs-agent-upgrade -->')
+      expect(writeAgentUpgradeFiles(projectDir).agentsMd).toBe('unchanged')
     })
   })
 
@@ -252,6 +354,11 @@ describe('create-next-app', () => {
       expect(
         await readFile(join(cwd, projectName, 'next.config.ts'), 'utf8')
       ).toContain('\n  experimental: {\n    agentFeedback: true,\n  },\n')
+      projectFilesShouldNotExist({
+        cwd,
+        projectName,
+        files: ['AGENTS.md'],
+      })
     })
   })
 
@@ -374,6 +481,40 @@ describe('create-next-app', () => {
         files: ['.gitignore', 'package.json'],
       })
       projectFilesShouldNotExist({ cwd, projectName, files: ['node_modules'] })
+    })
+  })
+
+  it('should print success and next steps commands when creating an app from template', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'success-message'
+
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-linter',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--no-import-alias',
+          '--skip-install',
+          '--no-react-compiler',
+          '--no-agents-md',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+          stdio: 'pipe',
+        }
+      )
+      expect(res.exitCode).toBe(0)
+      expect(res.stdout).toContain('Created success-message')
+      expect(res.stdout).toContain(
+        'Inside that directory, you can run several commands:'
+      )
+      expect(res.stdout).toContain('Starts the development server.')
+      expect(res.stdout).toContain('We suggest that you begin by typing:')
     })
   })
 })

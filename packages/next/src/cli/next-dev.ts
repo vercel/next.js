@@ -27,7 +27,7 @@ import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import { createSelfSignedCertificate } from '../lib/mkcert'
 import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
-import { initialEnv } from '@next/env'
+import { initialEnv, loadEnvConfig } from '@next/env'
 import { fork } from 'child_process'
 import type { ChildProcess } from 'child_process'
 import type { UpgradeContext, UpgradeReminder } from '../lib/upgrade/nudge'
@@ -62,6 +62,7 @@ export type NextDevOptions = {
   turbo?: boolean
   turbopack?: boolean
   webpack?: boolean
+  customWebpack?: boolean
   port: number
   hostname?: string
   experimentalHttps?: boolean
@@ -81,6 +82,7 @@ let dir: string
 let child: undefined | ChildProcess
 // distDir is received from the child process via IPC, used for telemetry and trace.
 let distDir: string | undefined
+let serverTelemetrySettings: { disabled: string | undefined } | undefined
 let isTurbopack: boolean
 let traceUploadUrl: string
 let sessionStopHandled = false
@@ -181,15 +183,23 @@ const handleSessionStop = async (
       pagesDir = !!pagesResult.pagesDir
     }
 
-    const telemetry =
-      (traceGlobals.get('telemetry') as InstanceType<
-        typeof import('../telemetry/storage').Telemetry
-      >) ||
-      new Telemetry({
-        distDir: path.join(dir, distDir || '.next'),
-      })
+    // The CLI parent does not load config; read .env opt-outs before creating telemetry.
+    loadEnvConfig(dir, true)
+    if (serverTelemetrySettings?.disabled) {
+      process.env.NEXT_TELEMETRY_DISABLED = serverTelemetrySettings.disabled
+    }
+    // Config may have opted out before startup failed. Do not assume telemetry
+    // is enabled until the current server child has reported its setting.
+    const telemetry = serverTelemetrySettings
+      ? (traceGlobals.get('telemetry') as InstanceType<
+          typeof import('../telemetry/storage').Telemetry
+        >) ||
+        new Telemetry({
+          distDir: path.join(dir, distDir || '.next'),
+        })
+      : undefined
 
-    telemetry.record(
+    telemetry?.record(
       eventCliSessionStopped({
         cliCommand: 'dev',
         turboFlag: isTurbopack,
@@ -199,7 +209,7 @@ const handleSessionStop = async (
       }),
       true
     )
-    telemetry.flushDetached({ mode: 'dev', dir, distDir: null, events: null })
+    telemetry?.flushDetached({ mode: 'dev', dir, events: null })
   } catch (_) {
     // errors here aren't actionable so don't add
     // noise to the output
@@ -275,6 +285,15 @@ const nextDev = async (
     '../lib/upgrade/nudge.js'
   )
   const humanUpgrade = await shouldPromptForUpgrade()
+  if (humanUpgrade) {
+    // The server's output is piped, so it only knows the terminal width it
+    // started with. Pass on later resizes.
+    process.stdout.on('resize', () => {
+      if (child?.connected && process.stdout.columns) {
+        child.send({ nextTerminalColumns: process.stdout.columns })
+      }
+    })
+  }
   const allowedUpgradeRetries = new Set<string>()
   async function offerUpgrade(
     context: UpgradeContext,
@@ -504,6 +523,8 @@ const nextDev = async (
       const { nodeOptions: formattedNodeOptions, execArgv } =
         formatNodeOptions(nodeOptions)
 
+      // A restarted worker must report its own config-derived opt-out.
+      serverTelemetrySettings = undefined
       // Pipe output through us so it can be held while the menu is open.
       child = fork(startServerPath, {
         stdio: humanUpgrade ? ['inherit', 'pipe', 'pipe', 'ipc'] : 'inherit',
@@ -559,6 +580,7 @@ const nextDev = async (
           } else if (msg.nextUpgradeContext) {
             const context = msg.nextUpgradeContext as UpgradeContext
             distDir = context.distDir
+            serverTelemetrySettings = { disabled: msg.telemetryDisabled }
             const initialAssessment =
               msg.nextUpgradeAssessment !== undefined
                 ? Promise.resolve(msg.nextUpgradeAssessment)
@@ -575,6 +597,8 @@ const nextDev = async (
           } else if (msg.nextWorkerReady) {
             child?.send({ nextWorkerOptions: startServerOptions })
           } else if (msg.nextServerReady && !resolved) {
+            // Preserve opt-outs set by config already evaluated in the server child.
+            serverTelemetrySettings = { disabled: msg.telemetryDisabled }
             if (msg.port) {
               // Store the used port in case a random one was selected, so that
               // it can be re-used on automatic dev server restarts.

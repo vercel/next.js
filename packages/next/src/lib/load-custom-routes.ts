@@ -504,7 +504,7 @@ function processRoutes<T>(
   config: NextConfig,
   type: 'redirect' | 'rewrite' | 'header'
 ): T {
-  const _routes = routes as any as Array<{
+  const _routes = routes as Array<{
     source: string
     locale?: false
     basePath?: false
@@ -580,7 +580,7 @@ function processRoutes<T>(
     }
     newRoutes.push(r)
   }
-  return newRoutes as any as T
+  return newRoutes as T
 }
 
 async function loadRedirects(config: NextConfig): Promise<{

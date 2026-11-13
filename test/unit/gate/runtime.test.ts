@@ -151,6 +151,14 @@ describe('@gate runtime', () => {
   })
 
   describe('lazy conditions', () => {
+    it('reads strict route types from the resolved config', async () => {
+      fixtureWith({ experimental: { strictRouteTypes: true } })
+      await expect(gate('strictRouteTypes')).resolves.toBe(true)
+
+      fixtureWith({ experimental: { strictRouteTypes: false } })
+      await expect(gate('strictRouteTypes')).resolves.toBe(false)
+    })
+
     it('reads the running fixture’s resolved config', async () => {
       const getResolvedConfig = fixtureWith({ cacheComponents: true })
       // cacheComponents is on, so `!cacheComponents` is false: a passing body
@@ -263,6 +271,30 @@ describe('@gate runtime', () => {
   })
 
   describe('@force-gate', () => {
+    it('recognizes prerelease and stable Next.js versions at collection', async () => {
+      const nextPackage = require('next/package.json')
+      const original = nextPackage.version
+      const prerelease = parseGate('prerelease', true)
+      expect(prerelease.needsResolvedConfig).toBe(false)
+
+      try {
+        nextPackage.version = '16.0.0-canary.1'
+        await expect(
+          __testing.decideGates([prerelease])
+        ).resolves.toMatchObject({
+          type: 'run',
+        })
+        nextPackage.version = '16.0.0'
+        await expect(
+          __testing.decideGates([prerelease])
+        ).resolves.toMatchObject({
+          type: 'force-pass',
+        })
+      } finally {
+        nextPackage.version = original
+      }
+    })
+
     it('accepts a lazy condition, classified for runtime resolution', () => {
       const gate = parseGate('!cacheComponents', true)
       expect(gate.force).toBe(true)
@@ -307,6 +339,55 @@ describe('@gate runtime', () => {
           process.env.TEST_NODE_MIDDLEWARE = original
         }
       }
+    })
+
+    it('runs `vercel` only for a deploy declared as Vercel', async () => {
+      const original = process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL
+      const vercelOnly = parseGate('vercel', true)
+      const notOtherHosts = parseGate('!deploy || vercel', true)
+
+      const results: [string, string, string][] = []
+      try {
+        for (const [mode, target] of [
+          ['deploy', '1'],
+          ['deploy', undefined],
+          ['deploy', '0'],
+          ['start', '1'],
+          ['start', undefined],
+        ] as const) {
+          if (target === undefined) {
+            delete process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL
+          } else {
+            process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL = target
+          }
+          setGateTestContext({
+            mode,
+            bundler: 'turbopack',
+            react18: false,
+            wasm: false,
+          })
+          results.push([
+            `${mode}, ${target ?? 'unset'}`,
+            (await __testing.decideGates([vercelOnly])).type,
+            (await __testing.decideGates([notOtherHosts])).type,
+          ])
+        }
+      } finally {
+        if (original === undefined) {
+          delete process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL
+        } else {
+          process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL = original
+        }
+      }
+
+      // [mode + NEXT_TEST_DEPLOY_TARGET_VERCEL, `@force-gate vercel`, `@force-gate !deploy || vercel`]
+      expect(results).toEqual([
+        ['deploy, 1', 'run', 'run'],
+        ['deploy, unset', 'force-pass', 'force-pass'],
+        ['deploy, 0', 'force-pass', 'force-pass'],
+        ['start, 1', 'force-pass', 'run'],
+        ['start, unset', 'force-pass', 'run'],
+      ])
     })
 
     it('skips the test for real when the condition is false', () => {

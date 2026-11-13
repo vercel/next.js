@@ -10,7 +10,7 @@ description: >
 
 ## 1. Set the scope
 
-Analyze the whole app by default, covering all routes and shared client dependencies. Narrow the scope only when the user specifies a route, dependency, feature or other subset. Choose **audit** or **fix** mode. Audit is the default: generate analyzer artifacts and report candidates while leaving application source, dependencies and lockfiles unchanged. Fix mode requires an explicit request to change the app. Ask before changing visible behavior, timing, compatibility or a trust boundary. For a route's static App Shell, use `next-cache-components-optimizer`; for navigation prefetch work, use `next-partial-prefetching-optimizer`.
+Analyze the whole app by default, covering all routes and shared client dependencies. Narrow the scope only when the user specifies a route, dependency, feature or other subset. Choose **audit** or **fix** mode. Audit is the default: generate analyzer artifacts and report candidates while leaving application source, dependencies and lockfiles unchanged. Fix mode requires an explicit request to change the app. Ask before changing visible behavior, timing, compatibility or a trust boundary. For a route's static App Shell, use [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer); install it first if unavailable (`npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer`). For navigation prefetch work, use [`next-partial-prefetching-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-optimizer); install it first if unavailable (`npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-optimizer`).
 
 **Done:** the whole-app or user-specified scope, mode and intended behavior are recorded. A request to capture or export data is audit mode, not permission to fix.
 
@@ -75,11 +75,23 @@ Before proposing an edit, record these items for each candidate. Mark an inappli
 
 For lazy interaction features, duplicate packages, server-rendered display work or other attributed assets, read the matching section in [Fix patterns](references/fix-patterns.md) before proposing an edit.
 
-**Done:** the paired pass and its target dispositions are recorded, or the narrow-scope skip reason or blocker is explicit. Every candidate has a completed checklist, exact source/importer, proposed edit and named behavior checks. Label heuristics as heuristics and qualify conclusions affected by evidence gaps; the report step completes **audit** mode.
+### Unexpected client dependencies
+
+Size ranking can miss small server-owned modules in client code. Before scanning in either mode, read [Client dependencies](references/client-dependencies.md) for graph joins, generated Server Action identities and tracing. Stream the export to check every emitted client module, including async outputs.
+
+Before editing, save a **Client-dependency scan** table in the report: one row per match and every client-imported Server Action, with **Source + client importer**, **Emitted identity**, **Routes**, **Compressed bytes** and **Disposition + evidence**. Reconcile source Action imports against emitted references, including generated identities; verify whether implementation contents survive. A filename search or byte ranking alone cannot complete this table.
+
+Use three dispositions: **possible leak** requires server-only ownership evidence and surviving client contents; **suppressed** covers intentional client content and verified reference-only Action stubs; **unverified** names the missing evidence. Public form schemas, help text and editable prompts stay suppressed even under `server/` or `prompts` paths. Record coverage gaps (unsupported outputs, missing roots or mappings), explicitly stating when none were found.
+
+**Done:** the community/min-cut pass accounts for every target or records its skip reason or blocker. Every size candidate has a completed checklist, exact source/importer, proposed edit and behavior checks. Every client-dependency match is a heuristic finding, suppressed with a reason or unverified with an evidence gap. Audit mode ends after the report.
 
 ## 5. Verify one change — fix mode only
 
-Make one small, cohesive change. Capture/export an after snapshot with a new name and compare the **same analysis scope, output class and metric** with the baseline. For whole-app analysis, account for changes across all routes, including shared dependencies. Run relevant behavior tests and type-check; use `next-dev-loop` when verifying the edit in the running app.
+Classify each proposed edit as a size optimization or boundary remediation before applying it. A request to reduce browser JavaScript authorizes size edits, including in public prompt modules and finding importers. Removing private client state/payloads, relocating policy or adding `server-only` needs separate explicit approval; leave those findings unresolved for the owner even if the UI would stay unchanged.
+
+Make one small, cohesive change. Capture/export an after snapshot with a new name and compare the **same analysis scope, output class and metric** with the baseline. For whole-app analysis, account for changes across all routes, including shared dependencies. Run relevant behavior tests and type-check; use [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) when verifying the edit in the running app, and install it first if unavailable (`npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop`).
+
+If no relevant tests exist, create and run focused smoke tests. Test production imports or rendered UI, not copied implementations. Exercise interactive flows through a browser or executable component tests, including input handling, timing and deferred actions. For debounced search, check case-insensitive results and the existing delay; for editable lazy features, trigger loading and edit the result. Record commands/actions and observed results. Source inspection, type-checking and successful builds alone do not verify behavior.
 
 **Done:** retain the change only when the scoped metric improves and the intended behavior passes its checks. Revert a change that fails either condition. If checks are blocked, report the unverified edit and blocker rather than accepting it. Record the accepted after snapshot as the next baseline before another edit.
 
@@ -87,4 +99,8 @@ Make one small, cohesive change. Capture/export an after snapshot with a new nam
 
 Audit reports candidates; fix reports accepted edits and any reverted or unverified attempts. Include snapshot names, scoped attribution/deltas, exact source/importer, behavior-check results and blockers. For a graph cut, include its route/render conditions, roots/target and unknowns. Distinguish source facts, build evidence, heuristics and separately observed runtime facts.
 
-**Done:** every scoped candidate or attempted edit is accounted for, with evidence or a stated gap.
+Add a **Possible server-only leaks** section with five labeled lines per heuristic finding: **Module**, **Routes**, **Chain**, **Heuristics** (including ownership evidence) and **Compressed bytes**. Explain missing values on their lines. Keep unresolved boundary concerns separate from accepted size edits, including those in the same file. State when no leaks were found.
+
+Use the scan table to populate **Suppressed matches** and **Evidence gaps**. Keep public form content and verified Action stubs outside the leak section, along with naming concerns. Include the coverage statement even when no gaps were found.
+
+**Done:** every scoped candidate, leak finding, client-imported Action and attempted edit is accounted for, with evidence or a stated gap.

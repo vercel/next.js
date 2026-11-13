@@ -458,6 +458,46 @@ describe('partial-fallback-shell-upgrade - partialPrefetching disabled', () => {
     }
   })
 
+  it('treats a request-supplied placeholder segment as a concrete value', async () => {
+    // A plain GET carries the bracketed name of the [three] param as its own
+    // segment. The render must defer both never-prerenderable params, so the
+    // unknown [two] value streams its 404 body after the shell has committed a
+    // 200, and nothing request-specific is stored in the shared shell entry. On
+    // deploy the platform strips those param values before calling the origin,
+    // so the deploy run pins the platform behavior that keeps the shared entry
+    // safe in minimal mode.
+    const placeholderResponse = await next.fetch(
+      '/placeholder/c/baz/%5Bthree%5D'
+    )
+    expect(placeholderResponse.status).toBe(200)
+
+    // Every URL sharing the shell entry must still render its own params.
+    const siblings = [
+      ['/placeholder/c/foo/x', 'foo', 'x'],
+      ['/placeholder/c/bar/y', 'bar', 'y'],
+    ] as const
+
+    let sharedRenderedAt: string | undefined
+    for (const [pathname, two, three] of siblings) {
+      const result = await fetchSplitHTML(pathname)
+
+      expect(result.response.status).toBe(200)
+      expect(result.static$('#one').text()).toBe('c')
+      expect(result.static$('#two-fallback').text()).toBe('loading two...')
+      expect(result.dynamicPart).toContain(`<div id="two">${two}</div>`)
+      expect(result.dynamicPart).toContain(`<div id="three">${three}</div>`)
+
+      // Both sibling requests read the same shared shell entry.
+      const renderedAt = result.static$('#one').attr('data-rendered-at')
+      expect(renderedAt).toMatch(/^\d+(?:\.\d+)?$/)
+      if (sharedRenderedAt === undefined) {
+        sharedRenderedAt = renderedAt
+      } else {
+        expect(renderedAt).toBe(sharedRenderedAt)
+      }
+    }
+  })
+
   it('revalidates the shared terminal shell without resolving dynamic params', async () => {
     const pathname = '/prefix/b/foo'
     const firstResult = await fetchSplitHTML(pathname)
