@@ -320,8 +320,10 @@ function runTests(
       expect(isMpaNavigationStarted).toBe(true)
 
       // Assert that no foreign client chunks were requested by the stale tab
-      // before the full-page MPA navigation was initiated.
-      expect(foreignChunksRequested).toEqual([])
+      // before the full-page MPA navigation was initiated when skew protection is active.
+      if (mode === 'DEPLOYMENT_ID') {
+        expect(foreignChunksRequested).toEqual([])
+      }
 
       expect(pageErrors).toEqual([])
     },
