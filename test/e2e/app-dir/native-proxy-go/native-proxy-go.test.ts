@@ -5,7 +5,7 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import { spawn } from 'child_process'
 import { once } from 'events'
-import { request } from 'http'
+import { createServer, request } from 'http'
 
 // Hosted tests require the Go proxy adapter and builder releases.
 // @force-gate turbopack && !deploy
@@ -177,6 +177,65 @@ describe('native-proxy-go', () => {
       removed: null,
     })
   })
+
+  it.each(['DELETE', 'OPTIONS'])(
+    'frames an external rewrite body after %s header overrides',
+    async (method) => {
+      const requests: Array<{
+        url: string
+        body: string
+        fromGo: string | undefined
+      }> = []
+      const server = createServer((req, res) => {
+        const chunks: Buffer[] = []
+        req.on('data', (chunk) => chunks.push(chunk))
+        req.on('end', () => {
+          const body = Buffer.concat(chunks).toString()
+          const fromGo = req.headers['x-from-go']
+          requests.push({ url: req.url!, body, fromGo })
+          if (req.url === '/api/private' && fromGo !== 'overridden') {
+            res.statusCode = 403
+          }
+          res.setHeader('content-type', 'application/json')
+          res.end(JSON.stringify({ body }))
+        })
+      })
+      await new Promise<void>((resolve) =>
+        server.listen(0, '127.0.0.1', resolve)
+      )
+      const address = server.address()
+      if (!address || typeof address === 'string') {
+        throw new Error('Expected the external server to listen on a TCP port')
+      }
+
+      const payload =
+        'GET /api/private HTTP/1.1\r\n' +
+        'Host: 127.0.0.1\r\n' +
+        'X-From-Go: overridden\r\n\r\n'
+      try {
+        const direct = await fetch(
+          `http://127.0.0.1:${address.port}/api/private`
+        )
+        expect(direct.status).toBe(403)
+
+        const response = await next.fetch(
+          `/native-proxy/external-override?port=${address.port}`,
+          { method, body: payload }
+        )
+        expect(response.status).toBe(200)
+        expect(requests).toEqual([
+          { url: '/api/private', body: '', fromGo: undefined },
+          { url: '/public', body: payload, fromGo: 'overridden' },
+        ])
+        expect(await response.json()).toEqual({ body: payload })
+      } finally {
+        server.closeAllConnections()
+        await new Promise<void>((resolve, reject) =>
+          server.close((error) => (error ? reject(error) : resolve()))
+        )
+      }
+    }
+  )
 
   it('preserves repeated cookies', async () => {
     const response = await next.fetch('/native-proxy/cookies')

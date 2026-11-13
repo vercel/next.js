@@ -767,14 +767,12 @@ export function getResolveRoutes(
               }
             }
 
-            // Proxy request-header overrides may restore the original length
-            // after the body was truncated. Forward the exact replay length so
-            // downstream HTTP servers can finish reading the request body.
+            // Header overrides can remove framing or restore the original
+            // length after the body was truncated. Regenerate framing from the
+            // exact replay body so external servers cannot parse its bytes as
+            // another request.
             const replayBodySize = getRequestMeta(req, 'replayBodySize')
-            if (
-              replayBodySize !== undefined &&
-              req.headers['content-length'] !== undefined
-            ) {
+            if (replayBodySize !== undefined) {
               req.headers['content-length'] = String(replayBodySize)
               delete req.headers['transfer-encoding']
             }

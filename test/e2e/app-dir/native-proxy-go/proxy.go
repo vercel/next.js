@@ -44,6 +44,11 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 		headers.Del("x-client-remove")
 		OverrideRequestHeaders(w, headers)
 		Rewrite(w, "/native-proxy/inspect")
+	case "/native-proxy/external-override":
+		headers := r.Header.Clone()
+		headers.Set("x-from-go", "overridden")
+		OverrideRequestHeaders(w, headers)
+		Rewrite(w, "http://127.0.0.1:"+r.URL.Query().Get("port")+"/public")
 	case "/native-proxy/cookies":
 		http.SetCookie(w, &http.Cookie{Name: "first", Value: "one", Path: "/"})
 		http.SetCookie(w, &http.Cookie{Name: "second", Value: "two", Path: "/"})
