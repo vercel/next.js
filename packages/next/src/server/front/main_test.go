@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -324,5 +325,35 @@ func TestRequiresEveryFlag(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), full[i]) {
 			t.Errorf("without %s: err = %v, want it named", full[i], err)
 		}
+	}
+}
+
+func TestReachesNodeOverAUnixSocket(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "node.sock")
+	unixListener, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := make(chan received, 1)
+	upstream := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- received{requestURI: r.RequestURI, host: r.Host, header: r.Header.Clone()}
+		io.WriteString(w, "over the socket")
+	})}
+	go upstream.Serve(unixListener)
+	t.Cleanup(func() { upstream.Close() })
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	front := &http.Server{Handler: newProxy("unix:"+path, ln.Addr().(*net.TCPAddr), 4*time.Second)}
+	go front.Serve(ln)
+	t.Cleanup(func() { front.Close() })
+
+	res := rawRoundTrip(t, ln.Addr().String(), get("/a?b"))
+	body, _ := io.ReadAll(res.Body)
+	got := <-seen
+	if string(body) != "over the socket" || got.requestURI != "/a?b" || got.host != "shop.example.com" || got.header.Get("X-Forwarded-For") != "127.0.0.1" {
+		t.Errorf("got %q, upstream saw %q %q %v", body, got.requestURI, got.host, got.header)
 	}
 }

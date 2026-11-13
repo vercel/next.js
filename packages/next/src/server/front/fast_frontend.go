@@ -38,6 +38,8 @@ type frontend struct {
 	mapIPv4      bool
 
 	idleTimeout, headerTimeout, upstreamIdle time.Duration
+	// Pooled connections idle at least this long are checked before reuse.
+	probeAfter time.Duration
 
 	// The compatibility path: the same handler the default mode serves.
 	transport *http.Transport
@@ -55,22 +57,6 @@ type frontend struct {
 }
 
 func newFrontend(cfg config, public *net.TCPAddr) (*frontend, error) {
-	host, portText, err := net.SplitHostPort(cfg.upstream)
-	if err != nil {
-		return nil, err
-	}
-	port, err := strconv.Atoi(portText)
-	if err != nil {
-		return nil, err
-	}
-	ip := net.ParseIP(host)
-	if ip == nil {
-		addrs, err := net.LookupIP(host)
-		if err != nil || len(addrs) == 0 {
-			return nil, errors.New("cannot resolve upstream " + host)
-		}
-		ip = addrs[0]
-	}
 	f := &frontend{
 		upstream:      cfg.upstream,
 		public:        public,
@@ -81,16 +67,43 @@ func newFrontend(cfg config, public *net.TCPAddr) (*frontend, error) {
 		upstreamIdle:  cfg.upstreamIdle,
 		listenerFD:    -1,
 	}
-	if v4 := ip.To4(); v4 != nil {
-		sa := &syscall.SockaddrInet4{Port: port}
-		copy(sa.Addr[:], v4)
-		f.upstreamAddr, f.family = sa, syscall.AF_INET
-	} else {
-		sa := &syscall.SockaddrInet6{Port: port}
-		copy(sa.Addr[:], ip.To16())
-		f.upstreamAddr, f.family = sa, syscall.AF_INET6
+	// Node closes a connection after it has been idle for its keep-alive
+	// timeout, and upstreamIdle is a second below that. A connection used
+	// within a quarter of upstreamIdle (at most a second) can't be one Node
+	// is closing for idleness. Without a pool limit, always check.
+	if cfg.upstreamIdle > 0 {
+		f.probeAfter = min(time.Second, cfg.upstreamIdle/4)
 	}
-	f.transport = newUpstreamTransport(cfg.upstreamIdle)
+	if path, ok := unixSocketPath(cfg.upstream); ok {
+		f.upstreamAddr, f.family = &syscall.SockaddrUnix{Name: path}, syscall.AF_UNIX
+	} else {
+		host, portText, err := net.SplitHostPort(cfg.upstream)
+		if err != nil {
+			return nil, err
+		}
+		port, err := strconv.Atoi(portText)
+		if err != nil {
+			return nil, err
+		}
+		ip := net.ParseIP(host)
+		if ip == nil {
+			addrs, err := net.LookupIP(host)
+			if err != nil || len(addrs) == 0 {
+				return nil, errors.New("cannot resolve upstream " + host)
+			}
+			ip = addrs[0]
+		}
+		if v4 := ip.To4(); v4 != nil {
+			sa := &syscall.SockaddrInet4{Port: port}
+			copy(sa.Addr[:], v4)
+			f.upstreamAddr, f.family = sa, syscall.AF_INET
+		} else {
+			sa := &syscall.SockaddrInet6{Port: port}
+			copy(sa.Addr[:], ip.To16())
+			f.upstreamAddr, f.family = sa, syscall.AF_INET6
+		}
+	}
+	f.transport = newUpstreamTransport(cfg.upstream, cfg.upstreamIdle)
 	f.handler = newProxyWithTransport(cfg.upstream, public, f.transport)
 	return f, nil
 }

@@ -4,8 +4,11 @@
 //
 // Contract with Node (packages/next/src/server/lib/front-server.ts):
 //
-//		next-front --listen :3000 --upstream 127.0.0.1:51234 \
+//		next-front --listen :3000 --upstream unix:/tmp/next-front-x/node.sock \
 //		  --idle-timeout-ms 5000 --header-timeout-ms 60000 --upstream-idle-ms 4000
+//
+//	  - --upstream is Node's private address: unix:<path> for a Unix socket,
+//	    or host:port.
 //
 //	  - Every flag is required. Node passes every behavior value, read off its
 //	    own server, so the front has no defaults of its own.
@@ -55,7 +58,7 @@ type config struct {
 func parseConfig(args []string) (config, error) {
 	flags := flag.NewFlagSet("next-front", flag.ContinueOnError)
 	listen := flags.String("listen", "", "public address, like :3000 or 127.0.0.1:3000")
-	upstream := flags.String("upstream", "", "Node's private address, like 127.0.0.1:51234")
+	upstream := flags.String("upstream", "", "Node's private address, like unix:/tmp/node.sock or 127.0.0.1:51234")
 	idleMs := flags.Int("idle-timeout-ms", 0, "how long an idle client connection stays open")
 	headerMs := flags.Int("header-timeout-ms", 0, "how long a client may take to send request headers")
 	upstreamIdleMs := flags.Int("upstream-idle-ms", 0, "how long an idle connection to Node stays pooled")
@@ -181,7 +184,12 @@ func stopRequested() <-chan struct{} {
 // listens on; upstreamIdle is how long an idle connection to Node stays
 // pooled.
 func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) http.Handler {
-	return newProxyWithTransport(upstream, public, newUpstreamTransport(upstreamIdle))
+	return newProxyWithTransport(upstream, public, newUpstreamTransport(upstream, upstreamIdle))
+}
+
+// unixSocketPath reports whether upstream is a Unix socket, unix:<path>.
+func unixSocketPath(upstream string) (string, bool) {
+	return strings.CutPrefix(upstream, "unix:")
 }
 
 // reactorEnv selects the epoll reactor (Linux only). Any other value, or
@@ -190,10 +198,17 @@ const reactorEnv = "__NEXT_EXPERIMENTAL_FRONT_SERVER_REACTOR"
 
 func reactorRequested() bool { return os.Getenv(reactorEnv) == "1" && reactorSupported }
 
-func newUpstreamTransport(upstreamIdle time.Duration) *http.Transport {
+func newUpstreamTransport(upstream string, upstreamIdle time.Duration) *http.Transport {
+	dialer := &net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}
+	dial := dialer.DialContext
+	if path, ok := unixSocketPath(upstream); ok {
+		dial = func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return dialer.DialContext(ctx, "unix", path)
+		}
+	}
 	return &http.Transport{
 		Proxy:       nil,
-		DialContext: (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
+		DialContext: dial,
 		// The default of 2 idle connections per host churns connections
 		// under load.
 		MaxIdleConns:        0,
@@ -209,6 +224,11 @@ func newUpstreamTransport(upstreamIdle time.Duration) *http.Transport {
 // reactor's compatibility path can resume a response already in flight.
 func newProxyWithTransport(upstream string, public *net.TCPAddr, transport http.RoundTripper) http.Handler {
 	publicPort := strconv.Itoa(public.Port)
+	// The URL only keys the transport's pool; Host is the client's.
+	upstreamHost := upstream
+	if _, ok := unixSocketPath(upstream); ok {
+		upstreamHost = "node"
+	}
 	// Node, listening on all interfaces, sees IPv4 clients as IPv4-mapped IPv6
 	// addresses. Go reports them as plain IPv4.
 	mapIPv4 := public.IP.To4() == nil
@@ -216,7 +236,7 @@ func newProxyWithTransport(upstream string, public *net.TCPAddr, transport http.
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.Out.URL.Scheme = "http"
-			pr.Out.URL.Host = upstream
+			pr.Out.URL.Host = upstreamHost
 			pr.Out.Host = pr.In.Host
 			keepRequestTarget(pr.Out, pr.In.RequestURI)
 			restoreForwardedHeaders(pr.Out.Header, pr.In.Header)
