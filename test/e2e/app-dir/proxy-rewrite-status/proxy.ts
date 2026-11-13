@@ -15,4 +15,16 @@ export function proxy(request: NextRequest) {
       },
     })
   }
+
+  if (request.nextUrl.pathname === '/removed') {
+    return NextResponse.rewrite(new URL('/missing', request.url), {
+      status: 410,
+    })
+  }
+
+  if (request.nextUrl.pathname === '/relocated') {
+    return NextResponse.rewrite(new URL('/moved', request.url), {
+      status: 410,
+    })
+  }
 }
