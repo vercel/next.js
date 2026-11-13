@@ -51,7 +51,9 @@ Root parameters are the [dynamic segments](/docs/app/api-reference/file-conventi
 
 ## Root parameters and `generateStaticParams`
 
-Root parameters are available as soon as you create the routes that define them. A [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) function is only required with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), where each root parameter must have at least one value or the build fails.
+Root parameters are available as soon as you create the routes that define them. With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) must provide at least one value for each root parameter or the build fails.
+
+For a [static export](/docs/app/guides/static-exports#dynamic-routes), also follow the [`generateStaticParams` requirements](/docs/app/api-reference/functions/generate-static-params#with-cache-components).
 
 With a single root parameter:
 

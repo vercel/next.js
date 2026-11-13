@@ -275,6 +275,10 @@ Of the presets, only `seconds` falls under any of these thresholds: its `expire`
 
 This behavior allows you to mix static and dynamic content within the same page. Static parts are prerendered, while short-lived caches create boundaries where data is fetched at request time rather than build time. Use a `<Suspense>` boundary around dynamic caches to provide a fallback while content loads.
 
+### Static exports
+
+With [`output: 'export'`](/docs/app/guides/static-exports#cache-components), lifetime settings affect prerendering but do not revalidate the exported files.
+
 ## Examples
 
 ### Using preset profiles

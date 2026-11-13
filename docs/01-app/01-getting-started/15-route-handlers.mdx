@@ -40,7 +40,7 @@ Route Handlers can be nested anywhere inside the `app` directory, similar to `pa
 
 ### Supported HTTP Methods
 
-The following [HTTP methods](https://developer.mozilla.org/docs/Web/HTTP/Methods) are supported: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, and `OPTIONS`. If an unsupported method is called, Next.js will return a `405 Method Not Allowed` response.
+The following [HTTP methods](https://developer.mozilla.org/docs/Web/HTTP/Methods) are supported: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, and `OPTIONS`. If an unsupported method is called, Next.js will return a `405 Method Not Allowed` response. Static exports support [only `GET`](/docs/app/api-reference/file-conventions/route#static-exports).
 
 ### Extended `NextRequest` and `NextResponse` APIs
 
@@ -141,7 +141,7 @@ async function getProducts() {
 }
 ```
 
-> **Good to know**: `use cache` cannot be used directly inside a Route Handler body; extract it to a helper function. Cached responses revalidate according to `cacheLife` when a new request arrives.
+> **Good to know**: `use cache` cannot be used directly inside a Route Handler body; extract it to a helper function. With a Next.js server, cached responses revalidate according to `cacheLife` when a new request arrives. For exported responses, see the [static-export requirements](/docs/app/api-reference/file-conventions/route#static-exports).
 
 ### Special Route Handlers
 

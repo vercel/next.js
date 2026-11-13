@@ -111,6 +111,8 @@ The following options are available for the `next build` command:
 | `--debug-build-paths=<patterns>`   | Build only specific routes for debugging.                                                                                                     |
 | `--experimental-cpu-prof`          | Enables CPU profiling using V8's inspector. Profiles are saved to `.next-profiles/` on exit.                                                  |
 
+With [`output: 'export'`](/docs/app/guides/static-exports#configuration), `compile` prepares the build and `generate` writes the exported files.
+
 ### `next start` options
 
 `next start` starts the application in production mode. The application should be compiled with [`next build`](#next-build-options) first.

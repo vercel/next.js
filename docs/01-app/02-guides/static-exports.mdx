@@ -36,7 +36,7 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-After running `next build`, Next.js will create an `out` folder with the HTML/CSS/JS assets for your application.
+After running `next build`, Next.js will create an `out` folder with the HTML/CSS/JS assets for your application. If you split the build with [`--experimental-build-mode`](/docs/app/api-reference/cli/next#next-build-options), the `compile` step prepares the build and the `generate` step writes the exported files.
 
 <PagesOnly>
 
@@ -46,6 +46,38 @@ You can utilize [`getStaticProps`](/docs/pages/building-your-application/data-fe
 
 <AppOnly>
 
+## Cache Components
+
+[Cache Components](/docs/app/getting-started/caching) can be used with `output: 'export'`. Enable both in your Next.js configuration:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  output: 'export',
+  cacheComponents: true,
+  partialPrefetching: true,
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+const nextConfig = {
+  output: 'export',
+  cacheComponents: true,
+  partialPrefetching: true,
+}
+
+export default nextConfig
+```
+
+Exported pages use the same static requirement as [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation). All server-rendered content, including metadata and viewport data, must be generated during the build. A `<Suspense>` fallback cannot defer server work until a request.
+
+Use [`use cache`](/docs/app/api-reference/directives/use-cache) to include asynchronous data in the prerendered output. Both `use cache` and [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) can contribute build-time data. Exported files do not revalidate on the server. Rebuild and redeploy to update their contents.
+
+[Client Components](#client-components) can still load data or defer browser-only work behind `<Suspense>`. Their data source must be accessible from the browser, such as an external API or an [exported Route Handler response](#route-handlers).
+
 ## Supported Features
 
 The core of Next.js has been designed to support static exports.
@@ -54,7 +86,9 @@ The core of Next.js has been designed to support static exports.
 
 When you run `next build` to generate a static export, Server Components consumed inside the `app` directory will run during the build, similar to traditional static-site generation.
 
-The resulting component will be rendered into static HTML for the initial page load and a static payload for client navigation between routes. No changes are required for your Server Components when using the static export, unless they consume [dynamic server functions](#unsupported-features).
+The resulting component will be rendered into static HTML for the initial page load and a static payload for client navigation between routes. Server Components must avoid [request-time server features](#unsupported-features). With [Cache Components](#cache-components), cache asynchronous data access with `use cache` so it can complete during the build.
+
+Without Cache Components, an asynchronous Server Component can fetch data directly during the build:
 
 ```tsx filename="app/page.tsx" switcher
 export default async function Page() {
@@ -66,9 +100,17 @@ export default async function Page() {
 }
 ```
 
+### Dynamic routes
+
+For a [Dynamic Route](/docs/app/api-reference/file-conventions/dynamic-routes), export [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) with every path to include in the export. Each result must include all dynamic parameters. With Cache Components, the array must contain at least one complete parameter set.
+
+Paths not returned by `generateStaticParams` are not exported and return 404, including during client navigation. A static host cannot generate another path on demand or resume an incomplete server prerender. This differs from [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
+
 ### Client Components
 
 If you want to perform data fetching on the client, you can use a Client Component with [SWR](https://github.com/vercel/swr) to memoize requests.
+
+Fetch from an external API or a static response produced during the build. A relative URL such as `/api/posts` must point to an available service or an [exported static response](#route-handlers), because the exported app cannot run a request-time API endpoint.
 
 ```tsx filename="app/other/page.tsx" switcher
 'use client'
@@ -232,7 +274,11 @@ export default function Page() {
 
 ### Route Handlers
 
-Route Handlers will render a static response when running `next build`. Only the `GET` HTTP verb is supported. This can be used to generate static HTML, JSON, TXT, or other files from cached or uncached data. To ensure Route Handlers are prerendered, you must explicitly mark the handler as static by adding `export const dynamic = 'force-static'` when a static export is enabled. For example:
+[Route Handlers](/docs/app/api-reference/file-conventions/route#static-exports) can generate static HTML, JSON, TXT, and other files during `next build`. Only `GET` responses can be exported.
+
+With [Cache Components](#cache-components), Next.js attempts to prerender `GET` handlers automatically. The complete response, including its body, must be available during the build. Use a separate helper marked with `use cache` for asynchronous data access. See [Route Handler caching with Cache Components](/docs/app/getting-started/route-handlers#with-cache-components).
+
+Without Cache Components, opt into prerendering with `export const dynamic = 'force-static'`:
 
 ```ts filename="app/data.json/route.ts" switcher
 export const dynamic = 'force-static'
@@ -252,7 +298,7 @@ export async function GET() {
 
 The above file `app/data.json/route.ts` will render to a static file during `next build`, producing `data.json` containing `{ name: 'Lee' }`.
 
-If you need to read dynamic values from the incoming request, you cannot use a static export.
+See the [Route Handler static-export requirements](/docs/app/api-reference/file-conventions/route#static-exports) for supported methods, response validation, and fixes.
 
 ### Browser APIs
 
@@ -281,9 +327,9 @@ Features that require a Node.js server, or dynamic logic that cannot be computed
 
 <AppOnly>
 
-- [Dynamic Routes](/docs/app/api-reference/file-conventions/dynamic-routes) with `dynamicParams: true`
+- [Dynamic Routes](/docs/app/api-reference/file-conventions/dynamic-routes) that generate unlisted paths at request time, including `dynamicParams: true` without Cache Components
 - [Dynamic Routes](/docs/app/api-reference/file-conventions/dynamic-routes) without `generateStaticParams()`
-- [Route Handlers](/docs/app/api-reference/file-conventions/route) that rely on Request
+- [Route Handlers](/docs/app/api-reference/file-conventions/route#static-exports) that require request-time data or server execution
 - [Cookies](/docs/app/api-reference/functions/cookies)
 - [Rewrites](/docs/app/api-reference/config/next-config-js/rewrites)
 - [Redirects](/docs/app/api-reference/config/next-config-js/redirects)
@@ -295,7 +341,13 @@ Features that require a Node.js server, or dynamic logic that cannot be computed
 - [Server Actions](/docs/app/getting-started/mutating-data)
 - [Intercepting Routes](/docs/app/api-reference/file-conventions/intercepting-routes)
 
-Attempting to use any of these features with `next dev` will result in an error, similar to setting the [`dynamic`](/docs/app/guides/caching-without-cache-components#dynamic) option to `error` in the root layout.
+To use these request-time server features, remove `output: 'export'` and choose a [deployment with a Next.js server](/docs/app/getting-started/deploying#nodejs-server).
+
+With Cache Components, pages that require server work after the build report a [fully static route error](/docs/messages/static-route-dynamic). The same requirement applies to [metadata](/docs/messages/static-metadata-dynamic) and [viewport data](/docs/messages/static-viewport-dynamic), even inside `<Suspense>`.
+
+For Route Handler export errors, see the [static-export requirements](/docs/app/api-reference/file-conventions/route#static-exports).
+
+Without Cache Components, unsupported dynamic server features report an error similar to setting [`dynamic = 'error'`](/docs/app/guides/caching-without-cache-components#dynamic) in the root layout.
 
 ```jsx
 export const dynamic = 'error'
