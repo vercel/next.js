@@ -95,34 +95,34 @@ pub struct ChunkTables {
 }
 
 impl ChunkTables {
-    pub fn paths(&mut self, paths: impl IntoIterator<Item = RcStr>) -> ChunkList {
+    pub fn chunk_paths(&mut self, paths: impl IntoIterator<Item = RcStr>) -> ChunkList {
         let items = paths
             .into_iter()
-            .map(|path| Item::Path(self.string(path)))
+            .map(|path| Item::Path(self.intern_string(path)))
             .collect();
-        self.list(items)
+        self.intern_chunk_list(items)
     }
 
-    pub fn chunks(&mut self, chunks: impl IntoIterator<Item = ClientChunk>) -> ChunkList {
+    pub fn chunks_urls(&mut self, chunks: impl IntoIterator<Item = ClientChunk>) -> ChunkList {
         let mut items = Vec::new();
         for chunk in chunks {
             items.push(match chunk {
-                ClientChunk::Path(path) => Item::Path(self.string(path)),
+                ClientChunk::Path(path) => Item::Path(self.intern_string(path)),
                 ClientChunk::Merged {
                     url,
                     component_paths,
                     component_sizes,
                 } => Item::Merged {
-                    url: self.string(url),
+                    url: self.intern_string(url),
                     component_paths: component_paths
                         .into_iter()
-                        .map(|path| self.string(path))
+                        .map(|path| self.intern_string(path))
                         .collect(),
                     component_sizes: component_sizes.into(),
                 },
             });
         }
-        self.list(items.into())
+        self.intern_chunk_list(items.into())
     }
 
     pub fn css(&mut self, resources: impl IntoIterator<Item = CssResource>) -> ChunkList {
@@ -133,9 +133,9 @@ impl ChunkTables {
             content,
         } in resources
         {
-            let path = self.string(path);
+            let path = self.intern_string(path);
             let content = content.map(|content| {
-                let index = self.string(content);
+                let index = self.intern_string(content);
                 self.non_paths.insert(index);
                 index
             });
@@ -145,14 +145,16 @@ impl ChunkTables {
                 content,
             });
         }
-        self.list(items.into())
+        self.intern_chunk_list(items.into())
     }
 
-    fn string(&mut self, string: RcStr) -> u32 {
+    /// This is used for all strings, paths, chunk urls and even css content
+    fn intern_string(&mut self, string: RcStr) -> u32 {
         self.strings.insert_full(string).0 as u32
     }
 
-    fn list(&mut self, items: Box<[Item]>) -> ChunkList {
+    /// Interns a list of chunk items, typically filepaths or urls.
+    fn intern_chunk_list(&mut self, items: Box<[Item]>) -> ChunkList {
         let entry = self.lists.entry(items);
         let list = ChunkList(entry.index() as u32);
         entry
@@ -380,11 +382,11 @@ mod tests {
     #[test]
     fn shares_repeated_lists_and_paths() {
         let mut tables = ChunkTables::default();
-        let a = tables.paths([rcstr!("dir/x.js"), rcstr!("dir/y.js")]);
-        let b = tables.paths([rcstr!("dir/x.js"), rcstr!("dir/y.js")]);
+        let a = tables.chunk_paths([rcstr!("dir/x.js"), rcstr!("dir/y.js")]);
+        let b = tables.chunk_paths([rcstr!("dir/x.js"), rcstr!("dir/y.js")]);
         // Two runs: 1..2 and 0..1.
-        let d = tables.paths([rcstr!("dir/y.js"), rcstr!("dir/x.js")]);
-        let c = tables.chunks([
+        let d = tables.chunk_paths([rcstr!("dir/y.js"), rcstr!("dir/x.js")]);
+        let c = tables.chunks_urls([
             ClientChunk::Path(rcstr!("dir/y.js")),
             ClientChunk::Merged {
                 url: rcstr!("m.js"),
@@ -392,8 +394,8 @@ mod tests {
                 component_sizes: vec![42],
             },
         ]);
-        let empty1 = tables.paths([]);
-        let empty2 = tables.paths([]);
+        let empty1 = tables.chunk_paths([]);
+        let empty2 = tables.chunk_paths([]);
         let tables = tables.finish();
 
         assert_eq!(

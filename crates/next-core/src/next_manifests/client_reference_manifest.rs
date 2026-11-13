@@ -130,9 +130,9 @@ pub struct ManifestNode {
     pub module_exports: FxIndexMap<RcStr, ManifestNodeEntry>,
 }
 
-/// Factories for [`ManifestNodeEntry`]s and [`ManifestNode`]s with the export name `*` (all of
-/// them in practice). Besides being smaller than object literals, every object they build has the
-/// same shape, which V8 handles better than many literals.
+/// Factories for [`ManifestNodeEntry`]s and for [`ManifestNode`]s whose only export is `*`.
+/// Besides being smaller than object literals, every object they build has the same shape, which
+/// V8 handles better than many literals.
 const MANIFEST_NODE_FACTORIES: &str = "const e = (id, chunks, async = false) => ({ id, name: \
                                        \"*\", chunks, async }), n = (id, chunks, async) => ({ \
                                        \"*\": e(id, chunks, async) });\n";
@@ -142,10 +142,8 @@ impl ManifestNode {
         if self.module_exports.len() == 1
             && let Some((name, entry)) = self.module_exports.first()
             && name == "*"
-            && entry.name == "*"
         {
-            out.push('n');
-            return entry.write_factory_args(out, chunks);
+            return entry.write_factory_call(out, "n", chunks);
         }
         out.push('{');
         for (index, (name, entry)) in self.module_exports.iter().enumerate() {
@@ -154,7 +152,7 @@ impl ManifestNode {
             }
             out.push_str(&json_string(name));
             out.push(':');
-            entry.write_js(out, chunks)?;
+            entry.write_factory_call(out, "e", chunks)?;
         }
         out.push('}');
         Ok(())
@@ -163,10 +161,9 @@ impl ManifestNode {
 
 #[derive(Debug)]
 pub struct ManifestNodeEntry {
-    /// Turbopack module ID.
+    /// Turbopack module ID. The export name is always `*` (the whole module), so it isn't
+    /// stored; the `e` factory in [`MANIFEST_NODE_FACTORIES`] writes it.
     pub id: ModuleId,
-    /// Export name.
-    pub name: RcStr,
     /// Chunks for the module. JS and CSS.
     pub chunks: ChunkList,
     // TODO(WEB-434)
@@ -174,27 +171,16 @@ pub struct ManifestNodeEntry {
 }
 
 impl ManifestNodeEntry {
-    fn write_js(&self, out: &mut String, chunks: &EncodedChunkTables) -> Result<()> {
-        if self.name == "*" {
-            out.push('e');
-            return self.write_factory_args(out, chunks);
-        }
-        write!(
-            out,
-            "{{\"id\":{},\"name\":{},\"chunks\":",
-            serde_json::to_string(&self.id)?,
-            json_string(&self.name)
-        )?;
-        chunks.write(out, self.chunks);
-        write!(out, ",\"async\":{}}}", self.r#async)?;
-        Ok(())
-    }
-
     /// `(id,chunks)` or `(id,chunks,true)`, for the factories in [`MANIFEST_NODE_FACTORIES`].
-    fn write_factory_args(&self, out: &mut String, chunks: &EncodedChunkTables) -> Result<()> {
-        write!(out, "({},", serde_json::to_string(&self.id)?)?;
+    fn write_factory_call(
+        &self,
+        out: &mut String,
+        factory: &str,
+        chunks: &EncodedChunkTables,
+    ) -> Result<()> {
+        write!(out, "{factory}({},", serde_json::to_string(&self.id)?)?;
         chunks.write(out, self.chunks);
-        out.push_str(if self.r#async { ",true)" } else { ")" });
+        out.push_str(if self.r#async { ",!0)" } else { ")" });
         Ok(())
     }
 }
@@ -495,9 +481,8 @@ async fn build_manifest(
                 entry_manifest.client_modules.module_exports.insert(
                     server_path.clone(),
                     ManifestNodeEntry {
-                        name: rcstr!("*"),
                         id: client_chunk_item_id.into(),
-                        chunks: chunk_tables.chunks(client_chunks_paths),
+                        chunks: chunk_tables.chunks_urls(client_chunks_paths),
                         // This should of course be client_is_async, but SSR can become
                         // async due to ESM externals, and
                         // the ssr_manifest_node is currently ignored
@@ -510,9 +495,8 @@ async fn build_manifest(
                 ssr_manifest_node.module_exports.insert(
                     rcstr!("*"),
                     ManifestNodeEntry {
-                        name: rcstr!("*"),
                         id: ssr_chunk_item_id.into(),
-                        chunks: chunk_tables.paths(ssr_chunks_paths),
+                        chunks: chunk_tables.chunk_paths(ssr_chunks_paths),
                         // See above
                         r#async: client_is_async || ssr_is_async,
                     },
@@ -522,9 +506,8 @@ async fn build_manifest(
                 rsc_manifest_node.module_exports.insert(
                     rcstr!("*"),
                     ManifestNodeEntry {
-                        name: rcstr!("*"),
                         id: rsc_chunk_item_id.into(),
-                        chunks: chunk_tables.paths([]),
+                        chunks: chunk_tables.chunk_paths([]),
                         r#async: rsc_is_async,
                     },
                 );
@@ -625,7 +608,7 @@ async fn build_manifest(
             .collect();
         entry_manifest.entry_js_files = entry_js_files_by_component
             .into_iter()
-            .map(|(name, files)| (name, chunk_tables.paths(files)))
+            .map(|(name, files)| (name, chunk_tables.chunk_paths(files)))
             .collect();
 
         // The manifest repeats the same chunk lists for many client references, so a JSON
