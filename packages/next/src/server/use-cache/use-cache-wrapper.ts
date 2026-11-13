@@ -3999,13 +3999,11 @@ async function computeCacheKeyImplementationPart(
   const entry = workStore.durableUseCacheEntries
     ? getServerActionsManifest().node[id]
     : undefined
-  const durabilityIndex =
+  const codeHash =
     entry?.workers?.[normalizeWorkerPageName(workStore.page)]?.durability
   const durability =
-    durabilityIndex !== undefined
-      ? entry?.durability?.[durabilityIndex]
-      : undefined
-  if (durability) {
+    codeHash !== undefined ? entry?.durability?.[codeHash] : undefined
+  if (codeHash !== undefined && durability) {
     // use cache is only supported in Node.js runtime. So we can use the Node.js crypto module here.
     const crypto = require('crypto') as typeof import('crypto')
     let runtimeEnvVarStateHash = crypto
@@ -4029,7 +4027,7 @@ async function computeCacheKeyImplementationPart(
     // The env var state is added to the cache handler key separately so it
     // doesn't affect RDC lookups between rendering phases.
     return {
-      implementationPart: [durability.codeHash, nextVersion],
+      implementationPart: [codeHash, nextVersion],
       runtimeEnvVarStateHash,
     }
   } else {

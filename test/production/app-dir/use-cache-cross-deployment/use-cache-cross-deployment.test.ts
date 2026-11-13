@@ -401,16 +401,18 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
         }
 
         // The page and the route handler get different durability values,
-        // which are both kept in the deduplicated list of the action.
+        // which are both kept in the action's durability map.
         const manifest = await next.readJSON(
           '.next/server/server-reference-manifest.json'
         )
         const entry = Object.values<any>(manifest.node).find((entry) =>
           entry.filename.endsWith('page-api-url/get-url.ts')
         )
-        expect(entry.durability).toHaveLength(2)
+        expect(Object.keys(entry.durability)).toHaveLength(2)
         const pageWorker = entry.workers['app/(site)/page-api-url/page']
         const routeWorker = entry.workers['app/(site)/page-api-url/api/route']
+        expect(entry.durability[pageWorker.durability]).toBeDefined()
+        expect(entry.durability[routeWorker.durability]).toBeDefined()
         expect(pageWorker.durability).not.toBe(routeWorker.durability)
       })
     })

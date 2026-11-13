@@ -260,8 +260,7 @@ export class TurbopackManifestLoader {
 
     function mergeActionIds(
       actionEntries: ActionEntries,
-      other: ActionEntries,
-      durabilityKeys: Map<string, Map<string, string>>
+      other: ActionEntries
     ): void {
       for (const key in other) {
         const otherEntry = other[key]
@@ -270,75 +269,33 @@ export class TurbopackManifestLoader {
         })
         action.filename = otherEntry.filename
         action.exportedName = otherEntry.exportedName
-        for (const workerKey in otherEntry.workers) {
-          const worker = otherEntry.workers[workerKey]
-          const durability =
-            worker.durability !== undefined
-              ? otherEntry.durability?.[worker.durability]
-              : undefined
-          if (durability) {
-            // Remember the worker's durability by value; the indices are
-            // assigned once all manifests are merged.
-            let keys = durabilityKeys.get(key)
-            if (!keys) {
-              keys = new Map()
-              durabilityKeys.set(key, keys)
-            }
-            keys.set(workerKey, JSON.stringify(durability))
-          } else {
-            durabilityKeys.get(key)?.delete(workerKey)
-          }
-          // Copy the worker so that the source manifest isn't mutated when
-          // the durability index is rewritten below.
-          action.workers[workerKey] = { ...worker }
+        Object.assign(action.workers, otherEntry.workers)
+        // The durability metadata is keyed by code hash, and equal code hashes
+        // always have equal metadata, so it can be merged without
+        // deduplication.
+        if (otherEntry.durability) {
+          Object.assign((action.durability ??= {}), otherEntry.durability)
         }
       }
     }
 
-    // Deduplicate the durability values and point the workers at them.
-    function assignDurability(
-      actionEntries: ActionEntries,
-      durabilityKeys: Map<string, Map<string, string>>
-    ): void {
-      for (const key in actionEntries) {
-        const entry = actionEntries[key]
-        const keys = durabilityKeys.get(key)
-        if (!keys || keys.size === 0) {
-          delete entry.durability
-          for (const workerKey in entry.workers) {
-            delete entry.workers[workerKey].durability
-          }
-          continue
-        }
-        // Sort for a deterministic output.
-        const unique = [...new Set(keys.values())].sort()
-        entry.durability = unique.map((json) => JSON.parse(json))
-        for (const workerKey in entry.workers) {
-          const json = keys.get(workerKey)
-          if (json === undefined) {
-            delete entry.workers[workerKey].durability
-          } else {
-            entry.workers[workerKey].durability = unique.indexOf(json)
-          }
-        }
-      }
-    }
-
-    const nodeDurabilityKeys = new Map<string, Map<string, string>>()
-    const edgeDurabilityKeys = new Map<string, Map<string, string>>()
     for (const m of manifests) {
-      mergeActionIds(manifest.node, m.node, nodeDurabilityKeys)
-      mergeActionIds(manifest.edge, m.edge, edgeDurabilityKeys)
+      mergeActionIds(manifest.node, m.node)
+      mergeActionIds(manifest.edge, m.edge)
     }
-    assignDurability(manifest.node, nodeDurabilityKeys)
-    assignDurability(manifest.edge, edgeDurabilityKeys)
     for (const key in manifest.node) {
       const entry = manifest.node[key]
       entry.workers = sortObjectByKey(entry.workers)
+      if (entry.durability) {
+        entry.durability = sortObjectByKey(entry.durability)
+      }
     }
     for (const key in manifest.edge) {
       const entry = manifest.edge[key]
       entry.workers = sortObjectByKey(entry.workers)
+      if (entry.durability) {
+        entry.durability = sortObjectByKey(entry.durability)
+      }
     }
 
     return manifest

@@ -460,11 +460,14 @@ pub struct ActionManifestEntry<'a> {
 
     pub filename: &'a str,
 
-    /// Deduplicated durability metadata for `"use cache"` functions. Workers
-    /// reference an item of this list by index, because most workers share the
-    /// same value (but not all of them, e.g. when the chunking context differs).
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub durability: Vec<ActionManifestEntryDurability<'a>>,
+    /// Durability metadata for `"use cache"` functions, keyed by code hash.
+    /// Workers reference an item by its code hash, because most workers share
+    /// the same value (but not all of them, e.g. when the chunking context
+    /// differs). The runtime env vars are derived from the same modules as the
+    /// code hash, so equal code hashes always have equal metadata, and merging
+    /// manifests needs no deduplication.
+    #[serde(skip_serializing_if = "FxIndexMap::is_empty")]
+    pub durability: FxIndexMap<&'a str, ActionManifestEntryDurability<'a>>,
 
     /// Source location line number (1-indexed), if available
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -481,9 +484,9 @@ pub struct ActionManifestWorkerEntry<'a> {
     pub module_id: ActionManifestModuleId<'a>,
     #[serde(rename = "async")]
     pub is_async: bool,
-    /// Index into the entry's `durability` list.
+    /// The code hash, which is the key into the entry's `durability` map.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub durability: Option<u32>,
+    pub durability: Option<&'a str>,
     /// The sorted root param dependencies collected from the cache module's
     /// graph. An empty list means that collection found no root params. The
     /// build omits this field when it does not collect dependencies for the
@@ -492,10 +495,9 @@ pub struct ActionManifestWorkerEntry<'a> {
     pub root_param_dependencies: Option<&'a [RcStr]>,
 }
 
-#[derive(Serialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionManifestEntryDurability<'a> {
-    pub code_hash: &'a str,
     pub runtime_env_vars_read: &'a [RcStr],
     pub runtime_env_vars_existence: &'a [RcStr],
 }

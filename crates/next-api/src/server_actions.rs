@@ -371,22 +371,19 @@ impl Asset for ServerActionManifestAsset {
         {
             let entry = mapping.entry(hash_id).or_default();
 
-            // The durability data is usually identical for all workers of an action, so it's
-            // stored deduplicated at the entry level and referenced by index from the worker.
+            // The durability data is stored at the entry level, keyed by code hash, and the
+            // worker references it by that key. Equal code hashes always have equal data, so the
+            // manifests of all pages can be merged without deduplication.
             let durability = data.as_ref().map(|d| {
-                let durability = ActionManifestEntryDurability {
-                    code_hash: d.path_code_hash.as_str(),
-                    runtime_env_vars_read: d.runtime_env_vars_read.as_slice(),
-                    runtime_env_vars_existence: d.runtime_env_vars_existence.as_slice(),
-                };
-                let index = match entry.durability.iter().position(|d| *d == durability) {
-                    Some(index) => index,
-                    None => {
-                        entry.durability.push(durability);
-                        entry.durability.len() - 1
-                    }
-                };
-                index as u32
+                let code_hash = d.path_code_hash.as_str();
+                entry.durability.insert(
+                    code_hash,
+                    ActionManifestEntryDurability {
+                        runtime_env_vars_read: d.runtime_env_vars_read.as_slice(),
+                        runtime_env_vars_existence: d.runtime_env_vars_existence.as_slice(),
+                    },
+                );
+                code_hash
             });
 
             entry.workers.insert(
