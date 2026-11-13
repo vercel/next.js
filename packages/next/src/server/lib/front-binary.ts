@@ -40,9 +40,8 @@ export function findFrontBinary(
         }
   }
 
-  const goarch = Object.entries(targets.goArch).find(
-    ([nodeArch]) => nodeArch === input.arch
-  )?.[1]
+  // Go names architectures differently from Node (`x64` is `amd64`).
+  const goarch = new Map(Object.entries(targets.goArch)).get(input.arch)
   const isTarget = targets.targets.some(
     (target) => target.os === input.platform && target.arch === goarch
   )

@@ -362,17 +362,20 @@ export async function startServer(
 
       if (serverOptions.avoidPort && port === serverOptions.avoidPort) {
         debug(
-          'got the public port %d for the private listener, rebinding',
+          'the OS gave the Node server port %d, which the front server needs as its public port; binding the Node server to another port',
           port
         )
         server.close(() => server.listen(0, hostname))
         return
       }
 
-      // With a front server, Node listens on a private address, but URLs,
-      // `PORT` and the server's own idea of its host and port stay public, as
-      // without one. Only `__NEXT_PRIVATE_ORIGIN`, which Node uses to send
-      // requests to itself, points at the private listener.
+      // With a front server (`beforeStartLog` set), start it now and switch to
+      // its public address: the URLs printed below, `PORT`, and the hostname
+      // and port the router builds `request.url` from all use the public port,
+      // so the app sees the same values as without a front server. Only
+      // `__NEXT_PRIVATE_ORIGIN` keeps the Node server's own address
+      // (`privateAppUrl`), because Node uses it to send requests to itself
+      // (server actions), and those don't need to pass through the front.
       const privateAppUrl = `http://${actualHostname}:${port}`
       let publicServer: PublicServer | undefined
       if (serverOptions.beforeStartLog) {

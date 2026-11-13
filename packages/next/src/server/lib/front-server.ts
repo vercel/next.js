@@ -40,6 +40,9 @@ export async function startFrontServer(
   if ('error' in binary) {
     return printAndExit(binary.error, 1)
   }
+  // Start the Node server, on a private loopback port instead of the public
+  // one. Once it listens, startServer calls beforeStartLog below, which starts
+  // the Go front server on the public port.
   return startServer({
     ...options,
     hostname: '127.0.0.1',
@@ -47,9 +50,11 @@ export async function startFrontServer(
     // The OS could hand Node the public port when it is in its ephemeral
     // range; Node then binds again so the front can take it.
     avoidPort: options.port,
-    // The front owns client keep-alive; Node's private listener keeps
-    // Node's default.
+    // The front server owns client keep-alive; the Node server keeps Node's
+    // default.
     keepAliveTimeout: undefined,
+    // Start the Go front server: it takes the public port and forwards to
+    // the Node server above.
     beforeStartLog: (privateServer) =>
       spawnFront(binary.path, {
         hostname: options.hostname,
