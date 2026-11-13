@@ -12,7 +12,8 @@ import (
 func Proxy(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-go-proxy", "yes")
 	w.Header().Set("x-go-url", r.URL.RequestURI())
-	w.Header().Set("x-private-token", strconv.FormatBool(r.Header.Get("x-next-internal-go-token") != "" || r.Header.Get("x-next-internal-test") != ""))
+	w.Header().Set("x-go-host", r.Host)
+	w.Header().Set("x-private-token", strconv.FormatBool(r.Header.Get("x-next-internal-go-token") != "" || r.Header.Get("x-next-internal-go-rewrite-host") != "" || r.Header.Get("x-next-internal-test") != ""))
 	if date := r.URL.Query().Get("response-date"); date != "" {
 		w.Header().Set("Date", date)
 	}
@@ -36,6 +37,12 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 		compressed.Close()
 	case "/native-proxy/rewrite":
 		Rewrite(w, "/api/proxy-query?rewritten=1")
+	case "/native-proxy/host-gate":
+		if r.Host != "admin.example.test" {
+			http.Error(w, "invalid host", http.StatusForbidden)
+			return
+		}
+		Rewrite(w, "./inspect")
 	case "/native-proxy/redirect":
 		http.Redirect(w, r, "/native-proxy/inspect", http.StatusTemporaryRedirect)
 	case "/native-proxy/override":

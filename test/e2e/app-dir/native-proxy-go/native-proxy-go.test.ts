@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { findPort, retry } from 'next-test-utils'
+import { fetchViaRawHttp, findPort, retry } from 'next-test-utils'
 import { promises as fs } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
@@ -153,6 +153,31 @@ describe('native-proxy-go', () => {
       expect((await next.fetch('/native-proxy/inspect')).status).toBe(200)
     }
   )
+
+  it('preserves the original Host for authorization and downstream handlers', async () => {
+    const inspection = await fetchViaRawHttp(
+      next.url,
+      '/native-proxy/inspect',
+      { headers: { host: 'admin.example.test' } }
+    )
+    expect(await inspection.json()).toMatchObject({
+      host: 'admin.example.test',
+    })
+    expect(inspection.headers.get('x-go-host')).toBe('admin.example.test')
+
+    const denied = await fetchViaRawHttp(next.url, '/native-proxy/host-gate')
+    expect(denied.status).toBe(403)
+
+    const response = await fetchViaRawHttp(
+      next.url,
+      '/native-proxy/host-gate',
+      {
+        headers: { host: 'admin.example.test' },
+      }
+    )
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ method: 'GET' })
+  })
 
   it('rewrites paths and queries', async () => {
     const response = await next.fetch('/native-proxy/rewrite')
@@ -336,6 +361,7 @@ describe('native-proxy-go', () => {
     const response = await next.fetch('/native-proxy/inspect', {
       headers: {
         'x-next-internal-go-token': 'forged',
+        'x-next-internal-go-rewrite-host': 'forged.example.test',
         'x-next-internal-test': 'internal value',
       },
     })

@@ -7,6 +7,7 @@ async function handler(request: Request) {
     removed: request.headers.get('x-client-remove'),
     cookie: request.headers.get('cookie'),
     date: request.headers.get('date'),
+    host: request.headers.get('host'),
   })
 }
 

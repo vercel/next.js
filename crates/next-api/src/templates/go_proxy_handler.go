@@ -19,6 +19,7 @@ func Rewrite(w http.ResponseWriter, destination string) {
 type nextGoProxyWriter struct {
 	http.ResponseWriter
 	request     *http.Request
+	rewriteHost string
 	wroteHeader bool
 }
 
@@ -43,7 +44,10 @@ func (w *nextGoProxyWriter) WriteHeader(status int) {
 		// Preserve RawPath, RawQuery and ForceQuery when resolving references.
 		base := *w.request.URL
 		base.Scheme = w.request.Header.Get("X-Forwarded-Proto")
-		base.Host = w.request.Host
+		base.Host = w.rewriteHost
+		if base.Host == "" {
+			base.Host = w.request.Host
+		}
 		if base.Scheme == "" {
 			base.Scheme = "http"
 		}
@@ -86,8 +90,13 @@ func OverrideRequestHeaders(w http.ResponseWriter, headers http.Header) {
 
 func nextGoHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		response := &nextGoProxyWriter{
+			ResponseWriter: w,
+			request:        r,
+			rewriteHost:    r.Header.Get("x-next-internal-go-rewrite-host"),
+		}
 		r.Header.Del("x-next-internal-go-token")
-		response := &nextGoProxyWriter{ResponseWriter: w, request: r}
+		r.Header.Del("x-next-internal-go-rewrite-host")
 		Proxy(response, r)
 		if !response.wroteHeader {
 			response.WriteHeader(http.StatusOK)
