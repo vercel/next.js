@@ -441,7 +441,7 @@ export async function GET() {
 ```
 
 ```js filename="app/api/route.js" switcher
-// https://developer.mozilla.org/docs/Web/API/ReadableStream#convert_async_iterator_to_stream
+// https://developer.mozilla.org/docs/Web/API/ReadableStream#convert_an_iterator_or_async_iterator_to_a_stream
 function iteratorToStream(iterator) {
   return new ReadableStream({
     async pull(controller) {
