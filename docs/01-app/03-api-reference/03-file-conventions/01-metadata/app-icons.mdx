@@ -260,6 +260,14 @@ export default function Icon() {}
 
 `icon` and `apple-icon` are specialized [Route Handlers](/docs/app/api-reference/file-conventions/route) that can use the same [route segment configuration](/docs/app/api-reference/file-conventions/route-segment-config) options as Pages and Layouts.
 
+## Troubleshooting
+
+### Using an icon in a catch-all segment
+
+`icon` and `apple-icon` files can't be placed inside a [catch-all](/docs/app/api-reference/file-conventions/dynamic-routes#catch-all-segments) (`[...slug]`) or [optional catch-all](/docs/app/api-reference/file-conventions/dynamic-routes#optional-catch-all-segments) (`[[...slug]]`) segment. A catch-all segment must be the last segment of a route, so an icon route such as `/docs/[...slug]/icon` can never be matched. Next.js reports an error for these files.
+
+Instead, place the icon in a parent segment outside of the catch-all segment, or serve it from a [Route Handler](/docs/app/api-reference/file-conventions/route) and reference it with the `icons` field in [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata#icons). The [`opengraph-image` docs](/docs/app/api-reference/file-conventions/metadata/opengraph-image#using-an-image-in-a-catch-all-segment) show the same pattern for Open Graph images.
+
 ## Version History
 
 | Version   | Changes                                              |

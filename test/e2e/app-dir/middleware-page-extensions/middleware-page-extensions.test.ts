@@ -4,7 +4,6 @@ import { retry } from 'next-test-utils'
 describe('middleware-page-extensions', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should execute middleware.page.ts and set custom header', async () => {

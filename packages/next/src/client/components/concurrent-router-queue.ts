@@ -18,7 +18,10 @@ import type {
   NavigateAction,
   ScrollBehavior,
 } from './router-reducer/router-reducer-types'
-import type { NavigateOptions } from '../../shared/lib/app-router-context.shared-runtime'
+import type {
+  NavigateOptions,
+  PreparedNavigation,
+} from '../../shared/lib/app-router-context.shared-runtime'
 import type { LinkInstance } from './links'
 import type { RouterTransitionPrefetchIntent } from '../router-transition-types'
 
@@ -50,6 +53,10 @@ export function replace(_href: string, _options?: NavigateOptions): void {
   notImplemented()
 }
 
+export function prepare(_href: string): PreparedNavigation {
+  notImplemented()
+}
+
 export function traverse(
   _href: string,
   _historyState: AppHistoryState | undefined
@@ -58,22 +65,6 @@ export function traverse(
 }
 
 export function restore(
-  _url: URL,
-  _historyState: AppHistoryState | undefined
-): void {
-  notImplemented()
-}
-
-// Never implemented, on purpose. This op exists only because the sequential
-// queue expresses an MPA navigation as state (`pushRef.mpaNavigation`)
-// consumed by a render-phase side effect, so a bfcache-restored page must
-// reset that state with an urgent update before any other render can observe
-// it and re-fire the navigation — urgency as a defense. The concurrent
-// machine has no such hazard to defend against, and its single
-// history/location owner handles the `pageshow` event itself, feeding it in
-// as an ordinary restore — so this entry point won't be called at all once
-// the shared callers are ported, and it dies with the sequential queue.
-export function legacyUrgentBFCacheRestore(
   _url: URL,
   _historyState: AppHistoryState | undefined
 ): void {

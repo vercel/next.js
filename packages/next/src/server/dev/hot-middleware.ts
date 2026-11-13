@@ -26,6 +26,7 @@ import type ws from 'next/dist/compiled/ws'
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
 import { isMiddlewareFilename } from '../../build/utils'
 import type { VersionInfo } from './parse-version-info'
+import { getPendingVersionInfo } from './hot-reloader-shared-utils'
 import type {
   HmrMessageSentToBrowser,
   RuntimeErrorStateMessage,
@@ -90,14 +91,39 @@ export class WebpackHotMiddleware {
   private middlewareLatestStats: { ts: number; stats: webpack.Stats } | null =
     null
   private serverLatestStats: { ts: number; stats: webpack.Stats } | null = null
+  private hasVulnerabilityInsight = false
+  private versionInfo: VersionInfo = getPendingVersionInfo()
 
   constructor(
     compilers: webpack.Compiler[],
-    private versionInfo: VersionInfo,
+    versionInfo: Promise<VersionInfo>,
     private devtoolsFrontendUrl: string | undefined,
     private config: NextConfigComplete,
-    private devToolsConfig: DevToolsConfig
+    private devToolsConfig: DevToolsConfig,
+    hasVulnerabilityInsight: Promise<boolean>
   ) {
+    // Clients that connected before the registry responded received the
+    // placeholder in `sync`. Later clients get the resolved info in `sync`.
+    versionInfo
+      .then((resolvedVersionInfo) => {
+        this.versionInfo = resolvedVersionInfo
+        this.publish({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.VERSION_INFO,
+          versionInfo: resolvedVersionInfo,
+        })
+      })
+      .catch((error) => {
+        console.error(error)
+      })
+    hasVulnerabilityInsight.then((enabled) => {
+      if (enabled) {
+        this.hasVulnerabilityInsight = true
+        this.publish({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.VULNERABILITY_INSIGHT,
+          hasVulnerabilityInsight: true,
+        })
+      }
+    })
     compilers[0].hooks.invalid.tap(
       'webpack-hot-middleware',
       this.onClientInvalid
@@ -220,6 +246,7 @@ export class WebpackHotMiddleware {
           ...(middlewareStats.warnings || []),
         ],
         versionInfo: this.versionInfo,
+        hasVulnerabilityInsight: this.hasVulnerabilityInsight,
         debug: {
           devtoolsFrontendUrl: this.devtoolsFrontendUrl,
         },

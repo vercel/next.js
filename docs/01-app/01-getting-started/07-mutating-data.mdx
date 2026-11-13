@@ -204,7 +204,7 @@ There are two main ways you can invoke a Server Function:
 1. [Forms](#forms) in Server and Client Components
 2. [Event Handlers](#event-handlers) and [useEffect](#useeffect) in Client Components
 
-> **Good to know:** Server Functions are designed for server-side mutations. The client currently dispatches and awaits them one at a time. This is an implementation detail and may change. If you need parallel data fetching, use [data fetching](/docs/app/getting-started/fetching-data#server-components) in Server Components, or perform parallel work inside a single Server Function or [Route Handler](/docs/app/guides/backend-for-frontend#manipulating-data).
+> **Good to know:** Server Functions are designed for server-side mutations. The client dispatches and awaits them one at a time. See [Sequential dispatch on the client](/docs/app/guides/server-actions#sequential-dispatch-on-the-client). If you need parallel data fetching, use [data fetching](/docs/app/getting-started/fetching-data#server-components) in Server Components, or perform parallel work inside a single Server Function or [Route Handler](/docs/app/guides/backend-for-frontend#manipulating-data).
 
 ### Forms
 

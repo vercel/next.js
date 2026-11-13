@@ -1,6 +1,51 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getDevCliValidationOutput } from 'e2e-utils/instant-validation'
-import { retry } from 'next-test-utils'
+import {
+  extractValidationOutput,
+  getDevCliValidationOutput,
+  normalizeValidationUrl,
+  parseValidationMessages,
+} from 'e2e-utils/instant-validation'
+import { getRedboxSource, retry } from 'next-test-utils'
+
+// An edit can refresh the route more than once, so it can be followed by more
+// than one validation, and the earlier ones may still render the module from
+// before the edit. Read the output of the latest validation of `url` instead of
+// the first one, once it has finished. Call this after the redbox shows the
+// edit, so that the validation that reported it has already started.
+async function getLatestDevCliValidationOutput(
+  url: string,
+  getOutput: () => string
+): Promise<string> {
+  const targetUrl = normalizeValidationUrl(url)
+  return retry(async () => {
+    const output = getOutput()
+    const events = parseValidationMessages(output).filter(
+      (event) => normalizeValidationUrl(event.url) === targetUrl
+    )
+    const start = events.findLast((event) => event.type === 'validation_start')
+    if (start === undefined) {
+      throw new Error(`Could not find a validation of '${targetUrl}'`)
+    }
+    if (
+      !events.some(
+        (event) =>
+          event.type === 'validation_end' && event.requestId === start.requestId
+      )
+    ) {
+      throw new Error(`The latest validation of '${targetUrl}' has not ended`)
+    }
+    return (
+      extractValidationOutput(output, {
+        isMinified: false,
+        requestId: start.requestId,
+      })
+        // Strip `GET <url> 200 ...` log lines, as `getDevCliValidationOutput` does.
+        .split('\n')
+        .filter((line) => !line.startsWith(`GET ${targetUrl}`))
+        .join('\n')
+    )
+  })
+}
 
 // Validation errors are logged with source-mapped frames, and the routes below
 // cover the cases that differ in where that source map comes from. Node.js
@@ -83,8 +128,9 @@ describe('dev-validation-worker-source-maps', () => {
      }
     `)
 
-    const output = await getDevCliValidationOutput(await browser.url(), () =>
-      next.cliOutput.slice(outputIndex)
+    const output = await getLatestDevCliValidationOutput(
+      await browser.url(),
+      () => next.cliOutput.slice(outputIndex)
     )
 
     expect(output).toMatchInlineSnapshot(`
@@ -111,6 +157,9 @@ describe('dev-validation-worker-source-maps', () => {
     // Edit the same module again, moving the access two lines down. The line
     // below is what the thread that validates would report from the update it
     // last applied, so a thread left behind on the first edit reports 5 again.
+    // The redbox from the first edit is still open while the update lands, so
+    // wait for it to show the new frame before snapshotting it. A snapshot
+    // inside `retry()` would record each stale attempt as a failed snapshot.
     const secondEditIndex = next.cliOutput.length
 
     await next.patchFile('app/updated/page.tsx', (content) =>
@@ -119,6 +168,12 @@ describe('dev-validation-worker-source-maps', () => {
         'export default async function UpdatedPage() {\n  // A second edit,\n  // moving the access down.'
       )
     )
+
+    await retry(async () => {
+      expect(await getRedboxSource(browser)).toContain(
+        'app/updated/page.tsx (7:9)'
+      )
+    })
 
     await expect(browser).toDisplayRedbox(`
      {
@@ -135,7 +190,7 @@ describe('dev-validation-worker-source-maps', () => {
     `)
 
     expect(
-      await getDevCliValidationOutput(await browser.url(), () =>
+      await getLatestDevCliValidationOutput(await browser.url(), () =>
         next.cliOutput.slice(secondEditIndex)
       )
     ).toMatchInlineSnapshot(`
@@ -191,7 +246,7 @@ describe('dev-validation-worker-source-maps', () => {
     `)
 
     expect(
-      await getDevCliValidationOutput(await browser.url(), () =>
+      await getLatestDevCliValidationOutput(await browser.url(), () =>
         next.cliOutput.slice(outputIndex)
       )
     ).toMatchInlineSnapshot(`

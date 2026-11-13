@@ -28,6 +28,11 @@ use crate::{
 /// Size of the per-block header on disk: 4 bytes uncompressed_size + 4 bytes CRC32 checksum.
 pub const BLOCK_HEADER_SIZE: usize = 8;
 
+/// Capacity of the buffered writer for SST files. Must be well above the typical block size, so
+/// that each block (8–12 KB small-value blocks, up to 16 KB key blocks) doesn't force its own
+/// `write` syscall.
+const FILE_WRITE_BUFFER_SIZE: usize = 256 * 1024;
+
 /// The maximum number of entries that should go into a single key block
 const MAX_KEY_BLOCK_ENTRIES: usize = MAX_KEY_BLOCK_SIZE / KEY_BLOCK_ENTRY_META_OVERHEAD;
 /// The maximum bytes that should go into a single key block
@@ -142,7 +147,7 @@ impl KeyBlockFormat {
     }
 }
 
-/// Copy-able snapshot of the accumulator state needed by [`flush_key_block`].
+/// Copy-able snapshot of the accumulator state needed by [`StreamingSstWriter::flush_key_block`].
 #[derive(Clone, Copy)]
 struct KeyBlockFlushInfo {
     max_key_len: usize,
@@ -254,6 +259,28 @@ fn be_key_u64(key: &[u8]) -> u64 {
     u64::from_be_bytes(key.try_into().expect("8-byte key"))
 }
 
+/// Stably sorts `entries` by a key that `pack` combines with the entry's index into one integer
+/// (the key in the high bits), which `index` recovers.
+///
+/// Each key is read once and the dense packed integers are sorted, instead of sorting the entries
+/// with a key extracting comparator, which reads both keys through their entries on every
+/// comparison. The index in the low bits breaks ties, so an unstable sort of the integers gives
+/// the stable order.
+fn sort_by_packed_key<T: Copy, P: Ord + Copy>(
+    entries: &mut [T],
+    pack: impl Fn(T, usize) -> P,
+    index: impl Fn(P) -> usize,
+) {
+    let mut packed: Vec<P> = entries
+        .iter()
+        .enumerate()
+        .map(|(i, &entry)| pack(entry, i))
+        .collect();
+    packed.sort_unstable();
+    let sorted: Vec<T> = packed.iter().map(|&p| entries[index(p)]).collect();
+    entries.copy_from_slice(&sorted);
+}
+
 /// Trait for entries from that SST files can be created
 pub trait Entry {
     /// Returns the hash of the key
@@ -330,6 +357,8 @@ pub struct StaticSortedFileBuilderMeta<'a> {
     pub flags: MetaEntryFlags,
     /// The number of entries in the SST file
     pub entries: u64,
+    /// The number of tombstone entries (`KeyDeleted` and `KeyValueDeleted`) in the SST file.
+    pub tombstones: u64,
 }
 
 /// Writes an SST file from a pre-sorted slice of entries.
@@ -609,6 +638,7 @@ pub struct StreamingSstWriter<E: Entry> {
     min_hash: u64,
     max_hash: u64,
     entry_count: u64,
+    tombstone_count: u64,
     flags: MetaEntryFlags,
 
     // Fullness tracking (for compaction callers)
@@ -638,7 +668,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         compression: Compression,
     ) -> Result<Self> {
         let file_path = file.to_owned();
-        let file = BufWriter::new(File::create(file)?);
+        let file = BufWriter::with_capacity(FILE_WRITE_BUFFER_SIZE, File::create(file)?);
         let compressor = Compressor::new(compression)?;
 
         // Estimate number of key blocks based on max entry count.
@@ -678,6 +708,7 @@ impl<E: Entry> StreamingSstWriter<E> {
             min_hash: u64::MAX,
             max_hash: 0,
             entry_count: 0,
+            tombstone_count: 0,
             flags,
             total_key_size: 0,
             total_value_size: 0,
@@ -811,8 +842,12 @@ impl<E: Entry> StreamingSstWriter<E> {
                 }
             }
             EntryValue::Large { blob } => ValueRef::Blob { blob_id: blob },
-            EntryValue::KeyDeleted => ValueRef::KeyDeleted,
+            EntryValue::KeyDeleted => {
+                self.tombstone_count += 1;
+                ValueRef::KeyDeleted
+            }
             EntryValue::KeyValueDeleted { value } => {
+                self.tombstone_count += 1;
                 // Enforced by `WriteBatch::delete_value`, which rejects oversized values.
                 debug_assert!(value.len() <= MAX_INLINE_VALUE_SIZE);
                 let mut data = [0u8; MAX_INLINE_VALUE_SIZE];
@@ -858,7 +893,7 @@ impl<E: Entry> StreamingSstWriter<E> {
     /// Advances `first_pending_small_index` past the just-pushed entry if it is resolved and
     /// sits right at the current boundary. Flushes complete key blocks incrementally.
     ///
-    /// Must be called immediately after [`push_pending_key_entry`] with a resolved
+    /// Must be called immediately after [`Self::push_pending_key_entry`] with a resolved
     /// (non-`PendingSmall`) entry.
     fn try_flush_key_blocks(&mut self) -> Result<()> {
         debug_assert!(!matches!(
@@ -1005,8 +1040,16 @@ impl<E: Entry> StreamingSstWriter<E> {
             let mut entries: Vec<&PendingEntry<E>> = pending_keys.range(start..end).collect();
             // Stable sort is important to preserve relative order of tombstones
             match info.uniform_key_len() {
-                Some(4) => entries.sort_by_key(|&e| be_key_u32(e.entry.key_bytes())),
-                Some(8) => entries.sort_by_key(|&e| be_key_u64(e.entry.key_bytes())),
+                Some(4) => sort_by_packed_key(
+                    &mut entries,
+                    |e, index| u64::from(be_key_u32(e.entry.key_bytes())) << 32 | index as u64,
+                    |packed| packed as u32 as usize,
+                ),
+                Some(8) => sort_by_packed_key(
+                    &mut entries,
+                    |e, index| u128::from(be_key_u64(e.entry.key_bytes())) << 64 | index as u128,
+                    |packed| packed as u64 as usize,
+                ),
                 _ => entries.sort_by_key(|&e| e.entry.key_bytes()),
             }
             Either::Right(entries.into_iter())
@@ -1150,6 +1193,7 @@ impl<E: Entry> StreamingSstWriter<E> {
             size: file_size,
             flags: self.flags,
             entries: self.entry_count,
+            tombstones: self.tombstone_count,
         };
 
         let file = file.into_inner()?;
@@ -1160,7 +1204,7 @@ impl<E: Entry> StreamingSstWriter<E> {
     /// Flushes all remaining entries as key blocks. Called from `close()` after all small value
     /// blocks have been flushed, so all PendingSmall entries are resolved.
     ///
-    /// This loop mirrors [`advance_boundary_to`], but uses a local accumulator (since the
+    /// This loop mirrors [`Self::advance_boundary_to`], but uses a local accumulator (since the
     /// `self.current_key_block` state is stale) and flushes the final incomplete block
     /// (unlike `advance_boundary_to`, which keeps it for more entries during streaming).
     fn flush_remaining_key_blocks(&mut self) -> Result<()> {
@@ -1316,8 +1360,9 @@ const FIXED_KEY_BLOCK_HEADER_SIZE: usize = 6;
 /// search probes are contiguous: the search region holds only what the lookup compares first (the
 /// hash for `HashThenKey`, the key for `KeyOnly`), and everything else follows in the tail region,
 /// addressed by the same entry index. [`FixedRegions`] derives that geometry for both this builder
-/// and the reader; see [`KEY_BLOCK_TABLE_ENTRY_SIZE_WITH_HASH`] for why the compared bytes are
-/// hoisted out of the payload.
+/// and the reader; see
+/// [`KEY_BLOCK_TABLE_ENTRY_SIZE_WITH_HASH`](crate::static_sorted_file::KEY_BLOCK_TABLE_ENTRY_SIZE_WITH_HASH)
+/// for why the compared bytes are hoisted out of the payload.
 struct FixedKeyBlockBuilder<'l> {
     /// Receives the header and then the search region.
     buffer: &'l mut Vec<u8>,
@@ -1464,6 +1509,36 @@ impl<W: Write> IndexBlockBuilder<W> {
     fn put(&mut self, hash: u64, block: u16) {
         self.writer.write_u64::<BE>(hash).unwrap();
         self.writer.write_u16::<BE>(block).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod sort_by_packed_key_tests {
+    use super::sort_by_packed_key;
+
+    /// Equal keys keep their order, like the stable sort the writer used before.
+    #[test]
+    fn test_is_stable() {
+        // (key, original position), with few distinct keys so most are duplicates.
+        let entries: Vec<(u64, usize)> = (0..1000).map(|i| ((i * 7919 % 13) as u64, i)).collect();
+        let mut expected = entries.clone();
+        expected.sort_by_key(|e| e.0);
+
+        let mut by_u32 = entries.clone();
+        sort_by_packed_key(
+            &mut by_u32,
+            |e, index| (e.0 << 32) | index as u64,
+            |packed| packed as u32 as usize,
+        );
+        assert_eq!(by_u32, expected);
+
+        let mut by_u64 = entries;
+        sort_by_packed_key(
+            &mut by_u64,
+            |e, index| (u128::from(e.0 | 1 << 63) << 64) | index as u128,
+            |packed| packed as u64 as usize,
+        );
+        assert_eq!(by_u64, expected);
     }
 }
 
@@ -1795,6 +1870,137 @@ mod tests {
         Ok(())
     }
 
+    /// Deterministic, incompressible bytes, so that blocks keep their size on disk.
+    #[cfg(all(feature = "mmap", unix))]
+    fn noise(seed: u64, len: usize) -> Vec<u8> {
+        let mut state = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1;
+        (0..len)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                state as u8
+            })
+            .collect()
+    }
+
+    /// Small values in multi-page blocks plus a few medium values.
+    #[cfg(all(feature = "mmap", unix))]
+    fn will_need_entries() -> Vec<TestEntry> {
+        let mut entries: Vec<TestEntry> = (0..300)
+            .map(|i| TestEntry::small(format!("key-{i:04}").as_bytes(), &noise(i, 300)))
+            .chain((0..3).map(|i| {
+                TestEntry::medium(format!("med-{i}").as_bytes(), &noise(1000 + i, 20_000))
+            }))
+            .collect();
+        sort_entries(&mut entries);
+        entries
+    }
+
+    /// Lookup mappings carry `MADV_RANDOM` (`rr` in `VmFlags`) and no `MADV_SEQUENTIAL` (`sr`).
+    #[cfg(all(feature = "mmap", target_os = "linux", not(miri)))]
+    #[test]
+    fn lookup_mmap_has_random_advice() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let entries = will_need_entries();
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let path = dir.path().join("00000001.sst").canonicalize()?;
+        let path = path.to_str().unwrap();
+
+        let smaps = std::fs::read_to_string("/proc/self/smaps")?;
+        let mut lines = smaps.lines();
+        lines
+            .find(|line| line.ends_with(path))
+            .expect("SST mapping not found in /proc/self/smaps");
+        let flags = lines
+            .find_map(|line| line.strip_prefix("VmFlags:"))
+            .expect("VmFlags line not found");
+        let flags: Vec<&str> = flags.split_whitespace().collect();
+        assert!(flags.contains(&"rr"), "expected MADV_RANDOM, got {flags:?}");
+        assert!(
+            !flags.contains(&"sr"),
+            "unexpected MADV_SEQUENTIAL, got {flags:?}"
+        );
+        drop(sst);
+        Ok(())
+    }
+
+    /// `MADV_WILLNEED` covers only multi-page blocks: key and small value blocks on their first
+    /// read, medium value blocks on every read. The block-offset table and the index block are read
+    /// with `pread` at open, so they are never hinted.
+    #[cfg(all(feature = "mmap", unix))]
+    #[test]
+    fn will_need_hints_multi_page_blocks_on_first_read() -> Result<()> {
+        use std::ops::Range;
+
+        use crate::static_sorted_file::will_need_log;
+
+        // SAFETY: `sysconf` has no preconditions.
+        let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
+        let multi_page =
+            |range: &Range<usize>| range.start / page_size != (range.end - 1) / page_size;
+
+        let dir = tempfile::tempdir()?;
+        let entries = will_need_entries();
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        will_need_log::take();
+
+        // Open: nothing, since the table and the index block are read with `pread`.
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let opened = will_need_log::take();
+        assert!(opened.is_empty(), "{opened:?}");
+
+        // First pass: each multi-page key and small value block is hinted once.
+        let kc = make_cache();
+        let vc = make_cache();
+        let small = || {
+            entries
+                .iter()
+                .filter(|e| matches!(e.value_kind, TestValueKind::Small(_)))
+        };
+        for entry in small() {
+            assert_lookup(&sst, entry, &kc, &vc)?;
+        }
+        let first = will_need_log::take();
+        assert!(!first.is_empty(), "no multi-page block was hinted");
+        assert!(first.iter().all(multi_page), "{first:?}");
+        let mut unique = first.clone();
+        unique.sort_by_key(|range| range.start);
+        unique.dedup();
+        assert_eq!(
+            unique.len(),
+            first.len(),
+            "a block was hinted twice: {first:?}"
+        );
+
+        // Second pass, with empty caches: every block is verified already, so no hints.
+        let kc = make_cache();
+        let vc = make_cache();
+        for entry in small() {
+            assert_lookup(&sst, entry, &kc, &vc)?;
+        }
+        assert_eq!(will_need_log::take(), Vec::<Range<usize>>::new());
+
+        // Medium value blocks are hinted on every read.
+        let medium = entries
+            .iter()
+            .find(|e| matches!(e.value_kind, TestValueKind::Medium(_)))
+            .unwrap();
+        assert_lookup(&sst, medium, &kc, &vc)?;
+        let first_read = will_need_log::take();
+        assert_lookup(&sst, medium, &kc, &vc)?;
+        let second_read = will_need_log::take();
+        let value_block = second_read
+            .last()
+            .expect("medium value block was not hinted")
+            .clone();
+        assert!(multi_page(&value_block));
+        assert!(value_block.len() > 20_000, "{value_block:?}");
+        assert_eq!(first_read.last(), Some(&value_block));
+        Ok(())
+    }
+
     #[test]
     fn many_medium_values() -> Result<()> {
         let dir = tempfile::tempdir()?;
@@ -2116,14 +2322,13 @@ mod tests {
         let raw = &data[..end];
         // Each block is prefixed by BLOCK_HEADER_SIZE bytes: 4B uncompressed size + 4B checksum.
         // An uncompressed size of 0 means the block is stored as-is.
-        let uncompressed_size = BE::read_u32(raw) as usize;
+        let uncompressed_size = BE::read_u32(raw);
         let body = &raw[BLOCK_HEADER_SIZE..];
         Ok(if uncompressed_size == 0 {
             body.to_vec()
         } else {
-            let mut out = vec![0u8; uncompressed_size];
-            lz4_flex::block::decompress_into(body, &mut out)?;
-            out
+            crate::compression::decompress_into_arc(Compression::Lz4, uncompressed_size, body)?
+                .to_vec()
         })
     }
 
@@ -2291,6 +2496,89 @@ mod tests {
         // Corrupt a byte in the first block's data (after the 8-byte header)
         corrupt_sst_byte(dir.path(), 1, BLOCK_HEADER_SIZE as u64 + 1);
         assert_corruption_detected(dir.path(), 1, &meta, &entries);
+    }
+
+    /// Overwriting the directory entry of any non-index block of a real SST with an offset
+    /// outside the data section must make lookup in every access mode and file-backed iteration
+    /// fail to open it, with the block-offset validation error rather than a panic or later error.
+    #[test]
+    fn corrupt_block_offsets_are_rejected_on_open() -> Result<()> {
+        let mut entries = vec![TestEntry::medium(b"medium", &vec![0xAB; 8192])];
+        for i in 0..64u32 {
+            entries.push(TestEntry::small(
+                format!("small-{i:04}").as_bytes(),
+                &[i as u8; 64],
+            ));
+        }
+        sort_entries(&mut entries);
+
+        let dir = tempfile::tempdir()?;
+        let written = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        let meta = StaticSortedFileMetaData {
+            sequence_number: 1,
+            block_count: written.block_count,
+        };
+        assert!(
+            meta.block_count >= 3,
+            "expected value, key and index blocks, got {} blocks",
+            meta.block_count
+        );
+        let path = dir.path().join("00000001.sst");
+        let original = std::fs::read(&path)?;
+        let directory_start = original.len() - usize::from(meta.block_count) * size_of::<u32>();
+        // Sanity check: the uncorrupted file reads back with the expected values.
+        let sst = open_sst(dir.path(), 1, &written)?;
+        let kc = make_cache();
+        let vc = make_cache();
+        for entry in &entries {
+            assert_lookup(&sst, entry, &kc, &vc)?;
+        }
+        // The caches can hold blocks that reference the mapping, so release them with the file
+        // before the file is rewritten below.
+        drop((sst, kc, vc));
+
+        let access_modes: &[crate::AccessMode] = &[
+            #[cfg(feature = "mmap")]
+            crate::AccessMode::Mmap,
+            crate::AccessMode::File,
+        ];
+        for block_index in 0..usize::from(meta.block_count) - 1 {
+            for bad_end in [u32::MAX, directory_start as u32 + 4] {
+                let mut bytes = original.clone();
+                let entry = directory_start + block_index * size_of::<u32>();
+                bytes[entry..entry + size_of::<u32>()].copy_from_slice(&bad_end.to_be_bytes());
+                std::fs::write(&path, &bytes)?;
+                for &access_mode in access_modes {
+                    let errors = [
+                        StaticSortedFile::open(dir.path(), meta, Compression::Lz4, access_mode)
+                            .err(),
+                        crate::static_sorted_file::StaticSortedFileIter::open(
+                            dir.path(),
+                            meta,
+                            Compression::Lz4,
+                        )
+                        .err(),
+                    ];
+                    for err in errors {
+                        let err = err.unwrap_or_else(|| {
+                            panic!(
+                                "block {block_index}, end {bad_end} ({access_mode:?}): a corrupt \
+                                 block offset was accepted"
+                            )
+                        });
+                        let message = format!("{err:#}");
+                        // Raising one block's end either makes the next block go backwards, or
+                        // (for the last data block) pushes the blocks past the table.
+                        assert!(
+                            message.contains("shorter than its")
+                                || message.contains("past the start of its block-offset table"),
+                            "block {block_index}, end {bad_end} ({access_mode:?}): {message}"
+                        );
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     #[test]

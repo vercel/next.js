@@ -22,20 +22,18 @@ pub struct IntrospectionSource {
     pub roots: FxHashSet<ResolvedVc<Box<dyn Introspectable>>>,
 }
 
-fn introspection_source() -> RcStr {
-    rcstr!("introspection-source")
-}
+static INTROSPECTION_SOURCE: RcStr = rcstr!("introspection-source");
 
 #[turbo_tasks::value_impl]
 impl Introspectable for IntrospectionSource {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        Vc::cell(introspection_source())
+        Vc::cell(INTROSPECTION_SOURCE.clone())
     }
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<RcStr> {
-        Vc::cell(introspection_source())
+        Vc::cell(INTROSPECTION_SOURCE.clone())
     }
 
     #[turbo_tasks::function]

@@ -2,10 +2,10 @@ use std::{collections::BTreeMap, future::Future, pin::Pin};
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
+use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat, turbofmt,
+    NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat, turbofmt,
 };
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
@@ -22,7 +22,7 @@ use crate::{
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug)]
-pub struct ExcludedExtensions(#[bincode(with = "turbo_bincode::indexset")] pub FxIndexSet<RcStr>);
+pub struct ExcludedExtensions(pub FxHashSet<RcStr>);
 
 /// A location where to resolve modules.
 #[derive(Hash, PartialEq, Eq, Clone, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode)]
@@ -397,7 +397,13 @@ impl ImportMap {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
 pub struct ResolvedMap {
-    pub by_glob: Vec<(FileSystemPath, ResolvedVc<Glob>, ResolvedVc<ImportMapping>)>,
+    /// Each glob is matched against the resolved path relative to its root. A root of `None`
+    /// matches resolved paths on any filesystem, relative to that filesystem's root.
+    pub by_glob: Vec<(
+        /* root */ Option<FileSystemPath>,
+        ResolvedVc<Glob>,
+        ResolvedVc<ImportMapping>,
+    )>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -609,7 +615,11 @@ impl ResolvedMap {
         request: Vc<Request>,
     ) -> Result<Vc<ImportMapResult>> {
         for (root, glob, mapping) in self.by_glob.iter() {
-            if let Some(path) = root.get_path_to(&resolved)
+            let path = match root {
+                Some(root) => root.get_path_to(&resolved),
+                None => Some(&*resolved.path),
+            };
+            if let Some(path) = path
                 && glob.await?.matches(path)
             {
                 return Ok(import_mapping_to_result(

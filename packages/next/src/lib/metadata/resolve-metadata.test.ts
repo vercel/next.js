@@ -592,6 +592,25 @@ describe('accumulateMetadata', () => {
   })
 
   describe('alternate', () => {
+    it('should preserve a canonical descriptor title', async () => {
+      const metadata = await accumulateMetadata([
+        [
+          {
+            metadataBase: 'https://example.com',
+            alternates: {
+              canonical: { url: '/article', title: 'Article' },
+            },
+          },
+          null,
+        ],
+      ])
+
+      expect(metadata.alternates?.canonical).toEqual({
+        url: 'https://example.com/article',
+        title: 'Article',
+      })
+    })
+
     it('should support string alternate', async () => {
       const metadataItems: MetadataItems = [
         [

@@ -54,9 +54,8 @@ export interface NftJson extends NftFileList {
 /** Turbopack extension: Paths stored with a different base path. */
 export interface NftAdditionalRoot extends NftFileList {
   /**
-   * Stable unique identifier provided in `next.config.js`. This can be used to
-   * generate the output path where these files are copied, such as
-   * `next_additional_roots/${name}`.
+   * Stable unique identifier. This can be used to generate the output path
+   * where these files are copied, such as `next_additional_roots/${name}`.
    *
    * This uses a character set that is valid on most filesystems, and identifiers
    * are guaranteed not to overlap on case-insensitive filesystems.
@@ -149,7 +148,13 @@ function mapBasePath(
   relativePath: string
 ): { source: string; destination: string } {
   const source = path.resolve(traceFileDirectory, relativePath)
-  return { source, destination: path.relative(baseRoot, source) }
+  // Both paths are resolved. Avoid resolving them again in path.relative for
+  // the common case, checking the separator so sibling prefixes do not match.
+  const destination =
+    source.startsWith(baseRoot) && source[baseRoot.length] === path.sep
+      ? source.slice(baseRoot.length + 1)
+      : path.relative(baseRoot, source)
+  return { source, destination }
 }
 
 function mapBasePathInsideRoot(
@@ -192,6 +197,7 @@ export function mapNftFileEntries(
   }
 ): MappedNftFileEntry[] {
   const traceFileDirectory = path.dirname(traceFilePath)
+  baseRoot = path.resolve(baseRoot)
   const roots = nft.additionalRoots ?? []
   const result: MappedNftFileEntry[] = []
 

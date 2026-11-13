@@ -2,6 +2,7 @@ use std::{
     borrow::Borrow,
     fmt::{self, Debug, Formatter},
     hash::{Hash, Hasher},
+    io::{self, BorrowedCursor},
     ops::{Deref, Range},
     sync::Arc,
 };
@@ -12,7 +13,7 @@ use memmap2::Mmap;
 use crate::{
     Compression,
     compression::decompress_into_arc,
-    shared_bytes::{INLINE_CAPACITY, SharedBytes, is_subslice_of},
+    shared_bytes::{INLINE_CAPACITY, SharedBytes, fill_uninit, is_subslice_of},
 };
 /// The representation of an `ArcBytes`.
 ///
@@ -217,6 +218,19 @@ impl SharedBytes for ArcBytes {
             uncompressed_length,
             block,
         )?))
+    }
+
+    fn read_filled(
+        len: usize,
+        fill: impl FnOnce(BorrowedCursor<'_, u8>) -> io::Result<()>,
+    ) -> io::Result<Self> {
+        let mut bytes = Arc::<[u8]>::new_uninit_slice(len);
+        fill_uninit(
+            Arc::get_mut(&mut bytes).expect("the Arc was just created"),
+            fill,
+        )?;
+        // SAFETY: `fill_uninit` returned `Ok`, so all bytes were written.
+        Ok(Self::from(unsafe { bytes.assume_init() }))
     }
 
     #[inline]

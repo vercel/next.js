@@ -1,5 +1,6 @@
-#![feature(anonymous_lifetime_in_impl_trait)]
+#![feature(current_thread_id)]
 #![feature(deref_patterns)]
+#![feature(thread_id_value)]
 
 mod backend;
 mod backing_storage;
@@ -98,8 +99,16 @@ pub fn compact_database(
     // Fully compact with no segment count limit (unlike the runtime shutdown path
     // which caps segments based on available parallelism).
     db.compact(&CompactConfig {
-        max_merge_segment_count: usize::MAX,
+        max_merge_jobs: usize::MAX,
         ..turbo::COMPACT_CONFIG
     })?;
-    db.shutdown()
+    db.shutdown();
+    Ok(())
+}
+
+/// Internals exposed for benchmarks only. Not a stable API.
+#[doc(hidden)]
+pub mod private {
+    #[cfg(not(target_family = "wasm"))]
+    pub use crate::backend::aggregation_queue;
 }

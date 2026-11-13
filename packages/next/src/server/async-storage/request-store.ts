@@ -182,7 +182,7 @@ function mergeMiddlewareCookies(
 }
 
 export function createRequestStoreForRender(
-  req: RequestContext['req'],
+  headers: IncomingHttpHeaders,
   res: RequestContext['res'],
   url: RequestContext['url'],
   rootParams: Params,
@@ -198,7 +198,7 @@ export function createRequestStoreForRender(
   return createRequestStore({
     // Pages start in render phase by default
     phase: 'render',
-    headers: req.headers,
+    headers,
     onUpdateCookies:
       onUpdateCookies ??
       (res
@@ -347,6 +347,7 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
       (globalThis as any).__serverComponentsHmrCache,
     hmrRefreshHash,
     stagedFallbackParams,
+    usedDynamic: false,
   }
 }
 

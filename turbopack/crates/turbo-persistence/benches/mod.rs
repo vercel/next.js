@@ -14,7 +14,8 @@ use tempfile::TempDir;
 use turbo_persistence::{
     ArcBytes, BlockCache, CompactConfig, Compression, DbConfig as TpDbConfig, Entry, EntryValue,
     FamilyConfig, FamilyKind, MetaEntryFlags, SerialScheduler, StaticSortedFile,
-    StaticSortedFileMetaData, TurboPersistence, hash_key, write_static_stored_file,
+    StaticSortedFileMetaData, TurboPersistence, hash_key, shard::ShardBits,
+    write_static_stored_file,
 };
 use turbo_tasks_malloc::TurboMalloc;
 
@@ -179,7 +180,7 @@ fn prefill_database(path: &Path, config: &DbConfig) -> Result<Vec<Box<[u8]>>> {
         }
     }
 
-    db.shutdown()?;
+    db.shutdown();
     keys.shuffle(&mut rng);
     Ok(keys)
 }
@@ -332,7 +333,7 @@ fn bench_write(c: &mut Criterion) {
 
                             db.commit_write_batch(batch).unwrap();
                         }
-                        db.shutdown().unwrap();
+                        db.shutdown();
                         tempdir
                     },
                     BatchSize::PerIteration,
@@ -554,8 +555,11 @@ fn bench_read_batch_get(c: &mut Criterion) {
                                 .collect::<Vec<_>>()
                         },
                         |keys| {
-                            let result = db.batch_get(0, &keys).unwrap();
-                            black_box(result)
+                            db.batch_get(0, &keys, |index, value| {
+                                black_box((index, value));
+                                Ok(())
+                            })
+                            .unwrap()
                         },
                         BatchSize::NumBatches(1),
                     );
@@ -584,8 +588,11 @@ fn bench_read_batch_get(c: &mut Criterion) {
                                 .collect::<Vec<_>>()
                         },
                         |keys| {
-                            let result = db.batch_get(0, &keys).unwrap();
-                            black_box(result)
+                            db.batch_get(0, &keys, |index, value| {
+                                black_box((index, value));
+                                Ok(())
+                            })
+                            .unwrap()
                         },
                         BatchSize::NumBatches(1),
                     );
@@ -625,6 +632,7 @@ fn prefill_multi_value_database(
             name: "test",
             kind: FamilyKind::MultiValue,
             compression: Compression::Lz4,
+            initial_shard_bits: ShardBits::new(0),
         }],
         ..TpDbConfig::new()
     };
@@ -666,7 +674,7 @@ fn prefill_multi_value_database(
         }
     }
 
-    db.shutdown()?;
+    db.shutdown();
     keys.shuffle(&mut rng);
     Ok(keys)
 }
@@ -701,6 +709,7 @@ fn open_multi_value_db(path: &Path) -> TurboPersistence<SerialScheduler, 1> {
             name: "test",
             kind: FamilyKind::MultiValue,
             compression: Compression::Lz4,
+            initial_shard_bits: ShardBits::new(0),
         }],
         ..TpDbConfig::new()
     };
@@ -862,6 +871,7 @@ fn bench_family_sharding(c: &mut Criterion) {
                     name,
                     kind: FamilyKind::SingleValue,
                     compression: Compression::Lz4,
+                    initial_shard_bits: ShardBits::new(0),
                 }
             }),
             ..TpDbConfig::new()
@@ -910,11 +920,23 @@ fn bench_family_sharding(c: &mut Criterion) {
     });
     group.bench_function("batch_get/hit_64", |b| {
         let (_, db) = &*db;
-        b.iter(|| black_box(db.batch_get(2, black_box(&batch_hits)).unwrap()))
+        b.iter(|| {
+            db.batch_get(2, black_box(&batch_hits), |index, value| {
+                black_box((index, value));
+                Ok(())
+            })
+            .unwrap()
+        })
     });
     group.bench_function("batch_get/miss_64", |b| {
         let (_, db) = &*db;
-        b.iter(|| black_box(db.batch_get(2, black_box(&batch_misses)).unwrap()))
+        b.iter(|| {
+            db.batch_get(2, black_box(&batch_misses), |index, value| {
+                black_box((index, value));
+                Ok(())
+            })
+            .unwrap()
+        })
     });
     group.finish();
 }
@@ -968,13 +990,12 @@ fn bench_compaction(c: &mut Criterion) {
                     |(_tempdir, db)| {
                         // Timed: run normal compaction
                         db.compact(&CompactConfig {
-                            min_merge_count: 3,
-                            optimal_merge_count: 8,
-                            max_merge_count: 64,
-                            max_merge_bytes: 512 * MB,
-                            min_merge_duplication_bytes: 50 * MB,
-                            optimal_merge_duplication_bytes: 100 * MB,
-                            max_merge_segment_count: 16,
+                            max_space_amplification_percent: 50,
+                            min_bottom_merge_bytes: 1024 * 1024,
+                            max_files_above_bottom: 6,
+                            rewrite_per_fresh_byte: 3.0,
+                            size_ratio_percent: 100,
+                            max_merge_jobs: 16,
                         })
                         .unwrap();
                         black_box(db)
@@ -1048,6 +1069,7 @@ fn bench_write_multi_value(c: &mut Criterion) {
                                 name: "test",
                                 kind: FamilyKind::MultiValue,
                                 compression: Compression::Lz4,
+                                initial_shard_bits: ShardBits::new(0),
                             }],
                             ..TpDbConfig::new()
                         };
@@ -1063,7 +1085,7 @@ fn bench_write_multi_value(c: &mut Criterion) {
                             batch.put(0, &**key, value.into()).unwrap();
                         }
                         db.commit_write_batch(batch).unwrap();
-                        db.shutdown().unwrap();
+                        db.shutdown();
                         tempdir
                     },
                     BatchSize::PerIteration,

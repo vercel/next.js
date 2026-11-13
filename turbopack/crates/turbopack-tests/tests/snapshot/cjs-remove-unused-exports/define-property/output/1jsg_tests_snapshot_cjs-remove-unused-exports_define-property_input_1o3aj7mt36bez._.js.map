@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/define-property/input/index.js"],"sourcesContent":["import { used } from './lib.js'\n\nconsole.log(used)\n"],"names":["console","log"],"mappings":"AAAA;;AAEAA,QAAQC,GAAG,CAAC,4OAAI"}},
-    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/define-property/input/lib.js"],"sourcesContent":["// Transpiled-ESM output shape (Babel/TSC/esbuild): the `__esModule` marker and\n// named exports are declared via `Object.defineProperty(exports, …)`.\nObject.defineProperty(exports, '__esModule', { value: true })\nObject.defineProperty(exports, 'used', {\n  enumerable: true,\n  get: function () {\n    return 'used-value'\n  },\n})\nObject.defineProperty(exports, 'unused', {\n  enumerable: true,\n  get: function () {\n    return 'unused-value'\n  },\n})\n"],"names":["Object","defineProperty","exports","value","enumerable","get"],"mappings":"AAAA,+EAA+E;AAC/E,sEAAsE;AACtEA,OAAOC,cAAc,CAACC,SAAS,cAAc;IAAEC,OAAO;AAAK;AAC3DH,OAAOC,cAAc,CAACC,SAAS,QAAQ;IACrCE,YAAY;IACZC,KAAK;QACH,OAAO;IACT;AACF"}}]
-}

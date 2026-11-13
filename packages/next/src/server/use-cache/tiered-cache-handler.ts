@@ -6,7 +6,7 @@ import { cloneCacheEntry } from './clone-cache-entry'
  * The subset of the cache-handler interface used on the per-invocation
  * read/write path in the "use cache" wrapper. Tag operations are intentionally
  * excluded: they are applied to the front and backing handlers individually by
- * the registry iterators (`getCacheHandlers` / `getCacheHandlerEntries`), never
+ * the registry accessors (`getCacheHandlers` / `getCacheHandlerEntries`), never
  * through this composite, so the composite is never registered.
  */
 export type CacheReadWriteHandler = Pick<CacheHandler, 'get' | 'set'>

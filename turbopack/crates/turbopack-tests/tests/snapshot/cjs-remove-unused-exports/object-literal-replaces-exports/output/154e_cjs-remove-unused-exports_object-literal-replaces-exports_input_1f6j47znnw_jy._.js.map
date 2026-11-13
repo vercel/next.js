@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/object-literal-replaces-exports/input/index.js"],"sourcesContent":["import { used, usedLate } from './lib.js'\n\nconsole.log(used, usedLate)\n"],"names":["console","log"],"mappings":"AAAA;;AAEAA,QAAQC,GAAG,CAAC,kQAAI,EAAE,sQAAQ"}},
-    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/object-literal-replaces-exports/input/lib.js"],"sourcesContent":["// Discarded by the literal below, so not an export.\nexports.early = 'early-value'\n\nmodule.exports = {\n  used: 'used-value',\n  unused: 'unused-value',\n}\n\n// Not exports: `exports` and top-level `this` hold the object the literal discarded.\nexports.deadExports = 'dead-exports'\nthis.deadThis = 'dead-this'\nObject.defineProperty(exports, 'deadDefined', { value: 'dead-defined' })\n\n// Exports: `module.exports` is the live object.\nmodule.exports.usedLate = 'used-late'\nmodule.exports.unusedLate = 'unused-late'\n"],"names":["module","exports","used","usedLate"],"mappings":"AAAA,oDAAoD;AACpC;AAEhBA,OAAOC,OAAO,GAAG;IACfC,MAAM;YACE;AACV;AAEA,qFAAqF;AAC/D;AACN;AACuC;AAEvD,gDAAgD;AAChDF,OAAOC,OAAO,CAACE,QAAQ,GAAG;AACE"}}]
-}

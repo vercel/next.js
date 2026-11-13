@@ -185,7 +185,7 @@ See [Interleaving Server and Client Components](/docs/app/getting-started/server
 
 ### Reducing JS bundle size
 
-To reduce the size of your client JavaScript bundles, add `'use client'` to specific interactive components instead of marking large parts of your UI as Client Components.
+To reduce the size of your client JavaScript bundles, add `'use client'` at the top of the files that define your interactive components instead of marking large parts of your UI as Client Components.
 
 For example, the `<Layout>` component contains mostly static elements like a logo and navigation links, but includes an interactive search bar. `<Search />` needs to be a Client Component, while the rest of the layout can stay a Server Component.
 
@@ -427,7 +427,7 @@ To pass server-fetched data through context and read it in Client Components wit
 
 When using a third-party component that relies on client-only features, you can wrap it in a Client Component to ensure it works as expected.
 
-For example, the `<Carousel />` can be imported from the `acme-carousel` package. This component uses `useState`, but it doesn't yet have the `"use client"` directive.
+For example, the `<Carousel />` can be imported from the `acme-carousel` package. This component uses `useState`, but the module that defines it doesn't yet have the `"use client"` directive.
 
 If you use `<Carousel />` within a Client Component, it will work as expected:
 
