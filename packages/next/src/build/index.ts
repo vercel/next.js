@@ -312,8 +312,9 @@ export interface PrerenderManifestRoute
   initialExpireSeconds: number | undefined
 
   /**
-   * The prefetch data route associated with this page. If not defined, this
-   * page does not support prefetching.
+   * The build sets this to `dataRoute` for a PPR page with a complete static
+   * RSC payload. These prerenders have no postponed work or unresolved fallback
+   * params. Its absence does not disable segment or runtime prefetching.
    */
   prefetchDataRoute: string | null | undefined
 
