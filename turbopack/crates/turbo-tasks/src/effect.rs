@@ -286,8 +286,8 @@ impl EffectStateStorage {
 /// #[turbo_tasks::function(operation)]
 /// async fn some_turbo_tasks_operation_with_effects(args: Args) -> Result<Vc<OutputWithEffects>> {
 ///     let operation = some_turbo_tasks_operation(args);
-///     // we must first read the operation to populate the collectibles
-///     let output = operation.connect().await?;
+///     // collectibles are only stable after a strongly consistent read of their source
+///     let output = operation.read_strongly_consistent().await?;
 ///     // read the effects from the collectibles
 ///     let effects = take_effects(operation).await?;
 ///     Ok(OutputWithEffects { output, effects }.cell())

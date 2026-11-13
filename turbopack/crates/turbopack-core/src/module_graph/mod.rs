@@ -2676,7 +2676,8 @@ pub mod tests {
     async fn import_trace_issues_operation(
         trace_operation: OperationVc<ImportTraceTestResult>,
     ) -> Result<Vc<ImportTraceIssues>> {
-        let _ = trace_operation.connect().await?;
+        // Collectibles are only stable after a strongly consistent read of their source.
+        let _ = trace_operation.read_strongly_consistent().await?;
         let issues = trace_operation
             .peek_issues()
             .iter()

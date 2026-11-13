@@ -111,6 +111,13 @@ struct TaskStorageSchema {
     #[field(storage = "counter_map", category = "meta", filter_transient)]
     aggregated_collectibles: CounterMap<CollectibleRef, i32, 1>,
 
+    /// Changes of this task's contribution to its uppers' aggregated collectibles that haven't
+    /// been sent to the uppers yet: while the task is dirty, these changes are netted here and
+    /// sent once, together with the update that makes the task clean (see
+    /// `aggregation_update::stage_outgoing_collectibles`).
+    #[field(storage = "counter_map", category = "meta", filter_transient)]
+    pending_collectibles: CounterMap<CollectibleRef, i32, 1>,
+
     /// Outdated collectibles to be cleaned up (transient).
     #[field(storage = "counter_map", category = "transient", shrink_on_completion)]
     outdated_collectibles: CounterMap<CollectibleRef, i32, 1>,

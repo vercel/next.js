@@ -3896,12 +3896,24 @@ impl TurboTasksBackend {
                     if value > 0 {
                         if let Some((flag, _)) = collectibles.get_mut(&collectible) {
                             *flag = true
-                        } else {
+                        } else if task.get_pending_collectibles(&collectible).is_none() {
+                            // A pending collectible hasn't been sent to the uppers yet. That's only
+                            // allowed while the task is dirty, which
+                            // `check_pending_collectibles_invariant` checks.
                             panic!(
                                 "Task {} has a collectible {:?} that is not in any upper task",
                                 task_id, collectible
                             );
                         }
+                    }
+                }
+                // A negative pending change is a collectible the uppers still see, but that is no
+                // longer emitted (or aggregated) by this task.
+                for (&collectible, &count) in task.iter_pending_collectibles() {
+                    if count < 0
+                        && let Some((flag, _)) = collectibles.get_mut(&collectible)
+                    {
+                        *flag = true
                     }
                 }
 
@@ -3926,6 +3938,12 @@ impl TurboTasksBackend {
                     }
                 }
                 drop(task);
+
+                if let Err(message) =
+                    operation::check_pending_collectibles_invariant(&mut ctx, task_id)
+                {
+                    panic!("{message}");
+                }
 
                 if should_be_in_upper {
                     for upper_id in uppers {

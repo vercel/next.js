@@ -142,7 +142,8 @@ struct Collected(Vec<RcStr>);
 #[turbo_tasks::function(operation, root)]
 async fn collect_operation(generation: ResolvedVc<Generation>, root: u32) -> Result<Vc<Collected>> {
     let root_op = root_operation(generation, root);
-    root_op.connect().await?;
+    // Collectibles are only stable after a strongly consistent read of their source.
+    root_op.read_strongly_consistent().await?;
     let mut names = Vec::new();
     for collectible in root_op.peek_collectibles::<Box<dyn ValueToString>>() {
         names.push((*collectible.to_string().await?).clone());
