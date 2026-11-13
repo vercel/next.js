@@ -64,7 +64,8 @@ interface Options {
 
 const PLUGIN_NAME = 'FlightClientEntryPlugin'
 
-export type ActionDurability = {
+type ActionDurability = {
+  codeHash: string
   runtimeEnvVarsRead: string[]
   runtimeEnvVarsExistence: string[]
 }
@@ -73,11 +74,11 @@ type Actions = {
   [actionId: string]: {
     exportedName?: string
     filename?: string
-    // Durability metadata for "use cache" functions, keyed by code hash.
-    // Workers reference an item by its code hash, because most workers share
-    // the same value (but not all, e.g. when the chunking context differs).
-    // Equal code hashes always have equal metadata, so merging manifests needs
-    // no deduplication.
+    // Durability metadata for "use cache" functions, keyed by a hash of the
+    // metadata itself (code hash and runtime env vars). Workers reference an
+    // item by that key, because most workers share the same value (but not all,
+    // e.g. when the chunking context differs). Equal keys have equal metadata,
+    // so merging manifests needs no deduplication.
     durability?: Record<string, ActionDurability>
     workers: {
       [name: string]: {
@@ -87,8 +88,8 @@ type Actions = {
         // empty list means none were found; absence means collection did not
         // run.
         rootParamDependencies?: readonly string[]
-        // The code hash, which is the key into the action's `durability` map.
-        codeHash?: string
+        // The key into the action's `durability` map.
+        durability?: string
       }
     }
     // Record which layer the action is in (rsc or sc_action), in the specific entry

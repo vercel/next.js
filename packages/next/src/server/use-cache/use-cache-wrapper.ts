@@ -3999,13 +3999,13 @@ async function computeCacheKeyImplementationPart(
   const entry = workStore.durableUseCacheEntries
     ? getServerActionsManifest().node[id]
     : undefined
-  const codeHash =
-    entry?.workers?.[normalizeWorkerPageName(workStore.page)]?.codeHash
-  if (entry && codeHash !== undefined) {
-    const durability = entry.durability?.[codeHash]
+  const durabilityKey =
+    entry?.workers?.[normalizeWorkerPageName(workStore.page)]?.durability
+  if (entry && durabilityKey !== undefined) {
+    const durability = entry.durability?.[durabilityKey]
     if (!durability) {
       throw new InvariantError(
-        `Missing durability metadata for code hash "${codeHash}" of action "${id}" in the server reference manifest.`
+        `Missing durability metadata for key "${durabilityKey}" of action "${id}" in the server reference manifest.`
       )
     }
     // use cache is only supported in Node.js runtime. So we can use the Node.js crypto module here.
@@ -4031,7 +4031,7 @@ async function computeCacheKeyImplementationPart(
     // The env var state is added to the cache handler key separately so it
     // doesn't affect RDC lookups between rendering phases.
     return {
-      implementationPart: [codeHash, nextVersion],
+      implementationPart: [durability.codeHash, nextVersion],
       runtimeEnvVarStateHash,
     }
   } else {

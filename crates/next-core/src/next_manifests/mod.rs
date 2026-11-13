@@ -460,12 +460,11 @@ pub struct ActionManifestEntry<'a> {
 
     pub filename: &'a str,
 
-    /// Durability metadata for `"use cache"` functions, keyed by code hash.
-    /// Workers reference an item by its code hash, because most workers share
-    /// the same value (but not all of them, e.g. when the chunking context
-    /// differs). The runtime env vars are derived from the same modules as the
-    /// code hash, so equal code hashes always have equal metadata, and merging
-    /// manifests needs no deduplication.
+    /// Durability metadata for `"use cache"` functions, keyed by a hash of the
+    /// metadata itself (code hash and runtime env vars). Workers reference an
+    /// item by that key, because most workers share the same value (but not all
+    /// of them, e.g. when the chunking context differs). Equal keys have equal
+    /// metadata, so merging manifests needs no deduplication.
     #[serde(skip_serializing_if = "FxIndexMap::is_empty")]
     pub durability: FxIndexMap<&'a str, ActionManifestEntryDurability<'a>>,
 
@@ -484,9 +483,9 @@ pub struct ActionManifestWorkerEntry<'a> {
     pub module_id: ActionManifestModuleId<'a>,
     #[serde(rename = "async")]
     pub is_async: bool,
-    /// The code hash, which is the key into the entry's `durability` map.
+    /// The key into the entry's `durability` map.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub code_hash: Option<&'a str>,
+    pub durability: Option<&'a str>,
     /// The sorted root param dependencies collected from the cache module's
     /// graph. An empty list means that collection found no root params. The
     /// build omits this field when it does not collect dependencies for the
@@ -498,6 +497,7 @@ pub struct ActionManifestWorkerEntry<'a> {
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionManifestEntryDurability<'a> {
+    pub code_hash: &'a str,
     pub runtime_env_vars_read: &'a [RcStr],
     pub runtime_env_vars_existence: &'a [RcStr],
 }

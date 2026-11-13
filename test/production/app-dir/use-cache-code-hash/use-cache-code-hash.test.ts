@@ -28,19 +28,19 @@ async function getCodeHashes(
   }[] = []
   for (const [actionId, entry] of Object.entries<any>(manifest.node)) {
     for (const [workerKey, worker] of Object.entries<any>(entry.workers)) {
-      // Durability values are keyed by code hash per action.
+      // Durability values are keyed per action by a hash of the value.
       const durability =
-        worker.codeHash !== undefined
-          ? entry.durability[worker.codeHash]
+        worker.durability !== undefined
+          ? entry.durability[worker.durability]
           : undefined
-      if (worker.codeHash !== undefined) {
+      if (worker.durability !== undefined) {
         expect(durability).toBeDefined()
       }
       if (!pages || pages.includes(workerKey)) {
         hashes.push({
           id: actionId,
           page: workerKey,
-          codeHash: worker.codeHash,
+          codeHash: durability?.codeHash,
           rootParamDependencies: worker.rootParamDependencies,
           runtimeEnvVarsRead: durability?.runtimeEnvVarsRead,
           runtimeEnvVarsExistence: durability?.runtimeEnvVarsExistence,
@@ -80,7 +80,7 @@ async function getCodeHashes(
         let cacheWorkers = 0
         for (const entry of Object.values<any>(manifest.node)) {
           for (const worker of Object.values<any>(entry.workers)) {
-            if (worker.codeHash !== undefined) {
+            if (worker.durability !== undefined) {
               cacheWorkers++
               expect(worker.rootParamDependencies).toBeDefined()
             } else {

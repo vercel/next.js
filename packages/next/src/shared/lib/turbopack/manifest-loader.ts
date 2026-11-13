@@ -270,8 +270,8 @@ export class TurbopackManifestLoader {
         action.filename = otherEntry.filename
         action.exportedName = otherEntry.exportedName
         Object.assign(action.workers, otherEntry.workers)
-        // The durability metadata is keyed by code hash, and equal code hashes
-        // always have equal metadata, so it can be merged without
+        // The durability metadata is keyed by a hash of the metadata itself, so
+        // equal keys have equal metadata and it can be merged without
         // deduplication.
         if (otherEntry.durability) {
           Object.assign((action.durability ??= {}), otherEntry.durability)
