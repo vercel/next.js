@@ -538,11 +538,12 @@ describe('browser React timing transport', () => {
     })
   })
 
-  it('ignores unrelated and malformed entries without losing subsequent timings', () => {
+  it('ignores older React and malformed entries without losing subsequent timings', () => {
     const timing = createReactDebugPerformanceId('a')
     const send = jest.fn()
     setReactTimingSender(send)
     deliverMeasures([
+      measure(undefined, 'Older React'),
       measure(timing, 'Unrelated', { version: 2 }),
       measure(timing, 'Unattributed', { debugPerformanceId: 'other-consumer' }),
       measure(timing, 'Malformed', {
