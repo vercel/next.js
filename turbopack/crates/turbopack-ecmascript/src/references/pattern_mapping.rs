@@ -466,15 +466,13 @@ impl PatternMapping {
         reference: Option<ResolvedVc<Box<dyn ModuleReference>>>,
     ) -> Result<Vc<PatternMapping>> {
         let result = resolve_result.await?;
-        // Targets of this reference that were dropped from the module graph as unused.
-        let unused_references;
+        // Targets of this reference that were dropped from the module graph as unused. A keyed
+        // read, so this only depends on the entry for this reference, not on the whole map.
         let dropped_targets = match reference {
-            Some(reference) => {
-                unused_references = chunking_context.unused_references().await?;
-                unused_references.get(&reference)
-            }
+            Some(reference) => chunking_context.unused_references().get(&reference).await?,
             None => None,
         };
+        let dropped_targets = dropped_targets.as_deref();
         match result.primary.len() {
             0 => Ok(PatternMapping::Single(SinglePatternMapping::Unresolvable(
                 request_to_string(request).await?.to_string(),
