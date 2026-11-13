@@ -417,9 +417,7 @@ module.exports = {
 }
 ```
 
-Do not serve untrusted SVG files from your application's domain without extreme caution. If the image is opened directly, inline `<script>` tags will be executed in the context of your origin unless the appropriate [`Content-Disposition`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Disposition) is set or an appropriate [Content Security Policy](/docs/app/guides/content-security-policy) is configured.
-
-The [`images.contentDispositionType`](#contentdispositiontype) and [`images.contentSecurityPolicy`](#contentsecuritypolicy) options in `next.config.js` do not apply to unoptimized images.
+Most `images` options in `next.config.js` configure the built-in Image Optimization API and do not apply to unoptimized images. This includes [`contentDispositionType`](#contentdispositiontype) and [`contentSecurityPolicy`](#contentsecuritypolicy).
 
 #### `overrideSrc`
 
@@ -940,7 +938,7 @@ Instead of using `dangerouslyAllowSVG`, we recommend using the [`unoptimized`](#
 
 This skips the Image Optimization API and serves the SVG directly from the source.
 
-When using `unoptimized`, Next.js does not proxy remote untrusted images through your domain. This reduces [XSS risks](https://developer.mozilla.org/en-US/docs/Web/Security/Attacks/XSS) because of [same-origin policies](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Same-origin_policy). You must not serve untrusted SVGs from your own domain.
+When using [`unoptimized`](#unoptimized), Next.js does not proxy remote untrusted images through your domain. This reduces [XSS risks](https://developer.mozilla.org/en-US/docs/Web/Security/Attacks/XSS) because of [same-origin policies](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Same-origin_policy). You must not serve untrusted SVGs from your own domain.
 
 If you can't use the [`unoptimized`](#unoptimized) prop and you understand the risks, you can enable SVG pass-through in the Image Optimization API with `dangerouslyAllowSVG: true`. SVGs will be proxied through your domain without alteration.
 
