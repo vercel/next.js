@@ -19,7 +19,7 @@ You can also set the deployment ID using the `NEXT_DEPLOYMENT_ID` environment va
 NEXT_DEPLOYMENT_ID=my-deployment-id next build
 ```
 
-> **Good to know:** If both are set, the `deploymentId` value in `next.config.js` takes precedence over the `NEXT_DEPLOYMENT_ID` environment variable.
+> **Good to know:** A non-empty `NEXT_DEPLOYMENT_ID` environment variable takes precedence over the `deploymentId` value in `next.config.js`.
 
 ## How it works
 
