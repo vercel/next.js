@@ -4,7 +4,7 @@ import escapeStringRegexp from 'escape-string-regexp'
 import stripAnsi from 'strip-ansi'
 import { join } from 'path'
 import { assertNoConsoleErrors, retry, waitForNoRedbox } from 'next-test-utils'
-import { createCacheControl, waitForCrossRequestJoin } from './cache-control'
+import { createCacheControl } from './cache-control'
 
 const englishWriteTag = 'app-root-params-getters:write-language:en'
 const frenchWriteTag = 'app-root-params-getters:write-language:fr'
@@ -422,7 +422,9 @@ describe('app-root-param-getters - cache dedup with root params', () => {
       french = next.render$(`/ca/fr/write-failure?id=${id}`)
       // Both requests use the key without root params until the English
       // generation completes and records its read root params.
-      await waitForCrossRequestJoin(next, id)
+      await retry(async () => {
+        expect((await cache.read()).lookupKeys).toHaveLength(2)
+      })
       await fill.release()
       const [englishPage, frenchPage] = await Promise.all([english, french])
       expect(englishPage('#value').text()).toStartWith('en:')
@@ -574,7 +576,7 @@ for (const { held, failure } of [
       env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
     })
 
-    it('currently shares the producer lookup while waiting for both root-param writes', async () => {
+    it('waits for both producer writes before retrying with different root values', async () => {
       const id = randomUUID()
       const cache = await createCacheControl(next, {
         keyIncludes: [JSON.stringify(id), JSON.stringify('inner')],
@@ -599,8 +601,9 @@ for (const { held, failure } of [
       try {
         await fill.waitUntilStarted()
         french = next.render$(`/ca/fr/write-failure?id=${id}`)
-        await waitForCrossRequestJoin(next, id)
-        expect((await cache.read()).lookupKeys).toHaveLength(1)
+        await retry(async () => {
+          expect((await cache.read()).lookupKeys).toHaveLength(2)
+        })
         await fill.release()
         await heldWrite.waitUntilStarted()
         if (failure === null) {
@@ -612,7 +615,7 @@ for (const { held, failure } of [
         // write, even if the other write rejected.
         const pendingState = await cache.read()
         expect(pendingState.generatedLanguages).toEqual(['en'])
-        expect(pendingState.lookupKeys).toHaveLength(1)
+        expect(pendingState.lookupKeys).toHaveLength(2)
         await heldWrite.release()
         const [englishPage, frenchPage] = await Promise.all([english, french])
         expect(englishPage('#value').text()).toStartWith('en:')
@@ -638,16 +641,15 @@ describe('root cache lookup across two pending generations', () => {
     env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
   })
 
-  it('currently joins both generations without reading the redirected handler key', async () => {
+  it('keeps the initial generation available after a redirected generation completes during the lookup', async () => {
     const id = randomUUID()
     const pathname = `/ca/en/write-failure?id=${id}`
-    // The enclosing cache joins two pending generations of the inner cache:
-    // - The first starts before the wrapper knows the read root param names.
-    // - The second uses the root-specific key while the first write is held.
+    // The lookup reads two keys while different generations are pending. The
+    // generation under the root-specific key completes before the redirected
+    // lookup returns its captured cache miss.
     //
-    // The backend retains stale entries with revalidate: 0. The wrapper must
-    // regenerate those entries before it stores their data in the enclosing
-    // cache.
+    // The retry reads a stale entry. The enclosing cache needs fresh data, so
+    // it must still find the pending generation under the initial key.
     const cache = await createCacheControl(next, {
       keyIncludes: [JSON.stringify(id), JSON.stringify('inner')],
       backend: 'retain-stale',
@@ -676,33 +678,35 @@ describe('root cache lookup across two pending generations', () => {
     try {
       await fill.waitUntilStarted()
       const [initialKey] = (await cache.read()).lookupKeys
+      const initialLookup = await cache.holdNextGet({
+        cacheKey: initialKey,
+      })
       consumer = next.render$(`${pathname}&outer=1`)
-      await waitForCrossRequestJoin(next, id)
+      await initialLookup.waitUntilStarted()
       await fill.release()
       const { cacheKey: specificKey } = await firstValueWrite.waitUntilStarted()
       await firstRedirectWrite.waitUntilCompleted()
       specificProducer = next.render$(pathname)
       await secondValueWrite.waitUntilStarted()
-      const pendingState = await cache.read()
-      expect(pendingState.generatedLanguages).toEqual(['en', 'en'])
-      expect(
-        pendingState.lookupKeys.filter((key) => key === initialKey)
-      ).toHaveLength(1)
-      expect(
-        pendingState.lookupKeys.filter((key) => key === specificKey)
-      ).toHaveLength(1)
-      await firstValueWrite.release()
-      await waitForCrossRequestJoin(next, id, '"lang","en"')
+      const redirectedResponse = await cache.holdNextGetResponse({
+        cacheKey: specificKey,
+      })
+      await initialLookup.release()
+      await redirectedResponse.waitUntilCaptured()
       await secondValueWrite.release()
       await secondValueWrite.waitUntilCompleted()
       await secondRedirectWrite.waitUntilCompleted()
-      const [, specificPage, page] = await Promise.all([
-        initialProducer,
-        specificProducer,
-        consumer,
-      ])
-      expect(page('#value').text()).toBe(specificPage('#value').text())
+      await specificProducer
+      await redirectedResponse.release()
+      await retry(async () => {
+        const { lookupKeys } = await cache.read()
+        expect(lookupKeys.filter((key) => key === specificKey)).toHaveLength(3)
+      })
       expect((await cache.read()).generatedLanguages).toEqual(['en', 'en'])
+      await firstValueWrite.release()
+      const [initialPage, page] = await Promise.all([initialProducer, consumer])
+      expect((await cache.read()).generatedLanguages).toEqual(['en', 'en'])
+      expect(page('#value').text()).toBe(initialPage('#value').text())
       expect(page('#value').text()).toStartWith('en:')
     } finally {
       await cache.releaseAll()
