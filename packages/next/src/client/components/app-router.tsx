@@ -24,6 +24,7 @@ import {
   NavigationPromisesContext,
   type NavigationPromises,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
+import type { Params } from '../../server/request/params'
 import { useActionQueue } from './use-action-queue'
 import { setLastCommittedTree } from './router-reducer/reducers/committed-state'
 import { AppRouterAnnouncer } from './app-router-announcer'
@@ -50,6 +51,10 @@ import DefaultGlobalError from './builtin/global-error'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
 import { getAssetTokenQuery } from '../../shared/lib/deployment-id'
+
+// The params of the root segment. A constant, so that the params of the
+// segments below, which are derived from it, only change with their values.
+const ROOT_PARAMS: Params = {}
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -464,7 +469,7 @@ function Router({
       parentTree: tree,
       parentRenderTree: root.tree,
       parentSegmentPath: null,
-      parentParams: {},
+      parentParams: ROOT_PARAMS,
       parentLoadingData: null,
       // This is the <Activity> "name" that shows up in the Suspense DevTools.
       // It represents the root of the app.
@@ -472,8 +477,6 @@ function Router({
       // Root node always has `url`
       // Provided in AppTreeContext to ensure it can be overwritten in layout-router
       url: canonicalUrl,
-      // Root segment is always active
-      isActive: true,
     }
   }, [tree, root, canonicalUrl])
 

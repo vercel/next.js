@@ -1,7 +1,13 @@
 'use client'
 
 import { Suspense } from 'react'
-import { useParams, usePathname, useSearchParams } from 'next/navigation'
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+  useSelectedLayoutSegments,
+} from 'next/navigation'
 
 type ProbeCounts = { calls: number; renders: number }
 
@@ -74,4 +80,75 @@ function ProbeImpl({ label, segmentParams }: ProbeProps) {
 function RenderCounter({ probeKey }: { probeKey: string }) {
   count(probeKey, 'renders')
   return null
+}
+
+/**
+ * Probes for the hooks that read the segment they are called in rather than
+ * the URL: `useRouter()` and `useSelectedLayoutSegments()`. Each hook has its
+ * own probe, so that the counts tell which hook made a component render.
+ */
+export function SegmentHooksProbe(props: ProbeProps) {
+  return (
+    <Suspense>
+      <RouterProbe {...props} />
+      <SelectedSegmentsProbe {...props} />
+    </Suspense>
+  )
+}
+
+function RouterProbe({ label, segmentParams }: ProbeProps) {
+  const router = useRouter()
+  const key = hookProbeKey('useRouter', label, segmentParams)
+  count(key, 'calls')
+  return (
+    <HookProbeOutput
+      hook="useRouter"
+      label={label}
+      segmentParams={segmentParams}
+      value={router.bfcacheId}
+    />
+  )
+}
+
+function SelectedSegmentsProbe({ label, segmentParams }: ProbeProps) {
+  const segments = useSelectedLayoutSegments()
+  const key = hookProbeKey('useSelectedLayoutSegments', label, segmentParams)
+  count(key, 'calls')
+  return (
+    <HookProbeOutput
+      hook="useSelectedLayoutSegments"
+      label={label}
+      segmentParams={segmentParams}
+      value={segments.join('/')}
+    />
+  )
+}
+
+function hookProbeKey(
+  hook: string,
+  label: string,
+  segmentParams: Record<string, string>
+) {
+  return `${hook}:${label}:${JSON.stringify(segmentParams)}`
+}
+
+// Only renders when React used the output of the component that reads the
+// hook, so it counts `renders`.
+function HookProbeOutput({
+  hook,
+  label,
+  segmentParams,
+  value,
+}: ProbeProps & { hook: string; value: string }) {
+  count(hookProbeKey(hook, label, segmentParams), 'renders')
+  return (
+    <p
+      data-hook-probe={hook}
+      data-label={label}
+      data-segment-params={JSON.stringify(segmentParams)}
+      data-value={value}
+    >
+      {hook} in {label}: {value}
+    </p>
+  )
 }

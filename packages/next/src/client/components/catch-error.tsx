@@ -12,7 +12,7 @@ import { handleISRError } from './handle-isr-error'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import {
   AppRouterContext,
-  LayoutRouterContext,
+  IsRouteActiveContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import { RouterContext as PagesRouterContext } from '../../shared/lib/router-context.shared-runtime'
 
@@ -222,11 +222,8 @@ export function catchError<P extends UserProps>(
     // (where these errors can occur), we will get the correct pathname.
     const pathname = useUntrackedPathname()
     const isPagesRouter = useContext(PagesRouterContext) !== null
-    // There is no layout router in the Pages Router, where routes are never
-    // hidden.
-    const layoutRouterContext = useContext(LayoutRouterContext)
-    const isActive =
-      layoutRouterContext === null ? true : layoutRouterContext.isActive
+    // Always true in the Pages Router, where routes are never hidden.
+    const isActive = useContext(IsRouteActiveContext)
 
     return (
       <CatchError

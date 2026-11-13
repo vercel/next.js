@@ -15,7 +15,8 @@ const MAX_BF_CACHE_ENTRIES = process.env.__NEXT_CACHE_COMPONENTS ? 3 : 1
 
 /**
  * The values that `useParams()`, `usePathname()` and `useSearchParams()` read
- * in the subtree of a bfcache entry.
+ * in the subtree of a bfcache entry, and the URL its layout router context
+ * holds.
  *
  * The active entry gets the router's current values. An inactive entry keeps
  * the values it had when it was last active. Inactive trees then see the
@@ -30,6 +31,7 @@ const MAX_BF_CACHE_ENTRIES = process.env.__NEXT_CACHE_COMPONENTS ? 3 : 1
  * are equal, the entry keeps the same objects and its tree doesn't re-render.
  */
 export type RouterNavigationState = {
+  url: string
   params: Params | null
   pathname: string | null
   searchParams: URLSearchParams | null
@@ -137,12 +139,18 @@ export function useRouterBFCache(
       // haven't increased the size of the cache, and we assume the max size
       // is constant across renders. If we were to change it to a dynamic limit,
       // then the implementation would need to account for that.
+      const oldNavigationState = oldEntry.navigationState
       if (
-        isNavigationStateEqual(oldEntry.navigationState, activeNavigationState)
+        oldNavigationState !== null &&
+        activeNavigationState !== null &&
+        areHookValuesEqual(oldNavigationState, activeNavigationState)
       ) {
         // Navigating back to this entry with the values it was hidden with.
         // Keep the same objects so its subtree doesn't re-render.
-        newActiveEntry.navigationState = oldEntry.navigationState
+        newActiveEntry.navigationState =
+          oldNavigationState.url === activeNavigationState.url
+            ? oldNavigationState
+            : { ...oldNavigationState, url: activeNavigationState.url }
       }
       clonedEntry.next = oldEntry.next
       break
@@ -176,6 +184,14 @@ function isNavigationStateEqual(
   if (a === null || b === null) {
     return false
   }
+  return a.url === b.url && areHookValuesEqual(a, b)
+}
+
+// Whether the hooks that read the navigation state return the same values.
+function areHookValuesEqual(
+  a: RouterNavigationState,
+  b: RouterNavigationState
+): boolean {
   if (
     a.pathname !== b.pathname ||
     !areParamsEqual(a.params, b.params) ||
