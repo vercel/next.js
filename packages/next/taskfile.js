@@ -2478,9 +2478,11 @@ export async function next_compile(task, opts) {
 }
 
 // The Go front server `next start` runs with __NEXT_EXPERIMENTAL_FRONT_SERVER=1
-// (src/server/front, launched by src/server/lib/front-server.ts). The binaries
-// ship in the package, so users don't need Go. Contributors without Go can
-// still build `next`: the task warns and skips locally, and fails in CI.
+// (src/server/front, launched by src/server/lib/front-server.ts). While it is
+// experimental, the binaries are built into dist/server/front only with
+// NEXT_BUILD_FRONT_SERVER=1, so `next` doesn't grow and its build doesn't need
+// Go. The launcher finds them there, or wherever
+// __NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY points (src/server/lib/front-binary.ts).
 const FRONT_SERVER_TARGETS = [
   ['linux', 'amd64'],
   ['linux', 'arm64'],
@@ -2490,6 +2492,9 @@ const FRONT_SERVER_TARGETS = [
 const FRONT_SERVER_MIN_GO = [1, 24]
 
 export async function front_server(task, opts) {
+  if (nodeProcess.env.NEXT_BUILD_FRONT_SERVER !== '1') {
+    return
+  }
   const go = nodeProcess.env.TURBOPACK_GO || 'go'
   const goVersion = await execa(go, ['env', 'GOVERSION'], { reject: false })
   const [major, minor] = (/^go(\d+)\.(\d+)/.exec(goVersion.stdout ?? '') || [])
@@ -2500,12 +2505,9 @@ export async function front_server(task, opts) {
     goVersion.exitCode === 0 &&
     (major > minMajor || (major === minMajor && minor >= minMinor))
   if (!hasGo) {
-    const message = `Go ${minMajor}.${minMinor}+ not found (tried "${go}"; set TURBOPACK_GO to pick another), so the next-front binaries for __NEXT_EXPERIMENTAL_FRONT_SERVER were not built.`
-    if (nodeProcess.env.CI) {
-      throw new Error(message)
-    }
-    console.warn(`warning: ${message}`)
-    return
+    throw new Error(
+      `NEXT_BUILD_FRONT_SERVER=1 needs Go ${minMajor}.${minMinor}+, which wasn't found (tried "${go}"; set TURBOPACK_GO to pick another).`
+    )
   }
 
   const targets = opts.dev

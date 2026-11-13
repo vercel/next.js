@@ -1203,7 +1203,11 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      needsGo: 'yes'
       afterBuild: |
+        # `next` ships no next-front binary yet; build one and pass it in.
+        go build -C packages/next/src/server/front -trimpath -o "$RUNNER_TEMP/next-front" .
+        export __NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY="$RUNNER_TEMP/next-front"
         export __NEXT_EXPERIMENTAL_FRONT_SERVER=1
 
         node scripts/test-routing.mjs --mode=start -g ${{ matrix.group }}

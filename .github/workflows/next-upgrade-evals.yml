@@ -76,13 +76,6 @@ jobs:
         with:
           team: ${{ vars.TURBO_TEAM }}
 
-      # `next`'s build compiles the next-front binaries and fails in CI without Go.
-      - name: Install Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: '1.24.x'
-          cache: false
-
       # Only the package dependency closure is needed. Published SWC bindings
       # installed by pnpm execute in Linux Sandboxes; no Rust build is required.
       - name: Build eval packages

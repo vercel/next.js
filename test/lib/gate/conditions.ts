@@ -183,6 +183,10 @@ export const conditions: Record<string, Condition> = {
     'the test run uses the Turbopack production build (`TURBOPACK_BUILD`)',
     () => Boolean(process.env.TURBOPACK_BUILD)
   ),
+  frontServerBinary: staticCondition(
+    'a next-front build is available through `__NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY` (the test-front-server-prod CI job builds one)',
+    () => Boolean(process.env.__NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY)
+  ),
 
   // Always false, so `// @gate FIXME` marks a test as a known failure without
   // inventing a condition for it. Mirrors the same convention in React's

@@ -1,6 +1,5 @@
 import { spawn } from 'child_process'
 import fs from 'fs'
-import path from 'path'
 import readline from 'readline'
 import type { Readable } from 'stream'
 import * as Log from '../../build/output/log'
@@ -10,6 +9,7 @@ import {
   type StartServerOptions,
   type StartServerResult,
 } from './start-server'
+import { findFrontBinary } from './front-binary'
 import { formatHostname } from './format-hostname'
 import { printAndExit } from './utils'
 
@@ -30,7 +30,15 @@ export function isFrontServerEnabled(): boolean {
 export async function startFrontServer(
   options: StartServerOptions
 ): Promise<StartServerResult> {
-  const binary = getFrontBinary()
+  const binary = findFrontBinary({
+    env: process.env,
+    platform: process.platform,
+    arch: process.arch,
+    exists: fs.existsSync,
+  })
+  if ('error' in binary) {
+    return printAndExit(binary.error, 1)
+  }
   return startServer({
     ...options,
     hostname: '127.0.0.1',
@@ -42,47 +50,13 @@ export async function startFrontServer(
     // above the front's 4 s idle connection timeout.
     keepAliveTimeout: undefined,
     beforeStartLog: (privatePort) =>
-      spawnFront(binary, {
+      spawnFront(binary.path, {
         hostname: options.hostname,
         port: options.port,
         privatePort,
         idleTimeoutMs: options.keepAliveTimeout ?? 5000,
       }),
   })
-}
-
-function getFrontBinary(): string {
-  const goarch = getGoArch(process.arch)
-  if (process.platform === 'win32') {
-    printAndExit(
-      '__NEXT_EXPERIMENTAL_FRONT_SERVER=1 is not supported on Windows yet.',
-      1
-    )
-  }
-  const binary = path.join(
-    __dirname,
-    '..',
-    'front',
-    `next-front-${process.platform}-${goarch ?? process.arch}`
-  )
-  if (!goarch || !fs.existsSync(binary)) {
-    printAndExit(
-      `__NEXT_EXPERIMENTAL_FRONT_SERVER=1 needs the next-front binary for ${process.platform}/${process.arch}, which is missing (expected ${binary}).`,
-      1
-    )
-  }
-  return binary
-}
-
-function getGoArch(arch: string): string | undefined {
-  switch (arch) {
-    case 'x64':
-      return 'amd64'
-    case 'arm64':
-      return 'arm64'
-    default:
-      return undefined
-  }
 }
 
 function spawnFront(

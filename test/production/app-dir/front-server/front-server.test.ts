@@ -1,7 +1,6 @@
 import http from 'http'
 import net from 'net'
 import { createHash, randomBytes } from 'crypto'
-import { Readable } from 'stream'
 import { once } from 'events'
 import WebSocket from 'ws'
 import { nextTestSetup } from 'e2e-utils'
@@ -173,15 +172,14 @@ describe('front-server', () => {
       expect(getHeader(res, 'location')).toBe('/echo/x')
     })
 
-    it.each([
-      { name: 'a malformed escape', target: '/echo/%zz' },
-      // Raw UTF-8 bytes, as some clients send them. Node's HTTP parser
-      // rejects them.
-      { name: 'raw non-ASCII bytes', target: '/echo/é' },
-    ])('rejects $name', async ({ target }) => {
+    // Raw non-ASCII bytes in the target aren't covered here: Node 24.22
+    // rejects them with 400 and Node 20.9 routes them, so today's behavior
+    // depends on the Node version. The front forwards them byte for byte
+    // (packages/next/src/server/front/main_test.go).
+    it('rejects a malformed escape', async () => {
       const res = await rawRequest(
         Number(next.appPort),
-        `GET ${target} HTTP/1.1\r\nHost: localhost:${next.appPort}`
+        `GET /echo/%zz HTTP/1.1\r\nHost: localhost:${next.appPort}`
       )
       expect(res.status).toBe(400)
     })
@@ -197,7 +195,13 @@ describe('front-server', () => {
       const expected = Buffer.concat(chunks)
       const res = await fetch(`${next.url}/echo`, {
         method: 'POST',
-        body: Readable.toWeb(Readable.from(chunks)) as ReadableStream,
+        body: new ReadableStream<Uint8Array>({
+          start(controller) {
+            for (const chunk of chunks)
+              controller.enqueue(new Uint8Array(chunk))
+            controller.close()
+          },
+        }),
         // @ts-expect-error -- required by Node's fetch for a stream body
         duplex: 'half',
       })
@@ -212,7 +216,10 @@ describe('front-server', () => {
 
     it('passes a large body with a content-length', async () => {
       const body = randomBytes(8 * 1024 * 1024)
-      const res = await fetch(`${next.url}/echo`, { method: 'POST', body })
+      const res = await fetch(`${next.url}/echo`, {
+        method: 'POST',
+        body: new Uint8Array(body),
+      })
       const json = await res.json()
       expect(json.headers['content-length']).toBe(String(body.length))
       expect(json.body).toEqual({
@@ -310,7 +317,7 @@ describe('front-server', () => {
         'redirect target'
       )
     })
-    expect(new URL(await browser.url()).pathname).toBe('/action/target')
+    expect(new URL(await browser.url()).pathname).toBe('/action/done')
   })
 
   // A proxy that pools connections to Node must not send a request on one

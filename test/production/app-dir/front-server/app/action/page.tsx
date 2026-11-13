@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 export default function Page() {
   async function go() {
     'use server'
-    redirect('/action/target')
+    redirect('/action/done')
   }
   return (
     <form action={go}>

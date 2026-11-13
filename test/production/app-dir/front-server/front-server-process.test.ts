@@ -51,17 +51,27 @@ describe('front-server process', () => {
 
   function spawnNext(
     command: 'start' | 'dev',
-    { flag, args = [] }: { flag: string | undefined; args?: string[] }
+    {
+      flag,
+      args = [],
+      env: extraEnv = {},
+    }: {
+      flag: string | undefined
+      args?: string[]
+      env?: Readonly<Record<string, string>>
+    }
   ) {
+    // `spawn` leaves out variables whose value is undefined.
     const env: NodeJS.ProcessEnv = {
       ...process.env,
+      // What `next start` sets when NODE_ENV is unset; jest sets it to `test`.
+      NODE_ENV: 'production',
+      PORT: undefined,
       NEXT_TELEMETRY_DISABLED: '1',
       __NEXT_TEST_MODE: 'e2e',
+      [FLAG]: flag,
+      ...extraEnv,
     }
-    delete env.PORT
-    delete env.NODE_ENV
-    delete env[FLAG]
-    if (flag !== undefined) env[FLAG] = flag
 
     const child = spawn(
       process.execPath,
@@ -116,6 +126,12 @@ describe('front-server process', () => {
 
   /** The processes listening on a TCP port, deduplicated. */
   async function listenersOf(port: number): Promise<number[]> {
+    if (process.platform === 'linux') {
+      return (await linuxListeners())
+        .filter((listener) => listener.port === port)
+        .map((listener) => listener.pid)
+        .filter((pid, i, pids) => pids.indexOf(pid) === i)
+    }
     const { stdout } = await execFileAsync('lsof', [
       '-nP',
       `-iTCP:${port}`,
@@ -127,6 +143,15 @@ describe('front-server process', () => {
 
   /** The addresses a process listens on, like `127.0.0.1:51234` or `*:3000`. */
   async function listenAddressesOf(pid: number): Promise<string[]> {
+    if (process.platform === 'linux') {
+      return [
+        ...new Set(
+          (await linuxListeners())
+            .filter((listener) => listener.pid === pid)
+            .map((listener) => `${listener.host}:${listener.port}`)
+        ),
+      ]
+    }
     const { stdout } = await execFileAsync('lsof', [
       '-nP',
       '-a',
@@ -187,59 +212,22 @@ describe('front-server process', () => {
     })
   })
 
-  describe(`with ${FLAG}=1`, () => {
-    it('puts next-front on the public port and Node on 127.0.0.1', async () => {
-      const { child, port } = await startNext({ flag: '1' })
-      const front = await frontOf(child.pid!)
-      expect(await listenersOf(port)).toEqual([front])
-
-      const nodeAddresses = await listenAddressesOf(child.pid!)
-      expect(nodeAddresses).toHaveLength(1)
-      expect(nodeAddresses[0]).toMatch(/^127\.0\.0\.1:\d+$/)
-      expect(nodeAddresses[0]).not.toBe(`127.0.0.1:${port}`)
-
-      const { status, text } = await getText(port)
-      expect(status).toBe(200)
-      expect(text).toContain('hello world')
+  it('fails clearly when it finds no next-front binary', async () => {
+    const missing = path.join(next.testDir, 'no-such-next-front')
+    const { exit, output } = spawnNext('start', {
+      flag: '1',
+      args: ['-p', '0'],
+      env: { __NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY: missing },
     })
-
-    it('exits 1 when next-front dies', async () => {
-      const { child, exit } = await startNext({ flag: '1' })
-      process.kill(await frontOf(child.pid!), 'SIGKILL')
-      expect(await exit).toEqual({ code: 1, signal: null })
-    })
-
-    it('stops next-front when Node dies', async () => {
-      const { child, exit } = await startNext({ flag: '1' })
-      const front = await frontOf(child.pid!)
-      process.kill(child.pid!, 'SIGKILL')
-      await exit
-      await retry(() => expect(isAlive(front)).toBe(false), 5_000, 100)
-    })
-
-    it('fails clearly when the next-front binary is missing', async () => {
-      const frontDir = path.join(
-        next.testDir,
-        'node_modules/next/dist/server/front'
-      )
-      const moved = `${frontDir}.moved`
-      await fs.rename(frontDir, moved)
-      try {
-        const { exit, output } = spawnNext('start', {
-          flag: '1',
-          args: ['-p', '0'],
-        })
-        expect(await exit).toEqual({ code: 1, signal: null })
-        expect(output()).toContain('next-front binary')
-        expect(output()).not.toContain('Ready in')
-      } finally {
-        await fs.rename(moved, frontDir)
-      }
-    })
+    expect(await exit).toEqual({ code: 1, signal: null })
+    expect(output()).toContain(
+      `__NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY points at ${missing}, which doesn't exist`
+    )
+    expect(output()).not.toContain('Ready in')
   })
 
   // Behavior that must not change when the front is on.
-  describe.each([undefined, '1'])(`with ${FLAG}=%p`, (flag) => {
+  function unchangedBehavior(flag: string | undefined) {
     it('exits 143 on SIGTERM', async () => {
       const { child, port, exit } = await startNext({ flag })
       expect(await getText(port)).toMatchObject({ status: 200 })
@@ -275,7 +263,7 @@ describe('front-server process', () => {
       const blocker = net.createServer()
       blocker.listen(0)
       await once(blocker, 'listening')
-      const { port } = blocker.address() as net.AddressInfo
+      const port = portOf(blocker)
       try {
         const { exit, output } = spawnNext('start', {
           flag,
@@ -298,6 +286,46 @@ describe('front-server process', () => {
       expect(idle).toBeGreaterThan(1500)
       expect(idle).toBeLessThan(4000)
     })
+  }
+
+  describe(`with ${FLAG} unset`, () => {
+    unchangedBehavior(undefined)
+  })
+
+  // Needs a next-front build. `next` ships none unless built with
+  // NEXT_BUILD_FRONT_SERVER=1, so this runs where the binary is passed in.
+  // @force-gate frontServerBinary
+  describe(`with ${FLAG}=1`, () => {
+    it('puts next-front on the public port and Node on 127.0.0.1', async () => {
+      const { child, port } = await startNext({ flag: '1' })
+      const front = await frontOf(child.pid!)
+      expect(await listenersOf(port)).toEqual([front])
+
+      const nodeAddresses = await listenAddressesOf(child.pid!)
+      expect(nodeAddresses).toHaveLength(1)
+      expect(nodeAddresses[0]).toMatch(/^127\.0\.0\.1:\d+$/)
+      expect(nodeAddresses[0]).not.toBe(`127.0.0.1:${port}`)
+
+      const { status, text } = await getText(port)
+      expect(status).toBe(200)
+      expect(text).toContain('hello world')
+    })
+
+    it('exits 1 when next-front dies', async () => {
+      const { child, exit } = await startNext({ flag: '1' })
+      process.kill(await frontOf(child.pid!), 'SIGKILL')
+      expect(await exit).toEqual({ code: 1, signal: null })
+    })
+
+    it('stops next-front when Node dies', async () => {
+      const { child, exit } = await startNext({ flag: '1' })
+      const front = await frontOf(child.pid!)
+      process.kill(child.pid!, 'SIGKILL')
+      await exit
+      await retry(() => expect(isAlive(front)).toBe(false), 5_000, 100)
+    })
+
+    unchangedBehavior('1')
   })
 
   it('next dev ignores the variable', async () => {
@@ -316,11 +344,19 @@ describe('front-server process', () => {
   })
 })
 
+function portOf(server: net.Server): number {
+  const address = server.address()
+  if (address === null || typeof address === 'string') {
+    throw new Error(`not listening on a TCP port: ${address}`)
+  }
+  return address.port
+}
+
 async function getFreePort(): Promise<number> {
   const server = net.createServer()
   server.listen(0)
   await once(server, 'listening')
-  const { port } = server.address() as net.AddressInfo
+  const port = portOf(server)
   server.close()
   await once(server, 'close')
   return port
@@ -338,4 +374,52 @@ async function measureIdleClose(port: number): Promise<number> {
   )
   await once(socket, 'close')
   return Date.now() - lastData
+}
+
+type LinuxListener = { pid: number; host: string; port: number }
+
+/**
+ * Listening TCP sockets of this user's processes, read from /proc. CI's Linux
+ * runners have no lsof. /proc/net/tcp{,6} map each listening socket's inode
+ * to its address; /proc/<pid>/fd links (`socket:[inode]`) map it to a process.
+ */
+async function linuxListeners(): Promise<LinuxListener[]> {
+  const sockets = new Map<string, { host: string; port: number }>()
+  for (const file of ['/proc/net/tcp', '/proc/net/tcp6']) {
+    // tcp6 is missing when IPv6 is disabled.
+    const text = await fs.readFile(file, 'utf8').catch(() => '')
+    const lines = text.split('\n').slice(1)
+    for (const line of lines) {
+      const fields = line.trim().split(/\s+/)
+      // fields[3] is the state; 0A is LISTEN.
+      if (fields.length < 10 || fields[3] !== '0A') continue
+      const [hexHost, hexPort] = fields[1].split(':')
+      sockets.set(fields[9], {
+        host: formatProcHost(hexHost),
+        port: parseInt(hexPort, 16),
+      })
+    }
+  }
+
+  const listeners: LinuxListener[] = []
+  for (const entry of await fs.readdir('/proc')) {
+    if (!/^\d+$/.test(entry)) continue
+    const fds = await fs.readdir(`/proc/${entry}/fd`).catch(() => [])
+    for (const fd of fds) {
+      const link = await fs.readlink(`/proc/${entry}/fd/${fd}`).catch(() => '')
+      const socket = sockets.get(/^socket:\[(\d+)\]$/.exec(link)?.[1] ?? '')
+      if (socket) listeners.push({ pid: Number(entry), ...socket })
+    }
+  }
+  return listeners
+}
+
+/** `0100007F` → `127.0.0.1`; an all-zero address (any IPv4 or IPv6) → `*`. */
+function formatProcHost(hex: string): string {
+  if (/^0+$/.test(hex)) return '*'
+  if (hex.length === 8) {
+    // IPv4, stored little-endian.
+    return [6, 4, 2, 0].map((i) => parseInt(hex.slice(i, i + 2), 16)).join('.')
+  }
+  return `[${hex}]`
 }

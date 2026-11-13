@@ -36,6 +36,10 @@ on:
         required: false
         description: 'if nextest rust dep is needed'
         type: string
+      needsGo:
+        required: false
+        description: 'if Go is needed, e.g. to build next-front (packages/next/src/server/front)'
+        type: string
       needsRustJsInstall:
         required: false
         description: 'if Rust JS dependencies should be installed'
@@ -316,9 +320,8 @@ jobs:
       - name: Wait for Rust toolchain
         wait: install-rust
 
-      # `pnpm build` compiles the next-front binaries (packages/next/src/server/front)
-      # and fails in CI without Go. The native bundle tests need Go too.
       - name: Install Go
+        if: ${{ inputs.needsNextest == 'yes' || inputs.needsGo == 'yes' }}
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.24.x'
