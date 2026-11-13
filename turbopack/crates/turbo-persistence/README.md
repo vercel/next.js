@@ -437,8 +437,9 @@ Bottom merges are paced by the fresh (not yet compacted) files of the family: th
   reads in file access mode. Either way, its block-offset table (4 bytes per block) is read with one
   positional read (`pread`) and decoded in place. It is validated once (every block holds at least
   its header and ends before the table) and kept in memory, so locating a block neither reads the
-  file nor re-checks the offsets. The index block is read the same way, verified, and kept in memory
-  for every lookup. Blob files are read when a value references them.
+  file nor re-checks the offsets. The validation is exposed as `static_sorted_file::BlockOffsets`,
+  which the `sst_inspect` tool uses as well. The index block is read the same way, verified, and
+  kept in memory for every lookup. Blob files are read when a value references them.
 
 ## Closing
 
