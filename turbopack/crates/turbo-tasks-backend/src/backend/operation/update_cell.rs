@@ -632,7 +632,7 @@ mod invalidate_cell_dependents_tests {
             cell_ref().cell,
             task(DEPENDENT),
             0,
-            &mut [1u64].into_iter(),
+            [1u64],
             &tt,
         );
 

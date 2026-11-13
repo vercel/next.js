@@ -23,7 +23,7 @@ use auto_hash_map::AutoMap;
 use bincode::{Decode, Encode};
 use either::Either;
 use futures::FutureExt;
-use rustc_hash::{FxBuildHasher, FxHasher};
+use rustc_hash::{FxBuildHasher, FxHashSet, FxHasher};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tokio::{select, sync::mpsc::Receiver, task_local};
@@ -160,7 +160,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         index: CellId,
         reader: TaskId,
         id: u32,
-        key_hashes: &mut dyn Iterator<Item = u64>,
+        key_hashes: &FxHashSet<u64>,
     );
 
     /// Reads a [`RawVcUnpacked::LocalOutput`][crate::RawVcUnpacked::LocalOutput]. If the task has
@@ -2214,10 +2214,16 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         index: CellId,
         reader: TaskId,
         id: u32,
-        key_hashes: &mut dyn Iterator<Item = u64>,
+        key_hashes: &FxHashSet<u64>,
     ) {
-        self.backend
-            .refine_provisional_cell_dependency(task, index, reader, id, key_hashes, self)
+        self.backend.refine_provisional_cell_dependency(
+            task,
+            index,
+            reader,
+            id,
+            key_hashes.iter().copied(),
+            self,
+        )
     }
 
     fn try_read_own_task_cell(

@@ -3,6 +3,8 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
+use rustc_hash::FxHashSet;
+
 use crate::{
     CellId, ReadRef, TaskId,
     manager::{ProvisionalReadDependency, with_turbo_tasks},
@@ -88,7 +90,7 @@ where
                 index,
                 dependency.reader,
                 dependency.id,
-                &mut std::iter::empty(),
+                &FxHashSet::default(),
             )
         });
     }
