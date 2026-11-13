@@ -1,5 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// Windows reports SIGKILL as exit code 1 rather than a signal.
+const workerKillMessage =
+  process.platform === 'win32'
+    ? 'Next.js build worker exited with code: 1 and signal: null'
+    : 'Next.js build worker exited with code: null and signal: SIGKILL'
+
 describe.each([
   ['child processes', false],
   ['worker threads', true],
@@ -32,9 +38,8 @@ describe.each([
     const $ = await next.render$('/crash-once')
     expect($('#crash-once').text()).toBe('survived')
     if (!workerThreads) {
-      expect(next.cliOutput).toContain(
-        'Next.js build worker exited with code: null and signal: SIGKILL'
-      )
+      expect(next.cliOutput).toContain(workerKillMessage)
+      expect(next.cliOutput.split(workerKillMessage)).toHaveLength(2)
       expect(next.cliOutput).toMatch(
         /Retrying \d+ page\(s\) from a crashed build worker one at a time: .*\/crash-once/
       )

@@ -1,6 +1,12 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 
+// Windows reports SIGKILL as exit code 1 rather than a signal.
+const workerKillMessage =
+  process.platform === 'win32'
+    ? 'Next.js build worker exited with code: 1 and signal: null'
+    : 'Next.js build worker exited with code: null and signal: SIGKILL'
+
 describe('worker-restart', () => {
   describe('timeout', () => {
     const { next } = nextTestSetup({
@@ -48,10 +54,9 @@ describe('worker-restart', () => {
     })
 
     it('should fail the build if a worker process is killed', async () => {
-      const { cliOutput } = await next.build()
-      expect(cliOutput).toContain(
-        'Next.js build worker exited with code: null and signal: SIGKILL'
-      )
+      const { cliOutput, exitCode } = await next.build()
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain(workerKillMessage)
     })
   })
 
@@ -156,12 +161,11 @@ describe('worker-restart', () => {
       it('should retry a page that kills its worker, then fail the build', async () => {
         const { cliOutput, exitCode } = await next.build()
         expect(exitCode).not.toBe(0)
-        expect(cliOutput).toContain(
-          'Next.js build worker exited with code: null and signal: SIGKILL'
-        )
+        expect(cliOutput).toContain(workerKillMessage)
         expect(cliOutput).toContain(
           'Static generation failed: rendering "/bad-page" crashed the build worker 3 times.'
         )
+        expect(cliOutput.split(workerKillMessage)).toHaveLength(4)
       })
     })
   })

@@ -1055,7 +1055,13 @@ export function createStaticWorker(
           // A crashed or recycled worker is restarted and its pages retried,
           // instead of failing the build.
           recoverFromWorkerExit: {
-            recoverableExitCodes: RECOVERABLE_EXIT_CODES,
+            // Windows reports SIGKILL as code 1 with no signal, just like
+            // process.exit(1). Only adaptive mode retries these ambiguous
+            // exits, with the same bounded retries as other worker crashes.
+            recoverableExitCodes:
+              process.platform === 'win32'
+                ? new Set([...RECOVERABLE_EXIT_CODES, 1])
+                : RECOVERABLE_EXIT_CODES,
           },
         }
       : undefined),
